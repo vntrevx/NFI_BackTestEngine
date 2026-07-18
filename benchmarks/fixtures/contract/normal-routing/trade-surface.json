@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "ETH/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1641254400000,
+      "close_timestamp_ms": 1641255300000,
+      "open_rate": "3760",
+      "close_rate": "3900",
+      "amount": "0.05",
+      "stake_amount": "62.6666666667",
+      "max_stake_amount": "62.6666666667",
+      "leverage": "3",
+      "entry_tag": "contract_normal_entry",
+      "exit_reason": "exit_signal",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": "0.094",
+        "open_currency": "USDT",
+        "close_rate": "0.0005",
+        "close_cost": "0.09525",
+        "close_currency": "USDT",
+        "funding": "-0.0432"
+      },
+      "profit": {
+        "absolute": "6.76755",
+        "ratio": "0.10799"
+      },
+      "liquidation_price": "2506.6666666667",
+      "initial_stop_loss": "3384",
+      "stop_loss": "3700",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1641254400000,
+          "amount": "0.03",
+          "price": "3800",
+          "cost": "114",
+          "tag": "contract_normal_entry"
+        },
+        {
+          "sequence": 1,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1641254700000,
+          "amount": "0.02",
+          "price": "3700",
+          "cost": "74",
+          "tag": "contract_rebuy_1"
+        },
+        {
+          "sequence": 2,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1641255000000,
+          "amount": "0.01",
+          "price": "3850",
+          "cost": "38.5",
+          "tag": "contract_derisk_1"
+        },
+        {
+          "sequence": 3,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1641255300000,
+          "amount": "0.04",
+          "price": "3900",
+          "cost": "156",
+          "tag": "exit_signal"
+        }
+      ]
+    }
+  ]
+}

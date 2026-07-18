@@ -1,0 +1,102 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "freqtrade-2026.5.1-stops-only-spot-2025-01-01_04",
+  "description": "Captured Freqtrade 2026.5.1 spot stops-only reference with exact state trace",
+  "fixture_kind": "stops-only",
+  "evidence_status": "captured",
+  "created_at": "2026-07-17T22:13:29.337312Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.0.0",
+    "exchange": "binance",
+    "strategy": "ContractStopsOnly",
+    "timerange": "20250101-20250104",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": null,
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "ContractStopsOnly",
+      "--datadir",
+      "inputs/candles",
+      "--timerange",
+      "20250101-20250104",
+      "--fee",
+      "0.001",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "a7cc43ebc4f92cf1c8e99136583874c5c55f994e12ba8d1a722fc95db4ccaa07",
+      "bytes": 1253
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "6f18d964ede1f3bef11cf0153c17d42ffd132586af4bd72e3f09754416b12dc3",
+      "bytes": 1117
+    },
+    {
+      "role": "candles",
+      "path": "inputs/candles/BTC_USDT-5m.feather",
+      "sha256": "e5460a3957a4ced1f7ac8eefe324a7468b10a686e7f60d90651dfe0b45a5ee7c",
+      "bytes": 44826
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/markets.json",
+      "sha256": "f6cc81fc15a3d8652c5736668dfa2b183b97b0a32424d867553821394d8ff58f",
+      "bytes": 10572
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "f9ca03f5d2e805b1f2653d89fb6ee2fdabe683abe79444545dfd7971cb8d0e08",
+      "bytes": 34100
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "8dee1deb9510e7114be6f2f7a50adfc9ebd95e2c589ffeda213f5468389f485c",
+      "bytes": 4133
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "ee7f15ed47b30f498351bc8eb41388843f67bf17ccdb60fec081355c0ed4f0c4",
+      "bytes": 7764813
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "8ee8a25a43f2d005bdbe3574d88195c43ecae965975f33f82a5a4c83080098e0",
+      "bytes": 451856
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

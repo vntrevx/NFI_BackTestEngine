@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "crates/nfi-sim-core",
+    "crates/nfi-sim-cli",
+    "crates/nfi-py",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.79"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"

@@ -1,0 +1,429 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/trade-surface-v2.json",
+  "title": "NFI exact normalized trade surface v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "strategy",
+    "context",
+    "summary",
+    "locks",
+    "trades"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "strategy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "context": {
+      "$ref": "#/$defs/context"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "locks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lock"
+      }
+    },
+    "trades": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/trade"
+      }
+    }
+  },
+  "$defs": {
+    "decimal": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$"
+    },
+    "nullable_decimal": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/decimal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_string": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trading_mode",
+        "margin_mode",
+        "timeframe",
+        "timeframe_detail",
+        "timerange"
+      ],
+      "properties": {
+        "trading_mode": {
+          "enum": [
+            "spot",
+            "futures"
+          ]
+        },
+        "margin_mode": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "timeframe": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeframe_detail": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "timerange": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_trades",
+        "starting_balance",
+        "final_balance",
+        "profit_total_abs",
+        "total_volume",
+        "rejected_signals",
+        "timedout_entry_orders",
+        "timedout_exit_orders",
+        "canceled_trade_entries",
+        "canceled_entry_orders",
+        "replaced_entry_orders",
+        "max_open_trades"
+      ],
+      "properties": {
+        "total_trades": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "starting_balance": {
+          "$ref": "#/$defs/decimal"
+        },
+        "final_balance": {
+          "$ref": "#/$defs/decimal"
+        },
+        "profit_total_abs": {
+          "$ref": "#/$defs/decimal"
+        },
+        "total_volume": {
+          "$ref": "#/$defs/decimal"
+        },
+        "rejected_signals": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timedout_entry_orders": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timedout_exit_orders": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "canceled_trade_entries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "canceled_entry_orders": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replaced_entry_orders": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_open_trades": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "pair",
+        "side",
+        "lock_timestamp_ms",
+        "lock_end_timestamp_ms",
+        "reason",
+        "active"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pair": {
+          "type": "string",
+          "minLength": 1
+        },
+        "side": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lock_timestamp_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lock_end_timestamp_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "side",
+        "is_entry",
+        "filled_timestamp_ms",
+        "amount",
+        "price",
+        "cost",
+        "tag"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "side": {
+          "enum": [
+            "buy",
+            "sell"
+          ]
+        },
+        "is_entry": {
+          "type": "boolean"
+        },
+        "filled_timestamp_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "amount": {
+          "$ref": "#/$defs/decimal"
+        },
+        "price": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "cost": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "tag": {
+          "$ref": "#/$defs/nullable_string"
+        }
+      }
+    },
+    "fees": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_rate",
+        "open_cost",
+        "open_currency",
+        "close_rate",
+        "close_cost",
+        "close_currency",
+        "funding"
+      ],
+      "properties": {
+        "open_rate": {
+          "$ref": "#/$defs/decimal"
+        },
+        "open_cost": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "open_currency": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "close_rate": {
+          "$ref": "#/$defs/decimal"
+        },
+        "close_cost": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "close_currency": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "funding": {
+          "$ref": "#/$defs/nullable_decimal"
+        }
+      }
+    },
+    "profit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "absolute",
+        "ratio"
+      ],
+      "properties": {
+        "absolute": {
+          "$ref": "#/$defs/decimal"
+        },
+        "ratio": {
+          "$ref": "#/$defs/decimal"
+        }
+      }
+    },
+    "trade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "pair",
+        "direction",
+        "open_timestamp_ms",
+        "close_timestamp_ms",
+        "open_rate",
+        "close_rate",
+        "amount",
+        "stake_amount",
+        "max_stake_amount",
+        "leverage",
+        "entry_tag",
+        "exit_reason",
+        "fees",
+        "profit",
+        "liquidation_price",
+        "initial_stop_loss",
+        "stop_loss",
+        "orders",
+        "duration_minutes",
+        "is_open",
+        "minimum_rate",
+        "maximum_rate",
+        "initial_stop_loss_ratio",
+        "stop_loss_ratio",
+        "weekday"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pair": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "enum": [
+            "long",
+            "short"
+          ]
+        },
+        "open_timestamp_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "close_timestamp_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_rate": {
+          "$ref": "#/$defs/decimal"
+        },
+        "close_rate": {
+          "$ref": "#/$defs/decimal"
+        },
+        "amount": {
+          "$ref": "#/$defs/decimal"
+        },
+        "stake_amount": {
+          "$ref": "#/$defs/decimal"
+        },
+        "max_stake_amount": {
+          "$ref": "#/$defs/decimal"
+        },
+        "leverage": {
+          "$ref": "#/$defs/decimal"
+        },
+        "entry_tag": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "exit_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fees": {
+          "$ref": "#/$defs/fees"
+        },
+        "profit": {
+          "$ref": "#/$defs/profit"
+        },
+        "liquidation_price": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "initial_stop_loss": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "stop_loss": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "orders": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/order"
+          }
+        },
+        "duration_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "is_open": {
+          "type": "boolean"
+        },
+        "minimum_rate": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "maximum_rate": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "initial_stop_loss_ratio": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "stop_loss_ratio": {
+          "$ref": "#/$defs/nullable_decimal"
+        },
+        "weekday": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        }
+      }
+    }
+  }
+}

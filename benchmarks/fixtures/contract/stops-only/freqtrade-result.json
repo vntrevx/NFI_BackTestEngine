@@ -1,0 +1,63 @@
+{
+  "strategy": {
+    "ContractStopsOnly": {
+      "trades": [
+        {
+          "pair": "BTC/USDT:USDT",
+          "is_short": false,
+          "open_timestamp": 1641168000000,
+          "open_date": "2022-01-03T00:00:00Z",
+          "close_timestamp": 1641168900000,
+          "close_date": "2022-01-03T00:15:00Z",
+          "open_rate": 47000.0,
+          "close_rate": 44650.0,
+          "amount": 0.002,
+          "stake_amount": 94.0,
+          "max_stake_amount": 94.0,
+          "leverage": 1.0,
+          "enter_tag": "contract_entry",
+          "exit_reason": "stop_loss",
+          "fee_open": 0.001,
+          "fee_open_cost": 0.094,
+          "fee_open_currency": "USDT",
+          "fee_close": 0.001,
+          "fee_close_cost": 0.0893,
+          "fee_close_currency": "USDT",
+          "funding_fees": 0.0,
+          "profit_abs": -4.8833,
+          "profit_ratio": -0.05195,
+          "liquidation_price": null,
+          "initial_stop_loss_abs": 44650.0,
+          "stop_loss_abs": 44650.0,
+          "orders": [
+            {
+              "ft_order_side": "buy",
+              "ft_is_entry": true,
+              "order_filled_timestamp": 1641168000000,
+              "order_filled_date": "2022-01-03T00:00:00Z",
+              "amount": 0.002,
+              "safe_price": 47000.0,
+              "cost": 94.0,
+              "order_tag": "contract_entry",
+              "order_type": "market",
+              "status": "closed"
+            },
+            {
+              "ft_order_side": "sell",
+              "ft_is_entry": false,
+              "order_filled_timestamp": 1641168900000,
+              "order_filled_date": "2022-01-03T00:15:00Z",
+              "amount": 0.002,
+              "safe_price": 44650.0,
+              "cost": 89.3,
+              "order_tag": "stop_loss",
+              "order_type": "market",
+              "status": "closed"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+

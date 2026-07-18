@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/benchmark-fixture-v1.json",
+  "title": "NFI Freqtrade benchmark fixture manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "description",
+    "fixture_kind",
+    "evidence_status",
+    "created_at",
+    "freqtrade",
+    "inputs",
+    "artifacts",
+    "measurement"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "fixture_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fixture_kind": {
+      "enum": ["stops-only", "normal-routing"]
+    },
+    "evidence_status": {
+      "enum": ["contract-only", "captured"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "freqtrade": {
+      "$ref": "#/$defs/freqtrade"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/input_file"
+      }
+    },
+    "artifacts": {
+      "$ref": "#/$defs/artifacts"
+    },
+    "measurement": {
+      "$ref": "#/$defs/measurement"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256", "bytes"],
+      "properties": {
+        "role": {
+          "enum": [
+                "strategy",
+                "config",
+                "candles",
+                "detail_candles",
+                "informative_candles",
+                "funding_candles",
+                "mark_candles",
+                "pairlist",
+                "auxiliary"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freqtrade_result", "trade_surface"],
+      "properties": {
+        "freqtrade_result": {
+          "$ref": "#/$defs/file"
+        },
+        "trade_surface": {
+          "$ref": "#/$defs/file"
+        }
+      }
+    },
+    "freqtrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "exchange",
+        "strategy",
+        "timerange",
+        "timeframe",
+        "timeframe_detail",
+        "trading_mode",
+        "margin_mode",
+        "command"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strategy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exchange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timerange": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeframe": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeframe_detail": {
+          "type": ["string", "null"]
+        },
+        "trading_mode": {
+          "enum": ["spot", "futures"]
+        },
+        "margin_mode": {
+          "type": ["string", "null"]
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warmup_runs",
+        "measured_runs",
+        "poll_interval_ms",
+        "required_profile_phases"
+      ],
+      "properties": {
+        "warmup_runs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "measured_runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "poll_interval_ms": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000
+        },
+        "required_profile_phases": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "indicators",
+              "callbacks",
+              "trade_scans",
+              "event_simulation"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
