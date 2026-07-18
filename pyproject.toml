@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nfi-backtest-engine"
+version = "0.1.0"
+description = "Exact-parity research backtesting infrastructure for NFI strategies"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "blake3>=1.0,<2",
+    "jsonschema>=4.20,<5",
+    "polars>=1.0,<2",
+    "psutil>=5.9,<8",
+]
+
+[project.optional-dependencies]
+benchmark = [
+]
+dev = [
+    "pytest>=8,<10",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+nfi-bte = "nfi_backtest_engine.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "python"}
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.setuptools.package-data]
+nfi_backtest_engine = ["schemas/*.json"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+pythonpath = ["python"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -1,0 +1,87 @@
+{
+  "strategy": {
+    "ContractNormalRouting": {
+      "trades": [
+        {
+          "pair": "ETH/USDT:USDT",
+          "is_short": false,
+          "open_timestamp": 1641254400000,
+          "open_date": "2022-01-04T00:00:00Z",
+          "close_timestamp": 1641255300000,
+          "close_date": "2022-01-04T00:15:00Z",
+          "open_rate": 3760.0,
+          "close_rate": 3900.0,
+          "amount": 0.05,
+          "stake_amount": 62.6666666667,
+          "max_stake_amount": 62.6666666667,
+          "leverage": 3.0,
+          "enter_tag": "contract_normal_entry",
+          "exit_reason": "exit_signal",
+          "fee_open": 0.0005,
+          "fee_open_cost": 0.094,
+          "fee_open_currency": "USDT",
+          "fee_close": 0.0005,
+          "fee_close_cost": 0.09525,
+          "fee_close_currency": "USDT",
+          "funding_fees": -0.0432,
+          "profit_abs": 6.76755,
+          "profit_ratio": 0.10799,
+          "liquidation_price": 2506.6666666667,
+          "initial_stop_loss_abs": 3384.0,
+          "stop_loss_abs": 3700.0,
+          "orders": [
+            {
+              "ft_order_side": "buy",
+              "ft_is_entry": true,
+              "order_filled_timestamp": 1641254400000,
+              "order_filled_date": "2022-01-04T00:00:00Z",
+              "amount": 0.03,
+              "safe_price": 3800.0,
+              "cost": 114.0,
+              "order_tag": "contract_normal_entry",
+              "order_type": "limit",
+              "status": "closed"
+            },
+            {
+              "ft_order_side": "buy",
+              "ft_is_entry": true,
+              "order_filled_timestamp": 1641254700000,
+              "order_filled_date": "2022-01-04T00:05:00Z",
+              "amount": 0.02,
+              "safe_price": 3700.0,
+              "cost": 74.0,
+              "order_tag": "contract_rebuy_1",
+              "order_type": "limit",
+              "status": "closed"
+            },
+            {
+              "ft_order_side": "sell",
+              "ft_is_entry": false,
+              "order_filled_timestamp": 1641255000000,
+              "order_filled_date": "2022-01-04T00:10:00Z",
+              "amount": 0.01,
+              "safe_price": 3850.0,
+              "cost": 38.5,
+              "order_tag": "contract_derisk_1",
+              "order_type": "limit",
+              "status": "closed"
+            },
+            {
+              "ft_order_side": "sell",
+              "ft_is_entry": false,
+              "order_filled_timestamp": 1641255300000,
+              "order_filled_date": "2022-01-04T00:15:00Z",
+              "amount": 0.04,
+              "safe_price": 3900.0,
+              "cost": 156.0,
+              "order_tag": "exit_signal",
+              "order_type": "market",
+              "status": "closed"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+

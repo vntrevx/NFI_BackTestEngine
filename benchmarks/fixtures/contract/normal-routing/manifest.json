@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "contract-normal-routing-v1",
+  "description": "Synthetic normal-routing contract example; not Freqtrade evidence",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "contract-only",
+  "created_at": "2026-07-18T00:00:00+09:00",
+  "freqtrade": {
+    "version": "contract-only",
+    "exchange": "contract",
+    "strategy": "ContractNormalRouting",
+    "timerange": "20220104-20220105",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "python",
+      "-c",
+      "raise SystemExit('contract-only fixture is not runnable')"
+    ]
+  },
+  "inputs": [],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "freqtrade-result.json",
+      "sha256": "da8a847abb935f8573eea3ce35811fa0acf129aa67fcb0feafc618561677bb54",
+      "bytes": 2833
+    },
+    "trade_surface": {
+      "path": "trade-surface.json",
+      "sha256": "ee69bd8c562ca26ac53d1a4ffaee305d0139b182d004db02279eeb58d129f61c",
+      "bytes": 2013
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 50,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

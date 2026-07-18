@@ -1,0 +1,9 @@
+* text=auto
+
+# Frozen fixture bytes are part of the benchmark identity.
+/benchmarks/fixtures/** -text
+/benchmarks/fixtures/** whitespace=-trailing-space
+
+*.zip binary
+*.feather binary
+*.parquet binary

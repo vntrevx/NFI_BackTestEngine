@@ -1,0 +1,148 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "ContractStopsOnly",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250101-20250104"
+  },
+  "summary": {
+    "total_trades": 2,
+    "starting_balance": "1000",
+    "final_balance": "1004.53034361",
+    "profit_total_abs": "4.53034361",
+    "total_volume": "403.19828298749997",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1735691100000,
+      "close_timestamp_ms": 1735722600000,
+      "open_rate": "93740",
+      "close_rate": "93271.3",
+      "amount": "0.00106",
+      "stake_amount": "99.3644",
+      "max_stake_amount": "99.3644",
+      "leverage": "1",
+      "entry_tag": "contract_stop",
+      "exit_reason": "stop_loss",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-0.69505398",
+        "ratio": "-0.006988012008119813"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "93271.3",
+      "stop_loss": "93271.3",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735691100000,
+          "amount": "0.00106",
+          "price": "93740",
+          "cost": "99.46376439999999",
+          "tag": "contract_stop"
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735722600000,
+          "amount": "0.00106",
+          "price": "93271.3",
+          "cost": "98.96644557799998",
+          "tag": "stop_loss"
+        }
+      ],
+      "duration_minutes": 525,
+      "is_open": false,
+      "minimum_rate": "93217.93",
+      "maximum_rate": "94509.42",
+      "initial_stop_loss_ratio": "-0.005",
+      "stop_loss_ratio": "-0.005",
+      "weekday": 2
+    },
+    {
+      "sequence": 1,
+      "pair": "BTC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1735724400000,
+      "close_timestamp_ms": 1735948500000,
+      "open_rate": "93053.06",
+      "close_rate": "98127.79",
+      "amount": "0.00107",
+      "stake_amount": "99.5667742",
+      "max_stake_amount": "99.5667742",
+      "leverage": "1",
+      "entry_tag": "contract_stop",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "5.22539759",
+        "ratio": "0.052428909689306906"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "92587.8",
+      "stop_loss": "92587.8",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735724400000,
+          "amount": "0.00107",
+          "price": "93053.06",
+          "cost": "99.66634097419998",
+          "tag": "contract_stop"
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735948500000,
+          "amount": "0.00107",
+          "price": "98127.79",
+          "cost": "105.10173203529999",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 3735,
+      "is_open": false,
+      "minimum_rate": "93001",
+      "maximum_rate": "98976.91",
+      "initial_stop_loss_ratio": "-0.005",
+      "stop_loss_ratio": "-0.005",
+      "weekday": 4
+    }
+  ]
+}

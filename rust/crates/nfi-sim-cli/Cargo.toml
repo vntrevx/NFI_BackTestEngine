@@ -1,0 +1,17 @@
+[package]
+name = "nfi-sim-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nfi-sim"
+path = "src/main.rs"
+
+[dependencies]
+nfi-sim-core = { path = "../nfi-sim-core" }
+serde_json = "1"
+
+[lints]
+workspace = true
