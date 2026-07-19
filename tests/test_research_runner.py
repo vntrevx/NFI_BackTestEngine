@@ -11,12 +11,29 @@ from nfi_backtest_engine.fixture import sha256_file
 
 def _profile() -> dict:
     return {
+        "schema_version": "2.0.0",
+        "created_at": "2026-01-01T00:00:00Z",
         "hardware_fingerprint": "hardware",
-        "tuning": {
-            "indicator_processes": 2,
-            "working_memory_bytes": 8 * 1024**3,
-            "assumed_indicator_worker_peak_bytes": 3 * 1024**3,
+        "hardware": {
+            "platform": "test",
+            "machine": "x86_64",
+            "cpu_name": "test",
+            "physical_cpu_count": 2,
+            "logical_cpu_count": 2,
+            "affinity_cpu_count": 2,
+            "affinity_cpu_ids": [0, 1],
+            "memory": {
+                "total_bytes": 16 * 1024**3,
+                "available_bytes": 8 * 1024**3,
+            },
+        },
+        "limits": {
+            "memory_cap_bytes": 8 * 1024**3,
+            "cpu_process_limit": 2,
+        },
+        "runtime": {
             "portfolio_simulator_threads": 1,
+            "nested_numeric_threads": 1,
         },
         "environment": {"OMP_NUM_THREADS": "1"},
     }
@@ -75,6 +92,15 @@ def test_research_prepare_is_checkpointed_and_resumable(
         }
 
     monkeypatch.setattr(research_runner, "ensure_execution_profile", lambda *a, **k: _profile())
+    monkeypatch.setattr(
+        research_runner,
+        "current_resource_limits",
+        lambda _profile: {
+            "memory_cap_bytes": 8 * 1024**3,
+            "working_memory_bytes": 8 * 1024**3,
+            "cpu_process_limit": 2,
+        },
+    )
     monkeypatch.setattr(research_runner, "prepare_vector_signals", fake_vectors)
     monkeypatch.setattr(research_runner, "prepare_data", _fake_prepare_data)
     monkeypatch.setattr(research_runner, "validate_data_seal", read_json)
@@ -94,7 +120,9 @@ def test_research_prepare_is_checkpointed_and_resumable(
     second = research_runner.run_research_backtest(**arguments, resume=True)
 
     assert first["status"] == "prepared"
+    assert first["pipeline_evidence"]["cold"] is True
     assert second["resumed_stages"] == ["data", "vectors"]
+    assert second["pipeline_evidence"]["cold"] is False
     assert calls == 1
     assert (output / "run.json").is_file()
 
@@ -141,6 +169,15 @@ def test_research_backtest_reports_uncompiled_callback_blocker(
         }
 
     monkeypatch.setattr(research_runner, "ensure_execution_profile", lambda *a, **k: _profile())
+    monkeypatch.setattr(
+        research_runner,
+        "current_resource_limits",
+        lambda _profile: {
+            "memory_cap_bytes": 8 * 1024**3,
+            "working_memory_bytes": 8 * 1024**3,
+            "cpu_process_limit": 2,
+        },
+    )
     monkeypatch.setattr(research_runner, "prepare_vector_signals", fake_vectors)
     monkeypatch.setattr(research_runner, "prepare_data", _fake_prepare_data)
 
@@ -177,6 +214,15 @@ def test_research_workers_cannot_exceed_hardware_profile(
     data = tmp_path / "data"
     data.mkdir()
     monkeypatch.setattr(research_runner, "ensure_execution_profile", lambda *a, **k: _profile())
+    monkeypatch.setattr(
+        research_runner,
+        "current_resource_limits",
+        lambda _profile: {
+            "memory_cap_bytes": 8 * 1024**3,
+            "working_memory_bytes": 8 * 1024**3,
+            "cpu_process_limit": 2,
+        },
+    )
 
     with pytest.raises(SpecValidationError, match="exceeds the hardware profile limit"):
         research_runner.run_research_backtest(

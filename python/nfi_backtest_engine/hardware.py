@@ -1,4 +1,9 @@
-"""Hardware inspection and conservative one-time execution-profile tuning."""
+"""Hardware inspection and measured execution-capacity profiles.
+
+The host profile records only facts and explicit user caps.  Strategy-specific
+memory peaks and process counts belong to ``workload-calibration`` records
+created from real full-range work, never to machine-independent GiB guesses.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +15,7 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import psutil
 
@@ -19,8 +24,15 @@ from .errors import SpecValidationError
 
 GIB = 1024**3
 MIB = 1024**2
-EXECUTION_PROFILE_VERSION = "1.2.0"
-DEFAULT_INDICATOR_WORKER_PEAK_BYTES = 3 * GIB
+EXECUTION_PROFILE_VERSION = "2.0.0"
+LEGACY_EXECUTION_PROFILE_VERSION = "1.2.0"
+SPOOL_DIRECTORY_ENVIRONMENT = "NFI_BTE_SPOOL_DIRECTORY"
+
+
+class ResolvedResourceLimits(TypedDict):
+    memory_cap_bytes: int | None
+    working_memory_bytes: int
+    cpu_process_limit: int
 
 
 def inspect_hardware(workspace: str | Path | None = None) -> dict[str, Any]:
@@ -76,48 +88,30 @@ def derive_tuning(
     observed_engine_peak_bytes: int | None = None,
     observed_reference_peak_bytes: int | None = None,
 ) -> dict[str, Any]:
-    """Derive explicit pools while preserving one physical core and host memory."""
+    """Return factual host limits without inventing per-workload memory peaks.
+
+    The ``observed_*`` arguments remain in the Python signature so v0.4 callers
+    receive an actionable migration error instead of a ``TypeError``.
+    """
+    if any(
+        value is not None
+        for value in (
+            observed_indicator_worker_peak_bytes,
+            observed_engine_peak_bytes,
+            observed_reference_peak_bytes,
+        )
+    ):
+        raise SpecValidationError(
+            "fixed peak-memory inputs were removed; run a workload calibration instead"
+        )
     logical = _positive_int(hardware, "logical_cpu_count")
     physical = _positive_int(hardware, "physical_cpu_count")
     affinity = _positive_int(hardware, "affinity_cpu_count")
-    available = _positive_int(hardware["memory"], "available_bytes")
-    total = _positive_int(hardware["memory"], "total_bytes")
-
-    host_reserve = max(2 * GIB, min(8 * GIB, total * 15 // 100))
-    if memory_cap_bytes is not None and memory_cap_bytes < GIB:
-        raise SpecValidationError("execution memory cap must be at least 1 GiB")
-    selected_memory_cap = memory_cap_bytes or max(GIB, total - host_reserve)
-    currently_usable = max(512 * MIB, available - host_reserve)
-    working_memory = min(selected_memory_cap, currently_usable)
-    physical_budget = max(1, min(physical - 1 if physical > 2 else physical, affinity))
-    indicator_peak = observed_indicator_worker_peak_bytes or DEFAULT_INDICATOR_WORKER_PEAK_BYTES
-    if indicator_peak <= 0:
-        raise SpecValidationError("observed indicator worker peak memory must be positive")
-    indicator_processes = max(1, min(physical_budget, working_memory // indicator_peak))
-    indicator_processes = min(indicator_processes, logical)
-
-    engine_peak = observed_engine_peak_bytes or GIB
-    reference_peak = observed_reference_peak_bytes or 24 * GIB
-    if engine_peak <= 0 or reference_peak <= 0:
-        raise SpecValidationError("observed peak memory values must be positive")
-    engine_jobs = max(1, min(physical_budget, working_memory // engine_peak))
-    reference_jobs = max(1, min(physical_budget, working_memory // reference_peak))
-    research_jobs = max(1, min(physical_budget, working_memory // indicator_peak))
-
+    if memory_cap_bytes is not None and memory_cap_bytes <= 0:
+        raise SpecValidationError("execution memory cap must be positive")
     return {
-        "memory_cap_bytes": selected_memory_cap,
-        "host_reserve_bytes": host_reserve,
-        "working_memory_bytes": working_memory,
-        "reserved_physical_cores": max(0, physical - physical_budget),
-        "indicator_processes": int(indicator_processes),
-        "portfolio_simulator_threads": 1,
-        "independent_research_jobs": int(research_jobs),
-        "independent_engine_jobs": int(engine_jobs),
-        "independent_reference_jobs": int(reference_jobs),
-        "assumed_indicator_worker_peak_bytes": indicator_peak,
-        "assumed_engine_peak_bytes": engine_peak,
-        "assumed_reference_peak_bytes": reference_peak,
-        "nested_numeric_threads": 1,
+        "memory_cap_bytes": memory_cap_bytes,
+        "cpu_process_limit": min(logical, physical, affinity),
     }
 
 
@@ -129,23 +123,34 @@ def create_execution_profile(
     observed_indicator_worker_peak_bytes: int | None = None,
     observed_engine_peak_bytes: int | None = None,
     observed_reference_peak_bytes: int | None = None,
+    spool_directory: str | Path | None = None,
 ) -> dict[str, Any]:
     """Inspect, tune, and persist a hardware-bound execution profile."""
     hardware = inspect_hardware(workspace)
-    tuning = derive_tuning(
+    limits = derive_tuning(
         hardware,
         memory_cap_bytes=memory_cap_bytes,
         observed_indicator_worker_peak_bytes=observed_indicator_worker_peak_bytes,
         observed_engine_peak_bytes=observed_engine_peak_bytes,
         observed_reference_peak_bytes=observed_reference_peak_bytes,
     )
+    environment = tuning_environment({"nested_numeric_threads": 1})
+    if spool_directory is not None:
+        spool = Path(spool_directory).resolve()
+        if not spool.is_dir():
+            raise SpecValidationError(f"engine spool directory does not exist: {spool}")
+        environment[SPOOL_DIRECTORY_ENVIRONMENT] = str(spool)
     profile = {
         "schema_version": EXECUTION_PROFILE_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "hardware_fingerprint": hardware_fingerprint(hardware),
         "hardware": hardware,
-        "tuning": tuning,
-        "environment": tuning_environment(tuning),
+        "limits": limits,
+        "runtime": {
+            "portfolio_simulator_threads": 1,
+            "nested_numeric_threads": 1,
+        },
+        "environment": environment,
     }
     validate_execution_profile(profile, current_hardware=hardware)
     write_json(destination, profile)
@@ -160,6 +165,7 @@ def ensure_execution_profile(
     observed_indicator_worker_peak_bytes: int | None = None,
     observed_engine_peak_bytes: int | None = None,
     observed_reference_peak_bytes: int | None = None,
+    spool_directory: str | Path | None = None,
 ) -> dict[str, Any]:
     """Reuse a hardware-bound profile or safely recalibrate it when the host changed."""
     path = Path(destination).resolve()
@@ -175,6 +181,7 @@ def ensure_execution_profile(
         observed_indicator_worker_peak_bytes=observed_indicator_worker_peak_bytes,
         observed_engine_peak_bytes=observed_engine_peak_bytes,
         observed_reference_peak_bytes=observed_reference_peak_bytes,
+        spool_directory=spool_directory,
     )
 
 
@@ -185,6 +192,12 @@ def load_execution_profile(
 ) -> dict[str, Any]:
     profile = read_json(source)
     current = inspect_hardware(Path(source).resolve().parent) if require_current_hardware else None
+    if (
+        isinstance(profile, dict)
+        and profile.get("schema_version") == LEGACY_EXECUTION_PROFILE_VERSION
+    ):
+        _validate_legacy_execution_profile(profile, current_hardware=current)
+        return _migrate_legacy_execution_profile(profile)
     validate_execution_profile(profile, current_hardware=current)
     return profile
 
@@ -201,45 +214,42 @@ def validate_execution_profile(
         "created_at",
         "hardware_fingerprint",
         "hardware",
-        "tuning",
+        "limits",
+        "runtime",
         "environment",
     }
     if set(profile) != required:
-        raise SpecValidationError("execution profile fields differ from the v1 contract")
+        raise SpecValidationError("execution profile fields differ from the v2 contract")
     if profile["schema_version"] != EXECUTION_PROFILE_VERSION:
         raise SpecValidationError(
             f"unsupported execution profile version: {profile['schema_version']!r}"
         )
     if hardware_fingerprint(profile["hardware"]) != profile["hardware_fingerprint"]:
         raise SpecValidationError("execution profile hardware fingerprint is corrupt")
-    tuning = profile["tuning"]
-    tuning_fields = {
+    limits = profile["limits"]
+    if not isinstance(limits, dict) or set(limits) != {
         "memory_cap_bytes",
-        "host_reserve_bytes",
-        "working_memory_bytes",
-        "reserved_physical_cores",
-        "indicator_processes",
+        "cpu_process_limit",
+    }:
+        raise SpecValidationError("execution profile limits differ from v2")
+    memory_cap = limits["memory_cap_bytes"]
+    if memory_cap is not None and (
+        not isinstance(memory_cap, int) or isinstance(memory_cap, bool) or memory_cap <= 0
+    ):
+        raise SpecValidationError("execution profile memory cap must be null or positive")
+    cpu_limit = limits["cpu_process_limit"]
+    if not isinstance(cpu_limit, int) or isinstance(cpu_limit, bool) or cpu_limit <= 0:
+        raise SpecValidationError("execution profile CPU process limit must be positive")
+    runtime = profile["runtime"]
+    if not isinstance(runtime, dict) or set(runtime) != {
         "portfolio_simulator_threads",
-        "independent_research_jobs",
-        "independent_engine_jobs",
-        "independent_reference_jobs",
-        "assumed_indicator_worker_peak_bytes",
-        "assumed_engine_peak_bytes",
-        "assumed_reference_peak_bytes",
         "nested_numeric_threads",
-    }
-    if not isinstance(tuning, dict) or set(tuning) != tuning_fields:
-        raise SpecValidationError("execution profile tuning fields differ from v1.2")
-    for key in tuning_fields:
-        if not isinstance(tuning.get(key), int) or isinstance(tuning.get(key), bool):
-            raise SpecValidationError(f"execution profile tuning.{key} must be an integer")
-        if tuning[key] < 0:
-            raise SpecValidationError(f"execution profile tuning.{key} cannot be negative")
-    for key in tuning_fields - {"reserved_physical_cores"}:
-        if tuning[key] == 0:
-            raise SpecValidationError(f"execution profile tuning.{key} must be positive")
-    if tuning["portfolio_simulator_threads"] != 1:
+    }:
+        raise SpecValidationError("execution profile runtime fields differ from v2")
+    if runtime["portfolio_simulator_threads"] != 1:
         raise SpecValidationError("global chronological simulator must use exactly one thread")
+    if runtime["nested_numeric_threads"] != 1:
+        raise SpecValidationError("pair workers must use one nested numeric thread")
     if not isinstance(profile["environment"], dict) or not all(
         isinstance(key, str) and isinstance(value, str)
         for key, value in profile["environment"].items()
@@ -251,13 +261,27 @@ def validate_execution_profile(
             raise SpecValidationError(
                 "execution profile belongs to different hardware; run `nfi-bte system tune` again"
             )
-        current_available = _positive_int(current_hardware["memory"], "available_bytes")
-        current_usable = max(512 * MIB, current_available - tuning["host_reserve_bytes"])
-        revalidation_margin = max(256 * MIB, tuning["working_memory_bytes"] // 20)
-        if tuning["working_memory_bytes"] > current_usable + revalidation_margin:
-            raise SpecValidationError(
-                "execution profile exceeds current free memory; recalibrate before running"
-            )
+
+
+def current_resource_limits(
+    profile: dict[str, Any],
+    *,
+    hardware: dict[str, Any] | None = None,
+) -> ResolvedResourceLimits:
+    """Resolve a profile against current free memory immediately before work."""
+    current = hardware if hardware is not None else inspect_hardware()
+    validate_execution_profile(profile, current_hardware=current)
+    available = _positive_int(current["memory"], "available_bytes")
+    cap = profile["limits"]["memory_cap_bytes"]
+    working = min(available, cap) if cap is not None else available
+    return {
+        "memory_cap_bytes": cap,
+        "working_memory_bytes": working,
+        "cpu_process_limit": min(
+            int(profile["limits"]["cpu_process_limit"]),
+            _positive_int(current, "affinity_cpu_count"),
+        ),
+    }
 
 
 def hardware_fingerprint(hardware: dict[str, Any]) -> str:
@@ -276,20 +300,65 @@ def hardware_fingerprint(hardware: dict[str, Any]) -> str:
 
 
 def tuning_environment(tuning: dict[str, Any]) -> dict[str, str]:
-    indicators = str(tuning["indicator_processes"])
     nested = str(tuning["nested_numeric_threads"])
     return {
-        "NFI_INDICATOR_PROCESSES": indicators,
-        "NFI_RESEARCH_JOBS": str(tuning["independent_research_jobs"]),
-        "NFI_ENGINE_JOBS": str(tuning["independent_engine_jobs"]),
-        "NFI_REFERENCE_JOBS": str(tuning["independent_reference_jobs"]),
-        "NFI_MEMORY_BUDGET_BYTES": str(tuning["working_memory_bytes"]),
         "POLARS_MAX_THREADS": nested,
         "RAYON_NUM_THREADS": nested,
         "OMP_NUM_THREADS": nested,
         "OPENBLAS_NUM_THREADS": nested,
         "MKL_NUM_THREADS": nested,
-        "MALLOC_ARENA_MAX": "2",
+    }
+
+
+def _validate_legacy_execution_profile(
+    profile: dict[str, Any],
+    *,
+    current_hardware: dict[str, Any] | None,
+) -> None:
+    required = {
+        "schema_version",
+        "created_at",
+        "hardware_fingerprint",
+        "hardware",
+        "tuning",
+        "environment",
+    }
+    if set(profile) != required:
+        raise SpecValidationError("legacy execution profile fields differ from v1.2")
+    if hardware_fingerprint(profile["hardware"]) != profile["hardware_fingerprint"]:
+        raise SpecValidationError("legacy execution profile hardware fingerprint is corrupt")
+    if current_hardware is not None and (
+        hardware_fingerprint(current_hardware) != profile["hardware_fingerprint"]
+    ):
+        raise SpecValidationError(
+            "execution profile belongs to different hardware; run `nfi-bte system tune` again"
+        )
+    tuning = profile.get("tuning")
+    if not isinstance(tuning, dict):
+        raise SpecValidationError("legacy execution profile tuning must be an object")
+
+
+def _migrate_legacy_execution_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    hardware = profile["hardware"]
+    legacy_tuning = profile["tuning"]
+    legacy_cap = legacy_tuning.get("memory_cap_bytes")
+    cap = (
+        legacy_cap
+        if isinstance(legacy_cap, int) and not isinstance(legacy_cap, bool) and legacy_cap > 0
+        else None
+    )
+    limits = derive_tuning(hardware, memory_cap_bytes=cap)
+    return {
+        "schema_version": EXECUTION_PROFILE_VERSION,
+        "created_at": profile["created_at"],
+        "hardware_fingerprint": profile["hardware_fingerprint"],
+        "hardware": hardware,
+        "limits": limits,
+        "runtime": {
+            "portfolio_simulator_threads": 1,
+            "nested_numeric_threads": 1,
+        },
+        "environment": tuning_environment({"nested_numeric_threads": 1}),
     }
 
 

@@ -8,6 +8,7 @@ from nfi_backtest_engine import hardware
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.hardware import (
     GIB,
+    current_resource_limits,
     derive_tuning,
     execution_environment,
     hardware_fingerprint,
@@ -32,16 +33,13 @@ def _hardware() -> dict:
     }
 
 
-def test_tuning_preserves_global_loop_and_host_headroom() -> None:
-    tuning = derive_tuning(_hardware())
+def test_host_limits_contain_no_guessed_workload_peaks() -> None:
+    limits = derive_tuning(_hardware())
 
-    assert tuning["portfolio_simulator_threads"] == 1
-    assert tuning["reserved_physical_cores"] == 1
-    assert tuning["working_memory_bytes"] == 40 * GIB
-    assert tuning["indicator_processes"] == 5
-    assert tuning["independent_research_jobs"] == 5
-    assert tuning["independent_engine_jobs"] == 5
-    assert tuning["independent_reference_jobs"] == 1
+    assert limits == {
+        "memory_cap_bytes": None,
+        "cpu_process_limit": 6,
+    }
 
 
 def test_hardware_fingerprint_ignores_available_memory_drift() -> None:
@@ -52,30 +50,63 @@ def test_hardware_fingerprint_ignores_available_memory_drift() -> None:
     assert hardware_fingerprint(first) == hardware_fingerprint(second)
 
 
-def test_tuning_rejects_too_small_memory_cap() -> None:
-    with pytest.raises(SpecValidationError, match="at least 1 GiB"):
-        derive_tuning(_hardware(), memory_cap_bytes=512 * 1024**2)
+def test_tuning_accepts_an_explicit_positive_memory_cap() -> None:
+    limits = derive_tuning(_hardware(), memory_cap_bytes=512 * 1024**2)
+
+    assert limits["memory_cap_bytes"] == 512 * 1024**2
 
 
-def test_observed_indicator_peak_controls_parallel_research_workers() -> None:
-    tuning = derive_tuning(
-        _hardware(),
-        observed_indicator_worker_peak_bytes=4 * GIB,
-    )
-
-    assert tuning["indicator_processes"] == 5
-    assert tuning["independent_research_jobs"] == 5
-    assert tuning["assumed_indicator_worker_peak_bytes"] == 4 * GIB
+def test_fixed_peak_inputs_are_rejected() -> None:
+    with pytest.raises(SpecValidationError, match="workload calibration"):
+        derive_tuning(_hardware(), observed_indicator_worker_peak_bytes=4 * GIB)
 
 
 def test_numeric_libraries_are_single_threaded_inside_pair_processes() -> None:
-    tuning = derive_tuning(_hardware())
-    environment = tuning_environment(tuning)
+    environment = tuning_environment({"nested_numeric_threads": 1})
 
-    assert environment["NFI_INDICATOR_PROCESSES"] == "5"
     assert environment["POLARS_MAX_THREADS"] == "1"
     assert environment["RAYON_NUM_THREADS"] == "1"
     assert environment["OMP_NUM_THREADS"] == "1"
+
+
+def test_profile_records_an_explicit_disk_spool_without_defaulting_one(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(hardware, "inspect_hardware", lambda _workspace=None: _hardware())
+    default_profile = hardware.create_execution_profile(tmp_path / "default.json")
+    configured_profile = hardware.create_execution_profile(
+        tmp_path / "configured.json",
+        spool_directory=tmp_path,
+    )
+
+    assert hardware.SPOOL_DIRECTORY_ENVIRONMENT not in default_profile["environment"]
+    assert configured_profile["environment"][hardware.SPOOL_DIRECTORY_ENVIRONMENT] == str(
+        tmp_path.resolve()
+    )
+
+
+def test_current_limits_use_live_available_memory() -> None:
+    host = _hardware()
+    profile = {
+        "schema_version": hardware.EXECUTION_PROFILE_VERSION,
+        "created_at": "2026-01-01T00:00:00Z",
+        "hardware_fingerprint": hardware_fingerprint(host),
+        "hardware": host,
+        "limits": {
+            "memory_cap_bytes": 32 * GIB,
+            "cpu_process_limit": 6,
+        },
+        "runtime": {
+            "portfolio_simulator_threads": 1,
+            "nested_numeric_threads": 1,
+        },
+        "environment": tuning_environment({"nested_numeric_threads": 1}),
+    }
+
+    limits = current_resource_limits(profile, hardware=host)
+
+    assert limits["working_memory_bytes"] == 32 * GIB
+    assert limits["cpu_process_limit"] == 6
 
 
 def test_execution_environment_is_scoped(monkeypatch) -> None:

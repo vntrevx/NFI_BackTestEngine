@@ -82,15 +82,28 @@ Parallel work is limited to operations without shared mutable portfolio state:
 - independent strategies, timeranges, fixtures, and candidate jobs;
 - offline scoring and report generation.
 
-The hardware profile detects physical/logical CPU and available RAM, reserves a physical
-core for the host on ordinary multicore systems, reserves 15% of total memory within
-bounded limits, and derives independent engine/reference/research process counts.
-Research jobs and pair workers additionally use a conservative 3 GiB
-per-indicator-process memory assumption, which can be replaced with a measured value.
-Spawned workers set Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread.
-The global simulator remains intentionally single-threaded for deterministic
-shared-state order; independent candidates are the useful simulator parallelism
-boundary.
+The hardware profile records physical/logical CPU counts, affinity, total memory, and an
+optional user cap. It does not encode a reserve percentage, a per-worker GiB guess, or
+an assumed job count. On the first uncached workload, the largest sealed-input pair is
+executed over the complete requested timerange in an isolated process. Its OS-native
+peak RSS is bound to the strategy, config, data hashes, timerange, dependency versions,
+and hardware fingerprint. The computed vector is retained as real output, so
+calibration does not repeat work.
+
+Before every later launch, the coordinator combines that measured peak with current
+available memory, its own RSS, CPU affinity, and the explicit cap. One observed worker
+peak remains as the measured admission envelope. If any content or hardware identity
+changes, the full-range probe runs again. Spawned workers set Polars, Rayon, OpenMP,
+OpenBLAS, and MKL nesting to one thread. The global simulator remains intentionally
+single-threaded for deterministic shared-state order; independent candidates are the
+useful simulator parallelism boundary.
+
+The Arrow boundary no longer copies every candle and feature column into heap memory.
+It validates each Feather batch while writing a fixed-width, row-oriented private spool
+and retains one decoded row per pair during simulation. Spool width is derived from the
+actual feature schema. The OS-local temporary filesystem is the default; a disk-backed
+location can be supplied through the hardware profile when a host configures its temp
+directory as RAM-backed.
 
 Host-native work and container work are separate resource domains. The host profile
 controls Python pair workers and the Rust engine. Docker workloads instead inspect the
@@ -108,11 +121,12 @@ label are removed; unrelated containers are never pruned, and an existing runnin
 managed container blocks a second workload.
 
 On the development host visible to WSL (5 physical cores, 10 logical CPUs, 27.3 GiB
-RAM), the automatic profile selected four independent research processes. A four-job
+RAM), an earlier profile selected four independent research processes. A four-job
 annual X7 vector-preparation diagnostic used four distinct worker PIDs, completed in
 35.67 seconds versus 106.93 aggregate job-seconds, and therefore observed 3.00x
 effective parallelism and 75% four-process efficiency. This is host-specific diagnostic
-evidence, not the public 80-pair, four-year performance certificate.
+evidence from the pre-calibration scheduler, not the public 80-pair, four-year
+performance certificate or the current admission algorithm.
 The raw boundaries and timings are pinned in
 [`benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json`](../benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json).
 
@@ -243,9 +257,17 @@ mean arbitrary X7 execution parity is complete.
 
 The performance gate always measures the engine and official reference against the same
 sealed manifest and fresh processes. It records pipeline wall time, process-tree RSS,
-Rust `/usr/bin/time` peak RSS, Docker cgroup peak memory, hardware, and parity.
+Rust `/usr/bin/time` peak RSS, Docker cgroup peak memory, hardware, and parity. Research
+runs additionally record separate manifest/hash, Feather decode, validation, event-loop,
+finalization, and serialization timings. Profiling is aggregate-only and does not log
+per candle or modify the financial result document.
 
 A measured ratio is labeled `diagnostic-only` unless the fixture contains at least 80
 pairs and 1,460 days. The setup wizard defaults to five complete calendar years so the
 normal user path exceeds that minimum. Build/compilation time is an installation
 concern and is recorded separately from the installed execution pipeline.
+
+Parity alone does not complete a representative performance gate. The report sets
+`release_certified` only when representative scope, exact parity, the 10x median target,
+and the live-memory gate all pass. Research `run.json` separately marks a pipeline cold
+only when it reused no data/vector checkpoint and had zero vector cache hits.

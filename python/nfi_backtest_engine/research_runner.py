@@ -29,6 +29,7 @@ from .generic_adapter import (
     generic_result_to_surface,
 )
 from .hardware import (
+    current_resource_limits,
     ensure_execution_profile,
     execution_environment,
     validate_execution_profile,
@@ -70,6 +71,7 @@ def run_research_backtest(
     registry_path: str | Path | None = None,
     download_market_metadata: bool = True,
     execution_profile: dict[str, Any] | None = None,
+    recalibrate: bool = False,
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
     source = Path(strategy_path).resolve()
@@ -115,7 +117,8 @@ def run_research_backtest(
     else:
         validate_execution_profile(execution_profile, current_hardware=None)
         profile = execution_profile
-    safe_workers = int(profile["tuning"]["indicator_processes"])
+    resource_limits = current_resource_limits(profile)
+    safe_workers = int(resource_limits["cpu_process_limit"])
     selected_workers = safe_workers if workers is None else workers
     if selected_workers <= 0:
         raise SpecValidationError("research worker count must be positive")
@@ -207,7 +210,8 @@ def run_research_backtest(
         {
             "source": str(Path(profile_path).resolve()),
             "hardware_fingerprint": profile["hardware_fingerprint"],
-            "tuning": profile["tuning"],
+            "limits": profile["limits"],
+            "runtime": profile["runtime"],
             "environment": profile["environment"],
         },
     )
@@ -269,6 +273,10 @@ def run_research_backtest(
                 output_directory=vector_directory,
                 workers=selected_workers,
                 cache_directory=cache_directory,
+                memory_cap_bytes=int(resource_limits["working_memory_bytes"]),
+                hardware_fingerprint=profile["hardware_fingerprint"],
+                calibration_directory=Path(profile_path).resolve().parent / "calibrations",
+                recalibrate=recalibrate,
             )
         write_json(
             vector_checkpoint,
@@ -311,6 +319,7 @@ def run_research_backtest(
         assert selected_market_metadata is not None
         simulation_input_path = output / "simulation-input.manifest.json"
         simulation_result_path = output / "simulation-result.json"
+        engine_profile_path = output / "engine-profile.json"
         surface_path = output / "trade-surface.json"
         if has_strategy_callbacks:
             build_x7_vector_manifest(
@@ -334,6 +343,7 @@ def run_research_backtest(
             simulation_result_path,
             profile_path=profile_path,
             vector_manifest=True,
+            engine_profile_path=engine_profile_path,
         )
         strategy = analysis["strategies"][0]
         surface = generic_result_to_surface(
@@ -356,12 +366,25 @@ def run_research_backtest(
     status = (
         "prepared" if prepare_only else "blocked_unsupported_semantics" if blockers else "complete"
     )
+    vector_cache_hits = int(vector_report.get("cache_hits", 0))
+    cold_pipeline = (
+        not resumed_data_stage
+        and not resumed_vector_stage
+        and vector_cache_hits == 0
+    )
     report = {
         "schema_version": RESEARCH_RUN_VERSION,
         "run_id": run_id,
         "status": status,
         "complete": status == "complete",
         "prepared_only": prepare_only,
+        "pipeline_evidence": {
+            "cold": cold_pipeline,
+            "data_checkpoint_reused": resumed_data_stage,
+            "vector_checkpoint_reused": resumed_vector_stage,
+            "vector_cache_hits": vector_cache_hits,
+            "definition": "no resumed data/vector checkpoint and zero vector cache hits",
+        },
         "resumed_stages": [
             stage
             for stage, resumed in (
@@ -374,13 +397,13 @@ def run_research_backtest(
         "inputs": identity,
         "execution": {
             "hardware_fingerprint": profile["hardware_fingerprint"],
-            "indicator_workers": selected_workers,
-            "safe_indicator_workers": safe_workers,
-            "working_memory_bytes": profile["tuning"]["working_memory_bytes"],
-            "assumed_indicator_worker_peak_bytes": profile["tuning"][
-                "assumed_indicator_worker_peak_bytes"
+            "indicator_workers": vector_report["worker_count"],
+            "cpu_process_limit": safe_workers,
+            "working_memory_bytes": resource_limits["working_memory_bytes"],
+            "workload_calibration": vector_report.get("calibration"),
+            "portfolio_simulator_threads": profile["runtime"][
+                "portfolio_simulator_threads"
             ],
-            "portfolio_simulator_threads": profile["tuning"]["portfolio_simulator_threads"],
             "python_per_candle": False,
         },
         "data": {

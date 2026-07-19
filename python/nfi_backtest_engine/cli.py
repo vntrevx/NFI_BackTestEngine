@@ -170,6 +170,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_project_setup_arguments(run)
     run.add_argument("--workers", type=int)
     run.add_argument(
+        "--recalibrate",
+        action="store_true",
+        help="remeasure this strategy/data workload before scheduling pair workers",
+    )
+    run.add_argument(
         "--prepare-only",
         action="store_true",
         help="prepare immutable vectors without requesting simulation",
@@ -216,11 +221,13 @@ def build_parser() -> argparse.ArgumentParser:
     system_tune.add_argument(
         "--memory-cap-gib",
         type=float,
-        help="optional hard cap; default uses currently safe host memory",
+        help="optional hard cap; default resolves available host memory before each run",
     )
-    system_tune.add_argument("--indicator-peak-mib", type=float)
-    system_tune.add_argument("--engine-peak-mib", type=float)
-    system_tune.add_argument("--reference-peak-mib", type=float)
+    system_tune.add_argument(
+        "--spool-directory",
+        type=Path,
+        help="optional disk-backed directory for bounded-memory engine rows",
+    )
     system_tune.add_argument(
         "--force",
         action="store_true",
@@ -323,6 +330,11 @@ def build_parser() -> argparse.ArgumentParser:
     backtest.add_argument("--pair", action="append")
     backtest.add_argument("--output-dir", type=Path, required=True)
     backtest.add_argument("--workers", type=int)
+    backtest.add_argument(
+        "--recalibrate",
+        action="store_true",
+        help="remeasure this strategy/data workload before scheduling pair workers",
+    )
     backtest.add_argument("--cache-dir", type=Path, default=Path(".nfi/cache"))
     backtest.add_argument(
         "--markets",
@@ -407,6 +419,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--events",
         type=Path,
         help="stream compact every-candle engine states as JSONL",
+    )
+    engine_run.add_argument(
+        "--engine-profile",
+        type=Path,
+        help="write aggregate Rust input and simulation phase timings",
     )
     engine_fixture = engine_commands.add_parser(
         "fixture", help="run and exact-compare a supported contract fixture"
@@ -599,6 +616,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 download_missing=not args.no_download,
                 market_metadata_path=args.markets,
                 download_market_metadata=not args.no_market_download,
+                recalibrate=args.recalibrate,
             )
 
         if args.command_name == "system":
@@ -640,8 +658,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(json.dumps(report, ensure_ascii=False, indent=2))
                 return 0
             if args.system_command == "tune":
-                if args.memory_cap_gib is not None and args.memory_cap_gib < 1:
-                    raise NfiBacktestError("--memory-cap-gib must be at least 1")
+                if args.memory_cap_gib is not None and args.memory_cap_gib <= 0:
+                    raise NfiBacktestError("--memory-cap-gib must be positive")
                 if args.output.exists() and not args.force:
                     raise NfiBacktestError(
                         f"execution profile already exists: {args.output}; "
@@ -654,30 +672,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                         if args.memory_cap_gib is not None
                         else None
                     ),
-                    observed_indicator_worker_peak_bytes=(
-                        int(args.indicator_peak_mib * 1024**2)
-                        if args.indicator_peak_mib is not None
-                        else None
-                    ),
-                    observed_engine_peak_bytes=(
-                        int(args.engine_peak_mib * 1024**2)
-                        if args.engine_peak_mib is not None
-                        else None
-                    ),
-                    observed_reference_peak_bytes=(
-                        int(args.reference_peak_mib * 1024**2)
-                        if args.reference_peak_mib is not None
-                        else None
-                    ),
+                    spool_directory=args.spool_directory,
                 )
-                tuning = profile["tuning"]
+                limits = profile["limits"]
                 print(
                     f"execution profile -> {args.output}; "
-                    f"indicator_processes={tuning['indicator_processes']}, "
-                    f"research_jobs={tuning['independent_research_jobs']}, "
-                    f"engine_jobs={tuning['independent_engine_jobs']}, "
-                    f"reference_jobs={tuning['independent_reference_jobs']}, "
-                    f"memory={tuning['working_memory_bytes']}"
+                    f"cpu_process_limit={limits['cpu_process_limit']}, "
+                    f"memory_cap={limits['memory_cap_bytes']}; "
+                    "workload process counts are measured on the first run"
                 )
                 return 0
             profile = load_execution_profile(args.profile)
@@ -823,6 +825,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 download_missing=not args.no_download,
                 market_metadata_path=args.markets,
                 download_market_metadata=not args.no_market_download,
+                recalibrate=args.recalibrate,
             )
 
         if args.command_name == "confirm":
@@ -902,6 +905,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     timeout_seconds=args.timeout,
                     events_path=args.events,
                     vector_manifest=args.vector_manifest,
+                    engine_profile_path=args.engine_profile,
                 )
                 print(
                     f"engine result: trades={report['trade_count']}, "
@@ -937,7 +941,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(
                 f"performance gate: parity={report['gates']['parity']['met']}, "
                 f"speedup={speed['observed_speedup']:.3f}x "
-                f"({speed['verdict']}), memory={memory['observed_peak_bytes']} -> "
+                f"({speed['verdict']}), memory={memory['observed_peak_bytes']}, "
+                f"release_certified={report['release_certified']} -> "
                 f"{args.output_dir / 'performance.json'}"
             )
             return 0 if report["complete"] else 1
@@ -962,6 +967,7 @@ def _execute_research_backtest(
     download_missing: bool,
     market_metadata_path: Path | None,
     download_market_metadata: bool,
+    recalibrate: bool,
 ) -> int:
     """Run the existing research contract for advanced and wizard-backed commands."""
     from .research_runner import run_research_backtest
@@ -974,6 +980,7 @@ def _execute_research_backtest(
         download_missing=download_missing,
         market_metadata_path=market_metadata_path,
         download_market_metadata=download_market_metadata,
+        recalibrate=recalibrate,
     )
     output = Path(arguments["output_directory"])
     print(
