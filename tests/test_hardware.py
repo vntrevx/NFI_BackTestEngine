@@ -94,7 +94,7 @@ def test_hardware_inspection_allows_platforms_without_cpu_frequency(
     tmp_path,
 ) -> None:
     """macOS psutil builds can omit cpu_freq entirely."""
-    monkeypatch.setattr(hardware.psutil, "cpu_freq", None)
+    monkeypatch.setattr(hardware.psutil, "cpu_freq", None, raising=False)
 
     inspected = inspect_hardware(tmp_path)
 
