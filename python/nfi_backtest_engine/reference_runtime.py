@@ -110,6 +110,8 @@ def run_reference_fixture(
         except subprocess.TimeoutExpired:
             timed_out = True
             exit_code = 124
+        except OSError as exc:
+            raise BenchmarkError(f"cannot execute Docker: {exc}") from exc
     ended_at = datetime.now(UTC)
 
     report: dict[str, Any] = {
@@ -344,6 +346,8 @@ def capture_reference_markets(
             )
         except subprocess.TimeoutExpired as exc:
             raise BenchmarkError("timed out while capturing reference markets") from exc
+        except OSError as exc:
+            raise BenchmarkError(f"cannot execute Docker: {exc}") from exc
         captured = output / "market-snapshot.json"
         if completed.returncode != 0 or not captured.is_file():
             raise BenchmarkError(
@@ -589,10 +593,10 @@ def _run_docker(docker_config: Path, args: list[str]) -> subprocess.CompletedPro
 
 
 def _docker_executable() -> str:
-    executable = shutil.which("docker")
-    if executable is None:
-        raise BenchmarkError("Docker CLI is not installed or not on PATH")
-    return executable
+    # Command construction is intentionally testable on machines without
+    # Docker (for example, macOS CI). Real execution still reports a clear
+    # OSError through the guarded subprocess boundary.
+    return shutil.which("docker") or "docker"
 
 
 def _project_root() -> Path:

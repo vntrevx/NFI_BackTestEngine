@@ -33,7 +33,7 @@ def inspect_hardware(workspace: str | Path | None = None) -> dict[str, Any]:
         affinity = process.cpu_affinity()
     except (AttributeError, psutil.Error):
         affinity = list(range(logical))
-    frequency = psutil.cpu_freq()
+    frequency = _cpu_frequency()
     target = Path(workspace or Path.cwd()).resolve()
     disk = psutil.disk_usage(target.anchor or str(target))
     cpu_name = platform.processor().strip() or os.environ.get("PROCESSOR_IDENTIFIER", "unknown")
@@ -318,3 +318,14 @@ def _positive_int(record: dict[str, Any], key: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
         raise SpecValidationError(f"hardware {key} must be a positive integer")
     return value
+
+
+def _cpu_frequency() -> Any | None:
+    """Return frequency information only on platforms where psutil exposes it."""
+    reader = getattr(psutil, "cpu_freq", None)
+    if not callable(reader):
+        return None
+    try:
+        return reader()
+    except (NotImplementedError, psutil.Error):
+        return None

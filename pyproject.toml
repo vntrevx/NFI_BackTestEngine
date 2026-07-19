@@ -69,6 +69,12 @@ addopts = "-ra"
 testpaths = ["tests"]
 pythonpath = ["python"]
 
+[tool.basedpyright]
+include = ["python/nfi_backtest_engine"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+failOnWarnings = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

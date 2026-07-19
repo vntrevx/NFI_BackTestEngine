@@ -4,12 +4,14 @@ import os
 from copy import deepcopy
 
 import pytest
+from nfi_backtest_engine import hardware
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.hardware import (
     GIB,
     derive_tuning,
     execution_environment,
     hardware_fingerprint,
+    inspect_hardware,
     tuning_environment,
 )
 
@@ -85,3 +87,19 @@ def test_execution_environment_is_scoped(monkeypatch) -> None:
 
     assert os.environ["OMP_NUM_THREADS"] == "outside"
     assert "NFI_TEST_LIMIT" not in os.environ
+
+
+def test_hardware_inspection_allows_platforms_without_cpu_frequency(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """macOS psutil builds can omit cpu_freq entirely."""
+    monkeypatch.setattr(hardware.psutil, "cpu_freq", None)
+
+    inspected = inspect_hardware(tmp_path)
+
+    assert inspected["cpu_frequency_mhz"] == {
+        "current": None,
+        "minimum": None,
+        "maximum": None,
+    }

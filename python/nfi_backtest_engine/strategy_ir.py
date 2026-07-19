@@ -50,7 +50,10 @@ def analyze_strategy(
     if not path.is_file():
         raise StrategyAnalysisError(f"strategy source does not exist: {path}")
     try:
-        text = path.read_text(encoding="utf-8")
+        # Decode bytes directly instead of using universal-newline text I/O.
+        # The bundle identity is the exact file supplied by the user, so CRLF
+        # sources on Windows must keep the same hash after analysis and copy.
+        text = path.read_bytes().decode("utf-8")
     except UnicodeDecodeError as exc:
         raise StrategyAnalysisError(f"strategy source is not UTF-8: {path}") from exc
     try:

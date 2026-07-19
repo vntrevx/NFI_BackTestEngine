@@ -74,6 +74,22 @@ def test_prepared_bundle_is_hash_bound(tmp_path: Path) -> None:
     assert validate_strategy_bundle(bundle)["strategy"]["sha256"] == manifest["strategy"]["sha256"]
 
 
+def test_prepared_bundle_preserves_crlf_source_identity(tmp_path: Path) -> None:
+    """Windows checkout line endings are part of the sealed strategy bytes."""
+    source = tmp_path / "WindowsStrategy.py"
+    source.write_bytes(
+        b"from freqtrade.strategy import IStrategy\r\n"
+        b"class WindowsStrategy(IStrategy):\r\n"
+        b"    timeframe = '5m'\r\n"
+    )
+    bundle = tmp_path / "bundle"
+
+    manifest = prepare_strategy(source, bundle, class_name="WindowsStrategy")
+
+    assert (bundle / "strategy.py").read_bytes() == source.read_bytes()
+    assert validate_strategy_bundle(bundle)["strategy"]["sha256"] == manifest["strategy"]["sha256"]
+
+
 def test_dynamic_attribute_in_one_time_initialization_requires_freeze_not_fallback(
     tmp_path: Path,
 ) -> None:

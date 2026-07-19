@@ -38,11 +38,11 @@ def lower_strategy_callbacks(
         raise StrategyAnalysisError("callback lowering requires a hash-bound source")
     path = Path(source_path).resolve()
     try:
-        source_text = path.read_text(encoding="utf-8")
+        source_bytes = path.read_bytes()
+        source_text = source_bytes.decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         raise StrategyAnalysisError(f"callback lowering source cannot be read: {path}") from exc
-    normalized_source = source_text.encode("utf-8")
-    if hashlib.sha256(normalized_source).hexdigest() != source_sha256:
+    if hashlib.sha256(source_bytes).hexdigest() != source_sha256:
         raise StrategyAnalysisError("callback lowering source hash differs from analysis")
     try:
         tree = ast.parse(source_text, filename=str(path), type_comments=True)
