@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
 
+from nfi_backtest_engine import reference_runtime
 from nfi_backtest_engine.canonical import read_json
 from nfi_backtest_engine.reference_runtime import (
     REFERENCE_IMAGE_REF,
@@ -88,3 +89,31 @@ def test_reference_command_removes_mutable_output_options(tmp_path: Path) -> Non
         "--backtest-directory",
         "/output",
     ]
+
+
+def test_reference_command_can_be_built_without_local_docker(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """Pure argv validation must remain portable to Docker-free CI hosts."""
+    monkeypatch.setattr(reference_runtime.shutil, "which", lambda _name: None)
+    manifest = read_json(MANIFEST)
+    output = tmp_path / "output"
+    output.mkdir()
+
+    command = build_reference_docker_command(
+        manifest,
+        fixture_root=MANIFEST.parent,
+        output_directory=output,
+        project_root=ROOT,
+        dependency_directory=None,
+        trace_mode="off",
+        profile=False,
+        docker_config=tmp_path / "docker-config",
+        market_snapshot={
+            "role": "market_metadata",
+            "path": "inputs/market_metadata/markets.json",
+        },
+    )
+
+    assert command[0] == "docker"
