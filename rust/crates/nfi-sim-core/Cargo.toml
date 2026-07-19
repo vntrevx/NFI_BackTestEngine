@@ -4,11 +4,17 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Deterministic global chronological simulator for NFI Backtest Engine"
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
+num-bigint = "0.4"
+num-rational = "0.4"
+num-traits = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"

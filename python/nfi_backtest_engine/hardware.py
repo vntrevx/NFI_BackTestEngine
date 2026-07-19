@@ -6,7 +6,9 @@ import hashlib
 import json
 import os
 import platform
-from datetime import datetime, timezone
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +19,8 @@ from .errors import SpecValidationError
 
 GIB = 1024**3
 MIB = 1024**2
-EXECUTION_PROFILE_VERSION = "1.0.0"
-DEFAULT_MEMORY_CAP_BYTES = 8 * GIB
+EXECUTION_PROFILE_VERSION = "1.2.0"
+DEFAULT_INDICATOR_WORKER_PEAK_BYTES = 3 * GIB
 
 
 def inspect_hardware(workspace: str | Path | None = None) -> dict[str, Any]:
@@ -69,32 +71,30 @@ def inspect_hardware(workspace: str | Path | None = None) -> dict[str, Any]:
 def derive_tuning(
     hardware: dict[str, Any],
     *,
-    memory_cap_bytes: int = DEFAULT_MEMORY_CAP_BYTES,
+    memory_cap_bytes: int | None = None,
+    observed_indicator_worker_peak_bytes: int | None = None,
     observed_engine_peak_bytes: int | None = None,
     observed_reference_peak_bytes: int | None = None,
 ) -> dict[str, Any]:
     """Derive explicit pools while preserving one physical core and host memory."""
-    if memory_cap_bytes < GIB:
-        raise SpecValidationError("execution memory cap must be at least 1 GiB")
     logical = _positive_int(hardware, "logical_cpu_count")
     physical = _positive_int(hardware, "physical_cpu_count")
     affinity = _positive_int(hardware, "affinity_cpu_count")
     available = _positive_int(hardware["memory"], "available_bytes")
     total = _positive_int(hardware["memory"], "total_bytes")
 
-    host_reserve = max(2 * GIB, min(8 * GIB, total // 5))
+    host_reserve = max(2 * GIB, min(8 * GIB, total * 15 // 100))
+    if memory_cap_bytes is not None and memory_cap_bytes < GIB:
+        raise SpecValidationError("execution memory cap must be at least 1 GiB")
+    selected_memory_cap = memory_cap_bytes or max(GIB, total - host_reserve)
     currently_usable = max(512 * MIB, available - host_reserve)
-    working_memory = min(memory_cap_bytes, currently_usable)
+    working_memory = min(selected_memory_cap, currently_usable)
     physical_budget = max(1, min(physical - 1 if physical > 2 else physical, affinity))
-    logical_reserve = max(1, logical - physical_budget)
-    indicator_threads = max(
-        1,
-        min(
-            affinity - min(2, logical_reserve),
-            working_memory // (512 * MIB),
-        ),
-    )
-    indicator_threads = min(indicator_threads, logical)
+    indicator_peak = observed_indicator_worker_peak_bytes or DEFAULT_INDICATOR_WORKER_PEAK_BYTES
+    if indicator_peak <= 0:
+        raise SpecValidationError("observed indicator worker peak memory must be positive")
+    indicator_processes = max(1, min(physical_budget, working_memory // indicator_peak))
+    indicator_processes = min(indicator_processes, logical)
 
     engine_peak = observed_engine_peak_bytes or GIB
     reference_peak = observed_reference_peak_bytes or 24 * GIB
@@ -102,16 +102,19 @@ def derive_tuning(
         raise SpecValidationError("observed peak memory values must be positive")
     engine_jobs = max(1, min(physical_budget, working_memory // engine_peak))
     reference_jobs = max(1, min(physical_budget, working_memory // reference_peak))
+    research_jobs = max(1, min(physical_budget, working_memory // indicator_peak))
 
     return {
-        "memory_cap_bytes": memory_cap_bytes,
+        "memory_cap_bytes": selected_memory_cap,
         "host_reserve_bytes": host_reserve,
         "working_memory_bytes": working_memory,
         "reserved_physical_cores": max(0, physical - physical_budget),
-        "indicator_threads": int(indicator_threads),
+        "indicator_processes": int(indicator_processes),
         "portfolio_simulator_threads": 1,
+        "independent_research_jobs": int(research_jobs),
         "independent_engine_jobs": int(engine_jobs),
         "independent_reference_jobs": int(reference_jobs),
+        "assumed_indicator_worker_peak_bytes": indicator_peak,
         "assumed_engine_peak_bytes": engine_peak,
         "assumed_reference_peak_bytes": reference_peak,
         "nested_numeric_threads": 1,
@@ -122,7 +125,8 @@ def create_execution_profile(
     destination: str | Path,
     *,
     workspace: str | Path | None = None,
-    memory_cap_bytes: int = DEFAULT_MEMORY_CAP_BYTES,
+    memory_cap_bytes: int | None = None,
+    observed_indicator_worker_peak_bytes: int | None = None,
     observed_engine_peak_bytes: int | None = None,
     observed_reference_peak_bytes: int | None = None,
 ) -> dict[str, Any]:
@@ -131,12 +135,13 @@ def create_execution_profile(
     tuning = derive_tuning(
         hardware,
         memory_cap_bytes=memory_cap_bytes,
+        observed_indicator_worker_peak_bytes=observed_indicator_worker_peak_bytes,
         observed_engine_peak_bytes=observed_engine_peak_bytes,
         observed_reference_peak_bytes=observed_reference_peak_bytes,
     )
     profile = {
         "schema_version": EXECUTION_PROFILE_VERSION,
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "hardware_fingerprint": hardware_fingerprint(hardware),
         "hardware": hardware,
         "tuning": tuning,
@@ -145,6 +150,32 @@ def create_execution_profile(
     validate_execution_profile(profile, current_hardware=hardware)
     write_json(destination, profile)
     return profile
+
+
+def ensure_execution_profile(
+    destination: str | Path,
+    *,
+    workspace: str | Path | None = None,
+    memory_cap_bytes: int | None = None,
+    observed_indicator_worker_peak_bytes: int | None = None,
+    observed_engine_peak_bytes: int | None = None,
+    observed_reference_peak_bytes: int | None = None,
+) -> dict[str, Any]:
+    """Reuse a hardware-bound profile or safely recalibrate it when the host changed."""
+    path = Path(destination).resolve()
+    if path.is_file():
+        try:
+            return load_execution_profile(path)
+        except SpecValidationError:
+            pass
+    return create_execution_profile(
+        path,
+        workspace=workspace,
+        memory_cap_bytes=memory_cap_bytes,
+        observed_indicator_worker_peak_bytes=observed_indicator_worker_peak_bytes,
+        observed_engine_peak_bytes=observed_engine_peak_bytes,
+        observed_reference_peak_bytes=observed_reference_peak_bytes,
+    )
 
 
 def load_execution_profile(
@@ -182,20 +213,31 @@ def validate_execution_profile(
     if hardware_fingerprint(profile["hardware"]) != profile["hardware_fingerprint"]:
         raise SpecValidationError("execution profile hardware fingerprint is corrupt")
     tuning = profile["tuning"]
-    for key in (
+    tuning_fields = {
         "memory_cap_bytes",
         "host_reserve_bytes",
         "working_memory_bytes",
-        "indicator_threads",
+        "reserved_physical_cores",
+        "indicator_processes",
         "portfolio_simulator_threads",
+        "independent_research_jobs",
         "independent_engine_jobs",
         "independent_reference_jobs",
+        "assumed_indicator_worker_peak_bytes",
+        "assumed_engine_peak_bytes",
+        "assumed_reference_peak_bytes",
         "nested_numeric_threads",
-    ):
+    }
+    if not isinstance(tuning, dict) or set(tuning) != tuning_fields:
+        raise SpecValidationError("execution profile tuning fields differ from v1.2")
+    for key in tuning_fields:
         if not isinstance(tuning.get(key), int) or isinstance(tuning.get(key), bool):
             raise SpecValidationError(f"execution profile tuning.{key} must be an integer")
         if tuning[key] < 0:
             raise SpecValidationError(f"execution profile tuning.{key} cannot be negative")
+    for key in tuning_fields - {"reserved_physical_cores"}:
+        if tuning[key] == 0:
+            raise SpecValidationError(f"execution profile tuning.{key} must be positive")
     if tuning["portfolio_simulator_threads"] != 1:
         raise SpecValidationError("global chronological simulator must use exactly one thread")
     if not isinstance(profile["environment"], dict) or not all(
@@ -208,6 +250,13 @@ def validate_execution_profile(
         if current_fingerprint != profile["hardware_fingerprint"]:
             raise SpecValidationError(
                 "execution profile belongs to different hardware; run `nfi-bte system tune` again"
+            )
+        current_available = _positive_int(current_hardware["memory"], "available_bytes")
+        current_usable = max(512 * MIB, current_available - tuning["host_reserve_bytes"])
+        revalidation_margin = max(256 * MIB, tuning["working_memory_bytes"] // 20)
+        if tuning["working_memory_bytes"] > current_usable + revalidation_margin:
+            raise SpecValidationError(
+                "execution profile exceeds current free memory; recalibrate before running"
             )
 
 
@@ -227,20 +276,41 @@ def hardware_fingerprint(hardware: dict[str, Any]) -> str:
 
 
 def tuning_environment(tuning: dict[str, Any]) -> dict[str, str]:
-    indicators = str(tuning["indicator_threads"])
+    indicators = str(tuning["indicator_processes"])
     nested = str(tuning["nested_numeric_threads"])
     return {
-        "NFI_INDICATOR_THREADS": indicators,
+        "NFI_INDICATOR_PROCESSES": indicators,
+        "NFI_RESEARCH_JOBS": str(tuning["independent_research_jobs"]),
         "NFI_ENGINE_JOBS": str(tuning["independent_engine_jobs"]),
         "NFI_REFERENCE_JOBS": str(tuning["independent_reference_jobs"]),
         "NFI_MEMORY_BUDGET_BYTES": str(tuning["working_memory_bytes"]),
-        "POLARS_MAX_THREADS": indicators,
-        "RAYON_NUM_THREADS": indicators,
+        "POLARS_MAX_THREADS": nested,
+        "RAYON_NUM_THREADS": nested,
         "OMP_NUM_THREADS": nested,
         "OPENBLAS_NUM_THREADS": nested,
         "MKL_NUM_THREADS": nested,
         "MALLOC_ARENA_MAX": "2",
     }
+
+
+@contextmanager
+def execution_environment(environment: Mapping[str, str]) -> Iterator[None]:
+    """Apply numeric-thread limits while child processes are spawned.
+
+    Spawned vector workers inherit this environment before importing NumPy,
+    Polars, or TA-Lib. Restoring it afterwards keeps unrelated commands in the
+    long-lived parent process untouched.
+    """
+    previous = {key: os.environ.get(key) for key in environment}
+    try:
+        os.environ.update(environment)
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def _positive_int(record: dict[str, Any], key: str) -> int:

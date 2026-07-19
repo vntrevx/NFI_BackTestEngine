@@ -4,26 +4,38 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import json
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from .canonical import write_json
 from .errors import SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
 
-STRATEGY_IR_VERSION = "1.0.0"
+STRATEGY_IR_VERSION = "1.6.0"
 HOT_CALLBACKS = {
     "adjust_trade_position",
+    "bot_loop_start",
     "confirm_trade_entry",
     "confirm_trade_exit",
+    "custom_roi",
     "custom_entry_price",
     "custom_exit",
     "custom_exit_price",
     "custom_stake_amount",
     "custom_stoploss",
+}
+STRATEGY_CALLBACKS = HOT_CALLBACKS | {
+    "adjust_entry_price",
+    "adjust_exit_price",
+    "adjust_order_price",
+    "bot_start",
+    "check_entry_timeout",
+    "check_exit_timeout",
     "leverage",
+    "order_filled",
 }
 _DYNAMIC_CALLS = {"compile", "eval", "exec", "__import__", "globals", "locals"}
 _DYNAMIC_ATTRIBUTE_CALLS = {"setattr", "delattr"}
@@ -126,8 +138,8 @@ def prepare_strategy(
     shutil.copyfile(Path(source).resolve(), strategy_path)
     write_json(root / "strategy-ir.json", analysis)
     manifest = {
-        "schema_version": "1.0.0",
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "schema_version": "1.1.0",
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "strategy": {
             "path": "strategy.py",
             "bytes": strategy_path.stat().st_size,
@@ -140,10 +152,11 @@ def prepare_strategy(
         },
         "selected_class": analysis["strategies"][0]["name"],
         "hot_callbacks": analysis["strategies"][0]["hot_callbacks"],
+        "strategy_callbacks": analysis["strategies"][0]["strategy_callbacks"],
         "execution_boundary": {
             "initialization": "batch-python-freeze-effective-config",
             "vector_methods": "batch-python",
-            "hot_callbacks": "requires-compiled-ir",
+            "strategy_callbacks": "requires-compiled-ir",
             "python_per_candle": False,
         },
     }
@@ -161,6 +174,7 @@ def validate_strategy_bundle(source: str | Path) -> dict[str, Any]:
         "ir",
         "selected_class",
         "hot_callbacks",
+        "strategy_callbacks",
         "execution_boundary",
     }
     if not isinstance(manifest, dict) or set(manifest) != required:
@@ -212,24 +226,29 @@ def _strategy_record(node: ast.ClassDef, source_lines: list[bytes]) -> dict[str,
     constants: dict[str, Any] = {}
     dynamic_constants: list[str] = []
     for item in node.body:
-        if not isinstance(item, ast.Assign) or len(item.targets) != 1:
+        assignment = _class_constant_assignment(item)
+        if assignment is None:
             continue
-        target = item.targets[0]
-        if not isinstance(target, ast.Name):
-            continue
+        target, expression = assignment
         try:
-            constants[target.id] = _json_literal(ast.literal_eval(item.value))
-        except (RecursionError, ValueError, TypeError):
+            value = _safe_static_value(expression, constants)
+        except (ArithmeticError, OverflowError, RecursionError, TypeError, ValueError):
+            value = _STATIC_UNKNOWN
+        if value is _STATIC_UNKNOWN:
             dynamic_constants.append(target.id)
-    return {
+        else:
+            constants[target.id] = _json_literal(value)
+    record = {
         "name": node.name,
         "bases": [_qualified_name(base) or ast.unparse(base) for base in node.bases],
         "location": _location(node),
         "constants": constants,
         "dynamic_constants": sorted(dynamic_constants),
+        "literal_condition_indices": _literal_condition_indices(node),
         "required_timeframes": _required_timeframes(node, constants),
         "methods": methods,
         "hot_callbacks": sorted(method_names & HOT_CALLBACKS),
+        "strategy_callbacks": sorted(method_names & STRATEGY_CALLBACKS),
         "vector_methods": sorted(
             method_names
             & {
@@ -239,6 +258,89 @@ def _strategy_record(node: ast.ClassDef, source_lines: list[bytes]) -> dict[str,
             }
         ),
     }
+    fingerprint_identity = {
+        "name": record["name"],
+        "bases": record["bases"],
+        "constants": record["constants"],
+        "dynamic_constants": record["dynamic_constants"],
+        "literal_condition_indices": record["literal_condition_indices"],
+        "methods": [
+            {
+                "name": method["name"],
+                "source_sha256": method["source_sha256"],
+            }
+            for method in methods
+        ],
+    }
+    record["capability_fingerprint"] = hashlib.sha256(
+        json.dumps(
+            fingerprint_identity,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    return record
+
+
+def _class_constant_assignment(item: ast.stmt) -> tuple[ast.Name, ast.expr] | None:
+    """Return one simple class assignment without executing annotations.
+
+    Modern Freqtrade strategies commonly spell configuration as
+    ``startup_candle_count: int = 800``. The annotation carries no runtime
+    value for this inventory; only the literal right-hand side participates in
+    the same bounded evaluator used for unannotated assignments.
+    """
+    if isinstance(item, ast.Assign):
+        if len(item.targets) == 1 and isinstance(item.targets[0], ast.Name):
+            return item.targets[0], item.value
+        return None
+    if (
+        isinstance(item, ast.AnnAssign)
+        and isinstance(item.target, ast.Name)
+        and item.value is not None
+    ):
+        return item.target, item.value
+    return None
+
+
+def _literal_condition_indices(node: ast.ClassDef) -> dict[str, dict[str, list[int]]]:
+    """Inventory source branches selected through a literal condition index.
+
+    NFI's large vector methods iterate enabled signal parameters, derive an
+    integer such as ``long_entry_condition_index``, and then dispatch through
+    independent ``if index == 120`` branches. Mode-tag constants alone do not
+    prove that a strategy can emit a tag. Recording the literal branches keeps
+    that reachability boundary visible without executing trusted strategy code.
+    """
+    result: dict[str, dict[str, list[int]]] = {}
+    for method in node.body:
+        if not isinstance(method, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        indices: dict[str, set[int]] = {}
+        for item in ast.walk(method):
+            if not isinstance(item, ast.Compare) or len(item.ops) != 1:
+                continue
+            if not isinstance(item.ops[0], ast.Eq) or len(item.comparators) != 1:
+                continue
+            pair = _literal_index_comparison(item.left, item.comparators[0])
+            if pair is None:
+                pair = _literal_index_comparison(item.comparators[0], item.left)
+            if pair is not None:
+                name, value = pair
+                indices.setdefault(name, set()).add(value)
+        if indices:
+            result[method.name] = {name: sorted(values) for name, values in sorted(indices.items())}
+    return result
+
+
+def _literal_index_comparison(name_node: ast.AST, value_node: ast.AST) -> tuple[str, int] | None:
+    if not isinstance(name_node, ast.Name) or not name_node.id.endswith("_condition_index"):
+        return None
+    if not isinstance(value_node, ast.Constant) or not _is_static_int(value_node.value):
+        return None
+    return name_node.id, value_node.value
 
 
 def _method_record(
@@ -246,11 +348,30 @@ def _method_record(
     source_lines: list[bytes],
 ) -> dict[str, Any]:
     segment = _node_source_bytes(node, source_lines)
+    calls = sorted(
+        {
+            name
+            for item in ast.walk(node)
+            if isinstance(item, ast.Call)
+            if (name := _qualified_name(item.func)) is not None
+        }
+    )
     return {
         "name": node.name,
         "location": _location(node),
         "source_sha256": hashlib.sha256(segment).hexdigest(),
         "is_async": isinstance(node, ast.AsyncFunctionDef),
+        "parameters": [argument.arg for argument in node.args.args],
+        "node_count": sum(1 for _ in ast.walk(node)),
+        "calls": calls,
+        "control_flow": {
+            "branches": sum(isinstance(item, ast.If | ast.IfExp) for item in ast.walk(node)),
+            "loops": sum(isinstance(item, ast.For | ast.While) for item in ast.walk(node)),
+            "comprehensions": sum(
+                isinstance(item, ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp)
+                for item in ast.walk(node)
+            ),
+        },
     }
 
 
@@ -311,8 +432,7 @@ class _DiagnosticVisitor:
             self._dynamic_attribute(node, function_name, f"{leaf}()")
         elif leaf == "getattr":
             if len(node.args) < 2 or not (
-                isinstance(node.args[1], ast.Constant)
-                and isinstance(node.args[1].value, str)
+                isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str)
             ):
                 self._dynamic_attribute(node, function_name, "dynamic getattr()")
         elif leaf == "shift" and node.args and _negative_number(node.args[0]):
@@ -341,7 +461,7 @@ class _DiagnosticVisitor:
         operation: str,
     ) -> None:
         compile_time_methods = {
-            *HOT_CALLBACKS,
+            *STRATEGY_CALLBACKS,
             "populate_indicators",
             "populate_entry_trend",
             "populate_exit_trend",
@@ -454,11 +574,7 @@ def _literal_timeframes(value: Any) -> set[str]:
             for timeframe in (*_literal_timeframes(key), *_literal_timeframes(item))
         }
     if isinstance(value, list):
-        return {
-            timeframe
-            for item in value
-            for timeframe in _literal_timeframes(item)
-        }
+        return {timeframe for item in value for timeframe in _literal_timeframes(item)}
     return set()
 
 
@@ -485,6 +601,128 @@ def _json_literal(value: Any) -> Any:
     if isinstance(value, (set, frozenset)):
         return sorted((_json_literal(item) for item in value), key=repr)
     return repr(value)
+
+
+def _safe_static_value(node: ast.AST, constants: dict[str, Any]) -> Any:
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        return constants.get(node.id, _STATIC_UNKNOWN)
+    if isinstance(node, ast.List | ast.Tuple | ast.Set):
+        values = [_safe_static_value(item, constants) for item in node.elts]
+        if any(value is _STATIC_UNKNOWN for value in values):
+            return _STATIC_UNKNOWN
+        if isinstance(node, ast.List):
+            return values
+        if isinstance(node, ast.Tuple):
+            return tuple(values)
+        return set(values)
+    if isinstance(node, ast.Dict):
+        if any(item is None for item in node.keys):
+            return _STATIC_UNKNOWN
+        keys = [_safe_static_value(item, constants) for item in node.keys if item is not None]
+        values = [_safe_static_value(item, constants) for item in node.values]
+        if any(value is _STATIC_UNKNOWN for value in (*keys, *values)):
+            return _STATIC_UNKNOWN
+        return dict(zip(keys, values, strict=True))
+    if isinstance(node, ast.UnaryOp):
+        value = _safe_static_value(node.operand, constants)
+        if value is _STATIC_UNKNOWN:
+            return _STATIC_UNKNOWN
+        if isinstance(node.op, ast.USub) and _is_static_number(value):
+            return -value
+        if isinstance(node.op, ast.UAdd) and _is_static_number(value):
+            return +value
+        if isinstance(node.op, ast.Not):
+            return not value
+        return _STATIC_UNKNOWN
+    if isinstance(node, ast.BinOp):
+        left = _safe_static_value(node.left, constants)
+        right = _safe_static_value(node.right, constants)
+        if left is _STATIC_UNKNOWN or right is _STATIC_UNKNOWN:
+            return _STATIC_UNKNOWN
+        if isinstance(node.op, ast.Add):
+            if _is_static_number(left) and _is_static_number(right):
+                return left + right
+            if isinstance(left, str) and isinstance(right, str):
+                return left + right
+            if isinstance(left, list) and isinstance(right, list):
+                return [*left, *right]
+            if isinstance(left, tuple) and isinstance(right, tuple):
+                return (*left, *right)
+        if isinstance(node.op, ast.Sub) and _is_static_number(left) and _is_static_number(right):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            if _is_static_number(left) and _is_static_number(right):
+                return left * right
+            if (
+                isinstance(left, str)
+                and isinstance(right, int)
+                and not isinstance(right, bool)
+                and 0 <= right <= 10_000
+            ):
+                return left * right
+            if (
+                isinstance(left, list)
+                and isinstance(right, int)
+                and not isinstance(right, bool)
+                and 0 <= right <= 10_000
+            ):
+                return left * right
+            if (
+                isinstance(left, tuple)
+                and isinstance(right, int)
+                and not isinstance(right, bool)
+                and 0 <= right <= 10_000
+            ):
+                return left * right
+            if (
+                isinstance(left, int)
+                and not isinstance(left, bool)
+                and 0 <= left <= 10_000
+                and isinstance(right, str)
+            ):
+                return right * left
+            if (
+                isinstance(left, int)
+                and not isinstance(left, bool)
+                and 0 <= left <= 10_000
+                and isinstance(right, list)
+            ):
+                return right * left
+            if (
+                isinstance(left, int)
+                and not isinstance(left, bool)
+                and 0 <= left <= 10_000
+                and isinstance(right, tuple)
+            ):
+                return right * left
+        if (
+            isinstance(node.op, ast.Div)
+            and isinstance(left, int | float)
+            and not isinstance(left, bool)
+            and isinstance(right, int | float)
+            and not isinstance(right, bool)
+        ):
+            return left / right
+        return _STATIC_UNKNOWN
+    if isinstance(node, ast.IfExp):
+        condition = _safe_static_value(node.test, constants)
+        if not isinstance(condition, bool):
+            return _STATIC_UNKNOWN
+        return _safe_static_value(node.body if condition else node.orelse, constants)
+    return _STATIC_UNKNOWN
+
+
+def _is_static_number(value: Any) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def _is_static_int(value: Any) -> TypeGuard[int]:
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 10_000
+
+
+_STATIC_UNKNOWN = object()
 
 
 def _iter_nodes_with_function(tree: ast.AST) -> Any:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -56,9 +56,7 @@ def run_fixture_engine(
         strategy_analysis=strategy_analysis,
     )
     raw_result_path = output / "simulation-result.json"
-    engine_events_path = (
-        output / "engine-events.jsonl" if verification_level == "full" else None
-    )
+    engine_events_path = output / "engine-events.jsonl" if verification_level == "full" else None
     execution = run_engine(
         input_path,
         raw_result_path,
@@ -102,6 +100,8 @@ def run_fixture_engine(
             else output / "reference-state-projected.trace"
         )
         actual_trace_path = output / "engine-state-projected.trace"
+        assert expected_trace_path is not None
+        assert actual_trace_path is not None
         if projection_artifact is None:
             project_reference_trace(
                 manifest_file,
@@ -165,14 +165,10 @@ def run_fixture_engine(
             "simulation_result": _artifact_record(raw_result_path),
             "trade_surface": _artifact_record(surface_path),
             "engine_events": (
-                _artifact_record(engine_events_path)
-                if engine_events_path is not None
-                else None
+                _artifact_record(engine_events_path) if engine_events_path is not None else None
             ),
             "engine_state_projection": (
-                _artifact_record(actual_trace_path)
-                if actual_trace_path is not None
-                else None
+                _artifact_record(actual_trace_path) if actual_trace_path is not None else None
             ),
         },
         "complete": parity_equal,
@@ -260,9 +256,12 @@ def build_fixture_simulation_input(
     for pair in pairs:
         candle_input = _candle_input_for_pair(manifest, pair)
         frame = pl.read_ipc(root / candle_input["path"], memory_map=True, rechunk=False)
+        pair_market = market_snapshot["markets"][pair]
         pair_series.append(
             {
                 "pair": pair,
+                "amount_step": float(pair_market["precision"]["amount"]),
+                "price_step": float(pair_market["precision"]["price"]),
                 "candles": _contract_candles(
                     frame,
                     strategy_name=strategy_name,
@@ -319,8 +318,7 @@ def engine_result_to_surface(
     )
     stoploss_ratio = analysis["strategies"][0]["constants"]["stoploss"]
     trades = [
-        _surface_trade(trade, index, stoploss_ratio)
-        for index, trade in enumerate(result["trades"])
+        _surface_trade(trade, index, stoploss_ratio) for index, trade in enumerate(result["trades"])
     ]
     surface = {
         "schema_version": "2.0.0",
@@ -360,7 +358,7 @@ def _surface_trade(
 ) -> dict[str, Any]:
     open_time = trade["open_timestamp_ms"]
     close_time = trade["close_timestamp_ms"]
-    weekday = datetime.fromtimestamp(close_time / 1000, tz=timezone.utc).weekday()
+    weekday = datetime.fromtimestamp(close_time / 1000, tz=UTC).weekday()
     return {
         "sequence": sequence,
         "pair": trade["pair"],
@@ -436,10 +434,10 @@ def _contract_candles(
         tag = "contract_route"
     frame = frame.with_columns(raw_entry.alias("_raw_entry"))
     start_ms, end_ms = _timerange_bounds(timerange)
-    frame = frame.filter(
-        (pl.col("_timestamp_ms") >= start_ms) & (pl.col("_timestamp_ms") < end_ms)
-    ).slice(startup_candles).with_columns(
-        pl.col("_raw_entry").shift(1).fill_null(False).alias("_enter_long")
+    frame = (
+        frame.filter((pl.col("_timestamp_ms") >= start_ms) & (pl.col("_timestamp_ms") < end_ms))
+        .slice(startup_candles)
+        .with_columns(pl.col("_raw_entry").shift(1).fill_null(False).alias("_enter_long"))
     )
     rows = frame.select(
         "_timestamp_ms",
@@ -468,8 +466,8 @@ def _contract_candles(
 
 def _timerange_bounds(timerange: str) -> tuple[int, int]:
     start, end = timerange.split("-", 1)
-    start_time = datetime.strptime(start, "%Y%m%d").replace(tzinfo=timezone.utc)
-    end_time = datetime.strptime(end, "%Y%m%d").replace(tzinfo=timezone.utc)
+    start_time = datetime.strptime(start, "%Y%m%d").replace(tzinfo=UTC)
+    end_time = datetime.strptime(end, "%Y%m%d").replace(tzinfo=UTC)
     return int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000)
 
 

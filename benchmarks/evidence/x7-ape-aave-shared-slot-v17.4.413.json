@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-final-surface-exact",
+  "claim_boundary": "APE/AAVE spot equal-timestamp max_open_trades=1 slot competition only; not full X7",
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "ccxt_version": "4.5.55",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "network_during_backtest": false
+  },
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.413",
+    "source_file_sha256": "f217e7dc6c6d2b0ed01126ae585f44bf93317a744941ef5292ee4e5c84b892d9",
+    "normalized_source_sha256": "11b379032da7aab5512d93eb092fc2b1495706a6e66a95ebfaba2e0443879227",
+    "capability_fingerprint": "c4da432030267f64ac5f9932d9fa67f970b582e0699d54335a3a54c7fc04122a",
+    "strategy_ir_version": "1.6.0",
+    "hot_ir_version": "1.9.0",
+    "vector_pipeline_version": "1.9.0",
+    "vector_output_version": "1.6.0",
+    "x7_adapter_version": "0.11.0",
+    "pairs": [
+      "APE/USDT",
+      "AAVE/USDT"
+    ],
+    "pair_order": [
+      "APE/USDT",
+      "AAVE/USDT"
+    ],
+    "timerange": "1651359900-1651449600",
+    "trading_mode": "spot",
+    "startup_candle_count": 800,
+    "execution_start_index": {
+      "APE/USDT": 801,
+      "AAVE/USDT": 801
+    },
+    "max_open_trades": 1,
+    "stake_amount": "unlimited"
+  },
+  "sealed_artifacts": {
+    "safe_config_sha256": "5351683bedc27aa80889266cb4e5e12462fc2f079dcbb4b4530ad8f8fef1be86",
+    "market_snapshot_sha256": "18442442cf6cbc4e345aa64b2ec8934499a15420ab864c0a97305fba9cfdfa5c",
+    "hot_callback_ir_sha256": "1a8fea83904c68f9d1f0927bc8402d2346df63747e1e6d599700ea663a472503",
+    "vector_feather_sha256": {
+      "APE/USDT": "70e1d5a83a1b9ab85972fd57aac8a32738014ec3c2418b5b17daed903f86204d",
+      "AAVE/USDT": "8d74a3059f54d4667418e67f1216fee247a9e4c0636ba9313d54bcaa35fc140e"
+    },
+    "simulation_input_sha256": "2b05a585c567770f7fc540d7107e45b6b4c5f8231ce2e7083bd0e5614fcd4837",
+    "official_result_zip_sha256": "5639b36fddfa7d19e716054c57e2d32982d45caa72f35d5f3a5492fe184ffd02",
+    "engine_result_sha256": "e17f9478e44be43fea7280f1adf4c480e06c8d533563412eb8ffe59de5b6b06f",
+    "confirmation_sha256": "51831015956ab1e7e381f785e3e2d132e6066248df5fc621822de72c5a68281f"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "official_surface_sha256": "b8fdbd280ee164e8e25d4cd1967fe5224e043d08e51b43f487b32d4652bca062",
+    "engine_surface_sha256": "b8fdbd280ee164e8e25d4cd1967fe5224e043d08e51b43f487b32d4652bca062",
+    "numeric_tolerance": 0,
+    "first_executable_timestamp_ms": 1651360200000,
+    "entry_candidates": [
+      {
+        "pair": "APE/USDT",
+        "entry_tag": "42 144 "
+      },
+      {
+        "pair": "AAVE/USDT",
+        "entry_tag": "141"
+      }
+    ],
+    "selected_pair": "APE/USDT",
+    "rejected_pair": "AAVE/USDT",
+    "trades": 1,
+    "orders": 2,
+    "rejected_signals": 1,
+    "maximum_concurrent_trades": 1,
+    "entry_tag": "42 144 ",
+    "exit_reason": "exit_profit_long_quick_t_1_1_m ( 42 144 )",
+    "profit_total_abs": "19.1946775",
+    "total_volume": "2002.895390496",
+    "difference": null
+  }
+}

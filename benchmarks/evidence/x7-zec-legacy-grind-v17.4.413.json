@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-final-surface-exact",
+  "claim_boundary": "ZEC/USDT spot tag-120 legacy grind route; fixture reaches gm0, gd1, and gd2 only",
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "image_id": "bc5b7276118a",
+    "platform_image_id": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "network_during_backtest": false
+  },
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.413",
+    "source_file_sha256": "f217e7dc6c6d2b0ed01126ae585f44bf93317a744941ef5292ee4e5c84b892d9",
+    "normalized_source_sha256": "11b379032da7aab5512d93eb092fc2b1495706a6e66a95ebfaba2e0443879227",
+    "pair": "ZEC/USDT",
+    "timerange": "20220221-20220311",
+    "trading_mode": "spot",
+    "entry_tag": "120",
+    "adjustment_scope": "spot-grind-backtest-v1",
+    "nfi_trade_manager_schema": "0.7.0",
+    "x7_adapter_version": "0.10.0"
+  },
+  "sealed_artifacts": {
+    "safe_config_sha256": "05a846c24e188868c80c86da0fd4bad607afd523f22822ed9d7c44c29ef6a4f0",
+    "market_snapshot_sha256": "f38ad84a052d6040f80c2eac53ca1af568de64eba5276990a96cb34cb2cffb05",
+    "hot_callback_ir_sha256": "71b34ded99fa1410573ca6d43e7a079200946c488e463a82be8261515ca4b7f4",
+    "vector_feather_sha256": "e696e2d9ef9e7256d2e660096982b6d2012513b16c2d7b55dd143226d9c1181d",
+    "vector_manifest_sha256": "f666f1db2623c4ea6e5596005b713a210f63dab485497abbbb6cb56bcd30e1ad",
+    "official_result_zip_sha256": "329a9281a6fc2b0dfd08441f54f919556d9c760c13c7be24f9bf2b87609bd4d7",
+    "engine_result_sha256": "36c85bf22f1730a4779c58a47ed5b7067c12577abc4888a05a256eece8891acd"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "official_surface_sha256": "41d35044bbba79a4f13fa787e4b5a8804c1039b0a7e44ff838b90851451f5c72",
+    "engine_surface_sha256": "41d35044bbba79a4f13fa787e4b5a8804c1039b0a7e44ff838b90851451f5c72",
+    "numeric_tolerance": 0,
+    "trades": 1,
+    "orders": 13,
+    "adjustment_orders": 11,
+    "reached_adjustment_tags": [
+      "gm0",
+      "gd1",
+      "gd2"
+    ],
+    "entry_tag": "120",
+    "exit_reason": "exit_long_grind_g ( 120 )",
+    "profit_total_abs": "8.4117927",
+    "total_volume": "456.9638072999999",
+    "difference": null
+  }
+}

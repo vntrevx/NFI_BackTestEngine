@@ -104,9 +104,7 @@ def _validate_trace_binding(
             f"{trace_name} input_sha256 does not match the sealed fixture inputs"
         )
     if trace["trading_mode"] != trading_mode:
-        raise SpecValidationError(
-            f"{trace_name} trading_mode does not match the fixture manifest"
-        )
+        raise SpecValidationError(f"{trace_name} trading_mode does not match the fixture manifest")
 
 
 def seal_fixture(manifest_path: str | Path) -> dict[str, Any]:

@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "status": "diagnostic-only",
+  "claim_boundary": "four concurrent, identical single-pair annual X7 prepare-only jobs on one WSL2 development host; not an engine speedup, 80-pair benchmark, or cross-host performance claim",
+  "recorded_at": "2026-07-19",
+  "workload": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.413",
+    "source_file_sha256": "f217e7dc6c6d2b0ed01126ae585f44bf93317a744941ef5292ee4e5c84b892d9",
+    "pair": "APE/USDT:USDT",
+    "timerange": "20220401-20230101",
+    "mode": "prepare-only",
+    "job_count": 4
+  },
+  "hardware": {
+    "environment": "WSL2 Linux x86_64",
+    "physical_cpu_count": 5,
+    "logical_cpu_count": 10,
+    "affinity_cpu_count": 10,
+    "total_memory_bytes": 27315089408,
+    "hardware_fingerprint": "e87bf56bf2d21f50bb2102e76a975178f573f362fcac0d58d6971b0a56599f4b"
+  },
+  "automatic_tuning": {
+    "host_reserve_bytes": 4097263411,
+    "working_memory_bytes": 22192507085,
+    "reserved_physical_cores": 1,
+    "parallel_job_processes": 4,
+    "indicator_processes_per_job": 1,
+    "nested_numeric_threads_per_process": 1
+  },
+  "observation": {
+    "complete": true,
+    "coordinator_process_id": 10353,
+    "worker_process_ids": [
+      10372,
+      10374,
+      10373,
+      10369
+    ],
+    "worker_wall_time_seconds": [
+      27.587448622,
+      26.398349078,
+      26.54270548,
+      26.403868152
+    ],
+    "coordinator_wall_time_seconds": 35.671071557,
+    "aggregate_job_seconds": 106.932371332,
+    "effective_parallelism": 2.99773364422566,
+    "parallel_efficiency": 0.749433411056416
+  },
+  "sealed_source_artifacts": {
+    "batch_manifest_sha256": "fd4f6919a7a5c491de44b3e577d851bceb85f6e119e4260cf9cb9e6ae0b24ba7",
+    "batch_report_sha256": "44d6663b9e49ca93cc58f1bb164d3ac7888e12398883e88eda3729f5f7f7a9ee"
+  }
+}

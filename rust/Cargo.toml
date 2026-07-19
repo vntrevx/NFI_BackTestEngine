@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/nfi-sim-core",
+    "crates/nfi-vector-io",
     "crates/nfi-sim-cli",
     "crates/nfi-py",
 ]
@@ -10,7 +11,9 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-rust-version = "1.79"
+rust-version = "1.83"
+repository = "https://github.com/vntrevx/NFI_BackTestEngine"
+homepage = "https://github.com/vntrevx/NFI_BackTestEngine"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

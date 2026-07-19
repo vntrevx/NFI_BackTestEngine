@@ -25,7 +25,7 @@ strategy.py + config + candles
 AST preflight + frozen input/data identity
           |
           v
-Polars batched signal arrays
+SHA-bound Feather vectors + projected callback columns
           |
           v
 Rust global chronological portfolio loop
@@ -41,6 +41,12 @@ Rust global chronological portfolio loop
 Python is not called once per candle. Python owns preparation, columnar transforms,
 reports, and proof artifacts. Rust owns mutable trade/order/wallet state and the hot
 chronological loop.
+
+The compact vector manifest stores a relative Feather path, file SHA-256, row count,
+feature names, pair limits, precision, and historical price-step changes. Rust
+canonicalizes the path below the manifest directory and verifies the file hash before
+trusting Arrow schema metadata. Required feature projections are derived from the
+immutable scalar-program arenas at runtime; an input cannot provide a wider projection.
 
 ## Global event model
 
@@ -71,10 +77,23 @@ Parallel work is limited to operations without shared mutable portfolio state:
 - offline scoring and report generation.
 
 The hardware profile detects physical/logical CPU and available RAM, reserves a physical
-core for the host, caps working memory, and derives independent engine/reference job
-counts. The global simulator remains intentionally single-threaded for deterministic
-shared-state order; it is small enough that independent jobs are the useful CPU
-parallelism boundary.
+core for the host on ordinary multicore systems, reserves 15% of total memory within
+bounded limits, and derives independent engine/reference/research process counts.
+Research jobs and pair workers additionally use a conservative 3 GiB
+per-indicator-process memory assumption, which can be replaced with a measured value.
+Spawned workers set Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread.
+The global simulator remains intentionally single-threaded for deterministic
+shared-state order; independent candidates are the useful simulator parallelism
+boundary.
+
+On the development host visible to WSL (5 physical cores, 10 logical CPUs, 27.3 GiB
+RAM), the automatic profile selected four independent research processes. A four-job
+annual X7 vector-preparation diagnostic used four distinct worker PIDs, completed in
+35.67 seconds versus 106.93 aggregate job-seconds, and therefore observed 3.00x
+effective parallelism and 75% four-process efficiency. This is host-specific diagnostic
+evidence, not the public 80-pair performance certificate.
+The raw boundaries and timings are pinned in
+[`benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json`](../benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json).
 
 ## Exact trade surface
 
@@ -148,20 +167,46 @@ The stops fixture has two exact trades and 861 exact common state events. The
 normal-routing fixture has six trades, three rebuys, timed exits plus force exit, and 859
 exact common state events.
 
+The source-bound X7 adapter additionally executes:
+
+- managed long exits and shared system-v3.2 adjustment for 57 tags across normal,
+  pump, quick, rebuy, high-profit, rapid, top-coins, and scalp profiles;
+- managed short-rebuy tags 561-563 with ordered short exits and adjustment;
+- the separate rebuy entry/de-risk ladder before its source-defined transition
+  into the shared grind-v3 adjustment;
+- ordered per-pair target-cache mutation for mixed supported tags;
+- custom stake, entry/exit confirmation, lifecycle no-op, and order-filled writes;
+- the tag-120 spot/backtest legacy grind state machine, including source-ordered
+  de-risk, six grind levels, partial exits, stops, and the `d1` buyback cycle;
+- constrained isolated-futures accounting with uniform source-compiled leverage,
+  long/short direction, funding events, fees, mark-price transport, precision,
+  and position-adjustment order replay.
+
+The annual APE/USDT:USDT futures certificate covers 2022-04-01 through 2023-01-01
+and exactly matches Freqtrade's final normalized surface: 11 trades, 164 orders,
+142 adjustment orders, one short trade, and eight funded trades. It reaches derisk
+levels 1-3 and grind levels 1-5. The APE spot top-coins path, a separate tag-62 rebuy
+exit, and a ZEC tag-120 grind path also have captured official final-surface
+certificates. The rebuy fixture does not reach an adjustment order. The ZEC fixture
+reaches `gm0`, `gd1`, and `gd2`; deeper legacy branches have source hashes and focused
+native tests, not a branch-reaching Freqtrade differential certificate.
+
 ## Explicitly unsupported
 
 The engine fails before simulation instead of approximating:
 
-- arbitrary NFI X7 hot callback bodies;
-- short trades and futures mode;
-- leverage changes, funding, mark prices, and liquidation;
-- partial exits, derisk/grind routing beyond the contract rule;
+- live-only tag-120 partial-fill retry and dormant tag-121 entry/regular-mode adjustment;
+- per-entry futures leverage when source branches are not uniform;
+- liquidation-event parity outside the annual no-liquidation certificate;
 - protections, pair locks, dynamic pairlists, and live exchange behavior;
+- arbitrary NFI strategy shapes or X7 source revisions that do not match the compiled
+  source and callback fingerprints;
 - runtime `eval`, `exec`, dynamic imports, hot-path dynamic attributes;
 - negative shifts or centered rolling windows that can introduce lookahead.
 
-X7 AST preflight is implemented, including exact diagnostics and timeframe discovery.
-That does not mean X7 execution parity is complete.
+X7 AST preflight and constrained spot/futures callback compilation are implemented.
+The annual APE certificate proves one combined futures event sequence; it does not
+mean arbitrary X7 execution parity is complete.
 
 ## Performance claims
 

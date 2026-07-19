@@ -11,6 +11,8 @@ if any(
         "NFI_BTE_PROFILE_EVENTS",
         "NFI_MARKET_SNAPSHOT_PATH",
         "NFI_MARKET_CAPTURE_PATH",
+        "NFI_CALLBACK_AUDIT_PATH",
+        "NFI_SIGNAL_AUDIT_PATH",
     )
 ):
     from nfi_reference_trace import install_reference_tracer

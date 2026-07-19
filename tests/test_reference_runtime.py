@@ -48,10 +48,7 @@ def test_reference_command_is_digest_pinned_offline_and_read_only(tmp_path: Path
     assert f"{fixture}:/fixture:ro" in command
     assert "NFI_TRACE_INCLUDE_STATE=0" in command
     assert "NFI_BTE_PROFILE_EVENTS=/output/profile.jsonl" in command
-    assert (
-        "NFI_MARKET_SNAPSHOT_PATH=/fixture/inputs/market_metadata/markets.json"
-        in command
-    )
+    assert "NFI_MARKET_SNAPSHOT_PATH=/fixture/inputs/market_metadata/markets.json" in command
     assert command[-4:] == [
         "--userdir",
         "/output/user_data",

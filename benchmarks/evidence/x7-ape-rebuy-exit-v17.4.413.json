@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-final-surface-exact",
+  "claim_boundary": "APE/USDT spot tag-62 rebuy exit route only; adjustment ladder not reached",
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "image_id": "bc5b7276118a",
+    "network_during_backtest": false
+  },
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.413",
+    "source_file_sha256": "f217e7dc6c6d2b0ed01126ae585f44bf93317a744941ef5292ee4e5c84b892d9",
+    "normalized_source_sha256": "11b379032da7aab5512d93eb092fc2b1495706a6e66a95ebfaba2e0443879227",
+    "pair": "APE/USDT",
+    "timerange": "1668033000-1668902400",
+    "trading_mode": "spot",
+    "entry_tag": "62",
+    "nfi_trade_manager_schema": "0.6.0",
+    "x7_adapter_version": "0.9.0"
+  },
+  "sealed_artifacts": {
+    "safe_config_sha256": "5e057096b83e29d32d1f7aec2662157ab2f9b0938b33ed836ab146c8e5e7f87f",
+    "market_snapshot_sha256": "9b236f6539b93aa0c4fa85d48d4654a58d9ab65b7de8dafda8fada8fe5106e10",
+    "hot_callback_ir_sha256": "9be9af925b65869e57045641be0cf4b1f643d4a9b1b94f3b4e55658bc2fa38ad",
+    "vector_feather_sha256": "3dd5cf70220a004e7ef7fc7b4f4a761e82ebede5e32f02c240f477b2bb0dcb54",
+    "vector_manifest_sha256": "45361f3e010a65e1ed156a2c02d0ad118a80e425c61b355a11823331d348c851",
+    "official_result_zip_sha256": "95ce0ae161872c0342eb3ed0dd7598a655539d67156fc17f366a01f959a47058",
+    "engine_result_sha256": "aabf7a1afaa68e1ae5a7cc2e9d4c7eda94ad97327fad06396753c305d9d407f4"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "official_surface_sha256": "9ee3f7b2229794c59b2dfe7975bcfb177274e9081e548992aa5931ea33fd2750",
+    "engine_surface_sha256": "9ee3f7b2229794c59b2dfe7975bcfb177274e9081e548992aa5931ea33fd2750",
+    "numeric_tolerance": 0,
+    "trades": 1,
+    "orders": 2,
+    "entry_tag": "62",
+    "exit_reason": "exit_long_rebuy_d_3_13 ( 62 )",
+    "profit_total_abs": "1.62917304",
+    "adjustment_orders": 0,
+    "difference": null
+  }
+}

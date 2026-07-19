@@ -1,14 +1,15 @@
-"""Build and execute the Linux Rust core from Windows/WSL or native Linux."""
+"""Build or execute the packaged native Rust simulation core."""
 
 from __future__ import annotations
 
 import hashlib
 import os
+import platform
 import shlex
 import shutil
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,15 +20,52 @@ from .hardware import load_execution_profile
 
 
 def build_engine(*, force: bool = False) -> dict[str, Any]:
-    """Build only when the Rust source fingerprint differs from the marker."""
-    root = _project_root()
-    rust_root = root / "rust"
+    """Return the packaged engine, or build the source-checkout CLI fallback."""
+    native = _native_module()
+    root = _project_root_or_none()
+    rust_root = root / "rust" if root is not None else None
+    current_fingerprint = (
+        _rust_source_fingerprint(rust_root) if rust_root is not None else None
+    )
+    native_fingerprint = (
+        _native_source_fingerprint(native) if native is not None else None
+    )
+    native_is_fresh = (
+        native is not None
+        and (
+            root is None
+            or (
+                not force
+                and native_fingerprint is not None
+                and native_fingerprint == current_fingerprint
+            )
+        )
+    )
+    if native_is_fresh and native is not None:
+        binary = Path(native.__file__).resolve()
+        return {
+            "schema_version": "1.0.0",
+            "built_at": None,
+            "source_fingerprint": native_fingerprint,
+            "binary_path": str(binary),
+            "binary_sha256": sha256_file(binary),
+            "binary_bytes": binary.stat().st_size,
+            "target": f"{platform.system().lower()}-{platform.machine().lower()}",
+            "build_seconds": 0.0,
+            "kind": "pyo3-extension",
+        }
+
+    # A source checkout may have an importable extension from an older
+    # `maturin develop`. Loading it would silently execute stale Rust. Build
+    # and use the standalone CLI instead; replacing and re-importing a loaded
+    # extension in the current Python process is not reliable on every OS.
+    if root is None or rust_root is None or current_fingerprint is None:
+        raise BenchmarkError("native Rust extension is unavailable outside a source checkout")
     binary = _engine_binary()
     marker = binary.with_suffix(".build.json")
-    fingerprint = _rust_source_fingerprint(rust_root)
     if not force and binary.is_file() and marker.is_file():
         existing = read_json(marker)
-        if existing.get("source_fingerprint") == fingerprint:
+        if existing.get("source_fingerprint") == current_fingerprint:
             return existing
 
     started_ns = time.perf_counter_ns()
@@ -66,8 +104,8 @@ def build_engine(*, force: bool = False) -> dict[str, Any]:
         )
     record = {
         "schema_version": "1.0.0",
-        "built_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "source_fingerprint": fingerprint,
+        "built_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "source_fingerprint": current_fingerprint,
         "binary_path": str(binary),
         "binary_sha256": sha256_file(binary),
         "binary_bytes": binary.stat().st_size,
@@ -85,8 +123,14 @@ def run_engine(
     profile_path: str | Path | None = None,
     timeout_seconds: int | None = None,
     events_path: str | Path | None = None,
+    vector_manifest: bool = False,
 ) -> dict[str, Any]:
-    """Run one JSON simulation without a shell or per-candle Python calls."""
+    """Run one simulation without per-candle Python calls.
+
+    ``vector_manifest=True`` selects the compact, SHA-bound Feather transport.
+    It is explicit instead of inferred from a filename so malformed inputs
+    cannot accidentally fall through to a different parser.
+    """
     source = Path(input_path).resolve()
     destination = Path(output_path).resolve()
     if not source.is_file():
@@ -100,6 +144,16 @@ def run_engine(
     if event_destination is not None:
         event_destination.parent.mkdir(parents=True, exist_ok=True)
     build = build_engine()
+    if build.get("kind") == "pyo3-extension":
+        return _run_native_engine(
+            source,
+            destination,
+            event_destination=event_destination,
+            profile_path=profile_path,
+            timeout_seconds=timeout_seconds,
+            build=build,
+            vector_manifest=vector_manifest,
+        )
     binary = Path(build["binary_path"])
     resource_path = destination.parent / f".{destination.name}.resources"
     if resource_path.exists():
@@ -142,10 +196,14 @@ def run_engine(
             if time_executable.is_file()
             else [str(binary), str(source), str(destination)]
         )
+    if vector_manifest:
+        if os.name == "nt":
+            command.insert(-2, "--vector-manifest")
+        else:
+            time_prefix = 6 if Path("/usr/bin/time").is_file() else 1
+            command.insert(time_prefix, "--vector-manifest")
     if event_destination is not None:
-        command.append(
-            _wsl_path(event_destination) if os.name == "nt" else str(event_destination)
-        )
+        command.append(_wsl_path(event_destination) if os.name == "nt" else str(event_destination))
 
     started_ns = time.perf_counter_ns()
     try:
@@ -196,6 +254,101 @@ def run_engine(
     }
 
 
+def _run_native_engine(
+    source: Path,
+    destination: Path,
+    *,
+    event_destination: Path | None,
+    profile_path: str | Path | None,
+    timeout_seconds: int | None,
+    build: dict[str, Any],
+    vector_manifest: bool,
+) -> dict[str, Any]:
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise BenchmarkError("engine timeout must be positive")
+    native = _native_module()
+    if native is None:
+        raise BenchmarkError("packaged Rust extension disappeared before execution")
+    profile = load_execution_profile(profile_path) if profile_path is not None else None
+    environment = profile["environment"] if profile is not None else {}
+    previous_environment = {key: os.environ.get(key) for key in environment}
+    rss_before = _current_rss_bytes()
+    cpu_before = time.process_time()
+    started_ns = time.perf_counter_ns()
+    try:
+        os.environ.update(environment)
+        if vector_manifest:
+            native.simulate_vector_file(source, destination, event_destination)
+        else:
+            native.simulate_file(source, destination, event_destination)
+    except Exception as exc:
+        destination.unlink(missing_ok=True)
+        if event_destination is not None:
+            event_destination.unlink(missing_ok=True)
+        raise BenchmarkError(f"Rust engine execution failed: {exc}") from exc
+    finally:
+        for key, value in previous_environment.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    wall_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
+    cpu_seconds = time.process_time() - cpu_before
+    rss_after = _current_rss_bytes()
+    result = read_json(destination)
+    return {
+        "schema_version": "1.0.0",
+        "input_path": str(source),
+        "input_sha256": sha256_file(source),
+        "output_path": str(destination),
+        "output_sha256": sha256_file(destination),
+        "wall_time_seconds": wall_seconds,
+        "peak_rss_bytes": max(value for value in (rss_before, rss_after) if value is not None)
+        if rss_before is not None or rss_after is not None
+        else None,
+        "cpu_time_seconds": cpu_seconds,
+        "build": build,
+        "execution_profile_fingerprint": (
+            profile["hardware_fingerprint"] if profile is not None else None
+        ),
+        "trade_count": len(result.get("trades", [])),
+        "events": (
+            {
+                "path": str(event_destination),
+                "bytes": event_destination.stat().st_size,
+                "sha256": sha256_file(event_destination),
+            }
+            if event_destination is not None and event_destination.is_file()
+            else None
+        ),
+    }
+
+
+def _native_module() -> Any | None:
+    try:
+        from . import _rust
+    except ImportError:
+        return None
+    return _rust if _rust.simulator_available() else None
+
+
+def _native_source_fingerprint(native: Any) -> str | None:
+    getter = getattr(native, "source_fingerprint", None)
+    if not callable(getter):
+        return None
+    value = getter()
+    return value if isinstance(value, str) and len(value) == 64 else None
+
+
+def _current_rss_bytes() -> int | None:
+    try:
+        import psutil
+
+        return psutil.Process().memory_info().rss
+    except (ImportError, OSError):
+        return None
+
+
 def _read_resource_record(path: Path) -> dict[str, float | int]:
     if not path.is_file():
         return {}
@@ -217,19 +370,22 @@ def _read_resource_record(path: Path) -> dict[str, float | int]:
 
 def _rust_source_fingerprint(rust_root: Path) -> str:
     hasher = hashlib.sha256()
-    files = sorted(
-        (
-            path
-            for path in rust_root.rglob("*")
-            if path.is_file()
-            and "target" not in path.parts
-            and (
-                path.name in {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
-                or path.suffix == ".rs"
-            )
-        ),
-        key=lambda path: path.relative_to(rust_root).as_posix(),
-    )
+    files: list[Path] = []
+    # Prune `target` before traversal. Filtering the paths yielded by rglob()
+    # still walks every Cargo artifact and made a no-op startup take tens of
+    # seconds in a developed checkout.
+    for directory, child_directories, names in os.walk(rust_root):
+        child_directories[:] = [
+            name for name in child_directories if name != "target"
+        ]
+        parent = Path(directory)
+        for name in names:
+            path = parent / name
+            if name in {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"} or (
+                path.suffix == ".rs"
+            ):
+                files.append(path)
+    files.sort(key=lambda path: path.relative_to(rust_root).as_posix())
     for path in files:
         relative = path.relative_to(rust_root).as_posix().encode()
         hasher.update(len(relative).to_bytes(4, "big"))
@@ -245,7 +401,18 @@ def _engine_binary() -> Path:
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    root = _project_root_or_none()
+    if root is not None:
+        return root
+    raise BenchmarkError("native Rust extension is not installed and this is not a source checkout")
+
+
+def _project_root_or_none() -> Path | None:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / "rust" / "Cargo.toml").is_file():
+            return parent
+    return None
 
 
 def _wsl_path(path: Path) -> str:

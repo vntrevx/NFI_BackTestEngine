@@ -1,0 +1,98 @@
+# yamllint disable rule:line-length
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Sync locked environment
+        run: uv sync --extra dev --frozen
+      - name: Build editable native extension
+        run: uv run maturin develop --locked
+      - name: Run Python tests
+        run: uv run pytest -q
+
+  quality:
+    name: Static and Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Sync locked environment
+        run: uv sync --extra dev --frozen
+      - name: Python lint
+        run: uv run ruff check .
+      - name: Python type check
+        run: uv run basedpyright --level error python/nfi_backtest_engine
+      - name: Rust format
+        working-directory: rust
+        run: cargo fmt --all -- --check
+      - name: Rust tests
+        working-directory: rust
+        run: cargo test --workspace --locked
+      - name: Rust lint
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  parity:
+    name: Native full-parity fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Sync and build native extension
+        run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --locked
+      - name: Normal-routing full parity
+        run: >-
+          uv run nfi-bte engine fixture
+          benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json
+          --output-dir .ci/normal-routing
+          --level full
+      - name: Stops-only full parity
+        run: >-
+          uv run nfi-bte engine fixture
+          benchmarks/fixtures/captured/stops-only-spot-2025-01-01_04/manifest.json
+          --output-dir .ci/stops-only
+          --level full
