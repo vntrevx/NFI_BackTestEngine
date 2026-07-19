@@ -36,7 +36,7 @@ dependencies = [
     "pandas==3.0.3",
     "polars==1.42.1",
     "psutil==7.2.2",
-    "pyarrow==24.0.0",
+    "pyarrow==25.0.0",
     "python-rapidjson==1.23",
     "TA-Lib==0.6.8",
 ]
