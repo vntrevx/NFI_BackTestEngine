@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import shutil
 import subprocess
 import tempfile
 from datetime import UTC, datetime
@@ -16,6 +15,7 @@ import polars as pl
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config
+from .docker_runtime import managed_docker_run
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
 from .reference_runtime import (
@@ -404,55 +404,52 @@ def _download_data(
 ) -> dict[str, Any]:
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
-    docker = shutil.which("docker")
-    if docker is None:
-        raise BenchmarkError("Docker CLI is not installed or not on PATH")
     with tempfile.TemporaryDirectory(prefix="nfi-data-") as temporary:
         user_data = Path(temporary) / "user_data"
         user_data.mkdir()
-        command = [
-            docker,
-            "--config",
-            str(docker_config),
-            "run",
-            "--rm",
-            "--platform",
-            REFERENCE_PLATFORM,
-            "--volume",
-            f"{config_file}:/input/config.json:ro",
-            "--volume",
-            f"{data_root}:/data",
-            "--volume",
-            f"{user_data}:/work/user_data",
-            REFERENCE_IMAGE_REF,
-            "download-data",
-            "--config",
-            "/input/config.json",
-            "--userdir",
-            "/work/user_data",
-            "--datadir",
-            "/data",
-            "--timerange",
-            request["download_timerange"],
-            "--timeframes",
-            *request["timeframes"],
-            "--pairs",
-            *request["pairs"],
-            "--trading-mode",
-            request["trading_mode"],
-            "--data-format-ohlcv",
-            "feather",
-        ]
-        if prepend:
-            command.append("--prepend")
-        completed = subprocess.run(
-            command,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
-            check=False,
-        )
+        with managed_docker_run(
+            docker_config=docker_config,
+            role="data-download",
+        ) as lease:
+            command = [
+                *lease["command_prefix"],
+                "--platform",
+                REFERENCE_PLATFORM,
+                "--volume",
+                f"{config_file}:/input/config.json:ro",
+                "--volume",
+                f"{data_root}:/data",
+                "--volume",
+                f"{user_data}:/work/user_data",
+                REFERENCE_IMAGE_REF,
+                "download-data",
+                "--config",
+                "/input/config.json",
+                "--userdir",
+                "/work/user_data",
+                "--datadir",
+                "/data",
+                "--timerange",
+                request["download_timerange"],
+                "--timeframes",
+                *request["timeframes"],
+                "--pairs",
+                *request["pairs"],
+                "--trading-mode",
+                request["trading_mode"],
+                "--data-format-ohlcv",
+                "feather",
+            ]
+            if prepend:
+                command.append("--prepend")
+            completed = subprocess.run(
+                command,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                capture_output=True,
+                check=False,
+            )
     if completed.returncode != 0:
         raise BenchmarkError(
             "Freqtrade data download failed: "

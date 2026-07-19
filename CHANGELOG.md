@@ -2,6 +2,19 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 0.3.0 - 2026-07-19
+
+- Added Docker daemon CPU and memory inspection so Docker Desktop VM resources are
+  budgeted separately from native host resources.
+- Added one-at-a-time managed Freqtrade containers with portable process locking,
+  cgroup memory limits, live usage accounting for unrelated containers, ownership
+  labels, exact CID cleanup, and stopped-container housekeeping that never prunes
+  unrelated workloads.
+- Added cgroup peak and OOM-event reporting while retaining hardware-aware native
+  pair-process parallelism and exact, unsplit timerange semantics.
+- Added `nfi-bte system docker` for readable daemon policy and managed-container
+  diagnostics.
+
 ## 0.2.0 - 2026-07-19
 
 - Added `nfi-bte init`, a small setup wizard that detects standard Freqtrade strategy,

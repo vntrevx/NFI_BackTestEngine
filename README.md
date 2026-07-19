@@ -7,7 +7,7 @@ The engine inspects the current computer, chooses safe CPU process counts from p
 cores and available memory, calculates independent pair vectors in worker processes,
 and keeps shared wallet, slot, trade, and order events deterministic in Rust.
 
-> **Release status:** `v0.2.0` is an alpha release. It has exact certificates for a
+> **Release status:** `v0.3.0` is an alpha release. It has exact certificates for a
 > source-pinned NFI X7 v17.4.413 subset. It does not claim exact support for every NFI
 > revision, pair, route, protection, pair lock, or liquidation event. Unsupported
 > behavior stops explicitly instead of falling back to an approximate result.
@@ -21,7 +21,8 @@ and keeps shared wallet, slot, trade, and order events deterministic in Rust.
 - run supported strategy behavior without calling Python once per candle;
 - checkpoint and resume long research runs;
 - compare an engine result with a plain or zipped Freqtrade export at zero tolerance;
-- batch independent strategies or timeranges within the detected hardware limits.
+- batch independent strategies or timeranges within the detected hardware limits;
+- keep native host resources separate from Docker daemon CPU and memory limits.
 
 Official Freqtrade remains the final source of truth for a candidate.
 
@@ -57,7 +58,7 @@ Windows PowerShell:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install `
-  "$HOME\Downloads\nfi_backtest_engine-0.2.0-cp312-abi3-win_amd64.whl"
+  "$HOME\Downloads\nfi_backtest_engine-0.3.0-cp312-abi3-win_amd64.whl"
 .\.venv\Scripts\nfi-bte.exe --version
 ```
 
@@ -65,7 +66,7 @@ Linux or macOS:
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/python -m pip install ~/Downloads/nfi_backtest_engine-0.2.0-*.whl
+.venv/bin/python -m pip install ~/Downloads/nfi_backtest_engine-0.3.0-*.whl
 .venv/bin/nfi-bte --version
 ```
 
@@ -196,6 +197,32 @@ nfi-bte system tune --output .nfi/execution-profile.json
 nfi-bte system show .nfi/execution-profile.json
 ```
 
+Docker Desktop and Docker Engine have a separate resource boundary. Inspect the memory
+and CPU values visible to the daemon, the automatically reserved headroom, and only
+containers owned by this project:
+
+```powershell
+nfi-bte system docker
+```
+
+Managed Freqtrade containers run one at a time, receive a limit derived from daemon
+memory after subtracting current usage by other containers, and are reclaimed by exact
+container ID even when the command times out or is interrupted. Stopped managed
+containers are removed before the next run. To request the same narrowly scoped cleanup
+explicitly:
+
+```powershell
+nfi-bte system docker --cleanup-stopped
+```
+
+This never prunes unrelated containers. Existing running managed containers are reported
+and block a second Docker workload instead of being killed.
+
+The fast engine wheel runs natively on Apple Silicon. Exact official fixtures remain
+pinned to their captured `linux/amd64` Freqtrade image, which Docker Desktop may emulate
+on an arm64 Mac; the tool does not exchange reference platforms without new parity
+evidence.
+
 Static strategy inspection is also available separately:
 
 ```powershell
@@ -208,6 +235,12 @@ nfi-bte strategy inspect `
 The profile normally reserves a physical core and host memory. Child processes limit
 NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread, preventing nested
 library threads from multiplying the selected process count.
+
+Native vector and Rust execution still use safe host parallelism. The one-container rule
+applies only to managed Docker workloads such as the pinned official Freqtrade reference
+and missing-data downloads. The engine does not silently split a timerange: independent
+chunks reset wallet, open-trade, protection, and strategy state and therefore cannot be
+presented as one exact monolithic backtest.
 
 ## Run outcomes
 
@@ -288,7 +321,7 @@ Use `--resume` to reuse only stages whose complete input identity still matches.
 
 ## Current exact-support boundary
 
-Version 0.2.0 executes the source-pinned X7 v17.4.413 managed long routes,
+Version 0.3.0 executes the source-pinned X7 v17.4.413 managed long routes,
 short-rebuy tags 561–563, constrained isolated-futures accounting with uniform 3x
 leverage, and the tag-120 spot/backtest grind state machine.
 

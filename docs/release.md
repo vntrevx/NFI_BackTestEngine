@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-Version 0.2.0 is an alpha release of the benchmark, exact-parity, native packaging,
+Version 0.3.0 is an alpha release of the benchmark, exact-parity, native packaging,
 hardware/data preparation, X7 vector, and checkpointed research infrastructure. It is
 not a claim that an arbitrary NFI file, pair universe, or strategy revision can already
 complete an exact Rust backtest.
@@ -50,9 +50,13 @@ Before tagging:
 9. Exact evidence-schema tests, including the annual X7 futures certificate
 10. `uv build --sdist --wheel`
 11. Install the wheel into a clean Python 3.12 environment and rerun one full fixture
+12. On a Docker host, verify daemon-resource inspection, one managed official fixture,
+    cgroup memory reporting, and zero remaining owned containers
 
 The CI workflow runs the tests on Linux, Windows, and macOS and repeats native full
-parity on Linux.
+parity on Linux. Docker-free CI validates the portable resource and command contracts;
+the release gate additionally exercises the managed container path on a real Docker
+Desktop or Docker Engine host.
 
 ## Publishing
 
