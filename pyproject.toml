@@ -32,7 +32,7 @@ dependencies = [
     "blake3==1.0.9",
     "ccxt==4.5.55",
     "jsonschema==4.26.0",
-    "numpy==2.4.5",
+    "numpy==2.5.1",
     "pandas==3.0.3",
     "polars==1.42.1",
     "psutil==7.2.2",
