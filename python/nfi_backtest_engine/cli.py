@@ -7,6 +7,7 @@ import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .benchmark import run_benchmark
@@ -34,6 +35,32 @@ from .strategy_ir import (
     prepare_strategy,
     validate_strategy_bundle,
 )
+
+
+def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "source",
+        nargs="?",
+        type=Path,
+        help="strategy file; omit after the first setup",
+    )
+    parser.add_argument(
+        "--project",
+        type=Path,
+        default=Path(".nfi/project.json"),
+        help="saved project file (default: .nfi/project.json)",
+    )
+    parser.add_argument("--class", dest="class_name")
+    parser.add_argument("--config", type=Path)
+    parser.add_argument("--datadir", type=Path)
+    parser.add_argument("--timerange")
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--pair", action="append")
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="accept detected paths and the previous-year default without prompting",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -124,6 +151,44 @@ def build_parser() -> argparse.ArgumentParser:
     doctor = subcommands.add_parser("doctor", help="check local execution prerequisites")
     doctor.add_argument("--profile", type=Path)
     doctor.add_argument("--output", "-o", type=Path)
+
+    init = subcommands.add_parser(
+        "init",
+        help="create a reusable NFI project with a small setup wizard",
+    )
+    _add_project_setup_arguments(init)
+    init.add_argument(
+        "--force",
+        action="store_true",
+        help="replace the saved project without deleting run data",
+    )
+
+    run = subcommands.add_parser(
+        "run",
+        help="run the saved project; first use starts the setup wizard",
+    )
+    _add_project_setup_arguments(run)
+    run.add_argument("--workers", type=int)
+    run.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="prepare immutable vectors without requesting simulation",
+    )
+    run.add_argument(
+        "--no-download",
+        action="store_true",
+        help="fail if required candle coverage is missing",
+    )
+    run.add_argument(
+        "--markets",
+        type=Path,
+        help="use an existing frozen CCXT market snapshot",
+    )
+    run.add_argument(
+        "--no-market-download",
+        action="store_true",
+        help="require --markets instead of capturing public market metadata",
+    )
 
     system = subcommands.add_parser("system", help="inspect and tune this computer")
     system_commands = system.add_subparsers(dest="system_command", required=True)
@@ -441,6 +506,74 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0 if report["healthy"] else 1
 
+        if args.command_name == "init":
+            from .project_setup import initialize_project
+
+            initialize_project(
+                project_path=args.project,
+                source=args.source,
+                class_name=args.class_name,
+                config_path=args.config,
+                data_directory=args.datadir,
+                timerange=args.timerange,
+                output_directory=args.output_dir,
+                pairs=args.pair,
+                interactive=not args.yes,
+                force=args.force,
+            )
+            return 0
+
+        if args.command_name == "run":
+            from .project_setup import (
+                initialize_project,
+                load_project,
+                project_run_arguments,
+            )
+
+            project_path = args.project.resolve()
+            if project_path.is_file():
+                supplied = {
+                    "source": args.source,
+                    "--class": args.class_name,
+                    "--config": args.config,
+                    "--datadir": args.datadir,
+                    "--timerange": args.timerange,
+                    "--output-dir": args.output_dir,
+                    "--pair": args.pair,
+                }
+                changed = [name for name, value in supplied.items() if value is not None]
+                if changed:
+                    raise NfiBacktestError(
+                        "saved project already exists; reconfigure with "
+                        f"`nfi-bte init --force` instead of overriding {', '.join(changed)}"
+                    )
+                settings = load_project(project_path)
+            else:
+                settings = initialize_project(
+                    project_path=project_path,
+                    source=args.source,
+                    class_name=args.class_name,
+                    config_path=args.config,
+                    data_directory=args.datadir,
+                    timerange=args.timerange,
+                    output_directory=args.output_dir,
+                    pairs=args.pair,
+                    interactive=not args.yes,
+                )
+            output = settings.output_directory
+            resume = output.is_dir() and any(output.iterdir())
+            if resume:
+                print(f"existing run found; resuming hash-valid stages from {output}")
+            return _execute_research_backtest(
+                project_run_arguments(settings),
+                workers=args.workers,
+                resume=resume,
+                prepare_only=args.prepare_only,
+                download_missing=not args.no_download,
+                market_metadata_path=args.markets,
+                download_market_metadata=not args.no_market_download,
+            )
+
         if args.command_name == "system":
             if args.system_command == "inspect":
                 hardware = inspect_hardware()
@@ -591,42 +724,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command_name == "backtest":
-            from .research_runner import run_research_backtest
-
-            report = run_research_backtest(
-                strategy_path=args.source,
-                class_name=args.class_name,
-                config_path=args.config,
-                data_directory=args.datadir,
-                timerange=args.timerange,
-                output_directory=args.output_dir,
-                pairs=args.pair,
+            return _execute_research_backtest(
+                {
+                    "strategy_path": args.source,
+                    "class_name": args.class_name,
+                    "config_path": args.config,
+                    "data_directory": args.datadir,
+                    "timerange": args.timerange,
+                    "output_directory": args.output_dir,
+                    "pairs": args.pair,
+                    "cache_directory": args.cache_dir,
+                    "profile_path": args.profile,
+                    "registry_path": args.registry,
+                },
                 workers=args.workers,
-                cache_directory=args.cache_dir,
-                profile_path=args.profile,
                 resume=args.resume,
                 prepare_only=args.prepare_only,
                 download_missing=not args.no_download,
                 market_metadata_path=args.markets,
-                registry_path=args.registry,
                 download_market_metadata=not args.no_market_download,
             )
-            print(
-                f"research backtest: status={report['status']}, "
-                f"pairs={report['vectors']['pair_count']}, "
-                f"cache_hits={report['vectors']['cache_hits']}, "
-                f"resumed={','.join(report['resumed_stages']) or 'none'} -> "
-                f"{args.output_dir / 'run.json'}"
-            )
-            if not report["complete"] and not report["prepared_only"]:
-                for blocker in report["capability"]["blockers"]:
-                    detail = blocker.get("callback", "")
-                    print(
-                        f"blocked: {blocker['code']} {detail} - {blocker['message']}",
-                        file=sys.stderr,
-                    )
-                return 1
-            return 0
 
         if args.command_name == "confirm":
             from .confirmation import confirm_research_run
@@ -755,6 +872,46 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (NfiBacktestError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+def _execute_research_backtest(
+    arguments: dict[str, Any],
+    *,
+    workers: int | None,
+    resume: bool,
+    prepare_only: bool,
+    download_missing: bool,
+    market_metadata_path: Path | None,
+    download_market_metadata: bool,
+) -> int:
+    """Run the existing research contract for advanced and wizard-backed commands."""
+    from .research_runner import run_research_backtest
+
+    report = run_research_backtest(
+        **arguments,
+        workers=workers,
+        resume=resume,
+        prepare_only=prepare_only,
+        download_missing=download_missing,
+        market_metadata_path=market_metadata_path,
+        download_market_metadata=download_market_metadata,
+    )
+    output = Path(arguments["output_directory"])
+    print(
+        f"research backtest: status={report['status']}, "
+        f"pairs={report['vectors']['pair_count']}, "
+        f"cache_hits={report['vectors']['cache_hits']}, "
+        f"resumed={','.join(report['resumed_stages']) or 'none'} -> "
+        f"{output / 'run.json'}"
+    )
+    if not report["complete"] and not report["prepared_only"]:
+        for blocker in report["capability"]["blockers"]:
+            detail = blocker.get("callback", "")
+            print(
+                f"blocked: {blocker['code']} {detail} - {blocker['message']}",
+                file=sys.stderr,
+            )
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

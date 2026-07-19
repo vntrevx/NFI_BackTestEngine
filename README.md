@@ -7,7 +7,7 @@ The engine inspects the current computer, chooses safe CPU process counts from p
 cores and available memory, calculates independent pair vectors in worker processes,
 and keeps shared wallet, slot, trade, and order events deterministic in Rust.
 
-> **Release status:** `v0.1.0` is an alpha release. It has exact certificates for a
+> **Release status:** `v0.2.0` is an alpha release. It has exact certificates for a
 > source-pinned NFI X7 v17.4.413 subset. It does not claim exact support for every NFI
 > revision, pair, route, protection, pair lock, or liquidation event. Unsupported
 > behavior stops explicitly instead of falling back to an approximate result.
@@ -57,7 +57,7 @@ Windows PowerShell:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install `
-  "$HOME\Downloads\nfi_backtest_engine-0.1.0-cp312-abi3-win_amd64.whl"
+  "$HOME\Downloads\nfi_backtest_engine-0.2.0-cp312-abi3-win_amd64.whl"
 .\.venv\Scripts\nfi-bte.exe --version
 ```
 
@@ -65,7 +65,7 @@ Linux or macOS:
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/python -m pip install ~/Downloads/nfi_backtest_engine-0.1.0-*.whl
+.venv/bin/python -m pip install ~/Downloads/nfi_backtest_engine-0.2.0-*.whl
 .venv/bin/nfi-bte --version
 ```
 
@@ -89,30 +89,114 @@ uv run nfi-bte --version
 
 When using a source checkout, prefix the remaining examples with `uv run`.
 
-## 1. Check this computer
+## Fastest path: one command
 
-`doctor` is read-only. It checks Python, available memory, Docker, and the pinned
-Freqtrade image:
+On the first run, pass only the strategy file:
+
+```powershell
+nfi-bte run path\to\NostalgiaForInfinityX7.py
+```
+
+The setup wizard automatically:
+
+1. finds the single strategy class, or asks you to choose when the file has several;
+2. detects `user_data/config.json`;
+3. detects `user_data/data/<exchange>`;
+4. reads pairs from the effective Freqtrade whitelist;
+5. suggests the previous complete calendar year;
+6. creates a readable output name;
+7. saves the choices in `.nfi/project.json`;
+8. tunes CPU processes and memory for the current computer;
+9. starts the checkpointed research backtest.
+
+Only values that cannot be determined safely are requested. To accept every
+unambiguous discovery and the previous-year default without prompts:
+
+```powershell
+nfi-bte run path\to\NostalgiaForInfinityX7.py --yes
+```
+
+After the first setup, the complete command is:
+
+```powershell
+nfi-bte run
+```
+
+If the output directory already contains the same run identity, `run` automatically
+resumes only hash-valid data and vector stages. It never deletes an existing directory
+or silently reuses inputs whose identity changed.
+
+### Prepare without simulation
+
+Use this when you want the wizard, hardware tuning, data seal, and pair vectors but do
+not yet want a simulated result:
+
+```powershell
+nfi-bte run path\to\NostalgiaForInfinityX7.py --prepare-only
+```
+
+Continue later with:
+
+```powershell
+nfi-bte run
+```
+
+### Configure without running
+
+`init` saves the project but does not start a backtest:
+
+```powershell
+nfi-bte init path\to\NostalgiaForInfinityX7.py
+```
+
+Review `.nfi/project.json`, then run `nfi-bte run`. Reconfigure without deleting any
+run data:
+
+```powershell
+nfi-bte init path\to\NostalgiaForInfinityX7.py --force
+```
+
+The saved project contains paths and execution choices only. It never copies API keys,
+secrets, or the contents of the Freqtrade config.
+
+### Explicit first-run options
+
+Non-standard folders can still be provided once:
+
+```powershell
+nfi-bte run path\to\NostalgiaForInfinityX7.py `
+  --class NostalgiaForInfinityX7 `
+  --config user_data\config.json `
+  --datadir user_data\data\binance `
+  --timerange 20250101-20260101 `
+  --output-dir artifacts\x7-2025 `
+  --pair BTC/USDT `
+  --yes
+```
+
+These options become the saved project. Once it exists, use `init --force` to change
+them instead of passing temporary overrides to `run`.
+
+By default, missing candle coverage is filled through the pinned Freqtrade container.
+Use `--no-download` when an offline run must fail instead. Use `--no-market-download`
+with `--markets path\to\markets.json` for frozen offline market metadata.
+
+## Check or inspect manually
+
+`doctor` is read-only:
 
 ```powershell
 nfi-bte doctor --output .nfi/doctor.json
 ```
 
-The backtest command creates a hardware profile automatically when one does not exist.
-Run this explicitly only when you want to inspect the selected limits:
+The `run` command creates a hardware profile automatically. To inspect it explicitly:
 
 ```powershell
 nfi-bte system tune --output .nfi/execution-profile.json
 nfi-bte system show .nfi/execution-profile.json
 ```
 
-The profile reserves memory and normally one physical core for the host. Each child
-process limits NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread so
-process-level parallelism does not oversubscribe the CPU.
-
-## 2. Inspect the strategy
-
-Run static preflight before downloading or calculating data:
+Static strategy inspection is also available separately:
 
 ```powershell
 nfi-bte strategy inspect `
@@ -121,57 +205,11 @@ nfi-bte strategy inspect `
   --output artifacts\x7-strategy-analysis.json
 ```
 
-This reports the selected class, required timeframes, vector methods, hot callbacks,
-unsafe dynamic behavior, and exact source locations. A fatal diagnostic stops the run.
+The profile normally reserves a physical core and host memory. Child processes limit
+NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread, preventing nested
+library threads from multiplying the selected process count.
 
-## 3. Prepare an NFI run
-
-The minimum inputs are:
-
-| Input | Meaning |
-| --- | --- |
-| strategy path | NFI/Freqtrade Python strategy file |
-| `--class` | strategy class inside that file |
-| `--config` | effective Freqtrade JSON config |
-| `--datadir` | existing Freqtrade candle-data root |
-| `--timerange` | `YYYYMMDD-YYYYMMDD` research interval |
-| `--output-dir` | a new directory owned by this run |
-
-Start with `--prepare-only`. It validates the strategy, detects hardware, freezes the
-pairlist, seals data identity, and calculates pair vectors without claiming a simulated
-trade result:
-
-```powershell
-nfi-bte backtest `
-  path\to\NostalgiaForInfinityX7.py `
-  --class NostalgiaForInfinityX7 `
-  --config user_data\config.json `
-  --datadir user_data\data\binance `
-  --timerange 20250101-20260101 `
-  --output-dir artifacts\x7-2025 `
-  --prepare-only
-```
-
-Pairs come from the effective config whitelist. Repeat `--pair`, for example
-`--pair BTC/USDT --pair ETH/USDT`, to freeze an explicit subset.
-
-By default, missing candle coverage is filled through the pinned Freqtrade container.
-Use `--no-download` when an offline run must fail instead of downloading data.
-
-## 4. Run or resume the simulation
-
-Reuse the prepared directory with `--resume` and omit `--prepare-only`:
-
-```powershell
-nfi-bte backtest `
-  path\to\NostalgiaForInfinityX7.py `
-  --class NostalgiaForInfinityX7 `
-  --config user_data\config.json `
-  --datadir user_data\data\binance `
-  --timerange 20250101-20260101 `
-  --output-dir artifacts\x7-2025 `
-  --resume
-```
+## Run outcomes
 
 The command has three meaningful outcomes:
 
@@ -193,7 +231,10 @@ Useful output files include:
 - `simulation-result.json` and `trade-surface.json` — supported-run results;
 - `checkpoints/` — hash-validated stages used by `--resume`.
 
-## 5. Confirm against Freqtrade
+The advanced `backtest` command remains available for scripts that deliberately pass
+every path and option on each invocation.
+
+## Confirm against Freqtrade
 
 Export the same candidate with official Freqtrade, then compare the plain JSON or ZIP
 result:
@@ -247,7 +288,7 @@ Use `--resume` to reuse only stages whose complete input identity still matches.
 
 ## Current exact-support boundary
 
-Version 0.1.0 executes the source-pinned X7 v17.4.413 managed long routes,
+Version 0.2.0 executes the source-pinned X7 v17.4.413 managed long routes,
 short-rebuy tags 561–563, constrained isolated-futures accounting with uniform 3x
 leverage, and the tag-120 spot/backtest grind state machine.
 

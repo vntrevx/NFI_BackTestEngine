@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-Version 0.1.0 is an alpha release of the benchmark, exact-parity, native packaging,
+Version 0.2.0 is an alpha release of the benchmark, exact-parity, native packaging,
 hardware/data preparation, X7 vector, and checkpointed research infrastructure. It is
 not a claim that an arbitrary NFI file, pair universe, or strategy revision can already
 complete an exact Rust backtest.
