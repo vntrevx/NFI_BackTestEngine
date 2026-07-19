@@ -2,6 +2,16 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 0.2.0 - 2026-07-19
+
+- Added `nfi-bte init`, a small setup wizard that detects standard Freqtrade strategy,
+  config, exchange-data, pairlist, timerange, and output settings without storing
+  credentials.
+- Added `nfi-bte run`, which creates the saved project on first use and subsequently
+  runs or resumes it with one command.
+- Added automatic selection of hash-valid resume mode for an existing project output,
+  while keeping inline reconfiguration and destructive replacement fail-closed.
+
 ## 0.1.0 - 2026-07-19
 
 - Added reproducible official Freqtrade benchmark fixtures and exact trade/state parity.
