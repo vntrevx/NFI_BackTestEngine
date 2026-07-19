@@ -1,0 +1,58 @@
+name: Latest NFI compatibility
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: latest-nfi-compatibility
+  cancel-in-progress: true
+
+jobs:
+  x7:
+    name: Check latest upstream X7 (${{ matrix.trading_mode }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        trading_mode:
+          - spot
+          - futures
+    steps:
+      - name: Check out engine
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install engine
+        run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --release --locked
+      - name: Download current upstream strategy
+        run: |
+          mkdir -p .compatibility
+          curl --fail --location --silent --show-error \
+            https://raw.githubusercontent.com/iterativv/NostalgiaForInfinity/main/NostalgiaForInfinityX7.py \
+            --output .compatibility/NostalgiaForInfinityX7.py
+      - name: Check exact native compatibility
+        run: |
+          uv run nfi-bte strategy check \
+            .compatibility/NostalgiaForInfinityX7.py \
+            --class NostalgiaForInfinityX7 \
+            --trading-mode ${{ matrix.trading_mode }} \
+            --output .compatibility/report-${{ matrix.trading_mode }}.json
+      - name: Retain compatibility report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
+          path: .compatibility/report-${{ matrix.trading_mode }}.json
+          if-no-files-found: warn
+          retention-days: 14

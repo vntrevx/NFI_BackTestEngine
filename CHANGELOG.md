@@ -2,6 +2,19 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 0.4.0 - 2026-07-19
+
+- Established the moving-target product contract: current NFI source in, five complete
+  years by default, fast native screening, and exact official Freqtrade confirmation.
+- Added `nfi-bte strategy check` and daily upstream X7 compatibility reporting so a new
+  callback contract is detected before long data preparation begins.
+- Raised release-grade performance eligibility from one year to at least four years
+  while retaining short fixtures as diagnostic evidence.
+- Added digest-verified one-command installers for Windows, Linux, and Apple Silicon
+  macOS using isolated uv tool environments.
+- Grouped Dependabot maintenance by ecosystem on a monthly schedule and protected local
+  agent/tool directories from accidental commits.
+
 ## 0.3.0 - 2026-07-19
 
 - Added Docker daemon CPU and memory inspection so Docker Desktop VM resources are

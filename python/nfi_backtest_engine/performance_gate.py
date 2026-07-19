@@ -17,6 +17,11 @@ from .engine_runtime import build_engine
 from .errors import BenchmarkError
 from .fixture import sha256_file, validate_fixture
 from .hardware import GIB, inspect_hardware, load_execution_profile
+from .product_contract import (
+    MIN_RELEASE_BACKTEST_DAYS,
+    MIN_RELEASE_PAIR_COUNT,
+    TARGET_SCREENING_SPEEDUP,
+)
 
 PerformanceLevel = Literal["quick", "full"]
 
@@ -108,7 +113,7 @@ def run_performance_gate(
         run["exit_code"] == 0 and run["report"] is not None and run["report"]["complete"]
         for run in [*engine_runs, *reference_runs]
     )
-    speed_target_met = speedup >= 10.0
+    speed_target_met = speedup >= TARGET_SCREENING_SPEEDUP
     memory_target_met = engine_summary["peak_rss_bytes"]["maximum"] <= memory_limit
     report = {
         "schema_version": "1.0.0",
@@ -145,7 +150,7 @@ def run_performance_gate(
             },
             "speed": {
                 "eligible": representative["eligible"],
-                "target_speedup": 10.0,
+                "target_speedup": TARGET_SCREENING_SPEEDUP,
                 "observed_speedup": speedup,
                 "met": speed_target_met,
                 "verdict": ("pass" if speed_target_met else "fail")
@@ -285,11 +290,14 @@ def _representative_scope(
     start_date = datetime.strptime(start, "%Y%m%d")
     end_date = datetime.strptime(end, "%Y%m%d")
     days = (end_date - start_date).days
-    eligible = pair_count >= 80 and days >= 365
+    eligible = (
+        pair_count >= MIN_RELEASE_PAIR_COUNT
+        and days >= MIN_RELEASE_BACKTEST_DAYS
+    )
     return {
         "eligible": eligible,
-        "required_pair_count": 80,
-        "required_days": 365,
+        "required_pair_count": MIN_RELEASE_PAIR_COUNT,
+        "required_days": MIN_RELEASE_BACKTEST_DAYS,
         "actual_pair_count": pair_count,
         "actual_days": days,
         "label": "representative" if eligible else "fixture-diagnostic-only",

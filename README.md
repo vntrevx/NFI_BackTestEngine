@@ -3,11 +3,16 @@
 A lightweight Rust/Python research backtester for NFI strategies, with an exact
 comparison lane against official Freqtrade results.
 
+The target is always the NFI file supplied today, not one permanently embedded
+revision. A normal research run covers the previous five complete calendar years,
+screens with the native engine, and confirms a finalist with official Freqtrade against
+the same sealed inputs. See the [product contract](PROJECT_BRIEF.md).
+
 The engine inspects the current computer, chooses safe CPU process counts from physical
 cores and available memory, calculates independent pair vectors in worker processes,
 and keeps shared wallet, slot, trade, and order events deterministic in Rust.
 
-> **Release status:** `v0.3.0` is an alpha release. It has exact certificates for a
+> **Release status:** `v0.4.0` is an alpha release. It has exact certificates for a
 > source-pinned NFI X7 v17.4.413 subset. It does not claim exact support for every NFI
 > revision, pair, route, protection, pair lock, or liquidation event. Unsupported
 > behavior stops explicitly instead of falling back to an approximate result.
@@ -39,42 +44,49 @@ of configs committed to this repository.
 
 ## Install
 
-### Release wheel
-
-Download the wheel for your platform from
-[the latest GitHub release](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest):
-
-| Platform | Wheel suffix |
-| --- | --- |
-| Windows x64 | `win_amd64.whl` |
-| Linux x86_64 | `manylinux2014_x86_64.whl` |
-| Linux aarch64 | `manylinux2014_aarch64.whl` |
-| macOS Apple Silicon | `macosx_11_0_arm64.whl` |
-
-Create a virtual environment and install the downloaded wheel.
+### One command
 
 Windows PowerShell:
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install `
-  "$HOME\Downloads\nfi_backtest_engine-0.3.0-cp312-abi3-win_amd64.whl"
-.\.venv\Scripts\nfi-bte.exe --version
+irm https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.ps1 | iex
 ```
 
-Linux or macOS:
+Linux x86_64/aarch64 or macOS Apple Silicon:
 
 ```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install ~/Downloads/nfi_backtest_engine-0.3.0-*.whl
-.venv/bin/nfi-bte --version
+curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.sh | sh
 ```
 
-The examples below use `nfi-bte`. Use `.\.venv\Scripts\nfi-bte.exe` on Windows or
-`.venv/bin/nfi-bte` on Linux/macOS when the virtual environment is not activated.
+The installer detects the platform, selects the latest release wheel, verifies its
+GitHub-published SHA-256 digest, and installs `nfi-bte` into an isolated
+[`uv tool`](https://docs.astral.sh/uv/guides/tools/) environment. It installs `uv`
+through Astral's official installer only when it is missing.
 
-PyPI publishing is not enabled yet, so `pip install nfi-backtest-engine` is not the
-current installation path.
+To inspect an installer before running it:
+
+```powershell
+irm https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.ps1 `
+  -OutFile install.ps1
+Get-Content .\install.ps1
+.\install.ps1
+```
+
+### Manual release wheel
+
+Download the matching wheel from
+[the latest GitHub release](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest)
+and install it with `uv`:
+
+```powershell
+uv tool install --python 3.12 path\to\nfi_backtest_engine-*.whl
+```
+
+PyPI publishing is not enabled yet. Once trusted publishing is configured, the standard
+short form will be `uv tool install nfi-backtest-engine`, with
+`pipx install nfi-backtest-engine` retained as a familiar alternative. npm and bun are
+not used because this is a Python/Rust native application; a Node wrapper would add a
+second runtime without simplifying the platform package.
 
 ### Source checkout
 
@@ -104,14 +116,14 @@ The setup wizard automatically:
 2. detects `user_data/config.json`;
 3. detects `user_data/data/<exchange>`;
 4. reads pairs from the effective Freqtrade whitelist;
-5. suggests the previous complete calendar year;
+5. suggests the previous five complete calendar years;
 6. creates a readable output name;
 7. saves the choices in `.nfi/project.json`;
 8. tunes CPU processes and memory for the current computer;
 9. starts the checkpointed research backtest.
 
 Only values that cannot be determined safely are requested. To accept every
-unambiguous discovery and the previous-year default without prompts:
+unambiguous discovery and the five-year default without prompts:
 
 ```powershell
 nfi-bte run path\to\NostalgiaForInfinityX7.py --yes
@@ -169,8 +181,8 @@ nfi-bte run path\to\NostalgiaForInfinityX7.py `
   --class NostalgiaForInfinityX7 `
   --config user_data\config.json `
   --datadir user_data\data\binance `
-  --timerange 20250101-20260101 `
-  --output-dir artifacts\x7-2025 `
+  --timerange 20210101-20260101 `
+  --output-dir artifacts\x7-2021-2025 `
   --pair BTC/USDT `
   --yes
 ```
@@ -232,11 +244,28 @@ nfi-bte strategy inspect `
   --output artifacts\x7-strategy-analysis.json
 ```
 
+For a newly downloaded NFI revision, run the native-compatibility preflight before
+preparing years of data:
+
+```powershell
+nfi-bte strategy check `
+  path\to\NostalgiaForInfinityX7.py `
+  --class NostalgiaForInfinityX7 `
+  --trading-mode spot `
+  --output artifacts\x7-compatibility.json
+```
+
+This is a source and callback-compiler check, not a profitability test. A structurally
+supported upstream patch passes immediately. A new stateful contract is reported as
+`EXACT_LOWERING_REVIEW_REQUIRED` before any long backtest starts.
+
 The profile normally reserves a physical core and host memory. Child processes limit
 NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread, preventing nested
 library threads from multiplying the selected process count.
 
-Native vector and Rust execution still use safe host parallelism. The one-container rule
+Native vector and Rust execution still use safe host parallelism. The default project
+timerange is five complete years, while release-grade performance evidence requires at
+least four years. The one-container rule
 applies only to managed Docker workloads such as the pinned official Freqtrade reference
 and missing-data downloads. The engine does not silently split a timerange: independent
 chunks reset wallet, open-trade, protection, and strategy state and therefore cannot be
@@ -321,7 +350,7 @@ Use `--resume` to reuse only stages whose complete input identity still matches.
 
 ## Current exact-support boundary
 
-Version 0.3.0 executes the source-pinned X7 v17.4.413 managed long routes,
+Version 0.4.0 executes the source-pinned X7 v17.4.413 managed long routes,
 short-rebuy tags 561–563, constrained isolated-futures accounting with uniform 3x
 leverage, and the tag-120 spot/backtest grind state machine.
 
@@ -337,6 +366,7 @@ protections, pair locks, and liquidation paths remain fail-closed.
 
 See:
 
+- [Product contract and long-horizon goal](PROJECT_BRIEF.md)
 - [X7 support and exact certificates](docs/x7-support.md)
 - [Architecture and semantic ownership](docs/architecture.md)
 - [Benchmark fixture specification](benchmarks/README.md)
@@ -352,6 +382,7 @@ benchmarks/fixtures/          synthetic contracts and captured Freqtrade fixture
 benchmarks/evidence/          narrow, hash-sealed X7 certificates
 tests/                        unit, integration, exact surface, and state-parity tests
 docs/                         architecture, support boundary, and release procedure
+install.ps1 / install.sh      verified one-command release installers
 ```
 
 The large captured state traces are intentional test fixtures. Generated profiles,

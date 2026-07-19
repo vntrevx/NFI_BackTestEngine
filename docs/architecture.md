@@ -5,6 +5,12 @@
 This engine accelerates research. Official Freqtrade remains the source of truth for a
 final candidate.
 
+NFI is a moving source target. The current strategy file is analyzed and hash-bound on
+every run; an old whole-file revision is regression evidence, not an execution
+allowlist. Pure and structurally compiled changes can enter the pipeline immediately.
+A new stateful callback shape fails before simulation and becomes a precise compiler
+work item instead of silently inheriting stale Rust behavior.
+
 A result is supported only when all of these identities are sealed:
 
 - strategy, effective config, candles, market metadata, and auxiliary input SHA-256;
@@ -106,7 +112,7 @@ RAM), the automatic profile selected four independent research processes. A four
 annual X7 vector-preparation diagnostic used four distinct worker PIDs, completed in
 35.67 seconds versus 106.93 aggregate job-seconds, and therefore observed 3.00x
 effective parallelism and 75% four-process efficiency. This is host-specific diagnostic
-evidence, not the public 80-pair performance certificate.
+evidence, not the public 80-pair, four-year performance certificate.
 The raw boundaries and timings are pinned in
 [`benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json`](../benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json).
 
@@ -225,8 +231,7 @@ The engine fails before simulation instead of approximating:
 - per-entry futures leverage when source branches are not uniform;
 - liquidation-event parity outside the annual no-liquidation certificate;
 - protections, pair locks, dynamic pairlists, and live exchange behavior;
-- arbitrary NFI strategy shapes or X7 source revisions that do not match the compiled
-  source and callback fingerprints;
+- new stateful NFI callback shapes that do not yet match an exact compiled contract;
 - runtime `eval`, `exec`, dynamic imports, hot-path dynamic attributes;
 - negative shifts or centered rolling windows that can introduce lookahead.
 
@@ -241,5 +246,6 @@ sealed manifest and fresh processes. It records pipeline wall time, process-tree
 Rust `/usr/bin/time` peak RSS, Docker cgroup peak memory, hardware, and parity.
 
 A measured ratio is labeled `diagnostic-only` unless the fixture contains at least 80
-pairs and 365 days. Build/compilation time is an installation concern and is recorded
-separately from the installed execution pipeline.
+pairs and 1,460 days. The setup wizard defaults to five complete calendar years so the
+normal user path exceeds that minimum. Build/compilation time is an installation
+concern and is recorded separately from the installed execution pipeline.

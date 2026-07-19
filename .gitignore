@@ -22,6 +22,9 @@ benchmarks/runs/
 benchmarks/work/
 .nfi/
 .gjc/
+.agents/
+.codex/
+.compatibility/
 .env
 .env.*
 !.env.example

@@ -1,4 +1,6 @@
 * text=auto
+*.sh text eol=lf
+*.ps1 text eol=lf
 
 # Frozen fixture bytes are part of the benchmark identity.
 /benchmarks/fixtures/** -text
