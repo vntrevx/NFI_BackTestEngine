@@ -45,6 +45,29 @@ def test_scalar_exit_decision_is_compiled_into_compact_arena(tmp_path: Path) -> 
     assert len(summary["compiled_scalar_methods"]["exit_dec"]["program_sha256"]) == 64
 
 
+def test_trade_dependency_compiler_preserves_crlf_source_identity(tmp_path: Path) -> None:
+    """The compiler must bind to bytes, not platform-normalized text."""
+    source = tmp_path / "WindowsScalar.py"
+    source.write_bytes(
+        (
+            "from freqtrade.strategy import IStrategy\n"
+            "class WindowsScalar(IStrategy):\n"
+            "    timeframe = '5m'\n"
+            "    def custom_exit(self, pair, trade, current_time, current_rate, "
+            "current_profit, **kwargs):\n"
+            "        return 'done' if current_profit > 0.1 else None\n"
+        )
+        .replace("\n", "\r\n")
+        .encode("utf-8")
+    )
+
+    report = build_trade_dependency_ir(
+        analyze_strategy(source, class_name="WindowsScalar")
+    )
+
+    assert "custom_exit" in report["compiled_scalar_methods"]
+
+
 def test_large_elif_table_is_flattened_below_json_recursion_limit(
     tmp_path: Path,
 ) -> None:

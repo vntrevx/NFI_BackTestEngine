@@ -424,10 +424,14 @@ def build_nfi_trade_manager_ir(
 
     path = Path(source_path).resolve()
     try:
-        text = path.read_text(encoding="utf-8")
+        # Hash the sealed file bytes before decoding.  Text-mode reads perform
+        # universal-newline conversion and would reject valid CRLF strategies
+        # on Windows even though the file had not changed after analysis.
+        source_bytes = path.read_bytes()
+        text = source_bytes.decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         raise StrategyAnalysisError(f"NFI trade manager source cannot be read: {path}") from exc
-    if hashlib.sha256(text.encode()).hexdigest() != source_sha256:
+    if hashlib.sha256(source_bytes).hexdigest() != source_sha256:
         raise StrategyAnalysisError("NFI trade manager source hash differs from analysis")
     tree = ast.parse(text, filename=str(path), type_comments=True)
     class_node = next(
