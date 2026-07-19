@@ -12,7 +12,7 @@ description = "Deterministic global chronological simulator for NFI Backtest Eng
 path = "src/lib.rs"
 
 [dependencies]
-num-bigint = "0.4"
+num-bigint = "0.5"
 num-rational = "0.4"
 num-traits = "0.2"
 serde = { version = "1", features = ["derive"] }
