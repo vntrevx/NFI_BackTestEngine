@@ -117,3 +117,65 @@ def test_reference_command_can_be_built_without_local_docker(
     )
 
     assert command[0] == "docker"
+
+
+def test_reference_command_accepts_a_resource_managed_run_prefix(tmp_path: Path) -> None:
+    manifest = read_json(MANIFEST)
+    output = tmp_path / "output"
+    output.mkdir()
+    prefix = [
+        "docker",
+        "--config",
+        str(tmp_path / "docker-config"),
+        "run",
+        "--rm",
+        "--memory",
+        str(8 * 1024**3),
+        "--label",
+        "io.nfi-backtest-engine.managed=true",
+    ]
+
+    command = build_reference_docker_command(
+        manifest,
+        fixture_root=MANIFEST.parent,
+        output_directory=output,
+        project_root=ROOT,
+        dependency_directory=None,
+        trace_mode="off",
+        profile=False,
+        docker_config=tmp_path / "docker-config",
+        market_snapshot={
+            "role": "market_metadata",
+            "path": "inputs/market_metadata/markets.json",
+        },
+        run_prefix=prefix,
+    )
+
+    assert command[: len(prefix)] == prefix
+    assert command[len(prefix) : len(prefix) + 2] == ["--platform", "linux/amd64"]
+
+
+def test_container_memory_assessment_distinguishes_headroom_and_oom() -> None:
+    resources = {
+        "policy": {
+            "container_memory_limit_bytes": 10 * 1024**3,
+        }
+    }
+
+    healthy = reference_runtime._container_memory_assessment(
+        exit_code=0,
+        peak_bytes=4 * 1024**3,
+        events={"oom": 0, "oom_kill": 0},
+        resources=resources,
+    )
+    exhausted = reference_runtime._container_memory_assessment(
+        exit_code=137,
+        peak_bytes=10 * 1024**3,
+        events={"oom": 1, "oom_kill": 1},
+        resources=resources,
+    )
+
+    assert healthy["verdict"] == "within_limit"
+    assert healthy["peak_ratio"] == 0.4
+    assert exhausted["verdict"] == "oom_killed"
+    assert exhausted["oom_kill_count"] == 1

@@ -194,6 +194,16 @@ def build_parser() -> argparse.ArgumentParser:
     system_commands = system.add_subparsers(dest="system_command", required=True)
     system_inspect = system_commands.add_parser("inspect", help="print visible hardware resources")
     system_inspect.add_argument("--output", "-o", type=Path)
+    system_docker = system_commands.add_parser(
+        "docker",
+        help="show Docker daemon resources and managed containers",
+    )
+    system_docker.add_argument("--output", "-o", type=Path)
+    system_docker.add_argument(
+        "--cleanup-stopped",
+        action="store_true",
+        help="remove only stopped containers owned by this project",
+    )
     system_tune = system_commands.add_parser(
         "tune", help="create a hardware-bound execution profile"
     )
@@ -494,6 +504,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"reference parity: trades={report['parity']['trade_surface']['equal']}, "
                 f"state={report['parity']['state_trace']}, report={args.output_dir / 'run.json'}"
             )
+            memory_verdict = report["container_memory"]["verdict"]
+            if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
+                print(
+                    "reference container memory: "
+                    f"{memory_verdict}, peak={report['container_memory']['peak_bytes']}, "
+                    f"limit={report['container_memory']['limit_bytes']}",
+                    file=sys.stderr,
+                )
             return 0 if report["complete"] else 1
 
         if args.command_name == "doctor":
@@ -580,6 +598,37 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if args.output:
                     write_json(args.output, hardware)
                 print(json.dumps(hardware, ensure_ascii=False, indent=2))
+                return 0
+            if args.system_command == "docker":
+                from .docker_resources import (
+                    derive_docker_policy,
+                    inspect_docker_daemon,
+                )
+                from .docker_runtime import (
+                    cleanup_stopped_managed_containers,
+                    list_managed_containers,
+                )
+                from .reference_runtime import ensure_docker_config
+
+                docker_config = ensure_docker_config()
+                cleaned = (
+                    cleanup_stopped_managed_containers(docker_config=docker_config)
+                    if args.cleanup_stopped
+                    else []
+                )
+                daemon = inspect_docker_daemon(docker_config=docker_config)
+                report = {
+                    "schema_version": "1.0.0",
+                    "daemon": daemon,
+                    "policy": derive_docker_policy(daemon),
+                    "managed_containers": list_managed_containers(
+                        docker_config=docker_config
+                    ),
+                    "cleaned_stopped_containers": cleaned,
+                }
+                if args.output:
+                    write_json(args.output, report)
+                print(json.dumps(report, ensure_ascii=False, indent=2))
                 return 0
             if args.system_command == "tune":
                 if args.memory_cap_gib is not None and args.memory_cap_gib < 1:

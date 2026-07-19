@@ -86,6 +86,21 @@ The global simulator remains intentionally single-threaded for deterministic
 shared-state order; independent candidates are the useful simulator parallelism
 boundary.
 
+Host-native work and container work are separate resource domains. The host profile
+controls Python pair workers and the Rust engine. Docker workloads instead inspect the
+daemon's own `MemTotal`, CPU count, architecture, and cgroup-limit support. The container
+policy reserves 20% of daemon memory within 1-6 GiB bounds, caps the one active managed
+container to the remaining budget after subtracting live usage reported by every other
+container, and disables additional managed Docker concurrency with an operating-system
+file lock. This applies uniformly to Docker Desktop VMs and native Linux daemons rather
+than detecting one laptop model.
+
+Every managed container receives an ownership and role label plus a Docker CID file.
+The exact CID is force-removed in a `finally` boundary after completion, interruption,
+or timeout. Before a new workload starts, only stopped containers with the ownership
+label are removed; unrelated containers are never pruned, and an existing running
+managed container blocks a second workload.
+
 On the development host visible to WSL (5 physical cores, 10 logical CPUs, 27.3 GiB
 RAM), the automatic profile selected four independent research processes. A four-job
 annual X7 vector-preparation diagnostic used four distinct worker PIDs, completed in
@@ -146,6 +161,17 @@ The reference runner uses Freqtrade `2026.5.1` and a pinned linux/amd64 image di
 Market metadata is captured once and injected offline with Docker networking disabled.
 The low-overhead tracer aggregates indicators, callbacks, trade scans, and event
 simulation and writes only final JSONL aggregates.
+
+The macOS application wheel and fast engine are native Apple Silicon builds. The
+official fixture reference remains the canonical linux/amd64 digest and may be emulated
+by Docker Desktop on an arm64 Mac. It is not silently replaced with an arm64 image:
+another platform digest becomes an exact reference only after it has its own captured
+identity and parity evidence.
+
+Reference reports include daemon resources, the enforced container budget, cgroup peak
+memory, `memory.events`, and a bounded memory verdict. The scheduler does not
+automatically concatenate timerange chunks because Freqtrade wallet, open-trade,
+protection, and strategy state reset at each independent invocation.
 
 `quick` compares the complete final trade surface. `full` additionally runs the official
 full trace and compares every common candle state.

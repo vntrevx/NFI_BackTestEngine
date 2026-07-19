@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .canonical import read_json, write_json
+from .docker_runtime import managed_docker_run, run_managed_container
 from .errors import BenchmarkError
 from .fixture import fixture_input_sha256, validate_fixture
 from .normalize import normalize_file
@@ -31,6 +32,7 @@ REFERENCE_PLATFORM = "linux/amd64"
 REFERENCE_IMAGE_REF = f"{REFERENCE_IMAGE}@{REFERENCE_PLATFORM_DIGEST}"
 REFERENCE_BLAKE3_VERSION = "1.0.9"
 REFERENCE_TRACER_VERSION = "1.0.0"
+REFERENCE_REPORT_VERSION = "1.1.0"
 
 _CGROUP_CAPTURE_SCRIPT = """\
 freqtrade "$@"
@@ -39,6 +41,9 @@ if [ -r /sys/fs/cgroup/memory.peak ]; then
   cat /sys/fs/cgroup/memory.peak > /output/container-memory-peak.txt
 elif [ -r /sys/fs/cgroup/memory/memory.max_usage_in_bytes ]; then
   cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes > /output/container-memory-peak.txt
+fi
+if [ -r /sys/fs/cgroup/memory.events ]; then
+  cat /sys/fs/cgroup/memory.events > /output/container-memory.events
 fi
 if [ -r /sys/fs/cgroup/cpu.stat ]; then
   cat /sys/fs/cgroup/cpu.stat > /output/container-cpu.stat
@@ -81,41 +86,59 @@ def run_reference_fixture(
     stderr_path = output / "stderr.log"
     profile_path = output / "profile.jsonl"
     trace_path = output / "state-trace.nfitrace"
-    docker_argv = build_reference_docker_command(
-        manifest,
-        fixture_root=fixture_root,
-        output_directory=output,
-        project_root=project_root,
-        dependency_directory=dependency_directory,
-        trace_mode=trace_mode,
-        profile=profile,
-        docker_config=docker_config,
-        market_snapshot=market_snapshot,
-    )
-
     started_at = datetime.now(UTC)
     started_ns = time.perf_counter_ns()
     timed_out = False
+    container_resources: dict[str, Any] | None = None
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         try:
-            completed = subprocess.run(
-                docker_argv,
-                cwd=project_root,
-                stdout=stdout,
-                stderr=stderr,
-                check=False,
-                timeout=timeout_seconds,
-            )
-            exit_code = completed.returncode
+            with managed_docker_run(
+                docker_config=docker_config,
+                role="reference",
+            ) as lease:
+                docker_argv = build_reference_docker_command(
+                    manifest,
+                    fixture_root=fixture_root,
+                    output_directory=output,
+                    project_root=project_root,
+                    dependency_directory=dependency_directory,
+                    trace_mode=trace_mode,
+                    profile=profile,
+                    docker_config=docker_config,
+                    market_snapshot=market_snapshot,
+                    run_prefix=lease["command_prefix"],
+                )
+                container_resources = {
+                    "daemon": lease["daemon"],
+                    "policy": lease["policy"],
+                    "cleaned_stopped_containers": lease["cleaned_stopped_containers"],
+                }
+                completed = subprocess.run(
+                    docker_argv,
+                    cwd=project_root,
+                    stdout=stdout,
+                    stderr=stderr,
+                    check=False,
+                    timeout=timeout_seconds,
+                )
+                exit_code = completed.returncode
         except subprocess.TimeoutExpired:
             timed_out = True
             exit_code = 124
         except OSError as exc:
             raise BenchmarkError(f"cannot execute Docker: {exc}") from exc
     ended_at = datetime.now(UTC)
+    container_peak_memory = _read_nonnegative_integer(output / "container-memory-peak.txt")
+    container_memory_events = _read_integer_record(output / "container-memory.events")
+    container_memory = _container_memory_assessment(
+        exit_code=exit_code,
+        peak_bytes=container_peak_memory,
+        events=container_memory_events,
+        resources=container_resources,
+    )
 
     report: dict[str, Any] = {
-        "schema_version": "1.0.0",
+        "schema_version": REFERENCE_REPORT_VERSION,
         "fixture_id": manifest["fixture_id"],
         "manifest_path": str(manifest_file),
         "reference": {
@@ -134,9 +157,10 @@ def run_reference_fixture(
         "wall_time_seconds": (time.perf_counter_ns() - started_ns) / 1_000_000_000,
         "exit_code": exit_code,
         "timed_out": timed_out,
-        "container_peak_memory_bytes": _read_nonnegative_integer(
-            output / "container-memory-peak.txt"
-        ),
+        "container_resources": container_resources,
+        "container_peak_memory_bytes": container_peak_memory,
+        "container_memory_events": container_memory_events,
+        "container_memory": container_memory,
         "container_cpu": _read_cpu_stat(output / "container-cpu.stat"),
         "stdout": _file_record(stdout_path),
         "stderr": _file_record(stderr_path),
@@ -220,33 +244,38 @@ def build_reference_docker_command(
     profile: bool,
     docker_config: Path,
     market_snapshot: dict[str, Any],
+    run_prefix: list[str] | None = None,
 ) -> list[str]:
     """Build argv without shell interpolation so fixture values cannot become commands."""
     freqtrade_args = _reference_freqtrade_args(manifest["freqtrade"]["command"])
-    command = [
+    command = list(run_prefix) if run_prefix is not None else [
         _docker_executable(),
         "--config",
         str(docker_config),
         "run",
         "--rm",
-        "--platform",
-        REFERENCE_PLATFORM,
-        "--network",
-        "none",
-        "--workdir",
-        "/fixture",
-        "--volume",
-        f"{fixture_root}:/fixture:ro",
-        "--volume",
-        f"{output_directory}:/output",
-        "--volume",
-        f"{project_root}:/project:ro",
-        "--env",
-        "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python"
-        + (":/reference-deps" if dependency_directory is not None else ""),
-        "--env",
-        f"NFI_MARKET_SNAPSHOT_PATH=/fixture/{market_snapshot['path']}",
     ]
+    command.extend(
+        [
+            "--platform",
+            REFERENCE_PLATFORM,
+            "--network",
+            "none",
+            "--workdir",
+            "/fixture",
+            "--volume",
+            f"{fixture_root}:/fixture:ro",
+            "--volume",
+            f"{output_directory}:/output",
+            "--volume",
+            f"{project_root}:/project:ro",
+            "--env",
+            "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python"
+            + (":/reference-deps" if dependency_directory is not None else ""),
+            "--env",
+            f"NFI_MARKET_SNAPSHOT_PATH=/fixture/{market_snapshot['path']}",
+        ]
+    )
     if dependency_directory is not None:
         command.extend(["--volume", f"{dependency_directory}:/reference-deps:ro"])
     if profile:
@@ -305,45 +334,45 @@ def capture_reference_markets(
     with tempfile.TemporaryDirectory(prefix="nfi-market-", dir=target.parent) as temporary:
         output = Path(temporary)
         (output / "user_data").mkdir()
-        command = [
-            _docker_executable(),
-            "--config",
-            str(docker_config),
-            "run",
-            "--rm",
-            "--platform",
-            REFERENCE_PLATFORM,
-            "--workdir",
-            "/fixture",
-            "--volume",
-            f"{manifest_file.parent}:/fixture:ro",
-            "--volume",
-            f"{output}:/output",
-            "--volume",
-            f"{project_root}:/project:ro",
-            "--env",
-            "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python",
-            "--env",
-            "NFI_MARKET_CAPTURE_PATH=/output/market-snapshot.json",
-            "--entrypoint",
-            "/bin/sh",
-            REFERENCE_IMAGE_REF,
-            "-c",
-            _CGROUP_CAPTURE_SCRIPT,
-            "nfi-market-capture",
-            *_reference_freqtrade_args(manifest["freqtrade"]["command"]),
-        ]
         try:
-            completed = subprocess.run(
-                command,
-                cwd=project_root,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                capture_output=True,
-                check=False,
-                timeout=timeout_seconds,
-            )
+            with managed_docker_run(
+                docker_config=docker_config,
+                role="market-capture",
+            ) as lease:
+                command = [
+                    *lease["command_prefix"],
+                    "--platform",
+                    REFERENCE_PLATFORM,
+                    "--workdir",
+                    "/fixture",
+                    "--volume",
+                    f"{manifest_file.parent}:/fixture:ro",
+                    "--volume",
+                    f"{output}:/output",
+                    "--volume",
+                    f"{project_root}:/project:ro",
+                    "--env",
+                    "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python",
+                    "--env",
+                    "NFI_MARKET_CAPTURE_PATH=/output/market-snapshot.json",
+                    "--entrypoint",
+                    "/bin/sh",
+                    REFERENCE_IMAGE_REF,
+                    "-c",
+                    _CGROUP_CAPTURE_SCRIPT,
+                    "nfi-market-capture",
+                    *_reference_freqtrade_args(manifest["freqtrade"]["command"]),
+                ]
+                completed = subprocess.run(
+                    command,
+                    cwd=project_root,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    capture_output=True,
+                    check=False,
+                    timeout=timeout_seconds,
+                )
         except subprocess.TimeoutExpired as exc:
             raise BenchmarkError("timed out while capturing reference markets") from exc
         except OSError as exc:
@@ -418,9 +447,7 @@ def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) ->
     if marker.is_file():
         return dependency_directory
     dependency_directory.mkdir(parents=True, exist_ok=True)
-    command = [
-        "run",
-        "--rm",
+    arguments = [
         "--platform",
         REFERENCE_PLATFORM,
         "--volume",
@@ -437,7 +464,12 @@ def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) ->
         "/reference-deps",
         f"blake3=={REFERENCE_BLAKE3_VERSION}",
     ]
-    completed = _run_docker(docker_config, command)
+    completed, _resources = run_managed_container(
+        arguments,
+        docker_config=docker_config,
+        role="reference-dependencies",
+        capture_output=True,
+    )
     if completed.returncode != 0 or not marker.is_file():
         raise BenchmarkError(
             "failed to prepare pinned reference tracer dependency: "
@@ -544,6 +576,10 @@ def _read_nonnegative_integer(path: Path) -> int | None:
 
 
 def _read_cpu_stat(path: Path) -> dict[str, int] | None:
+    return _read_integer_record(path)
+
+
+def _read_integer_record(path: Path) -> dict[str, int] | None:
     if not path.is_file():
         return None
     result: dict[str, int] = {}
@@ -552,6 +588,37 @@ def _read_cpu_stat(path: Path) -> dict[str, int] | None:
         if len(parts) == 2 and parts[1].isdigit():
             result[parts[0]] = int(parts[1])
     return result or None
+
+
+def _container_memory_assessment(
+    *,
+    exit_code: int,
+    peak_bytes: int | None,
+    events: dict[str, int] | None,
+    resources: dict[str, Any] | None,
+) -> dict[str, Any]:
+    policy = resources.get("policy") if isinstance(resources, dict) else None
+    raw_limit = policy.get("container_memory_limit_bytes") if isinstance(policy, dict) else None
+    limit = raw_limit if isinstance(raw_limit, int) and raw_limit > 0 else None
+    peak_ratio = peak_bytes / limit if peak_bytes is not None and limit is not None else None
+    oom_kills = events.get("oom_kill", 0) if events is not None else 0
+    if oom_kills > 0:
+        verdict = "oom_killed"
+    elif exit_code in {137, -9}:
+        verdict = "possible_oom"
+    elif peak_ratio is not None and peak_ratio >= 0.9:
+        verdict = "near_limit"
+    elif peak_bytes is not None:
+        verdict = "within_limit"
+    else:
+        verdict = "unmeasured"
+    return {
+        "verdict": verdict,
+        "limit_bytes": limit,
+        "peak_bytes": peak_bytes,
+        "peak_ratio": peak_ratio,
+        "oom_kill_count": oom_kills,
+    }
 
 
 def _parity_difference_record(difference: Any) -> dict[str, Any] | None:
