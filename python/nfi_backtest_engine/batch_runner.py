@@ -12,7 +12,7 @@ from typing import Any
 
 from .canonical import read_json, write_json
 from .errors import BenchmarkError, SpecValidationError
-from .hardware import ensure_execution_profile
+from .hardware import current_resource_limits, ensure_execution_profile
 from .research_runner import run_research_backtest
 
 BATCH_MANIFEST_VERSION = "1.0.0"
@@ -120,24 +120,29 @@ def _parallelism_plan(
 ) -> dict[str, Any]:
     if job_count <= 0:
         raise SpecValidationError("batch job count must be positive")
-    tuning = profile["tuning"]
-    safe_jobs = int(tuning["independent_research_jobs"])
+    limits = current_resource_limits(profile)
+    cpu_limit = int(limits["cpu_process_limit"])
+    # Independent candidates do not share one workload identity.  Until each
+    # candidate has a measured peak, admitting more than one coordinator would
+    # let both assume the same free memory.  The per-job vector stage still
+    # uses every process admitted by its own full-range probe.
+    safe_jobs = 1
     requested_jobs = max_jobs or safe_jobs
     if requested_jobs <= 0:
         raise SpecValidationError("batch max_jobs must be positive")
     parallel_jobs = max(1, min(requested_jobs, safe_jobs, job_count))
-    indicator_processes = int(tuning["indicator_processes"])
+    indicator_processes = cpu_limit
     per_job = max(1, indicator_processes // parallel_jobs)
     return {
         "process_start_method": "spawn",
         "parallel_job_processes": parallel_jobs,
         "indicator_processes_per_job": per_job,
         "maximum_indicator_processes": parallel_jobs * per_job,
-        "nested_numeric_threads_per_process": int(tuning["nested_numeric_threads"]),
-        "working_memory_bytes": int(tuning["working_memory_bytes"]),
-        "assumed_indicator_worker_peak_bytes": int(
-            tuning["assumed_indicator_worker_peak_bytes"]
+        "nested_numeric_threads_per_process": int(
+            profile["runtime"]["nested_numeric_threads"]
         ),
+        "working_memory_bytes": int(limits["working_memory_bytes"]),
+        "admission": "serial-until-workload-calibrated",
     }
 
 

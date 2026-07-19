@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-Version 0.4.0 is an alpha release of the benchmark, exact-parity, native packaging,
+Version 0.5.0 is an alpha release of the benchmark, exact-parity, native packaging,
 hardware/data preparation, X7 vector, and checkpointed research infrastructure. It is
 not a claim that an arbitrary NFI file, pair universe, or strategy revision can already
 complete an exact Rust backtest.
@@ -60,6 +60,11 @@ Before tagging:
     cgroup memory reporting, and zero remaining owned containers
 13. Run `nfi-bte strategy check` against the latest upstream X7 source
 14. Dry-run the Windows and Unix release installers against the published assets
+15. Run the representative workload with an empty vector cache and `--recalibrate`;
+    retain its workload calibration, engine phase profile, process-tree peak, and exact
+    official confirmation
+16. Verify the representative run uses at least 80 pairs and 1,460 days before
+    publishing any 10x or long-horizon memory claim
 
 The CI workflow runs the tests on Linux, Windows, and macOS and repeats native full
 parity on Linux. Docker-free CI validates the portable resource and command contracts;
@@ -76,24 +81,9 @@ Pushing a `v*` tag builds ABI3 wheels and creates a GitHub release for:
 - source distribution.
 
 The release workflow verifies the Linux wheel before creating the GitHub release.
-PyPI publication is deliberately a separate manual dispatch so missing registry
-configuration cannot block the GitHub release. Before selecting
-`publish_pypi: true` for the release tag, create the protected `pypi` environment and
-configure PyPI trusted publishing for:
-
-- owner: `vntrevx`
-- repository: `NFI_BackTestEngine`
-- workflow: `release.yml`
-- environment: `pypi`
-
-The PyPI job alone receives `id-token: write`; build jobs remain read-only. The GitHub
-release job receives only `contents: write`.
-
-Until the PyPI trusted publisher is configured, `install.ps1` and `install.sh` provide
-the shortest supported installation path from GitHub Releases. They select the native
-wheel and verify the asset digest before calling `uv tool install`. After PyPI is live,
-`uv tool install nfi-backtest-engine` becomes the primary command and pipx remains a
-compatible alternative.
+GitHub Releases is the only supported registry. `install.ps1` and `install.sh` select
+the native wheel, verify its asset digest, and call `uv tool install`. Build jobs remain
+read-only, while the GitHub release job receives only `contents: write`.
 
 ## Full X7 v1 gates
 

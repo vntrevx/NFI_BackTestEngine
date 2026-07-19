@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import psutil
 
 from .canonical import read_json, write_json
 from .errors import StrategyAnalysisError
 from .fixture import sha256_file
+from .resource_usage import process_peak_rss_bytes
 from .runtime_versions import vector_dependency_versions
 from .strategy_compat import (
     VectorDataProvider,
@@ -107,7 +107,7 @@ def run_vector_request(request: dict[str, Any]) -> dict[str, Any]:
         "bytes": output.stat().st_size,
         "sha256": sha256_file(output),
         "wall_time_seconds": (time.perf_counter_ns() - started_ns) / 1_000_000_000,
-        "resident_bytes_at_completion": psutil.Process().memory_info().rss,
+        "peak_rss_bytes": process_peak_rss_bytes(),
         "strategy_sha256": request["strategy_sha256"],
         "config_sha256": request["config_sha256"],
         "input_sha256": _request_input_sha256(request),
