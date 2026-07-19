@@ -1,276 +1,306 @@
 # NFI Backtest Engine
 
-A lightweight Rust/Python research backtester with an official Freqtrade exact-parity
-lane. Native wheels are built with PyO3/maturin for Linux x86_64/aarch64, Windows x64,
-and macOS arm64.
+A lightweight Rust/Python research backtester for NFI strategies, with an exact
+comparison lane against official Freqtrade results.
 
-Version 0.1.0 implements the benchmark, parity, vector, native simulator, strategy
-adapter, and resumable research-runner foundations. It inspects the current computer,
-chooses process counts from physical CPU and available memory, evaluates independent
-pair vectors in isolated worker processes, and keeps the shared portfolio event loop
-deterministic in Rust.
+The engine inspects the current computer, chooses safe CPU process counts from physical
+cores and available memory, calculates independent pair vectors in worker processes,
+and keeps shared wallet, slot, trade, and order events deterministic in Rust.
 
-The source-pinned NFI X7 v17.4.413 adapter now executes both spot and a constrained
-futures contract without per-candle Python. A sealed APE/USDT:USDT 2022 certificate
-matches the official Freqtrade final trade surface exactly, including a short trade,
-3x leverage, funding, and 142 position-adjustment orders. This is not a certificate
-for arbitrary pairs, protections, pair locks, or liquidation events. Official
-Freqtrade remains the final source of truth.
+> **Release status:** `v0.1.0` is an alpha release. It has exact certificates for a
+> source-pinned NFI X7 v17.4.413 subset. It does not claim exact support for every NFI
+> revision, pair, route, protection, pair lock, or liquidation event. Unsupported
+> behavior stops explicitly instead of falling back to an approximate result.
 
-## Current status
+## What you can do
 
-| Area | Status | Exact boundary |
-| --- | --- | --- |
-| Hardware tuning | Implemented | Physical/logical CPU, current RAM, host reserve, process and nested-thread limits |
-| Multiprocess execution | Implemented | Pair-vector workers and independent candidate jobs; shared portfolio loop stays ordered |
-| Data preparation | Implemented | Timeframe startup requests, available coverage, shortfalls, files, and SHA-256 are sealed |
-| Strategy preflight | Implemented | Iterative AST analysis, exact source diagnostics, no per-candle Python |
-| X7 vector preparation | Implemented | Trusted isolated workers, informative alignment, immutable cache, direct sealed Feather input |
-| Research runner | Implemented | Auto tuning/data coverage, frozen pairlist, checkpoints, resume |
-| Official reference | Implemented | Freqtrade 2026.5.1 Docker image pinned by platform digest, offline markets |
-| Trade parity | Implemented | Versioned canonical surface, first semantic difference, zero tolerance |
-| Full state parity | Implemented | Every visible candle, shared wallet/trades/orders/counters |
-| Rust simulator | Contract subset | Spot/futures, long/short, leverage, funding, precision, adjustments, partial exits, stops |
-| X7 managed callbacks | Source-pinned | Long families plus short-rebuy tags 561-563 use compiled Rust policies |
-| X7 legacy tag 120 | Partial exact | Full spot/backtest grind state machine is lowered; official ZEC proof reaches `gm0`, `gd1`, and `gd2` |
-| X7 legacy tag 121 | Dormant / fail-closed | v17.4.413 has a route constant but no literal entry condition; any emitted 121 signal is rejected |
-| Annual X7 futures proof | Final surface exact | APE/USDT:USDT, 2022-04-01 to 2023-01-01, 11 trades and 164 orders |
-| Full arbitrary NFI X7 | Not certified | Other pairs/routes plus protections, locks, and liquidation events need differential proof |
+- inspect an NFI/Freqtrade strategy before spending time on data preparation;
+- automatically tune process and memory limits for the current computer;
+- fill and seal required candle coverage;
+- prepare pair indicators in isolated worker processes with immutable caching;
+- run supported strategy behavior without calling Python once per candle;
+- checkpoint and resume long research runs;
+- compare an engine result with a plain or zipped Freqtrade export at zero tolerance;
+- batch independent strategies or timeranges within the detected hardware limits.
 
-The annual futures certificate reaches long and short trading, leverage, funding,
-derisk levels 1-3, and grind levels 1-5. Its engine and official normalized surfaces
-share SHA-256 `12386d5c...31bcd` with zero tolerance. Separate spot certificates prove
-the APE top-coins path, a tag-62 rebuy exit, a ZEC tag-120 route through `gm0`, `gd1`,
-and `gd2`, and one APE/AAVE equal-timestamp slot conflict. These are deliberately
-narrow certificates; no result should be described as arbitrary or full X7 support.
+Official Freqtrade remains the final source of truth for a candidate.
 
-The source-static entry inventory is sealed in
-[`benchmarks/evidence/x7-v17.4.413-static-entry-inventory.json`](benchmarks/evidence/x7-v17.4.413-static-entry-inventory.json).
-It records tag 120 as an active literal branch and tag 121 as a dormant route constant.
-The narrow shared-slot certificate is recorded in
-[`benchmarks/evidence/x7-ape-aave-shared-slot-v17.4.413.json`](benchmarks/evidence/x7-ape-aave-shared-slot-v17.4.413.json).
-The annual futures certificate is recorded in
-[`benchmarks/evidence/x7-ape-futures-2022-v17.4.413.json`](benchmarks/evidence/x7-ape-futures-2022-v17.4.413.json).
+## Requirements
+
+- Python 3.12, 3.13, or 3.14;
+- Windows x64, Linux x86_64/aarch64, or macOS Apple Silicon;
+- an NFI/Freqtrade strategy file, Freqtrade config, candle-data directory, and timerange;
+- Docker Desktop or Docker Engine when candle data must be filled or the official
+  Freqtrade reference lane is requested.
+
+Public market metadata does not require exchange API credentials. Keep private keys out
+of configs committed to this repository.
 
 ## Install
 
-After PyPI trusted publishing has been enabled:
+### Release wheel
 
-```text
-pip install nfi-backtest-engine
-nfi-bte --version
+Download the wheel for your platform from
+[the latest GitHub release](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest):
+
+| Platform | Wheel suffix |
+| --- | --- |
+| Windows x64 | `win_amd64.whl` |
+| Linux x86_64 | `manylinux2014_x86_64.whl` |
+| Linux aarch64 | `manylinux2014_aarch64.whl` |
+| macOS Apple Silicon | `macosx_11_0_arm64.whl` |
+
+Create a virtual environment and install the downloaded wheel.
+
+Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install `
+  "$HOME\Downloads\nfi_backtest_engine-0.1.0-cp312-abi3-win_amd64.whl"
+.\.venv\Scripts\nfi-bte.exe --version
 ```
 
-Every tagged version also publishes its wheel and source archive on GitHub Releases.
+Linux or macOS:
 
-For a source checkout:
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install ~/Downloads/nfi_backtest_engine-0.1.0-*.whl
+.venv/bin/nfi-bte --version
+```
 
-```text
+The examples below use `nfi-bte`. Use `.\.venv\Scripts\nfi-bte.exe` on Windows or
+`.venv/bin/nfi-bte` on Linux/macOS when the virtual environment is not activated.
+
+PyPI publishing is not enabled yet, so `pip install nfi-backtest-engine` is not the
+current installation path.
+
+### Source checkout
+
+A source checkout is useful for the included exact-parity fixtures and development:
+
+```powershell
+git clone https://github.com/vntrevx/NFI_BackTestEngine.git
+cd NFI_BackTestEngine
 uv sync --extra dev --frozen
-uv run maturin develop --locked
+uv run maturin develop --release --locked
+uv run nfi-bte --version
 ```
 
-## Install and inspect this computer
+When using a source checkout, prefix the remaining examples with `uv run`.
 
-Windows uses Docker Desktop for the official reference and WSL for the Linux Rust core.
+## 1. Check this computer
+
+`doctor` is read-only. It checks Python, available memory, Docker, and the pinned
+Freqtrade image:
 
 ```powershell
-uv sync --extra dev
-uv run nfi-bte doctor
-uv run nfi-bte system tune --output .nfi/execution-profile.json
-uv run nfi-bte system show .nfi/execution-profile.json
+nfi-bte doctor --output .nfi/doctor.json
 ```
 
-The generated profile reserves host memory and normally one physical core, then
-separates safe process counts for indicators, independent engine jobs, and memory-heavy
-official Freqtrade jobs. Each spawned worker limits NumPy/BLAS/Polars/Rayon nesting to
-one thread, avoiding `jobs * library threads` oversubscription. Indicator workers use a
-conservative 3 GiB peak-memory assumption until the target strategy is measured.
-
-## Run the included exact-parity fixtures
-
-`quick` compares the complete normalized trade result:
+The backtest command creates a hardware profile automatically when one does not exist.
+Run this explicitly only when you want to inspect the selected limits:
 
 ```powershell
-uv run nfi-bte engine fixture `
-  benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
-  --output-dir benchmarks/work/normal-quick `
-  --profile .nfi/execution-profile.json `
-  --level quick
+nfi-bte system tune --output .nfi/execution-profile.json
+nfi-bte system show .nfi/execution-profile.json
 ```
 
-`full` additionally compares the shared portfolio state after every Freqtrade-visible
-candle:
+The profile reserves memory and normally one physical core for the host. Each child
+process limits NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread so
+process-level parallelism does not oversubscribe the CPU.
+
+## 2. Inspect the strategy
+
+Run static preflight before downloading or calculating data:
 
 ```powershell
-uv run nfi-bte engine fixture `
-  benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
-  --output-dir benchmarks/work/normal-full `
-  --profile .nfi/execution-profile.json `
-  --level full
-```
-
-Each output contains the compiled simulation input, raw Rust result, Freqtrade-compatible
-trade surface, hashes, resource measurements, and `run.json`. A failure also creates
-`mismatch-replay/` with only the input prefix through the first mismatch and the exact
-expected/actual fragments.
-
-## Run a fresh official comparison
-
-The performance command runs separate engine and official Freqtrade processes against
-the same sealed manifest:
-
-```powershell
-uv run nfi-bte performance `
-  benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
-  --output-dir benchmarks/work/performance-normal `
-  --profile .nfi/execution-profile.json `
-  --level full
-```
-
-It records wall time, pipeline and core/container peak RSS, hardware identity, both
-parity reports, and the observed speed ratio. A speed claim is automatically marked
-`diagnostic-only` unless the fixture has at least 80 pairs and 365 days.
-
-## Inspect an NFI strategy
-
-```powershell
-uv run nfi-bte strategy inspect path/to/NostalgiaForInfinityX7.py `
+nfi-bte strategy inspect `
+  path\to\NostalgiaForInfinityX7.py `
   --class NostalgiaForInfinityX7 `
-  --output artifacts/x7-strategy-ir.json
+  --output artifacts\x7-strategy-analysis.json
 ```
 
-The preflight finds classes, constants, required timeframes, vector methods, hot
-callbacks, forbidden dynamic execution, unsafe shifts/rolling operations, and exact
-source locations. `strategy prepare` creates a hash-bound bundle only after fatal
-diagnostics are clear.
+This reports the selected class, required timeframes, vector methods, hot callbacks,
+unsafe dynamic behavior, and exact source locations. A fatal diagnostic stops the run.
 
-## Prepare a checkpointed X7 research run
+## 3. Prepare an NFI run
 
-This reads the current computer, reuses or recalibrates the hardware profile, resolves
-the effective Freqtrade config, freezes pair order, fills missing public candle coverage,
-and calculates pair vectors in isolated worker processes:
+The minimum inputs are:
+
+| Input | Meaning |
+| --- | --- |
+| strategy path | NFI/Freqtrade Python strategy file |
+| `--class` | strategy class inside that file |
+| `--config` | effective Freqtrade JSON config |
+| `--datadir` | existing Freqtrade candle-data root |
+| `--timerange` | `YYYYMMDD-YYYYMMDD` research interval |
+| `--output-dir` | a new directory owned by this run |
+
+Start with `--prepare-only`. It validates the strategy, detects hardware, freezes the
+pairlist, seals data identity, and calculates pair vectors without claiming a simulated
+trade result:
 
 ```powershell
-uv run nfi-bte backtest path/to/NostalgiaForInfinityX7.py `
+nfi-bte backtest `
+  path\to\NostalgiaForInfinityX7.py `
   --class NostalgiaForInfinityX7 `
-  --config user_data/config.json `
-  --datadir user_data/data/binance `
+  --config user_data\config.json `
+  --datadir user_data\data\binance `
   --timerange 20250101-20260101 `
-  --output-dir artifacts/x7-2025 `
+  --output-dir artifacts\x7-2025 `
   --prepare-only
 ```
 
-Resume only hash-valid completed stages:
+Pairs come from the effective config whitelist. Repeat `--pair`, for example
+`--pair BTC/USDT --pair ETH/USDT`, to freeze an explicit subset.
+
+By default, missing candle coverage is filled through the pinned Freqtrade container.
+Use `--no-download` when an offline run must fail instead of downloading data.
+
+## 4. Run or resume the simulation
+
+Reuse the prepared directory with `--resume` and omit `--prepare-only`:
 
 ```powershell
-uv run nfi-bte backtest path/to/NostalgiaForInfinityX7.py `
+nfi-bte backtest `
+  path\to\NostalgiaForInfinityX7.py `
   --class NostalgiaForInfinityX7 `
-  --config user_data/config.json `
-  --datadir user_data/data/binance `
+  --config user_data\config.json `
+  --datadir user_data\data\binance `
   --timerange 20250101-20260101 `
-  --output-dir artifacts/x7-2025 `
-  --prepare-only `
+  --output-dir artifacts\x7-2025 `
   --resume
 ```
 
-Omit `--prepare-only` and pass a frozen market snapshot with `--markets` to request
-simulation. A run proceeds only when every active callback has an exact lowering and
-every emitted signal tag belongs to a compiled route. The X7 adapter accepts its
-source-pinned managed long routes and short-rebuy tags 561-563; unknown tags, unequal
-per-entry futures leverage, or unsupported callbacks return
-`blocked_unsupported_semantics`. The runner never falls back to per-candle Python.
+The command has three meaningful outcomes:
 
-Supported runs write a compact `simulation-input.manifest.json` that references the
-sealed Feather vectors directly, plus `simulation-result.json` and `trade-surface.json`.
-Confirm that result against a plain or zipped official Freqtrade export:
+| Status | Meaning |
+| --- | --- |
+| `prepared` | immutable data and vectors are ready; simulation was not requested |
+| `complete` | the declared supported contract produced a deterministic result |
+| `blocked_unsupported_semantics` | at least one active behavior has no exact lowering |
 
-```powershell
-uv run nfi-bte confirm artifacts/simple-run backtest-result.zip `
-  --strategy MyStrategy `
-  --output-dir artifacts/simple-confirmation
-```
+`blocked_unsupported_semantics` is a safety result, not a crash. The engine never
+silently substitutes simplified trading behavior.
 
-The command normalizes the official export and fails at the first exact semantic
-difference.
+Useful output files include:
 
-Public market metadata can be captured without exchange credentials:
+- `run.json` — final status and run identity;
+- `execution-profile.json` — CPU and memory limits used;
+- `strategy-analysis.json` and `hot-callback-ir.json` — compiled capability boundary;
+- `data-seal.json` — candle files, coverage, sizes, and hashes;
+- `simulation-result.json` and `trade-surface.json` — supported-run results;
+- `checkpoints/` — hash-validated stages used by `--resume`.
 
-```powershell
-uv run nfi-bte markets capture `
-  --config user_data/config.json `
-  --pair BTC/USDT `
-  --output artifacts/binance-markets.json
-```
+## 5. Confirm against Freqtrade
 
-If `--markets` is omitted for a supported callback-free run, the runner captures the
-selected public markets automatically. Use `--no-market-download` for a fully offline,
-fail-closed run.
-
-## Batch candidates and inspect runs
-
-Batch jobs are independent strategies or timeranges. The runner limits concurrent jobs
-to the hardware profile and divides pair-indicator workers between them:
+Export the same candidate with official Freqtrade, then compare the plain JSON or ZIP
+result:
 
 ```powershell
-uv run nfi-bte batch examples/batch-v1.example.json `
-  --output-dir artifacts/batch-01
+nfi-bte confirm `
+  artifacts\x7-2025 `
+  path\to\backtest-result.zip `
+  --strategy NostalgiaForInfinityX7 `
+  --output-dir artifacts\x7-2025-confirmation
 ```
 
-Every checkpointed run is indexed in a SQLite WAL registry:
+The comparator normalizes both results and fails at the first exact semantic
+difference. It does not use a floating-point tolerance.
+
+## Verify the included exact fixture
+
+This smoke test requires a source checkout because the frozen fixture is stored in the
+repository:
 
 ```powershell
-uv run nfi-bte runs list --limit 20
-uv run nfi-bte runs show RUN_ID
+nfi-bte engine fixture `
+  benchmarks\fixtures\captured\normal-routing-spot-2025-01-01_04\manifest.json `
+  --output-dir artifacts\fixture-smoke `
+  --level full
 ```
 
-The batch manifest schema and all paths are deterministic; relative paths resolve from
-the manifest directory. Use `--resume` to reuse only hash-valid data and vector stages.
+Expected result:
 
-## Prepare immutable candle data
+```text
+engine fixture parity (full): trades=True, state=True
+```
+
+`quick` compares the final normalized trade surface. `full` additionally compares the
+shared portfolio state after every Freqtrade-visible candle.
+
+## Batch independent candidates
+
+Batch jobs are separate strategies or timeranges. Concurrency is capped by the hardware
+profile:
 
 ```powershell
-uv run nfi-bte data prepare `
-  --config user_data/config.json `
-  --datadir user_data/data/binance `
-  --timerange 20250101-20260101 `
-  --timeframe 5m `
-  --timeframe 1h `
-  --output .nfi/data-seal.json
+nfi-bte batch examples\batch-v1.example.json `
+  --output-dir artifacts\batch-01
 
-uv run nfi-bte data validate .nfi/data-seal.json
+nfi-bte runs list --limit 20
+nfi-bte runs show RUN_ID
 ```
 
-Existing data is never erased. Missing coverage is appended/prepended through the pinned
-Freqtrade container, then every file and coverage boundary is sealed.
+Use `--resume` to reuse only stages whose complete input identity still matches.
+
+## Current exact-support boundary
+
+Version 0.1.0 executes the source-pinned X7 v17.4.413 managed long routes,
+short-rebuy tags 561–563, constrained isolated-futures accounting with uniform 3x
+leverage, and the tag-120 spot/backtest grind state machine.
+
+The sealed APE/USDT:USDT annual futures certificate covers 2022-04-01 through
+2023-01-01 and matches the official final surface exactly: 11 trades, 164 orders,
+142 adjustment orders, one short trade, and eight funded trades. Separate narrow spot
+certificates cover APE top-coins, an APE rebuy exit, ZEC tag 120, and an APE/AAVE
+equal-timestamp slot conflict.
+
+These certificates do not prove arbitrary NFI X7 behavior. Unknown tags, tag 121,
+unsupported mixed tags, non-uniform per-entry futures leverage, unsupported callbacks,
+protections, pair locks, and liquidation paths remain fail-closed.
+
+See:
+
+- [X7 support and exact certificates](docs/x7-support.md)
+- [Architecture and semantic ownership](docs/architecture.md)
+- [Benchmark fixture specification](benchmarks/README.md)
+- [Release boundary and publishing](docs/release.md)
 
 ## Repository map
 
-- `python/nfi_backtest_engine/` — orchestration, fixture/reference adapters, strategy IR,
-  data seals, parity, diagnostics, and performance gates
-- `rust/crates/nfi-sim-core/` — deterministic global chronological simulator
-- `rust/crates/nfi-sim-cli/` — one-process JSON/JSONL execution boundary
-- `rust/crates/nfi-py/` — low-copy PyO3 package boundary
-- `rust/crates/nfi-vector-io/` — SHA-verified projected Feather reader
-- `benchmarks/fixtures/captured/` — two official Freqtrade 2026.5.1 proof fixtures
-- `benchmarks/evidence/` — narrow, hash-sealed NFI X7 differential certificates
-- `benchmarks/reference/tracer/` — low-overhead official state/profiling instrumentation
-- `tests/parity/` — exact surface and trace contracts
-- `docs/architecture.md` — event order, ownership, and supported semantics
-
-## Development verification
-
-```powershell
-uv run pytest -q
-uv run ruff check .
-uv run basedpyright --level error python/nfi_backtest_engine
-wsl.exe -e bash -lc "cd /mnt/c/Users/0/project/NFI_BacktestEngine/rust && cargo fmt --all -- --check && cargo test --workspace --locked && cargo clippy --workspace --all-targets --locked -- -D warnings"
+```text
+python/nfi_backtest_engine/   Python CLI, orchestration, strategy IR, parity, reports
+rust/crates/nfi-sim-core/     deterministic chronological portfolio simulator
+rust/crates/nfi-vector-io/    SHA-verified projected Feather reader
+benchmarks/fixtures/          synthetic contracts and captured Freqtrade fixtures
+benchmarks/evidence/          narrow, hash-sealed X7 certificates
+tests/                        unit, integration, exact surface, and state-parity tests
+docs/                         architecture, support boundary, and release procedure
 ```
 
-Release instructions and the exact readiness boundary are in
-[`docs/release.md`](docs/release.md).
-The current X7 callback boundary and the path to a full certificate are in
-[`docs/x7-support.md`](docs/x7-support.md).
+The large captured state traces are intentional test fixtures. Generated profiles,
+caches, run registries, build outputs, and user runs belong in `.nfi/`, `dist/`, or
+`artifacts/`; those paths are ignored by Git.
 
-No upstream PR, live trading activation, or NFI strategy behavior change is part of this
-repository.
+## Development checks
+
+```powershell
+uv lock --check
+uv run ruff check .
+uv run basedpyright --level error python/nfi_backtest_engine
+uv run pytest -q
+```
+
+Rust checks:
+
+```bash
+cd rust
+cargo fmt --all -- --check
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before publishing
+changes or reporting a vulnerability.
