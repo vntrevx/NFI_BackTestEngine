@@ -373,8 +373,17 @@ def build_trade_dependency_ir(
     if not isinstance(source_path, str) or not isinstance(source_sha256, str):
         raise StrategyAnalysisError("trade dependency source identity is invalid")
     path = Path(source_path).resolve()
-    text = path.read_text(encoding="utf-8")
-    if hashlib.sha256(text.encode()).hexdigest() != source_sha256:
+    try:
+        # The analysis identity covers the exact bytes supplied by the user.
+        # Reading through text mode would normalize CRLF on Windows and make
+        # an unchanged strategy look different during the compilation pass.
+        source_bytes = path.read_bytes()
+        text = source_bytes.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise StrategyAnalysisError(
+            f"trade dependency source cannot be read: {path}"
+        ) from exc
+    if hashlib.sha256(source_bytes).hexdigest() != source_sha256:
         raise StrategyAnalysisError("trade dependency source hash differs from analysis")
     tree = ast.parse(text, filename=str(path), type_comments=True)
     strategy_name = strategies[0].get("name")

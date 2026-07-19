@@ -123,6 +123,11 @@ def test_incomplete_x7_router_fails_closed_instead_of_widening_scope(
         "        self.mutable = True\n",
         encoding="utf-8",
     )
+    # Force a Windows-checkout byte layout so the NFI-specific identity check
+    # is exercised on Linux and macOS runners too.
+    source.write_bytes(
+        source.read_text(encoding="utf-8").replace("\n", "\r\n").encode("utf-8")
+    )
 
     with pytest.raises(
         StrategyAnalysisError,
