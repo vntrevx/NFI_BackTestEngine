@@ -28,7 +28,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           python-version: "3.12"
       - name: Install engine
@@ -50,7 +50,7 @@ jobs:
             --output .compatibility/report-${{ matrix.trading_mode }}.json
       - name: Retain compatibility report
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .compatibility/report-${{ matrix.trading_mode }}.json
