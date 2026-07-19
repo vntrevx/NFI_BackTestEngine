@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "status": "source-static-inventory",
+  "claim_boundary": "X7 v17.4.413 literal entry-condition branches only; this is not runtime parity evidence",
+  "strategy": {
+    "class_name": "NostalgiaForInfinityX7",
+    "source_sha256": "11b379032da7aab5512d93eb092fc2b1495706a6e66a95ebfaba2e0443879227",
+    "strategy_ir_version": "1.6.0",
+    "capability_fingerprint": "c4da432030267f64ac5f9932d9fa67f970b582e0699d54335a3a54c7fc04122a"
+  },
+  "literal_condition_indices": {
+    "populate_entry_trend": {
+      "long_entry_condition_index": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        21,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        61,
+        62,
+        63,
+        64,
+        65,
+        101,
+        102,
+        103,
+        104,
+        120,
+        141,
+        142,
+        143,
+        144,
+        145,
+        161,
+        162,
+        163
+      ],
+      "short_entry_condition_index": [
+        501,
+        502,
+        503,
+        504,
+        541,
+        542,
+        543,
+        562,
+        563,
+        641,
+        642,
+        661
+      ]
+    }
+  },
+  "dormant_route_tags": [
+    "121"
+  ],
+  "safety_policy": "fail-before-simulation if a vector emits a dormant or unsupported tag"
+}

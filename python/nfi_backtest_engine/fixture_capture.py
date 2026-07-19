@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -122,8 +122,7 @@ def finalize_fixture_v2(
     for field, expected in expected_trace_header.items():
         if trace[field] != expected:
             raise SpecValidationError(
-                f"captured trace {field} mismatch: expected {expected}, "
-                f"actual {trace[field]}"
+                f"captured trace {field} mismatch: expected {expected}, actual {trace[field]}"
             )
 
     manifest = {
@@ -132,7 +131,7 @@ def finalize_fixture_v2(
         "description": stage["description"],
         "fixture_kind": stage["fixture_kind"],
         "evidence_status": "captured",
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "freqtrade": freqtrade,
         "inputs": stage["inputs"],
         "artifacts": artifacts,

@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "jobs": [
+    {
+      "name": "x7-2025-prepare",
+      "strategy_path": "../user_data/strategies/NostalgiaForInfinityX7.py",
+      "class_name": "NostalgiaForInfinityX7",
+      "config_path": "../user_data/config.json",
+      "data_directory": "../user_data/data/binance",
+      "timerange": "20250101-20260101",
+      "pairs": [
+        "BTC/USDT"
+      ],
+      "prepare_only": true
+    }
+  ]
+}

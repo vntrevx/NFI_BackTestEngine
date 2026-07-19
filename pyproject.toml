@@ -1,26 +1,50 @@
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
 
 [project]
 name = "nfi-backtest-engine"
 version = "0.1.0"
 description = "Exact-parity research backtesting infrastructure for NFI strategies"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.15"
 license = "MIT"
 license-files = ["LICENSE"]
+authors = [
+    { name = "vntrevx" },
+]
+keywords = ["backtesting", "freqtrade", "nfi", "rust", "trading"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Typing :: Typed",
+]
 dependencies = [
-    "blake3>=1.0,<2",
-    "jsonschema>=4.20,<5",
-    "polars>=1.0,<2",
-    "psutil>=5.9,<8",
+    "blake3==1.0.9",
+    "ccxt==4.5.55",
+    "jsonschema==4.26.0",
+    "numpy==2.4.5",
+    "pandas==3.0.3",
+    "polars==1.42.1",
+    "psutil==7.2.2",
+    "pyarrow==24.0.0",
+    "python-rapidjson==1.23",
+    "TA-Lib==0.6.8",
 ]
 
 [project.optional-dependencies]
-benchmark = [
-]
 dev = [
+    "basedpyright>=1.29",
+    "maturin>=1.9,<2",
     "pytest>=8,<10",
     "ruff>=0.6",
 ]
@@ -28,14 +52,17 @@ dev = [
 [project.scripts]
 nfi-bte = "nfi_backtest_engine.cli:main"
 
-[tool.setuptools]
-package-dir = {"" = "python"}
+[project.urls]
+Homepage = "https://github.com/vntrevx/NFI_BackTestEngine"
+Issues = "https://github.com/vntrevx/NFI_BackTestEngine/issues"
+Repository = "https://github.com/vntrevx/NFI_BackTestEngine.git"
 
-[tool.setuptools.packages.find]
-where = ["python"]
-
-[tool.setuptools.package-data]
-nfi_backtest_engine = ["schemas/*.json"]
+[tool.maturin]
+manifest-path = "rust/crates/nfi-py/Cargo.toml"
+python-source = "python"
+module-name = "nfi_backtest_engine._rust"
+bindings = "pyo3"
+features = ["pyo3/extension-module"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
@@ -44,7 +71,7 @@ pythonpath = ["python"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

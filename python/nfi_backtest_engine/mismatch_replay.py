@@ -86,6 +86,7 @@ def create_mismatch_replay(
     write_json(difference_path, difference_document)
     files.append(difference_path)
     manifest_file = Path(manifest_path).resolve()
+    candle_count = sum(len(pair["candles"]) for pair in replay_input["pairs"])
     replay_manifest = {
         "schema_version": "1.0.0",
         "fixture_id": fixture_id,
@@ -97,7 +98,7 @@ def create_mismatch_replay(
         "prefix": {
             "through_timestamp_ms": cutoff_ms,
             "pair_count": len(replay_input["pairs"]),
-            "candle_count": sum(len(pair["candles"]) for pair in replay_input["pairs"]),
+            "candle_count": candle_count,
         },
         "reproduce": {
             "working_directory": str(replay_root),
@@ -121,7 +122,7 @@ def create_mismatch_replay(
         "manifest_path": str(replay_manifest_path),
         "manifest_sha256": sha256_file(replay_manifest_path),
         "cutoff_timestamp_ms": cutoff_ms,
-        "candle_count": replay_manifest["prefix"]["candle_count"],
+        "candle_count": candle_count,
     }
 
 
@@ -150,20 +151,14 @@ def _cutoff_timestamp(
             if timestamps:
                 return max(timestamps)
     return max(
-        candle["timestamp_ms"]
-        for pair in simulation_input["pairs"]
-        for candle in pair["candles"]
+        candle["timestamp_ms"] for pair in simulation_input["pairs"] for candle in pair["candles"]
     )
 
 
 def _prefix_input(document: dict[str, Any], cutoff_ms: int) -> dict[str, Any]:
     pairs = []
     for pair in document["pairs"]:
-        candles = [
-            candle
-            for candle in pair["candles"]
-            if candle["timestamp_ms"] <= cutoff_ms
-        ]
+        candles = [candle for candle in pair["candles"] if candle["timestamp_ms"] <= cutoff_ms]
         if candles:
             pairs.append({**pair, "candles": candles})
     return {

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-final-surface-exact",
+  "claim_boundary": "APE/USDT spot top-coins route only; not full X7",
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "image_id": "bc5b7276118a"
+  },
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.413",
+    "source_file_sha256": "f217e7dc6c6d2b0ed01126ae585f44bf93317a744941ef5292ee4e5c84b892d9",
+    "normalized_source_sha256": "11b379032da7aab5512d93eb092fc2b1495706a6e66a95ebfaba2e0443879227",
+    "pair": "APE/USDT",
+    "timerange": "20220401-20230401",
+    "trading_mode": "spot",
+    "nfi_trade_manager_schema": "0.7.0",
+    "x7_adapter_version": "0.10.0"
+  },
+  "sealed_artifacts": {
+    "hot_callback_ir_sha256": "71b34ded99fa1410573ca6d43e7a079200946c488e463a82be8261515ca4b7f4",
+    "vector_feather_sha256": "be3344f0a883f47d91790e1574a2b9fdb728fc4e0ee1bdbaead0bfbe7642f020",
+    "vector_manifest_sha256": "1773658c1e74d0610bffcd9082a12e4393a11f306fb6351b0caacc047e138ab3",
+    "engine_result_sha256": "fc3cac882146c9e3acf391167469eb1fefc97ba7ca44ec6768c41222087a69db"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "official_surface_sha256": "198d4e19f9e44d23f7749556d42b80300e5317d0ce2f0891ef2bad88bfd70ab9",
+    "engine_surface_sha256": "198d4e19f9e44d23f7749556d42b80300e5317d0ce2f0891ef2bad88bfd70ab9",
+    "numeric_tolerance": 0,
+    "trades": 12,
+    "orders": 232,
+    "profit_total_abs": "43.429898200000025",
+    "difference": null
+  }
+}

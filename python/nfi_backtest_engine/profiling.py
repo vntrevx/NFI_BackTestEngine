@@ -9,7 +9,7 @@ import time
 from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ def profile_phase(phase: str, *, events_path: str | Path | None = None) -> Itera
     if phase not in PROFILE_PHASES:
         raise ValueError(f"unsupported profile phase: {phase}")
     destination = Path(events_path) if events_path else _configured_path()
-    started_wall = datetime.now(timezone.utc)
+    started_wall = datetime.now(UTC)
     started_ns = time.perf_counter_ns()
     try:
         yield

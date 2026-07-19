@@ -107,3 +107,101 @@ def test_literal_informative_timeframe_lists_are_discovered(tmp_path: Path) -> N
     analysis = analyze_strategy(source)
 
     assert analysis["strategies"][0]["required_timeframes"] == ["5m", "15m", "1h", "4h"]
+
+
+def test_class_constant_aliases_resolve_only_from_prior_static_values(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Aliases.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Aliases(IStrategy):\n"
+        "    system_v3_name = 'system_v3'\n"
+        "    system_name_use = system_v3_name\n"
+        "    unresolved = later_value\n"
+        "    later_value = 'later'\n",
+        encoding="utf-8",
+    )
+
+    strategy = analyze_strategy(source)["strategies"][0]
+
+    assert strategy["constants"]["system_name_use"] == "system_v3"
+    assert "unresolved" in strategy["dynamic_constants"]
+
+
+def test_annotated_class_constants_use_the_same_bounded_static_evaluator(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Annotated.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Annotated(IStrategy):\n"
+        "    startup_candle_count: int = 800\n"
+        "    timeframe: str = '5m'\n"
+        "    declaration_only: int\n"
+        "    unsafe: list[str] = make_tags()\n",
+        encoding="utf-8",
+    )
+
+    strategy = analyze_strategy(source)["strategies"][0]
+
+    assert strategy["constants"]["startup_candle_count"] == 800
+    assert strategy["constants"]["timeframe"] == "5m"
+    assert "declaration_only" not in strategy["constants"]
+    assert "unsafe" in strategy["dynamic_constants"]
+
+
+def test_bounded_class_constant_expressions_resolve_without_execution(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Expressions.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Expressions(IStrategy):\n"
+        "    base_tags = ['101', '102']\n"
+        "    grind_tags = ['120']\n"
+        "    combined_tags = base_tags + grind_tags\n"
+        "    multiplier = 1 / 4\n"
+        "    unsafe = make_tags()\n",
+        encoding="utf-8",
+    )
+
+    strategy = analyze_strategy(source)["strategies"][0]
+
+    assert strategy["constants"]["combined_tags"] == ["101", "102", "120"]
+    assert strategy["constants"]["multiplier"] == 0.25
+    assert "unsafe" in strategy["dynamic_constants"]
+
+
+def test_literal_condition_index_inventory_distinguishes_tags_from_routes(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "IndexedSignals.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class IndexedSignals(IStrategy):\n"
+        "    long_btc_mode_tags = ['121']\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        long_entry_condition_index = 0\n"
+        "        if long_entry_condition_index == 120:\n"
+        "            dataframe['enter_long'] = 1\n"
+        "        if 141 == long_entry_condition_index:\n"
+        "            dataframe['enter_long'] = 1\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    strategy = analyze_strategy(source)["strategies"][0]
+
+    assert strategy["constants"]["long_btc_mode_tags"] == ["121"]
+    assert strategy["literal_condition_indices"] == {
+        "populate_entry_trend": {
+            "long_entry_condition_index": [120, 141],
+        }
+    }
+    assert (
+        121
+        not in strategy["literal_condition_indices"]["populate_entry_trend"][
+            "long_entry_condition_index"
+        ]
+    )

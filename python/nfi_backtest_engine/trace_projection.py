@@ -71,9 +71,7 @@ def project_engine_events(
                 try:
                     event = json.loads(line, parse_float=Decimal)
                 except json.JSONDecodeError as exc:
-                    raise TraceError(
-                        f"{source}:{line_number}: invalid engine event JSON"
-                    ) from exc
+                    raise TraceError(f"{source}:{line_number}: invalid engine event JSON") from exc
                 writer.append(
                     timestamp_ms=event["timestamp_ms"],
                     phase=PROJECTED_PHASE,

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime, timezone
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, NoReturn
@@ -62,7 +63,7 @@ def canonical_decimal(value: Any, *, path: str, nullable: bool = False) -> str |
 
 
 def canonical_timestamp_ms(
-    record: dict[str, Any],
+    record: Mapping[str, Any],
     *,
     timestamp_keys: tuple[str, ...],
     date_keys: tuple[str, ...],
@@ -115,14 +116,14 @@ def _date_timestamp(value: Any, path: str) -> int | None:
     except ValueError as exc:
         raise NormalizationError(f"{path}: invalid ISO timestamp {value!r}") from exc
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    parsed = parsed.astimezone(timezone.utc)
-    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    parsed = parsed.astimezone(UTC)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
     delta = parsed - epoch
     return delta.days * 86_400_000 + delta.seconds * 1_000 + delta.microseconds // 1_000
 
 
-def _first_present(record: dict[str, Any], keys: tuple[str, ...]) -> tuple[str, Any] | None:
+def _first_present(record: Mapping[str, Any], keys: tuple[str, ...]) -> tuple[str, Any] | None:
     for key in keys:
         if key in record and record[key] is not None:
             return key, record[key]

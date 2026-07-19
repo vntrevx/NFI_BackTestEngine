@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -109,7 +109,7 @@ def _run_once(
 
     environment = os.environ.copy()
     environment[PROFILE_ENV] = str(events_path)
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     started_ns = time.perf_counter_ns()
     peak_rss = 0
     latest_cpu_seconds = 0.0
@@ -138,7 +138,7 @@ def _run_once(
         latest_cpu_seconds = max(latest_cpu_seconds, cpu_seconds)
         exit_code = process.wait()
 
-    ended_at = datetime.now(timezone.utc)
+    ended_at = datetime.now(UTC)
     profile = (
         aggregate_profile_events(events_path)
         if events_path.is_file()

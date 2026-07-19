@@ -6,7 +6,7 @@ import statistics
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -61,11 +61,7 @@ def run_performance_gate(
                 verification_level,
                 "--timeout",
                 str(timeout_seconds),
-                *(
-                    ["--profile", str(profile_file)]
-                    if profile_file is not None
-                    else []
-                ),
+                *(["--profile", str(profile_file)] if profile_file is not None else []),
             ],
             output / f"engine-{run_number:02d}.stdout.log",
             output / f"engine-{run_number:02d}.stderr.log",
@@ -107,24 +103,16 @@ def run_performance_gate(
         / engine_summary["wall_time_seconds"]["median"]
     )
     representative = _representative_scope(manifest_file, manifest)
-    memory_limit = (
-        profile["tuning"]["working_memory_bytes"]
-        if profile is not None
-        else 8 * GIB
-    )
+    memory_limit = profile["tuning"]["working_memory_bytes"] if profile is not None else 8 * GIB
     parity_complete = all(
-        run["exit_code"] == 0
-        and run["report"] is not None
-        and run["report"]["complete"]
+        run["exit_code"] == 0 and run["report"] is not None and run["report"]["complete"]
         for run in [*engine_runs, *reference_runs]
     )
     speed_target_met = speedup >= 10.0
-    memory_target_met = (
-        engine_summary["peak_rss_bytes"]["maximum"] <= memory_limit
-    )
+    memory_target_met = engine_summary["peak_rss_bytes"]["maximum"] <= memory_limit
     report = {
         "schema_version": "1.0.0",
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "fixture_id": manifest["fixture_id"],
         "manifest_path": str(manifest_file),
         "manifest_sha256": sha256_file(manifest_file),
@@ -160,9 +148,7 @@ def run_performance_gate(
                 "target_speedup": 10.0,
                 "observed_speedup": speedup,
                 "met": speed_target_met,
-                "verdict": (
-                    "pass" if speed_target_met else "fail"
-                )
+                "verdict": ("pass" if speed_target_met else "fail")
                 if representative["eligible"]
                 else "diagnostic-only",
             },
@@ -292,9 +278,7 @@ def _representative_scope(
     manifest_file: Path,
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    config_reference = next(
-        item for item in manifest["inputs"] if item["role"] == "config"
-    )
+    config_reference = next(item for item in manifest["inputs"] if item["role"] == "config")
     config = read_json(manifest_file.parent / config_reference["path"])
     pair_count = len(config["exchange"]["pair_whitelist"])
     start, end = manifest["freqtrade"]["timerange"].split("-", 1)

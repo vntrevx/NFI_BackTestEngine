@@ -10,7 +10,7 @@ import math
 import numbers
 import os
 import time
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from functools import wraps
@@ -27,13 +27,12 @@ PINNED_METHOD_HASHES = {
     "_check_adjust_trade_for_candle": (
         "900e3ec7f067fb67b56f190babed637712e26f5c08cb9e90ee5fd0df9849af8d"
     ),
+    "_get_ohlcv_as_lists": "b48e1e054762ddd55bdde5c8f7b4e27b906cd8299640fe94b25eec1adbf51a01",
     "manage_open_orders": "31ae85853ad0eed91ef53d8fb5b2e39c5b5cec0f2a0566a7931e51c6eccfeac0",
     "_set_strategy": "1c0e8070fcd84ab19e05abe9a2f94c53355bb59a36e4f73ef32b778e9856efbd",
 }
 PINNED_EXCHANGE_METHOD_HASHES = {
-    "_api_reload_markets": (
-        "5ff713afa253ccb9538a2e3a5e03b101767c3e6dbf509246a34288197584f07e"
-    ),
+    "_api_reload_markets": ("5ff713afa253ccb9538a2e3a5e03b101767c3e6dbf509246a34288197584f07e"),
 }
 PROFILE_PHASES = ("indicators", "callbacks", "trade_scans", "event_simulation")
 _INSTALLED = False
@@ -82,6 +81,7 @@ def install_reference_tracer() -> None:
     _patch_trade_exit_check(Backtesting)
     _patch_adjustment_check(Backtesting)
     _patch_open_order_management(Backtesting)
+    _patch_ohlcv_lists(Backtesting)
     _patch_set_strategy(Backtesting)
     _INSTALLED = True
 
@@ -113,10 +113,7 @@ def _patch_market_loader(cls: type, ccxt_version: str) -> None:
                     raise RuntimeError(
                         f"cannot capture missing whitelisted markets: {', '.join(missing)}"
                     )
-                markets = {
-                    pair: self._api_async.markets[pair]
-                    for pair in sorted(whitelist)
-                }
+                markets = {pair: self._api_async.markets[pair] for pair in sorted(whitelist)}
                 currency_codes = {
                     code
                     for market in markets.values()
@@ -198,6 +195,7 @@ def _patch_backtest(cls: type) -> None:
             writer = getattr(self, "_nfi_state_trace_writer", None)
             if writer is not None:
                 writer.close()
+            _flush_callback_audit(self)
             _flush_profile(self)
 
     cls.backtest = traced
@@ -224,6 +222,217 @@ def _patch_backtest_loop(cls: type) -> None:
         return result
 
     cls.backtest_loop = traced
+
+
+def _patch_ohlcv_lists(cls: type) -> None:
+    """Audit the exact shifted signals consumed by Freqtrade's hot loop.
+
+    The wrapped method has already called ``ft_advise_signals``, trimmed the
+    timerange, shifted decisions by one candle, and converted the result to
+    immutable row lists. Reading those rows avoids invoking strategy code a
+    second time, which could both distort the profile and mutate stateful
+    strategies.
+    """
+
+    original = cls._get_ohlcv_as_lists
+
+    @wraps(original)
+    def traced(self: Any, processed: dict[str, Any]) -> dict[str, tuple]:
+        data = original(self, processed)
+        _write_signal_audit(self, data, processed)
+        return data
+
+    cls._get_ohlcv_as_lists = traced
+
+
+def _write_signal_audit(
+    backtesting: Any,
+    data: dict[str, tuple],
+    processed: dict[str, Any],
+) -> None:
+    destination_text = os.environ.get("NFI_SIGNAL_AUDIT_PATH")
+    if not destination_text:
+        return
+
+    # Importing HEADERS only inside the active reference container keeps this
+    # tracer module importable by the lightweight host-side unit tests.
+    from freqtrade.optimize.backtesting import HEADERS
+
+    audit = _build_signal_audit(backtesting, data, HEADERS)
+    _add_signal_feature_samples(audit, processed)
+    destination = Path(destination_text)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(f"{destination.suffix}.tmp")
+    temporary.write_text(
+        json.dumps(
+            audit,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(destination)
+
+
+def _build_signal_audit(
+    backtesting: Any,
+    data: dict[str, tuple],
+    headers: list[str] | tuple[str, ...],
+) -> dict[str, Any]:
+    """Return a compact, canonical inventory of executable signal rows."""
+
+    indices = {name: headers.index(name) for name in headers}
+    required = (
+        "date",
+        "enter_long",
+        "exit_long",
+        "enter_short",
+        "exit_short",
+        "enter_tag",
+        "exit_tag",
+    )
+    missing = [name for name in required if name not in indices]
+    if missing:
+        raise RuntimeError(f"NFI signal audit missing Freqtrade headers: {', '.join(missing)}")
+
+    pairs: dict[str, Any] = {}
+    for pair in sorted(data):
+        signals = []
+        rows = data[pair]
+        for row in rows:
+            event = {
+                "timestamp_ms": _timestamp_ms(row[indices["date"]]),
+                "enter_long": _signal_enabled(row[indices["enter_long"]]),
+                "exit_long": _signal_enabled(row[indices["exit_long"]]),
+                "enter_short": _signal_enabled(row[indices["enter_short"]]),
+                "exit_short": _signal_enabled(row[indices["exit_short"]]),
+                "enter_tag": _optional_signal_tag(row[indices["enter_tag"]]),
+                "exit_tag": _optional_signal_tag(row[indices["exit_tag"]]),
+            }
+            if any(
+                event[name]
+                for name in ("enter_long", "exit_long", "enter_short", "exit_short")
+            ):
+                signals.append(event)
+        encoded = json.dumps(
+            signals,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+        pairs[pair] = {
+            "rows": len(rows),
+            "signal_rows": len(signals),
+            "signals_sha256": hashlib.sha256(encoded).hexdigest(),
+            "signals": signals,
+        }
+
+    strategy = getattr(backtesting, "strategy", None)
+    return {
+        "schema_version": "1.0.0",
+        "freqtrade_version": PINNED_FREQTRADE_VERSION,
+        "strategy": type(strategy).__name__ if strategy is not None else None,
+        "trading_mode": str(backtesting.config.get("trading_mode", "")),
+        "timeframe": str(backtesting.config.get("timeframe", "")),
+        "pairs": pairs,
+    }
+
+
+def _add_signal_feature_samples(
+    audit: dict[str, Any],
+    processed: dict[str, Any],
+) -> None:
+    """Optionally attach selected unshifted strategy-frame values.
+
+    This debug surface is deliberately opt-in: ordinary parity runs retain a
+    tiny audit artifact, while a divergence investigation can request either a
+    comma-separated column list or ``*``. Samples include requested timestamps
+    and every source signal row, making the one-candle shift explicit.
+    """
+
+    feature_text = os.environ.get("NFI_SIGNAL_AUDIT_FEATURES", "").strip()
+    if not feature_text:
+        return
+    configured_features = [item.strip() for item in feature_text.split(",") if item.strip()]
+    requested_timestamps = {
+        int(item.strip())
+        for item in os.environ.get("NFI_SIGNAL_AUDIT_TIMESTAMPS_MS", "").split(",")
+        if item.strip()
+    }
+    signal_columns = ("enter_long", "exit_long", "enter_short", "exit_short")
+    tag_columns = ("enter_tag", "exit_tag")
+
+    for pair in sorted(processed):
+        frame = processed[pair]
+        if "date" not in frame:
+            raise RuntimeError(f"NFI signal feature audit missing date column for {pair}")
+        features = (
+            [str(column) for column in frame.columns]
+            if configured_features == ["*"]
+            else configured_features
+        )
+        missing = [name for name in features if name not in frame]
+        if missing:
+            raise RuntimeError(
+                f"NFI signal feature audit missing columns for {pair}: {', '.join(missing)}"
+            )
+
+        row_timestamps = frame["date"].map(_timestamp_ms)
+        selected = row_timestamps.isin(requested_timestamps)
+        present_signal_columns = [name for name in signal_columns if name in frame]
+        if present_signal_columns:
+            source_signals = frame[present_signal_columns].fillna(0).astype(bool).any(axis=1)
+            selected = selected | source_signals
+
+        sample_columns = list(
+            dict.fromkeys(("date", *signal_columns, *tag_columns, *features))
+        )
+        sample_columns = [name for name in sample_columns if name in frame]
+        samples = []
+        for index, row in frame.loc[selected, sample_columns].iterrows():
+            values = {
+                name: _canonical_feature_value(row[name])
+                for name in sample_columns
+                if name != "date"
+            }
+            samples.append(
+                {
+                    "timestamp_ms": _timestamp_ms(row["date"]),
+                    "row_index": int(index) if isinstance(index, numbers.Integral) else str(index),
+                    "values": values,
+                }
+            )
+        audit["pairs"][pair]["feature_columns"] = features
+        audit["pairs"][pair]["feature_samples"] = samples
+
+
+def _canonical_feature_value(value: Any) -> Any:
+    if type(value).__name__ == "NAType":
+        return None
+    if type(value).__module__ == "numpy" and hasattr(value, "item"):
+        value = value.item()
+    return _canonicalize(value)
+
+
+def _signal_enabled(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, numbers.Real) and math.isnan(float(value)):
+        return False
+    return bool(value)
+
+
+def _optional_signal_tag(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, numbers.Real) and math.isnan(float(value)):
+        return None
+    text = str(value)
+    return text if text else None
 
 
 def _patch_enter_trade(cls: type) -> None:
@@ -320,6 +529,7 @@ def _patch_set_strategy(cls: type) -> None:
     def traced(self: Any, strategy: Any, *args: Any, **kwargs: Any) -> Any:
         result = original(self, strategy, *args, **kwargs)
         _initialize_profile(self)
+        _install_callback_audit(self)
         advise = self.strategy.advise_all_indicators
         if getattr(advise, "_nfi_profile_wrapper", False):
             return result
@@ -337,6 +547,315 @@ def _patch_set_strategy(cls: type) -> None:
         return result
 
     cls._set_strategy = traced
+
+
+_AUDITED_CALLBACKS = (
+    "adjust_trade_position",
+    "confirm_trade_entry",
+    "confirm_trade_exit",
+    "custom_exit",
+    "custom_stake_amount",
+    "order_filled",
+)
+_AUDITED_CUSTOM_DATA_KEYS = (
+    "system_version",
+    "derisk_level_1",
+    "derisk_level_2",
+    "derisk_level_3",
+    "grind_1_cluster_max_profit_stake",
+    "grind_1_cluster_max_profit_rate",
+    "grind_2_cluster_max_profit_stake",
+    "grind_2_cluster_max_profit_rate",
+    "grind_3_cluster_max_profit_stake",
+    "grind_3_cluster_max_profit_rate",
+    "grind_4_cluster_max_profit_stake",
+    "grind_4_cluster_max_profit_rate",
+    "grind_5_cluster_max_profit_stake",
+    "grind_5_cluster_max_profit_rate",
+)
+
+
+def _install_callback_audit(backtesting: Any) -> None:
+    if not os.environ.get("NFI_CALLBACK_AUDIT_PATH"):
+        return
+    if getattr(backtesting, "_nfi_callback_audit", None) is None:
+        backtesting._nfi_callback_audit = {
+            "schema_version": "1.0.0",
+            "callbacks": {},
+        }
+    for name in _AUDITED_CALLBACKS:
+        callback = getattr(backtesting.strategy, name, None)
+        if callback is None or getattr(callback, "_nfi_callback_audit_wrapper", False):
+            continue
+        signature = inspect.signature(callback)
+
+        @wraps(callback)
+        def audited(
+            *args: Any,
+            __callback: Any = callback,
+            __name: str = name,
+            __signature: Any = signature,
+            **kwargs: Any,
+        ) -> Any:
+            bound = __signature.bind_partial(*args, **kwargs)
+            before = _audit_trade_state(bound.arguments.get("trade"))
+            try:
+                result = __callback(*args, **kwargs)
+            except Exception as exc:
+                _record_callback_audit(
+                    backtesting,
+                    __name,
+                    bound.arguments,
+                    before,
+                    _audit_trade_state(bound.arguments.get("trade")),
+                    None,
+                    f"{type(exc).__name__}: {exc}",
+                )
+                raise
+            _record_callback_audit(
+                backtesting,
+                __name,
+                bound.arguments,
+                before,
+                _audit_trade_state(bound.arguments.get("trade")),
+                result,
+                None,
+            )
+            return result
+
+        audited._nfi_callback_audit_wrapper = True
+        setattr(backtesting.strategy, name, audited)
+
+
+def _record_callback_audit(
+    backtesting: Any,
+    name: str,
+    arguments: dict[str, Any],
+    before: Any,
+    after: Any,
+    result: Any,
+    error: str | None,
+) -> None:
+    audit = getattr(backtesting, "_nfi_callback_audit", None)
+    if not isinstance(audit, dict):
+        return
+    callbacks = audit["callbacks"]
+    callback = callbacks.setdefault(name, {"calls": 0, "outcomes": {}})
+    callback["calls"] += 1
+    outcome = {
+        "result": _audit_result_class(result),
+        "entry_tag": _audit_entry_tag(arguments),
+        "order_tag": _audit_order_tag(arguments),
+        "side": _audit_side(arguments),
+        "state_changed": before != after,
+        "error": error,
+    }
+    key = json.dumps(
+        outcome,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    bucket = callback["outcomes"].setdefault(
+        key,
+        {
+            "signature": outcome,
+            "count": 0,
+            "samples": [],
+        },
+    )
+    bucket["count"] += 1
+    timestamp = _audit_timestamp(arguments)
+    requested_timestamps = {
+        int(item.strip())
+        for item in os.environ.get("NFI_CALLBACK_AUDIT_TIMESTAMPS_MS", "").split(",")
+        if item.strip()
+    }
+    # Ordinary audits retain at most three examples for each outcome so the
+    # artifact remains compact. A parity investigation may name exact callback
+    # timestamps that must survive that cap; duplicate callbacks at the same
+    # timestamp are still recorded because their before/after state can differ.
+    if len(bucket["samples"]) < 3 or timestamp in requested_timestamps:
+        bucket["samples"].append(
+            {
+                "pair": _audit_pair(arguments),
+                "timestamp": timestamp,
+                "current_rate": _audit_number(arguments.get("current_rate")),
+                "current_profit": _audit_number(arguments.get("current_profit")),
+                "min_stake": _audit_number(arguments.get("min_stake")),
+                "max_stake": _audit_number(arguments.get("max_stake")),
+                "strategy_grind_entry_tag": _audit_strategy_grind_entry_tag(backtesting),
+                "result": _canonicalize(result),
+                "before": before,
+                "after": after,
+                "feature_window": _audit_feature_window(backtesting, arguments),
+            }
+        )
+
+
+def _audit_result_class(result: Any) -> dict[str, Any]:
+    if result is None:
+        return {"kind": "none"}
+    if isinstance(result, bool):
+        return {"kind": "bool", "value": result}
+    if isinstance(result, str):
+        return {"kind": "text", "value": result}
+    if isinstance(result, tuple):
+        tag = result[1] if len(result) > 1 and isinstance(result[1], str) else None
+        return {"kind": "tuple", "length": len(result), "tag": tag}
+    if isinstance(result, numbers.Real):
+        return {"kind": "number"}
+    return {"kind": type(result).__name__}
+
+
+def _audit_trade_state(trade: Any) -> Any:
+    if trade is None:
+        return None
+    orders = list(getattr(trade, "orders", []) or [])
+    last_order = orders[-1] if orders else None
+    return _canonicalize(
+        {
+            "id": getattr(trade, "id", None),
+            "amount": getattr(trade, "amount", None),
+            "stake_amount": getattr(trade, "stake_amount", None),
+            "successful_entries": getattr(trade, "nr_of_successful_entries", None),
+            "successful_exits": getattr(trade, "nr_of_successful_exits", None),
+            "order_count": len(orders),
+            "last_order_tag": getattr(last_order, "ft_order_tag", None),
+            "custom_data": _audit_custom_data(trade),
+        }
+    )
+
+
+def _audit_custom_data(trade: Any) -> dict[str, Any] | None:
+    getter = getattr(trade, "get_custom_data", None)
+    if callable(getter):
+        return {key: getter(key, None) for key in _AUDITED_CUSTOM_DATA_KEYS}
+    custom_data = getattr(trade, "custom_data", None)
+    if not isinstance(custom_data, dict):
+        return None
+    return {key: custom_data.get(key) for key in _AUDITED_CUSTOM_DATA_KEYS}
+
+
+def _audit_entry_tag(arguments: dict[str, Any]) -> str | None:
+    value = arguments.get("entry_tag")
+    if value is None:
+        trade = arguments.get("trade")
+        value = getattr(trade, "enter_tag", None)
+    return value if isinstance(value, str) else None
+
+
+def _audit_order_tag(arguments: dict[str, Any]) -> str | None:
+    value = getattr(arguments.get("order"), "ft_order_tag", None)
+    return value if isinstance(value, str) else None
+
+
+def _audit_side(arguments: dict[str, Any]) -> str | None:
+    value = arguments.get("side")
+    if value is not None:
+        return _enum_value(value)
+    trade = arguments.get("trade")
+    if trade is None:
+        return None
+    return "short" if bool(getattr(trade, "is_short", False)) else "long"
+
+
+def _audit_pair(arguments: dict[str, Any]) -> str | None:
+    value = arguments.get("pair")
+    if value is None:
+        value = getattr(arguments.get("trade"), "pair", None)
+    return value if isinstance(value, str) else None
+
+
+def _audit_timestamp(arguments: dict[str, Any]) -> int | None:
+    for name in ("current_time", "date"):
+        value = arguments.get(name)
+        if isinstance(value, datetime):
+            return int(value.timestamp() * 1000)
+    return None
+
+
+def _audit_strategy_grind_entry_tag(backtesting: Any) -> str | None:
+    """Expose the NFI branch label set by `long_grind_entry_v3`, when present."""
+    value = getattr(getattr(backtesting, "strategy", None), "_grind_entry_tag", None)
+    return value if isinstance(value, str) else None
+
+
+def _audit_number(value: Any) -> Any:
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
+        return None
+    return _canonicalize(value)
+
+
+def _audit_feature_window(
+    backtesting: Any,
+    arguments: dict[str, Any],
+) -> list[dict[str, Any]] | None:
+    """Capture the exact dataframe rows visible to a callback when requested.
+
+    This is opt-in because materializing dataframe rows in every callback audit
+    would distort the reference runtime. Outcome sampling limits this helper to
+    at most three windows per distinct callback result signature.
+    """
+    requested = os.environ.get("NFI_CALLBACK_FEATURES")
+    if not requested:
+        return None
+    pair = _audit_pair(arguments)
+    if pair is None:
+        return None
+    columns = [name.strip() for name in requested.split(",") if name.strip()]
+    dataframe, _ = backtesting.strategy.dp.get_analyzed_dataframe(
+        pair,
+        backtesting.strategy.timeframe,
+    )
+    available = ["date", *(name for name in columns if name in dataframe.columns)]
+    if not available or dataframe.empty:
+        return []
+    return [
+        {
+            name: (
+                int(value.timestamp() * 1000)
+                if name == "date" and hasattr(value, "timestamp")
+                else _canonicalize(value)
+            )
+            for name, value in row.items()
+        }
+        for row in dataframe.loc[:, available].tail(2).to_dict(orient="records")
+    ]
+
+
+def _flush_callback_audit(backtesting: Any) -> None:
+    destination_text = os.environ.get("NFI_CALLBACK_AUDIT_PATH")
+    audit = getattr(backtesting, "_nfi_callback_audit", None)
+    if not destination_text or not isinstance(audit, dict):
+        return
+    callbacks = audit.get("callbacks", {})
+    for callback in callbacks.values():
+        outcomes = callback.get("outcomes", {})
+        callback["outcomes"] = sorted(
+            outcomes.values(),
+            key=lambda item: json.dumps(
+                item["signature"],
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+    destination = Path(destination_text)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(
+            audit,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def _writer(backtesting: Any) -> Any:
@@ -396,8 +915,7 @@ def _initialize_profile(backtesting: Any) -> None:
     if isinstance(getattr(backtesting, "_nfi_profile_totals", None), dict):
         return
     backtesting._nfi_profile_totals = {
-        phase: {"calls": 0, "duration_ns": 0, "max_duration_ns": 0}
-        for phase in PROFILE_PHASES
+        phase: {"calls": 0, "duration_ns": 0, "max_duration_ns": 0} for phase in PROFILE_PHASES
     }
 
 
@@ -519,5 +1037,5 @@ def _decimal_string(value: Decimal) -> str:
 
 def _timestamp_ms(value: datetime) -> int:
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return int(value.astimezone(timezone.utc).timestamp() * 1000)
+        value = value.replace(tzinfo=UTC)
+    return int(value.astimezone(UTC).timestamp() * 1000)

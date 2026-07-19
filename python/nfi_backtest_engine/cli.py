@@ -8,9 +8,10 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from . import __version__
 from .benchmark import run_benchmark
 from .canonical import write_json
-from .data_seal import prepare_data, validate_data_seal
+from .config_loader import load_effective_config
 from .doctor import run_doctor
 from .engine_runtime import build_engine, run_engine
 from .errors import NfiBacktestError
@@ -37,6 +38,7 @@ from .strategy_ir import (
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nfi-bte")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subcommands = parser.add_subparsers(dest="command_name", required=True)
 
     fixture = subcommands.add_parser("fixture", help="manage benchmark fixtures")
@@ -136,7 +138,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path(".nfi/execution-profile.json"),
     )
-    system_tune.add_argument("--memory-cap-gib", type=float, default=8.0)
+    system_tune.add_argument(
+        "--memory-cap-gib",
+        type=float,
+        help="optional hard cap; default uses currently safe host memory",
+    )
+    system_tune.add_argument("--indicator-peak-mib", type=float)
     system_tune.add_argument("--engine-peak-mib", type=float)
     system_tune.add_argument("--reference-peak-mib", type=float)
     system_tune.add_argument(
@@ -144,9 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="replace an existing hardware profile",
     )
-    system_show = system_commands.add_parser(
-        "show", help="validate and print an execution profile"
-    )
+    system_show = system_commands.add_parser("show", help="validate and print an execution profile")
     system_show.add_argument("profile", type=Path)
 
     data = subcommands.add_parser("data", help="prepare and validate frozen candle inputs")
@@ -164,10 +169,31 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="fail instead of downloading missing candle ranges",
     )
+    data_prepare.add_argument(
+        "--startup-candles",
+        type=int,
+        default=0,
+        help="record this many requested pre-timerange candles per timeframe",
+    )
+    data_prepare.add_argument(
+        "--require-startup-coverage",
+        action="store_true",
+        help="download or fail instead of sealing Freqtrade-compatible startup shortfalls",
+    )
     data_validate = data_commands.add_parser(
         "validate", help="verify every hash and coverage value in a data seal"
     )
     data_validate.add_argument("seal", type=Path)
+
+    markets = subcommands.add_parser("markets", help="capture public CCXT market metadata")
+    markets_commands = markets.add_subparsers(dest="markets_command", required=True)
+    markets_capture = markets_commands.add_parser(
+        "capture",
+        help="freeze fee and precision metadata for selected pairs",
+    )
+    markets_capture.add_argument("--config", type=Path, required=True)
+    markets_capture.add_argument("--pair", action="append")
+    markets_capture.add_argument("--output", "-o", type=Path, required=True)
 
     strategy = subcommands.add_parser("strategy", help="inspect and prepare strategy sources")
     strategy_commands = strategy.add_subparsers(dest="strategy_command", required=True)
@@ -187,6 +213,97 @@ def build_parser() -> argparse.ArgumentParser:
         "validate", help="validate a prepared strategy bundle"
     )
     strategy_validate.add_argument("bundle", type=Path)
+    strategy_vectors = strategy_commands.add_parser(
+        "vectors",
+        help="execute batched vector methods for one or more pairs",
+    )
+    strategy_vectors.add_argument("source", type=Path)
+    strategy_vectors.add_argument("--class", dest="class_name", required=True)
+    strategy_vectors.add_argument("--config", type=Path, required=True)
+    strategy_vectors.add_argument("--datadir", type=Path, required=True)
+    strategy_vectors.add_argument("--timerange", required=True)
+    strategy_vectors.add_argument("--pair", action="append", required=True)
+    strategy_vectors.add_argument("--output-dir", type=Path, required=True)
+    strategy_vectors.add_argument("--workers", type=int, default=1)
+    strategy_vectors.add_argument("--cache-dir", type=Path)
+
+    backtest = subcommands.add_parser(
+        "backtest",
+        help="prepare and run one checkpointed research backtest",
+    )
+    backtest.add_argument("source", type=Path)
+    backtest.add_argument("--class", dest="class_name", required=True)
+    backtest.add_argument("--config", type=Path, required=True)
+    backtest.add_argument("--datadir", type=Path, required=True)
+    backtest.add_argument("--timerange", required=True)
+    backtest.add_argument("--pair", action="append")
+    backtest.add_argument("--output-dir", type=Path, required=True)
+    backtest.add_argument("--workers", type=int)
+    backtest.add_argument("--cache-dir", type=Path, default=Path(".nfi/cache"))
+    backtest.add_argument(
+        "--markets",
+        type=Path,
+        help="frozen CCXT market snapshot required by the generic exact adapter",
+    )
+    backtest.add_argument(
+        "--no-market-download",
+        action="store_true",
+        help="require --markets instead of capturing public CCXT metadata",
+    )
+    backtest.add_argument(
+        "--registry",
+        type=Path,
+        default=Path(".nfi/runs.sqlite"),
+        help="durable run index (default: .nfi/runs.sqlite)",
+    )
+    backtest.add_argument(
+        "--profile",
+        type=Path,
+        default=Path(".nfi/execution-profile.json"),
+    )
+    backtest.add_argument(
+        "--resume",
+        action="store_true",
+        help="reuse hash-validated completed stages in the output directory",
+    )
+    backtest.add_argument(
+        "--prepare-only",
+        action="store_true",
+        help="stop successfully after immutable vector preparation",
+    )
+    backtest.add_argument(
+        "--no-download",
+        action="store_true",
+        help="fail if required candle coverage is missing",
+    )
+
+    confirm = subcommands.add_parser(
+        "confirm",
+        help="normalize and exact-compare an official Freqtrade export",
+    )
+    confirm.add_argument("run_directory", type=Path)
+    confirm.add_argument("freqtrade_export", type=Path)
+    confirm.add_argument("--output-dir", type=Path, required=True)
+    confirm.add_argument("--strategy")
+
+    runs = subcommands.add_parser("runs", help="inspect the durable research-run index")
+    runs_commands = runs.add_subparsers(dest="runs_command", required=True)
+    runs_list = runs_commands.add_parser("list", help="list recent runs")
+    runs_list.add_argument("--registry", type=Path, default=Path(".nfi/runs.sqlite"))
+    runs_list.add_argument("--limit", type=int, default=20)
+    runs_show = runs_commands.add_parser("show", help="show one run and its report")
+    runs_show.add_argument("run_id")
+    runs_show.add_argument("--registry", type=Path, default=Path(".nfi/runs.sqlite"))
+
+    batch = subcommands.add_parser("batch", help="run independent candidate jobs safely")
+    batch.add_argument("manifest", type=Path)
+    batch.add_argument("--output-dir", type=Path, required=True)
+    batch.add_argument("--profile", type=Path, default=Path(".nfi/execution-profile.json"))
+    batch.add_argument("--cache-dir", type=Path, default=Path(".nfi/cache"))
+    batch.add_argument("--registry", type=Path, default=Path(".nfi/runs.sqlite"))
+    batch.add_argument("--max-jobs", type=int)
+    batch.add_argument("--resume", action="store_true")
+    batch.add_argument("--no-download", action="store_true")
 
     engine = subcommands.add_parser("engine", help="build and run the Rust simulator")
     engine_commands = engine.add_subparsers(dest="engine_command", required=True)
@@ -197,6 +314,11 @@ def build_parser() -> argparse.ArgumentParser:
     engine_run.add_argument("--output", "-o", type=Path, required=True)
     engine_run.add_argument("--profile", type=Path)
     engine_run.add_argument("--timeout", type=int)
+    engine_run.add_argument(
+        "--vector-manifest",
+        action="store_true",
+        help="read a SHA-verified Feather vector manifest instead of expanded JSON",
+    )
     engine_run.add_argument(
         "--events",
         type=Path,
@@ -315,9 +437,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 write_json(args.output, report)
             print(
                 f"doctor: {'healthy' if report['healthy'] else 'unhealthy'}; "
-                + ", ".join(
-                    f"{check['name']}={check['status']}" for check in report["checks"]
-                )
+                + ", ".join(f"{check['name']}={check['status']}" for check in report["checks"])
             )
             return 0 if report["healthy"] else 1
 
@@ -329,7 +449,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(json.dumps(hardware, ensure_ascii=False, indent=2))
                 return 0
             if args.system_command == "tune":
-                if args.memory_cap_gib < 1:
+                if args.memory_cap_gib is not None and args.memory_cap_gib < 1:
                     raise NfiBacktestError("--memory-cap-gib must be at least 1")
                 if args.output.exists() and not args.force:
                     raise NfiBacktestError(
@@ -338,7 +458,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                 profile = create_execution_profile(
                     args.output,
-                    memory_cap_bytes=int(args.memory_cap_gib * GIB),
+                    memory_cap_bytes=(
+                        int(args.memory_cap_gib * GIB)
+                        if args.memory_cap_gib is not None
+                        else None
+                    ),
+                    observed_indicator_worker_peak_bytes=(
+                        int(args.indicator_peak_mib * 1024**2)
+                        if args.indicator_peak_mib is not None
+                        else None
+                    ),
                     observed_engine_peak_bytes=(
                         int(args.engine_peak_mib * 1024**2)
                         if args.engine_peak_mib is not None
@@ -353,7 +482,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 tuning = profile["tuning"]
                 print(
                     f"execution profile -> {args.output}; "
-                    f"indicators={tuning['indicator_threads']}, "
+                    f"indicator_processes={tuning['indicator_processes']}, "
+                    f"research_jobs={tuning['independent_research_jobs']}, "
                     f"engine_jobs={tuning['independent_engine_jobs']}, "
                     f"reference_jobs={tuning['independent_reference_jobs']}, "
                     f"memory={tuning['working_memory_bytes']}"
@@ -364,6 +494,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command_name == "data":
+            from .data_seal import prepare_data, validate_data_seal
+
             if args.data_command == "prepare":
                 seal = prepare_data(
                     config_path=args.config,
@@ -372,6 +504,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     timeframes=args.timeframe,
                     destination=args.output,
                     download_missing=not args.no_download,
+                    startup_candles=args.startup_candles,
+                    require_startup_coverage=args.require_startup_coverage,
                 )
                 print(
                     f"data sealed: {len(seal['files'])} files, "
@@ -384,6 +518,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"data seal valid: {len(seal['files'])} files, "
                     f"aggregate={seal['aggregate_sha256']}"
                 )
+            return 0
+
+        if args.command_name == "markets":
+            from .config_loader import freeze_pairlist, sanitize_config
+            from .market_snapshot import capture_market_snapshot
+
+            loaded = load_effective_config(args.config)
+            pairlist = freeze_pairlist(loaded["config"], resolved_pairs=args.pair)
+            config = sanitize_config(loaded["config"])
+            if not isinstance(config, dict):
+                raise NfiBacktestError("effective config must be an object")
+            report = capture_market_snapshot(config, pairlist["pairs"], args.output)
+            print(
+                f"markets captured: exchange={report['exchange']}, "
+                f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
+                f"{args.output}"
+            )
             return 0
 
         if args.command_name == "strategy":
@@ -410,8 +561,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                     args.output_dir,
                     class_name=args.class_name,
                 )
+                print(f"strategy prepared: {manifest['selected_class']} -> {args.output_dir}")
+                return 0
+            if args.strategy_command == "vectors":
+                from .vector_runtime import prepare_vector_signals
+
+                loaded = load_effective_config(args.config)
+                report = prepare_vector_signals(
+                    strategy_path=args.source,
+                    class_name=args.class_name,
+                    config=loaded["config"],
+                    pairs=args.pair,
+                    data_directory=args.datadir,
+                    timerange=args.timerange,
+                    output_directory=args.output_dir,
+                    workers=args.workers,
+                    cache_directory=args.cache_dir,
+                )
                 print(
-                    f"strategy prepared: {manifest['selected_class']} -> {args.output_dir}"
+                    f"strategy vectors: pairs={report['pair_count']}, "
+                    f"cache_hits={report['cache_hits']} -> {args.output_dir}"
                 )
                 return 0
             manifest = validate_strategy_bundle(args.bundle)
@@ -420,6 +589,104 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"sha256={manifest['strategy']['sha256']}"
             )
             return 0
+
+        if args.command_name == "backtest":
+            from .research_runner import run_research_backtest
+
+            report = run_research_backtest(
+                strategy_path=args.source,
+                class_name=args.class_name,
+                config_path=args.config,
+                data_directory=args.datadir,
+                timerange=args.timerange,
+                output_directory=args.output_dir,
+                pairs=args.pair,
+                workers=args.workers,
+                cache_directory=args.cache_dir,
+                profile_path=args.profile,
+                resume=args.resume,
+                prepare_only=args.prepare_only,
+                download_missing=not args.no_download,
+                market_metadata_path=args.markets,
+                registry_path=args.registry,
+                download_market_metadata=not args.no_market_download,
+            )
+            print(
+                f"research backtest: status={report['status']}, "
+                f"pairs={report['vectors']['pair_count']}, "
+                f"cache_hits={report['vectors']['cache_hits']}, "
+                f"resumed={','.join(report['resumed_stages']) or 'none'} -> "
+                f"{args.output_dir / 'run.json'}"
+            )
+            if not report["complete"] and not report["prepared_only"]:
+                for blocker in report["capability"]["blockers"]:
+                    detail = blocker.get("callback", "")
+                    print(
+                        f"blocked: {blocker['code']} {detail} - {blocker['message']}",
+                        file=sys.stderr,
+                    )
+                return 1
+            return 0
+
+        if args.command_name == "confirm":
+            from .confirmation import confirm_research_run
+
+            report = confirm_research_run(
+                args.run_directory,
+                args.freqtrade_export,
+                args.output_dir,
+                strategy=args.strategy,
+            )
+            if report["equal"]:
+                print(
+                    f"official exact parity: run={report['run_id']} -> "
+                    f"{args.output_dir / 'confirmation.json'}"
+                )
+                return 0
+            difference = report["difference"]
+            print(
+                f"official parity mismatch at {difference['path']}: "
+                f"{difference['reason']} -> {args.output_dir / 'confirmation.json'}",
+                file=sys.stderr,
+            )
+            return 1
+
+        if args.command_name == "runs":
+            from .run_registry import RunRegistry
+
+            with RunRegistry(args.registry) as registry:
+                if args.runs_command == "list":
+                    records = registry.list(limit=args.limit)
+                    print(json.dumps(records, ensure_ascii=False, indent=2))
+                else:
+                    print(
+                        json.dumps(
+                            registry.show(args.run_id),
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+            return 0
+
+        if args.command_name == "batch":
+            from .batch_runner import run_batch
+
+            report = run_batch(
+                args.manifest,
+                args.output_dir,
+                profile_path=args.profile,
+                cache_directory=args.cache_dir,
+                registry_path=args.registry,
+                resume=args.resume,
+                download_missing=not args.no_download,
+                max_jobs=args.max_jobs,
+            )
+            print(
+                f"batch: complete={report['complete']}, "
+                f"jobs={len(report['jobs'])}, parallel={report['parallel_jobs']} -> "
+                f"{args.output_dir / 'batch.json'}"
+            )
+            return 0 if report["complete"] else 1
 
         if args.command_name == "engine":
             if args.engine_command == "build":
@@ -437,6 +704,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     profile_path=args.profile,
                     timeout_seconds=args.timeout,
                     events_path=args.events,
+                    vector_manifest=args.vector_manifest,
                 )
                 print(
                     f"engine result: trades={report['trade_count']}, "

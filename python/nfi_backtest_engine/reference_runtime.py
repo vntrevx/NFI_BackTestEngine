@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,9 +23,7 @@ from .state_trace import first_trace_difference, trace_summary
 
 REFERENCE_VERSION = "2026.5.1"
 REFERENCE_IMAGE = "freqtradeorg/freqtrade"
-REFERENCE_INDEX_DIGEST = (
-    "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a"
-)
+REFERENCE_INDEX_DIGEST = "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a"
 REFERENCE_PLATFORM_DIGEST = (
     "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b"
 )
@@ -95,7 +93,7 @@ def run_reference_fixture(
         market_snapshot=market_snapshot,
     )
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     started_ns = time.perf_counter_ns()
     timed_out = False
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
@@ -112,7 +110,7 @@ def run_reference_fixture(
         except subprocess.TimeoutExpired:
             timed_out = True
             exit_code = 124
-    ended_at = datetime.now(timezone.utc)
+    ended_at = datetime.now(UTC)
 
     report: dict[str, Any] = {
         "schema_version": "1.0.0",
@@ -200,14 +198,9 @@ def run_reference_fixture(
             }
 
         profile_complete = not profile or not report["profile"]["missing_phases"]
-        trace_complete = (
-            trace_mode == "off"
-            or bool(report["parity"]["state_trace"]["equal"])
-        )
+        trace_complete = trace_mode == "off" or bool(report["parity"]["state_trace"]["equal"])
         report["complete"] = (
-            bool(report["parity"]["trade_surface"]["equal"])
-            and profile_complete
-            and trace_complete
+            bool(report["parity"]["trade_surface"]["equal"]) and profile_complete and trace_complete
         )
 
     write_json(output / "run.json", report)
@@ -516,9 +509,7 @@ def _find_result_zip(output: Path) -> Path:
     candidates = sorted(output.glob("backtest-result-*.zip"))
     if len(candidates) != 1:
         names = ", ".join(path.name for path in candidates) or "none"
-        raise BenchmarkError(
-            f"expected exactly one official result ZIP in {output}; found {names}"
-        )
+        raise BenchmarkError(f"expected exactly one official result ZIP in {output}; found {names}")
     return candidates[0]
 
 

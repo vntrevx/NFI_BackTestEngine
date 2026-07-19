@@ -8,13 +8,14 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import polars as pl
 
 from .canonical import read_json, write_json
+from .config_loader import load_effective_config
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
 from .reference_runtime import (
@@ -24,10 +25,10 @@ from .reference_runtime import (
     ensure_docker_config,
     ensure_reference_image,
 )
+from .timerange import parse_timerange_milliseconds
 
-DATA_SEAL_VERSION = "1.0.0"
+DATA_SEAL_VERSION = "1.2.0"
 _DATA_SUFFIXES = {".feather", ".parquet"}
-_TIMERANGE = re.compile(r"^(?P<start>\d{8})-(?P<end>\d{8})$")
 _TIMEFRAME = re.compile(r"^(?P<count>[1-9]\d*)(?P<unit>[smhdwM])$")
 
 
@@ -39,20 +40,34 @@ def prepare_data(
     timeframes: list[str],
     destination: str | Path,
     download_missing: bool = True,
+    startup_candles: int = 0,
+    require_startup_coverage: bool = False,
 ) -> dict[str, Any]:
     """Check coverage, download only missing edges, then seal every input byte."""
     config_file = Path(config_path).resolve()
     data_root = Path(data_directory).resolve()
-    config = read_json(config_file)
-    request = _data_request(config, timerange, timeframes)
+    loaded_config = load_effective_config(config_file)
+    config = loaded_config["config"]
+    request = _data_request(
+        config,
+        timerange,
+        timeframes,
+        startup_candles=startup_candles,
+        require_startup_coverage=require_startup_coverage,
+    )
     data_root.mkdir(parents=True, exist_ok=True)
     gaps = find_coverage_gaps(data_root, request)
+    startup_shortfalls = find_startup_shortfalls(data_root, request)
     downloads: list[dict[str, Any]] = []
-    if gaps and not download_missing:
-        raise BenchmarkError(_gap_message(gaps))
-    if gaps:
+    if (gaps or (require_startup_coverage and startup_shortfalls)) and not download_missing:
+        if gaps:
+            raise BenchmarkError(_gap_message(gaps))
+        raise BenchmarkError(_startup_gap_message(startup_shortfalls))
+    if gaps or (require_startup_coverage and startup_shortfalls):
         needs_append = any(gap["end_missing"] for gap in gaps)
-        needs_prepend = any(gap["start_missing"] for gap in gaps)
+        needs_prepend = any(gap["start_missing"] for gap in gaps) or bool(
+            require_startup_coverage and startup_shortfalls
+        )
         if needs_append:
             downloads.append(
                 _download_data(
@@ -72,18 +87,23 @@ def prepare_data(
                 )
             )
         gaps = find_coverage_gaps(data_root, request)
+        startup_shortfalls = find_startup_shortfalls(data_root, request)
         if gaps:
             raise BenchmarkError(
-                "download completed but coverage is still incomplete: "
-                f"{_gap_message(gaps)}"
+                f"download completed but coverage is still incomplete: {_gap_message(gaps)}"
+            )
+        if require_startup_coverage and startup_shortfalls:
+            raise BenchmarkError(
+                "download completed but startup coverage is still incomplete: "
+                f"{_startup_gap_message(startup_shortfalls)}"
             )
 
-    files = _seal_data_files(data_root)
+    files = _seal_data_files(data_root, request=request)
     if not files:
         raise BenchmarkError(f"no Feather or Parquet candle files found under {data_root}")
     seal = {
         "schema_version": DATA_SEAL_VERSION,
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "reference": {
             "image": REFERENCE_IMAGE_REF.split("@", 1)[0],
             "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
@@ -92,10 +112,12 @@ def prepare_data(
         "request": {
             **request,
             "config_path": str(config_file),
-            "config_sha256": sha256_file(config_file),
+            "config_sha256": loaded_config["sha256"],
+            "config_inputs": loaded_config["inputs"],
         },
         "data_root": str(data_root),
         "downloads": downloads,
+        "startup_shortfalls": startup_shortfalls,
         "files": files,
         "aggregate_sha256": _aggregate_files(files),
     }
@@ -126,11 +148,15 @@ def validate_data_seal_document(
         "request",
         "data_root",
         "downloads",
+        "startup_shortfalls",
         "files",
         "aggregate_sha256",
     }
     if set(seal) != required:
         raise SpecValidationError("data seal fields differ from the v1 contract")
+    _validate_request_contract(seal["request"])
+    if not isinstance(seal["startup_shortfalls"], list):
+        raise SpecValidationError("data seal startup_shortfalls must be a list")
     files = seal["files"]
     if not isinstance(files, list) or not files:
         raise SpecValidationError("data seal files must be a non-empty list")
@@ -152,6 +178,63 @@ def validate_data_seal_document(
         coverage = _file_coverage(target)
         if coverage != record["coverage"]:
             raise SpecValidationError(f"sealed data file coverage changed: {record['path']}")
+    current_shortfalls = find_startup_shortfalls(root, seal["request"])
+    if current_shortfalls != seal["startup_shortfalls"]:
+        raise SpecValidationError("sealed startup coverage changed")
+
+
+def _validate_request_contract(request: Any) -> None:
+    required = {
+        "exchange",
+        "trading_mode",
+        "pairs",
+        "timeframes",
+        "timerange",
+        "start_timestamp_ms",
+        "end_timestamp_ms",
+        "startup_candles",
+        "startup_coverage_policy",
+        "coverage_start_timestamp_ms_by_timeframe",
+        "download_timerange",
+        "config_path",
+        "config_sha256",
+        "config_inputs",
+    }
+    if not isinstance(request, dict) or set(request) != required:
+        raise SpecValidationError("data seal request fields differ from the v1.2 contract")
+    timeframes = request["timeframes"]
+    coverage_starts = request["coverage_start_timestamp_ms_by_timeframe"]
+    if (
+        not isinstance(timeframes, list)
+        or not timeframes
+        or not all(isinstance(value, str) and value for value in timeframes)
+        or not isinstance(coverage_starts, dict)
+        or set(coverage_starts) != set(timeframes)
+    ):
+        raise SpecValidationError("data seal startup coverage map is invalid")
+    startup_candles = request["startup_candles"]
+    start_ms = request["start_timestamp_ms"]
+    end_ms = request["end_timestamp_ms"]
+    if (
+        not isinstance(startup_candles, int)
+        or isinstance(startup_candles, bool)
+        or startup_candles < 0
+        or not isinstance(start_ms, int)
+        or not isinstance(end_ms, int)
+        or end_ms <= start_ms
+    ):
+        raise SpecValidationError("data seal timerange or startup count is invalid")
+    expected_starts = {
+        timeframe: start_ms - startup_candles * timeframe_milliseconds(timeframe)
+        for timeframe in timeframes
+    }
+    if coverage_starts != expected_starts:
+        raise SpecValidationError("data seal startup coverage boundaries are corrupt")
+    earliest_start = min(expected_starts.values())
+    if request["download_timerange"] != f"{earliest_start}-{end_ms}":
+        raise SpecValidationError("data seal download timerange is corrupt")
+    if request["startup_coverage_policy"] not in {"record", "require"}:
+        raise SpecValidationError("data seal startup coverage policy is invalid")
 
 
 def find_coverage_gaps(data_root: Path, request: dict[str, Any]) -> list[dict[str, Any]]:
@@ -186,6 +269,52 @@ def find_coverage_gaps(data_root: Path, request: dict[str, Any]) -> list[dict[st
     return gaps
 
 
+def find_startup_shortfalls(
+    data_root: Path, request: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Record history Freqtrade requested but the local dataset cannot provide.
+
+    Freqtrade allows this condition: base-timeframe execution moves forward,
+    while informative frames simply contain fewer startup rows. Recording the
+    shortfall preserves that behavior in the seal. Callers may opt into the
+    stricter download/fail policy when constructing a new dataset.
+    """
+    coverage_starts = request["coverage_start_timestamp_ms_by_timeframe"]
+    files = [path for path in data_root.rglob("*") if _is_data_file(path)]
+    shortfalls: list[dict[str, Any]] = []
+    for pair in request["pairs"]:
+        for timeframe in request["timeframes"]:
+            required_start = coverage_starts[timeframe]
+            candidates = [
+                path
+                for path in files
+                if _matches_base_candles(path, pair, timeframe, request["trading_mode"])
+            ]
+            coverages = [_file_coverage(path) for path in candidates]
+            earliest = min(
+                (item["start_timestamp_ms"] for item in coverages),
+                default=None,
+            )
+            if earliest is not None and earliest <= required_start:
+                continue
+            candle_ms = timeframe_milliseconds(timeframe)
+            missing_candles = (
+                None
+                if earliest is None
+                else (earliest - required_start + candle_ms - 1) // candle_ms
+            )
+            shortfalls.append(
+                {
+                    "pair": pair,
+                    "timeframe": timeframe,
+                    "required_start_timestamp_ms": required_start,
+                    "available_start_timestamp_ms": earliest,
+                    "missing_candles": missing_candles,
+                }
+            )
+    return shortfalls
+
+
 def timeframe_milliseconds(timeframe: str) -> int:
     match = _TIMEFRAME.fullmatch(timeframe)
     if match is None:
@@ -205,10 +334,16 @@ def _data_request(
     config: dict[str, Any],
     timerange: str,
     timeframes: list[str],
+    *,
+    startup_candles: int,
+    require_startup_coverage: bool,
 ) -> dict[str, Any]:
-    match = _TIMERANGE.fullmatch(timerange)
-    if match is None:
-        raise SpecValidationError("data timerange must use closed-open YYYYMMDD-YYYYMMDD")
+    try:
+        start_ms, end_ms = parse_timerange_milliseconds(timerange)
+    except ValueError as exc:
+        raise SpecValidationError(
+            "data timerange must use closed YYYYMMDD, Unix-second, or Unix-millisecond boundaries"
+        ) from exc
     if not timeframes:
         configured = config.get("timeframe")
         if not isinstance(configured, str) or not configured:
@@ -217,29 +352,46 @@ def _data_request(
     normalized_timeframes = list(dict.fromkeys(timeframes))
     for timeframe in normalized_timeframes:
         timeframe_milliseconds(timeframe)
+    if (
+        not isinstance(startup_candles, int)
+        or isinstance(startup_candles, bool)
+        or startup_candles < 0
+    ):
+        raise SpecValidationError("startup_candles must be a non-negative integer")
     exchange = config.get("exchange")
     if not isinstance(exchange, dict):
         raise SpecValidationError("config.exchange must be an object")
     pairs = exchange.get("pair_whitelist")
-    if not isinstance(pairs, list) or not pairs or not all(
-        isinstance(pair, str) and pair for pair in pairs
+    if (
+        not isinstance(pairs, list)
+        or not pairs
+        or not all(isinstance(pair, str) and pair for pair in pairs)
     ):
         raise SpecValidationError("config.exchange.pair_whitelist must contain pairs")
     trading_mode = config.get("trading_mode", "spot")
     if trading_mode not in {"spot", "futures"}:
         raise SpecValidationError("data preparation supports spot or futures")
-    start = datetime.strptime(match.group("start"), "%Y%m%d").replace(tzinfo=timezone.utc)
-    end = datetime.strptime(match.group("end"), "%Y%m%d").replace(tzinfo=timezone.utc)
-    if end <= start:
+    if end_ms <= start_ms:
         raise SpecValidationError("data timerange end must be after start")
+    coverage_starts = {
+        timeframe: start_ms - startup_candles * timeframe_milliseconds(timeframe)
+        for timeframe in normalized_timeframes
+    }
+    earliest_start = min(coverage_starts.values(), default=start_ms)
     return {
         "exchange": str(exchange.get("name", "")).lower(),
         "trading_mode": trading_mode,
         "pairs": list(dict.fromkeys(pairs)),
         "timeframes": normalized_timeframes,
         "timerange": timerange,
-        "start_timestamp_ms": int(start.timestamp() * 1000),
-        "end_timestamp_ms": int(end.timestamp() * 1000),
+        "start_timestamp_ms": start_ms,
+        "end_timestamp_ms": end_ms,
+        "startup_candles": startup_candles,
+        "startup_coverage_policy": (
+            "require" if require_startup_coverage else "record"
+        ),
+        "coverage_start_timestamp_ms_by_timeframe": coverage_starts,
+        "download_timerange": f"{earliest_start}-{end_ms}",
     }
 
 
@@ -281,7 +433,7 @@ def _download_data(
             "--datadir",
             "/data",
             "--timerange",
-            request["timerange"],
+            request["download_timerange"],
             "--timeframes",
             *request["timeframes"],
             "--pairs",
@@ -315,10 +467,32 @@ def _download_data(
     }
 
 
-def _seal_data_files(data_root: Path) -> list[dict[str, Any]]:
+def _seal_data_files(
+    data_root: Path,
+    *,
+    request: dict[str, Any],
+) -> list[dict[str, Any]]:
     records = []
     for path in sorted(
-        (path for path in data_root.rglob("*") if _is_data_file(path)),
+        (
+            path
+            for path in data_root.rglob("*")
+            if _is_data_file(path)
+            and any(
+                _matches_base_candles(
+                    path,
+                    pair,
+                    timeframe,
+                    request["trading_mode"],
+                )
+                or (
+                    request["trading_mode"] == "futures"
+                    and _matches_futures_funding_input(path, pair)
+                )
+                for pair in request["pairs"]
+                for timeframe in request["timeframes"]
+            )
+        ),
         key=lambda item: item.relative_to(data_root).as_posix(),
     ):
         records.append(
@@ -335,7 +509,7 @@ def _seal_data_files(data_root: Path) -> list[dict[str, Any]]:
 def _file_coverage(path: Path) -> dict[str, int]:
     try:
         if path.suffix.lower() == ".feather":
-            frame = pl.read_ipc(path, columns=["date"], memory_map=True, rechunk=False)
+            frame = pl.read_ipc(path, columns=["date"], memory_map=False, rechunk=False)
         else:
             frame = pl.read_parquet(path, columns=["date"], rechunk=False)
     except Exception as exc:
@@ -379,6 +553,15 @@ def _matches_base_candles(path: Path, pair: str, timeframe: str, trading_mode: s
     return stem in {prefix, f"{prefix}-spot"}
 
 
+def _matches_futures_funding_input(path: Path, pair: str) -> bool:
+    """Match the exact Binance files consumed by the funding event merger."""
+    normalized = pair.replace("/", "_").replace(":", "_")
+    return path.stem in {
+        f"{normalized}-1h-funding_rate",
+        f"{normalized}-1h-mark",
+    }
+
+
 def _is_data_file(path: Path) -> bool:
     return path.is_file() and path.suffix.lower() in _DATA_SUFFIXES
 
@@ -405,3 +588,12 @@ def _gap_message(gaps: list[dict[str, Any]]) -> str:
         for gap in gaps
     )
     return f"candle coverage is incomplete: {rendered}"
+
+
+def _startup_gap_message(shortfalls: list[dict[str, Any]]) -> str:
+    rendered = ", ".join(
+        f"{item['pair']} {item['timeframe']}"
+        f" (missing_candles={item['missing_candles']})"
+        for item in shortfalls
+    )
+    return f"startup candle coverage is incomplete: {rendered}"

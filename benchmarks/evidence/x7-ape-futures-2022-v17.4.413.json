@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-final-surface-exact",
+  "claim_boundary": "APE/USDT:USDT single-pair futures from 2022-04-01 through 2023-01-01; reached long, short, leverage, funding, derisk, and grind orders; does not certify arbitrary pairs, liquidation, protections, or pair locks",
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "ccxt_version": "4.5.55",
+    "python_version": "3.14",
+    "image": "freqtradeorg/freqtrade",
+    "image_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "network_during_backtest": false
+  },
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.413",
+    "source_file_sha256": "f217e7dc6c6d2b0ed01126ae585f44bf93317a744941ef5292ee4e5c84b892d9",
+    "normalized_source_sha256": "11b379032da7aab5512d93eb092fc2b1495706a6e66a95ebfaba2e0443879227",
+    "pair": "APE/USDT:USDT",
+    "timeframe": "5m",
+    "timerange": "20220401-20230101",
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "leverage": 3,
+    "max_open_trades": 1,
+    "strategy_ir_version": "1.6.0",
+    "hot_ir_version": "1.9.0",
+    "data_seal_version": "1.2.0",
+    "vector_pipeline_version": "1.12.0",
+    "nfi_trade_manager_schema": "0.8.0",
+    "generic_adapter_version": "1.3.0",
+    "x7_adapter_version": "0.13.0",
+    "vector_runtime": {
+      "python": "3.12.3",
+      "numpy": "2.4.5",
+      "pandas": "3.0.3",
+      "pyarrow": "24.0.0",
+      "ta_lib": "0.6.8"
+    }
+  },
+  "sealed_artifacts": {
+    "safe_config_sha256": "5ff55cb0483aee2ad5dd339a30d8cdc798be1bc267420c59bfd6ac26d43a75bc",
+    "effective_config_sha256": "5f6d3f067d7bfba9bea01a554c518cab2329b31c43cfb9a21a3e98c692d535b7",
+    "market_snapshot_sha256": "2955d769323bd1cb826fc57e5a21e5ba08b715e03a35a0763cf3e3b90c5d11b8",
+    "data_seal_sha256": "560954cab3d24361a44b41860ed88bd3ebf8219a53fbf24d977d24b3f40cd0be",
+    "hot_callback_ir_sha256": "c4c3599663ef945465b62fcf17a2fa327d544744a3f80fee6b73f54cffdf3bda",
+    "vector_feather_sha256": "e9ce845f533508eb6d7f7f22bdc8e92361322904bc132e5a1cb49cd0ea0495a5",
+    "vector_manifest_sha256": "8d81d2aac16bbacc23daeac8bf4af7ed65e1e6cf427e15b8f1e123799c29d0fb",
+    "official_result_zip_sha256": "6f2d41ce2f57cad1402f51c8262f06155d76b775529ef7d0286acbd1d3b747ee",
+    "engine_result_sha256": "cdb31a297af23a1fa4de6a0a1c9497aab6284936b916fe55c3e1e03b08f1446b"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "official_surface_sha256": "12386d5cfc56fd948dfb74ed908911efe220d0ee94ee0ac705415de027b31bcd",
+    "engine_surface_sha256": "12386d5cfc56fd948dfb74ed908911efe220d0ee94ee0ac705415de027b31bcd",
+    "numeric_tolerance": 0,
+    "first_difference": null,
+    "trades": 11,
+    "orders": 164,
+    "adjustment_orders": 142,
+    "short_trades": 1,
+    "funded_trades": 8,
+    "locks": 0,
+    "profit_total_abs": "315.65060159999575",
+    "total_volume": "1432593.4017315",
+    "reached_adjustment_families": [
+      "derisk_level_1",
+      "derisk_level_2",
+      "derisk_level_3",
+      "grind_1",
+      "grind_2",
+      "grind_3",
+      "grind_4",
+      "grind_5"
+    ]
+  }
+}
