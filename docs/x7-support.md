@@ -84,6 +84,12 @@ Generated `hot-callback-ir.json` remains the source of truth for the exact strat
 file used by a run. Context-only callbacks may be inactive for a mode; for example,
 Freqtrade does not call `leverage()` in spot mode.
 
+`nfi-bte strategy check` performs this source and callback compilation without preparing
+candles. The scheduled latest-NFI workflow downloads upstream X7 every day and retains
+the compatibility report. A source change outside the handwritten state contracts can
+continue immediately; a changed state contract is visible before a four-to-five-year
+run consumes resources.
+
 ## Still blocked
 
 The engine rejects rather than approximates:
@@ -109,4 +115,4 @@ Every remaining branch must be lowered or certified incrementally:
 5. retain a smallest-prefix mismatch replay on failure.
 
 No release may claim arbitrary or full X7 execution until the combined spot/futures
-certificate and the 80-pair, one-year fresh performance gate both pass.
+certificate and the 80-pair, four-year fresh performance gate both pass.

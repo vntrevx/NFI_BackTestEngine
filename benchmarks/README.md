@@ -20,7 +20,7 @@ The repository includes two captured Freqtrade 2026.5.1 spot fixtures:
 - `stops-only-spot-2025-01-01_04`;
 - `normal-routing-spot-2025-01-01_04`.
 
-Neither is representative 80-pair, one-year X7 evidence.
+Neither is representative 80-pair, four-year X7 evidence.
 
 ## Frozen inputs
 

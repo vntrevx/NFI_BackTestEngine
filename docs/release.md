@@ -2,10 +2,16 @@
 
 ## Product boundary
 
-Version 0.3.0 is an alpha release of the benchmark, exact-parity, native packaging,
+Version 0.4.0 is an alpha release of the benchmark, exact-parity, native packaging,
 hardware/data preparation, X7 vector, and checkpointed research infrastructure. It is
 not a claim that an arbitrary NFI file, pair universe, or strategy revision can already
 complete an exact Rust backtest.
+
+The product target is nevertheless revision-independent: a user supplies the current
+NFI file, the engine analyzes and compiles that exact source, the default run spans the
+previous five complete calendar years, and official Freqtrade verifies the finalist.
+The v17.4.413 boundary below describes current evidence, not the intended permanent
+input version.
 
 The current alpha executes the source-pinned X7 v17.4.413 managed long routes,
 short-rebuy tags 561-563, constrained isolated-futures accounting with uniform 3x
@@ -52,6 +58,8 @@ Before tagging:
 11. Install the wheel into a clean Python 3.12 environment and rerun one full fixture
 12. On a Docker host, verify daemon-resource inspection, one managed official fixture,
     cgroup memory reporting, and zero remaining owned containers
+13. Run `nfi-bte strategy check` against the latest upstream X7 source
+14. Dry-run the Windows and Unix release installers against the published assets
 
 The CI workflow runs the tests on Linux, Windows, and macOS and repeats native full
 parity on Linux. Docker-free CI validates the portable resource and command contracts;
@@ -81,6 +89,12 @@ configure PyPI trusted publishing for:
 The PyPI job alone receives `id-token: write`; build jobs remain read-only. The GitHub
 release job receives only `contents: write`.
 
+Until the PyPI trusted publisher is configured, `install.ps1` and `install.sh` provide
+the shortest supported installation path from GitHub Releases. They select the native
+wheel and verify the asset digest before calling `uv tool install`. After PyPI is live,
+`uv tool install nfi-backtest-engine` becomes the primary command and pipx remains a
+compatible alternative.
+
 ## Full X7 v1 gates
 
 A later release can claim full X7 support only when all of these are true:
@@ -92,6 +106,6 @@ A later release can claim full X7 support only when all of these are true:
 - every claimed pair/route combination has branch-reaching differential evidence;
 - repeated runs are deterministic;
 - exact normalized trade parity and full state parity pass on the supported certificate;
-- an 80-pair, one-year fresh benchmark demonstrates at least 10x screening speed without
+- an 80-pair, four-year fresh benchmark demonstrates at least 10x screening speed without
   exceeding the memory gate;
 - finalists are reproducible with official Freqtrade.

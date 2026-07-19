@@ -59,7 +59,7 @@ def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--yes",
         action="store_true",
-        help="accept detected paths and the previous-year default without prompting",
+        help="accept detected paths and the previous-five-years default without prompting",
     )
 
 
@@ -278,6 +278,15 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_inspect.add_argument("source", type=Path)
     strategy_inspect.add_argument("--class", dest="class_name")
     strategy_inspect.add_argument("--output", "-o", type=Path)
+    strategy_check = strategy_commands.add_parser(
+        "check",
+        help="check whether a new strategy revision has exact native callback lowerings",
+    )
+    strategy_check.add_argument("source", type=Path)
+    strategy_check.add_argument("--class", dest="class_name")
+    strategy_check.add_argument("--config", type=Path)
+    strategy_check.add_argument("--trading-mode", choices=("spot", "futures", "margin"))
+    strategy_check.add_argument("--output", "-o", type=Path)
     strategy_prepare = strategy_commands.add_parser(
         "prepare", help="create a hash-bound, static-safe strategy bundle"
     )
@@ -737,6 +746,28 @@ def main(argv: Sequence[str] | None = None) -> int:
                         file=sys.stderr,
                     )
                 return 0 if analysis["static_safe"] else 1
+            if args.strategy_command == "check":
+                from .strategy_compatibility import check_strategy_compatibility
+
+                report = check_strategy_compatibility(
+                    args.source,
+                    class_name=args.class_name,
+                    config_path=args.config,
+                    trading_mode=args.trading_mode,
+                    output_path=args.output,
+                )
+                print(
+                    "strategy compatibility: "
+                    f"native_compatible={report['native_compatible']}, "
+                    f"class={report['selected_class']}, "
+                    f"source={report['source']['sha256']}"
+                )
+                for blocker in report["blockers"]:
+                    print(
+                        f"blocked: {blocker['code']} - {blocker['message']}",
+                        file=sys.stderr,
+                    )
+                return 0 if report["native_compatible"] else 1
             if args.strategy_command == "prepare":
                 manifest = prepare_strategy(
                     args.source,

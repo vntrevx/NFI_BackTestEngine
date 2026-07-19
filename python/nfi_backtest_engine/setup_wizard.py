@@ -10,6 +10,7 @@ from typing import Any
 
 from .config_loader import freeze_pairlist, load_effective_config
 from .errors import SpecValidationError
+from .product_contract import default_long_timerange
 from .project_config import (
     DEFAULT_PROJECT_PATH,
     ProjectSettings,
@@ -431,10 +432,7 @@ def _prompt_value(
 
 
 def _default_timerange(now: datetime) -> str:
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=UTC)
-    year = now.astimezone(UTC).year - 1
-    return f"{year:04d}0101-{year + 1:04d}0101"
+    return default_long_timerange(now)
 
 
 def _display_path(workspace: Path, value: Path) -> str:

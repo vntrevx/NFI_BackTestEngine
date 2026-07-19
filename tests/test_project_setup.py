@@ -61,7 +61,7 @@ def test_standard_layout_initializes_without_prompts(tmp_path: Path) -> None:
     assert all("detected" in message or "project ready" in message for message in messages)
 
 
-def test_noninteractive_setup_uses_previous_complete_calendar_year(
+def test_noninteractive_setup_uses_previous_five_complete_calendar_years(
     tmp_path: Path,
 ) -> None:
     source, _, _ = _standard_layout(tmp_path)
@@ -73,7 +73,7 @@ def test_noninteractive_setup_uses_previous_complete_calendar_year(
         now=datetime(2026, 7, 19, tzinfo=UTC),
     )
 
-    assert settings.timerange == "20250101-20260101"
+    assert settings.timerange == "20210101-20260101"
 
 
 def test_multiple_strategy_classes_require_choice_or_explicit_class(
