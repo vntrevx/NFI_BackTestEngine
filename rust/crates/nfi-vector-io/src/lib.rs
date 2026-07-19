@@ -7,24 +7,39 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
-use std::io::{BufReader, Read};
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use arrow2::array::{Array, BooleanArray, PrimitiveArray, Utf8Array};
 use arrow2::chunk::Chunk;
-use arrow2::datatypes::{DataType, TimeUnit};
+use arrow2::datatypes::{DataType, Schema, TimeUnit};
 use arrow2::io::ipc::read::{read_file_metadata, FileReader};
 use nfi_sim_core::{
-    AdjustmentSignal, Candle, EntrySignal, ExitSignal, FeatureColumn, PairSeries, PortfolioConfig,
-    PriceStepChange, SimulationInput, SIMULATOR_SCHEMA_VERSION,
+    CandleSeries, FeatureColumn, FileBackedFeatureKind, FileBackedRows, PairSeries,
+    PortfolioConfig, PriceStepChange, SimulationInput, FILE_BACKED_FEATURE_BYTES,
+    FILE_BACKED_ROW_HEADER_BYTES, SIMULATOR_SCHEMA_VERSION,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// Version of the compact manifest consumed by this crate.
 pub const VECTOR_MANIFEST_SCHEMA_VERSION: &str = "1.2.0";
 const LEGACY_VECTOR_MANIFEST_SCHEMA_VERSIONS: [&str; 2] = ["1.0.0", "1.1.0"];
+const SPOOL_DIRECTORY_ENVIRONMENT: &str = "NFI_BTE_SPOOL_DIRECTORY";
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct VectorLoadProfile {
+    pub schema_version: &'static str,
+    pub manifest_ns: u64,
+    pub vector_hash_ns: u64,
+    pub feather_decode_ns: u64,
+    pub pair_count: usize,
+    pub row_count: usize,
+    pub feature_column_count: usize,
+    pub file_backed_bytes: u64,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -140,6 +155,11 @@ pub enum VectorInputError {
         path: PathBuf,
         source: std::io::Error,
     },
+    #[error("cannot create file-backed rows for pair {pair:?}: {source}")]
+    FileBacking {
+        pair: String,
+        source: std::io::Error,
+    },
     #[error("invalid pair {pair:?} Feather file {path}: {message}")]
     Feather {
         pair: String,
@@ -152,7 +172,7 @@ pub enum VectorInputError {
     ColumnType {
         pair: String,
         column: String,
-        actual: DataType,
+        actual: Box<DataType>,
         expected: &'static str,
     },
     #[error("pair {pair:?} Feather column {column:?} contains null at row {row}")]
@@ -188,6 +208,19 @@ pub enum VectorInputError {
 ///
 /// Returns a precise manifest, filesystem, hash, Arrow schema, or scalar error.
 pub fn load_vector_manifest(path: &Path) -> Result<SimulationInput, VectorInputError> {
+    load_vector_manifest_profiled(path).map(|(input, _)| input)
+}
+
+/// Load the vector manifest and return aggregate input-boundary timings.
+///
+/// # Errors
+///
+/// Returns the same manifest, filesystem, hash, and Arrow errors as
+/// [`load_vector_manifest`].
+pub fn load_vector_manifest_profiled(
+    path: &Path,
+) -> Result<(SimulationInput, VectorLoadProfile), VectorInputError> {
+    let manifest_started = Instant::now();
     let encoded = fs::read(path).map_err(|source| VectorInputError::ReadManifest {
         path: path.to_path_buf(),
         source,
@@ -214,22 +247,39 @@ pub fn load_vector_manifest(path: &Path) -> Result<SimulationInput, VectorInputE
             path: path.to_path_buf(),
             source,
         })?;
+    let mut profile = VectorLoadProfile {
+        schema_version: "1.0.0",
+        manifest_ns: duration_ns(manifest_started.elapsed()),
+        vector_hash_ns: 0,
+        feather_decode_ns: 0,
+        pair_count: manifest.pairs.len(),
+        row_count: 0,
+        feature_column_count: 0,
+        file_backed_bytes: 0,
+    };
     let mut pair_names = BTreeSet::new();
     let mut pairs = Vec::with_capacity(manifest.pairs.len());
     for pair in manifest.pairs {
         if pair.pair.is_empty() || !pair_names.insert(pair.pair.clone()) {
             return Err(VectorInputError::InvalidPair(pair.pair));
         }
-        pairs.push(load_pair(&manifest_directory, pair)?);
+        pairs.push(load_pair(&manifest_directory, pair, &mut profile)?);
     }
-    Ok(SimulationInput {
-        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
-        config: manifest.config,
-        pairs,
-    })
+    Ok((
+        SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manifest.config,
+            pairs,
+        },
+        profile,
+    ))
 }
 
-fn load_pair(manifest_directory: &Path, pair: VectorPair) -> Result<PairSeries, VectorInputError> {
+fn load_pair(
+    manifest_directory: &Path,
+    pair: VectorPair,
+    profile: &mut VectorLoadProfile,
+) -> Result<PairSeries, VectorInputError> {
     validate_feature_names(&pair)?;
     if pair.vector.format != "feather-ipc" {
         return Err(VectorInputError::VectorFormat {
@@ -258,12 +308,16 @@ fn load_pair(manifest_directory: &Path, pair: VectorPair) -> Result<PairSeries, 
             path: vector_path,
         });
     }
+    let hash_started = Instant::now();
     let actual_sha256 =
         sha256_file(&vector_path).map_err(|source| VectorInputError::HashVector {
             pair: pair.pair.clone(),
             path: vector_path.clone(),
             source,
         })?;
+    profile.vector_hash_ns = profile
+        .vector_hash_ns
+        .saturating_add(duration_ns(hash_started.elapsed()));
     if actual_sha256 != pair.vector.sha256 {
         return Err(VectorInputError::VectorHash {
             pair: pair.pair,
@@ -272,7 +326,16 @@ fn load_pair(manifest_directory: &Path, pair: VectorPair) -> Result<PairSeries, 
         });
     }
 
-    let (candles, feature_columns) = read_feather(&vector_path, &pair)?;
+    let decode_started = Instant::now();
+    let (candles, feature_columns, file_backed_bytes) = read_feather(&vector_path, &pair)?;
+    profile.feather_decode_ns = profile
+        .feather_decode_ns
+        .saturating_add(duration_ns(decode_started.elapsed()));
+    profile.row_count = profile.row_count.saturating_add(candles.len());
+    profile.feature_column_count = profile
+        .feature_column_count
+        .saturating_add(feature_columns.len());
+    profile.file_backed_bytes = profile.file_backed_bytes.saturating_add(file_backed_bytes);
     if candles.len() != pair.vector.rows {
         return Err(VectorInputError::RowCount {
             pair: pair.pair,
@@ -299,6 +362,10 @@ fn load_pair(manifest_directory: &Path, pair: VectorPair) -> Result<PairSeries, 
         feature_columns,
         candles,
     })
+}
+
+fn duration_ns(duration: Duration) -> u64 {
+    u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX)
 }
 
 fn validate_feature_names(pair: &VectorPair) -> Result<(), VectorInputError> {
@@ -345,7 +412,7 @@ fn sha256_file(path: &Path) -> Result<String, std::io::Error> {
 fn read_feather(
     path: &Path,
     pair: &VectorPair,
-) -> Result<(Vec<Candle>, BTreeMap<String, FeatureColumn>), VectorInputError> {
+) -> Result<(CandleSeries, BTreeMap<String, FeatureColumn>, u64), VectorInputError> {
     let mut file = File::open(path).map_err(|source| VectorInputError::OpenFeather {
         pair: pair.pair.clone(),
         path: path.to_path_buf(),
@@ -385,37 +452,12 @@ fn read_feather(
     source_indices.sort_unstable();
     source_indices.dedup();
     let reader = FileReader::new(file, metadata, Some(source_indices), None);
-    let projected_positions = reader
-        .schema()
-        .fields
-        .iter()
-        .enumerate()
-        .map(|(index, field)| (field.name.clone(), index))
-        .collect::<BTreeMap<_, _>>();
-    let mut candles = Vec::with_capacity(pair.vector.rows);
-    let mut features = pair
-        .feature_columns
-        .iter()
-        .map(|name| {
-            let index = projected_positions[name];
-            let data_type = &reader.schema().fields[index].data_type;
-            let builder = match data_type {
-                DataType::Boolean => FeatureBuilder::Booleans(Vec::with_capacity(pair.vector.rows)),
-                data_type if is_numeric_type(data_type) => {
-                    FeatureBuilder::Numbers(Vec::with_capacity(pair.vector.rows))
-                }
-                actual => {
-                    return Err(VectorInputError::ColumnType {
-                        pair: pair.pair.clone(),
-                        column: name.clone(),
-                        actual: actual.clone(),
-                        expected: "numeric or boolean",
-                    });
-                }
-            };
-            Ok((name.clone(), builder))
-        })
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    let projected_positions = column_positions(reader.schema());
+    let (feature_kinds, row_stride) = feature_layout(reader.schema(), &projected_positions, pair)?;
+    let mut spool = pair_spool(&pair.pair)?;
+    let mut row_buffer = vec![0_u8; row_stride];
+    let mut tag_ids = BTreeMap::new();
+    let mut tags = Vec::new();
 
     let mut previous_close = None;
     let mut row_offset = 0_usize;
@@ -425,24 +467,112 @@ fn read_feather(
             path: path.to_path_buf(),
             message: error.to_string(),
         })?;
-        append_batch(
+        append_batch_to_spool(
             &batch,
             &projected_positions,
             pair,
             row_offset,
             &mut previous_close,
-            &mut candles,
-            &mut features,
+            &feature_kinds,
+            &mut spool,
+            &mut row_buffer,
+            &mut tag_ids,
+            &mut tags,
         )?;
         row_offset += batch.len();
     }
-    Ok((
-        candles,
-        features
-            .into_iter()
-            .map(|(name, builder)| (name, builder.finish()))
-            .collect(),
-    ))
+    let file_backed_bytes = row_offset
+        .checked_mul(row_stride)
+        .and_then(|value| u64::try_from(value).ok())
+        .ok_or_else(|| VectorInputError::FileBacking {
+            pair: pair.pair.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "pair spool byte count is too large",
+            ),
+        })?;
+    let rows =
+        FileBackedRows::new(spool, row_offset, feature_kinds.len(), tags).map_err(|source| {
+            VectorInputError::FileBacking {
+                pair: pair.pair.clone(),
+                source,
+            }
+        })?;
+    let features = feature_kinds
+        .into_iter()
+        .enumerate()
+        .map(|(feature_index, (name, kind))| {
+            (
+                name,
+                FeatureColumn::file_backed(rows.clone(), feature_index, kind),
+            )
+        })
+        .collect();
+    Ok((CandleSeries::file_backed(rows), features, file_backed_bytes))
+}
+
+fn pair_spool(pair: &str) -> Result<File, VectorInputError> {
+    // OS-local temp avoids the severe random-read penalty of a WSL-mounted
+    // Windows vector directory. Hosts whose temp directory is RAM-backed can
+    // select a disk-backed mount explicitly; the path is configuration, never
+    // a compiled machine assumption.
+    let result = std::env::var_os(SPOOL_DIRECTORY_ENVIRONMENT)
+        .map_or_else(tempfile::tempfile, tempfile::tempfile_in);
+    result.map_err(|source| VectorInputError::FileBacking {
+        pair: pair.to_owned(),
+        source,
+    })
+}
+
+fn column_positions(schema: &Schema) -> BTreeMap<String, usize> {
+    schema
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| (field.name.clone(), index))
+        .collect()
+}
+
+fn feature_layout(
+    schema: &Schema,
+    projected_positions: &BTreeMap<String, usize>,
+    pair: &VectorPair,
+) -> Result<(Vec<(String, FileBackedFeatureKind)>, usize), VectorInputError> {
+    let feature_kinds = pair
+        .feature_columns
+        .iter()
+        .map(|name| {
+            let data_type = &schema.fields[projected_positions[name]].data_type;
+            let kind = match data_type {
+                DataType::Boolean => FileBackedFeatureKind::Boolean,
+                data_type if is_numeric_type(data_type) => FileBackedFeatureKind::Number,
+                actual => {
+                    return Err(VectorInputError::ColumnType {
+                        pair: pair.pair.clone(),
+                        column: name.clone(),
+                        actual: Box::new(actual.clone()),
+                        expected: "numeric or boolean",
+                    });
+                }
+            };
+            Ok((name.clone(), kind))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let feature_bytes = feature_kinds
+        .len()
+        .checked_mul(FILE_BACKED_FEATURE_BYTES)
+        .ok_or_else(|| file_backing_error(&pair.pair, "feature row is too wide"))?;
+    let row_stride = FILE_BACKED_ROW_HEADER_BYTES
+        .checked_add(feature_bytes)
+        .ok_or_else(|| file_backing_error(&pair.pair, "pair row is too wide"))?;
+    Ok((feature_kinds, row_stride))
+}
+
+fn file_backing_error(pair: &str, message: &'static str) -> VectorInputError {
+    VectorInputError::FileBacking {
+        pair: pair.to_owned(),
+        source: std::io::Error::new(std::io::ErrorKind::InvalidData, message),
+    }
 }
 
 fn required_columns(pair: &VectorPair) -> BTreeSet<String> {
@@ -468,72 +598,23 @@ fn required_columns(pair: &VectorPair) -> BTreeSet<String> {
     columns
 }
 
-enum FeatureBuilder {
-    Numbers(Vec<f64>),
-    Booleans(Vec<bool>),
-}
-
-impl FeatureBuilder {
-    fn append(
-        &mut self,
-        array: &dyn Array,
-        row: usize,
-        pair: &str,
-        column: &str,
-        absolute_row: usize,
-    ) -> Result<(), VectorInputError> {
-        match self {
-            Self::Numbers(values) => {
-                // Pandas materializes a nullable Arrow number as NaN, and the
-                // legacy JSON adapter encoded that as `{"$float":"nan"}`.
-                // Preserving the distinction for numeric features is required
-                // by NFI warm-up rows; executable OHLCV and signals still use
-                // the stricter non-null readers below.
-                values.push(if array.is_null(row) {
-                    f64::NAN
-                } else {
-                    required_number(array, row, pair, column, absolute_row)?
-                });
-            }
-            Self::Booleans(values) => {
-                if array.is_null(row) {
-                    return Err(VectorInputError::NullValue {
-                        pair: pair.to_owned(),
-                        column: column.to_owned(),
-                        row: absolute_row,
-                    });
-                }
-                let boolean = array
-                    .as_any()
-                    .downcast_ref::<BooleanArray>()
-                    .expect("feature type was checked against the Arrow schema");
-                values.push(boolean.value(row));
-            }
-        }
-        Ok(())
-    }
-
-    fn finish(self) -> FeatureColumn {
-        match self {
-            Self::Numbers(values) => FeatureColumn::numbers(values),
-            Self::Booleans(values) => FeatureColumn::booleans(values),
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 // Keeping one row constructor makes the signal timing and shared tag/reason
 // order directly reviewable against the two legacy Python adapter loops.
-fn append_batch(
+fn append_batch_to_spool(
     batch: &Chunk<Box<dyn Array>>,
     positions: &BTreeMap<String, usize>,
     pair: &VectorPair,
     row_offset: usize,
     previous_close: &mut Option<f64>,
-    candles: &mut Vec<Candle>,
-    features: &mut BTreeMap<String, FeatureBuilder>,
+    feature_kinds: &[(String, FileBackedFeatureKind)],
+    spool: &mut File,
+    row_buffer: &mut [u8],
+    tag_ids: &mut BTreeMap<String, u32>,
+    tags: &mut Vec<String>,
 ) -> Result<(), VectorInputError> {
     for row in 0..batch.len() {
+        row_buffer.fill(0);
         let absolute_row = row_offset + row;
         let timestamp_ms = required_timestamp_ms(
             column(batch, positions, "date"),
@@ -617,7 +698,6 @@ fn append_batch(
                 "nfi_exec_exit_short",
                 absolute_row,
             )?;
-        let exit_reason = exit_tag.unwrap_or_else(|| "exit_signal".to_owned());
         let funding_rate = pair
             .include_funding
             .enabled()
@@ -646,51 +726,125 @@ fn append_batch(
             })
             .transpose()?
             .flatten();
-        candles.push(Candle {
-            timestamp_ms,
-            open,
-            high,
-            low,
-            close,
-            volume,
-            previous_close: pair
-                .include_previous_close
-                .enabled()
-                .then_some(*previous_close)
-                .flatten(),
-            enter_long: enter_long.then(|| entry_signal(entry_tag.clone())),
-            enter_short: enter_short.then(|| entry_signal(entry_tag)),
-            exit_long: exit_long.then(|| ExitSignal {
-                reason: exit_reason.clone(),
-            }),
-            exit_short: exit_short.then_some(ExitSignal {
-                reason: exit_reason,
-            }),
-            funding_rate,
-            funding_mark_price,
-            adjustment: None::<AdjustmentSignal>,
-        });
+        let prior_close = pair
+            .include_previous_close
+            .enabled()
+            .then_some(*previous_close)
+            .flatten();
+        let mut flags = 0_u8;
+        set_flag(&mut flags, 0, prior_close.is_some());
+        set_flag(&mut flags, 1, funding_rate.is_some());
+        set_flag(&mut flags, 2, funding_mark_price.is_some());
+        set_flag(&mut flags, 3, enter_long);
+        set_flag(&mut flags, 4, enter_short);
+        set_flag(&mut flags, 5, exit_long);
+        set_flag(&mut flags, 6, exit_short);
+        put_i64(row_buffer, 0, timestamp_ms);
+        put_f64(row_buffer, 8, open);
+        put_f64(row_buffer, 16, high);
+        put_f64(row_buffer, 24, low);
+        put_f64(row_buffer, 32, close);
+        put_f64(row_buffer, 40, volume);
+        put_f64(row_buffer, 48, prior_close.unwrap_or_default());
+        put_f64(row_buffer, 56, funding_rate.unwrap_or_default());
+        put_f64(row_buffer, 64, funding_mark_price.unwrap_or_default());
+        row_buffer[72] = flags;
+        put_u32(
+            row_buffer,
+            73,
+            dictionary_id(entry_tag.as_deref(), tag_ids, tags, &pair.pair)?,
+        );
+        put_u32(
+            row_buffer,
+            77,
+            dictionary_id(exit_tag.as_deref(), tag_ids, tags, &pair.pair)?,
+        );
         *previous_close = Some(close);
 
-        for (name, builder) in features.iter_mut() {
-            builder.append(
-                column(batch, positions, name),
-                row,
-                &pair.pair,
-                name,
-                absolute_row,
-            )?;
+        for (feature_index, (name, kind)) in feature_kinds.iter().enumerate() {
+            let array = column(batch, positions, name);
+            let value = match kind {
+                FileBackedFeatureKind::Number => {
+                    // Pandas materializes nullable numeric Arrow values as
+                    // NaN. Preserve that exact callback-visible warm-up value.
+                    if array.is_null(row) {
+                        f64::NAN
+                    } else {
+                        required_number(array, row, &pair.pair, name, absolute_row)?
+                    }
+                }
+                FileBackedFeatureKind::Boolean => {
+                    if array.is_null(row) {
+                        return Err(VectorInputError::NullValue {
+                            pair: pair.pair.clone(),
+                            column: name.clone(),
+                            row: absolute_row,
+                        });
+                    }
+                    let boolean = array
+                        .as_any()
+                        .downcast_ref::<BooleanArray>()
+                        .expect("feature type was checked against the Arrow schema");
+                    f64::from(u8::from(boolean.value(row)))
+                }
+            };
+            put_f64(
+                row_buffer,
+                FILE_BACKED_ROW_HEADER_BYTES + feature_index * FILE_BACKED_FEATURE_BYTES,
+                value,
+            );
         }
+        spool
+            .write_all(row_buffer)
+            .map_err(|source| VectorInputError::FileBacking {
+                pair: pair.pair.clone(),
+                source,
+            })?;
     }
     Ok(())
 }
 
-fn entry_signal(tag: Option<String>) -> EntrySignal {
-    EntrySignal {
-        tag,
-        leverage: None,
-        liquidation_price: None,
+fn dictionary_id(
+    value: Option<&str>,
+    ids: &mut BTreeMap<String, u32>,
+    values: &mut Vec<String>,
+    pair: &str,
+) -> Result<u32, VectorInputError> {
+    let Some(value) = value else {
+        return Ok(0);
+    };
+    if let Some(existing) = ids.get(value) {
+        return Ok(*existing);
     }
+    let identifier =
+        u32::try_from(values.len() + 1).map_err(|_| VectorInputError::FileBacking {
+            pair: pair.to_owned(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "pair tag dictionary exceeds its row schema",
+            ),
+        })?;
+    ids.insert(value.to_owned(), identifier);
+    values.push(value.to_owned());
+    Ok(identifier)
+}
+
+const fn set_flag(flags: &mut u8, bit: u8, enabled: bool) {
+    if enabled {
+        *flags |= 1 << bit;
+    }
+}
+
+fn put_i64(row: &mut [u8], offset: usize, value: i64) {
+    row[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+}
+
+fn put_u32(row: &mut [u8], offset: usize, value: u32) {
+    row[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+fn put_f64(row: &mut [u8], offset: usize, value: f64) {
+    row[offset..offset + 8].copy_from_slice(&value.to_bits().to_le_bytes());
 }
 
 fn column<'a>(
@@ -731,7 +885,7 @@ fn required_timestamp_ms(
         .ok_or_else(|| VectorInputError::ColumnType {
             pair: pair.to_owned(),
             column: column.to_owned(),
-            actual: array.data_type().clone(),
+            actual: Box::new(array.data_type().clone()),
             expected: "Arrow timestamp",
         })?
         .value(row);
@@ -746,7 +900,7 @@ fn required_timestamp_ms(
                 .ok_or_else(|| VectorInputError::ColumnType {
                     pair: pair.to_owned(),
                     column: column.to_owned(),
-                    actual: array.data_type().clone(),
+                    actual: Box::new(array.data_type().clone()),
                     expected: "timestamp representable in milliseconds",
                 })
         }
@@ -756,7 +910,7 @@ fn required_timestamp_ms(
         actual => Err(VectorInputError::ColumnType {
             pair: pair.to_owned(),
             column: column.to_owned(),
-            actual: actual.clone(),
+            actual: Box::new(actual.clone()),
             expected: "Arrow timestamp",
         }),
     }
@@ -794,7 +948,7 @@ fn required_number(
             return Err(VectorInputError::ColumnType {
                 pair: pair.to_owned(),
                 column: column.to_owned(),
-                actual: actual.clone(),
+                actual: Box::new(actual.clone()),
                 expected: "numeric",
             });
         }
@@ -878,7 +1032,7 @@ fn optional_text(
             return Err(VectorInputError::ColumnType {
                 pair: pair.to_owned(),
                 column: column.to_owned(),
-                actual: actual.clone(),
+                actual: Box::new(actual.clone()),
                 expected: "UTF-8 string",
             });
         }

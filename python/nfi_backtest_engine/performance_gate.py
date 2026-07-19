@@ -16,7 +16,7 @@ from .canonical import read_json, write_json
 from .engine_runtime import build_engine
 from .errors import BenchmarkError
 from .fixture import sha256_file, validate_fixture
-from .hardware import GIB, inspect_hardware, load_execution_profile
+from .hardware import current_resource_limits, inspect_hardware, load_execution_profile
 from .product_contract import (
     MIN_RELEASE_BACKTEST_DAYS,
     MIN_RELEASE_PAIR_COUNT,
@@ -108,13 +108,24 @@ def run_performance_gate(
         / engine_summary["wall_time_seconds"]["median"]
     )
     representative = _representative_scope(manifest_file, manifest)
-    memory_limit = profile["tuning"]["working_memory_bytes"] if profile is not None else 8 * GIB
+    measured_hardware = inspect_hardware()
+    memory_limit = (
+        int(current_resource_limits(profile, hardware=measured_hardware)["working_memory_bytes"])
+        if profile is not None
+        else int(measured_hardware["memory"]["available_bytes"])
+    )
     parity_complete = all(
         run["exit_code"] == 0 and run["report"] is not None and run["report"]["complete"]
         for run in [*engine_runs, *reference_runs]
     )
     speed_target_met = speedup >= TARGET_SCREENING_SPEEDUP
     memory_target_met = engine_summary["peak_rss_bytes"]["maximum"] <= memory_limit
+    complete, release_certified = _certification_verdict(
+        representative=representative["eligible"],
+        parity=parity_complete,
+        speed=speed_target_met,
+        memory=memory_target_met,
+    )
     report = {
         "schema_version": "1.0.0",
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -124,7 +135,7 @@ def run_performance_gate(
         "verification_level": verification_level,
         "repetitions": repetitions,
         "measurement_order": "engine_then_reference",
-        "hardware": inspect_hardware(),
+        "hardware": measured_hardware,
         "execution_profile": (
             {
                 "path": str(profile_file),
@@ -164,10 +175,23 @@ def run_performance_gate(
             },
         },
         "claim_scope": representative,
-        "complete": parity_complete,
+        "release_certified": release_certified,
+        "complete": complete,
     }
     write_json(output / "performance.json", report)
     return report
+
+
+def _certification_verdict(
+    *,
+    representative: bool,
+    parity: bool,
+    speed: bool,
+    memory: bool,
+) -> tuple[bool, bool]:
+    """Separate a completed diagnostic from release-grade certification."""
+    complete = parity and memory and (speed if representative else True)
+    return complete, representative and complete
 
 
 def _measure_cli(

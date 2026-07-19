@@ -2,6 +2,20 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## Unreleased
+
+## 0.5.0 - 2026-07-20
+
+- Replaced fixed per-worker memory assumptions and reserve percentages with a
+  content-bound full-timerange probe, OS-native peak RSS, and live admission against
+  current free memory, CPU affinity, and explicit user caps.
+- Added aggregate Rust phase profiles without changing result bytes.
+- Added a SHA-verified row spool for Feather vectors so multi-pair, multi-year engine
+  memory no longer duplicates every candle and callback feature in heap memory.
+- Added `--recalibrate` and an optional disk-backed `--spool-directory`, while keeping
+  the useful calibration pair output and invalidating measurements when workload or
+  hardware identity changes.
+
 ## 0.4.0 - 2026-07-19
 
 - Established the moving-target product contract: current NFI source in, five complete

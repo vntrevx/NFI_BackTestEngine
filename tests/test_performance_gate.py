@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from nfi_backtest_engine.canonical import write_json
-from nfi_backtest_engine.performance_gate import _representative_scope
+from nfi_backtest_engine.performance_gate import (
+    _certification_verdict,
+    _representative_scope,
+)
 
 
 def _manifest(tmp_path: Path, timerange: str, pair_count: int) -> tuple[Path, dict]:
@@ -40,3 +43,27 @@ def test_three_year_fixture_remains_diagnostic_only(tmp_path: Path) -> None:
 
     assert scope["eligible"] is False
     assert scope["label"] == "fixture-diagnostic-only"
+
+
+def test_representative_gate_cannot_pass_on_parity_alone() -> None:
+    complete, certified = _certification_verdict(
+        representative=True,
+        parity=True,
+        speed=False,
+        memory=True,
+    )
+
+    assert complete is False
+    assert certified is False
+
+
+def test_short_diagnostic_can_complete_without_becoming_release_evidence() -> None:
+    complete, certified = _certification_verdict(
+        representative=False,
+        parity=True,
+        speed=False,
+        memory=True,
+    )
+
+    assert complete is True
+    assert certified is False

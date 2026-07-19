@@ -38,15 +38,40 @@ def test_single_batch_job_uses_hardware_worker_budget(monkeypatch, tmp_path: Pat
         batch_runner,
         "ensure_execution_profile",
         lambda *a, **k: {
+            "schema_version": "2.0.0",
+            "created_at": "2026-01-01T00:00:00Z",
             "hardware_fingerprint": "hardware",
-            "tuning": {
-                "independent_research_jobs": 3,
-                "independent_engine_jobs": 3,
-                "indicator_processes": 6,
-                "nested_numeric_threads": 1,
-                "working_memory_bytes": 12 * 1024**3,
-                "assumed_indicator_worker_peak_bytes": 2 * 1024**3,
+            "hardware": {
+                "platform": "test",
+                "machine": "x86_64",
+                "cpu_name": "test",
+                "physical_cpu_count": 6,
+                "logical_cpu_count": 6,
+                "affinity_cpu_count": 6,
+                "affinity_cpu_ids": list(range(6)),
+                "memory": {
+                    "total_bytes": 16 * 1024**3,
+                    "available_bytes": 12 * 1024**3,
+                },
             },
+            "limits": {
+                "memory_cap_bytes": 12 * 1024**3,
+                "cpu_process_limit": 6,
+            },
+            "runtime": {
+                "portfolio_simulator_threads": 1,
+                "nested_numeric_threads": 1,
+            },
+            "environment": {"OMP_NUM_THREADS": "1"},
+        },
+    )
+    monkeypatch.setattr(
+        batch_runner,
+        "current_resource_limits",
+        lambda _profile: {
+            "memory_cap_bytes": 12 * 1024**3,
+            "working_memory_bytes": 12 * 1024**3,
+            "cpu_process_limit": 6,
         },
     )
 
@@ -82,25 +107,33 @@ def test_single_batch_job_uses_hardware_worker_budget(monkeypatch, tmp_path: Pat
     assert captured["strategy_path"] == str(strategy.resolve())
 
 
-def test_parallel_plan_splits_one_physical_budget_across_candidate_processes() -> None:
+def test_uncalibrated_candidates_start_with_one_coordinator(monkeypatch) -> None:
     profile = {
-        "tuning": {
-            "independent_research_jobs": 4,
-            "indicator_processes": 8,
+        "schema_version": "2.0.0",
+        "created_at": "2026-01-01T00:00:00Z",
+        "hardware_fingerprint": "ignored-by-monkeypatch",
+        "hardware": {},
+        "limits": {"memory_cap_bytes": None, "cpu_process_limit": 8},
+        "runtime": {
+            "portfolio_simulator_threads": 1,
             "nested_numeric_threads": 1,
-            "working_memory_bytes": 24 * 1024**3,
-            "assumed_indicator_worker_peak_bytes": 3 * 1024**3,
-        }
+        },
+        "environment": {"OMP_NUM_THREADS": "1"},
     }
-
+    limits = {
+        "memory_cap_bytes": None,
+        "working_memory_bytes": 24 * 1024**3,
+        "cpu_process_limit": 8,
+    }
+    monkeypatch.setattr(batch_runner, "current_resource_limits", lambda _profile: limits)
     plan = batch_runner._parallelism_plan(profile, job_count=10, max_jobs=4)
 
     assert plan == {
         "process_start_method": "spawn",
-        "parallel_job_processes": 4,
-        "indicator_processes_per_job": 2,
+        "parallel_job_processes": 1,
+        "indicator_processes_per_job": 8,
         "maximum_indicator_processes": 8,
         "nested_numeric_threads_per_process": 1,
         "working_memory_bytes": 24 * 1024**3,
-        "assumed_indicator_worker_peak_bytes": 3 * 1024**3,
+        "admission": "serial-until-workload-calibrated",
     }

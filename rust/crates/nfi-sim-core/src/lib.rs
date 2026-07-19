@@ -3,9 +3,16 @@
 //! Signals cross this boundary as complete arrays. The core never calls Python
 //! per candle and never simulates pairs independently before merging results.
 
+use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use num_bigint::BigInt;
 use num_rational::BigRational;
@@ -26,6 +33,13 @@ use nfi_rebuy::{evaluate_nfi_rebuy_adjustment, evaluate_nfi_short_rebuy_adjustme
 pub const TRADE_SURFACE_SCHEMA_VERSION: &str = "2.0.0";
 /// Version of the simulator input/result contract.
 pub const SIMULATOR_SCHEMA_VERSION: &str = "1.0.0";
+/// Bytes before the first feature in one file-backed vector row.
+///
+/// This is a transport boundary shared with `nfi-vector-io`, not a tuning
+/// value. Changing it requires a new row schema and an explicit decoder.
+pub const FILE_BACKED_ROW_HEADER_BYTES: usize = 81;
+/// Width of one normalized numeric or boolean feature in a file-backed row.
+pub const FILE_BACKED_FEATURE_BYTES: usize = std::mem::size_of::<f64>();
 
 const fn default_amount_reserve_percent() -> f64 {
     0.05
@@ -507,7 +521,7 @@ pub struct PairSeries {
     /// dozens of informative-timeframe features.
     #[serde(default)]
     pub feature_columns: BTreeMap<String, FeatureColumn>,
-    pub candles: Vec<Candle>,
+    pub candles: CandleSeries,
 }
 
 /// One homogeneous strategy dataframe column.
@@ -521,6 +535,11 @@ pub struct PairSeries {
 pub enum FeatureColumn {
     Numbers(Vec<f64>),
     Booleans(Vec<bool>),
+    FileBacked {
+        rows: Rc<FileBackedRows>,
+        feature_index: usize,
+        kind: FileBackedFeatureKind,
+    },
 }
 
 impl FeatureColumn {
@@ -535,10 +554,24 @@ impl FeatureColumn {
     }
 
     #[must_use]
+    pub fn file_backed(
+        rows: Rc<FileBackedRows>,
+        feature_index: usize,
+        kind: FileBackedFeatureKind,
+    ) -> Self {
+        Self::FileBacked {
+            rows,
+            feature_index,
+            kind,
+        }
+    }
+
+    #[must_use]
     pub fn len(&self) -> usize {
         match self {
             Self::Numbers(values) => values.len(),
             Self::Booleans(values) => values.len(),
+            Self::FileBacked { rows, .. } => rows.len(),
         }
     }
 
@@ -551,20 +584,50 @@ impl FeatureColumn {
         match self {
             Self::Numbers(values) => scalar_number_value(*values.get(index)?),
             Self::Booleans(values) => values.get(index).copied().map(Value::Bool),
+            Self::FileBacked {
+                rows,
+                feature_index,
+                kind,
+            } => match kind {
+                FileBackedFeatureKind::Number => {
+                    scalar_number_value(rows.feature_number(index, *feature_index)?)
+                }
+                FileBackedFeatureKind::Boolean => {
+                    rows.feature_boolean(index, *feature_index).map(Value::Bool)
+                }
+            },
         }
     }
 
     fn number(&self, index: usize) -> Option<f64> {
         match self {
             Self::Numbers(values) => values.get(index).copied(),
-            Self::Booleans(_) => None,
+            Self::Booleans(_)
+            | Self::FileBacked {
+                kind: FileBackedFeatureKind::Boolean,
+                ..
+            } => None,
+            Self::FileBacked {
+                rows,
+                feature_index,
+                kind: FileBackedFeatureKind::Number,
+            } => rows.feature_number(index, *feature_index),
         }
     }
 
     fn boolean(&self, index: usize) -> Option<bool> {
         match self {
             Self::Booleans(values) => values.get(index).copied(),
-            Self::Numbers(_) => None,
+            Self::Numbers(_)
+            | Self::FileBacked {
+                kind: FileBackedFeatureKind::Number,
+                ..
+            } => None,
+            Self::FileBacked {
+                rows,
+                feature_index,
+                kind: FileBackedFeatureKind::Boolean,
+            } => rows.feature_boolean(index, *feature_index),
         }
     }
 }
@@ -645,6 +708,326 @@ pub struct Candle {
     pub adjustment: Option<AdjustmentSignal>,
 }
 
+/// Type of one normalized feature in the row-oriented file backing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileBackedFeatureKind {
+    Number,
+    Boolean,
+}
+
+/// Candle storage accepted by the simulator.
+///
+/// JSON fixtures remain ordinary owned vectors. Feather input is normalized
+/// into a private, file-backed row spool so five-year workloads retain only
+/// one decoded row per pair in heap memory.
+#[derive(Debug, Clone)]
+pub enum CandleSeries {
+    Owned(Vec<Candle>),
+    FileBacked(Rc<FileBackedRows>),
+}
+
+impl CandleSeries {
+    #[must_use]
+    pub fn file_backed(rows: Rc<FileBackedRows>) -> Self {
+        Self::FileBacked(rows)
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Owned(candles) => candles.len(),
+            Self::FileBacked(rows) => rows.len(),
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    #[must_use]
+    pub fn get(&self, index: usize) -> Option<Cow<'_, Candle>> {
+        match self {
+            Self::Owned(candles) => candles.get(index).map(Cow::Borrowed),
+            Self::FileBacked(rows) => rows.candle(index).map(Cow::Owned),
+        }
+    }
+
+    #[must_use]
+    pub fn timestamp_ms(&self, index: usize) -> Option<i64> {
+        match self {
+            Self::Owned(candles) => candles.get(index).map(|candle| candle.timestamp_ms),
+            Self::FileBacked(rows) => rows.timestamp_ms(index),
+        }
+    }
+
+    #[must_use]
+    pub fn last(&self) -> Option<Cow<'_, Candle>> {
+        self.len().checked_sub(1).and_then(|index| self.get(index))
+    }
+
+    #[must_use]
+    pub fn iter(&self) -> CandleSeriesIter<'_> {
+        CandleSeriesIter {
+            series: self,
+            index: 0,
+        }
+    }
+}
+
+impl From<Vec<Candle>> for CandleSeries {
+    fn from(value: Vec<Candle>) -> Self {
+        Self::Owned(value)
+    }
+}
+
+impl<'de> Deserialize<'de> for CandleSeries {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Vec::<Candle>::deserialize(deserializer).map(Self::Owned)
+    }
+}
+
+pub struct CandleSeriesIter<'a> {
+    series: &'a CandleSeries,
+    index: usize,
+}
+
+impl<'a> Iterator for CandleSeriesIter<'a> {
+    type Item = Cow<'a, Candle>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let candle = self.series.get(self.index)?;
+        self.index += 1;
+        Some(candle)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.series.len().saturating_sub(self.index);
+        (remaining, Some(remaining))
+    }
+}
+
+impl ExactSizeIterator for CandleSeriesIter<'_> {}
+
+impl<'a> IntoIterator for &'a CandleSeries {
+    type Item = Cow<'a, Candle>;
+    type IntoIter = CandleSeriesIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+struct FileBackedState {
+    file: File,
+    cached_index: Option<usize>,
+    row: Vec<u8>,
+}
+
+/// Shared safe file reader for one normalized pair.
+///
+/// The file is created privately by the verified Arrow boundary and remains
+/// open for this object's lifetime. `RefCell` is deliberate: the simulator's
+/// chronological event loop is single-threaded, while pair preparation is
+/// parallelized before this boundary.
+pub struct FileBackedRows {
+    state: RefCell<FileBackedState>,
+    row_count: usize,
+    row_stride: usize,
+    feature_count: usize,
+    tags: Vec<String>,
+}
+
+impl fmt::Debug for FileBackedRows {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("FileBackedRows")
+            .field("row_count", &self.row_count)
+            .field("row_stride", &self.row_stride)
+            .field("feature_count", &self.feature_count)
+            .field("tag_count", &self.tags.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl FileBackedRows {
+    /// Open a verified fixed-width pair spool.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the spool length does not match the declared
+    /// row and feature counts or if its length cannot be represented safely.
+    pub fn new(
+        mut file: File,
+        row_count: usize,
+        feature_count: usize,
+        tags: Vec<String>,
+    ) -> Result<Rc<Self>, std::io::Error> {
+        let feature_bytes = feature_count
+            .checked_mul(FILE_BACKED_FEATURE_BYTES)
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "feature row is too wide")
+            })?;
+        let row_stride = FILE_BACKED_ROW_HEADER_BYTES
+            .checked_add(feature_bytes)
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, "pair row is too wide")
+            })?;
+        let expected_bytes = row_count.checked_mul(row_stride).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "pair spool is too large")
+        })?;
+        let actual_bytes = file.seek(SeekFrom::End(0))?;
+        if actual_bytes != u64::try_from(expected_bytes).unwrap_or(u64::MAX) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "pair spool length mismatch: expected {expected_bytes}, got {actual_bytes}"
+                ),
+            ));
+        }
+        file.seek(SeekFrom::Start(0))?;
+        Ok(Rc::new(Self {
+            state: RefCell::new(FileBackedState {
+                file,
+                cached_index: None,
+                row: vec![0; row_stride],
+            }),
+            row_count,
+            row_stride,
+            feature_count,
+            tags,
+        }))
+    }
+
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.row_count
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.row_count == 0
+    }
+
+    fn with_row<T>(&self, index: usize, read: impl FnOnce(&[u8]) -> T) -> Option<T> {
+        if index >= self.row_count {
+            return None;
+        }
+        let mut state = self.state.borrow_mut();
+        if state.cached_index != Some(index) {
+            let offset = index
+                .checked_mul(self.row_stride)
+                .and_then(|value| u64::try_from(value).ok())
+                .expect("validated pair spool offset remains representable");
+            {
+                let FileBackedState { file, row, .. } = &mut *state;
+                file.seek(SeekFrom::Start(offset))
+                    .and_then(|_| file.read_exact(row))
+                    .expect("private verified pair spool remains readable");
+            }
+            state.cached_index = Some(index);
+        }
+        Some(read(&state.row))
+    }
+
+    fn candle(&self, index: usize) -> Option<Candle> {
+        self.with_row(index, |row| {
+            let flags = row[72];
+            let entry_tag = self.tag(read_u32(row, 73));
+            let exit_tag = self.tag(read_u32(row, 77));
+            let exit_reason = || exit_tag.clone().unwrap_or_else(|| "exit_signal".to_owned());
+            Candle {
+                timestamp_ms: read_i64(row, 0),
+                open: read_f64(row, 8),
+                high: read_f64(row, 16),
+                low: read_f64(row, 24),
+                close: read_f64(row, 32),
+                volume: read_f64(row, 40),
+                previous_close: flag(flags, 0).then(|| read_f64(row, 48)),
+                enter_long: flag(flags, 3).then(|| EntrySignal {
+                    tag: entry_tag.clone(),
+                    leverage: None,
+                    liquidation_price: None,
+                }),
+                enter_short: flag(flags, 4).then_some(EntrySignal {
+                    tag: entry_tag,
+                    leverage: None,
+                    liquidation_price: None,
+                }),
+                exit_long: flag(flags, 5).then(|| ExitSignal {
+                    reason: exit_reason(),
+                }),
+                exit_short: flag(flags, 6).then(|| ExitSignal {
+                    reason: exit_reason(),
+                }),
+                funding_rate: flag(flags, 1).then(|| read_f64(row, 56)),
+                funding_mark_price: flag(flags, 2).then(|| read_f64(row, 64)),
+                adjustment: None,
+            }
+        })
+    }
+
+    fn timestamp_ms(&self, index: usize) -> Option<i64> {
+        self.with_row(index, |row| read_i64(row, 0))
+    }
+
+    fn feature_number(&self, row_index: usize, feature_index: usize) -> Option<f64> {
+        if feature_index >= self.feature_count {
+            return None;
+        }
+        self.with_row(row_index, |row| {
+            read_f64(
+                row,
+                FILE_BACKED_ROW_HEADER_BYTES + feature_index * FILE_BACKED_FEATURE_BYTES,
+            )
+        })
+    }
+
+    fn feature_boolean(&self, row_index: usize, feature_index: usize) -> Option<bool> {
+        self.feature_number(row_index, feature_index)
+            .map(|value| value != 0.0)
+    }
+
+    fn tag(&self, encoded: u32) -> Option<String> {
+        encoded
+            .checked_sub(1)
+            .and_then(|index| usize::try_from(index).ok())
+            .and_then(|index| self.tags.get(index))
+            .cloned()
+    }
+}
+
+const fn flag(flags: u8, bit: u8) -> bool {
+    flags & (1 << bit) != 0
+}
+
+fn read_i64(row: &[u8], offset: usize) -> i64 {
+    i64::from_le_bytes(
+        row[offset..offset + 8]
+            .try_into()
+            .expect("validated row scalar width"),
+    )
+}
+
+fn read_u32(row: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes(
+        row[offset..offset + 4]
+            .try_into()
+            .expect("validated row scalar width"),
+    )
+}
+
+fn read_f64(row: &[u8], offset: usize) -> f64 {
+    f64::from_bits(u64::from_le_bytes(
+        row[offset..offset + 8]
+            .try_into()
+            .expect("validated row scalar width"),
+    ))
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EntrySignal {
@@ -678,6 +1061,21 @@ pub struct SimulationResult {
     pub rejected_signals: u64,
     pub maximum_concurrent_trades: usize,
     pub trades: Vec<ClosedTrade>,
+}
+
+/// Aggregate hot-loop measurements emitted separately from financial results.
+///
+/// Keeping this record outside [`SimulationResult`] preserves the exact public
+/// trade-surface bytes while allowing representative runs to locate real
+/// bottlenecks without per-candle logging.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct SimulationProfile {
+    pub schema_version: &'static str,
+    pub validation_ns: u64,
+    pub event_loop_ns: u64,
+    pub finalization_ns: u64,
+    pub timestamp_batches: u64,
+    pub pair_events: u64,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -930,12 +1328,48 @@ pub fn simulate(input: &SimulationInput) -> Result<SimulationResult, SimError> {
 #[allow(clippy::if_not_else, clippy::too_many_lines)]
 pub fn simulate_with_observer<F>(
     input: &SimulationInput,
-    mut observer: F,
+    observer: F,
 ) -> Result<SimulationResult, SimError>
 where
     F: FnMut(&SimulationEvent),
 {
+    simulate_with_observer_profiled(input, observer).map(|(result, _)| result)
+}
+
+/// Run the simulator and return aggregate phase timings beside the result.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_profiled(
+    input: &SimulationInput,
+) -> Result<(SimulationResult, SimulationProfile), SimError> {
+    simulate_with_observer_profiled(input, |_| {})
+}
+
+/// Run with an observer and return aggregate phase timings.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+///
+/// # Panics
+///
+/// Has the same internal invariant boundary as [`simulate`].
+#[allow(clippy::if_not_else, clippy::too_many_lines)]
+pub fn simulate_with_observer_profiled<F>(
+    input: &SimulationInput,
+    mut observer: F,
+) -> Result<(SimulationResult, SimulationProfile), SimError>
+where
+    F: FnMut(&SimulationEvent),
+{
+    let validation_started = Instant::now();
     validate_input(input)?;
+    let validation_ns = duration_ns(validation_started.elapsed());
+    let event_loop_started = Instant::now();
+    let mut timestamp_batches = 0_u64;
+    let mut pair_events = 0_u64;
     let config = &input.config;
     // Each pair may retain a different amount of startup context. Initializing
     // from the sealed boundary excludes those rows from global time ordering,
@@ -955,14 +1389,17 @@ where
     let mut profit_targets: BTreeMap<String, ProfitTarget> = BTreeMap::new();
 
     while let Some(timestamp_ms) = next_timestamp(&input.pairs, &cursors) {
+        timestamp_batches += 1;
         for (pair_index, pair) in input.pairs.iter().enumerate() {
             let cursor = cursors[pair_index];
-            let Some(candle) = pair.candles.get(cursor) else {
+            let Some(candle_storage) = pair.candles.get(cursor) else {
                 continue;
             };
+            let candle = candle_storage.as_ref();
             if candle.timestamp_ms != timestamp_ms {
                 continue;
             }
+            pair_events += 1;
 
             let existing_trade_index = open_trades
                 .iter()
@@ -1209,6 +1646,8 @@ where
         }
     }
 
+    let event_loop_ns = duration_ns(event_loop_started.elapsed());
+    let finalization_started = Instant::now();
     for trade in open_trades {
         let last = input.pairs[trade.pair_index]
             .candles
@@ -1252,7 +1691,7 @@ where
     // that second reduction boundary: flattening all orders is observably
     // different even when every order itself already matches.
     let total_volume = python_float_sum(per_trade_volumes);
-    Ok(SimulationResult {
+    let result = SimulationResult {
         schema_version: SIMULATOR_SCHEMA_VERSION,
         starting_balance: config.starting_balance,
         final_balance: available_balance,
@@ -1261,7 +1700,20 @@ where
         rejected_signals,
         maximum_concurrent_trades,
         trades: closed_trades,
-    })
+    };
+    let profile = SimulationProfile {
+        schema_version: "1.0.0",
+        validation_ns,
+        event_loop_ns,
+        finalization_ns: duration_ns(finalization_started.elapsed()),
+        timestamp_batches,
+        pair_events,
+    };
+    Ok((result, profile))
+}
+
+fn duration_ns(duration: Duration) -> u64 {
+    u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX)
 }
 
 fn simulation_event(
@@ -2288,7 +2740,7 @@ fn validate_pair_series(pair_index: usize, pair: &PairSeries) -> Result<(), SimE
             });
         }
         previous = Some(candle.timestamp_ms);
-        validate_candle(pair, index, candle)?;
+        validate_candle(pair, index, &candle)?;
     }
     Ok(())
 }
@@ -2366,8 +2818,7 @@ fn next_timestamp(pairs: &[PairSeries], cursors: &[usize]) -> Option<i64> {
     pairs
         .iter()
         .zip(cursors)
-        .filter_map(|(pair, cursor)| pair.candles.get(*cursor))
-        .map(|candle| candle.timestamp_ms)
+        .filter_map(|(pair, cursor)| pair.candles.timestamp_ms(*cursor))
         .min()
 }
 
@@ -4714,7 +5165,7 @@ fn evaluate_nfi_short_exit(
             CustomExitDecision::Exit(reason) => {
                 return Some(CustomExitDecision::Exit(reason));
             }
-            CustomExitDecision::NoExit => continue,
+            CustomExitDecision::NoExit => {}
         }
     }
     matched.then_some(CustomExitDecision::NoExit)
@@ -6523,7 +6974,7 @@ mod tests {
                     (name, column)
                 })
                 .collect(),
-            candles,
+            candles: candles.into(),
         }
     }
 
@@ -6647,7 +7098,7 @@ mod tests {
                     minimum_amount: None,
                     minimum_cost: None,
                     feature_columns: BTreeMap::new(),
-                    candles: vec![first, candle(2, 100.0, 100.0)],
+                    candles: vec![first, candle(2, 100.0, 100.0)].into(),
                 },
                 PairSeries {
                     pair: "BBB/USDT".to_owned(),
@@ -6659,7 +7110,7 @@ mod tests {
                     minimum_amount: None,
                     minimum_cost: None,
                     feature_columns: BTreeMap::new(),
-                    candles: vec![second, candle(2, 100.0, 100.0)],
+                    candles: vec![second, candle(2, 100.0, 100.0)].into(),
                 },
             ],
         };
@@ -6669,6 +7120,39 @@ mod tests {
         assert_eq!(result.trades.len(), 1);
         assert_eq!(result.trades[0].pair, "AAA/USDT");
         assert_eq!(result.rejected_signals, 1);
+    }
+
+    #[test]
+    fn profiled_simulation_preserves_result_and_counts_only_visible_rows() {
+        let mut first = candle(1, 100.0, 100.0);
+        first.enter_long = Some(EntrySignal {
+            tag: Some("entry".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: config(1),
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT".to_owned(),
+                execution_start_index: 1,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![candle(0, 100.0, 100.0), first, candle(2, 101.0, 101.0)].into(),
+            }],
+        };
+
+        let ordinary = simulate(&input).expect("valid ordinary simulation");
+        let (profiled, profile) = simulate_profiled(&input).expect("valid profiled simulation");
+
+        assert_eq!(profiled, ordinary);
+        assert_eq!(profile.timestamp_batches, 2);
+        assert_eq!(profile.pair_events, 2);
     }
 
     #[test]
@@ -6692,7 +7176,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![boundary],
+                candles: vec![boundary].into(),
             }],
         };
 
@@ -6729,7 +7213,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![context, executable, candle(3, 101.0, 101.0)],
+                candles: vec![context, executable, candle(3, 101.0, 101.0)].into(),
             }],
         };
 
@@ -6756,7 +7240,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![candle(1, 100.0, 100.0)],
+                candles: vec![candle(1, 100.0, 100.0)].into(),
             }],
         };
 
@@ -7565,7 +8049,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, adjustment, stop],
+                candles: vec![entry, adjustment, stop].into(),
             }],
         };
 
@@ -7609,7 +8093,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, derisk, exit],
+                candles: vec![entry, derisk, exit].into(),
             }],
         };
 
@@ -7648,7 +8132,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, exit],
+                candles: vec![entry, exit].into(),
             }],
         };
 
@@ -7684,7 +8168,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, exit],
+                candles: vec![entry, exit].into(),
             }],
         };
 
@@ -7748,7 +8232,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, exit],
+                candles: vec![entry, exit].into(),
             }],
         };
 
@@ -7824,7 +8308,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, adjustment, exit],
+                candles: vec![entry, adjustment, exit].into(),
             }],
         };
 
@@ -7905,7 +8389,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, adjustment, exit],
+                candles: vec![entry, adjustment, exit].into(),
             }],
         };
 
@@ -7946,7 +8430,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, exit],
+                candles: vec![entry, exit].into(),
             }],
         };
 
@@ -8004,7 +8488,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: Some(5.0),
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, funding, exit],
+                candles: vec![entry, funding, exit].into(),
             }],
         };
 
@@ -8051,7 +8535,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![entry, liquidated],
+                candles: vec![entry, liquidated].into(),
             }],
         };
 
@@ -8095,19 +8579,20 @@ mod tests {
             minimum_amount: None,
             minimum_cost: None,
             feature_columns: BTreeMap::new(),
-            candles: vec![candle(1, 100.0, 99.0)],
+            candles: vec![candle(1, 100.0, 99.0)].into(),
         };
         let signal = EntrySignal {
             tag: Some("grind_1_exit detail".to_owned()),
             leverage: None,
             liquidation_price: None,
         };
+        let entry_candle = pair.candles.get(0).expect("fixture candle");
 
         let trade = enter_trade(
             EntryRequest {
                 pair_index: 0,
                 pair: &pair,
-                candle: &pair.candles[0],
+                candle: &entry_candle,
                 side: TradeSide::Long,
                 signal: &signal,
                 stake: EntryStake {
@@ -8364,18 +8849,19 @@ mod tests {
             minimum_amount: None,
             minimum_cost: None,
             feature_columns: BTreeMap::new(),
-            candles: vec![candle(1, 100.0, 99.0)],
+            candles: vec![candle(1, 100.0, 99.0)].into(),
         };
         let signal = EntrySignal {
             tag: Some("61".to_owned()),
             leverage: None,
             liquidation_price: None,
         };
+        let entry_candle = pair.candles.get(0).expect("fixture candle");
         let trade = enter_trade(
             EntryRequest {
                 pair_index: 0,
                 pair: &pair,
-                candle: &pair.candles[0],
+                candle: &entry_candle,
                 side: TradeSide::Long,
                 signal: &signal,
                 stake: EntryStake {
@@ -8584,7 +9070,10 @@ mod tests {
             },
         ];
 
-        assert_eq!(pair_price_step(&pair, &pair.candles[0], 0.01), 0.001);
+        assert_eq!(
+            pair_price_step(&pair, &pair.candles.get(0).expect("fixture candle"), 0.01),
+            0.001
+        );
         assert_eq!(pair_price_step(&pair, &candle(5, 5.0, 4.0), 0.01), 0.0001);
     }
 
@@ -8609,7 +9098,7 @@ mod tests {
                     FeatureColumn::booleans(vec![false, true]),
                 ),
             ]),
-            candles: vec![candle(1, 100.0, 100.0), candle(2, 101.0, 101.0)],
+            candles: vec![candle(1, 100.0, 100.0), candle(2, 101.0, 101.0)].into(),
         };
         let mut variables = BTreeMap::new();
 
@@ -8645,18 +9134,19 @@ mod tests {
             minimum_amount: None,
             minimum_cost: None,
             feature_columns: BTreeMap::new(),
-            candles: vec![candle(1, 100.0, 100.0)],
+            candles: vec![candle(1, 100.0, 100.0)].into(),
         };
         let signal = EntrySignal {
             tag: Some("141".to_owned()),
             leverage: None,
             liquidation_price: None,
         };
+        let entry_candle = pair.candles.get(0).expect("fixture candle");
         let mut trade = enter_trade(
             EntryRequest {
                 pair_index: 0,
                 pair: &pair,
-                candle: &pair.candles[0],
+                candle: &entry_candle,
                 side: TradeSide::Long,
                 signal: &signal,
                 stake: EntryStake {
@@ -8742,7 +9232,7 @@ mod tests {
                 minimum_amount: None,
                 minimum_cost: None,
                 feature_columns: BTreeMap::new(),
-                candles: vec![first, second],
+                candles: vec![first, second].into(),
             }],
         };
 
