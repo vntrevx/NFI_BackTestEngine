@@ -18,6 +18,13 @@ from .fixture import sha256_file
 from .hash_index import FileHashIndex
 from .runtime_versions import vector_dependency_versions
 from .strategy_ir import STRATEGY_IR_VERSION, analyze_strategy
+from .workload_calibration import (
+    calibrated_admission,
+    calibration_key,
+    calibration_path,
+    create_workload_calibration,
+    load_workload_calibration,
+)
 
 VECTOR_PIPELINE_VERSION = "1.12.0"
 
@@ -55,6 +62,10 @@ def prepare_vector_signals(
     output_directory: str | Path,
     workers: int,
     cache_directory: str | Path | None = None,
+    memory_cap_bytes: int | None = None,
+    hardware_fingerprint: str | None = None,
+    calibration_directory: str | Path | None = None,
+    recalibrate: bool = False,
 ) -> dict[str, Any]:
     if workers <= 0:
         raise StrategyAnalysisError("vector worker count must be positive")
@@ -212,6 +223,8 @@ def prepare_vector_signals(
     if hash_index is not None:
         hash_index.close()
     records: list[dict[str, Any]] = list(cache_hits.values())
+    calibration: dict[str, Any] | None = None
+    selected_workers = min(workers, len(pairs))
     if requests:
         from .vector_worker import run_vector_request
 
@@ -219,10 +232,86 @@ def prepare_vector_signals(
             {key: value for key, value in item.items() if not key.startswith("_cache_")}
             for item in requests
         ]
+        if hardware_fingerprint is not None and calibration_directory is not None:
+            identity = _calibration_identity(
+                requests,
+                strategy_sha=strategy_sha,
+                config_sha=effective_config_sha,
+                timerange=timerange,
+                runtime_versions=runtime_versions,
+            )
+            key = calibration_key(identity)
+            calibration_file = calibration_path(calibration_directory, key)
+            if calibration_file.is_file() and not recalibrate:
+                calibration = load_workload_calibration(
+                    calibration_file,
+                    expected_key=key,
+                    hardware_fingerprint=hardware_fingerprint,
+                )
+            else:
+                probe_index = _probe_request_index(public_requests)
+                probe_request = public_requests.pop(probe_index)
+                private_probe = requests.pop(probe_index)
+                probe_record = _run_isolated_probe(probe_request)
+                _publish_vector_record(
+                    probe_record,
+                    probe_request,
+                    private_probe["_cache_key"],
+                    private_probe["_cache_record_key"],
+                    cache=cache,
+                )
+                records.append(
+                    {
+                        **probe_record,
+                        "path": str(Path(probe_request["output_path"])),
+                        "cache_key": private_probe["_cache_key"],
+                        "cache_hit": False,
+                    }
+                )
+                calibration = create_workload_calibration(
+                    calibration_file,
+                    key=key,
+                    identity=identity,
+                    hardware_fingerprint=hardware_fingerprint,
+                    probe_pair=str(probe_request["pair"]),
+                    probe_peak_rss_bytes=int(probe_record["peak_rss_bytes"]),
+                    probe_wall_time_seconds=float(probe_record["wall_time_seconds"]),
+                    requested_cpu_processes=min(workers, len(pairs)),
+                    memory_cap_bytes=memory_cap_bytes,
+                )
+            runtime_admission = calibrated_admission(
+                probe_peak_rss_bytes=int(calibration["probe"]["peak_rss_bytes"]),
+                requested_cpu_processes=min(workers, len(pairs)),
+                memory_cap_bytes=memory_cap_bytes,
+            )
+            calibration = {
+                **calibration,
+                "runtime_admission": runtime_admission,
+            }
+            selected_workers = min(
+                workers,
+                len(pairs),
+                int(runtime_admission["safe_processes"]),
+            )
+        if not public_requests:
+            records.sort(key=lambda item: pairs.index(item["pair"]))
+            return _vector_report(
+                records=records,
+                pairs=pairs,
+                selected_workers=selected_workers,
+                cache_hits=cache_hits,
+                strategy_sha=strategy_sha,
+                config_sha=effective_config_sha,
+                runtime_versions=runtime_versions,
+                calibration=calibration,
+            )
         with ProcessPoolExecutor(
-            max_workers=min(workers, len(public_requests)),
+            max_workers=min(selected_workers, len(public_requests)),
             mp_context=get_context("spawn"),
-            max_tasks_per_child=4,
+            # A process owns exactly one full-range pair.  This gives every job
+            # an attributable OS peak and prevents dataframe allocator growth
+            # from leaking into the next pair.
+            max_tasks_per_child=1,
         ) as executor:
             futures = {
                 executor.submit(run_vector_request, request): (
@@ -241,19 +330,13 @@ def prepare_vector_signals(
                     raise StrategyAnalysisError(
                         f"vector worker failed for {pair}: {type(exc).__name__}: {exc}"
                     ) from exc
-                destination = Path(request["output_path"])
-                if cache is not None:
-                    cache.put_file(key, destination)
-                    cache.put_bytes(
-                        record_key,
-                        json.dumps(
-                            _cacheable_vector_record(record),
-                            ensure_ascii=False,
-                            allow_nan=False,
-                            sort_keys=True,
-                            separators=(",", ":"),
-                        ).encode(),
-                    )
+                destination = _publish_vector_record(
+                    record,
+                    request,
+                    key,
+                    record_key,
+                    cache=cache,
+                )
                 records.append(
                     {
                         **record,
@@ -263,15 +346,39 @@ def prepare_vector_signals(
                     }
                 )
     records.sort(key=lambda item: pairs.index(item["pair"]))
+    return _vector_report(
+        records=records,
+        pairs=pairs,
+        selected_workers=selected_workers,
+        cache_hits=cache_hits,
+        strategy_sha=strategy_sha,
+        config_sha=effective_config_sha,
+        runtime_versions=runtime_versions,
+        calibration=calibration,
+    )
+
+
+def _vector_report(
+    *,
+    records: list[dict[str, Any]],
+    pairs: list[str],
+    selected_workers: int,
+    cache_hits: dict[str, dict[str, Any]],
+    strategy_sha: str,
+    config_sha: str,
+    runtime_versions: dict[str, str],
+    calibration: dict[str, Any] | None,
+) -> dict[str, Any]:
     return {
         "schema_version": "1.0.0",
         "pipeline_version": VECTOR_PIPELINE_VERSION,
         "strategy_sha256": strategy_sha,
-        "config_sha256": effective_config_sha,
+        "config_sha256": config_sha,
         "runtime_versions": runtime_versions,
         "pair_count": len(pairs),
-        "worker_count": min(workers, len(pairs)),
+        "worker_count": selected_workers,
         "cache_hits": len(cache_hits),
+        "calibration": calibration,
         "outputs": records,
     }
 
@@ -286,8 +393,103 @@ def _cacheable_vector_record(record: dict[str, Any]) -> dict[str, Any]:
     return {
         key: value
         for key, value in record.items()
-        if key not in {"wall_time_seconds", "resident_bytes_at_completion"}
+        if key not in {"wall_time_seconds", "peak_rss_bytes", "resident_bytes_at_completion"}
     }
+
+
+def _calibration_identity(
+    requests: list[dict[str, Any]],
+    *,
+    strategy_sha: str,
+    config_sha: str,
+    timerange: str,
+    runtime_versions: dict[str, str],
+) -> dict[str, Any]:
+    return {
+        "vector_pipeline_version": VECTOR_PIPELINE_VERSION,
+        "strategy_sha256": strategy_sha,
+        "config_sha256": config_sha,
+        "timerange": timerange,
+        "runtime_versions": runtime_versions,
+        "pairs": [
+            {
+                "pair": request["pair"],
+                "frames": request["frame_sha256"],
+                "funding_data": _funding_content_identity(request),
+                "input_bytes": _request_input_bytes(request),
+            }
+            for request in requests
+        ],
+    }
+
+
+def _funding_content_identity(request: dict[str, Any]) -> dict[str, str] | None:
+    funding = request.get("funding_data")
+    if not isinstance(funding, dict):
+        return None
+    return {
+        "funding_rate_sha256": str(funding["funding_rate_sha256"]),
+        "mark_sha256": str(funding["mark_sha256"]),
+    }
+
+
+def _request_input_bytes(request: dict[str, Any]) -> int:
+    paths = [Path(path) for path in request["frames"].values()]
+    funding = request.get("funding_data")
+    if isinstance(funding, dict):
+        paths.extend(
+            [
+                Path(funding["funding_rate_path"]),
+                Path(funding["mark_path"]),
+            ]
+        )
+    return sum(path.stat().st_size for path in paths)
+
+
+def _probe_request_index(requests: list[dict[str, Any]]) -> int:
+    """Select the full-range pair with the largest sealed input footprint."""
+    return max(
+        range(len(requests)),
+        key=lambda index: (
+            _request_input_bytes(requests[index]),
+            str(requests[index]["pair"]),
+        ),
+    )
+
+
+def _run_isolated_probe(request: dict[str, Any]) -> dict[str, Any]:
+    from .vector_worker import run_vector_request
+
+    with ProcessPoolExecutor(
+        max_workers=1,
+        mp_context=get_context("spawn"),
+        max_tasks_per_child=1,
+    ) as executor:
+        return executor.submit(run_vector_request, request).result()
+
+
+def _publish_vector_record(
+    record: dict[str, Any],
+    request: dict[str, Any],
+    key: str,
+    record_key: str,
+    *,
+    cache: ContentCache | None,
+) -> Path:
+    destination = Path(request["output_path"])
+    if cache is not None:
+        cache.put_file(key, destination)
+        cache.put_bytes(
+            record_key,
+            json.dumps(
+                _cacheable_vector_record(record),
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode(),
+        )
+    return destination
 
 
 def _resolve_pair_frames(

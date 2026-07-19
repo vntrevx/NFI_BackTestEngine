@@ -16,7 +16,8 @@ from typing import Any
 from .canonical import read_json, write_json
 from .errors import BenchmarkError
 from .fixture import sha256_file
-from .hardware import load_execution_profile
+from .hardware import SPOOL_DIRECTORY_ENVIRONMENT, load_execution_profile
+from .resource_usage import process_peak_rss_bytes
 
 
 def build_engine(*, force: bool = False) -> dict[str, Any]:
@@ -124,6 +125,7 @@ def run_engine(
     timeout_seconds: int | None = None,
     events_path: str | Path | None = None,
     vector_manifest: bool = False,
+    engine_profile_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run one simulation without per-candle Python calls.
 
@@ -138,11 +140,22 @@ def run_engine(
     if destination.exists():
         raise BenchmarkError(f"simulation output already exists: {destination}")
     event_destination = Path(events_path).resolve() if events_path is not None else None
+    engine_profile_destination = (
+        Path(engine_profile_path).resolve() if engine_profile_path is not None else None
+    )
+    if engine_profile_destination is not None and not vector_manifest:
+        raise BenchmarkError("engine phase profiling requires a vector manifest")
     if event_destination is not None and event_destination.exists():
         raise BenchmarkError(f"simulation events output already exists: {event_destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if event_destination is not None:
         event_destination.parent.mkdir(parents=True, exist_ok=True)
+    if engine_profile_destination is not None:
+        if engine_profile_destination.exists():
+            raise BenchmarkError(
+                f"engine profile output already exists: {engine_profile_destination}"
+            )
+        engine_profile_destination.parent.mkdir(parents=True, exist_ok=True)
     build = build_engine()
     if build.get("kind") == "pyo3-extension":
         return _run_native_engine(
@@ -153,6 +166,7 @@ def run_engine(
             timeout_seconds=timeout_seconds,
             build=build,
             vector_manifest=vector_manifest,
+            engine_profile_destination=engine_profile_destination,
         )
     binary = Path(build["binary_path"])
     resource_path = destination.parent / f".{destination.name}.resources"
@@ -165,6 +179,11 @@ def run_engine(
         environment.update(profile["environment"])
 
     if os.name == "nt":
+        spool_directory = environment.get(SPOOL_DIRECTORY_ENVIRONMENT)
+        if spool_directory is not None:
+            environment[SPOOL_DIRECTORY_ENVIRONMENT] = _wsl_path(
+                Path(spool_directory)
+            )
         wsl = shutil.which("wsl.exe")
         if wsl is None:
             raise BenchmarkError("WSL is required to run the Linux engine on Windows")
@@ -197,11 +216,23 @@ def run_engine(
             else [str(binary), str(source), str(destination)]
         )
     if vector_manifest:
+        vector_arguments = ["--vector-manifest"]
+        if engine_profile_destination is not None:
+            vector_arguments.extend(
+                [
+                    "--profile-output",
+                    (
+                        _wsl_path(engine_profile_destination)
+                        if os.name == "nt"
+                        else str(engine_profile_destination)
+                    ),
+                ]
+            )
         if os.name == "nt":
-            command.insert(-2, "--vector-manifest")
+            command[-2:-2] = vector_arguments
         else:
             time_prefix = 6 if Path("/usr/bin/time").is_file() else 1
-            command.insert(time_prefix, "--vector-manifest")
+            command[time_prefix:time_prefix] = vector_arguments
     if event_destination is not None:
         command.append(_wsl_path(event_destination) if os.name == "nt" else str(event_destination))
 
@@ -251,6 +282,7 @@ def run_engine(
             if event_destination is not None and event_destination.is_file()
             else None
         ),
+        "profile": _engine_profile_record(engine_profile_destination),
     }
 
 
@@ -263,6 +295,7 @@ def _run_native_engine(
     timeout_seconds: int | None,
     build: dict[str, Any],
     vector_manifest: bool,
+    engine_profile_destination: Path | None,
 ) -> dict[str, Any]:
     if timeout_seconds is not None and timeout_seconds <= 0:
         raise BenchmarkError("engine timeout must be positive")
@@ -272,12 +305,19 @@ def _run_native_engine(
     profile = load_execution_profile(profile_path) if profile_path is not None else None
     environment = profile["environment"] if profile is not None else {}
     previous_environment = {key: os.environ.get(key) for key in environment}
-    rss_before = _current_rss_bytes()
+    rss_before = process_peak_rss_bytes()
     cpu_before = time.process_time()
     started_ns = time.perf_counter_ns()
     try:
         os.environ.update(environment)
-        if vector_manifest:
+        if vector_manifest and engine_profile_destination is not None:
+            native.simulate_vector_file_profiled(
+                source,
+                destination,
+                engine_profile_destination,
+                event_destination,
+            )
+        elif vector_manifest:
             native.simulate_vector_file(source, destination, event_destination)
         else:
             native.simulate_file(source, destination, event_destination)
@@ -285,6 +325,8 @@ def _run_native_engine(
         destination.unlink(missing_ok=True)
         if event_destination is not None:
             event_destination.unlink(missing_ok=True)
+        if engine_profile_destination is not None:
+            engine_profile_destination.unlink(missing_ok=True)
         raise BenchmarkError(f"Rust engine execution failed: {exc}") from exc
     finally:
         for key, value in previous_environment.items():
@@ -294,7 +336,7 @@ def _run_native_engine(
                 os.environ[key] = value
     wall_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
     cpu_seconds = time.process_time() - cpu_before
-    rss_after = _current_rss_bytes()
+    rss_after = process_peak_rss_bytes()
     result = read_json(destination)
     return {
         "schema_version": "1.0.0",
@@ -303,9 +345,7 @@ def _run_native_engine(
         "output_path": str(destination),
         "output_sha256": sha256_file(destination),
         "wall_time_seconds": wall_seconds,
-        "peak_rss_bytes": max(value for value in (rss_before, rss_after) if value is not None)
-        if rss_before is not None or rss_after is not None
-        else None,
+        "peak_rss_bytes": max(rss_before, rss_after),
         "cpu_time_seconds": cpu_seconds,
         "build": build,
         "execution_profile_fingerprint": (
@@ -321,6 +361,18 @@ def _run_native_engine(
             if event_destination is not None and event_destination.is_file()
             else None
         ),
+        "profile": _engine_profile_record(engine_profile_destination),
+    }
+
+
+def _engine_profile_record(path: Path | None) -> dict[str, Any] | None:
+    if path is None or not path.is_file():
+        return None
+    return {
+        "path": str(path),
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path),
+        "phases": read_json(path),
     }
 
 
@@ -338,15 +390,6 @@ def _native_source_fingerprint(native: Any) -> str | None:
         return None
     value = getter()
     return value if isinstance(value, str) and len(value) == 64 else None
-
-
-def _current_rss_bytes() -> int | None:
-    try:
-        import psutil
-
-        return psutil.Process().memory_info().rss
-    except (ImportError, OSError):
-        return None
 
 
 def _read_resource_record(path: Path) -> dict[str, float | int]:

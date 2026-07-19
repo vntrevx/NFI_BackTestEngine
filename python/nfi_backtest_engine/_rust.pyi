@@ -14,3 +14,9 @@ def simulate_vector_file(
     output_path: str | Path,
     events_path: str | Path | None = ...,
 ) -> None: ...
+def simulate_vector_file_profiled(
+    manifest_path: str | Path,
+    output_path: str | Path,
+    profile_path: str | Path,
+    events_path: str | Path | None = ...,
+) -> None: ...

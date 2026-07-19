@@ -8,11 +8,12 @@ revision. A normal research run covers the previous five complete calendar years
 screens with the native engine, and confirms a finalist with official Freqtrade against
 the same sealed inputs. See the [product contract](PROJECT_BRIEF.md).
 
-The engine inspects the current computer, chooses safe CPU process counts from physical
-cores and available memory, calculates independent pair vectors in worker processes,
-and keeps shared wallet, slot, trade, and order events deterministic in Rust.
+The engine inspects the current computer, measures one full-range worst-footprint pair,
+then admits worker processes from that observed peak, current free memory, CPU affinity,
+and any explicit user cap. Shared wallet, slot, trade, and order events remain
+deterministic in Rust.
 
-> **Release status:** `v0.4.0` is an alpha release. It has exact certificates for a
+> **Release status:** `v0.5.0` is an alpha release. It has exact certificates for a
 > source-pinned NFI X7 v17.4.413 subset. It does not claim exact support for every NFI
 > revision, pair, route, protection, pair lock, or liquidation event. Unsupported
 > behavior stops explicitly instead of falling back to an approximate result.
@@ -82,11 +83,9 @@ and install it with `uv`:
 uv tool install --python 3.12 path\to\nfi_backtest_engine-*.whl
 ```
 
-PyPI publishing is not enabled yet. Once trusted publishing is configured, the standard
-short form will be `uv tool install nfi-backtest-engine`, with
-`pipx install nfi-backtest-engine` retained as a familiar alternative. npm and bun are
-not used because this is a Python/Rust native application; a Node wrapper would add a
-second runtime without simplifying the platform package.
+GitHub Releases is the supported distribution channel. PyPI, npm, and bun are not used:
+this is a Python/Rust native application, and a second registry or runtime would not
+simplify the platform package.
 
 ### Source checkout
 
@@ -209,6 +208,23 @@ nfi-bte system tune --output .nfi/execution-profile.json
 nfi-bte system show .nfi/execution-profile.json
 ```
 
+The hardware profile contains facts and explicit caps only. The first uncached run
+executes one real full-timerange pair in an isolated process, keeps that useful vector,
+and stores the measured peak under `.nfi/calibrations/`. Later runs reuse the peak only
+when strategy, config, data, timerange, dependency, and hardware identities still
+match; worker admission is recalculated from free memory every time. Use
+`nfi-bte run --recalibrate` after an intentional environment change.
+
+The Rust engine keeps Feather-derived rows in a disk-backed spool and retains only the
+active row in heap memory. The OS-local temporary directory is normally fastest. If
+that directory is RAM-backed, select an existing disk-backed directory explicitly:
+
+```powershell
+nfi-bte system tune --force `
+  --spool-directory D:\nfi-spool `
+  --output .nfi\execution-profile.json
+```
+
 Docker Desktop and Docker Engine have a separate resource boundary. Inspect the memory
 and CPU values visible to the daemon, the automatically reserved headroom, and only
 containers owned by this project:
@@ -259,9 +275,11 @@ This is a source and callback-compiler check, not a profitability test. A struct
 supported upstream patch passes immediately. A new stateful contract is reported as
 `EXACT_LOWERING_REVIEW_REQUIRED` before any long backtest starts.
 
-The profile normally reserves a physical core and host memory. Child processes limit
-NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread, preventing nested
-library threads from multiplying the selected process count.
+The profile does not reserve a guessed percentage or assume a fixed GiB cost. It caps
+CPU processes at the physical/logical/affinity limit, while workload calibration
+derives the actual worker count from an OS-native peak measurement. Child processes
+limit NumPy, Polars, Rayon, OpenMP, OpenBLAS, and MKL nesting to one thread, preventing
+nested library threads from multiplying the selected process count.
 
 Native vector and Rust execution still use safe host parallelism. The default project
 timerange is five complete years, while release-grade performance evidence requires at
@@ -287,7 +305,8 @@ silently substitutes simplified trading behavior.
 Useful output files include:
 
 - `run.json` — final status and run identity;
-- `execution-profile.json` — CPU and memory limits used;
+- `execution-profile.json` — factual CPU limits and explicit memory cap;
+- `engine-profile.json` — measured hash/decode/event-loop/serialization phases;
 - `strategy-analysis.json` and `hot-callback-ir.json` — compiled capability boundary;
 - `data-seal.json` — candle files, coverage, sizes, and hashes;
 - `simulation-result.json` and `trade-surface.json` — supported-run results;
@@ -311,6 +330,21 @@ nfi-bte confirm `
 
 The comparator normalizes both results and fails at the first exact semantic
 difference. It does not use a floating-point tolerance.
+
+`run.json` records `pipeline_evidence.cold=true` only when neither data nor vector
+checkpoints were resumed and no vector came from the content cache. Public performance
+certification is stricter than parity alone:
+
+```powershell
+nfi-bte performance path\to\manifest.json `
+  --output-dir artifacts\performance-cold `
+  --runs 3
+```
+
+`release_certified=true` requires a representative sealed fixture (at least 80 pairs
+and 1,460 days), exact parity on every run, at least 10x median screening speed, and a
+passing memory gate. Short fixtures can complete as diagnostics but can never set that
+release flag.
 
 ## Verify the included exact fixture
 
@@ -350,7 +384,7 @@ Use `--resume` to reuse only stages whose complete input identity still matches.
 
 ## Current exact-support boundary
 
-Version 0.4.0 executes the source-pinned X7 v17.4.413 managed long routes,
+Version 0.5.0 executes the source-pinned X7 v17.4.413 managed long routes,
 short-rebuy tags 561–563, constrained isolated-futures accounting with uniform 3x
 leverage, and the tag-120 spot/backtest grind state machine.
 
@@ -396,6 +430,10 @@ uv lock --check
 uv run ruff check .
 uv run basedpyright --level error python/nfi_backtest_engine
 uv run pytest -q
+cd rust
+cargo fmt --all -- --check
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
 Rust checks:
