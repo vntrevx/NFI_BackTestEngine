@@ -643,7 +643,11 @@ def build_parser() -> argparse.ArgumentParser:
     certify.add_argument("--config", type=Path)
     certify.add_argument("--data-dir", type=Path)
     certify.add_argument("--engine-markets", type=Path)
-    certify.add_argument("--reference-markets", type=Path)
+    certify.add_argument(
+        "--reference-markets",
+        type=Path,
+        help="reuse a frozen raw oracle snapshot; omit to capture it during warmup",
+    )
     certify.add_argument("--wheel", type=Path)
     certify.add_argument("--swap-cap-gib", type=float)
     certify.add_argument(
@@ -1298,7 +1302,6 @@ def _execute_certification(args: argparse.Namespace) -> int:
             "--config": args.config,
             "--data-dir": args.data_dir,
             "--engine-markets": args.engine_markets,
-            "--reference-markets": args.reference_markets,
             "--wheel": args.wheel,
         }
         missing = [name for name, value in required.items() if value is None]

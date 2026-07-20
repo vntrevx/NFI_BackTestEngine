@@ -23,7 +23,11 @@ from .evidence_bundle import (
     write_evidence_bundle,
 )
 from .fixture import sha256_file, validate_fixture
-from .hardware import inspect_hardware, load_execution_profile
+from .hardware import (
+    current_resource_limits,
+    inspect_hardware,
+    load_execution_profile,
+)
 from .performance_gate import measure_cli_process, run_performance_gate
 from .product_contract import (
     CERTIFICATION_SPREAD_THRESHOLD,
@@ -67,7 +71,7 @@ def run_full_x7_certification(
     config_path: str | Path,
     data_directory: str | Path,
     engine_market_snapshot: str | Path,
-    reference_market_snapshot: str | Path,
+    reference_market_snapshot: str | Path | None,
     wheel_path: str | Path,
     execution_profile_path: str | Path,
     state_probe_manifests: list[str | Path],
@@ -101,7 +105,10 @@ def run_full_x7_certification(
     build = build_engine()
     wheel = verify_installed_wheel(wheel_path, build)
     profile = load_execution_profile(execution_profile_path)
-    probes = _validate_probe_matrix(state_probe_manifests)
+    probes = _validate_probe_matrix(
+        state_probe_manifests,
+        expected_upstream_commit=inputs["lock"]["strategy"]["upstream_commit"],
+    )
 
     warmup_root = output / "warmups"
     baseline = _measure_engine(
@@ -113,11 +120,23 @@ def run_full_x7_certification(
     _require_complete_baseline(baseline, inputs["lock"])
     reference_warmup = _measure_reference(
         baseline["output_directory"],
-        Path(reference_market_snapshot).resolve(),
+        inputs["reference_market_snapshot"],
         warmup_root / "reference",
         timeout_seconds=timeout_seconds,
         swap_cap_bytes=swap_cap_bytes,
     )
+    reference_markets = inputs["reference_market_snapshot"]
+    if reference_markets is None:
+        captured = Path(reference_warmup["output_directory"]) / "reference-markets.json"
+        if not captured.is_file():
+            raise BenchmarkError(
+                "official Full X7 warmup did not produce a reference market snapshot"
+            )
+        reference_markets = captured.resolve()
+        inputs["reference_market_snapshot"] = reference_markets
+        inputs["public"]["reference_market_snapshot_sha256"] = sha256_file(
+            reference_markets
+        )
     if not _reference_complete(reference_warmup):
         raise BenchmarkError(
             "official Full X7 warmup did not complete exact parity; "
@@ -144,7 +163,7 @@ def run_full_x7_certification(
             else:
                 measured[lane] = _measure_reference(
                     baseline["output_directory"],
-                    Path(reference_market_snapshot).resolve(),
+                    reference_markets,
                     output / "measurements" / f"reference-{run_number:02d}",
                     timeout_seconds=timeout_seconds,
                     swap_cap_bytes=swap_cap_bytes,
@@ -184,7 +203,7 @@ def run_full_x7_certification(
         _engine_complete(run, inputs["lock"]) for run in engine_runs
     )
     reference_complete = all(_reference_complete(run) for run in reference_runs)
-    profile_memory = int(profile["limits"]["working_memory_bytes"])
+    profile_memory = current_resource_limits(profile)["working_memory_bytes"]
     memory_met = engine_summary["peak_rss_bytes"]["maximum"] <= profile_memory
     probe_met = all(
         item["complete"]
@@ -402,8 +421,11 @@ def _resolve_full_x7_inputs(
         raise SpecValidationError("selected config differs from the release input lock")
     seal_path = lock_path.parent / "data-seal.json"
     seal = validate_data_seal(seal_path)
-    if seal["aggregate_sha256"] != lock["data"]["aggregate_sha256"]:
-        raise SpecValidationError("data seal differs from the release input lock")
+    _validate_release_data_seal(
+        lock,
+        seal,
+        data_directory=data_root,
+    )
     start_ms, end_ms = parse_timerange_milliseconds(lock["scope"]["timerange"])
     actual_days = (end_ms - start_ms) // 86_400_000
     if actual_days < MIN_RELEASE_BACKTEST_DAYS:
@@ -435,8 +457,43 @@ def _resolve_full_x7_inputs(
     }
 
 
+def _validate_release_data_seal(
+    lock: dict[str, Any],
+    seal: dict[str, Any],
+    *,
+    data_directory: Path,
+) -> None:
+    """Bind the machine-local data seal to every portable lock invariant."""
+    request = seal["request"]
+    data = lock["data"]
+    scope = lock["scope"]
+    if Path(seal["data_root"]).resolve() != data_directory:
+        raise SpecValidationError(
+            "selected data directory differs from the release data seal"
+        )
+    if (
+        seal["aggregate_sha256"] != data["aggregate_sha256"]
+        or len(seal["files"]) != data["file_count"]
+        or len(seal["coverage_shortfalls"]) != data["coverage_shortfall_count"]
+        or len(seal["startup_shortfalls"]) != data["startup_shortfall_count"]
+    ):
+        raise SpecValidationError("data seal differs from the release input lock")
+    if (
+        request["pairs"] != lock["pairlist"]["pairs"]
+        or request["timerange"] != scope["timerange"]
+        or request["timeframes"] != scope["timeframes"]
+        or request["history_coverage_policy"] != "strict"
+        or request["startup_coverage_policy"] != data["startup_coverage_policy"]
+    ):
+        raise SpecValidationError(
+            "data seal request differs from the release input lock"
+        )
+
+
 def _validate_probe_matrix(
     manifests: list[str | Path],
+    *,
+    expected_upstream_commit: str | None = None,
 ) -> list[tuple[Path, dict[str, Any]]]:
     probes: list[tuple[Path, dict[str, Any]]] = []
     kinds: set[str] = set()
@@ -446,6 +503,17 @@ def _validate_probe_matrix(
         manifest = validate_fixture(path)
         if manifest["schema_version"] != "3.0.0":
             raise SpecValidationError("Full X7 probes must use fixture manifest v3")
+        provenance = manifest.get("strategy_provenance")
+        if (
+            expected_upstream_commit is not None
+            and (
+                not isinstance(provenance, dict)
+                or provenance.get("upstream_commit") != expected_upstream_commit
+            )
+        ):
+            raise SpecValidationError(
+                "Full X7 probe upstream commit differs from the release input lock"
+            )
         validate_fixture_coverage(path, manifest)
         kinds.add(manifest["probe_kind"])
         protection_methods.update(
@@ -519,7 +587,7 @@ def _measure_engine(
 
 def _measure_reference(
     baseline_directory: Path,
-    market_snapshot: Path,
+    market_snapshot: Path | None,
     output: Path,
     *,
     timeout_seconds: int,
@@ -532,14 +600,19 @@ def _measure_reference(
         str(baseline_directory),
         "--output-dir",
         str(output),
-        "--markets",
-        str(market_snapshot),
-        "--no-market-capture",
         "--timeout",
         str(timeout_seconds),
         "--memory-mode",
         "certification-swap",
     ]
+    if market_snapshot is not None:
+        arguments.extend(
+            [
+                "--markets",
+                str(market_snapshot),
+                "--no-market-capture",
+            ]
+        )
     if swap_cap_bytes is not None:
         arguments.extend(["--swap-cap-gib", str(swap_cap_bytes / 1024**3)])
     measurement = measure_cli_process(

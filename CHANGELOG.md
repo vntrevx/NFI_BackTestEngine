@@ -13,6 +13,18 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 - Matched Freqtrade's config-over-strategy stoploss precedence and its observable
   futures float/order-replay boundaries for partial exits, liquidation refresh, and
   eight-decimal profit normalization.
+- Corrected Full X7 release input selection to require strict five-year interval edges
+  while sealing Freqtrade-compatible pre-listing startup shortfalls. Data downloads now
+  flatten config includes, omit unrelated API service settings, and reject silent
+  zero-output Freqtrade failures even when the container returns success.
+- Bound Full X7 data directories and seal request fields to the portable release lock,
+  required branch probes to use that same upstream commit, and made the pinned warmup
+  capture a missing raw reference-market snapshot before all measured runs go offline.
+- Split candidate building, prerelease publishing, and stable promotion so a certified
+  candidate is built once and the RC and stable GitHub releases reuse byte-identical
+  SHA-256-verified distribution assets at the same source commit.
+- Made source-tree version identity come from `pyproject.toml`, preventing ignored
+  stale editable-install metadata from contaminating certification reports.
 - Matched the pinned Freqtrade 2026.5.1 final surface exactly for the latest X7
   v17.4.418 over 80 configured spot pairs and the bounded
   `20250701-20260101` interval: 167 trades, 402 orders, 23 rejected signals,

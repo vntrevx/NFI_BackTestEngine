@@ -75,6 +75,19 @@ def sanitize_config(value: Any, *, key: str | None = None) -> Any:
     return deepcopy(value)
 
 
+def strip_service_only_settings(config: dict[str, Any]) -> dict[str, Any]:
+    """Return a runtime copy without services unrelated to offline commands.
+
+    Freqtrade validates API-server secret lengths even when a read-only command
+    such as ``download-data`` or ``list-pairs`` never starts that server. The
+    source config remains hash-bound; only the disposable offline copy drops the
+    service section.
+    """
+    result = deepcopy(config)
+    result.pop("api_server", None)
+    return result
+
+
 def freeze_pairlist(
     effective_config: dict[str, Any],
     *,

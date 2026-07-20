@@ -14,7 +14,11 @@ from typing import Any
 import polars as pl
 
 from .canonical import read_json, write_json
-from .config_loader import load_effective_config
+from .config_loader import (
+    load_effective_config,
+    sanitize_config,
+    strip_service_only_settings,
+)
 from .docker_runtime import managed_docker_run
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
@@ -72,7 +76,6 @@ def prepare_data(
     if download_missing and (
         gaps or (require_startup_coverage and startup_shortfalls)
     ):
-        needs_append = any(gap["end_missing"] for gap in gaps)
         # A normal download against an absent file already requests the full
         # timerange. Prepending immediately afterwards would repeat the same
         # network work for every newly created pair. Prepend only files that
@@ -82,15 +85,13 @@ def prepare_data(
             startup_shortfalls,
             require_startup_coverage=require_startup_coverage,
         )
-        if needs_append:
-            downloads.append(
-                _download_data(
-                    config_file=config_file,
-                    data_root=data_root,
-                    request=request,
-                    prepend=False,
-                )
-            )
+        append_downloads, gaps = _append_until_end_covered(
+            config_file=config_file,
+            data_root=data_root,
+            request=request,
+            gaps=gaps,
+        )
+        downloads.extend(append_downloads)
         if needs_prepend:
             downloads.append(
                 _download_data(
@@ -141,6 +142,68 @@ def prepare_data(
     validate_data_seal_document(seal, source=Path(destination), verify_files=True)
     write_json(destination, seal)
     return seal
+
+
+def _append_until_end_covered(
+    *,
+    config_file: Path,
+    data_root: Path,
+    request: dict[str, Any],
+    gaps: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Continue paginated appends while requested end coverage advances.
+
+    Freqtrade may need another invocation when a large multi-pair download ends
+    exactly on an exchange page boundary.  Progress, rather than a fixed retry
+    count, is the safe termination rule: every pass must move at least one
+    incomplete pair/timeframe frontier forward or finish it.
+    """
+
+    downloads: list[dict[str, Any]] = []
+    while any(gap["end_missing"] for gap in gaps):
+        previous_frontier = _end_coverage_frontier(gaps)
+        downloads.append(
+            _download_data(
+                config_file=config_file,
+                data_root=data_root,
+                request=request,
+                prepend=False,
+            )
+        )
+        updated_gaps = find_coverage_gaps(data_root, request)
+        current_frontier = _end_coverage_frontier(updated_gaps)
+        if not _frontier_advanced(previous_frontier, current_frontier):
+            raise BenchmarkError(
+                "Freqtrade data download changed files but did not advance "
+                "requested end coverage"
+            )
+        gaps = updated_gaps
+    return downloads, gaps
+
+
+def _end_coverage_frontier(
+    gaps: list[dict[str, Any]],
+) -> dict[tuple[str, str], int | None]:
+    return {
+        (gap["pair"], gap["timeframe"]): gap["available_end_timestamp_ms"]
+        for gap in gaps
+        if gap["end_missing"]
+    }
+
+
+def _frontier_advanced(
+    previous: dict[tuple[str, str], int | None],
+    current: dict[tuple[str, str], int | None],
+) -> bool:
+    for route, old_timestamp in previous.items():
+        if route not in current:
+            return True
+        new_timestamp = current[route]
+        if new_timestamp is not None and (
+            old_timestamp is None or new_timestamp > old_timestamp
+        ):
+            return True
+    return False
 
 
 def _needs_prepend(
@@ -699,9 +762,24 @@ def _download_data(
 ) -> dict[str, Any]:
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
+    before = _data_file_signatures(data_root)
     with tempfile.TemporaryDirectory(prefix="nfi-data-") as temporary:
-        user_data = Path(temporary) / "user_data"
+        temporary_root = Path(temporary)
+        user_data = temporary_root / "user_data"
         user_data.mkdir()
+        standalone_config = temporary_root / "config.json"
+        loaded_config = load_effective_config(config_file)["config"]
+        effective_config = sanitize_config(
+            strip_service_only_settings(loaded_config)
+        )
+        if not isinstance(effective_config, dict):
+            raise SpecValidationError(
+                "effective data-download config must be an object"
+            )
+        # Only one file is mounted into the pinned container. Flatten config
+        # includes before mounting so a host-relative add_config_files path can
+        # never disappear or resolve to an unintended container location.
+        write_json(standalone_config, effective_config)
         with managed_docker_run(
             docker_config=docker_config,
             role="data-download",
@@ -711,7 +789,7 @@ def _download_data(
                 "--platform",
                 REFERENCE_PLATFORM,
                 "--volume",
-                f"{config_file}:/input/config.json:ro",
+                f"{standalone_config}:/input/config.json:ro",
                 "--volume",
                 f"{data_root}:/data",
                 "--volume",
@@ -745,10 +823,21 @@ def _download_data(
                 capture_output=True,
                 check=False,
             )
-    if completed.returncode != 0:
+    after = _data_file_signatures(data_root)
+    if completed.returncode != 0 or after == before:
+        detail = "\n".join(
+            value[-2000:].strip()
+            for value in (completed.stderr, completed.stdout)
+            if value.strip()
+        )
+        reason = (
+            f"exit code {completed.returncode}"
+            if completed.returncode != 0
+            else "no candle file was created or changed"
+        )
         raise BenchmarkError(
-            "Freqtrade data download failed: "
-            f"{completed.stderr[-2000:].strip() or completed.stdout[-2000:].strip()}"
+            f"Freqtrade data download failed ({reason}): "
+            f"{detail or 'the pinned downloader returned no diagnostic output'}"
         )
     return {
         "mode": "prepend" if prepend else "append",
@@ -756,6 +845,18 @@ def _download_data(
         "command_sha256": hashlib.sha256(
             json.dumps(command, separators=(",", ":")).encode()
         ).hexdigest(),
+    }
+
+
+def _data_file_signatures(data_root: Path) -> dict[str, tuple[int, int]]:
+    """Return enough state to detect a silent no-op from the downloader."""
+    return {
+        path.relative_to(data_root).as_posix(): (
+            path.stat().st_size,
+            path.stat().st_mtime_ns,
+        )
+        for path in data_root.rglob("*")
+        if _is_data_file(path)
     }
 
 

@@ -19,8 +19,8 @@ def test_product_contract_defaults_to_five_complete_years() -> None:
     )
 
 
-def test_release_evidence_requires_four_years_and_full_pair_universe() -> None:
-    assert MIN_RELEASE_BACKTEST_DAYS == 1460
+def test_release_evidence_requires_five_years_and_full_pair_universe() -> None:
+    assert MIN_RELEASE_BACKTEST_DAYS == 1825
     assert MIN_RELEASE_PAIR_COUNT == 80
     assert TARGET_SCREENING_SPEEDUP == 10.0
 

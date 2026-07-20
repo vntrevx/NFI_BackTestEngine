@@ -44,12 +44,37 @@ def test_release_selector_seals_strict_complete_pairs_in_source_order(
     assert lock["pairlist"]["pairs"] == ["BTC/USDT"]
     assert lock["data"]["coverage_shortfall_count"] == 0
     assert lock["data"]["startup_shortfall_count"] == 0
+    assert lock["data"]["startup_coverage_policy"] == "record"
     validate_release_input_lock(lock, required_pair_count=1)
 
     changed = read_json(tmp_path / "release-inputs" / "release-input-lock.json")
     changed["pairlist"]["pairs"] = ["ETH/USDT"]
     with pytest.raises(SpecValidationError, match="identity is corrupt"):
         validate_release_input_lock(changed, required_pair_count=1)
+
+
+def test_release_selector_records_pre_listing_startup_without_relaxing_timerange(
+    tmp_path: Path,
+) -> None:
+    candidates = tmp_path / "candidates.json"
+    write_json(candidates, {"pairs": ["BTC/USDT"]})
+
+    lock = select_release_universe(
+        candidates_path=candidates,
+        strategy_path=FIXTURE / "inputs" / "strategy.py",
+        class_name="ContractNormalRouting",
+        config_path=FIXTURE / "inputs" / "config.json",
+        data_directory=FIXTURE / "inputs" / "candles",
+        timerange="1735689900-1735948800",
+        output_directory=tmp_path / "release-inputs",
+        pair_count=1,
+        upstream_repository="https://github.com/iterativv/NostalgiaForInfinity",
+        upstream_commit="a" * 40,
+    )
+
+    assert lock["data"]["coverage_shortfall_count"] == 0
+    assert lock["data"]["startup_shortfall_count"] == 1
+    validate_release_input_lock(lock, required_pair_count=1)
 
 
 def test_release_selector_rejects_duplicate_candle_timestamps(tmp_path: Path) -> None:

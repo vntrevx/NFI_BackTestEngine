@@ -17,7 +17,6 @@ from .data_seal import (
     build_data_request,
     candle_files_for,
     find_coverage_gaps,
-    find_startup_shortfalls,
     inspect_candle_quality,
     prepare_data,
 )
@@ -32,7 +31,7 @@ from .reference_runtime import (
 )
 from .strategy_ir import analyze_strategy
 
-RELEASE_INPUT_LOCK_VERSION = "1.0.0"
+RELEASE_INPUT_LOCK_VERSION = "1.1.0"
 DEFAULT_RELEASE_PAIR_COUNT = 80
 
 
@@ -106,7 +105,6 @@ def select_release_universe(
         data_root,
         request,
         accepted_candidates,
-        timeframes,
     )
 
     selected: list[str] = []
@@ -194,7 +192,12 @@ def select_release_universe(
         destination=output / "data-seal.json",
         download_missing=False,
         startup_candles=startup_candles,
-        require_startup_coverage=True,
+        # Freqtrade requests the strategy startup count independently for each
+        # informative timeframe. Missing pre-listing candles are not fabricated:
+        # it loads the available prefix and records the shorter context. Requiring
+        # the full count on a one-day frame can make a broad release universe
+        # impossible for market-history reasons unrelated to the tested interval.
+        require_startup_coverage=False,
         history_coverage_policy="strict",
     )
     pairlist = freeze_pairlist(selected_config)
@@ -249,6 +252,7 @@ def select_release_universe(
             "file_count": len(data_seal["files"]),
             "coverage_shortfall_count": len(data_seal["coverage_shortfalls"]),
             "startup_shortfall_count": len(data_seal["startup_shortfalls"]),
+            "startup_coverage_policy": "record",
         },
         "selection": {
             "candidate_sha256": sha256_file(candidates_file),
@@ -292,8 +296,16 @@ def validate_release_input_lock(
         raise SpecValidationError("release input lock pair counts differ")
     if data.get("coverage_shortfall_count") != 0:
         raise SpecValidationError("release input lock has history coverage shortfalls")
-    if data.get("startup_shortfall_count") != 0:
-        raise SpecValidationError("release input lock has startup coverage shortfalls")
+    startup_shortfalls = data.get("startup_shortfall_count")
+    if (
+        not isinstance(startup_shortfalls, int)
+        or isinstance(startup_shortfalls, bool)
+        or startup_shortfalls < 0
+        or data.get("startup_coverage_policy") != "record"
+    ):
+        raise SpecValidationError(
+            "release input lock startup coverage contract is invalid"
+        )
     expected_identity = _identity_sha256(
         {key: value for key, value in document.items() if key != "identity_sha256"}
     )
@@ -305,19 +317,15 @@ def _coverage_by_pair(
     data_root: Path,
     request: dict[str, Any],
     pairs: list[str],
-    timeframes: list[str],
 ) -> dict[str, list[dict[str, Any]]]:
     gaps = find_coverage_gaps(data_root, request)
-    startup = find_startup_shortfalls(data_root, request)
     result: dict[str, list[dict[str, Any]]] = {pair: [] for pair in pairs}
     for item in gaps:
         result[item["pair"]].append({"code": "EDGE_COVERAGE", **item})
-    for item in startup:
-        result[item["pair"]].append({"code": "STARTUP_COVERAGE", **item})
     for pair in pairs:
         result[pair].sort(
             key=lambda item: (
-                timeframes.index(item["timeframe"]),
+                request["timeframes"].index(item["timeframe"]),
                 item["code"],
             )
         )

@@ -44,9 +44,15 @@ observation was 58.93 seconds and 88,928,256 peak bytes versus 253.09 seconds an
 106.27x ratios are diagnostic because the native measurement begins with sealed
 vectors, while Freqtrade performs its analysis inside the measured process.
 
-The bounded result does not replace the representative four-year release gate.
+The bounded result does not replace the representative five-year release gate.
 Independent timerange chunks reset wallet, open positions, and protection state and
 therefore cannot be joined into a continuous-state parity certificate.
+
+Release input selection is strict over the declared timerange: all 80 pairs must have
+every required timeframe at both interval edges, with duplicate and reversed
+timestamps rejected. Startup context before the interval follows official Freqtrade
+semantics. A pair's available pre-listing prefix is consumed and its shortfall is
+sealed, while the five-year interval itself remains complete and unsplit.
 
 The public runner returns one of:
 
@@ -85,7 +91,7 @@ Before tagging:
 15. Run the representative workload with an empty vector cache and `--recalibrate`;
     retain its workload calibration, engine phase profile, process-tree peak, and exact
     official confirmation
-16. Verify the representative run uses at least 80 pairs and 1,460 days before
+16. Verify the representative run uses at least 80 pairs and 1,825 days before
     publishing any 10x or long-horizon memory claim
 17. Run `nfi-bte certify` with at least three representative repetitions and one or
     more branch-reaching `--state-probe` fixtures; retain the reproducible bundle
@@ -97,17 +103,26 @@ Desktop or Docker Engine host.
 
 ## Publishing
 
-Pushing a `v*` tag builds ABI3 wheels and creates a GitHub release for:
+The `Build release candidate` workflow builds ABI3 wheels and a source distribution
+once, verifies the Linux wheel, and stores a SHA-256-sealed candidate bundle for:
 
 - Linux x86_64 and aarch64, manylinux 2.17;
 - Windows x86_64;
 - macOS arm64;
 - source distribution.
 
-The release workflow verifies the Linux wheel before creating the GitHub release.
+After the downloaded candidate passes the Full X7 host certificate, the
+`Publish release candidate` workflow binds that successful build run to an `-rc.N`
+tag and publishes the already-built files. The `Promote stable release` workflow then
+creates the stable tag at the same commit and copies the prerelease assets without
+rebuilding them. Both publishing workflows download their own result and compare every
+asset byte before succeeding. This makes the certified candidate, prerelease, and
+stable distribution files identical.
+
 GitHub Releases is the only supported registry. `install.ps1` and `install.sh` select
-the native wheel, verify its asset digest, and call `uv tool install`. Build jobs remain
-read-only, while the GitHub release job receives only `contents: write`.
+the native wheel, verify its asset digest, and call `uv tool install`. Candidate build
+jobs remain read-only; only the two explicitly dispatched publishing workflows receive
+`contents: write`.
 
 ## Full X7 v1 gates
 
@@ -120,6 +135,6 @@ A later release can claim full X7 support only when all of these are true:
 - every claimed pair/route combination has branch-reaching differential evidence;
 - repeated runs are deterministic;
 - exact normalized trade parity and full state parity pass on the supported certificate;
-- an 80-pair, four-year fresh benchmark demonstrates at least 10x screening speed without
+- an 80-pair, five-year fresh benchmark demonstrates at least 10x screening speed without
   exceeding the memory gate;
 - finalists are reproducible with official Freqtrade.

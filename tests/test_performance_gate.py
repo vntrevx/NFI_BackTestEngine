@@ -29,14 +29,14 @@ def _manifest(tmp_path: Path, timerange: str, pair_count: int) -> tuple[Path, di
     }
 
 
-def test_performance_claim_requires_at_least_four_years(tmp_path: Path) -> None:
-    manifest_path, manifest = _manifest(tmp_path, "20210101-20250101", 80)
+def test_performance_claim_requires_at_least_five_years(tmp_path: Path) -> None:
+    manifest_path, manifest = _manifest(tmp_path, "20210101-20260101", 80)
 
     scope = _representative_scope(manifest_path, manifest)
 
     assert scope["eligible"] is True
-    assert scope["required_days"] == 1460
-    assert scope["actual_days"] == 1461
+    assert scope["required_days"] == 1825
+    assert scope["actual_days"] == 1826
 
 
 def test_three_year_fixture_remains_diagnostic_only(tmp_path: Path) -> None:

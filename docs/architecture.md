@@ -163,7 +163,7 @@ RAM), an earlier profile selected four independent research processes. A four-jo
 annual X7 vector-preparation diagnostic used four distinct worker PIDs, completed in
 35.67 seconds versus 106.93 aggregate job-seconds, and therefore observed 3.00x
 effective parallelism and 75% four-process efficiency. This is host-specific diagnostic
-evidence from the pre-calibration scheduler, not the public 80-pair, four-year
+evidence from the pre-calibration scheduler, not the public 80-pair, five-year
 performance certificate or the current admission algorithm.
 The raw boundaries and timings are pinned in
 [`benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json`](../benchmarks/evidence/host-scaling-x7-prepare-2026-07-19.json).
@@ -309,8 +309,8 @@ finalization, and serialization timings. Profiling is aggregate-only and does no
 per candle or modify the financial result document.
 
 A measured ratio is labeled `diagnostic-only` unless the fixture contains at least 80
-pairs and 1,460 days. The setup wizard defaults to five complete calendar years so the
-normal user path exceeds that minimum. Build/compilation time is an installation
+pairs and 1,825 days. The setup wizard defaults to five complete calendar years so the
+normal user path meets that minimum. Build/compilation time is an installation
 concern and is recorded separately from the installed execution pipeline.
 
 Parity alone does not complete a representative performance gate. Release certification
