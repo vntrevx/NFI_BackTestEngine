@@ -369,9 +369,16 @@ nfi-bte performance path\to\manifest.json `
 ```
 
 `release_certified=true` requires a representative sealed fixture (at least 80 pairs
-and 1,460 days), exact parity on every run, at least 10x median screening speed, and a
+and 1,825 days), exact parity on every run, at least 10x median screening speed, and a
 passing memory gate. Short fixtures can complete as diagnostics but can never set that
 release flag.
+
+The Full X7 release lock requires every selected pair and timeframe to cover the entire
+declared backtest interval. Pre-interval startup history is handled exactly as
+Freqtrade handles a listing boundary: available candles are used, any shorter prefix is
+recorded in the immutable data seal, and missing pre-listing candles are never invented.
+This distinction matters because an 800-candle 1-day startup before 2021 would require
+the pair to have traded since October 2018, which is not a realistic 80-pair universe.
 
 The current large native diagnostic uses the supplied X7 v17.4.418 source, 80 configured
 spot pairs, five timeframes, and `20210101-20260101`. On one WSL2 host, the same sealed

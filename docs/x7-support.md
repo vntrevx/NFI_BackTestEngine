@@ -149,4 +149,4 @@ Every remaining branch must be lowered or certified incrementally:
 5. retain a smallest-prefix mismatch replay on failure.
 
 No release may claim arbitrary or full X7 execution until the combined spot/futures
-certificate and the 80-pair, four-year fresh performance gate both pass.
+certificate and the 80-pair, five-year fresh performance gate both pass.

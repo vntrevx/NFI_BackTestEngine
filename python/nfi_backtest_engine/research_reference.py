@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import shutil
 import subprocess
 import time
@@ -11,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .canonical import read_json, write_json
-from .config_loader import config_sha256
+from .config_loader import config_sha256, strip_service_only_settings
 from .data_seal import validate_data_seal
 from .docker_runtime import managed_docker_run, run_managed_container
 from .errors import BenchmarkError
@@ -629,8 +628,7 @@ def _official_backtest_config(config: dict[str, Any]) -> dict[str, Any]:
     immutable universe. Dynamic pairlists are rejected because the native run
     did not execute their live filtering policy.
     """
-    result = copy.deepcopy(config)
-    result.pop("api_server", None)
+    result = strip_service_only_settings(config)
     pairlists = result.get("pairlists")
     if pairlists is None:
         result["pairlists"] = [{"method": "StaticPairList", "allow_inactive": True}]

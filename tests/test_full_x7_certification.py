@@ -5,12 +5,16 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from nfi_backtest_engine import full_x7_certification
+from nfi_backtest_engine.canonical import read_json
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.full_x7_certification import (
     _determinism,
     _engine_complete,
+    _measure_reference,
     _validate_full_x7_timeframes,
     _validate_probe_matrix,
+    _validate_release_data_seal,
     verify_installed_wheel,
 )
 
@@ -90,11 +94,25 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
         for path in CAPTURED.iterdir()
         if path.name.startswith("x7-") and (path / "manifest.json").is_file()
     )
+    upstream_commits = {
+        read_json(path)["strategy_provenance"]["upstream_commit"]
+        for path in manifests
+    }
+    assert len(upstream_commits) == 1
+    upstream_commit = upstream_commits.pop()
 
-    probes = _validate_probe_matrix(manifests)
+    probes = _validate_probe_matrix(
+        manifests,
+        expected_upstream_commit=upstream_commit,
+    )
 
     assert probes
     assert len(probes) == len(manifests)
+    with pytest.raises(SpecValidationError, match="upstream commit differs"):
+        _validate_probe_matrix(
+            manifests[:1],
+            expected_upstream_commit="0" * 40,
+        )
 
 
 def test_full_x7_release_requires_all_five_timeframes_in_stable_order() -> None:
@@ -102,3 +120,91 @@ def test_full_x7_release_requires_all_five_timeframes_in_stable_order() -> None:
 
     with pytest.raises(SpecValidationError, match="timeframes differ"):
         _validate_full_x7_timeframes(["5m", "1h", "1d"])
+
+
+def test_full_x7_data_seal_is_bound_to_lock_and_selected_directory(
+    tmp_path: Path,
+) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    pairs = ["BTC/USDT"]
+    timeframes = ["5m", "15m", "1h", "4h", "1d"]
+    lock = {
+        "pairlist": {"pairs": pairs},
+        "scope": {
+            "timerange": "20210101-20260101",
+            "timeframes": timeframes,
+        },
+        "data": {
+            "aggregate_sha256": "a" * 64,
+            "file_count": 1,
+            "coverage_shortfall_count": 0,
+            "startup_shortfall_count": 1,
+            "startup_coverage_policy": "record",
+        },
+    }
+    seal = {
+        "data_root": str(data),
+        "aggregate_sha256": "a" * 64,
+        "files": [{}],
+        "coverage_shortfalls": [],
+        "startup_shortfalls": [{}],
+        "request": {
+            "pairs": pairs,
+            "timerange": "20210101-20260101",
+            "timeframes": timeframes,
+            "history_coverage_policy": "strict",
+            "startup_coverage_policy": "record",
+        },
+    }
+
+    _validate_release_data_seal(lock, seal, data_directory=data)
+
+    with pytest.raises(SpecValidationError, match="selected data directory"):
+        _validate_release_data_seal(
+            lock,
+            seal,
+            data_directory=tmp_path / "other-data",
+        )
+
+
+@pytest.mark.parametrize("reuse_snapshot", [False, True])
+def test_full_x7_warmup_can_capture_or_reuse_reference_markets(
+    monkeypatch,
+    tmp_path: Path,
+    reuse_snapshot: bool,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_measure(arguments, stdout_path, stderr_path, *, timeout_seconds):
+        captured.update(
+            arguments=arguments,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            timeout_seconds=timeout_seconds,
+        )
+        return {"exit_code": 0}
+
+    monkeypatch.setattr(
+        full_x7_certification,
+        "measure_cli_process",
+        fake_measure,
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_reference_surface_sha",
+        lambda _measurement: None,
+    )
+    snapshot = tmp_path / "reference-markets.json" if reuse_snapshot else None
+    _measure_reference(
+        tmp_path / "engine",
+        snapshot,
+        tmp_path / "reference",
+        timeout_seconds=123,
+        swap_cap_bytes=None,
+    )
+
+    arguments = captured["arguments"]
+    assert isinstance(arguments, list)
+    assert ("--markets" in arguments) is reuse_snapshot
+    assert ("--no-market-capture" in arguments) is reuse_snapshot

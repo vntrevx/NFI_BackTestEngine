@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from nfi_backtest_engine import data_seal
 from nfi_backtest_engine.canonical import read_json
 from nfi_backtest_engine.data_seal import (
+    _append_until_end_covered,
+    _download_data,
     _needs_prepend,
     find_coverage_gaps,
     prepare_data,
@@ -79,6 +84,154 @@ def test_new_files_do_not_schedule_a_redundant_prepend_download() -> None:
         [],
         require_startup_coverage=False,
     )
+
+
+def test_append_download_converges_without_a_fixed_retry_limit(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    initial = [
+        {
+            "pair": "SOL/USDT",
+            "timeframe": "15m",
+            "end_missing": True,
+            "available_end_timestamp_ms": 100,
+        }
+    ]
+    remaining = [
+        [
+            {
+                "pair": "SOL/USDT",
+                "timeframe": "15m",
+                "end_missing": True,
+                "available_end_timestamp_ms": 200,
+            }
+        ],
+        [],
+    ]
+    monkeypatch.setattr(
+        data_seal,
+        "_download_data",
+        lambda **_kwargs: {"exit_code": 0},
+    )
+    monkeypatch.setattr(
+        data_seal,
+        "find_coverage_gaps",
+        lambda *_args: remaining.pop(0),
+    )
+
+    downloads, gaps = _append_until_end_covered(
+        config_file=tmp_path / "config.json",
+        data_root=tmp_path,
+        request={},
+        gaps=initial,
+    )
+
+    assert len(downloads) == 2
+    assert gaps == []
+
+
+def test_append_download_fails_when_coverage_frontier_stalls(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    stalled = [
+        {
+            "pair": "SOL/USDT",
+            "timeframe": "15m",
+            "end_missing": True,
+            "available_end_timestamp_ms": 100,
+        }
+    ]
+    monkeypatch.setattr(
+        data_seal,
+        "_download_data",
+        lambda **_kwargs: {"exit_code": 0},
+    )
+    monkeypatch.setattr(
+        data_seal,
+        "find_coverage_gaps",
+        lambda *_args: stalled,
+    )
+
+    with pytest.raises(BenchmarkError, match="did not advance"):
+        _append_until_end_covered(
+            config_file=tmp_path / "config.json",
+            data_root=tmp_path,
+            request={},
+            gaps=stalled,
+        )
+
+
+def test_data_download_flattens_host_relative_config_includes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    child = tmp_path / "child.json"
+    child.write_text(
+        '{"exchange":{"name":"binance","pair_whitelist":["BTC/USDT"]},'
+        '"pairlists":[{"method":"StaticPairList"}],'
+        '"api_server":{"enabled":true,"jwt_secret_key":"local-secret"}}',
+        encoding="utf-8",
+    )
+    root = tmp_path / "root.json"
+    root.write_text('{"add_config_files":["child.json"]}', encoding="utf-8")
+    data_directory = tmp_path / "data"
+    data_directory.mkdir()
+    observed: dict[str, object] = {"write_file": True}
+
+    monkeypatch.setattr(data_seal, "ensure_docker_config", lambda: tmp_path)
+    monkeypatch.setattr(data_seal, "ensure_reference_image", lambda **_kwargs: None)
+
+    @contextmanager
+    def fake_managed_run(**_kwargs):
+        yield {"command_prefix": ["docker", "run"]}
+
+    monkeypatch.setattr(data_seal, "managed_docker_run", fake_managed_run)
+
+    def fake_subprocess_run(command, **_kwargs):
+        mount = command[command.index("--volume") + 1]
+        mounted_path = Path(mount.removesuffix(":/input/config.json:ro"))
+        mounted = read_json(mounted_path)
+        observed["mounted"] = mounted
+        if observed["write_file"]:
+            (data_directory / "BTC_USDT-5m.feather").write_bytes(b"captured")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(data_seal.subprocess, "run", fake_subprocess_run)
+    report = _download_data(
+        config_file=root,
+        data_root=data_directory,
+        request={
+            "download_timerange": "20210101-20260101",
+            "timeframes": ["5m"],
+            "pairs": ["BTC/USDT"],
+            "trading_mode": "spot",
+        },
+        prepend=False,
+    )
+
+    assert report["exit_code"] == 0
+    assert observed["mounted"] == {
+        "exchange": {
+            "name": "binance",
+            "pair_whitelist": ["BTC/USDT"],
+        },
+        "pairlists": [{"method": "StaticPairList"}],
+    }
+    observed["write_file"] = False
+    with pytest.raises(BenchmarkError, match="no candle file was created or changed"):
+        _download_data(
+            config_file=root,
+            data_root=data_directory,
+            request={
+                "download_timerange": "20210101-20260101",
+                "timeframes": ["5m"],
+                "pairs": ["BTC/USDT"],
+                "trading_mode": "spot",
+            },
+            prepend=False,
+        )
 
 
 def test_available_history_records_a_later_listing_without_hiding_stale_data(

@@ -1,0 +1,103 @@
+# yamllint disable rule:line-length
+name: Publish release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful Build release candidate workflow run ID
+        required: true
+        type: string
+      release_tag:
+        description: Prerelease tag, for example v1.0.0-rc.1
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    name: Publish sealed candidate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate candidate identity
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] \
+            || { echo "release_tag must be a vX.Y.Z-rc.N tag" >&2; exit 1; }
+
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}")"
+          [[ "$(jq -r .name <<<"$run_json")" == "Build release candidate" ]]
+          [[ "$(jq -r .event <<<"$run_json")" == "workflow_dispatch" ]]
+          [[ "$(jq -r .conclusion <<<"$run_json")" == "success" ]]
+          candidate_sha="$(jq -r .head_sha <<<"$run_json")"
+
+          git fetch --no-tags origin "$candidate_sha"
+          git show "$candidate_sha:pyproject.toml" > candidate-pyproject.toml
+          package_version="$(
+            python -c "import tomllib; print(tomllib.load(open('candidate-pyproject.toml', 'rb'))['project']['version'])"
+          )"
+          expected_version="${RELEASE_TAG#v}"
+          expected_version="${expected_version%%-rc.*}"
+          [[ "$package_version" == "$expected_version" ]] \
+            || { echo "tag version $expected_version differs from package $package_version" >&2; exit 1; }
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+      - name: Download sealed candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: release-bundle-*
+          path: dist
+          merge-multiple: true
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify candidate hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum --check SHA256SUMS.txt
+      - name: Create prerelease from sealed files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$CANDIDATE_SHA" \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            --prerelease
+      - name: Verify published asset bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir published
+          diff -qr dist published
+          (cd published && sha256sum --check SHA256SUMS.txt)
