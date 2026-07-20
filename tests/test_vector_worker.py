@@ -3,11 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
+from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.runtime_versions import vector_dependency_versions
+from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 from nfi_backtest_engine.vector_worker import (
     _attach_funding_events,
     _bound_indicator_frames,
     _prepare_execution_frame,
+    _stabilize_compressed_tag_columns,
     _trim_timerange,
 )
 
@@ -159,6 +163,51 @@ def test_execution_frame_keeps_startup_rows_as_callback_only_context() -> None:
         None,
         "141",
     ]
+
+
+def test_all_null_tag_transport_marks_every_nullable_value() -> None:
+    frame = pd.DataFrame(
+        {
+            "nfi_exec_enter_long": [0, 0],
+            "nfi_exec_enter_tag": [None, None],
+        }
+    )
+
+    result = _stabilize_compressed_tag_columns(frame)
+
+    assert result["nfi_exec_enter_tag"].tolist() == [
+        EMPTY_TAG_TRANSPORT_SENTINEL,
+        EMPTY_TAG_TRANSPORT_SENTINEL,
+    ]
+    assert frame["nfi_exec_enter_tag"].isna().all()
+
+
+def test_real_tag_transport_preserves_tags_and_marks_nullable_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "nfi_exec_enter_long": [0, 1],
+            "nfi_exec_enter_tag": [None, "121"],
+        }
+    )
+
+    result = _stabilize_compressed_tag_columns(frame)
+
+    assert result is not frame
+    assert result.loc[0, "nfi_exec_enter_tag"] == EMPTY_TAG_TRANSPORT_SENTINEL
+    assert result.loc[1, "nfi_exec_enter_tag"] == "121"
+    assert pd.isna(frame.loc[0, "nfi_exec_enter_tag"])
+
+
+@pytest.mark.parametrize("invalid", [121, EMPTY_TAG_TRANSPORT_SENTINEL])
+def test_tag_transport_rejects_values_that_cannot_round_trip(invalid: object) -> None:
+    frame = pd.DataFrame(
+        {
+            "nfi_exec_enter_tag": [None, invalid],
+        }
+    )
+
+    with pytest.raises(StrategyAnalysisError, match="vector tag column"):
+        _stabilize_compressed_tag_columns(frame)
 
 
 def test_funding_events_use_the_exact_inner_join_without_forward_fill(

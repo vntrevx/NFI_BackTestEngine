@@ -16,6 +16,7 @@ TRADE_SURFACE_SCHEMA = "trade-surface.schema.json"
 TRADE_SURFACE_V2_SCHEMA = "trade-surface-v2.schema.json"
 BENCHMARK_FIXTURE_SCHEMA = "benchmark-fixture.schema.json"
 BENCHMARK_FIXTURE_V2_SCHEMA = "benchmark-fixture-v2.schema.json"
+CERTIFICATION_REPORT_SCHEMA = "certification-report-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -39,7 +40,7 @@ _SUMMARY_DECIMAL_FIELDS = (
 )
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=5)
 def _validator(schema_name: str) -> Draft202012Validator:
     schema_resource = files("nfi_backtest_engine.schemas").joinpath(schema_name)
     schema = __import__("json").loads(schema_resource.read_text(encoding="utf-8"))

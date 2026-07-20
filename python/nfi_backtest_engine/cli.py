@@ -11,7 +11,7 @@ from typing import Any
 
 from . import __version__
 from .benchmark import run_benchmark
-from .canonical import write_json
+from .canonical import read_json, write_json
 from .config_loader import load_effective_config
 from .doctor import run_doctor
 from .engine_runtime import build_engine, run_engine
@@ -27,6 +27,10 @@ from .hardware import (
 from .normalize import normalize_file
 from .parity import ParityMismatch, compare_surface_files
 from .performance_gate import run_performance_gate
+from .product_contract import (
+    DEFAULT_CERTIFICATION_REPETITIONS,
+    DEFAULT_CERTIFICATION_TIMEOUT_SECONDS,
+)
 from .profiling import aggregate_profile_file
 from .reference_runtime import capture_reference_markets, run_reference_fixture
 from .state_trace import TraceMismatch, compare_state_traces, trace_summary
@@ -79,6 +83,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     seal = fixture_commands.add_parser("seal", help="refresh byte counts and SHA-256 values")
     seal.add_argument("manifest", type=Path)
+    fixture_upload = fixture_commands.add_parser(
+        "upload",
+        help="upload a hash-verified fixture or certification bundle to S3",
+    )
+    fixture_upload.add_argument("source", type=Path)
+    fixture_upload.add_argument("destination", help="s3://bucket/key")
+    fixture_upload.add_argument("--endpoint-url")
+    fixture_download = fixture_commands.add_parser(
+        "download",
+        help="download and verify an S3 fixture or certification bundle",
+    )
+    fixture_download.add_argument("source", help="s3://bucket/key")
+    fixture_download.add_argument("--output", "-o", type=Path, required=True)
+    fixture_download.add_argument("--sha256")
+    fixture_download.add_argument("--endpoint-url")
 
     normalize = subcommands.add_parser(
         "normalize", help="normalize an official Freqtrade JSON export"
@@ -140,6 +159,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="disable low-overhead Phase 0 profiling",
     )
     reference_run.add_argument("--timeout", type=int)
+    reference_research = reference_commands.add_parser(
+        "research",
+        help="rerun one completed research run in pinned official Freqtrade",
+    )
+    reference_research.add_argument("run_directory", type=Path)
+    reference_research.add_argument("--output-dir", type=Path, required=True)
+    reference_research.add_argument(
+        "--markets",
+        type=Path,
+        help="reuse a pinned raw reference market snapshot instead of capturing one",
+    )
+    reference_research.add_argument(
+        "--no-market-capture",
+        action="store_true",
+        help="require --markets and keep every Docker invocation offline",
+    )
+    reference_research.add_argument(
+        "--audit-timestamp-ms",
+        action="append",
+        type=int,
+        help="retain callback state at this exact timestamp; may be repeated",
+    )
+    reference_research.add_argument("--timeout", type=int)
     reference_capture = reference_commands.add_parser(
         "capture-markets",
         help="capture and freeze CCXT markets for later offline reference runs",
@@ -183,6 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-download",
         action="store_true",
         help="fail if required candle coverage is missing",
+    )
+    run.add_argument(
+        "--history-coverage",
+        choices=("available", "strict"),
+        default="available",
+        help="accept post-listing starts or require every pair at the range start",
     )
     run.add_argument(
         "--markets",
@@ -262,6 +310,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="download or fail instead of sealing Freqtrade-compatible startup shortfalls",
     )
+    data_prepare.add_argument(
+        "--history-coverage",
+        choices=("strict", "available"),
+        default="strict",
+        help="strict requires the range start; available records later listings",
+    )
     data_validate = data_commands.add_parser(
         "validate", help="verify every hash and coverage value in a data seal"
     )
@@ -275,6 +329,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     markets_capture.add_argument("--config", type=Path, required=True)
     markets_capture.add_argument("--pair", action="append")
+    markets_capture.add_argument(
+        "--leverage-tiers",
+        type=Path,
+        help="optional Freqtrade exchange leverage-tier JSON for exact futures liquidation",
+    )
     markets_capture.add_argument("--output", "-o", type=Path, required=True)
 
     strategy = subcommands.add_parser("strategy", help="inspect and prepare strategy sources")
@@ -372,6 +431,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="fail if required candle coverage is missing",
     )
+    backtest.add_argument(
+        "--history-coverage",
+        choices=("available", "strict"),
+        default="available",
+        help="accept post-listing starts or require every pair at the range start",
+    )
 
     confirm = subcommands.add_parser(
         "confirm",
@@ -449,6 +514,33 @@ def build_parser() -> argparse.ArgumentParser:
     performance.add_argument("--level", choices=("quick", "full"), default="full")
     performance.add_argument("--runs", type=int, default=1)
     performance.add_argument("--timeout", type=int, default=600)
+
+    certify = subcommands.add_parser(
+        "certify",
+        help="run release-grade exact parity and package a verified evidence bundle",
+    )
+    certify.add_argument("manifest", type=Path)
+    certify.add_argument("--output-dir", type=Path, required=True)
+    certify.add_argument("--profile", type=Path)
+    certify.add_argument(
+        "--state-probe",
+        action="append",
+        type=Path,
+        required=True,
+        help="small branch-reaching fixture verified with full state; may be repeated",
+    )
+    certify.add_argument(
+        "--runs",
+        type=int,
+        default=DEFAULT_CERTIFICATION_REPETITIONS,
+        help="independent engine/reference repetitions (default: 5, minimum: 3)",
+    )
+    certify.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_CERTIFICATION_TIMEOUT_SECONDS,
+        help="timeout for each engine or official run in seconds",
+    )
     return parser
 
 
@@ -465,9 +557,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.fixture_command == "validate":
                 manifest = validate_fixture(args.manifest, verify_hashes=not args.skip_hashes)
                 print(f"fixture valid: {manifest['fixture_id']} ({manifest['evidence_status']})")
-            else:
+            elif args.fixture_command == "seal":
                 manifest = seal_fixture(args.manifest)
                 print(f"fixture sealed: {manifest['fixture_id']}")
+            elif args.fixture_command == "upload":
+                from .object_storage import upload_artifact
+
+                record = upload_artifact(
+                    args.source,
+                    args.destination,
+                    endpoint_url=args.endpoint_url,
+                )
+                print(
+                    f"S3 artifact uploaded and verified: {record['bytes']} bytes, "
+                    f"sha256={record['sha256']} -> {record['uri']}"
+                )
+            else:
+                from .object_storage import download_artifact
+
+                record = download_artifact(
+                    args.source,
+                    args.output,
+                    expected_sha256=args.sha256,
+                    endpoint_url=args.endpoint_url,
+                )
+                print(
+                    f"S3 artifact downloaded and verified: {record['bytes']} bytes, "
+                    f"sha256={record['sha256']} -> {record['local_path']}"
+                )
             return 0
 
         if args.command_name == "normalize":
@@ -519,6 +636,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"sha256={record['sha256']} -> {args.output}"
                 )
                 return 0
+            if args.reference_command == "research":
+                from .research_reference import run_research_reference
+
+                report = run_research_reference(
+                    args.run_directory,
+                    args.output_dir,
+                    market_snapshot_path=args.markets,
+                    capture_markets=not args.no_market_capture,
+                    audit_timestamps_ms=args.audit_timestamp_ms,
+                    timeout_seconds=args.timeout,
+                )
+                print(
+                    "official research parity: "
+                    f"equal={report['exact_parity']}, "
+                    f"trades={report['official_trade_surface'] is not None}, "
+                    f"report={args.output_dir / 'run.json'}"
+                )
+                memory_verdict = report["container_memory"]["verdict"]
+                if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
+                    print(
+                        "reference container memory: "
+                        f"{memory_verdict}, peak={report['container_memory']['peak_bytes']}, "
+                        f"limit={report['container_memory']['limit_bytes']}",
+                        file=sys.stderr,
+                    )
+                return 0 if report["complete"] else 1
             report = run_reference_fixture(
                 args.manifest,
                 args.output_dir,
@@ -617,6 +760,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 market_metadata_path=args.markets,
                 download_market_metadata=not args.no_market_download,
                 recalibrate=args.recalibrate,
+                history_coverage_policy=args.history_coverage,
             )
 
         if args.command_name == "system":
@@ -699,6 +843,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     download_missing=not args.no_download,
                     startup_candles=args.startup_candles,
                     require_startup_coverage=args.require_startup_coverage,
+                    history_coverage_policy=args.history_coverage,
                 )
                 print(
                     f"data sealed: {len(seal['files'])} files, "
@@ -722,7 +867,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             config = sanitize_config(loaded["config"])
             if not isinstance(config, dict):
                 raise NfiBacktestError("effective config must be an object")
-            report = capture_market_snapshot(config, pairlist["pairs"], args.output)
+            leverage_tiers = read_json(args.leverage_tiers) if args.leverage_tiers else None
+            report = capture_market_snapshot(
+                config,
+                pairlist["pairs"],
+                args.output,
+                leverage_tiers=leverage_tiers,
+            )
             print(
                 f"markets captured: exchange={report['exchange']}, "
                 f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
@@ -826,6 +977,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 market_metadata_path=args.markets,
                 download_market_metadata=not args.no_market_download,
                 recalibrate=args.recalibrate,
+                history_coverage_policy=args.history_coverage,
             )
 
         if args.command_name == "confirm":
@@ -947,6 +1099,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0 if report["complete"] else 1
 
+        if args.command_name == "certify":
+            from .certification import run_certification
+
+            report = run_certification(
+                args.manifest,
+                args.output_dir,
+                profile_path=args.profile,
+                state_probe_manifests=args.state_probe,
+                repetitions=args.runs,
+                timeout_seconds=args.timeout,
+            )
+            print(
+                f"certification: status={report['status']}, "
+                f"speedup={report['measurements']['observed_speedup']:.3f}x, "
+                f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
+                f"{args.output_dir / 'certification.json'}"
+            )
+            return 0 if report["release_certified"] else 1
+
         raise AssertionError(f"unhandled command: {args.command_name}")
     except ParityMismatch as exc:
         print(str(exc), file=sys.stderr)
@@ -968,6 +1139,7 @@ def _execute_research_backtest(
     market_metadata_path: Path | None,
     download_market_metadata: bool,
     recalibrate: bool,
+    history_coverage_policy: str,
 ) -> int:
     """Run the existing research contract for advanced and wizard-backed commands."""
     from .research_runner import run_research_backtest
@@ -981,6 +1153,7 @@ def _execute_research_backtest(
         market_metadata_path=market_metadata_path,
         download_market_metadata=download_market_metadata,
         recalibrate=recalibrate,
+        history_coverage_policy=history_coverage_policy,
     )
     output = Path(arguments["output_directory"])
     print(

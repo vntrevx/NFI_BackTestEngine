@@ -167,6 +167,42 @@ def test_annotated_class_constants_use_the_same_bounded_static_evaluator(
     assert "unsafe" in strategy["dynamic_constants"]
 
 
+def test_literal_protections_are_sealed_without_importing_strategy(tmp_path: Path) -> None:
+    source = tmp_path / "Protected.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Protected(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    protection_duration = 3\n"
+        "    @property\n"
+        "    def protections(self):\n"
+        "        return [\n"
+        "            {'method': 'CooldownPeriod', "
+        "'stop_duration_candles': self.protection_duration},\n"
+        "        ]\n",
+        encoding="utf-8",
+    )
+
+    strategy = analyze_strategy(source)["strategies"][0]
+
+    # Attribute access is deliberately not guessed by the static evaluator.
+    assert strategy["protections"] is None
+    assert not strategy["protections_static"]
+
+    source.write_text(
+        source.read_text(encoding="utf-8").replace(
+            "self.protection_duration",
+            "protection_duration",
+        ),
+        encoding="utf-8",
+    )
+    strategy = analyze_strategy(source)["strategies"][0]
+    assert strategy["protections_static"]
+    assert strategy["protections"] == [
+        {"method": "CooldownPeriod", "stop_duration_candles": 3}
+    ]
+
+
 def test_bounded_class_constant_expressions_resolve_without_execution(
     tmp_path: Path,
 ) -> None:

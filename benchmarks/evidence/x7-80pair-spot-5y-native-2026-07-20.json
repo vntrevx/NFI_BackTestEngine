@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "status": "native-complete-diagnostic",
+  "claim_boundary": "latest supplied X7 v17.4.418 over 80 configured spot pairs from 2021-01-01 through 2026-01-01 using available local history and a reused sealed vector checkpoint; proves byte-exact native A/B equivalence and a one-host diagnostic speedup only, not official Freqtrade parity, complete five-year market coverage, a cold full-pipeline certificate, or cross-platform performance",
+  "recorded_at": "2026-07-20",
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.418",
+    "source_file_sha256": "f5260e2de9b911567728dd90bdd59912b1a1272ef863c24110ce44bceb09e0b9",
+    "pair_count": 80,
+    "timeframes": [
+      "5m",
+      "15m",
+      "1h",
+      "4h",
+      "1d"
+    ],
+    "timerange": "20210101-20260101",
+    "trading_mode": "spot",
+    "history_coverage_policy": "available",
+    "strategy_ir_version": "1.7.0",
+    "hot_ir_version": "1.9.0",
+    "data_seal_version": "1.3.0",
+    "vector_pipeline_version": "1.14.0",
+    "generic_adapter_version": "1.3.0",
+    "x7_adapter_version": "0.14.0"
+  },
+  "execution_environment": {
+    "environment": "WSL2 Linux x86_64",
+    "hardware_fingerprint": "e87bf56bf2d21f50bb2102e76a975178f573f362fcac0d58d6971b0a56599f4b",
+    "configured_indicator_workers": 4,
+    "configured_cpu_process_limit": 5,
+    "configured_working_memory_bytes": 23217825997,
+    "portfolio_simulator_threads": 1
+  },
+  "sealed_inputs": {
+    "simulation_manifest_sha256": "19dbf9e1411537b00b982818c2c56cbbf0915e93f76e4ced8655c6814da1d997",
+    "pairlist_sha256": "f15c02058d3dba5d2d54038275b3fcaba068110e470d6085eebd9fe021d761dd",
+    "data_aggregate_sha256": "ccaa1da7217c3652cf44c644a22545d123c0047bacb52ba97fbe72c8786e48d2",
+    "data_file_count": 400,
+    "coverage_shortfall_count": 275,
+    "vector_cache_hits": 80,
+    "data_checkpoint_reused": true,
+    "vector_checkpoint_reused": true,
+    "row_count": 21102441,
+    "feature_column_count": 8480,
+    "file_backed_bytes": 19604167689
+  },
+  "native_same_input_comparison": {
+    "equal": true,
+    "byte_equal": true,
+    "numeric_tolerance": 0,
+    "first_difference": null,
+    "baseline_result_sha256": "411fc343d961c187e926eb5fae63b99ff0ea65b7bd5974bbbf52d9554a9255d7",
+    "optimized_result_sha256": "411fc343d961c187e926eb5fae63b99ff0ea65b7bd5974bbbf52d9554a9255d7",
+    "trade_surface_sha256": "15b9b7393cc49cea14d37fdef2fd8700418446b5d0544fbd32eec533b0551cdd",
+    "trades": 750,
+    "final_balance": "9065.842647560003",
+    "profit_total_abs": "8065.842647560002",
+    "total_volume": "1746450.3048637842",
+    "rejected_signals": 2625,
+    "maximum_concurrent_trades": 6,
+    "locks": 0
+  },
+  "baseline_observation": {
+    "source_fingerprint": "e2109d63886b8ae38413f297c880725a58ab5300a49a5e2779626466cf5e179c",
+    "binary_sha256": "54f7a44b79ef8cb161dab96b5a17deddccfaea083701e04803ff9d27c1eca03b",
+    "wall_time_seconds": 2022.069399265,
+    "cpu_time_seconds": 1919.67,
+    "peak_rss_bytes": 99012608,
+    "event_loop_seconds": 1638.360713696,
+    "validation_seconds": 8.897374419,
+    "feather_decode_seconds": 272.936399009,
+    "vector_hash_seconds": 93.000645178
+  },
+  "optimized_observation": {
+    "source_fingerprint": "0aea9c2f4953e5905dbc76cf4f0a065f666edd61aa428a811fe181e464cc96df",
+    "binary_sha256": "d7930a57a130441bfa8d7ab2f42146ba3af585f00092fb49d0b6570560a5afa5",
+    "wall_time_seconds": 763.7,
+    "cpu_time_seconds": 688.67,
+    "peak_rss_bytes": 100286464,
+    "event_loop_seconds": 474.861676065,
+    "validation_seconds": 4.349508367,
+    "feather_decode_seconds": 217.225193816,
+    "vector_hash_seconds": 80.667392536
+  },
+  "diagnostic_speedup": {
+    "core_process_wall_ratio": 2.64772685609533,
+    "event_loop_ratio": 3.45018517239058,
+    "controlled_repetition_count": 1,
+    "release_speed_certificate": false
+  },
+  "official_confirmation": {
+    "required_for_release_claim": true,
+    "status": "blocked_oom",
+    "evidence": "x7-80pair-spot-5y-official-oom-2026-07-20.json",
+    "freqtrade_surface_equal": null
+  },
+  "limitations": [
+    "The run used history-coverage=available and recorded 275 pair-timeframe coverage shortfalls.",
+    "The data and vector checkpoints were reused, so this is not a cold end-to-end timing.",
+    "The baseline and optimized observations were not collected as a controlled alternating benchmark series.",
+    "The observation was collected once on one WSL2 development host.",
+    "Pinned Freqtrade reached its enforced 21,852,071,527-byte container limit and was OOM-killed before producing a result."
+  ]
+}

@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -28,6 +28,10 @@ use thiserror::Error;
 pub const VECTOR_MANIFEST_SCHEMA_VERSION: &str = "1.2.0";
 const LEGACY_VECTOR_MANIFEST_SCHEMA_VERSIONS: [&str; 2] = ["1.0.0", "1.1.0"];
 const SPOOL_DIRECTORY_ENVIRONMENT: &str = "NFI_BTE_SPOOL_DIRECTORY";
+const EMPTY_TAG_TRANSPORT_SENTINEL: &str = "__nfi_bte_empty_tag_column__";
+// One bounded buffer converts batches into fixed-width rows without issuing a
+// kernel write for every candle. The spool itself remains disk-backed.
+const SPOOL_WRITE_BUFFER_BYTES: usize = 256 * 1024;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct VectorLoadProfile {
@@ -409,6 +413,37 @@ fn sha256_file(path: &Path) -> Result<String, std::io::Error> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+fn projected_source_indices(
+    schema: &Schema,
+    pair: &VectorPair,
+) -> Result<Vec<usize>, VectorInputError> {
+    let mut required = required_columns(pair);
+    // Freqtrade omits tag columns when a strategy never populated them. Keep
+    // them in the projection only when present; the decoder supplies `None`
+    // for an omitted tag instead of treating the vector as malformed.
+    for optional in ["nfi_exec_enter_tag", "nfi_exec_exit_tag"] {
+        if schema.fields.iter().any(|field| field.name == optional) {
+            required.insert(optional.to_owned());
+        }
+    }
+
+    let mut indices = Vec::with_capacity(required.len());
+    for column in required {
+        let index = schema
+            .fields
+            .iter()
+            .position(|field| field.name == column)
+            .ok_or_else(|| VectorInputError::MissingColumn {
+                pair: pair.pair.clone(),
+                column,
+            })?;
+        indices.push(index);
+    }
+    indices.sort_unstable();
+    indices.dedup();
+    Ok(indices)
+}
+
 fn read_feather(
     path: &Path,
     pair: &VectorPair,
@@ -423,38 +458,12 @@ fn read_feather(
         path: path.to_path_buf(),
         message: error.to_string(),
     })?;
-    let mut required = required_columns(pair);
-    // Tags are optional in Freqtrade vector output when the strategy never
-    // populated them. Their absence means `None`, not a malformed signal.
-    for optional in ["nfi_exec_enter_tag", "nfi_exec_exit_tag"] {
-        if metadata
-            .schema
-            .fields
-            .iter()
-            .any(|field| field.name == optional)
-        {
-            required.insert(optional.to_owned());
-        }
-    }
-    let mut source_indices = Vec::with_capacity(required.len());
-    for column in &required {
-        let index = metadata
-            .schema
-            .fields
-            .iter()
-            .position(|field| field.name == *column)
-            .ok_or_else(|| VectorInputError::MissingColumn {
-                pair: pair.pair.clone(),
-                column: column.clone(),
-            })?;
-        source_indices.push(index);
-    }
-    source_indices.sort_unstable();
-    source_indices.dedup();
+    let source_indices = projected_source_indices(&metadata.schema, pair)?;
     let reader = FileReader::new(file, metadata, Some(source_indices), None);
     let projected_positions = column_positions(reader.schema());
     let (feature_kinds, row_stride) = feature_layout(reader.schema(), &projected_positions, pair)?;
-    let mut spool = pair_spool(&pair.pair)?;
+    let spool_file = pair_spool(&pair.pair)?;
+    let mut spool = BufWriter::with_capacity(SPOOL_WRITE_BUFFER_BYTES, spool_file);
     let mut row_buffer = vec![0_u8; row_stride];
     let mut tag_ids = BTreeMap::new();
     let mut tags = Vec::new();
@@ -490,6 +499,18 @@ fn read_feather(
                 std::io::ErrorKind::InvalidData,
                 "pair spool byte count is too large",
             ),
+        })?;
+    spool
+        .flush()
+        .map_err(|source| VectorInputError::FileBacking {
+            pair: pair.pair.clone(),
+            source,
+        })?;
+    let spool = spool
+        .into_inner()
+        .map_err(|error| VectorInputError::FileBacking {
+            pair: pair.pair.clone(),
+            source: error.into_error(),
         })?;
     let rows =
         FileBackedRows::new(spool, row_offset, feature_kinds.len(), tags).map_err(|source| {
@@ -608,7 +629,7 @@ fn append_batch_to_spool(
     row_offset: usize,
     previous_close: &mut Option<f64>,
     feature_kinds: &[(String, FileBackedFeatureKind)],
-    spool: &mut File,
+    spool: &mut BufWriter<File>,
     row_buffer: &mut [u8],
     tag_ids: &mut BTreeMap<String, u32>,
     tags: &mut Vec<String>,
@@ -1037,7 +1058,7 @@ fn optional_text(
             });
         }
     };
-    Ok((!value.is_empty()).then(|| value.to_owned()))
+    Ok((!value.is_empty() && value != EMPTY_TAG_TRANSPORT_SENTINEL).then(|| value.to_owned()))
 }
 
 #[cfg(test)]

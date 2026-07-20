@@ -718,7 +718,11 @@ def _audit_trade_state(trade: Any) -> Any:
         {
             "id": getattr(trade, "id", None),
             "amount": getattr(trade, "amount", None),
+            "open_rate": getattr(trade, "open_rate", None),
             "stake_amount": getattr(trade, "stake_amount", None),
+            "max_stake_amount": getattr(trade, "max_stake_amount", None),
+            "liquidation_price": getattr(trade, "liquidation_price", None),
+            "stop_loss": getattr(trade, "stop_loss", None),
             "successful_entries": getattr(trade, "nr_of_successful_entries", None),
             "successful_exits": getattr(trade, "nr_of_successful_exits", None),
             "order_count": len(orders),

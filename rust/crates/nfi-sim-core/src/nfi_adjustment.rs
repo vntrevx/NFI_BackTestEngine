@@ -1,22 +1,23 @@
 //! Exact NFI X7 system-v3.2 position adjustment for managed long routes.
 //!
 //! The strategy intentionally reconstructs each open grind cluster from filled
-//! orders on every candle. We do the same here. A compact cached cluster would
-//! be faster, but it would add state that Freqtrade and NFI do not own and make
-//! partial-exit/order-tag edge cases harder to prove.
+//! orders on every candle. The engine derives the same immutable projection,
+//! then caches it until an adjustment appends an order. Price-dependent profit
+//! values are still recomputed every candle, so the cache changes no callback
+//! input or source-order decision.
 
 use super::{
     adjustment_minimum_pair_stake, evaluate_scalar_program_bundle, feature_number_at, fee_close,
     fee_open, insert_projected_feature_window, nfi_profit_snapshot, number_value,
     scalar_trade_value, scalar_truthy, AdjustmentSignal, BTreeMap, Candle, NfiProfitSnapshot,
     NfiX7GrindLevel, NfiX7PositionAdjustment, NfiX7TradeManager, OpenTrade, PairSeries,
-    PortfolioConfig, TradeSide, Value,
+    PortfolioConfig, PositionAdjustmentRequest, TradeSide, Value,
 };
 
 const FIVE_MINUTES_MS: i64 = 5 * 60 * 1_000;
 const SIX_HOURS_MS: i64 = 6 * 60 * 60 * 1_000;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 struct GrindCluster {
     count: usize,
     total_amount: f64,
@@ -24,21 +25,19 @@ struct GrindCluster {
     entry_ids: Vec<u64>,
     latest_entry_price: Option<f64>,
     exit_price: Option<f64>,
-    open_rate: f64,
-    current_stake: f64,
-    profit_stake: f64,
-    profit_rate: f64,
 }
 
 impl GrindCluster {
-    fn finish(&mut self, rate: f64, close_fee: f64) {
+    fn profit_stake(&self, rate: f64, close_fee: f64) -> f64 {
+        self.total_amount * rate * (1.0 - close_fee) - self.total_cost
+    }
+
+    fn profit_rate(&self, rate: f64) -> f64 {
         if self.count == 0 {
-            return;
+            return 0.0;
         }
-        self.open_rate = self.total_cost / self.total_amount;
-        self.current_stake = self.total_amount * rate * (1.0 - close_fee);
-        self.profit_stake = self.current_stake - self.total_cost;
-        self.profit_rate = (rate - self.open_rate) / self.open_rate;
+        let open_rate = self.total_cost / self.total_amount;
+        (rate - open_rate) / open_rate
     }
 
     fn distance(&self, rate: f64) -> f64 {
@@ -47,8 +46,9 @@ impl GrindCluster {
     }
 }
 
-#[derive(Debug)]
-struct AdjustmentState {
+#[derive(Debug, Clone)]
+pub(super) struct AdjustmentState {
+    order_count: usize,
     clusters: [GrindCluster; 5],
     derisk_found: [bool; 3],
     first_entry_amount: f64,
@@ -72,6 +72,7 @@ struct AdjustmentContext<'a> {
     slice_amount: f64,
     slice_profit_entry: f64,
     current_stake_amount: f64,
+    rebuy_mode: bool,
     is_long_grind_entry: bool,
     extra_entry_checks: bool,
 }
@@ -97,11 +98,9 @@ enum GrindLevelOutcome {
 pub(super) fn evaluate_nfi_position_adjustment(
     manager: &NfiX7TradeManager,
     trade: &mut OpenTrade,
-    pair: &PairSeries,
-    candle_index: usize,
-    candle: &Candle,
-    config: &PortfolioConfig,
-    available_balance: f64,
+    request: &PositionAdjustmentRequest<'_>,
+    initial_stake_multiplier: f64,
+    rebuy_mode: bool,
 ) -> Option<Option<AdjustmentSignal>> {
     let adjustment = manager.position_adjustment.as_ref();
     if adjustment.is_none_or(|adjustment| !adjustment.enabled) {
@@ -115,6 +114,37 @@ pub(super) fn evaluate_nfi_position_adjustment(
         return None;
     }
 
+    let state = trade
+        .nfi_adjustment_state
+        .take()
+        .filter(|state| state.order_count == trade.orders.len())
+        .or_else(|| rebuild_adjustment_state(trade))?;
+    let result = evaluate_nfi_position_adjustment_with_state(
+        manager,
+        adjustment,
+        trade,
+        &state,
+        request,
+        initial_stake_multiplier,
+        rebuy_mode,
+    );
+    trade.nfi_adjustment_state = Some(state);
+    result
+}
+
+#[allow(clippy::option_option)] // Preserve the evaluator-validity boundary.
+fn evaluate_nfi_position_adjustment_with_state(
+    manager: &NfiX7TradeManager,
+    adjustment: &NfiX7PositionAdjustment,
+    trade: &mut OpenTrade,
+    state: &AdjustmentState,
+    request: &PositionAdjustmentRequest<'_>,
+    initial_stake_multiplier: f64,
+    rebuy_mode: bool,
+) -> Option<Option<AdjustmentSignal>> {
+    let pair = request.pair;
+    let candle = request.candle;
+    let config = request.config;
     let minimum_stake = adjustment_minimum_stake(pair, candle, trade, config)?;
     let snapshot = nfi_profit_snapshot(
         trade,
@@ -123,8 +153,13 @@ pub(super) fn evaluate_nfi_position_adjustment(
         fee_close(config),
         config.is_futures,
     )?;
-    let state = rebuild_adjustment_state(trade, candle.open, fee_close(config))?;
-    let slice_amount = state.first_entry_cost;
+    if !initial_stake_multiplier.is_finite() || initial_stake_multiplier <= 0.0 {
+        return None;
+    }
+    // X7 opens rebuy-mode trades at a fraction of the normal slot size. Once
+    // a level-3 de-risk transfers the trade to this shared callback, the
+    // source restores the normal slice before sizing every grind branch.
+    let slice_amount = state.first_entry_cost / initial_stake_multiplier;
     let slice_profit = price_distance(candle.open, state.latest_order_price)?;
     let slice_profit_entry = price_distance(candle.open, state.latest_entry_price)?;
     let slice_profit_exit = state
@@ -136,7 +171,7 @@ pub(super) fn evaluate_nfi_position_adjustment(
         &adjustment.decision_program,
         trade,
         pair,
-        candle_index,
+        request.candle_index,
         candle,
         state
             .clusters
@@ -157,28 +192,30 @@ pub(super) fn evaluate_nfi_position_adjustment(
     // maxima before evaluating exits. `long_grind_exit_v3` currently has its
     // trailing branch disabled, but preserving the write order protects the
     // order_filled reset contract and future proof fixtures.
-    let previous_maxima = read_and_update_cluster_maxima(trade, &state.clusters);
+    let previous_maxima =
+        read_and_update_cluster_maxima(trade, &state.clusters, candle.open, fee_close(config));
     let context = AdjustmentContext {
         adjustment,
         pair,
-        candle_index,
+        candle_index: request.candle_index,
         candle,
         config,
-        available_balance,
+        available_balance: request.available_balance,
         minimum_stake,
         snapshot,
         slice_amount,
         slice_profit_entry,
         current_stake_amount: trade.amount * candle.open,
+        rebuy_mode,
         is_long_grind_entry,
         extra_entry_checks,
     };
 
-    if let Some(adjustment) = evaluate_derisk_levels(&context, trade, &state)? {
+    if let Some(adjustment) = evaluate_derisk_levels(&context, trade, state)? {
         return Some(Some(adjustment));
     }
     for index in 0..state.clusters.len() {
-        match evaluate_grind_level(&context, trade, &state, &previous_maxima, index)? {
+        match evaluate_grind_level(&context, trade, state, &previous_maxima, index)? {
             GrindLevelOutcome::Continue => {}
             GrindLevelOutcome::ReturnNone => return Some(None),
             GrindLevelOutcome::Signal(adjustment) => return Some(Some(adjustment)),
@@ -210,11 +247,7 @@ fn adjustment_minimum_stake(
         .then(|| adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent))
 }
 
-fn rebuild_adjustment_state(
-    trade: &OpenTrade,
-    rate: f64,
-    close_fee: f64,
-) -> Option<AdjustmentState> {
+fn rebuild_adjustment_state(trade: &OpenTrade) -> Option<AdjustmentState> {
     let first = trade.orders.first()?;
     let latest = trade.orders.last()?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
@@ -260,10 +293,8 @@ fn rebuild_adjustment_state(
             }
         }
     }
-    for cluster in &mut clusters {
-        cluster.finish(rate, close_fee);
-    }
     Some(AdjustmentState {
+        order_count: trade.orders.len(),
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
@@ -342,13 +373,15 @@ pub(super) fn evaluate_grind_entry_program(
         candle_index,
         manager.feature_projection(program_name)?,
     )?;
-    let value = evaluate_scalar_program_bundle(&manager.programs, program_name, variables)?;
+    let value = evaluate_scalar_program_bundle(&manager.programs, program_name, &variables)?;
     Some(scalar_truthy(&value))
 }
 
 fn read_and_update_cluster_maxima(
     trade: &mut OpenTrade,
     clusters: &[GrindCluster; 5],
+    rate: f64,
+    close_fee: f64,
 ) -> [(f64, f64); 5] {
     std::array::from_fn(|index| {
         let level = index + 1;
@@ -356,17 +389,17 @@ fn read_and_update_cluster_maxima(
         let rate_key = format!("grind_{level}_cluster_max_profit_rate");
         let previous_stake = custom_number(trade, &stake_key);
         let previous_rate = custom_number(trade, &rate_key);
-        if clusters[index].profit_stake > previous_stake {
-            trade.custom_data.insert(
-                stake_key,
-                number_value(clusters[index].profit_stake).unwrap_or(Value::Null),
-            );
+        let profit_stake = clusters[index].profit_stake(rate, close_fee);
+        let profit_rate = clusters[index].profit_rate(rate);
+        if profit_stake > previous_stake {
+            trade
+                .custom_data
+                .insert(stake_key, number_value(profit_stake).unwrap_or(Value::Null));
         }
-        if clusters[index].profit_rate > previous_rate {
-            trade.custom_data.insert(
-                rate_key,
-                number_value(clusters[index].profit_rate).unwrap_or(Value::Null),
-            );
+        if profit_rate > previous_rate {
+            trade
+                .custom_data
+                .insert(rate_key, number_value(profit_rate).unwrap_or(Value::Null));
         }
         (previous_stake, previous_rate)
     })
@@ -387,7 +420,10 @@ fn evaluate_derisk_levels(
     state: &AdjustmentState,
 ) -> Option<Option<AdjustmentSignal>> {
     let constants = &context.adjustment.constants;
-    if !constants.derisk_enable {
+    // All three shared de-risk branches contain `not is_rebuy_mode` in X7.
+    // A rebuy trade transfers here only after its dedicated level-3 de-risk,
+    // so running level 1 or 2 afterward would create an impossible order.
+    if !constants.derisk_enable || context.rebuy_mode {
         return Some(None);
     }
     for level in &constants.derisk_levels {
@@ -496,7 +532,10 @@ fn evaluate_grind_level(
     } else {
         constants.derisk_spot
     };
-    if constants.use_derisk && cluster.count > 0 && cluster.profit_rate < derisk_threshold {
+    if constants.use_derisk
+        && cluster.count > 0
+        && cluster.profit_rate(context.candle.open) < derisk_threshold
+    {
         let raw_exit = cluster.total_amount * context.candle.open / trade.leverage;
         if let Some(stake_amount) = partial_exit_stake(context, trade, raw_exit) {
             return Some(GrindLevelOutcome::Signal(AdjustmentSignal {
@@ -565,7 +604,8 @@ fn grind_exit_signal(
     } else {
         constants.profit_threshold_spot
     };
-    if cluster.profit_rate < profit_threshold + fee_open(context.config) + fee_close(context.config)
+    if cluster.profit_rate(context.candle.open)
+        < profit_threshold + fee_open(context.config) + fee_close(context.config)
     {
         return Some(false);
     }

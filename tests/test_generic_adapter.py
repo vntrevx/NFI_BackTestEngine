@@ -7,13 +7,16 @@ from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.engine_runtime import run_engine
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.generic_adapter import (
+    _optional_text,
     build_generic_simulation_input,
     build_generic_vector_manifest,
     generic_adapter_blockers,
+    generic_result_to_surface,
 )
 from nfi_backtest_engine.parity import first_difference
 from nfi_backtest_engine.research_runner import run_research_backtest
 from nfi_backtest_engine.strategy_ir import analyze_strategy
+from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 
 ROOT = Path(__file__).parents[1]
 STOPS_FIXTURE = ROOT / "benchmarks" / "fixtures" / "captured" / "stops-only-spot-2025-01-01_04"
@@ -44,6 +47,11 @@ def _config() -> dict:
         "stake_amount": 100,
         "max_open_trades": 1,
     }
+
+
+def test_generic_adapter_decodes_the_empty_tag_transport_marker() -> None:
+    assert _optional_text(EMPTY_TAG_TRANSPORT_SENTINEL) is None
+    assert _optional_text("121") == "121"
 
 
 def test_generic_adapter_requires_frozen_market_metadata(tmp_path: Path) -> None:
@@ -215,3 +223,76 @@ def test_public_generic_runner_matches_captured_freqtrade_surface(tmp_path: Path
     actual = read_json(tmp_path / "run" / "trade-surface.json")
     assert report["status"] == "complete"
     assert first_difference(expected, actual) is None
+
+
+def test_trade_surface_omits_internal_liquidation_price(tmp_path: Path) -> None:
+    result_path = tmp_path / "result.json"
+    write_json(
+        result_path,
+        {
+            "starting_balance": 1000.0,
+            "final_balance": 1001.0,
+            "profit_total_abs": 1.0,
+            "total_volume": 200.0,
+            "rejected_signals": 0,
+            "maximum_concurrent_trades": 1,
+            "trades": [
+                {
+                    "pair": "BTC/USDT:USDT",
+                    "is_short": False,
+                    "open_timestamp_ms": 1,
+                    "close_timestamp_ms": 60_001,
+                    "open_rate": 100.0,
+                    "close_rate": 101.0,
+                    "amount": 1.0,
+                    "stake_amount": 100.0,
+                    "max_stake_amount": 100.0,
+                    "leverage": 1.0,
+                    "entry_tag": "entry",
+                    "exit_reason": "exit_signal",
+                    "fee_open": 0.001,
+                    "fee_close": 0.001,
+                    "funding_fees": 0.0,
+                    "profit_abs": 1.0,
+                    "profit_ratio": 0.01,
+                    "liquidation_price": 50.0,
+                    "initial_stop_loss": 90.0,
+                    "stop_loss": 90.0,
+                    "minimum_rate": 99.0,
+                    "maximum_rate": 102.0,
+                    "orders": [
+                        {
+                            "side": "buy",
+                            "is_entry": True,
+                            "filled_timestamp_ms": 1,
+                            "amount": 1.0,
+                            "price": 100.0,
+                            "cost": 100.0,
+                            "tag": "entry",
+                        },
+                        {
+                            "side": "sell",
+                            "is_entry": False,
+                            "filled_timestamp_ms": 60_001,
+                            "amount": 1.0,
+                            "price": 101.0,
+                            "cost": 101.0,
+                            "tag": "exit_signal",
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+
+    surface = generic_result_to_surface(
+        result_path=result_path,
+        strategy_name="Simple",
+        config={"trading_mode": "futures", "margin_mode": "isolated"},
+        timeframe="5m",
+        timerange="20250101-20250102",
+        stoploss_ratio=-0.1,
+        destination=tmp_path / "surface.json",
+    )
+
+    assert surface["trades"][0]["liquidation_price"] is None

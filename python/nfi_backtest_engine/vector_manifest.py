@@ -11,6 +11,7 @@ from .errors import StrategyAnalysisError
 from .fixture import sha256_file
 
 VECTOR_MANIFEST_VERSION = "1.2.0"
+EMPTY_TAG_TRANSPORT_SENTINEL = "__nfi_bte_empty_tag_column__"
 
 
 def feather_column_names(path: Path, pair: str) -> set[str]:

@@ -27,7 +27,8 @@ from .reference_runtime import (
 )
 from .timerange import parse_timerange_milliseconds
 
-DATA_SEAL_VERSION = "1.2.0"
+DATA_SEAL_VERSION = "1.3.0"
+LEGACY_DATA_SEAL_VERSION = "1.2.0"
 _DATA_SUFFIXES = {".feather", ".parquet"}
 _TIMEFRAME = re.compile(r"^(?P<count>[1-9]\d*)(?P<unit>[smhdwM])$")
 
@@ -42,6 +43,7 @@ def prepare_data(
     download_missing: bool = True,
     startup_candles: int = 0,
     require_startup_coverage: bool = False,
+    history_coverage_policy: str = "strict",
 ) -> dict[str, Any]:
     """Check coverage, download only missing edges, then seal every input byte."""
     config_file = Path(config_path).resolve()
@@ -54,19 +56,31 @@ def prepare_data(
         timeframes,
         startup_candles=startup_candles,
         require_startup_coverage=require_startup_coverage,
+        history_coverage_policy=history_coverage_policy,
     )
     data_root.mkdir(parents=True, exist_ok=True)
     gaps = find_coverage_gaps(data_root, request)
     startup_shortfalls = find_startup_shortfalls(data_root, request)
     downloads: list[dict[str, Any]] = []
-    if (gaps or (require_startup_coverage and startup_shortfalls)) and not download_missing:
-        if gaps:
-            raise BenchmarkError(_gap_message(gaps))
+    blocking_gaps = _blocking_coverage_gaps(gaps, history_coverage_policy)
+    if (
+        blocking_gaps or (require_startup_coverage and startup_shortfalls)
+    ) and not download_missing:
+        if blocking_gaps:
+            raise BenchmarkError(_gap_message(blocking_gaps))
         raise BenchmarkError(_startup_gap_message(startup_shortfalls))
-    if gaps or (require_startup_coverage and startup_shortfalls):
+    if download_missing and (
+        gaps or (require_startup_coverage and startup_shortfalls)
+    ):
         needs_append = any(gap["end_missing"] for gap in gaps)
-        needs_prepend = any(gap["start_missing"] for gap in gaps) or bool(
-            require_startup_coverage and startup_shortfalls
+        # A normal download against an absent file already requests the full
+        # timerange. Prepending immediately afterwards would repeat the same
+        # network work for every newly created pair. Prepend only files that
+        # existed with a later start before this preparation began.
+        needs_prepend = _needs_prepend(
+            gaps,
+            startup_shortfalls,
+            require_startup_coverage=require_startup_coverage,
         )
         if needs_append:
             downloads.append(
@@ -88,9 +102,11 @@ def prepare_data(
             )
         gaps = find_coverage_gaps(data_root, request)
         startup_shortfalls = find_startup_shortfalls(data_root, request)
-        if gaps:
+        blocking_gaps = _blocking_coverage_gaps(gaps, history_coverage_policy)
+        if blocking_gaps:
             raise BenchmarkError(
-                f"download completed but coverage is still incomplete: {_gap_message(gaps)}"
+                "download completed but coverage is still incomplete: "
+                f"{_gap_message(blocking_gaps)}"
             )
         if require_startup_coverage and startup_shortfalls:
             raise BenchmarkError(
@@ -117,6 +133,7 @@ def prepare_data(
         },
         "data_root": str(data_root),
         "downloads": downloads,
+        "coverage_shortfalls": gaps,
         "startup_shortfalls": startup_shortfalls,
         "files": files,
         "aggregate_sha256": _aggregate_files(files),
@@ -124,6 +141,24 @@ def prepare_data(
     validate_data_seal_document(seal, source=Path(destination), verify_files=True)
     write_json(destination, seal)
     return seal
+
+
+def _needs_prepend(
+    gaps: list[dict[str, Any]],
+    startup_shortfalls: list[dict[str, Any]],
+    *,
+    require_startup_coverage: bool,
+) -> bool:
+    return any(
+        gap["start_missing"] and gap["available_start_timestamp_ms"] is not None
+        for gap in gaps
+    ) or (
+        require_startup_coverage
+        and any(
+            item["available_start_timestamp_ms"] is not None
+            for item in startup_shortfalls
+        )
+    )
 
 
 def validate_data_seal(source: str | Path) -> dict[str, Any]:
@@ -139,8 +174,12 @@ def validate_data_seal_document(
     source: Path,
     verify_files: bool,
 ) -> None:
-    if not isinstance(seal, dict) or seal.get("schema_version") != DATA_SEAL_VERSION:
+    if not isinstance(seal, dict) or seal.get("schema_version") not in {
+        DATA_SEAL_VERSION,
+        LEGACY_DATA_SEAL_VERSION,
+    }:
         raise SpecValidationError("unsupported or invalid data seal")
+    version = seal["schema_version"]
     required = {
         "schema_version",
         "created_at",
@@ -152,9 +191,13 @@ def validate_data_seal_document(
         "files",
         "aggregate_sha256",
     }
+    if version == DATA_SEAL_VERSION:
+        required.add("coverage_shortfalls")
     if set(seal) != required:
-        raise SpecValidationError("data seal fields differ from the v1 contract")
-    _validate_request_contract(seal["request"])
+        raise SpecValidationError("data seal fields differ from the versioned contract")
+    _validate_request_contract(seal["request"], version=version)
+    if version == DATA_SEAL_VERSION and not isinstance(seal["coverage_shortfalls"], list):
+        raise SpecValidationError("data seal coverage_shortfalls must be a list")
     if not isinstance(seal["startup_shortfalls"], list):
         raise SpecValidationError("data seal startup_shortfalls must be a list")
     files = seal["files"]
@@ -181,9 +224,19 @@ def validate_data_seal_document(
     current_shortfalls = find_startup_shortfalls(root, seal["request"])
     if current_shortfalls != seal["startup_shortfalls"]:
         raise SpecValidationError("sealed startup coverage changed")
+    if version == DATA_SEAL_VERSION:
+        current_gaps = find_coverage_gaps(root, seal["request"])
+        if current_gaps != seal["coverage_shortfalls"]:
+            raise SpecValidationError("sealed available-history coverage changed")
+        blocking = _blocking_coverage_gaps(
+            current_gaps,
+            seal["request"]["history_coverage_policy"],
+        )
+        if blocking:
+            raise SpecValidationError(_gap_message(blocking))
 
 
-def _validate_request_contract(request: Any) -> None:
+def _validate_request_contract(request: Any, *, version: str) -> None:
     required = {
         "exchange",
         "trading_mode",
@@ -200,6 +253,8 @@ def _validate_request_contract(request: Any) -> None:
         "config_sha256",
         "config_inputs",
     }
+    if version == DATA_SEAL_VERSION:
+        required.add("history_coverage_policy")
     if not isinstance(request, dict) or set(request) != required:
         raise SpecValidationError("data seal request fields differ from the v1.2 contract")
     timeframes = request["timeframes"]
@@ -235,6 +290,11 @@ def _validate_request_contract(request: Any) -> None:
         raise SpecValidationError("data seal download timerange is corrupt")
     if request["startup_coverage_policy"] not in {"record", "require"}:
         raise SpecValidationError("data seal startup coverage policy is invalid")
+    if version == DATA_SEAL_VERSION and request["history_coverage_policy"] not in {
+        "strict",
+        "available",
+    }:
+        raise SpecValidationError("data seal history coverage policy is invalid")
 
 
 def find_coverage_gaps(data_root: Path, request: dict[str, Any]) -> list[dict[str, Any]]:
@@ -337,6 +397,7 @@ def _data_request(
     *,
     startup_candles: int,
     require_startup_coverage: bool,
+    history_coverage_policy: str,
 ) -> dict[str, Any]:
     try:
         start_ms, end_ms = parse_timerange_milliseconds(timerange)
@@ -358,6 +419,10 @@ def _data_request(
         or startup_candles < 0
     ):
         raise SpecValidationError("startup_candles must be a non-negative integer")
+    if history_coverage_policy not in {"strict", "available"}:
+        raise SpecValidationError(
+            "history_coverage_policy must be 'strict' or 'available'"
+        )
     exchange = config.get("exchange")
     if not isinstance(exchange, dict):
         raise SpecValidationError("config.exchange must be an object")
@@ -390,6 +455,7 @@ def _data_request(
         "startup_coverage_policy": (
             "require" if require_startup_coverage else "record"
         ),
+        "history_coverage_policy": history_coverage_policy,
         "coverage_start_timestamp_ms_by_timeframe": coverage_starts,
         "download_timerange": f"{earliest_start}-{end_ms}",
     }
@@ -585,6 +651,28 @@ def _gap_message(gaps: list[dict[str, Any]]) -> str:
         for gap in gaps
     )
     return f"candle coverage is incomplete: {rendered}"
+
+
+def _blocking_coverage_gaps(
+    gaps: list[dict[str, Any]],
+    policy: str,
+) -> list[dict[str, Any]]:
+    """Return gaps that invalidate the selected history contract.
+
+    ``available`` accepts only a leading shortfall for a pair that has real
+    candles and reaches the requested end. That is the observable shape of an
+    asset listed after a portfolio timerange began. Missing pairs and stale
+    tails still fail, so the policy cannot hide a failed or partial download.
+    """
+    if policy == "strict":
+        return gaps
+    if policy != "available":
+        raise SpecValidationError(f"unsupported history coverage policy: {policy!r}")
+    return [
+        gap
+        for gap in gaps
+        if gap["available_start_timestamp_ms"] is None or gap["end_missing"]
+    ]
 
 
 def _startup_gap_message(shortfalls: list[dict[str, Any]]) -> str:
