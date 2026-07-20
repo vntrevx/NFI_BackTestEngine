@@ -40,6 +40,7 @@ from .market_snapshot import MARKET_SNAPSHOT_VERSION, capture_market_snapshot
 from .reference_runtime import load_reference_leverage_tiers
 from .run_registry import RunRegistry
 from .strategy_ir import STRATEGY_IR_VERSION
+from .strategy_overrides import effective_stoploss_ratio
 from .vector_runtime import (
     VECTOR_PIPELINE_VERSION,
     load_strategy_analysis,
@@ -402,7 +403,10 @@ def run_research_backtest(
             config=run_config,
             timeframe=strategy["constants"]["timeframe"],
             timerange=timerange,
-            stoploss_ratio=float(strategy["constants"]["stoploss"]),
+            stoploss_ratio=effective_stoploss_ratio(
+                strategy["constants"],
+                run_config,
+            ),
             destination=surface_path,
         )
         surface_seconds = _elapsed_seconds(stage_started_ns)

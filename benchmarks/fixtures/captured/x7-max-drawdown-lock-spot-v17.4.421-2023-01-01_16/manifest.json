@@ -1,0 +1,178 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "x7-v17.4.421-max-drawdown-lock-btc-spot",
+  "description": "Official Freqtrade probe for an X7 MaxDrawdown global lock.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-07-20T11:14:01.473577Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20230101-20230116",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20230101-20230116",
+      "--pairs",
+      "BTC/USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "9c7aa495100d46c9aa468c595e663f2dafe4ef911bbb13dcc1abd185bdfc7a45",
+      "bytes": 3274060
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "2bfbb5207705a7b8bc8f22f48a9a7adb4b7ac9466b31fe518b2380437886778b",
+      "bytes": 1945
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-15m.feather",
+      "sha256": "46ffdc6db64bb6dd8be32245e828f9a8446d30f9c1980c64d5cfe97ba38eb044",
+      "bytes": 109103
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1d.feather",
+      "sha256": "68a264bea5e2e29c5289f5e2ae78705f6d695e0f9a92303f98dd774286593e76",
+      "bytes": 40367
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1h.feather",
+      "sha256": "f752dc774ef54cd73093471997b40c81c3ab8f177200b9e39f62f82d1ee5b4b7",
+      "bytes": 57263
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-4h.feather",
+      "sha256": "b6ea0c3bf2123f00f0e9fb6f3fd54f9cf2dc15a588a80789ba5c0935b995a389",
+      "bytes": 44207
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "cb8da083e12e26d7c4e7e16b9249af7506ff5db6802b42753da22daa4ec13f4e",
+      "bytes": 247343
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/market-metadata.json",
+      "sha256": "3bc70199af12b0f068d46bb32f946e8e581ccdf7d1b3573f3ddcfec027177986",
+      "bytes": 56574
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "8d12683fdc1fbab29cc76f4b789be79510cfc6b2c2568c8ce81ffd6ce6e762a9",
+      "bytes": 484847
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "70f6e3c3eb3b507b36d32664c95b5db8ec7734306f33979953978f8833a0ed99",
+      "bytes": 415269
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "cf87041e031336755c2813de073c712c585de90e7ac6872e42e165de6b2037a3",
+      "bytes": 4961
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "640a825b87cb76dd2005a918bdd76654660bc62a1c4e8a0144559cdf785c140b",
+      "bytes": 17474498
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "0d30146506583842cd81e83fb6494a6618b3525907fc498dce2e530c13f72414",
+      "bytes": 773
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "c99fcff649f339c261fafe10bb5047bee53cc73d85f38b5d979f438a2b7023ae",
+      "bytes": 2219079
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "protections-locks",
+  "strategy_provenance": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "5e168431991e05a889514eb1e16fdbebc6a09811",
+    "base_source_sha256": "f11214df8747709a29088e6bd34be5a42559b521c54974663bbcd1f58f6088b9",
+    "effective_source_sha256": "9c7aa495100d46c9aa468c595e663f2dafe4ef911bbb13dcc1abd185bdfc7a45",
+    "transformations": [
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.long_entry_signal_params['long_entry_condition_121_enable'] False -> True"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound static protections property injected into NostalgiaForInfinityX7: MaxDrawdown"
+      },
+      {
+        "kind": "config-override",
+        "description": "Deterministic recursive config override: enable_protections, exchange.pair_whitelist, max_open_trades, pairlists, remove:api_server"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [],
+    "entry_tags": [
+      "121"
+    ],
+    "compound_tags": [],
+    "protection_methods": [
+      "MaxDrawdown"
+    ],
+    "exit_reasons": [
+      "exit_long_btc_g ( 121 )",
+      "force_exit"
+    ],
+    "sides": [
+      "long"
+    ],
+    "minimum_lock_count": 1,
+    "minimum_distinct_leverages": 1,
+    "require_rejected_locked_entry": false
+  }
+}

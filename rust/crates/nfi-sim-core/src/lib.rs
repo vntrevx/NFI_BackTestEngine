@@ -5261,7 +5261,12 @@ fn entry_sizing(
     let stake = if (leverage - 1.0).abs() < f64::EPSILON {
         notional
     } else {
-        precise_quotient(notional, leverage)?
+        // LocalTrade first stores the ordinary Python-float result of
+        // `amount * rate / leverage`. Its later partial-exit callback feeds
+        // that float into FtPrecise. Replacing the initial operation with
+        // exact decimal arithmetic can move an integer-contract exit one
+        // whole step at values such as 474 - a visible parity difference.
+        (amount * rate) / leverage
     };
     let precise_cost = if (leverage - 1.0).abs() < f64::EPSILON {
         precise_product(&[amount, rate, 1.0 + fee_rate])?
@@ -5369,14 +5374,6 @@ fn precise_sum(values: &[f64]) -> Option<f64> {
             exact_rational(*value).map(|number| sum + number)
         })?
         .to_f64()
-}
-
-fn precise_quotient(numerator: f64, denominator: f64) -> Option<f64> {
-    let denominator = exact_rational(denominator)?;
-    if denominator.is_zero() {
-        return None;
-    }
-    (exact_rational(numerator)? / denominator).to_f64()
 }
 
 fn precise_product_quotient(left: f64, right: f64, denominator: f64) -> Option<f64> {
@@ -5536,6 +5533,11 @@ fn apply_partial_exit(
         tag: Some(adjustment.tag.clone()),
     });
     recalculate_order_funding_total(trade);
+    // Pinned Freqtrade refreshes isolated liquidation inside
+    // `_try_close_open_order()`, before `_process_exit_order()` replays the
+    // partial exit into LocalTrade. The resulting one-adjustment lag is
+    // observable when a second derisk changes the Binance maintenance tier.
+    update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
     recalculate_open_trade_from_orders(trade, config).ok_or_else(|| {
         SimError::InvalidAdjustment {
             pair: trade.pair.clone(),
@@ -5557,7 +5559,6 @@ fn apply_partial_exit(
     };
     trade.adjustment_count += 1;
     apply_order_filled(trade, Some(&adjustment.tag), config);
-    update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
     Ok(())
 }
 
@@ -7396,7 +7397,12 @@ fn replay_closed_profit(
             },
         );
     }
-    if trade.adjustment_count > 0 {
+    if config.is_futures || trade.adjustment_count > 0 {
+        // Futures uses LocalTrade.calculate_profit even for a single-entry
+        // position. That path converts FtPrecise open/close values back to
+        // floats before applying Python's eight-decimal formatting. The
+        // algebraically equivalent gross-profit shortcut can miss a half-way
+        // decimal by one unit at variable leverage.
         let profit_abs = replay_leveraged_profit(trade, config).unwrap_or_else(|| {
             round_eight(trade.realized_partial_profit + fallback_remaining_profit)
         });
@@ -10155,6 +10161,90 @@ mod tests {
     }
 
     #[test]
+    fn futures_partial_exit_keeps_freqtrade_initial_stake_float_boundary() {
+        let (amount, stake, _, _) =
+            entry_sizing(9_900.0, 20.881, 0.0005, 1.0, 5.0).expect("valid entry sizing");
+        assert_eq!(amount, 2_370.0);
+        assert_eq!(stake, 9_897.594_000_000_001);
+
+        // This is the arithmetic order used by X7's derisk callback before
+        // Freqtrade applies FtPrecise and exchange amount precision.
+        let exit_rate = 18.792;
+        let sell_amount = amount * 0.2 * exit_rate / 5.0;
+        let requested_stake = sell_amount * 5.0 * (stake / amount) / exit_rate;
+        let raw_amount =
+            precise_product_quotient(requested_stake, amount, stake).expect("valid partial exit");
+        assert_eq!(floor_step(raw_amount, 1.0), 474.0);
+    }
+
+    #[test]
+    fn futures_profit_rounding_matches_python_format_boundary() {
+        let open_value = precise_product(&[26_791.1, 0.7768, 1.0005]).expect("valid open value");
+        let close_value = precise_product(&[26_791.1, 0.8043, 0.9995]).expect("valid close value");
+        let profit = close_value - open_value;
+        let amount = exact_rational(26_791.1).expect("valid amount");
+        let stake = &amount * exact_rational(0.7768).expect("valid price");
+        let average = ft_precise_division(&stake, &amount)
+            .and_then(|value| value.to_f64())
+            .expect("valid average");
+
+        assert_eq!(open_value, 20_821.732_143_24);
+        assert_eq!(close_value, 21_537.307_689_135);
+        assert_eq!(profit, 715.575_545_895_000_7);
+        assert_eq!(average, 0.7768);
+        assert_eq!(round_eight(profit), 715.575_545_9);
+    }
+
+    #[test]
+    fn variable_leverage_trade_keeps_eight_decimal_profit_boundary() {
+        let pair_name = "ALGO/USDT:USDT";
+        let mut portfolio = config(1);
+        portfolio.starting_balance = 20_000.0;
+        portfolio.stake_amount = 10_405.663_24;
+        portfolio.unlimited_stake = false;
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(2.0);
+        portfolio.amount_step = 0.1;
+        portfolio.price_step = 0.0001;
+        portfolio.fee_rate = 0.0005;
+        portfolio.fee_open_rate = Some(0.0005);
+        portfolio.fee_close_rate = Some(0.0005);
+
+        let mut entry = candle(1, 0.7768, 0.77);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("145 ".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut exit = candle(2, 0.8043, 0.80);
+        exit.exit_long = Some(ExitSignal {
+            reason: "exit_long_tc_d_3_42 ( 145 )".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: Some(0.1),
+                price_step: Some(0.0001),
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid variable-leverage trade");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.amount, 26_791.1);
+        assert_eq!(trade.profit_abs, 715.575_545_9);
+    }
+
+    #[test]
     fn computed_isolated_liquidation_matches_binance_long_and_short_formula() {
         let pair_name = "AAA/USDT:USDT";
         for side in [TradeSide::Long, TradeSide::Short] {
@@ -10294,6 +10384,76 @@ mod tests {
         assert_eq!(trade.orders.len(), 3);
         assert_eq!(trade.liquidation_price, Some(expected));
         assert!((expected - initial).abs() > 1e-6);
+    }
+
+    #[test]
+    fn partial_exit_liquidation_refresh_precedes_trade_replay() {
+        let pair_name = "APE/USDT:USDT";
+        let mut portfolio = config(1);
+        portfolio.starting_balance = 20_000.0;
+        portfolio.stake_amount = 11_588.348_4;
+        portfolio.unlimited_stake = false;
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(5.0);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.amount_step = 1.0;
+        portfolio.price_step = 0.001;
+        portfolio.liquidation_model = Some(isolated_model(
+            pair_name,
+            vec![leverage_tier(0.0, None, 5.0, 0.02, 25.0)],
+        ));
+
+        let mut entry = candle(1, 21.799, 21.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("141 142 ".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut first_derisk = candle(2, 20.044, 19.5);
+        first_derisk.adjustment = Some(AdjustmentSignal {
+            stake_amount: -2_317.669_68,
+            tag: "derisk_level_1".to_owned(),
+        });
+        let mut second_derisk = candle(3, 18.89, 18.5);
+        second_derisk.adjustment = Some(AdjustmentSignal {
+            stake_amount: -3_476.504_52,
+            tag: "derisk_level_2".to_owned(),
+        });
+        let liquidation = candle(4, 18.0, 17.95);
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: Some(1.0),
+                price_step: Some(0.001),
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, first_derisk, second_derisk, liquidation].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid partial-exit liquidation");
+        let trade = &result.trades[0];
+        let expected = buffered_liquidation_price(
+            TradeSide::Long,
+            9_273.294_6,
+            2_127.0,
+            21.799,
+            0.02,
+            25.0,
+            0.05,
+        );
+
+        assert_eq!(trade.exit_reason, "liquidation");
+        assert_eq!(trade.orders[1].amount, 531.0);
+        assert_eq!(trade.orders[2].amount, 797.0);
+        assert_eq!(trade.close_rate, round_step(expected, 0.001));
+        assert_eq!(trade.close_rate, 17.984);
     }
 
     #[test]

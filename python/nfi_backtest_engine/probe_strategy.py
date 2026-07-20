@@ -9,6 +9,7 @@ would silently target the wrong code after routine upstream edits.
 from __future__ import annotations
 
 import ast
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ def prepare_probe_strategy(
     upstream_repository: str,
     upstream_commit: str,
     boolean_toggles: list[dict[str, Any]] | None = None,
+    literal_toggles: list[dict[str, Any]] | None = None,
     protections: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Write one minimally changed source and return its sealed provenance."""
@@ -74,6 +76,36 @@ def prepare_probe_strategy(
                 "kind": "source-constant-toggle",
                 "description": (
                     f"AST-bound {class_name}.{mapping_name}[{key!r}] "
+                    f"{expected!r} -> {replacement!r}"
+                ),
+            }
+        )
+
+    for toggle in literal_toggles or []:
+        name = _required_text(toggle, "name")
+        expected = toggle.get("expected")
+        replacement = toggle.get("replacement")
+        _validate_numeric_literal(
+            expected,
+            replacement,
+            context=f"probe literal toggle {name}",
+        )
+        value_node, observed = _class_literal_node(
+            strategy_class,
+            attribute_name=name,
+        )
+        if type(observed) is not type(expected) or observed != expected:
+            raise SpecValidationError(
+                f"probe literal toggle {name} expected {expected!r}, "
+                f"found {observed!r}"
+            )
+        start, end = _node_byte_span(raw, value_node)
+        edits.append((start, end, repr(replacement).encode("ascii")))
+        transformations.append(
+            {
+                "kind": "source-constant-toggle",
+                "description": (
+                    f"AST-bound {class_name}.{name} "
                     f"{expected!r} -> {replacement!r}"
                 ),
             }
@@ -225,6 +257,70 @@ def _mapping_boolean_node(
             f"probe strategy requires one literal boolean {mapping_name}[{key!r}]"
         )
     return values[0]
+
+
+def _class_literal_node(
+    strategy_class: ast.ClassDef,
+    *,
+    attribute_name: str,
+) -> tuple[ast.expr, int | float]:
+    """Return one class-level numeric literal without evaluating executable code."""
+    values: list[ast.expr] = []
+    for node in strategy_class.body:
+        if isinstance(node, ast.Assign):
+            if any(
+                isinstance(target, ast.Name) and target.id == attribute_name
+                for target in node.targets
+            ):
+                values.append(node.value)
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == attribute_name
+            and node.value is not None
+        ):
+            values.append(node.value)
+    if len(values) != 1:
+        raise SpecValidationError(
+            f"probe strategy requires one class literal {attribute_name!r}"
+        )
+    try:
+        observed = ast.literal_eval(values[0])
+    except (ValueError, TypeError) as exc:
+        raise SpecValidationError(
+            f"probe strategy {attribute_name!r} is not a literal number"
+        ) from exc
+    if (
+        isinstance(observed, bool)
+        or not isinstance(observed, (int, float))
+        or not math.isfinite(observed)
+    ):
+        raise SpecValidationError(
+            f"probe strategy {attribute_name!r} is not a finite numeric literal"
+        )
+    return values[0], observed
+
+
+def _validate_numeric_literal(
+    expected: Any,
+    replacement: Any,
+    *,
+    context: str,
+) -> None:
+    """Keep probe constant edits explicit, finite, and representation-compatible."""
+    if (
+        isinstance(expected, bool)
+        or isinstance(replacement, bool)
+        or not isinstance(expected, (int, float))
+        or not isinstance(replacement, (int, float))
+        or not math.isfinite(expected)
+        or not math.isfinite(replacement)
+        or type(expected) is not type(replacement)
+        or expected == replacement
+    ):
+        raise SpecValidationError(
+            f"{context} requires distinct finite numbers of the same type"
+        )
 
 
 def _assigned_literal_mapping(

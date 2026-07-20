@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "source": "official-freqtrade-observer",
+  "bindings": {
+    "trade_surface_sha256": "224e1ec72ceb812627de971d546731fc5b5f14ab08d75e8e01a6ee806daa3ccf",
+    "state_trace_sha256": "2a2063b1e14698a4b02f5d10889ccf51fe2252850a6d16d13e05bf8b31398738"
+  },
+  "observed": {
+    "callbacks": [
+      "adjust_trade_position",
+      "confirm_trade_entry",
+      "custom_exit"
+    ],
+    "entry_tags": [
+      "141",
+      "142",
+      "144"
+    ],
+    "compound_tags": [
+      "141 142"
+    ],
+    "exit_reasons": [
+      "exit_long_tc_d_2_108 ( 142 )",
+      "exit_long_tc_d_3_5 ( 144 )",
+      "force_exit"
+    ],
+    "sides": [
+      "long"
+    ],
+    "leverages": [
+      "3"
+    ],
+    "lock_count": 0,
+    "protection_methods": [],
+    "rejected_locked_entry": false
+  }
+}

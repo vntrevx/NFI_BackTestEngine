@@ -14,6 +14,7 @@ from .canonical import canonical_decimal, read_json, write_json
 from .errors import StrategyAnalysisError
 from .market_precision import historic_price_steps
 from .specs import validate_trade_surface
+from .strategy_overrides import effective_stoploss_ratio
 from .vector_manifest import (
     EMPTY_TAG_TRANSPORT_SENTINEL,
     VECTOR_MANIFEST_VERSION,
@@ -24,7 +25,7 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-GENERIC_ADAPTER_VERSION = "1.3.0"
+GENERIC_ADAPTER_VERSION = "1.4.0"
 
 
 def generic_adapter_blockers(
@@ -99,16 +100,16 @@ def generic_adapter_blockers(
                 "message": "generic signal adapter requires dry_run_wallet sizing",
             }
         )
-    stoploss = constants.get("stoploss")
-    if (
-        isinstance(stoploss, bool)
-        or not isinstance(stoploss, int | float)
-        or not -1.0 < float(stoploss) < 0.0
-    ):
+    try:
+        effective_stoploss_ratio(constants, config)
+    except StrategyAnalysisError:
         blockers.append(
             {
                 "code": "STATIC_STOPLOSS_REQUIRED",
-                "message": "strategy.stoploss must be a literal ratio between -1 and 0",
+                "message": (
+                    "effective strategy stoploss must be a finite ratio "
+                    "between -1 and 0"
+                ),
             }
         )
     numeric_config: dict[str, float] = {}
@@ -497,7 +498,7 @@ def _generic_portfolio_config(
         "fee_open_rate": fee_rate,
         "fee_close_rate": fee_rate,
         "leverage": 1.0,
-        "stoploss_ratio": float(constants["stoploss"]),
+        "stoploss_ratio": effective_stoploss_ratio(constants, config),
         "amount_step": amount_step,
         "price_step": price_step,
         "custom_exit_after_ms": None,

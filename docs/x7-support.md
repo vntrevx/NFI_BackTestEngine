@@ -51,9 +51,24 @@ source-specific dispatch order; an unknown companion word fails before simulatio
 The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
 method SHA. A changed callback cannot silently inherit the prior Rust policy.
 It also inventories literal condition-index branches and the effective strategy
-switches. In v17.4.418 the tag-121 branch exists but its source-defined entry switch is
-disabled, so the implementation has native proof without a naturally reached
-Freqtrade differential trade.
+switches. Probe-only source changes are AST-bound to the expected class attribute and
+old literal; routine upstream edits fail closed instead of silently changing the wrong
+line.
+
+The latest branch matrix pins X7 v17.4.421 at upstream commit
+`5e168431991e05a889514eb1e16fdbebc6a09811` and Freqtrade 2026.5.1. Its seven
+official full-state fixtures reach:
+
+- tag 121 in spot mode;
+- `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`, including
+  generated locks and locked-entry rejection where applicable;
+- the compound top-coins tag `141 142`;
+- tag-dependent futures leverage values 2 and 3;
+- an actual isolated-futures liquidation exit after partial position reductions.
+
+The fixtures live under `benchmarks/fixtures/captured/x7-*`. Every manifest seals the
+effective strategy, compact candle inputs, native and raw reference market metadata,
+official export, normalized surface, observer trace, and coverage report.
 
 The latest certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
 2022-04-01 through 2023-01-01. The engine and offline Freqtrade 2026.5.1 produce
@@ -118,7 +133,6 @@ The engine rejects rather than approximates:
 - the live-only partial-fill retry in the tag-120 route;
 - short routes outside the compiled 561-563 family;
 - dynamic or structurally new leverage callback programs;
-- actual liquidation-exit parity beyond the no-liquidation annual certificate;
 - dynamic protection properties, unsupported protection methods, and direct live
   pair-lock mutation outside the compiled protection program;
 - broader shared-wallet pressure and multi-pair tie-breaks beyond the captured

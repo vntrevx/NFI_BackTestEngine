@@ -1,0 +1,258 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20220429-20220502"
+  },
+  "summary": {
+    "total_trades": 3,
+    "starting_balance": "10000",
+    "final_balance": "4706.36399582",
+    "profit_total_abs": "-5293.63600418",
+    "total_volume": "197581.0681635",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651259400000,
+      "close_timestamp_ms": 1651286400000,
+      "open_rate": "20.881",
+      "close_rate": "21.695",
+      "amount": "1422",
+      "stake_amount": "9897.594",
+      "max_stake_amount": "9897.594",
+      "leverage": "3",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_d_3_5 ( 144 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "25.442097474224354"
+      },
+      "profit": {
+        "absolute": "1152.67856147",
+        "ratio": "0.11640228021223062"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "13.991",
+      "stop_loss": "13.991",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651259400000,
+          "amount": "1422",
+          "price": "20.881",
+          "cost": "29707.628391",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651286400000,
+          "amount": "1422",
+          "price": "21.695",
+          "cost": "30865.715145",
+          "tag": "exit_long_tc_d_3_5 ( 144 )"
+        }
+      ],
+      "duration_minutes": 450,
+      "is_open": false,
+      "minimum_rate": "18.391",
+      "maximum_rate": "22",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    },
+    {
+      "sequence": 1,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651307100000,
+      "close_timestamp_ms": 1651310100000,
+      "open_rate": "22.817",
+      "close_rate": "23.352",
+      "amount": "1451",
+      "stake_amount": "11035.82233333",
+      "max_stake_amount": "11035.82233333",
+      "leverage": "3",
+      "entry_tag": "142 ",
+      "exit_reason": "exit_long_tc_d_2_108 ( 142 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "742.7893905",
+        "ratio": "0.06727348075972969"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "15.288",
+      "stop_loss": "15.288",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651307100000,
+          "amount": "1451",
+          "price": "22.817",
+          "cost": "33124.020733499994",
+          "tag": "142 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651310100000,
+          "amount": "1451",
+          "price": "23.352",
+          "cost": "33900.693876",
+          "tag": "exit_long_tc_d_2_108 ( 142 )"
+        }
+      ],
+      "duration_minutes": 50,
+      "is_open": false,
+      "minimum_rate": "22.6",
+      "maximum_rate": "23.812",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    },
+    {
+      "sequence": 2,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651330500000,
+      "close_timestamp_ms": 1651449600000,
+      "open_rate": "18.769",
+      "close_rate": "15.855",
+      "amount": "210",
+      "stake_amount": "1313.82897638",
+      "max_stake_amount": "12938.302",
+      "leverage": "3",
+      "entry_tag": "141 142 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "527.6460618509641"
+      },
+      "profit": {
+        "absolute": "-7189.103956149999",
+        "ratio": "-0.5553674045133374"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "14.606",
+      "stop_loss": "14.606",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651330500000,
+          "amount": "1620",
+          "price": "21.799",
+          "cost": "35332.037189999995",
+          "tag": "141 142 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651364700000,
+          "amount": "324",
+          "price": "18.89",
+          "cost": "6123.42018",
+          "tag": "derisk_level_1"
+        },
+        {
+          "sequence": 2,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651378800000,
+          "amount": "101",
+          "price": "17.322",
+          "cost": "1750.3967609999997",
+          "tag": "grind_4_entry"
+        },
+        {
+          "sequence": 3,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651379400000,
+          "amount": "485",
+          "price": "17.166",
+          "cost": "8329.672755",
+          "tag": "derisk_level_2"
+        },
+        {
+          "sequence": 4,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651415700000,
+          "amount": "810",
+          "price": "16.491",
+          "cost": "13364.388855",
+          "tag": "derisk_level_3"
+        },
+        {
+          "sequence": 5,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651442100000,
+          "amount": "108",
+          "price": "16.213",
+          "cost": "1751.879502",
+          "tag": "grind_5_entry"
+        },
+        {
+          "sequence": 6,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651449600000,
+          "amount": "210",
+          "price": "15.855",
+          "cost": "3331.214775",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 1985,
+      "is_open": false,
+      "minimum_rate": "15.5",
+      "maximum_rate": "22.297",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}
