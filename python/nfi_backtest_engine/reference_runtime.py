@@ -19,6 +19,7 @@ from .fixture import fixture_input_sha256, validate_fixture
 from .normalize import normalize_file
 from .parity import first_difference
 from .profiling import aggregate_profile_events
+from .reference_assets import reference_package_root, reference_tracer_root
 from .specs import validate_trade_surface
 from .state_trace import first_trace_difference, trace_summary
 
@@ -144,7 +145,6 @@ def run_reference_fixture(
                     manifest,
                     fixture_root=fixture_root,
                     output_directory=output,
-                    project_root=project_root,
                     dependency_directory=dependency_directory,
                     trace_mode=trace_mode,
                     profile=profile,
@@ -298,7 +298,6 @@ def build_reference_docker_command(
     *,
     fixture_root: Path,
     output_directory: Path,
-    project_root: Path,
     dependency_directory: Path | None,
     trace_mode: str,
     profile: bool,
@@ -308,6 +307,8 @@ def build_reference_docker_command(
 ) -> list[str]:
     """Build argv without shell interpolation so fixture values cannot become commands."""
     freqtrade_args = _reference_freqtrade_args(manifest["freqtrade"]["command"])
+    tracer_root = reference_tracer_root()
+    package_root = reference_package_root()
     command = list(run_prefix) if run_prefix is not None else [
         _docker_executable(),
         "--config",
@@ -328,9 +329,11 @@ def build_reference_docker_command(
             "--volume",
             f"{output_directory}:/output",
             "--volume",
-            f"{project_root}:/project:ro",
+            f"{tracer_root}:/nfi-reference-tracer:ro",
+            "--volume",
+            f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
             "--env",
-            "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python"
+            "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
             + (":/reference-deps" if dependency_directory is not None else ""),
             "--env",
             f"NFI_MARKET_SNAPSHOT_PATH=/fixture/{market_snapshot['path']}",
@@ -388,6 +391,8 @@ def capture_reference_markets(
         raise BenchmarkError(f"market snapshot destination already exists: {target}")
     target.parent.mkdir(parents=True, exist_ok=True)
     project_root = _project_root()
+    tracer_root = reference_tracer_root()
+    package_root = reference_package_root()
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
 
@@ -410,9 +415,11 @@ def capture_reference_markets(
                     "--volume",
                     f"{output}:/output",
                     "--volume",
-                    f"{project_root}:/project:ro",
+                    f"{tracer_root}:/nfi-reference-tracer:ro",
+                    "--volume",
+                    f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
                     "--env",
-                    "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python",
+                    "PYTHONPATH=/nfi-reference-tracer:/nfi-python",
                     "--env",
                     "NFI_MARKET_CAPTURE_PATH=/output/market-snapshot.json",
                     "--entrypoint",

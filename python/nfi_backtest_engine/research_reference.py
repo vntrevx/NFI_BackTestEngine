@@ -17,6 +17,7 @@ from .errors import BenchmarkError
 from .fixture import sha256_file
 from .normalize import normalize_file
 from .parity import first_difference
+from .reference_assets import reference_package_root, reference_tracer_root
 from .reference_runtime import (
     REFERENCE_CCXT_VERSION,
     REFERENCE_IMAGE,
@@ -159,7 +160,6 @@ def run_research_reference(
                     input_directory=input_directory,
                     output_directory=output,
                     data_directory=materialized["data_directory"],
-                    project_root=project_root,
                     strategy=materialized["strategy"],
                     timerange=materialized["timerange"],
                     pairs=materialized["pairs"],
@@ -289,13 +289,11 @@ def capture_research_markets(
         raise BenchmarkError(f"market snapshot destination already exists: {target}")
     output = target.parent
     (output / "user_data").mkdir(exist_ok=True)
-    project_root = _project_root()
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
     command = build_research_market_capture_command(
         input_directory=inputs,
         output_directory=output,
-        project_root=project_root,
     )
     completed, resources = run_managed_container(
         command,
@@ -323,7 +321,6 @@ def build_research_market_capture_command(
     *,
     input_directory: Path,
     output_directory: Path,
-    project_root: Path,
 ) -> list[str]:
     """Build the lightweight Freqtrade command that triggers CCXT market loading.
 
@@ -331,6 +328,8 @@ def build_research_market_capture_command(
     result. The pinned Freqtrade 2026.5.1 CLI has no `--json` option for this
     command; the injected tracer writes the canonical JSON snapshot directly.
     """
+    tracer_root = reference_tracer_root()
+    package_root = reference_package_root()
     return [
         "--platform",
         REFERENCE_PLATFORM,
@@ -341,9 +340,11 @@ def build_research_market_capture_command(
         "--volume",
         f"{output_directory}:/output",
         "--volume",
-        f"{project_root}:/project:ro",
+        f"{tracer_root}:/nfi-reference-tracer:ro",
+        "--volume",
+        f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
         "--env",
-        "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python",
+        "PYTHONPATH=/nfi-reference-tracer:/nfi-python",
         "--env",
         "NFI_MARKET_CAPTURE_PATH=/output/reference-markets.json",
         "--entrypoint",
@@ -363,7 +364,6 @@ def build_research_reference_command(
     input_directory: Path,
     output_directory: Path,
     data_directory: Path,
-    project_root: Path,
     strategy: str,
     timerange: str,
     pairs: list[str],
@@ -372,6 +372,8 @@ def build_research_reference_command(
     dependency_directory: Path | None = None,
 ) -> list[str]:
     """Build a shell-safe Docker argv for one official research rerun."""
+    tracer_root = reference_tracer_root()
+    package_root = reference_package_root()
     command = [
         *run_prefix,
         "--platform",
@@ -387,9 +389,11 @@ def build_research_reference_command(
         "--volume",
         f"{data_directory}:/data:ro",
         "--volume",
-        f"{project_root}:/project:ro",
+        f"{tracer_root}:/nfi-reference-tracer:ro",
+        "--volume",
+        f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
         "--env",
-        "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python"
+        "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
         + (":/reference-deps" if dependency_directory is not None else ""),
         "--env",
         "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
