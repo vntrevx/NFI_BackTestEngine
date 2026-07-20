@@ -16,11 +16,11 @@ allowlist.
 The current alpha executes the source-compiled managed long routes, short-rebuy tags
 561-563, tag-dependent futures leverage, Binance isolated-liquidation accounting,
 tag-120 legacy grind, tag-121 regular adjustment, and four static Freqtrade protection
-methods with deterministic pair-lock state. The sealed X7 v17.4.418 APE/USDT:USDT
-annual futures run matches Freqtrade exactly at the final normalized surface: 11 trades,
-164 orders, 142 adjustment orders, one short trade, and eight funded trades. It protects
-the no-fallthrough stop-loss/liquidation collision order but does not reach a liquidation
-exit or certify arbitrary pairs, enabled protections, or generated locks.
+methods with deterministic pair-lock state. The X7 v17.4.421 branch matrix pins
+upstream commit `5e168431991e05a889514eb1e16fdbebc6a09811` and reaches tag 121,
+all four protection methods with real locks, a compound tag, variable leverage, and an
+actual liquidation exit in seven official full-state fixtures. It does not certify an
+arbitrary future X7 revision or replace the continuous representative run.
 
 The v17.4.413 APE top-coins, tag-62 rebuy exit, ZEC tag-120, and APE/AAVE
 equal-timestamp shared-slot fixtures remain additional exact spot evidence. In

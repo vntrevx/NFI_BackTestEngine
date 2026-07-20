@@ -1,0 +1,242 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "x7-v17.4.421-liquidation-stoploss-guard-ape-futures",
+  "description": "Official Freqtrade probe for a real X7 liquidation exit and StoplossGuard lock.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-07-20T12:00:10.895231Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20220429-20220502",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20220429-20220502",
+      "--pairs",
+      "APE/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "d6c4a0ee7938a46012a3fd3390cfbed7d408f89b406e7210134f2414f3dd2528",
+      "bytes": 3274052
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "fa55a232775d276114617cc7bc0bef228d8dcc238bb3d5f12e3c340f0d5f85c3",
+      "bytes": 892
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-15m-futures.feather",
+      "sha256": "1919438f22a0bb7ce8c53328e2da5643f5dd215b4607aff7065615dee0ed8fe4",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-1d-futures.feather",
+      "sha256": "924e1071fe15e17a41b7b2d7e73d3bbaa8e5d29e15f8d37df9dadfb38d235f6b",
+      "bytes": 3503
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "7712ccd4ef86ac991c2f0dddb5b7fc7d3ced375499b0447fa436d0bf614b2601",
+      "bytes": 8111
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-1h-futures.feather",
+      "sha256": "5fde4f43d87f0559238afeb38c62fd9924b087d28de52e01c6c6769662f0ff47",
+      "bytes": 43439
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-1h-mark.feather",
+      "sha256": "935bcb0dfb979accba127fb999bab0639283ab341aa236f2a42d16f54092f727",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-4h-futures.feather",
+      "sha256": "f9de2d9916cd33372574cab77697277c69370e33190103e55b9e055e1b8798c1",
+      "bytes": 14639
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/APE_USDT_USDT-5m-futures.feather",
+      "sha256": "7b604bb125991cb1a775f9c9094faa0005e60759f3605718178436a83526a296",
+      "bytes": 81455
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "402a9cda32d93922e3faf174ee8e8711bcf1daecbf0f2c9c4ad53ca301204a22",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "182e795ec9870db4bff4e9d550c424d851583fbeb70567e58380f0bf611352bb",
+      "bytes": 24623
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "90d5b51322216c8f3b1bc7bf83e6b306caf3abc93b1505e18f85151fa439bf24",
+      "bytes": 71471
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "79b878755c1a4c1025b7cff2a4c6b1ce83ca9b5a3f60a16c97e30ed0b3c4942f",
+      "bytes": 43439
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "cf3257e43a03466fac877e6ec73e0e0b67a5cca6391a1f1133e9d3f89a17d30a",
+      "bytes": 561455
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "9c8ee075a62d1731a5cd9258415dcc6dff572fd9d39359a17fcb2af2c29db4dc",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "f1a4edaa71fc9a4c17151a67b6c5ebe14af58f4020538c95fbd36a746f2b4221",
+      "bytes": 81455
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/market-metadata.json",
+      "sha256": "c8dcf3e6f13694f8481989b4011d86813af045a71ce683f914f5f764594fb0d1",
+      "bytes": 3516
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+      "bytes": 9239
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "52e5abc640e4fc59a989aeb81c9aec4df0af623847b8d487681fa673cca6e7a7",
+      "bytes": 308413
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "b256961b3580eabc191e26be6f1e4ce7abce3129d78c7234aa925131bf0853ce",
+      "bytes": 7255
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "c75d57e099bed074e9e03d7324c7a2440fb6a2ef3bb6613773de3a8b23bf87c2",
+      "bytes": 7566268
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "50d3d37c58e8290bd89d58fda0546d2182309f049a1de5a8bd88a9c377bf68f0",
+      "bytes": 869
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "dfa05a9f7ed5d8a81299757f1989d7e7cda44e2388bb04dbb91b74c4b75a730d",
+      "bytes": 523609
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "liquidation",
+  "strategy_provenance": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "5e168431991e05a889514eb1e16fdbebc6a09811",
+    "base_source_sha256": "f11214df8747709a29088e6bd34be5a42559b521c54974663bbcd1f58f6088b9",
+    "effective_source_sha256": "d6c4a0ee7938a46012a3fd3390cfbed7d408f89b406e7210134f2414f3dd2528",
+    "transformations": [
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.futures_mode_leverage 3.0 -> 25.0"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.futures_mode_leverage_rebuy_mode 3.0 -> 25.0"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.futures_mode_leverage_grind_mode 3.0 -> 25.0"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound static protections property injected into NostalgiaForInfinityX7: StoplossGuard"
+      },
+      {
+        "kind": "config-override",
+        "description": "Deterministic recursive config override: enable_protections, exchange.pair_whitelist, max_open_trades, pairlists"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [],
+    "entry_tags": [
+      "141",
+      "142"
+    ],
+    "compound_tags": [
+      "141 142"
+    ],
+    "protection_methods": [
+      "StoplossGuard"
+    ],
+    "exit_reasons": [
+      "liquidation"
+    ],
+    "sides": [
+      "long"
+    ],
+    "minimum_lock_count": 1,
+    "minimum_distinct_leverages": 1,
+    "require_rejected_locked_entry": false
+  }
+}

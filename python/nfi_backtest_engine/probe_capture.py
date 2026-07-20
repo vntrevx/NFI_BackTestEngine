@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -55,10 +56,10 @@ def capture_x7_probe(
     config_source = _resolve_file(root, config_spec["source"], "config")
     data_directory = _resolve_directory(root, data_spec["directory"], "data")
     engine_markets = _resolve_file(root, market_spec["engine"], "engine markets")
-    reference_markets = _resolve_file(
-        root,
-        market_spec["reference"],
-        "reference markets",
+    reference_markets = (
+        _resolve_file(root, market_spec["reference"], "reference markets")
+        if market_spec["reference"] is not None
+        else None
     )
     profile = _resolve_file(root, execution_spec["profile"], "execution profile")
 
@@ -70,6 +71,7 @@ def capture_x7_probe(
         upstream_repository=spec["upstream"]["repository"],
         upstream_commit=spec["upstream"]["commit"],
         boolean_toggles=strategy_spec.get("boolean_toggles"),
+        literal_toggles=strategy_spec.get("literal_toggles"),
         protections=strategy_spec.get("protections"),
     )
     effective_config = prepared / "config.json"
@@ -118,7 +120,10 @@ def capture_x7_probe(
     compact_candle_directory(
         data_directory,
         compact_data_directory,
-        pairs=data_spec["pairs"],
+        pairs=[
+            *data_spec["pairs"],
+            *data_spec.get("informative_pairs", []),
+        ],
         timeframes=required_timeframes,
         trading_mode=trading_mode,
         timerange=data_spec["timerange"],
@@ -154,6 +159,26 @@ def capture_x7_probe(
         spec["fixture"]["required_coverage"],
         read_json(engine_output / "trade-surface.json"),
     )
+    if reference_markets is None:
+        # New futures pairs may not yet have a frozen raw Freqtrade market
+        # snapshot. Capture once through the pinned oracle, require that
+        # online run to agree, then rerun offline below against the sealed
+        # snapshot and trace identity used by the final fixture.
+        market_capture_output = work / "reference-market-capture"
+        market_capture = run_research_reference(
+            engine_output,
+            market_capture_output,
+            market_snapshot_path=None,
+            capture_markets=True,
+            audit_timestamps_ms=[],
+            timeout_seconds=timeout_seconds,
+        )
+        if not market_capture["complete"]:
+            raise BenchmarkError(
+                "online reference market capture did not complete exact parity; "
+                "inspect work/reference-market-capture/run.json"
+            )
+        reference_markets = market_capture_output / "reference-markets.json"
 
     capture_inputs = _capture_inputs_from_seal(
         engine_output / "data-seal.json",
@@ -262,12 +287,13 @@ def _load_probe_spec(path: Path) -> dict[str, Any]:
     if not isinstance(strategy, dict):
         raise SpecValidationError("probe spec strategy must be an object")
     required_strategy = {"source", "class_name"}
-    optional_strategy = {"boolean_toggles", "protections"}
+    optional_strategy = {"boolean_toggles", "literal_toggles", "protections"}
     if not required_strategy <= set(strategy) or set(strategy) - (
         required_strategy | optional_strategy
     ):
         raise SpecValidationError("probe spec strategy fields are invalid")
     _validate_boolean_toggle_specs(strategy.get("boolean_toggles"))
+    _validate_literal_toggle_specs(strategy.get("literal_toggles"))
     protections = strategy.get("protections")
     if protections is not None and (
         not isinstance(protections, list)
@@ -282,12 +308,29 @@ def _load_probe_spec(path: Path) -> dict[str, Any]:
         {"source", "overrides", "remove_paths"},
         "config",
     )
-    _require_fields(
-        document["data"],
-        {"directory", "timerange", "pairs"},
-        "data",
-    )
+    data = document["data"]
+    if (
+        not isinstance(data, dict)
+        or not {"directory", "timerange", "pairs"} <= set(data)
+        or set(data) - {"directory", "timerange", "pairs", "informative_pairs"}
+    ):
+        raise SpecValidationError("probe spec data fields are invalid")
     _require_fields(document["markets"], {"engine", "reference"}, "markets")
+    markets = document["markets"]
+    if (
+        not isinstance(markets["engine"], str)
+        or not markets["engine"]
+        or (
+            markets["reference"] is not None
+            and (
+                not isinstance(markets["reference"], str)
+                or not markets["reference"]
+            )
+        )
+    ):
+        raise SpecValidationError(
+            "probe markets require an engine path and a reference path or null"
+        )
     _require_fields(
         document["execution"],
         {"profile", "audit_timestamps_ms"},
@@ -301,6 +344,19 @@ def _load_probe_spec(path: Path) -> dict[str, Any]:
         or not all(isinstance(pair, str) and "/" in pair for pair in pairs)
     ):
         raise SpecValidationError("probe spec pairs must be unique CCXT pair strings")
+    informative_pairs = document["data"].get("informative_pairs", [])
+    if (
+        not isinstance(informative_pairs, list)
+        or len(informative_pairs) != len(set(informative_pairs))
+        or not all(
+            isinstance(pair, str) and "/" in pair
+            for pair in informative_pairs
+        )
+        or set(pairs) & set(informative_pairs)
+    ):
+        raise SpecValidationError(
+            "probe informative_pairs must be unique, non-traded CCXT pairs"
+        )
     overrides = document["config"]["overrides"]
     if not isinstance(overrides, dict):
         raise SpecValidationError("probe config overrides must be an object")
@@ -349,6 +405,41 @@ def _validate_boolean_toggle_specs(value: Any) -> None:
         ):
             raise SpecValidationError(
                 f"probe boolean toggle {index} values are invalid"
+            )
+
+
+def _validate_literal_toggle_specs(value: Any) -> None:
+    if value is None:
+        return
+    if not isinstance(value, list):
+        raise SpecValidationError("probe strategy literal_toggles must be an array")
+    names: set[str] = set()
+    for index, toggle in enumerate(value):
+        required = {"name", "expected", "replacement"}
+        if not isinstance(toggle, dict) or set(toggle) != required:
+            raise SpecValidationError(
+                f"probe literal toggle {index} fields are invalid"
+            )
+        name = toggle["name"]
+        expected = toggle["expected"]
+        replacement = toggle["replacement"]
+        if not isinstance(name, str) or not name or name in names:
+            raise SpecValidationError(
+                f"probe literal toggle {index} name is invalid or duplicated"
+            )
+        names.add(name)
+        if (
+            isinstance(expected, bool)
+            or isinstance(replacement, bool)
+            or not isinstance(expected, (int, float))
+            or not isinstance(replacement, (int, float))
+            or not math.isfinite(expected)
+            or not math.isfinite(replacement)
+            or type(expected) is not type(replacement)
+            or expected == replacement
+        ):
+            raise SpecValidationError(
+                f"probe literal toggle {index} values are invalid"
             )
 
 

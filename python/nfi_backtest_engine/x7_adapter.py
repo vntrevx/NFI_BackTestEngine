@@ -14,6 +14,7 @@ from .canonical import read_json, write_json
 from .data_seal import timeframe_milliseconds
 from .errors import SpecValidationError, StrategyAnalysisError
 from .market_precision import historic_price_steps
+from .strategy_overrides import effective_stoploss_ratio
 from .vector_manifest import (
     EMPTY_TAG_TRANSPORT_SENTINEL,
     VECTOR_MANIFEST_VERSION,
@@ -24,7 +25,7 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-X7_ADAPTER_VERSION = "0.14.0"
+X7_ADAPTER_VERSION = "0.15.0"
 
 
 def x7_adapter_blockers(
@@ -86,6 +87,15 @@ def x7_adapter_blockers(
         if leverage_error is not None:
             blockers.append(leverage_error)
     constants = analysis["strategies"][0]["constants"]
+    try:
+        effective_stoploss_ratio(constants, config)
+    except StrategyAnalysisError as exc:
+        blockers.append(
+            {
+                "code": "X7_STOPLOSS_CONFIG_INVALID",
+                "message": str(exc),
+            }
+        )
     if (
         constants.get("position_adjustment_enable") is True
         and "adjust_trade_position" not in callbacks
@@ -574,7 +584,7 @@ def _x7_portfolio_config(
         "maximum_leverage_by_pair": maximum_leverage_by_pair,
         "liquidation_model": liquidation_model,
         "protection_program": _x7_protection_contract(analysis, config),
-        "stoploss_ratio": float(constants["stoploss"]),
+        "stoploss_ratio": effective_stoploss_ratio(constants, config),
         "amount_step": amount_step,
         "price_step": price_step,
         "custom_exit_after_ms": None,

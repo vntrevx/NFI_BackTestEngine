@@ -19,6 +19,7 @@ def _strategy_source() -> str:
         "  signal_params = {\n"
         "    'enabled': False,\n"
         "  }\n"
+        "  leverage = 3.0\n"
     )
 
 
@@ -43,6 +44,13 @@ def test_probe_strategy_changes_only_ast_selected_boolean_and_property(
                 "replacement": True,
             }
         ],
+        literal_toggles=[
+            {
+                "name": "leverage",
+                "expected": 3.0,
+                "replacement": 25.0,
+            }
+        ],
         protections=[
             {
                 "method": "CooldownPeriod",
@@ -57,12 +65,13 @@ def test_probe_strategy_changes_only_ast_selected_boolean_and_property(
     assert isinstance(strategy, ast.ClassDef)
     assert "# This comment and formatting must survive." in transformed
     assert "'enabled': True" in transformed
+    assert "leverage = 25.0" in transformed
     assert any(
         isinstance(node, ast.FunctionDef) and node.name == "protections"
         for node in strategy.body
     )
     assert provenance["base_source_sha256"] != provenance["effective_source_sha256"]
-    assert len(provenance["transformations"]) == 2
+    assert len(provenance["transformations"]) == 3
 
 
 def test_probe_strategy_refuses_upstream_default_drift(tmp_path: Path) -> None:
@@ -83,6 +92,35 @@ def test_probe_strategy_refuses_upstream_default_drift(tmp_path: Path) -> None:
                     "expected": True,
                     "replacement": False,
                 }
+            ],
+        )
+
+
+def test_probe_strategy_refuses_literal_type_or_value_drift(tmp_path: Path) -> None:
+    source = tmp_path / "source.py"
+    source.write_text(_strategy_source(), encoding="utf-8")
+
+    with pytest.raises(SpecValidationError, match="expected 4.0"):
+        prepare_probe_strategy(
+            source,
+            tmp_path / "wrong-value.py",
+            class_name="X7",
+            upstream_repository="https://github.com/example/project",
+            upstream_commit="a" * 40,
+            literal_toggles=[
+                {"name": "leverage", "expected": 4.0, "replacement": 25.0}
+            ],
+        )
+
+    with pytest.raises(SpecValidationError, match="same type"):
+        prepare_probe_strategy(
+            source,
+            tmp_path / "wrong-type.py",
+            class_name="X7",
+            upstream_repository="https://github.com/example/project",
+            upstream_commit="a" * 40,
+            literal_toggles=[
+                {"name": "leverage", "expected": 3, "replacement": 25.0}
             ],
         )
 

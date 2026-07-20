@@ -461,13 +461,14 @@ grind route, tag-121 regular-mode adjustment followed by legacy grind, and the s
 Freqtrade protections `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and
 `LowProfitPairs` with deterministic pair locks.
 
-The latest sealed APE/USDT:USDT annual futures evidence uses X7 v17.4.418 from
-2022-04-01 through 2023-01-01 and matches official Freqtrade 2026.5.1 exactly:
-11 trades, 164 orders, 142 adjustment orders, one short trade, and eight funded trades.
-It also protects the official stop-loss-before-liquidation collision behavior that
-previously exposed a divergence. The older v17.4.413 fixtures remain useful independent
-regressions for APE top-coins, an APE rebuy exit, ZEC tag 120, and an APE/AAVE
-equal-timestamp slot conflict.
+The branch-reaching matrix now pins X7 v17.4.421 at upstream commit
+`5e168431991e05a889514eb1e16fdbebc6a09811` and official Freqtrade 2026.5.1.
+Seven sealed fixtures prove a real tag-121 trade, all four supported protection
+methods and generated pair locks, a compound `141 142` tag, tag-dependent leverage
+values 2 and 3, and a real isolated-futures liquidation exit. Each fixture preserves
+the official result, normalized surface, complete observer trace, market metadata,
+and every input hash. The older annual and v17.4.413 fixtures remain independent
+regressions for the wider adjustment routes and shared-wallet ordering.
 
 The broadest current spot proof is the bounded 80-pair
 `20250701-20260101` differential: 167 trades and 402 orders are byte-identical to
@@ -476,12 +477,11 @@ small route fixtures, but it still does not certify routes absent from that inte
 enabled lock generation, continuous five-year official execution, or arbitrary future
 X7 source changes.
 
-Implementation is not the same as branch-reaching certification. The v17.4.418 annual
-run has no liquidation exit, no enabled protections or generated pair lock, and its tag
-121 entry switch is disabled. Those paths have focused native tests but still require
-small official full-state fixtures before they become public exact-parity claims.
-Unknown tags, unsupported mixed tags, dynamic protections, unsupported exchanges or
-margin modes, and new stateful callback shapes remain fail-closed.
+Branch-reaching fixtures do not replace the representative release gate. Unknown tags,
+unsupported mixed tags, dynamic protection definitions, unsupported exchanges or
+margin modes, and new stateful callback shapes remain fail-closed. Full X7 release
+status still requires the latest source over a strict 80-pair, continuous five-year
+spot input, repeated official parity, and the cross-platform performance seal.
 
 See:
 

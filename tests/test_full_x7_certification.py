@@ -14,6 +14,9 @@ from nfi_backtest_engine.full_x7_certification import (
     verify_installed_wheel,
 )
 
+ROOT = Path(__file__).parents[1]
+CAPTURED = ROOT / "benchmarks" / "fixtures" / "captured"
+
 
 def test_candidate_wheel_must_contain_the_imported_native_extension(
     tmp_path: Path,
@@ -79,6 +82,19 @@ def test_cold_strict_engine_gate_rejects_checkpoint_or_coverage_shortfall() -> N
 def test_full_x7_probe_matrix_cannot_be_empty() -> None:
     with pytest.raises(SpecValidationError, match="probe matrix is incomplete"):
         _validate_probe_matrix([])
+
+
+def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
+    manifests = sorted(
+        path / "manifest.json"
+        for path in CAPTURED.iterdir()
+        if path.name.startswith("x7-") and (path / "manifest.json").is_file()
+    )
+
+    probes = _validate_probe_matrix(manifests)
+
+    assert probes
+    assert len(probes) == len(manifests)
 
 
 def test_full_x7_release_requires_all_five_timeframes_in_stable_order() -> None:

@@ -60,6 +60,26 @@ def test_probe_spec_rejects_duplicate_pairs(tmp_path: Path) -> None:
         _load_probe_spec(path)
 
 
+def test_probe_spec_accepts_distinct_informative_pairs(tmp_path: Path) -> None:
+    document = _spec()
+    document["data"]["informative_pairs"] = ["ETH/USDT"]
+    path = tmp_path / "probe.json"
+    write_json(path, document)
+
+    assert _load_probe_spec(path)["data"]["informative_pairs"] == ["ETH/USDT"]
+
+
+def test_probe_spec_rejects_traded_pair_as_informative(tmp_path: Path) -> None:
+    document = _spec()
+    document["data"]["informative_pairs"] = ["BTC/USDT"]
+    document["data"]["pairs"] = ["BTC/USDT"]
+    path = tmp_path / "probe.json"
+    write_json(path, document)
+
+    with pytest.raises(SpecValidationError, match="unique, non-traded"):
+        _load_probe_spec(path)
+
+
 def test_probe_spec_rejects_unbound_boolean_toggle_fields(tmp_path: Path) -> None:
     document = _spec()
     document["strategy"]["boolean_toggles"] = [
@@ -75,6 +95,42 @@ def test_probe_spec_rejects_unbound_boolean_toggle_fields(tmp_path: Path) -> Non
 
     with pytest.raises(SpecValidationError, match="toggle 0 fields"):
         _load_probe_spec(path)
+
+
+def test_probe_spec_accepts_bound_numeric_literal_toggle(tmp_path: Path) -> None:
+    document = _spec()
+    document["strategy"]["literal_toggles"] = [
+        {"name": "leverage", "expected": 3.0, "replacement": 25.0}
+    ]
+    path = tmp_path / "probe.json"
+    write_json(path, document)
+
+    assert _load_probe_spec(path)["strategy"]["literal_toggles"][0] == {
+        "name": "leverage",
+        "expected": 3.0,
+        "replacement": 25.0,
+    }
+
+
+def test_probe_spec_rejects_numeric_literal_type_change(tmp_path: Path) -> None:
+    document = _spec()
+    document["strategy"]["literal_toggles"] = [
+        {"name": "leverage", "expected": 3, "replacement": 25.0}
+    ]
+    path = tmp_path / "probe.json"
+    write_json(path, document)
+
+    with pytest.raises(SpecValidationError, match="literal toggle 0 values"):
+        _load_probe_spec(path)
+
+
+def test_probe_spec_allows_pinned_reference_market_capture(tmp_path: Path) -> None:
+    document = _spec()
+    document["markets"]["reference"] = None
+    path = tmp_path / "probe.json"
+    write_json(path, document)
+
+    assert _load_probe_spec(path)["markets"]["reference"] is None
 
 
 def test_probe_data_roles_keep_futures_side_inputs_separate() -> None:

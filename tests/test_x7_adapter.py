@@ -600,6 +600,7 @@ def test_x7_adapter_serializes_compiled_programs_and_unlimited_stake(
         **_config(),
         "enable_protections": True,
         "timeframe": "5m",
+        "stoploss": -0.001,
     }
 
     document = build_x7_simulation_input(
@@ -612,6 +613,7 @@ def test_x7_adapter_serializes_compiled_programs_and_unlimited_stake(
     )
 
     assert document["config"]["unlimited_stake"] is True
+    assert document["config"]["stoploss_ratio"] == -0.001
     assert document["config"]["stake_program"]["statements"][0]["op"] == "return"
     assert document["config"]["entry_confirmation_program"]["statements"][0]["op"] == "return"
     assert document["config"]["custom_exit_program"]["entry"] == "custom_exit"

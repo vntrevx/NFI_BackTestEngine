@@ -4,6 +4,15 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+- Added seven X7 v17.4.421 branch-reaching official fixtures for tag 121, all four
+  supported protections and pair locks, compound tags, variable leverage, and a real
+  isolated-futures liquidation exit. Each fixture passes zero-tolerance surface parity
+  and complete-state parity against pinned Freqtrade 2026.5.1.
+- Added AST-bound numeric probe toggles, informative-only pair staging, and pinned
+  on-demand reference-market capture without line-number or date-specific source edits.
+- Matched Freqtrade's config-over-strategy stoploss precedence and its observable
+  futures float/order-replay boundaries for partial exits, liquidation refresh, and
+  eight-decimal profit normalization.
 - Matched the pinned Freqtrade 2026.5.1 final surface exactly for the latest X7
   v17.4.418 over 80 configured spot pairs and the bounded
   `20250701-20260101` interval: 167 trades, 402 orders, 23 rejected signals,

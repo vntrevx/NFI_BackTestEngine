@@ -16,7 +16,7 @@ from .config_loader import load_effective_config
 from .doctor import run_doctor
 from .engine_runtime import build_engine, run_engine
 from .errors import NfiBacktestError, SpecValidationError
-from .fixture import seal_fixture, validate_fixture
+from .fixture import seal_fixture, sha256_file, validate_fixture
 from .fixture_engine import run_fixture_engine
 from .hardware import (
     GIB,
@@ -32,7 +32,11 @@ from .product_contract import (
     DEFAULT_FULL_X7_TIMEOUT_SECONDS,
 )
 from .profiling import aggregate_profile_file
-from .reference_runtime import capture_reference_markets, run_reference_fixture
+from .reference_runtime import (
+    capture_reference_markets,
+    load_reference_leverage_tiers,
+    run_reference_fixture,
+)
 from .state_trace import TraceMismatch, compare_state_traces, trace_summary
 from .strategy_ir import (
     analyze_strategy,
@@ -1009,27 +1013,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command_name == "markets":
-            from .config_loader import freeze_pairlist, sanitize_config
-            from .market_snapshot import capture_market_snapshot
-
-            loaded = load_effective_config(args.config)
-            pairlist = freeze_pairlist(loaded["config"], resolved_pairs=args.pair)
-            config = sanitize_config(loaded["config"])
-            if not isinstance(config, dict):
-                raise NfiBacktestError("effective config must be an object")
-            leverage_tiers = read_json(args.leverage_tiers) if args.leverage_tiers else None
-            report = capture_market_snapshot(
-                config,
-                pairlist["pairs"],
-                args.output,
-                leverage_tiers=leverage_tiers,
-            )
-            print(
-                f"markets captured: exchange={report['exchange']}, "
-                f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
-                f"{args.output}"
-            )
-            return 0
+            return _execute_market_capture(args)
 
         if args.command_name == "strategy":
             if args.strategy_command == "inspect":
@@ -1406,6 +1390,60 @@ def _execute_platform(args: argparse.Namespace) -> int:
         f"{args.output_dir / 'platform-benchmark.json'}"
     )
     return 0 if report["complete"] else 1
+
+
+def _execute_market_capture(args: argparse.Namespace) -> int:
+    """Capture one sealed market snapshot, including pinned futures tiers."""
+    from .config_loader import freeze_pairlist, sanitize_config
+    from .market_snapshot import capture_market_snapshot
+
+    loaded = load_effective_config(args.config)
+    pairlist = freeze_pairlist(loaded["config"], resolved_pairs=args.pair)
+    config = sanitize_config(loaded["config"])
+    if not isinstance(config, dict):
+        raise NfiBacktestError("effective config must be an object")
+
+    leverage_tier_source = None
+    if args.leverage_tiers:
+        tier_path = args.leverage_tiers.resolve()
+        leverage_tiers = read_json(tier_path)
+        leverage_tier_source = {
+            "kind": "sealed-file",
+            "path": str(tier_path),
+            "bytes": tier_path.stat().st_size,
+            "sha256": sha256_file(tier_path),
+        }
+    elif config.get("trading_mode") == "futures":
+        exchange = config.get("exchange")
+        exchange_name = (
+            str(exchange.get("name", "")).lower()
+            if isinstance(exchange, dict)
+            else ""
+        )
+        if exchange_name != "binance":
+            raise NfiBacktestError(
+                "automatic futures leverage-tier capture requires Binance; "
+                "provide --leverage-tiers for this exchange"
+            )
+        captured_tiers = load_reference_leverage_tiers(pairlist["pairs"])
+        leverage_tiers = captured_tiers["tiers"]
+        leverage_tier_source = captured_tiers["source"]
+    else:
+        leverage_tiers = None
+
+    report = capture_market_snapshot(
+        config,
+        pairlist["pairs"],
+        args.output,
+        leverage_tiers=leverage_tiers,
+        leverage_tier_source=leverage_tier_source,
+    )
+    print(
+        f"markets captured: exchange={report['exchange']}, "
+        f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
+        f"{args.output}"
+    )
+    return 0
 
 
 def _execute_research_backtest(
