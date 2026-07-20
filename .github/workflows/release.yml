@@ -98,6 +98,8 @@ jobs:
       - name: Verify installed CLI and exact fixture
         run: |
           .release-venv/bin/nfi-bte --version
+          .release-venv/bin/python -c \
+            "from nfi_backtest_engine.reference_assets import reference_package_root, reference_tracer_root; print(reference_package_root()); print(reference_tracer_root())"
           .release-venv/bin/nfi-bte engine fixture \
             benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json \
             --output-dir .release-check \

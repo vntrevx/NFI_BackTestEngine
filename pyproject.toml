@@ -71,6 +71,7 @@ pythonpath = ["python"]
 
 [tool.basedpyright]
 include = ["python/nfi_backtest_engine"]
+exclude = ["python/nfi_backtest_engine/reference_tracer"]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
 failOnWarnings = true

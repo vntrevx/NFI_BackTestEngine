@@ -12,7 +12,13 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).parents[1]
-TRACER = ROOT / "benchmarks" / "reference" / "tracer" / "nfi_reference_trace.py"
+TRACER = (
+    ROOT
+    / "python"
+    / "nfi_backtest_engine"
+    / "reference_tracer"
+    / "nfi_reference_trace.py"
+)
 
 
 def _load_tracer():

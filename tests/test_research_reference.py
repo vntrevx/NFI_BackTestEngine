@@ -23,7 +23,6 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
         input_directory=tmp_path / "inputs",
         output_directory=tmp_path / "output",
         data_directory=tmp_path / "data",
-        project_root=tmp_path / "project",
         strategy="NostalgiaForInfinityX7",
         timerange="20210101-20260101",
         pairs=["BTC/USDT:USDT", "ETH/USDT:USDT"],
@@ -36,6 +35,11 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
         "ETH/USDT:USDT",
     ]
     assert "NFI_CALLBACK_AUDIT_TIMESTAMPS_MS=1650000000000" in command
+    assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
+    assert any(
+        value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command
+    )
+    assert "PYTHONPATH=/nfi-reference-tracer:/nfi-python" in command
     assert command[-6:] == [
         "--cache",
         "none",
@@ -50,7 +54,6 @@ def test_market_capture_uses_the_pinned_list_pairs_contract(tmp_path: Path) -> N
     command = build_research_market_capture_command(
         input_directory=tmp_path / "inputs",
         output_directory=tmp_path / "output",
-        project_root=tmp_path / "project",
     )
 
     assert command[-5:] == [
@@ -62,6 +65,10 @@ def test_market_capture_uses_the_pinned_list_pairs_contract(tmp_path: Path) -> N
     ]
     assert "--json" not in command
     assert "NFI_MARKET_CAPTURE_PATH=/output/reference-markets.json" in command
+    assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
+    assert any(
+        value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command
+    )
 
 
 def test_official_config_drops_only_the_unrelated_api_service() -> None:
@@ -128,7 +135,6 @@ def test_research_reference_trace_is_full_state_and_hash_bound(
         input_directory=tmp_path / "input",
         output_directory=tmp_path / "output",
         data_directory=tmp_path / "data",
-        project_root=tmp_path / "project",
         strategy="NostalgiaForInfinityX7",
         timerange="20250101-20250102",
         pairs=["BTC/USDT"],

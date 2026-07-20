@@ -25,6 +25,9 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   SHA-256-verified distribution assets at the same source commit.
 - Made source-tree version identity come from `pyproject.toml`, preventing ignored
   stale editable-install metadata from contaminating certification reports.
+- Packaged the pinned Freqtrade tracer with the wheel and mount only the engine
+  package plus tracer roots into official containers, so installed release tools
+  neither depend on a source checkout nor shadow container binary dependencies.
 - Matched the pinned Freqtrade 2026.5.1 final surface exactly for the latest X7
   v17.4.418 over 80 configured spot pairs and the bounded
   `20250701-20260101` interval: 167 trades, 402 orders, 23 rejected signals,

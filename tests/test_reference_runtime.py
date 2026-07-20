@@ -34,7 +34,6 @@ def test_reference_command_is_digest_pinned_offline_and_read_only(tmp_path: Path
         manifest,
         fixture_root=fixture,
         output_directory=output,
-        project_root=ROOT,
         dependency_directory=dependencies,
         trace_mode="hash",
         profile=True,
@@ -48,6 +47,10 @@ def test_reference_command_is_digest_pinned_offline_and_read_only(tmp_path: Path
     assert REFERENCE_IMAGE_REF in command
     assert command[command.index("--network") + 1] == "none"
     assert f"{fixture}:/fixture:ro" in command
+    assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
+    assert any(
+        value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command
+    )
     assert "NFI_TRACE_INCLUDE_STATE=0" in command
     assert "NFI_BTE_PROFILE_EVENTS=/output/profile.jsonl" in command
     assert "NFI_MARKET_SNAPSHOT_PATH=/fixture/inputs/market_metadata/markets.json" in command
@@ -71,7 +74,6 @@ def test_reference_command_removes_mutable_output_options(tmp_path: Path) -> Non
         manifest,
         fixture_root=MANIFEST.parent,
         output_directory=output,
-        project_root=ROOT,
         dependency_directory=None,
         trace_mode="off",
         profile=False,
@@ -106,7 +108,6 @@ def test_reference_command_can_be_built_without_local_docker(
         manifest,
         fixture_root=MANIFEST.parent,
         output_directory=output,
-        project_root=ROOT,
         dependency_directory=None,
         trace_mode="off",
         profile=False,
@@ -140,7 +141,6 @@ def test_reference_command_accepts_a_resource_managed_run_prefix(tmp_path: Path)
         manifest,
         fixture_root=MANIFEST.parent,
         output_directory=output,
-        project_root=ROOT,
         dependency_directory=None,
         trace_mode="off",
         profile=False,
