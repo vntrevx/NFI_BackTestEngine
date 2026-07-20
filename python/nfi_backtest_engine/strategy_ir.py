@@ -14,7 +14,7 @@ from .canonical import write_json
 from .errors import SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
 
-STRATEGY_IR_VERSION = "1.6.0"
+STRATEGY_IR_VERSION = "1.7.0"
 HOT_CALLBACKS = {
     "adjust_trade_position",
     "bot_loop_start",
@@ -241,12 +241,20 @@ def _strategy_record(node: ast.ClassDef, source_lines: list[bytes]) -> dict[str,
             dynamic_constants.append(target.id)
         else:
             constants[target.id] = _json_literal(value)
+    protections, protections_static = _static_property_value(
+        node,
+        "protections",
+        constants,
+        missing=[],
+    )
     record = {
         "name": node.name,
         "bases": [_qualified_name(base) or ast.unparse(base) for base in node.bases],
         "location": _location(node),
         "constants": constants,
         "dynamic_constants": sorted(dynamic_constants),
+        "protections": _json_literal(protections) if protections_static else None,
+        "protections_static": protections_static,
         "literal_condition_indices": _literal_condition_indices(node),
         "required_timeframes": _required_timeframes(node, constants),
         "methods": methods,
@@ -264,8 +272,10 @@ def _strategy_record(node: ast.ClassDef, source_lines: list[bytes]) -> dict[str,
     fingerprint_identity = {
         "name": record["name"],
         "bases": record["bases"],
-        "constants": record["constants"],
-        "dynamic_constants": record["dynamic_constants"],
+            "constants": record["constants"],
+            "dynamic_constants": record["dynamic_constants"],
+            "protections": record["protections"],
+            "protections_static": record["protections_static"],
         "literal_condition_indices": record["literal_condition_indices"],
         "methods": [
             {
@@ -285,6 +295,43 @@ def _strategy_record(node: ast.ClassDef, source_lines: list[bytes]) -> dict[str,
         ).encode()
     ).hexdigest()
     return record
+
+
+def _static_property_value(
+    strategy: ast.ClassDef,
+    name: str,
+    constants: dict[str, Any],
+    *,
+    missing: Any,
+) -> tuple[Any, bool]:
+    """Evaluate one literal property without importing the strategy module."""
+    candidates = [
+        item
+        for item in strategy.body
+        if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef) and item.name == name
+    ]
+    if not candidates:
+        return missing, True
+    if len(candidates) != 1 or isinstance(candidates[0], ast.AsyncFunctionDef):
+        return None, False
+    statements = [
+        statement
+        for statement in candidates[0].body
+        if not (
+            isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Constant)
+            and isinstance(statement.value.value, str)
+        )
+    ]
+    if len(statements) != 1 or not isinstance(statements[0], ast.Return):
+        return None, False
+    return_node = statements[0].value
+    if return_node is None:
+        return None, False
+    value = _safe_static_value(return_node, constants)
+    if value is _STATIC_UNKNOWN:
+        return None, False
+    return value, True
 
 
 def _class_constant_assignment(item: ast.stmt) -> tuple[ast.Name, ast.expr] | None:

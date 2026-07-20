@@ -44,6 +44,13 @@ def _fake_prepare_data(**kwargs) -> dict:
         "aggregate_sha256": "data",
         "files": [{"path": "BTC_USDT-5m.feather"}],
         "downloads": [],
+        "coverage_shortfalls": [],
+        "request": {
+            "history_coverage_policy": kwargs.get(
+                "history_coverage_policy",
+                "strict",
+            )
+        },
     }
     write_json(kwargs["destination"], seal)
     return seal
@@ -121,10 +128,28 @@ def test_research_prepare_is_checkpointed_and_resumable(
 
     assert first["status"] == "prepared"
     assert first["pipeline_evidence"]["cold"] is True
+    assert first["schema_version"] == "1.4.0"
+    assert first["timings"]["pipeline_wall_time_seconds"] >= 0
+    assert set(first["timings"]["stages"]) == {
+        "input_preparation_seconds",
+        "data_seconds",
+        "vectors_seconds",
+        "capability_seconds",
+        "manifest_seconds",
+        "engine_seconds",
+        "surface_seconds",
+    }
+    assert all(value >= 0 for value in first["timings"]["stages"].values())
     assert second["resumed_stages"] == ["data", "vectors"]
     assert second["pipeline_evidence"]["cold"] is False
     assert calls == 1
     assert (output / "run.json").is_file()
+    assert (output / first["inputs"]["strategy"]["sealed"]["path"]).read_bytes() == (
+        source.read_bytes()
+    )
+    assert read_json(output / first["inputs"]["config"]["sealed"]["path"]) == read_json(
+        output / "effective-config.redacted.json"
+    )["config"]
 
 
 def test_research_backtest_reports_uncompiled_callback_blocker(

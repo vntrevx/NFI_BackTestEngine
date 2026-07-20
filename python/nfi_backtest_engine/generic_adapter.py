@@ -15,6 +15,7 @@ from .errors import StrategyAnalysisError
 from .market_precision import historic_price_steps
 from .specs import validate_trade_surface
 from .vector_manifest import (
+    EMPTY_TAG_TRANSPORT_SENTINEL,
     VECTOR_MANIFEST_VERSION,
     artifact_execution_start_index,
     contained_vector_path,
@@ -546,7 +547,13 @@ def generic_result_to_surface(
             "replaced_entry_orders": 0,
             "max_open_trades": result["maximum_concurrent_trades"],
         },
-        "locks": [],
+        "locks": [
+            {
+                "sequence": sequence,
+                **lock,
+            }
+            for sequence, lock in enumerate(result.get("locks", []))
+        ],
         "trades": trades,
     }
     validate_trade_surface(surface)
@@ -665,11 +672,11 @@ def _surface_trade(
             "absolute": _decimal(trade["profit_abs"]),
             "ratio": _decimal(trade["profit_ratio"]),
         },
-        "liquidation_price": (
-            _decimal(trade["liquidation_price"])
-            if trade.get("liquidation_price") is not None
-            else None
-        ),
+        # Freqtrade's 2026.5.1 backtest export does not expose the trade's
+        # internal liquidation price. Keep the shared comparison surface
+        # limited to fields observable on both sides; exact state probes cover
+        # the internal value and its update sequence separately.
+        "liquidation_price": None,
         "initial_stop_loss": _decimal(trade["initial_stop_loss"]),
         "stop_loss": _decimal(trade["stop_loss"]),
         "orders": [
@@ -703,7 +710,11 @@ def _optional_text(value: Any) -> str | None:
     if value is None or pd.isna(value):
         return None
     rendered = str(value)
-    return rendered or None
+    return (
+        rendered
+        if rendered and rendered != EMPTY_TAG_TRANSPORT_SENTINEL
+        else None
+    )
 
 
 def _positive_float(value: Any, name: str) -> float:

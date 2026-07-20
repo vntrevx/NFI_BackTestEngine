@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from nfi_backtest_engine.canonical import read_json
 from nfi_backtest_engine.data_seal import (
+    _needs_prepend,
     find_coverage_gaps,
     prepare_data,
     validate_data_seal,
@@ -53,6 +55,60 @@ def test_missing_coverage_fails_before_network_when_download_is_disabled(
             destination=tmp_path / "seal.json",
             download_missing=False,
         )
+
+
+def test_new_files_do_not_schedule_a_redundant_prepend_download() -> None:
+    missing_file = {
+        "start_missing": True,
+        "end_missing": True,
+        "available_start_timestamp_ms": None,
+    }
+    existing_partial_file = {
+        "start_missing": True,
+        "end_missing": True,
+        "available_start_timestamp_ms": 1_700_000_000_000,
+    }
+
+    assert not _needs_prepend(
+        [missing_file],
+        [],
+        require_startup_coverage=False,
+    )
+    assert _needs_prepend(
+        [existing_partial_file],
+        [],
+        require_startup_coverage=False,
+    )
+
+
+def test_available_history_records_a_later_listing_without_hiding_stale_data(
+    tmp_path: Path,
+) -> None:
+    source = FIXTURE / "inputs" / "candles" / "BTC_USDT-5m.feather"
+    candles = pd.read_feather(source).iloc[12:].copy()
+    candles.to_feather(tmp_path / "BTC_USDT-5m.feather")
+
+    seal = prepare_data(
+        config_path=FIXTURE / "inputs" / "config.json",
+        data_directory=tmp_path,
+        timerange="20250101-20250104",
+        timeframes=["5m"],
+        destination=tmp_path / "data-seal.json",
+        download_missing=False,
+        history_coverage_policy="available",
+    )
+
+    assert seal["request"]["history_coverage_policy"] == "available"
+    assert seal["coverage_shortfalls"] == [
+        {
+            "pair": "BTC/USDT",
+            "timeframe": "5m",
+            "start_missing": True,
+            "end_missing": False,
+            "available_start_timestamp_ms": 1_735_693_200_000,
+            "available_end_timestamp_ms": 1_735_948_500_000,
+        }
+    ]
 
 
 def test_invalid_timerange_is_rejected(tmp_path: Path) -> None:

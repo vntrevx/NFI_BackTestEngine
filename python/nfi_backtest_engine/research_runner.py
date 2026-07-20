@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ from .hardware import (
 )
 from .hot_ir import HOT_IR_VERSION, build_hot_callback_ir
 from .market_snapshot import MARKET_SNAPSHOT_VERSION, capture_market_snapshot
+from .reference_runtime import load_reference_leverage_tiers
 from .run_registry import RunRegistry
 from .strategy_ir import STRATEGY_IR_VERSION
 from .vector_runtime import (
@@ -49,7 +51,7 @@ from .x7_adapter import (
     x7_adapter_blockers,
 )
 
-RESEARCH_RUN_VERSION = "1.2.0"
+RESEARCH_RUN_VERSION = "1.4.0"
 
 
 def run_research_backtest(
@@ -72,8 +74,12 @@ def run_research_backtest(
     download_market_metadata: bool = True,
     execution_profile: dict[str, Any] | None = None,
     recalibrate: bool = False,
+    history_coverage_policy: str = "strict",
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
+    pipeline_started_ns = time.perf_counter_ns()
+    pipeline_started_at = _utc_now()
+    stage_started_ns = pipeline_started_ns
     source = Path(strategy_path).resolve()
     config_file = Path(config_path).resolve()
     data_root = Path(data_directory).resolve()
@@ -140,13 +146,34 @@ def run_research_backtest(
         if resume and automatic_market_path.is_file():
             selected_market_metadata = automatic_market_path
         else:
+            tier_capture = None
+            if run_config.get("trading_mode") == "futures":
+                exchange_name = str(run_exchange.get("name", "")).lower()
+                if exchange_name != "binance":
+                    raise BenchmarkError(
+                        "automatic futures leverage-tier capture currently requires "
+                        "Binance; provide a sealed --markets snapshot for this exchange"
+                    )
+                tier_capture = load_reference_leverage_tiers(pairlist["pairs"])
             capture_market_snapshot(
                 run_config,
                 pairlist["pairs"],
                 automatic_market_path,
+                leverage_tiers=(
+                    tier_capture["tiers"] if tier_capture is not None else None
+                ),
+                leverage_tier_source=(
+                    tier_capture["source"] if tier_capture is not None else None
+                ),
             )
             selected_market_metadata = automatic_market_path
 
+    sealed_inputs = _seal_run_inputs(
+        source=source,
+        run_config=run_config,
+        output=output,
+        resume=resume,
+    )
     identity = {
         "schema_version": RESEARCH_RUN_VERSION,
         "pipeline": {
@@ -165,12 +192,14 @@ def run_research_backtest(
             "file_sha256": sha256_file(source),
             "analysis_sha256": analysis["source"]["sha256"],
             "capability_fingerprint": analysis["strategies"][0]["capability_fingerprint"],
+            "sealed": sealed_inputs["strategy"],
         },
         "config": {
             "root_path": str(config_file),
             "source_effective_sha256": loaded["sha256"],
             "run_effective_sha256": config_sha256(run_config),
             "input_files": loaded["inputs"],
+            "sealed": sealed_inputs["config"],
         },
         "pairlist_sha256": pairlist["sha256"],
         "data_directory": str(data_root),
@@ -226,6 +255,8 @@ def run_research_backtest(
     download_exchange["pair_whitelist"] = data_pairs
     download_config_path = output / "download-config.json"
     write_json(download_config_path, download_config)
+    input_seconds = _elapsed_seconds(stage_started_ns)
+    stage_started_ns = time.perf_counter_ns()
     data_seal_path = output / "data-seal.json"
     resumed_data_stage = False
     if resume and data_seal_path.is_file():
@@ -249,7 +280,10 @@ def run_research_backtest(
             destination=data_seal_path,
             download_missing=download_missing,
             startup_candles=startup_candles,
+            history_coverage_policy=history_coverage_policy,
         )
+    data_seconds = _elapsed_seconds(stage_started_ns)
+    stage_started_ns = time.perf_counter_ns()
 
     vector_directory = output / "vectors"
     vector_checkpoint = output / "checkpoints" / "vectors.json"
@@ -286,6 +320,8 @@ def run_research_backtest(
                 "report": vector_report,
             },
         )
+    vector_seconds = _elapsed_seconds(stage_started_ns)
+    stage_started_ns = time.perf_counter_ns()
 
     blockers = list(hot_ir["blockers"])
     has_strategy_callbacks = bool(
@@ -314,6 +350,10 @@ def run_research_backtest(
             )
     if not blockers and not prepare_only and not has_strategy_callbacks:
         blockers.extend(generic_data_blockers(analysis, vector_report))
+    capability_seconds = _elapsed_seconds(stage_started_ns)
+    manifest_seconds = 0.0
+    engine_seconds = 0.0
+    surface_seconds = 0.0
     result_record = None
     if not blockers and not prepare_only:
         assert selected_market_metadata is not None
@@ -321,6 +361,7 @@ def run_research_backtest(
         simulation_result_path = output / "simulation-result.json"
         engine_profile_path = output / "engine-profile.json"
         surface_path = output / "trade-surface.json"
+        stage_started_ns = time.perf_counter_ns()
         if has_strategy_callbacks:
             build_x7_vector_manifest(
                 analysis=analysis,
@@ -338,6 +379,8 @@ def run_research_backtest(
                 market_metadata_path=selected_market_metadata,
                 destination=simulation_input_path,
             )
+        manifest_seconds = _elapsed_seconds(stage_started_ns)
+        stage_started_ns = time.perf_counter_ns()
         execution = run_engine(
             simulation_input_path,
             simulation_result_path,
@@ -345,6 +388,8 @@ def run_research_backtest(
             vector_manifest=True,
             engine_profile_path=engine_profile_path,
         )
+        engine_seconds = _elapsed_seconds(stage_started_ns)
+        stage_started_ns = time.perf_counter_ns()
         strategy = analysis["strategies"][0]
         surface = generic_result_to_surface(
             result_path=simulation_result_path,
@@ -355,6 +400,7 @@ def run_research_backtest(
             stoploss_ratio=float(strategy["constants"]["stoploss"]),
             destination=surface_path,
         )
+        surface_seconds = _elapsed_seconds(stage_started_ns)
         result_record = {
             "trade_count": len(surface["trades"]),
             "execution": execution,
@@ -394,6 +440,19 @@ def run_research_backtest(
             if resumed
         ],
         "created_at": _utc_now(),
+        "timings": {
+            "started_at": pipeline_started_at,
+            "pipeline_wall_time_seconds": _elapsed_seconds(pipeline_started_ns),
+            "stages": {
+                "input_preparation_seconds": input_seconds,
+                "data_seconds": data_seconds,
+                "vectors_seconds": vector_seconds,
+                "capability_seconds": capability_seconds,
+                "manifest_seconds": manifest_seconds,
+                "engine_seconds": engine_seconds,
+                "surface_seconds": surface_seconds,
+            },
+        },
         "inputs": identity,
         "execution": {
             "hardware_fingerprint": profile["hardware_fingerprint"],
@@ -410,6 +469,13 @@ def run_research_backtest(
             "aggregate_sha256": data_seal["aggregate_sha256"],
             "file_count": len(data_seal["files"]),
             "download_count": len(data_seal["downloads"]),
+            "history_coverage_policy": data_seal["request"].get(
+                "history_coverage_policy",
+                "strict",
+            ),
+            "coverage_shortfall_count": len(
+                data_seal.get("coverage_shortfalls", [])
+            ),
         },
         "vectors": vector_report,
         "capability": {
@@ -456,6 +522,35 @@ def _valid_vector_checkpoint(checkpoint: Any, vector_directory: Path) -> bool:
     return len(report["outputs"]) == report.get("pair_count")
 
 
+def _seal_run_inputs(
+    *,
+    source: Path,
+    run_config: dict[str, Any],
+    output: Path,
+    resume: bool,
+) -> dict[str, dict[str, Any]]:
+    """Keep finalist inputs valid after the upstream strategy file changes."""
+    sealed_directory = output / "sealed-inputs"
+    sealed_directory.mkdir(parents=True, exist_ok=True)
+    strategy_path = sealed_directory / "strategy.py"
+    config_path = sealed_directory / "config.json"
+    source_hash = sha256_file(source)
+    if strategy_path.exists():
+        if not resume or sha256_file(strategy_path) != source_hash:
+            raise BenchmarkError("sealed strategy input differs from the requested source")
+    else:
+        shutil.copyfile(source, strategy_path)
+    if config_path.exists():
+        if not resume or read_json(config_path) != run_config:
+            raise BenchmarkError("sealed config input differs from the effective config")
+    else:
+        write_json(config_path, run_config)
+    return {
+        "strategy": _relative_artifact_record(strategy_path, root=output),
+        "config": _relative_artifact_record(config_path, root=output),
+    }
+
+
 def _reset_owned_directory(path: Path, *, root: Path) -> None:
     resolved = path.resolve()
     if not resolved.is_relative_to(root.resolve()) or resolved == root.resolve():
@@ -477,6 +572,10 @@ def _identity_sha256(value: dict[str, Any]) -> str:
     ).hexdigest()
 
 
+def _elapsed_seconds(started_ns: int) -> float:
+    return (time.perf_counter_ns() - started_ns) / 1_000_000_000
+
+
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
@@ -487,6 +586,12 @@ def _artifact_record(path: Path) -> dict[str, Any]:
         "bytes": path.stat().st_size,
         "sha256": sha256_file(path),
     }
+
+
+def _relative_artifact_record(path: Path, *, root: Path) -> dict[str, Any]:
+    record = _artifact_record(path)
+    record["path"] = path.relative_to(root).as_posix()
+    return record
 
 
 def _required_data_pairs(

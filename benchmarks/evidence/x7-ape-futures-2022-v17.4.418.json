@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-final-surface-exact",
+  "claim_boundary": "APE/USDT:USDT single-pair futures from 2022-04-01 through 2023-01-01 on supplied X7 v17.4.418; exact final surface and sealed official callback audit; verifies the stop-loss/liquidation collision ordering without certifying a liquidation exit, tag 121, protections, pair locks, or arbitrary pairs",
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "ccxt_version": "4.5.55",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "network_during_backtest": false
+  },
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.418",
+    "source_file_sha256": "f5260e2de9b911567728dd90bdd59912b1a1272ef863c24110ce44bceb09e0b9",
+    "pair": "APE/USDT:USDT",
+    "timeframe": "5m",
+    "timerange": "20220401-20230101",
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "leverage": 3,
+    "max_open_trades": 1,
+    "strategy_ir_version": "1.7.0",
+    "hot_ir_version": "1.9.0",
+    "data_seal_version": "1.3.0",
+    "vector_pipeline_version": "1.13.0",
+    "nfi_trade_manager_schema": "0.9.0",
+    "generic_adapter_version": "1.3.0",
+    "x7_adapter_version": "0.14.0",
+    "vector_runtime": {
+      "python": "3.12.3",
+      "numpy": "2.4.5",
+      "pandas": "3.0.3",
+      "pyarrow": "24.0.0",
+      "ta_lib": "0.6.8"
+    }
+  },
+  "sealed_artifacts": {
+    "safe_config_sha256": "5ff55cb0483aee2ad5dd339a30d8cdc798be1bc267420c59bfd6ac26d43a75bc",
+    "effective_config_sha256": "7f77bb6fdfd14b47925e2c2920b7dae8f085059da6b4eb09330b42e9d5ba6ce9",
+    "strategy_analysis_sha256": "e16b334894d2e7b10fbccb266b2fef9ef80d78a6f0707b14d9622cd51f0bac0d",
+    "data_seal_sha256": "36aa53c9d3caabc01e445c78380893d74674ce74c959798bca2dc5ee4e24ffcf",
+    "hot_callback_ir_sha256": "a9e3ce2b6f4f41ca5a0508f8ae9a2376273b4a6a3b71240b25c2e272f529fc16",
+    "vector_feather_sha256": "e9ce845f533508eb6d7f7f22bdc8e92361322904bc132e5a1cb49cd0ea0495a5",
+    "vector_manifest_sha256": "d578169eab2c983526f6d2328a00b889c84e8af262b2ce71e3b27e3647042154",
+    "reference_market_snapshot_sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+    "official_result_zip_sha256": "bf997c0c7338ce8278bb6818de6ef0e82d3bbdd52946c48fd54012166859d892",
+    "official_reference_report_sha256": "9089683efe2bfd8efd4366e7c6ec1ea0d8426fe2176ccf8c324fedcb29bec9da",
+    "official_callback_audit_sha256": "83f7f9a610ecece5a545c89cd97e742c15ad2c2d34c2f4e3989385a6cf772e67",
+    "engine_result_sha256": "25a0f0b6f5029fcb9c437ce602cf1b3305a128bd89bad54ca38d243400a3a453"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "official_surface_sha256": "12386d5cfc56fd948dfb74ed908911efe220d0ee94ee0ac705415de027b31bcd",
+    "engine_surface_sha256": "12386d5cfc56fd948dfb74ed908911efe220d0ee94ee0ac705415de027b31bcd",
+    "numeric_tolerance": 0,
+    "first_difference": null,
+    "trades": 11,
+    "orders": 164,
+    "adjustment_orders": 142,
+    "short_trades": 1,
+    "funded_trades": 8,
+    "liquidation_exits": 0,
+    "locks": 0
+  },
+  "resource_observation": {
+    "official_wall_time_seconds": 243.867394013,
+    "official_container_peak_bytes": 806547456,
+    "official_container_limit_bytes": 21852071527,
+    "official_memory_verdict": "within_limit",
+    "engine_core_wall_time_seconds": 9.916221769,
+    "engine_core_peak_rss_bytes": 77086720,
+    "timings_are_not_a_full_pipeline_speed_certificate": true
+  }
+}

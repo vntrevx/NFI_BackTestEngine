@@ -1,10 +1,9 @@
-//! Exact spot/backtest state machine for NFI X7's legacy tag-120 grind route.
+//! Exact spot/backtest state machine for NFI X7's legacy grind continuation.
 //!
 //! X7 reconstructs eight open grind clusters from filled orders on every
 //! candle. This module preserves that reversed walk, callback branch order,
-//! strict age comparisons, and stake conversion. It deliberately rejects the
-//! tag-121 regular-mode prelude and futures until those distinct source paths
-//! have their own parity certificates.
+//! strict age comparisons, and stake conversion. Tag 120 starts here, while
+//! tag 121 enters only after its regular-mode evaluator reports a de-risk.
 
 use super::nfi_adjustment::evaluate_grind_entry_program;
 use super::{
@@ -96,9 +95,17 @@ struct LegacyContext<'a> {
     is_derisk: bool,
     is_long_grind_entry: bool,
     entry_age_allows: bool,
+    maximum_stake_divisor: f64,
+    mode: LegacyMode,
 }
 
-/// Evaluate `long_grind_adjust_trade_position()` for tag 120.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LegacyMode {
+    Grind,
+    RegularContinuation,
+}
+
+/// Evaluate the legacy part of `long_grind_adjust_trade_position()`.
 ///
 /// The outer `Option` is the exactness boundary used by the simulator. `None`
 /// rejects malformed or unreviewed state; the inner `None` is NFI's ordinary
@@ -121,13 +128,10 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
     {
         return None;
     }
-    // Tag 121 enters the same Python method through the regular-mode prelude.
-    // Returning a normal no-op here would silently omit its rebuys/de-risk, so
-    // the exit-only route fails closed until that prelude is lowered.
-    if route.adjustment_scope == "exit-only-v1" && !route.grind_mode {
-        return Some(None);
-    }
-    if route.adjustment_scope != "spot-grind-backtest-v1" || !route.grind_mode {
+    let grind_route = route.adjustment_scope == "spot-grind-backtest-v1" && route.grind_mode;
+    let regular_continuation =
+        route.adjustment_scope == "spot-regular-backtest-v1" && !route.grind_mode;
+    if !grind_route && !regular_continuation {
         return None;
     }
 
@@ -142,10 +146,12 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
     // Freqtrade backtests only place filled adjustment orders in the trade
     // history. Their safe_remaining is zero, so NFI's live partial-fill retry
     // branch is structurally unreachable and no state is omitted here.
-    if let Some(signal) =
-        evaluate_first_entry_recovery(route, trade, candle, config, minimum_stake, &state)?
-    {
-        return Some(Some(signal));
+    if route.grind_mode {
+        if let Some(signal) =
+            evaluate_first_entry_recovery(route, trade, candle, config, minimum_stake, &state)?
+        {
+            return Some(Some(signal));
+        }
     }
 
     let slice_amount = state.first_entry.amount * state.first_entry.price / first_multiplier;
@@ -192,6 +198,16 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
         is_derisk: trade.amount < state.first_entry.amount * 0.95,
         is_long_grind_entry,
         entry_age_allows,
+        maximum_stake_divisor: if route.grind_mode {
+            first_multiplier
+        } else {
+            1.0
+        },
+        mode: if route.grind_mode {
+            LegacyMode::Grind
+        } else {
+            LegacyMode::RegularContinuation
+        },
     };
 
     // The two post-de-risk clusters execute before the six ordinary grind
@@ -446,7 +462,7 @@ fn evaluate_cluster(
         context.trade.leverage,
     )?;
     let first_entry_condition = if post_derisk {
-        context.is_derisk
+        context.is_derisk || context.mode == LegacyMode::RegularContinuation
     } else {
         context.is_derisk || context.route.grind_mode
     };
@@ -464,8 +480,7 @@ fn evaluate_cluster(
     };
     let first_cost = state.first_entry.amount * state.first_entry.price;
     let below_maximum = context.current_stake_amount
-        < first_cost * context.route.constants.max_stake_multiplier
-            / context.route.constants.stake_multipliers_spot[0];
+        < first_cost * context.route.constants.max_stake_multiplier / context.maximum_stake_divisor;
     if route_allows
         && cluster.count < scaled_stakes.len()
         && distance_allows
@@ -505,7 +520,7 @@ fn evaluate_cluster(
     }
 
     let stop_condition = if post_derisk {
-        context.is_derisk
+        context.is_derisk || context.mode == LegacyMode::RegularContinuation
     } else {
         context.is_derisk || context.route.grind_mode
     };

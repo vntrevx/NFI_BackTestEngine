@@ -2,30 +2,51 @@
 
 ## Product boundary
 
-Version 0.5.0 is an alpha release of the benchmark, exact-parity, native packaging,
+Version 0.6.0 is an alpha release of the benchmark, exact-parity, native packaging,
 hardware/data preparation, X7 vector, and checkpointed research infrastructure. It is
-not a claim that an arbitrary NFI file, pair universe, or strategy revision can already
-complete an exact Rust backtest.
+not a claim that an arbitrary future NFI file, pair universe, or strategy branch can
+already complete an exact Rust backtest.
 
 The product target is nevertheless revision-independent: a user supplies the current
 NFI file, the engine analyzes and compiles that exact source, the default run spans the
 previous five complete calendar years, and official Freqtrade verifies the finalist.
-The v17.4.413 boundary below describes current evidence, not the intended permanent
-input version.
+The versioned evidence below describes reproducible regressions, not a permanent input
+allowlist.
 
-The current alpha executes the source-pinned X7 v17.4.413 managed long routes,
-short-rebuy tags 561-563, constrained isolated-futures accounting with uniform 3x
-leverage, and the tag-120 spot/backtest grind state machine. The sealed
-APE/USDT:USDT annual futures run matches Freqtrade exactly at the final normalized
-surface: 11 trades, 164 orders, 142 adjustment orders, one short trade, and eight
-funded trades. It does not reach liquidation and does not certify arbitrary pairs,
-protections, or pair locks.
+The current alpha executes the source-compiled managed long routes, short-rebuy tags
+561-563, tag-dependent futures leverage, Binance isolated-liquidation accounting,
+tag-120 legacy grind, tag-121 regular adjustment, and four static Freqtrade protection
+methods with deterministic pair-lock state. The sealed X7 v17.4.418 APE/USDT:USDT
+annual futures run matches Freqtrade exactly at the final normalized surface: 11 trades,
+164 orders, 142 adjustment orders, one short trade, and eight funded trades. It protects
+the no-fallthrough stop-loss/liquidation collision order but does not reach a liquidation
+exit or certify arbitrary pairs, enabled protections, or generated locks.
 
-The APE top-coins, tag-62 rebuy exit, ZEC tag-120, and APE/AAVE equal-timestamp
-shared-slot fixtures provide additional exact spot evidence. In v17.4.413, tag 121
-is a dormant route constant with no literal entry-condition branch. It remains
-fail-closed so a future source that emits it cannot silently skip regular-mode
-position adjustment.
+The v17.4.413 APE top-coins, tag-62 rebuy exit, ZEC tag-120, and APE/AAVE
+equal-timestamp shared-slot fixtures remain additional exact spot evidence. In
+v17.4.418, tag 121 has a compiled entry branch whose source switch is disabled; its
+regular-mode path therefore has focused native proof but no branch-reaching official
+trade.
+
+The first large v0.6 native diagnostic covers 80 configured spot pairs and
+`20210101-20260101`. It preserves the exact 750-trade result while reducing the native
+process from 2,022.07 seconds to 763.70 seconds on the observed WSL2 host. This is not a
+release speed certificate: vectors were reused, the available-history policy recorded
+275 shortfalls, and the measurement has not yet been repeated across operating systems.
+
+The continuous official run of that workload was OOM-killed at the enforced
+21,852,071,527-byte Docker limit and produced no comparison result. The safe bounded
+follow-up kept all 80 pairs but used `20250701-20260101` and ran sequentially. It
+matches Freqtrade 2026.5.1 byte-for-byte at the normalized final surface: 167 trades,
+402 orders, 23 rejected signals, and zero numeric tolerance. The native-core
+observation was 58.93 seconds and 88,928,256 peak bytes versus 253.09 seconds and
+9,450,651,648 peak bytes for the complete official container process. These 4.29x and
+106.27x ratios are diagnostic because the native measurement begins with sealed
+vectors, while Freqtrade performs its analysis inside the measured process.
+
+The bounded result does not replace the representative four-year release gate.
+Independent timerange chunks reset wallet, open positions, and protection state and
+therefore cannot be joined into a continuous-state parity certificate.
 
 The public runner returns one of:
 
@@ -38,8 +59,8 @@ Only `complete` may contain a result. A finalist still requires the official Fre
 confirmation lane.
 
 `complete` describes the sealed run's declared scope, not full-X7 product readiness.
-Unknown, tag-121, unsupported mixed tags, non-uniform futures leverage, or unsupported
-callbacks must still produce `blocked_unsupported_semantics`.
+Unknown tags, unsupported mixed tags, new dynamic leverage/protection programs, or
+unsupported callbacks must still produce `blocked_unsupported_semantics`.
 
 ## Required checks
 
@@ -53,7 +74,8 @@ Before tagging:
 6. `cargo test --workspace --locked`
 7. `cargo clippy --workspace --all-targets --locked -- -D warnings`
 8. Both captured contract fixtures at `--level full`
-9. Exact evidence-schema tests, including the annual X7 futures certificate
+9. Exact evidence tests, including both annual X7 futures revisions, the bounded
+   80-pair spot result, and their narrow claim boundaries
 10. `uv build --sdist --wheel`
 11. Install the wheel into a clean Python 3.12 environment and rerun one full fixture
 12. On a Docker host, verify daemon-resource inspection, one managed official fixture,
@@ -65,6 +87,8 @@ Before tagging:
     official confirmation
 16. Verify the representative run uses at least 80 pairs and 1,460 days before
     publishing any 10x or long-horizon memory claim
+17. Run `nfi-bte certify` with at least three representative repetitions and one or
+    more branch-reaching `--state-probe` fixtures; retain the reproducible bundle
 
 The CI workflow runs the tests on Linux, Windows, and macOS and repeats native full
 parity on Linux. Docker-free CI validates the portable resource and command contracts;

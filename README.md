@@ -13,10 +13,11 @@ then admits worker processes from that observed peak, current free memory, CPU a
 and any explicit user cap. Shared wallet, slot, trade, and order events remain
 deterministic in Rust.
 
-> **Release status:** `v0.5.0` is an alpha release. It has exact certificates for a
-> source-pinned NFI X7 v17.4.413 subset. It does not claim exact support for every NFI
-> revision, pair, route, protection, pair lock, or liquidation event. Unsupported
-> behavior stops explicitly instead of falling back to an approximate result.
+> **Release status:** `v0.6.0` is an alpha release. The engine accepts the NFI file
+> supplied to each run and has exact regression evidence through X7 v17.4.418. It does
+> not claim exact support for every future NFI revision or every branch. New behavior
+> that cannot be compiled exactly stops explicitly instead of falling back to an
+> approximate result.
 
 ## What you can do
 
@@ -215,9 +216,12 @@ when strategy, config, data, timerange, dependency, and hardware identities stil
 match; worker admission is recalculated from free memory every time. Use
 `nfi-bte run --recalibrate` after an intentional environment change.
 
-The Rust engine keeps Feather-derived rows in a disk-backed spool and retains only the
-active row in heap memory. The OS-local temporary directory is normally fastest. If
-that directory is RAM-backed, select an existing disk-backed directory explicitly:
+The Rust engine keeps Feather-derived rows in a disk-backed spool. Each pair retains
+only one bounded read window with the callback lookback overlapped, so sequential
+round-robin access avoids per-candle filesystem calls and boundary re-reads without
+loading a multi-year vector into heap memory. The
+OS-local temporary directory is normally fastest. If that directory is RAM-backed,
+select an existing disk-backed directory explicitly:
 
 ```powershell
 nfi-bte system tune --force `
@@ -304,7 +308,7 @@ silently substitutes simplified trading behavior.
 
 Useful output files include:
 
-- `run.json` — final status and run identity;
+- `run.json` — final status, run identity, and end-to-end stage timings;
 - `execution-profile.json` — factual CPU limits and explicit memory cap;
 - `engine-profile.json` — measured hash/decode/event-loop/serialization phases;
 - `strategy-analysis.json` and `hot-callback-ir.json` — compiled capability boundary;
@@ -331,6 +335,29 @@ nfi-bte confirm `
 The comparator normalizes both results and fails at the first exact semantic
 difference. It does not use a floating-point tolerance.
 
+For a completed research run, the reference lane can materialize the sealed strategy
+and effective config, capture the pinned raw market snapshot once, run official
+Freqtrade offline, and compare the result in one command:
+
+```powershell
+nfi-bte reference research artifacts\x7-2025 `
+  --output-dir artifacts\x7-2025-official
+```
+
+To make the entire operation offline, reuse a previously captured raw reference market
+snapshot:
+
+```powershell
+nfi-bte reference research artifacts\x7-2025 `
+  --output-dir artifacts\x7-2025-official `
+  --markets artifacts\reference-markets.json `
+  --no-market-capture
+```
+
+The completed research directory contains private copies of the exact strategy and
+sanitized effective config under `sealed-inputs/`. Their hashes are checked before the
+official run, so a daily NFI update cannot silently change an older result.
+
 `run.json` records `pipeline_evidence.cold=true` only when neither data nor vector
 checkpoints were resumed and no vector came from the content cache. Public performance
 certification is stricter than parity alone:
@@ -345,6 +372,49 @@ nfi-bte performance path\to\manifest.json `
 and 1,460 days), exact parity on every run, at least 10x median screening speed, and a
 passing memory gate. Short fixtures can complete as diagnostics but can never set that
 release flag.
+
+The current large native diagnostic uses the supplied X7 v17.4.418 source, 80 configured
+spot pairs, five timeframes, and `20210101-20260101`. On one WSL2 host, the same sealed
+21,102,441-row manifest produced byte-identical results before and after the hot-loop
+changes. Native process time fell from 2,022.07 seconds to 763.70 seconds (2.65x), while
+the chronological event loop fell from 1,638.36 seconds to 474.86 seconds (3.45x);
+optimized peak RSS was 100,286,464 bytes. This is deliberately labeled diagnostic:
+the run reused vector checkpoints, used `history-coverage=available` with 275 recorded
+coverage shortfalls, and has one observation on one host. See
+[`benchmarks/evidence/x7-80pair-spot-5y-native-2026-07-20.json`](benchmarks/evidence/x7-80pair-spot-5y-native-2026-07-20.json).
+It is not an official Freqtrade, cold-pipeline, repeated-median, or cross-platform speed
+certificate.
+
+The pinned official lane could not complete that continuous five-year workload inside
+Docker's enforced 21.85 GB limit; it was OOM-killed before producing a result. A
+strictly sequential, bounded `20250701-20260101` verification did complete over the
+same 80-pair universe. Its 167 trades and 402 orders match the native normalized
+surface byte-for-byte at zero tolerance, including final balance, rejected signals,
+order IDs, tags, and export order. The official container took 253.09 seconds and
+peaked at 9,450,651,648 bytes; the native core starting from sealed vectors took
+58.93 seconds and peaked at 88,928,256 bytes. The observed 4.29x wall and 106.27x
+memory ratios are diagnostic execution comparisons, not cold end-to-end or
+cross-platform certificates. See
+[`benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json`](benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json)
+and
+[`benchmarks/evidence/x7-80pair-spot-5y-official-oom-2026-07-20.json`](benchmarks/evidence/x7-80pair-spot-5y-official-oom-2026-07-20.json).
+Independent bounded runs are not concatenated into a continuous five-year result
+because wallet, open-trade, and protection state reset at each boundary.
+
+Release certification keeps the large performance workload at final-surface parity and
+uses smaller branch-reaching fixtures for every-candle state parity. This avoids
+creating a multi-year, multi-pair JSON trace merely to prove the same hot-loop speed:
+
+```powershell
+nfi-bte certify path\to\representative-manifest.json `
+  --state-probe benchmarks\fixtures\captured\normal-routing-spot-2025-01-01_04\manifest.json `
+  --state-probe benchmarks\fixtures\captured\stops-only-spot-2025-01-01_04\manifest.json `
+  --output-dir artifacts\release-certificate `
+  --runs 5
+```
+
+The bundle is certified only when the repeated representative gate and every full-state
+probe pass. Median wall time and maximum memory are retained with immutable hashes.
 
 ## Verify the included exact fixture
 
@@ -384,19 +454,34 @@ Use `--resume` to reuse only stages whose complete input identity still matches.
 
 ## Current exact-support boundary
 
-Version 0.5.0 executes the source-pinned X7 v17.4.413 managed long routes,
-short-rebuy tags 561–563, constrained isolated-futures accounting with uniform 3x
-leverage, and the tag-120 spot/backtest grind state machine.
+Version 0.6.0 compiles the supplied X7 source rather than selecting a whole-file version.
+The current native contracts cover the managed long routes, short-rebuy tags 561-563,
+tag-dependent leverage, Binance isolated-futures liquidation inputs, the tag-120 legacy
+grind route, tag-121 regular-mode adjustment followed by legacy grind, and the static
+Freqtrade protections `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and
+`LowProfitPairs` with deterministic pair locks.
 
-The sealed APE/USDT:USDT annual futures certificate covers 2022-04-01 through
-2023-01-01 and matches the official final surface exactly: 11 trades, 164 orders,
-142 adjustment orders, one short trade, and eight funded trades. Separate narrow spot
-certificates cover APE top-coins, an APE rebuy exit, ZEC tag 120, and an APE/AAVE
+The latest sealed APE/USDT:USDT annual futures evidence uses X7 v17.4.418 from
+2022-04-01 through 2023-01-01 and matches official Freqtrade 2026.5.1 exactly:
+11 trades, 164 orders, 142 adjustment orders, one short trade, and eight funded trades.
+It also protects the official stop-loss-before-liquidation collision behavior that
+previously exposed a divergence. The older v17.4.413 fixtures remain useful independent
+regressions for APE top-coins, an APE rebuy exit, ZEC tag 120, and an APE/AAVE
 equal-timestamp slot conflict.
 
-These certificates do not prove arbitrary NFI X7 behavior. Unknown tags, tag 121,
-unsupported mixed tags, non-uniform per-entry futures leverage, unsupported callbacks,
-protections, pair locks, and liquidation paths remain fail-closed.
+The broadest current spot proof is the bounded 80-pair
+`20250701-20260101` differential: 167 trades and 402 orders are byte-identical to
+Freqtrade at zero tolerance. It reaches a much wider real portfolio surface than the
+small route fixtures, but it still does not certify routes absent from that interval,
+enabled lock generation, continuous five-year official execution, or arbitrary future
+X7 source changes.
+
+Implementation is not the same as branch-reaching certification. The v17.4.418 annual
+run has no liquidation exit, no enabled protections or generated pair lock, and its tag
+121 entry switch is disabled. Those paths have focused native tests but still require
+small official full-state fixtures before they become public exact-parity claims.
+Unknown tags, unsupported mixed tags, dynamic protections, unsupported exchanges or
+margin modes, and new stateful callback shapes remain fail-closed.
 
 See:
 

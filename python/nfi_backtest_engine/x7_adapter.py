@@ -11,9 +11,11 @@ import numpy as np
 import pandas as pd
 
 from .canonical import read_json, write_json
-from .errors import StrategyAnalysisError
+from .data_seal import timeframe_milliseconds
+from .errors import SpecValidationError, StrategyAnalysisError
 from .market_precision import historic_price_steps
 from .vector_manifest import (
+    EMPTY_TAG_TRANSPORT_SENTINEL,
     VECTOR_MANIFEST_VERSION,
     artifact_execution_start_index,
     contained_vector_path,
@@ -22,7 +24,7 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-X7_ADAPTER_VERSION = "0.13.0"
+X7_ADAPTER_VERSION = "0.14.0"
 
 
 def x7_adapter_blockers(
@@ -70,8 +72,17 @@ def x7_adapter_blockers(
             }
         )
     trading_mode = config.get("trading_mode", "spot")
+    try:
+        _x7_protection_contract(analysis, config)
+    except StrategyAnalysisError as exc:
+        blockers.append(
+            {
+                "code": "X7_PROTECTION_CONTRACT_INVALID",
+                "message": str(exc),
+            }
+        )
     if trading_mode != "spot":
-        leverage_error = _x7_uniform_leverage_error(callbacks)
+        leverage_error = _x7_leverage_program_error(callbacks)
         if leverage_error is not None:
             blockers.append(leverage_error)
     constants = analysis["strategies"][0]["constants"]
@@ -122,6 +133,20 @@ def x7_adapter_blockers(
                                 "message": f"market snapshot lacks amount/cost limits for {pair}",
                             }
                         )
+                if trading_mode == "futures" and not blockers:
+                    try:
+                        _x7_liquidation_contract(
+                            config,
+                            snapshot,
+                            config.get("exchange", {}).get("pair_whitelist", []),
+                        )
+                    except StrategyAnalysisError as exc:
+                        blockers.append(
+                            {
+                                "code": "X7_LIQUIDATION_CONTRACT_INVALID",
+                                "message": str(exc),
+                            }
+                        )
     for field in ("dry_run_wallet", "max_open_trades"):
         value = config.get(field)
         if isinstance(value, bool) or not isinstance(value, int | float):
@@ -143,16 +168,10 @@ def x7_adapter_blockers(
     return blockers
 
 
-def _x7_uniform_leverage_error(
+def _x7_leverage_program_error(
     callbacks: dict[str, dict[str, Any]],
 ) -> dict[str, Any] | None:
-    """Validate the temporary single-leverage futures transport boundary.
-
-    Rust already models leverage on each trade, but the current X7 manifest
-    stores one portfolio-wide value. Until tag-specific values are transported
-    on each signal, accepting unequal callback branches would silently price
-    at least one route incorrectly.
-    """
+    """Validate the source-ordered tag-to-leverage contract."""
     callback = callbacks.get("leverage")
     lowering = callback.get("lowering") if isinstance(callback, dict) else None
     operation = lowering.get("operation") if isinstance(lowering, dict) else None
@@ -180,7 +199,6 @@ def _x7_uniform_leverage_error(
             "code": "X7_FUTURES_LEVERAGE_INVALID",
             "message": "compiled X7 leverage operation is invalid",
         }
-    values = [float(default)]
     for override in overrides:
         value = override.get("leverage") if isinstance(override, dict) else None
         tags = override.get("entry_tags") if isinstance(override, dict) else None
@@ -197,16 +215,6 @@ def _x7_uniform_leverage_error(
                 "code": "X7_FUTURES_LEVERAGE_INVALID",
                 "message": "compiled X7 leverage operation is invalid",
             }
-        values.append(float(value))
-    if any(value != values[0] for value in values[1:]):
-        return {
-            "code": "X7_FUTURES_LEVERAGE_NON_UNIFORM",
-            "values": values,
-            "message": (
-                "X7 futures leverage branches differ; per-entry leverage transport "
-                "is required before simulation"
-            ),
-        }
     return None
 
 
@@ -234,6 +242,7 @@ def build_x7_simulation_input(
     can_short = config.get("trading_mode", "spot") == "futures"
     pairs = []
     fee_rates = []
+    maximum_leverage_by_pair: dict[str, float] = {}
     for artifact in vector_report["outputs"]:
         pair = artifact["pair"]
         market = markets[pair]
@@ -241,6 +250,9 @@ def build_x7_simulation_input(
         limits = market["limits"]
         fee = config.get("fee", market.get("taker"))
         fee_rates.append(_non_negative_float(fee, f"{pair} fee"))
+        maximum_leverage = _market_maximum_leverage(market, pair)
+        if maximum_leverage is not None:
+            maximum_leverage_by_pair[pair] = maximum_leverage
         frame = pd.read_feather(artifact["path"])
         if can_short:
             require_columns(
@@ -299,6 +311,12 @@ def build_x7_simulation_input(
         amount_step=pairs[0]["amount_step"],
         price_step=pairs[0]["price_step"],
         pair_count=len(pairs),
+        maximum_leverage_by_pair=maximum_leverage_by_pair,
+        liquidation_model=_x7_liquidation_contract(
+            config,
+            market_snapshot,
+            [pair["pair"] for pair in pairs],
+        ),
     )
     document = {
         "schema_version": "1.0.0",
@@ -343,6 +361,7 @@ def build_x7_vector_manifest(
     can_short = config.get("trading_mode", "spot") == "futures"
     pairs: list[dict[str, Any]] = []
     fee_rates: list[float] = []
+    maximum_leverage_by_pair: dict[str, float] = {}
 
     for artifact in vector_report["outputs"]:
         pair = artifact["pair"]
@@ -410,6 +429,9 @@ def build_x7_vector_manifest(
         limits = market["limits"]
         fee = config.get("fee", market.get("taker"))
         fee_rates.append(_non_negative_float(fee, f"{pair} fee"))
+        maximum_leverage = _market_maximum_leverage(market, pair)
+        if maximum_leverage is not None:
+            maximum_leverage_by_pair[pair] = maximum_leverage
         relative_path = contained_vector_path(source, target.parent, pair)
         pairs.append(
             {
@@ -466,6 +488,12 @@ def build_x7_vector_manifest(
             amount_step=pairs[0]["amount_step"],
             price_step=pairs[0]["price_step"],
             pair_count=len(pairs),
+            maximum_leverage_by_pair=maximum_leverage_by_pair,
+            liquidation_model=_x7_liquidation_contract(
+                config,
+                market_snapshot,
+                [pair["pair"] for pair in pairs],
+            ),
         ),
         "pairs": pairs,
     }
@@ -483,6 +511,8 @@ def _x7_portfolio_config(
     amount_step: float,
     price_step: float,
     pair_count: int,
+    maximum_leverage_by_pair: dict[str, float],
+    liquidation_model: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Serialize callbacks once for both JSON and Feather transports."""
     callbacks = {item["name"]: item for item in hot_ir["callbacks"]}
@@ -521,7 +551,10 @@ def _x7_portfolio_config(
             "adjust-trade-position-scalar-bundle-v1",
         )
     )
-    leverage = _uniform_x7_leverage(callbacks, trading_mode=config.get("trading_mode", "spot"))
+    leverage, leverage_program = _x7_leverage_contract(
+        callbacks,
+        trading_mode=config.get("trading_mode", "spot"),
+    )
     constants = analysis["strategies"][0]["constants"]
     max_open_trades = int(config["max_open_trades"])
     if max_open_trades <= 0:
@@ -537,6 +570,10 @@ def _x7_portfolio_config(
         "fee_open_rate": fee_rate,
         "fee_close_rate": fee_rate,
         "leverage": leverage,
+        "nfi_leverage_program": leverage_program,
+        "maximum_leverage_by_pair": maximum_leverage_by_pair,
+        "liquidation_model": liquidation_model,
+        "protection_program": _x7_protection_contract(analysis, config),
         "stoploss_ratio": float(constants["stoploss"]),
         "amount_step": amount_step,
         "price_step": price_step,
@@ -600,18 +637,409 @@ def _x7_portfolio_config(
     }
 
 
-def _uniform_x7_leverage(
+def _x7_leverage_contract(
     callbacks: dict[str, dict[str, Any]],
     *,
     trading_mode: Any,
-) -> float:
+) -> tuple[float, dict[str, Any] | None]:
     if trading_mode != "futures":
-        return 1.0
-    error = _x7_uniform_leverage_error(callbacks)
+        return 1.0, None
+    error = _x7_leverage_program_error(callbacks)
     if error is not None:
         raise StrategyAnalysisError(error["message"])
     callback = callbacks["leverage"]
-    return float(callback["lowering"]["operation"]["default"])
+    operation = callback["lowering"]["operation"]
+    program = {
+        "default": float(operation["default"]),
+        "ordered_tag_overrides": [
+            {
+                "entry_tags": list(override["entry_tags"]),
+                "leverage": float(override["leverage"]),
+            }
+            for override in operation["ordered_tag_overrides"]
+        ],
+    }
+    return program["default"], program
+
+
+def _market_maximum_leverage(market: Any, pair: str) -> float | None:
+    """Read an optional sealed maximum without guessing an exchange limit."""
+    if not isinstance(market, dict):
+        raise StrategyAnalysisError(f"market snapshot is invalid for {pair}")
+    direct = market.get("maximum_leverage")
+    limits = market.get("limits")
+    leverage_limits = limits.get("leverage") if isinstance(limits, dict) else None
+    nested = leverage_limits.get("max") if isinstance(leverage_limits, dict) else None
+    raw = direct if direct is not None else nested
+    if raw is None:
+        return None
+    value = _positive_float(raw, f"{pair} maximum leverage")
+    if value < 1.0:
+        raise StrategyAnalysisError(f"{pair} maximum leverage must be at least 1")
+    return value
+
+
+def _x7_protection_contract(
+    analysis: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Compile Freqtrade protection settings into a validated state program."""
+    enabled = config.get("enable_protections", False)
+    if not isinstance(enabled, bool):
+        raise StrategyAnalysisError("config.enable_protections must be boolean")
+    if not enabled:
+        return None
+    strategy = analysis["strategies"][0]
+    if strategy.get("protections_static") is not True:
+        raise StrategyAnalysisError("strategy.protections must have one static literal return")
+    definitions = strategy.get("protections", [])
+    if not isinstance(definitions, list):
+        raise StrategyAnalysisError("strategy.protections must return a list")
+
+    constants = strategy.get("constants")
+    configured_timeframe = config.get("timeframe")
+    strategy_timeframe = constants.get("timeframe") if isinstance(constants, dict) else None
+    timeframe = configured_timeframe if configured_timeframe is not None else strategy_timeframe
+    if not isinstance(timeframe, str) or not timeframe:
+        raise StrategyAnalysisError("protection execution requires an effective timeframe")
+    try:
+        timeframe_ms = timeframe_milliseconds(timeframe)
+    except SpecValidationError as exc:
+        raise StrategyAnalysisError(f"unsupported protection timeframe {timeframe!r}") from exc
+    if timeframe_ms < 60_000 or timeframe_ms % 60_000 != 0:
+        raise StrategyAnalysisError("protection timeframe must contain whole minutes")
+    timeframe_minutes = timeframe_ms // 60_000
+
+    handlers: list[dict[str, Any]] = []
+    for index, definition in enumerate(definitions):
+        if not isinstance(definition, dict):
+            raise StrategyAnalysisError(f"protection {index} must be an object")
+        method = definition.get("method")
+        if method not in {
+            "CooldownPeriod",
+            "StoplossGuard",
+            "MaxDrawdown",
+            "LowProfitPairs",
+        }:
+            raise StrategyAnalysisError(f"protection {index} method is unsupported: {method!r}")
+        timing = _protection_timing(
+            definition,
+            index=index,
+            timeframe_minutes=timeframe_minutes,
+        )
+        common = {"method": method, "timing": timing}
+        if method == "CooldownPeriod":
+            _protection_keys(definition, index=index, specific=set())
+            handlers.append(common)
+        elif method == "StoplossGuard":
+            _protection_keys(
+                definition,
+                index=index,
+                specific={"trade_limit", "only_per_pair", "only_per_side", "required_profit"},
+            )
+            handlers.append(
+                {
+                    **common,
+                    "trade_limit": _positive_integer(
+                        definition.get("trade_limit", 10),
+                        f"protection {index} trade_limit",
+                    ),
+                    "only_per_pair": _boolean(
+                        definition.get("only_per_pair", False),
+                        f"protection {index} only_per_pair",
+                    ),
+                    "only_per_side": _boolean(
+                        definition.get("only_per_side", False),
+                        f"protection {index} only_per_side",
+                    ),
+                    "required_profit": _finite_float(
+                        definition.get("required_profit", 0.0),
+                        f"protection {index} required_profit",
+                    ),
+                }
+            )
+        elif method == "LowProfitPairs":
+            _protection_keys(
+                definition,
+                index=index,
+                specific={"trade_limit", "only_per_side", "required_profit"},
+            )
+            handlers.append(
+                {
+                    **common,
+                    "trade_limit": _positive_integer(
+                        definition.get("trade_limit", 1),
+                        f"protection {index} trade_limit",
+                    ),
+                    "only_per_side": _boolean(
+                        definition.get("only_per_side", False),
+                        f"protection {index} only_per_side",
+                    ),
+                    "required_profit": _finite_float(
+                        definition.get("required_profit", 0.0),
+                        f"protection {index} required_profit",
+                    ),
+                }
+            )
+        else:
+            _protection_keys(
+                definition,
+                index=index,
+                specific={"trade_limit", "max_allowed_drawdown", "calculation_mode"},
+            )
+            calculation_mode = definition.get("calculation_mode", "ratios")
+            if calculation_mode not in {"ratios", "equity"}:
+                raise StrategyAnalysisError(
+                    f"protection {index} calculation_mode must be ratios or equity"
+                )
+            handlers.append(
+                {
+                    **common,
+                    "trade_limit": _positive_integer(
+                        definition.get("trade_limit", 1),
+                        f"protection {index} trade_limit",
+                    ),
+                    "maximum_allowed_drawdown": _non_negative_float(
+                        definition.get("max_allowed_drawdown", 0.0),
+                        f"protection {index} max_allowed_drawdown",
+                    ),
+                    "calculation_mode": calculation_mode,
+                }
+            )
+    return {
+        "timeframe_ms": timeframe_ms,
+        "handlers": handlers,
+    }
+
+
+_PROTECTION_TIMING_KEYS = {
+    "lookback_period",
+    "lookback_period_candles",
+    "stop_duration",
+    "stop_duration_candles",
+    "unlock_at",
+}
+
+
+def _protection_keys(
+    definition: dict[str, Any],
+    *,
+    index: int,
+    specific: set[str],
+) -> None:
+    unknown = set(definition) - {"method", *_PROTECTION_TIMING_KEYS, *specific}
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise StrategyAnalysisError(f"protection {index} has unsupported fields: {names}")
+
+
+def _protection_timing(
+    definition: dict[str, Any],
+    *,
+    index: int,
+    timeframe_minutes: int,
+) -> dict[str, Any]:
+    lookback_minutes, lookback_text = _protection_period(
+        definition,
+        minute_key="lookback_period",
+        candle_key="lookback_period_candles",
+        default_minutes=60,
+        timeframe_minutes=timeframe_minutes,
+        field=f"protection {index} lookback",
+    )
+    unlock_at = definition.get("unlock_at")
+    has_duration = "stop_duration" in definition or "stop_duration_candles" in definition
+    if unlock_at is not None and has_duration:
+        raise StrategyAnalysisError(
+            f"protection {index} must use unlock_at or stop_duration, not both"
+        )
+    if unlock_at is not None:
+        unlock_minute = _unlock_at_minute(unlock_at, f"protection {index} unlock_at")
+        duration_ms = None
+        lock_text = f"until {unlock_at}"
+    else:
+        duration_minutes, duration_text = _protection_period(
+            definition,
+            minute_key="stop_duration",
+            candle_key="stop_duration_candles",
+            default_minutes=60,
+            timeframe_minutes=timeframe_minutes,
+            field=f"protection {index} stop duration",
+        )
+        unlock_minute = None
+        duration_ms = duration_minutes * 60_000
+        lock_text = f"for {duration_text}"
+    return {
+        "lookback_ms": lookback_minutes * 60_000,
+        "lookback_text": lookback_text,
+        "duration_ms": duration_ms,
+        "unlock_at_minute_utc": unlock_minute,
+        "lock_text": lock_text,
+    }
+
+
+def _protection_period(
+    definition: dict[str, Any],
+    *,
+    minute_key: str,
+    candle_key: str,
+    default_minutes: int,
+    timeframe_minutes: int,
+    field: str,
+) -> tuple[int, str]:
+    if minute_key in definition and candle_key in definition:
+        raise StrategyAnalysisError(f"{field} must use minutes or candles, not both")
+    if candle_key in definition:
+        count = _positive_integer(definition[candle_key], f"{field} candles")
+        return timeframe_minutes * count, f"{count} {_plural(count, 'candle', 'candles')}"
+    minutes = _positive_integer(definition.get(minute_key, default_minutes), f"{field} minutes")
+    return minutes, f"{minutes} {_plural(minutes, 'minute', 'minutes')}"
+
+
+def _unlock_at_minute(value: Any, field: str) -> int:
+    if not isinstance(value, str) or len(value) != 5 or value[2] != ":":
+        raise StrategyAnalysisError(f"{field} must use HH:MM")
+    hour, minute = value.split(":", maxsplit=1)
+    if not hour.isdigit() or not minute.isdigit():
+        raise StrategyAnalysisError(f"{field} must use HH:MM")
+    hour_value = int(hour)
+    minute_value = int(minute)
+    if hour_value > 23 or minute_value > 59:
+        raise StrategyAnalysisError(f"{field} must use a valid UTC time")
+    return hour_value * 60 + minute_value
+
+
+def _positive_integer(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise StrategyAnalysisError(f"{field} must be a positive integer")
+    return value
+
+
+def _boolean(value: Any, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise StrategyAnalysisError(f"{field} must be boolean")
+    return value
+
+
+def _finite_float(value: Any, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
+        raise StrategyAnalysisError(f"{field} must be numeric")
+    result = float(value)
+    if not math.isfinite(result):
+        raise StrategyAnalysisError(f"{field} must be finite")
+    return result
+
+
+def _plural(count: int, singular: str, plural: str) -> str:
+    return singular if count == 1 else plural
+
+
+def _x7_liquidation_contract(
+    config: dict[str, Any],
+    market_snapshot: dict[str, Any],
+    pairs: list[str],
+) -> dict[str, Any] | None:
+    """Build the sealed Binance isolated-liquidation input for futures runs."""
+    if config.get("trading_mode", "spot") != "futures":
+        return None
+    if config.get("margin_mode") != "isolated":
+        raise StrategyAnalysisError("X7 futures execution requires isolated margin mode")
+
+    exchange_config = config.get("exchange")
+    configured_exchange = (
+        exchange_config.get("name") if isinstance(exchange_config, dict) else None
+    )
+    snapshot_exchange = market_snapshot.get("exchange")
+    if not isinstance(configured_exchange, str) or not configured_exchange:
+        raise StrategyAnalysisError("X7 futures execution requires config.exchange.name")
+    if not isinstance(snapshot_exchange, str) or not snapshot_exchange:
+        raise StrategyAnalysisError("futures market snapshot lacks its exchange identity")
+    exchange = configured_exchange.casefold()
+    if exchange != snapshot_exchange.casefold():
+        raise StrategyAnalysisError(
+            "configured exchange and frozen market snapshot exchange differ"
+        )
+    if exchange not in {"binance", "binanceusdm"}:
+        raise StrategyAnalysisError(
+            f"isolated liquidation is not implemented for exchange {configured_exchange}"
+        )
+
+    buffer = _non_negative_float(
+        config.get("liquidation_buffer", 0.05),
+        "config.liquidation_buffer",
+    )
+    if buffer > 0.99:
+        raise StrategyAnalysisError("config.liquidation_buffer must not exceed 0.99")
+
+    markets = market_snapshot.get("markets")
+    if not isinstance(markets, dict):
+        raise StrategyAnalysisError("market snapshot must contain a markets object")
+    tiers_by_pair: dict[str, list[dict[str, float | None]]] = {}
+    for pair in pairs:
+        market = markets.get(pair)
+        tiers = market.get("leverage_tiers") if isinstance(market, dict) else None
+        if not isinstance(tiers, list) or not tiers:
+            raise StrategyAnalysisError(f"market snapshot lacks leverage tiers for {pair}")
+        normalized: list[dict[str, float | None]] = []
+        previous_minimum: float | None = None
+        for index, tier in enumerate(tiers):
+            if not isinstance(tier, dict):
+                raise StrategyAnalysisError(f"{pair} leverage tier {index} must be an object")
+            minimum = _non_negative_float(
+                tier.get("min_notional"),
+                f"{pair} leverage tier {index} min_notional",
+            )
+            maximum = _optional_non_negative_float(
+                tier.get("max_notional"),
+                f"{pair} leverage tier {index} max_notional",
+            )
+            maximum_leverage = _positive_float(
+                tier.get("maximum_leverage"),
+                f"{pair} leverage tier {index} maximum_leverage",
+            )
+            maintenance_rate = _positive_float(
+                tier.get("maintenance_margin_rate"),
+                f"{pair} leverage tier {index} maintenance_margin_rate",
+            )
+            maintenance_amount = _non_negative_float(
+                tier.get("maintenance_amount"),
+                f"{pair} leverage tier {index} maintenance_amount",
+            )
+            if maximum is not None and maximum <= minimum:
+                raise StrategyAnalysisError(
+                    f"{pair} leverage tier {index} max_notional must exceed min_notional"
+                )
+            if maximum_leverage < 1.0:
+                raise StrategyAnalysisError(
+                    f"{pair} leverage tier {index} maximum_leverage must be at least 1"
+                )
+            if maintenance_rate >= 1.0:
+                raise StrategyAnalysisError(
+                    f"{pair} leverage tier {index} maintenance_margin_rate must be below 1"
+                )
+            if previous_minimum is not None and minimum <= previous_minimum:
+                raise StrategyAnalysisError(
+                    f"{pair} leverage tiers must be strictly ordered by min_notional"
+                )
+            previous_minimum = minimum
+            normalized.append(
+                {
+                    "min_notional": minimum,
+                    "max_notional": maximum,
+                    "maximum_leverage": maximum_leverage,
+                    "maintenance_margin_rate": maintenance_rate,
+                    "maintenance_amount": maintenance_amount,
+                }
+            )
+        if normalized[0]["min_notional"] != 0.0:
+            raise StrategyAnalysisError(f"{pair} leverage tiers must begin at zero notional")
+        tiers_by_pair[pair] = normalized
+    return {
+        "exchange": exchange,
+        "margin_mode": "isolated",
+        "buffer": buffer,
+        "tiers_by_pair": tiers_by_pair,
+    }
 
 
 def _operation(
@@ -748,7 +1176,11 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         )
         if any(name not in route for name in names):
             raise StrategyAnalysisError("NFI legacy route is incomplete")
-        return {name: route[name] for name in names}
+        record = {name: route[name] for name in names}
+        for name in ("regular_decision_program", "regular_constants"):
+            if name in route:
+                record[name] = route[name]
+        return record
 
     return {
         "schema_version": operation["schema_version"],
@@ -784,10 +1216,6 @@ def _validate_nfi_frame_scope(
         route
         for name in ("long_grind", "long_btc")
         if isinstance((route := manager.get(name)), dict)
-        # An exit-only descriptor is useful to the source-ordered custom-exit
-        # router but cannot make a trade executable: position adjustment runs
-        # on every open candle and must not silently skip tag 121's prelude.
-        and route.get("adjustment_scope") != "exit-only-v1"
     )
     supported_long: set[str] = set()
     for route in routes:
@@ -1067,7 +1495,7 @@ def _optional_text(value: Any) -> str | None:
     if value is None or pd.isna(value):
         return None
     text = str(value)
-    return text or None
+    return text if text and text != EMPTY_TAG_TRANSPORT_SENTINEL else None
 
 
 def _optional_finite_number(value: Any) -> float | None:

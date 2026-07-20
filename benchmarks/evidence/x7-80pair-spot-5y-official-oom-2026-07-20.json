@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0.0",
+  "status": "official-blocked-oom",
+  "claim_boundary": "pinned Freqtrade 2026.5.1 attempted the sealed X7 v17.4.418 80-pair spot workload from 2021-01-01 through 2026-01-01 with the complete explicit pair universe, network disabled, and one managed container; the process was OOM-killed before producing a result, so this is a Docker memory-limit observation and not a parity result",
+  "recorded_at": "2026-07-20",
+  "scope": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.418",
+    "source_file_sha256": "f5260e2de9b911567728dd90bdd59912b1a1272ef863c24110ce44bceb09e0b9",
+    "pair_count": 80,
+    "timerange": "20210101-20260101",
+    "trading_mode": "spot",
+    "include_inactive_configured_pairs": true,
+    "history_coverage_policy": "available",
+    "coverage_shortfall_count": 275
+  },
+  "reference": {
+    "version": "2026.5.1",
+    "ccxt_version": "4.5.55",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "network_during_backtest": false
+  },
+  "sealed_inputs": {
+    "research_run_id": "432f210262754e8e07e7709ada9a889cebba702cba2b402ce74957ac3946551f",
+    "official_config_sha256": "2ed7dbe75240eda2811ff5c2299c663772eae45309cf281ce226ebf6dfdf56c2",
+    "reference_market_snapshot_sha256": "8d12683fdc1fbab29cc76f4b789be79510cfc6b2c2568c8ce81ffd6ce6e762a9",
+    "data_seal_sha256": "a297dc678740d52db4e0efe0a37718ff386b8225655d8d7a6ff2a69757e2c53d",
+    "native_trade_surface_sha256": "15b9b7393cc49cea14d37fdef2fd8700418446b5d0544fbd32eec533b0551cdd"
+  },
+  "container_policy": {
+    "execution_mode": "sequential",
+    "maximum_parallel_containers": 1,
+    "daemon_cpu_count": 10,
+    "daemon_total_memory_bytes": 27315089408,
+    "daemon_reserve_bytes": 5463017881,
+    "container_memory_limit_bytes": 21852071527,
+    "memory_limit_enforced": true,
+    "swap_limit_enforced": true
+  },
+  "observation": {
+    "wall_time_seconds": 279.034414164,
+    "exit_code": 137,
+    "timed_out": false,
+    "memory_verdict": "oom_killed",
+    "peak_bytes": 21852069888,
+    "peak_ratio": 0.9999999249956693,
+    "oom_count": 1,
+    "oom_kill_count": 1,
+    "cpu_usage_usec": 269464190,
+    "official_result_produced": false,
+    "parity_evaluated": false
+  },
+  "next_safe_verification": {
+    "mode": "independent bounded timerange",
+    "execution": "strictly sequential",
+    "continuous_five_year_state_claim": false,
+    "reason": "independent timerange runs reset wallet and open-trade state and therefore cannot be concatenated into the continuous five-year result"
+  }
+}
