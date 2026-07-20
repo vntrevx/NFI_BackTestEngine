@@ -26,7 +26,7 @@ from .workload_calibration import (
     load_workload_calibration,
 )
 
-VECTOR_PIPELINE_VERSION = "1.12.0"
+VECTOR_PIPELINE_VERSION = "1.14.0"
 
 
 def load_strategy_analysis(
@@ -176,12 +176,22 @@ def prepare_vector_signals(
                         f"cached vector metadata is not an object for {pair}"
                     )
                 _link_or_copy(cached, destination)
+                expected_vector_hash = cached_record.get("sha256")
+                actual_vector_hash = sha256_file(destination)
+                if (
+                    not isinstance(expected_vector_hash, str)
+                    or actual_vector_hash != expected_vector_hash
+                ):
+                    destination.unlink(missing_ok=True)
+                    raise StrategyAnalysisError(
+                        f"cached vector payload failed its hash binding for {pair}"
+                    )
                 record = {
                     **cached_record,
                     "pair": pair,
                     "path": str(destination),
                     "bytes": destination.stat().st_size,
-                    "sha256": sha256_file(destination),
+                    "sha256": actual_vector_hash,
                     "cache_key": key,
                     "cache_hit": True,
                 }
@@ -294,6 +304,8 @@ def prepare_vector_signals(
                 int(runtime_admission["safe_processes"]),
             )
         if not public_requests:
+            if cache is not None:
+                cache.prune()
             records.sort(key=lambda item: pairs.index(item["pair"]))
             return _vector_report(
                 records=records,
@@ -345,6 +357,8 @@ def prepare_vector_signals(
                         "cache_hit": False,
                     }
                 )
+        if cache is not None:
+            cache.prune()
     records.sort(key=lambda item: pairs.index(item["pair"]))
     return _vector_report(
         records=records,
@@ -478,7 +492,17 @@ def _publish_vector_record(
 ) -> Path:
     destination = Path(request["output_path"])
     if cache is not None:
-        cache.put_file(key, destination)
+        digest = record.get("sha256")
+        if not isinstance(digest, str):
+            raise StrategyAnalysisError(
+                f"vector worker omitted the artifact SHA-256 for {request['pair']}"
+            )
+        cache.put_file(
+            key,
+            destination,
+            expected_sha256=digest,
+            prune=False,
+        )
         cache.put_bytes(
             record_key,
             json.dumps(
@@ -488,6 +512,7 @@ def _publish_vector_record(
                 sort_keys=True,
                 separators=(",", ":"),
             ).encode(),
+            prune=False,
         )
     return destination
 

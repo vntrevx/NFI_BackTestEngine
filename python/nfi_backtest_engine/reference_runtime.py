@@ -30,9 +30,40 @@ REFERENCE_PLATFORM_DIGEST = (
 )
 REFERENCE_PLATFORM = "linux/amd64"
 REFERENCE_IMAGE_REF = f"{REFERENCE_IMAGE}@{REFERENCE_PLATFORM_DIGEST}"
+REFERENCE_CCXT_VERSION = "4.5.55"
 REFERENCE_BLAKE3_VERSION = "1.0.9"
 REFERENCE_TRACER_VERSION = "1.0.0"
 REFERENCE_REPORT_VERSION = "1.1.0"
+
+# Binance intentionally serves leverage brackets from an authenticated endpoint.
+# Freqtrade dry-run/backtest therefore uses the versioned table bundled in its
+# distribution. Reading that table from the digest-pinned reference image keeps the
+# engine's liquidation contract tied to the same oracle without adding Freqtrade as a
+# host-side dependency.
+_BINANCE_TIER_EXPORT = """\
+import json
+import sys
+from pathlib import Path
+
+import freqtrade.exchange.binance as binance
+
+source = Path(binance.__file__).with_name("binance_leverage_tiers.json")
+with source.open(encoding="utf-8") as handle:
+    available = json.load(handle)
+pairs = sys.argv[1:]
+missing = [pair for pair in pairs if pair not in available]
+if missing:
+    raise SystemExit("missing leverage tiers: " + ", ".join(missing))
+print(
+    json.dumps(
+        {pair: available[pair] for pair in pairs},
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+)
+"""
 
 _CGROUP_CAPTURE_SCRIPT = """\
 freqtrade "$@"
@@ -391,6 +422,71 @@ def capture_reference_markets(
             raise BenchmarkError("captured market snapshot has an invalid identity")
         captured.replace(target)
     return _file_record(target)
+
+
+def load_reference_leverage_tiers(
+    pairs: list[str],
+    *,
+    timeout_seconds: int = 180,
+) -> dict[str, Any]:
+    """Load exact dry-run leverage tiers from the pinned Freqtrade image.
+
+    This is deliberately a Docker oracle operation instead of a CCXT network call.
+    Binance's leverage-bracket API requires credentials, while official Freqtrade
+    backtesting reads its bundled snapshot. The returned source identity is stored
+    beside the normalized tiers so a later run can prove which table it used.
+    """
+    normalized_pairs = list(dict.fromkeys(pairs))
+    if not normalized_pairs:
+        raise BenchmarkError("at least one futures pair is required for leverage tiers")
+    if any(
+        not isinstance(pair, str) or not pair or ":" not in pair
+        for pair in normalized_pairs
+    ):
+        raise BenchmarkError(
+            "reference leverage tiers require canonical futures pairs such as BTC/USDT:USDT"
+        )
+
+    docker_config = ensure_docker_config()
+    ensure_reference_image(docker_config=docker_config)
+    completed, resources = run_managed_container(
+        [
+            "--platform",
+            REFERENCE_PLATFORM,
+            "--network",
+            "none",
+            "--entrypoint",
+            "python",
+            REFERENCE_IMAGE_REF,
+            "-c",
+            _BINANCE_TIER_EXPORT,
+            *normalized_pairs,
+        ],
+        docker_config=docker_config,
+        role="leverage-tier-capture",
+        capture_output=True,
+        timeout=timeout_seconds,
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr[-2000:].strip() or completed.stdout[-2000:].strip()
+        raise BenchmarkError(f"failed to load pinned Freqtrade leverage tiers: {detail}")
+    try:
+        tiers = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise BenchmarkError("pinned Freqtrade returned invalid leverage-tier JSON") from exc
+    if not isinstance(tiers, dict) or set(tiers) != set(normalized_pairs):
+        raise BenchmarkError("pinned Freqtrade returned an incomplete leverage-tier table")
+    return {
+        "tiers": tiers,
+        "source": {
+            "kind": "freqtrade-bundled-binance-leverage-tiers",
+            "freqtrade_version": REFERENCE_VERSION,
+            "image": REFERENCE_IMAGE,
+            "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
+            "platform": REFERENCE_PLATFORM,
+            "docker_policy": resources["policy"],
+        },
+    }
 
 
 def ensure_docker_config() -> Path:

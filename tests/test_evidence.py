@@ -148,6 +148,34 @@ def test_x7_futures_annual_evidence_is_exact_without_widening_the_claim() -> Non
     assert len(comparison["official_surface_sha256"]) == 64
 
 
+def test_latest_x7_futures_evidence_pins_collision_fix_without_widening_scope() -> None:
+    """Keep the daily-source proof distinct from actual liquidation-event coverage."""
+    root = Path(__file__).resolve().parents[1]
+    evidence = read_json(
+        root / "benchmarks/evidence/x7-ape-futures-2022-v17.4.418.json"
+    )
+
+    comparison = evidence["exact_comparison"]
+    assert evidence["scope"]["strategy_version"] == "17.4.418"
+    assert evidence["scope"]["nfi_trade_manager_schema"] == "0.9.0"
+    assert evidence["scope"]["x7_adapter_version"] == "0.14.0"
+    assert evidence["oracle"]["network_during_backtest"] is False
+    assert "without certifying a liquidation exit" in evidence["claim_boundary"]
+    assert "tag 121" in evidence["claim_boundary"]
+    assert "protections" in evidence["claim_boundary"]
+    assert "pair locks" in evidence["claim_boundary"]
+    assert comparison["equal"] is True
+    assert comparison["numeric_tolerance"] == 0
+    assert comparison["trades"] == 11
+    assert comparison["orders"] == 164
+    assert comparison["adjustment_orders"] == 142
+    assert comparison["liquidation_exits"] == 0
+    assert comparison["official_surface_sha256"] == comparison["engine_surface_sha256"]
+    assert evidence["resource_observation"][
+        "timings_are_not_a_full_pipeline_speed_certificate"
+    ] is True
+
+
 def test_host_scaling_evidence_is_explicitly_diagnostic_only() -> None:
     """Keep one-host process scaling separate from the public speed certificate."""
     root = Path(__file__).resolve().parents[1]
@@ -169,3 +197,102 @@ def test_host_scaling_evidence_is_explicitly_diagnostic_only() -> None:
     assert len(set(observation["worker_process_ids"])) == 4
     assert 2.9 < observation["effective_parallelism"] < 3.1
     assert 0.7 < observation["parallel_efficiency"] < 0.8
+
+
+def test_x7_80pair_five_year_native_evidence_stays_diagnostic() -> None:
+    """Pin the large native A/B result without promoting it to official parity."""
+    root = Path(__file__).resolve().parents[1]
+    evidence = read_json(
+        root / "benchmarks/evidence/x7-80pair-spot-5y-native-2026-07-20.json"
+    )
+
+    comparison = evidence["native_same_input_comparison"]
+    inputs = evidence["sealed_inputs"]
+    speedup = evidence["diagnostic_speedup"]
+    official = evidence["official_confirmation"]
+
+    assert evidence["status"] == "native-complete-diagnostic"
+    assert evidence["scope"]["strategy_version"] == "17.4.418"
+    assert evidence["scope"]["pair_count"] == 80
+    assert evidence["scope"]["timerange"] == "20210101-20260101"
+    assert evidence["scope"]["history_coverage_policy"] == "available"
+    assert inputs["coverage_shortfall_count"] == 275
+    assert inputs["data_checkpoint_reused"] is True
+    assert inputs["vector_checkpoint_reused"] is True
+    assert comparison["equal"] is True
+    assert comparison["byte_equal"] is True
+    assert comparison["numeric_tolerance"] == 0
+    assert comparison["baseline_result_sha256"] == comparison[
+        "optimized_result_sha256"
+    ]
+    assert len(comparison["optimized_result_sha256"]) == 64
+    assert comparison["trades"] == 750
+    assert speedup["core_process_wall_ratio"] > 2.6
+    assert speedup["event_loop_ratio"] > 3.4
+    assert speedup["controlled_repetition_count"] == 1
+    assert speedup["release_speed_certificate"] is False
+    assert official == {
+        "required_for_release_claim": True,
+        "status": "blocked_oom",
+        "evidence": "x7-80pair-spot-5y-official-oom-2026-07-20.json",
+        "freqtrade_surface_equal": None,
+    }
+
+
+def test_x7_80pair_official_oom_is_not_misreported_as_parity() -> None:
+    """Keep an exhausted Docker budget distinct from a semantic mismatch."""
+    root = Path(__file__).resolve().parents[1]
+    evidence = read_json(
+        root / "benchmarks/evidence/x7-80pair-spot-5y-official-oom-2026-07-20.json"
+    )
+
+    observation = evidence["observation"]
+    policy = evidence["container_policy"]
+    next_safe = evidence["next_safe_verification"]
+
+    assert evidence["status"] == "official-blocked-oom"
+    assert evidence["scope"]["pair_count"] == 80
+    assert evidence["scope"]["timerange"] == "20210101-20260101"
+    assert evidence["scope"]["include_inactive_configured_pairs"] is True
+    assert policy["execution_mode"] == "sequential"
+    assert policy["maximum_parallel_containers"] == 1
+    assert observation["exit_code"] == 137
+    assert observation["memory_verdict"] == "oom_killed"
+    assert observation["peak_bytes"] <= policy["container_memory_limit_bytes"]
+    assert observation["peak_ratio"] > 0.999
+    assert observation["oom_kill_count"] == 1
+    assert observation["official_result_produced"] is False
+    assert observation["parity_evaluated"] is False
+    assert next_safe["continuous_five_year_state_claim"] is False
+
+
+def test_x7_80pair_bounded_official_surface_is_exact_without_a_five_year_claim() -> None:
+    """Pin the broad bounded proof without hiding the continuous-run OOM boundary."""
+    root = Path(__file__).resolve().parents[1]
+    evidence = read_json(
+        root / "benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json"
+    )
+
+    comparison = evidence["exact_comparison"]
+    resources = evidence["resource_observation"]
+    limitations = evidence["limitations"]
+
+    assert evidence["status"] == "captured-bounded-final-surface-exact"
+    assert evidence["scope"]["strategy_version"] == "17.4.418"
+    assert evidence["scope"]["pair_count"] == 80
+    assert evidence["scope"]["timerange"] == "20250701-20260101"
+    assert evidence["scope"]["nfi_trade_manager_schema"] == "0.10.0"
+    assert comparison["equal"] is True
+    assert comparison["byte_equal"] is True
+    assert comparison["numeric_tolerance"] == 0
+    assert comparison["first_difference"] is None
+    assert comparison["trades"] == 167
+    assert comparison["orders"] == 402
+    assert comparison["rejected_signals"] == 23
+    assert comparison["official_surface_sha256"] == comparison[
+        "engine_surface_sha256"
+    ]
+    assert resources["observed_wall_ratio"] > 4.2
+    assert resources["observed_peak_memory_ratio"] > 100
+    assert "not a cold end-to-end" in resources["comparison_note"]
+    assert any("five-year official run remains blocked" in item for item in limitations)

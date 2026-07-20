@@ -8,11 +8,18 @@ import pytest
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 from nfi_backtest_engine.x7_adapter import (
+    _optional_text,
     build_x7_simulation_input,
     build_x7_vector_manifest,
     x7_adapter_blockers,
 )
+
+
+def test_x7_adapter_decodes_the_empty_tag_transport_marker() -> None:
+    assert _optional_text(EMPTY_TAG_TRANSPORT_SENTINEL) is None
+    assert _optional_text("121") == "121"
 
 
 def _analysis() -> dict:
@@ -160,8 +167,9 @@ def _hot_ir() -> dict:
 
 def _config() -> dict:
     return {
-        "exchange": {"pair_whitelist": ["BTC/USDT"]},
+        "exchange": {"name": "binance", "pair_whitelist": ["BTC/USDT"]},
         "trading_mode": "spot",
+        "margin_mode": "isolated",
         "dry_run_wallet": 1000,
         "max_open_trades": 2,
         "stake_amount": "unlimited",
@@ -201,6 +209,39 @@ def _legacy_grind_constants() -> dict:
             }
             for entry_tag, stop_tag in tags
         ],
+    }
+
+
+def _regular_adjustment_constants() -> dict:
+    return {
+        "use_grind_stops": True,
+        "derisk_enable": True,
+        "rebuy_stakes_spot": [0.2, 0.25],
+        "rebuy_thresholds_spot": [-0.08, -0.12],
+        "derisk_threshold_spot": -0.6,
+        "derisk_level_1_threshold_spot": -0.4,
+        "grinds": [
+            {
+                "entry_tag": f"g{level}",
+                "stop_tag": f"sg{level}",
+                "stakes_spot": [0.2, 0.25],
+                "thresholds_spot": [-0.08, -0.12],
+                "stop_threshold_spot": -0.2,
+                "profit_threshold_spot": 0.018,
+            }
+            for level in range(1, 7)
+        ],
+        "policy": {
+            "entry_retry_ms": 600_000,
+            "grind_force_order_age_ms": 7_200_000,
+            "grind_order_age_ms": 21_600_000,
+            "rebuy_order_age_ms": 43_200_000,
+            "grind_entry_profit_gate": -0.02,
+            "additional_grind_profit_gate": -0.03,
+            "forced_age_profit_gate": -0.06,
+            "minimum_entry_multiplier": 1.5,
+            "minimum_remaining_multiplier": 1.55,
+        },
     }
 
 
@@ -251,7 +292,7 @@ def _nfi_manager_hot_ir() -> dict:
         supported_routes[key] = route
     operation = {
         "opcode": "nfi-x7-trade-manager-v1",
-        "schema_version": "0.8.0",
+        "schema_version": "0.9.0",
         "source_sha256": "a" * 64,
         "route_order": [spec[0] for spec in route_specs],
         "supported_routes": supported_routes,
@@ -331,8 +372,32 @@ def _markets(path: Path, *, include_limits: bool = True) -> None:
         market["limits"] = {
             "amount": {"min": 0.0001, "max": None},
             "cost": {"min": 5.0, "max": None},
+            "leverage": {"min": 1.0, "max": 5.0},
         }
-    write_json(path, {"markets": {"BTC/USDT": market}})
+        market["leverage_tiers"] = [
+            {
+                "min_notional": 0.0,
+                "max_notional": 1000.0,
+                "maximum_leverage": 5.0,
+                "maintenance_margin_rate": 0.005,
+                "maintenance_amount": 0.0,
+            },
+            {
+                "min_notional": 1000.0,
+                "max_notional": 10_000.0,
+                "maximum_leverage": 3.0,
+                "maintenance_margin_rate": 0.01,
+                "maintenance_amount": 5.0,
+            },
+        ]
+    write_json(
+        path,
+        {
+            "schema_version": "1.2.0",
+            "exchange": "binance",
+            "markets": {"BTC/USDT": market},
+        },
+    )
 
 
 def _with_leverage(hot_ir: dict, *, values: tuple[float, float, float]) -> dict:
@@ -372,7 +437,9 @@ def test_x7_adapter_requires_frozen_amount_and_cost_limits(tmp_path: Path) -> No
     assert [item["code"] for item in blockers] == ["MARKET_LIMITS_REQUIRED"]
 
 
-def test_x7_futures_preflight_requires_compiled_uniform_leverage(tmp_path: Path) -> None:
+def test_x7_futures_preflight_accepts_compiled_tag_dependent_leverage(
+    tmp_path: Path,
+) -> None:
     markets = tmp_path / "markets.json"
     _markets(markets)
     config = {**_config(), "trading_mode": "futures"}
@@ -399,10 +466,75 @@ def test_x7_futures_preflight_requires_compiled_uniform_leverage(tmp_path: Path)
     assert [item["code"] for item in missing] == [
         "X7_FUTURES_LEVERAGE_REQUIRED",
     ]
-    assert [item["code"] for item in non_uniform] == [
-        "X7_FUTURES_LEVERAGE_NON_UNIFORM",
-    ]
+    assert non_uniform == []
     assert uniform == []
+
+
+def test_x7_futures_serializes_ordered_leverage_program(tmp_path: Path) -> None:
+    vector = tmp_path / "BTC_USDT.feather"
+    pd.DataFrame(
+        {
+            "date": pd.date_range("2025-01-01", periods=2, freq="5min", tz="UTC"),
+            "open": [100.0, 101.0],
+            "high": [101.0, 102.0],
+            "low": [99.0, 100.0],
+            "close": [100.5, 101.5],
+            "volume": [1.0, 1.0],
+            "CMF_20": [0.1, 0.2],
+            "RSI_14": [49.0, 50.0],
+            "nfi_exec_enter_long": [0, 1],
+            "nfi_exec_exit_long": [0, 0],
+            "nfi_exec_enter_short": [0, 0],
+            "nfi_exec_exit_short": [0, 0],
+            "nfi_exec_enter_tag": [None, "61"],
+            "nfi_exec_funding_rate": [0.0, 0.0],
+            "nfi_exec_funding_mark_price": [100.5, 101.5],
+        }
+    ).to_feather(vector)
+    markets = tmp_path / "markets.json"
+    _markets(markets)
+
+    document = build_x7_simulation_input(
+        analysis=_analysis(),
+        hot_ir=_with_leverage(_hot_ir(), values=(4.0, 2.0, 3.0)),
+        config={**_config(), "trading_mode": "futures"},
+        vector_report={"outputs": [{"pair": "BTC/USDT", "path": str(vector)}]},
+        market_metadata_path=markets,
+        destination=tmp_path / "simulation.json",
+    )
+
+    assert document["config"]["leverage"] == 4.0
+    assert document["config"]["nfi_leverage_program"] == {
+        "default": 4.0,
+        "ordered_tag_overrides": [
+            {"entry_tags": ["61"], "leverage": 2.0},
+            {"entry_tags": ["120"], "leverage": 3.0},
+        ],
+    }
+    assert document["config"]["maximum_leverage_by_pair"] == {"BTC/USDT": 5.0}
+    assert document["config"]["liquidation_model"] == {
+        "exchange": "binance",
+        "margin_mode": "isolated",
+        "buffer": 0.05,
+        "tiers_by_pair": {
+            "BTC/USDT": [
+                {
+                    "min_notional": 0.0,
+                    "max_notional": 1000.0,
+                    "maximum_leverage": 5.0,
+                    "maintenance_margin_rate": 0.005,
+                    "maintenance_amount": 0.0,
+                },
+                {
+                    "min_notional": 1000.0,
+                    "max_notional": 10_000.0,
+                    "maximum_leverage": 3.0,
+                    "maintenance_margin_rate": 0.01,
+                    "maintenance_amount": 5.0,
+                },
+            ]
+        },
+    }
 
 
 def test_x7_adapter_serializes_compiled_programs_and_unlimited_stake(
@@ -426,11 +558,54 @@ def test_x7_adapter_serializes_compiled_programs_and_unlimited_stake(
     ).to_feather(vector)
     markets = tmp_path / "markets.json"
     _markets(markets)
+    analysis = _analysis()
+    analysis["strategies"][0].update(
+        {
+            "protections_static": True,
+            "protections": [
+                {
+                    "method": "CooldownPeriod",
+                    "lookback_period_candles": 4,
+                    "stop_duration_candles": 2,
+                },
+                {
+                    "method": "StoplossGuard",
+                    "lookback_period": 60,
+                    "stop_duration": 30,
+                    "trade_limit": 2,
+                    "only_per_pair": False,
+                    "only_per_side": True,
+                    "required_profit": -0.02,
+                },
+                {
+                    "method": "MaxDrawdown",
+                    "lookback_period_candles": 12,
+                    "unlock_at": "04:30",
+                    "trade_limit": 3,
+                    "max_allowed_drawdown": 0.2,
+                    "calculation_mode": "equity",
+                },
+                {
+                    "method": "LowProfitPairs",
+                    "lookback_period": 90,
+                    "stop_duration_candles": 3,
+                    "trade_limit": 2,
+                    "only_per_side": False,
+                    "required_profit": -0.01,
+                },
+            ],
+        }
+    )
+    config = {
+        **_config(),
+        "enable_protections": True,
+        "timeframe": "5m",
+    }
 
     document = build_x7_simulation_input(
-        analysis=_analysis(),
+        analysis=analysis,
         hot_ir=_hot_ir(),
-        config=_config(),
+        config=config,
         vector_report={"outputs": [{"pair": "BTC/USDT", "path": str(vector)}]},
         market_metadata_path=markets,
         destination=tmp_path / "simulation.json",
@@ -442,6 +617,23 @@ def test_x7_adapter_serializes_compiled_programs_and_unlimited_stake(
     assert document["config"]["custom_exit_program"]["entry"] == "custom_exit"
     assert document["config"]["adjust_trade_position_program"]["entry"] == "adjust_trade_position"
     assert document["config"]["max_entry_position_adjustment"] == 3
+    protection_program = document["config"]["protection_program"]
+    assert protection_program["timeframe_ms"] == 300_000
+    assert [item["method"] for item in protection_program["handlers"]] == [
+        "CooldownPeriod",
+        "StoplossGuard",
+        "MaxDrawdown",
+        "LowProfitPairs",
+    ]
+    assert protection_program["handlers"][0]["timing"] == {
+        "lookback_ms": 1_200_000,
+        "lookback_text": "4 candles",
+        "duration_ms": 600_000,
+        "unlock_at_minute_utc": None,
+        "lock_text": "for 2 candles",
+    }
+    assert protection_program["handlers"][2]["timing"]["unlock_at_minute_utc"] == 270
+    assert protection_program["handlers"][2]["timing"]["lock_text"] == "until 04:30"
     assert (
         document["config"]["callback_program"]["order_filled"]["initial_successful_entry_writes"][
             0
@@ -618,7 +810,7 @@ def test_x7_adapter_serializes_the_declared_long_grind_route(
     ]
 
 
-def test_x7_adapter_rejects_long_btc_until_its_adjustment_prelude_is_lowered(
+def test_x7_adapter_serializes_the_source_bound_long_btc_adjustment_route(
     tmp_path: Path,
 ) -> None:
     vector = tmp_path / "BTC_USDT.feather"
@@ -644,26 +836,41 @@ def test_x7_adapter_rejects_long_btc_until_its_adjustment_prelude_is_lowered(
         "mode_name": "long_btc",
         "entry_tags": ["121"],
         "exit_profit_threshold": 0.25,
-        "adjustment_scope": "exit-only-v1",
+        "adjustment_scope": "spot-regular-backtest-v1",
         "grind_mode": False,
         "decision_program": "long_grind_entry_v3",
+        "regular_decision_program": "long_grind_entry",
         "first_entry_profit_threshold_spot": 0.018,
         "first_entry_stop_threshold_spot": -0.2,
         "derisk_use_grind_stops": True,
         "stateful_input_contract": {"indexed_fields": {}},
         "constants": _legacy_grind_constants(),
+        "regular_constants": _regular_adjustment_constants(),
     }
     hot_ir["nfi_trade_manager"]["operation"]["route_order"].insert(6, "long_btc")
+    programs = hot_ir["nfi_trade_manager"]["operation"]["programs"]
+    programs["long_grind_entry"] = copy.deepcopy(programs["long_exit_signals"])
 
-    with pytest.raises(StrategyAnalysisError, match="entry tag '121'"):
-        build_x7_simulation_input(
-            analysis=_analysis(),
-            hot_ir=hot_ir,
-            config=_config(),
-            vector_report={"outputs": [{"pair": "BTC/USDT", "path": str(vector)}]},
-            market_metadata_path=markets,
-            destination=tmp_path / "nfi-long-btc-simulation.json",
-        )
+    document = build_x7_simulation_input(
+        analysis=_analysis(),
+        hot_ir=hot_ir,
+        config=_config(),
+        vector_report={"outputs": [{"pair": "BTC/USDT", "path": str(vector)}]},
+        market_metadata_path=markets,
+        destination=tmp_path / "nfi-long-btc-simulation.json",
+    )
+
+    route = document["config"]["nfi_x7_trade_manager"]["long_btc"]
+    assert route["adjustment_scope"] == "spot-regular-backtest-v1"
+    assert route["regular_decision_program"] == "long_grind_entry"
+    assert [grind["entry_tag"] for grind in route["regular_constants"]["grinds"]] == [
+        "g1",
+        "g2",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+    ]
 
 
 def test_x7_adapter_rejects_an_nfi_entry_tag_outside_compiled_scope(

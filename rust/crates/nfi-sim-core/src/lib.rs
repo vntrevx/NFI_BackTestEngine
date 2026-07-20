@@ -23,11 +23,17 @@ use serde_json::Value;
 use thiserror::Error;
 
 mod nfi_adjustment;
-use nfi_adjustment::evaluate_nfi_position_adjustment as evaluate_nfi_system_v3_adjustment;
+use nfi_adjustment::{
+    evaluate_nfi_position_adjustment as evaluate_nfi_system_v3_adjustment, AdjustmentState,
+};
 mod nfi_legacy_grind;
 use nfi_legacy_grind::evaluate_nfi_legacy_grind_adjustment;
+mod nfi_regular_adjustment;
+use nfi_regular_adjustment::{evaluate_nfi_regular_adjustment, RegularAdjustmentOutcome};
 mod nfi_rebuy;
 use nfi_rebuy::{evaluate_nfi_rebuy_adjustment, evaluate_nfi_short_rebuy_adjustment};
+mod protections;
+use protections::{PairLockState, ProtectionProgram, ProtectionState};
 
 /// Normalized trade-surface contract understood by this workspace.
 pub const TRADE_SURFACE_SCHEMA_VERSION: &str = "2.0.0";
@@ -40,6 +46,16 @@ pub const SIMULATOR_SCHEMA_VERSION: &str = "1.0.0";
 pub const FILE_BACKED_ROW_HEADER_BYTES: usize = 81;
 /// Width of one normalized numeric or boolean feature in a file-backed row.
 pub const FILE_BACKED_FEATURE_BYTES: usize = std::mem::size_of::<f64>();
+
+// The chronological loop revisits many pair files in round-robin order. One
+// buffer per pair retains its sequential read-ahead across those switches,
+// avoiding a seek and kernel read for every candle without retaining the full
+// multi-year vector in heap memory.
+const FILE_BACKED_READ_BUFFER_BYTES: usize = 256 * 1024;
+// NFI callback programs can address `previous_candle_1` through
+// `previous_candle_5`. Keep that contract in one place so the scalar VM and
+// file-backed read window cannot drift apart.
+const CALLBACK_FEATURE_LOOKBACK_ROWS: usize = 5;
 
 const fn default_amount_reserve_percent() -> f64 {
     0.05
@@ -74,6 +90,14 @@ pub struct PortfolioConfig {
     pub fee_close_rate: Option<f64>,
     #[serde(default)]
     pub leverage: Option<f64>,
+    #[serde(default)]
+    pub nfi_leverage_program: Option<NfiLeverageProgram>,
+    #[serde(default)]
+    pub maximum_leverage_by_pair: BTreeMap<String, f64>,
+    #[serde(default)]
+    pub liquidation_model: Option<IsolatedLiquidationModel>,
+    #[serde(default)]
+    pub protection_program: Option<ProtectionProgram>,
     pub stoploss_ratio: f64,
     pub amount_step: f64,
     pub price_step: f64,
@@ -105,6 +129,45 @@ pub struct PortfolioConfig {
     pub max_entry_position_adjustment: i64,
     #[serde(default)]
     pub is_futures: bool,
+}
+
+/// Source-ordered X7 leverage callback.
+///
+/// Rules retain Python branch order. A rule matches only when every whitespace
+/// separated entry-tag word belongs to that rule's reviewed tag set.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiLeverageProgram {
+    pub default: f64,
+    pub ordered_tag_overrides: Vec<NfiLeverageOverride>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiLeverageOverride {
+    pub entry_tags: Vec<String>,
+    pub leverage: f64,
+}
+
+/// Exchange-specific isolated-futures liquidation contract.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IsolatedLiquidationModel {
+    pub exchange: String,
+    pub margin_mode: String,
+    pub buffer: f64,
+    pub tiers_by_pair: BTreeMap<String, Vec<LeverageTier>>,
+}
+
+/// One Freqtrade-normalized leverage tier.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LeverageTier {
+    pub min_notional: f64,
+    pub max_notional: Option<f64>,
+    pub maximum_leverage: f64,
+    pub maintenance_margin_rate: f64,
+    pub maintenance_amount: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -291,6 +354,12 @@ pub struct NfiX7TradeManager {
     /// dataframe fields a program can observe.
     #[serde(skip)]
     feature_projections: OnceLock<BTreeMap<String, FeatureProjection>>,
+    /// Union projections for the fixed managed-exit program sequences.
+    ///
+    /// Like `feature_projections`, these are derived only from the immutable
+    /// scalar arenas and cannot be supplied by an input document.
+    #[serde(skip)]
+    feature_projection_unions: OnceLock<BTreeMap<String, FeatureProjection>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -355,6 +424,51 @@ pub struct NfiLegacyGrindConstants {
     pub clusters: Vec<NfiLegacyGrindCluster>,
 }
 
+/// One ``g1`` through ``g6`` cluster in tag 121's regular-mode prelude.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiRegularGrind {
+    pub entry_tag: String,
+    pub stop_tag: String,
+    pub stakes_spot: Vec<f64>,
+    pub thresholds_spot: Vec<f64>,
+    pub stop_threshold_spot: f64,
+    pub profit_threshold_spot: f64,
+}
+
+/// Frozen constants read by ``long_adjust_trade_position_no_derisk()``.
+///
+/// Only the spot/backtest path is admitted by the surrounding route. Futures
+/// constants are intentionally absent so a broader route cannot be enabled by
+/// changing one flag without extending and re-certifying this contract.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiRegularAdjustmentConstants {
+    pub use_grind_stops: bool,
+    pub derisk_enable: bool,
+    pub rebuy_stakes_spot: Vec<f64>,
+    pub rebuy_thresholds_spot: Vec<f64>,
+    pub derisk_threshold_spot: f64,
+    pub derisk_level_1_threshold_spot: f64,
+    pub grinds: Vec<NfiRegularGrind>,
+    pub policy: NfiRegularAdjustmentPolicy,
+}
+
+/// Literal gates extracted from the reviewed NFI callback body.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiRegularAdjustmentPolicy {
+    pub entry_retry_ms: i64,
+    pub grind_force_order_age_ms: i64,
+    pub grind_order_age_ms: i64,
+    pub rebuy_order_age_ms: i64,
+    pub grind_entry_profit_gate: f64,
+    pub additional_grind_profit_gate: f64,
+    pub forced_age_profit_gate: f64,
+    pub minimum_entry_multiplier: f64,
+    pub minimum_remaining_multiplier: f64,
+}
+
 /// Source-bound X7 legacy grind/BTC exit and adjustment route.
 ///
 /// ``adjustment_scope`` remains explicit because tag 120's spot/backtest
@@ -374,6 +488,10 @@ pub struct NfiLongGrindRoute {
     pub derisk_use_grind_stops: bool,
     pub stateful_input_contract: Value,
     pub constants: NfiLegacyGrindConstants,
+    #[serde(default)]
+    pub regular_decision_program: Option<String>,
+    #[serde(default)]
+    pub regular_constants: Option<NfiRegularAdjustmentConstants>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -393,8 +511,9 @@ pub struct NfiManagedLongConstants {
 /// Source-bound system-v3.2 position-adjustment route.
 ///
 /// NFI's callback rebuilds grind clusters from filled orders on every candle.
-/// The Rust implementation keeps that observable behavior instead of caching
-/// a second, potentially divergent trade model.
+/// The Rust implementation derives that same projection and caches it only
+/// until another filled order is appended; price-dependent state remains
+/// candle-local.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NfiX7PositionAdjustment {
@@ -455,6 +574,14 @@ pub struct NfiX7RebuyConstants {
 pub struct NfiX7AdjustmentConstants {
     pub derisk_enable: bool,
     pub max_stake_multiplier: f64,
+    /// Initial stake fraction used by rebuy tags before they transfer into
+    /// the shared grind-v3 state machine after a level-3 de-risk.
+    ///
+    /// Schema 0.9 inputs did not carry this source constant. Keeping the field
+    /// optional lets old fixtures run until they reach that transition, where
+    /// the evaluator fails closed instead of guessing a multiplier.
+    #[serde(default)]
+    pub rebuy_stake_multiplier: Option<f64>,
     pub derisk_levels: Vec<NfiX7DeriskLevel>,
     pub grinds: Vec<NfiX7GrindLevel>,
 }
@@ -762,6 +889,39 @@ impl CandleSeries {
     }
 
     #[must_use]
+    pub fn has_entry_signal(&self, index: usize) -> Option<bool> {
+        match self {
+            Self::Owned(candles) => candles
+                .get(index)
+                .map(|candle| candle.enter_long.is_some() || candle.enter_short.is_some()),
+            Self::FileBacked(rows) => rows.has_entry_signal(index),
+        }
+    }
+
+    #[must_use]
+    pub fn next_entry_index(&self, start: usize) -> Option<usize> {
+        match self {
+            Self::Owned(candles) => {
+                candles
+                    .iter()
+                    .enumerate()
+                    .skip(start)
+                    .find_map(|(index, candle)| {
+                        (candle.enter_long.is_some() || candle.enter_short.is_some())
+                            .then_some(index)
+                    })
+            }
+            Self::FileBacked(rows) => rows.next_entry_index(start),
+        }
+    }
+
+    fn install_entry_indices(&self, indices: Vec<usize>) {
+        if let Self::FileBacked(rows) = self {
+            rows.install_entry_indices(indices);
+        }
+    }
+
+    #[must_use]
     pub fn last(&self) -> Option<Cow<'_, Candle>> {
         self.len().checked_sub(1).and_then(|index| self.get(index))
     }
@@ -823,8 +983,9 @@ impl<'a> IntoIterator for &'a CandleSeries {
 
 struct FileBackedState {
     file: File,
-    cached_index: Option<usize>,
-    row: Vec<u8>,
+    window_start: usize,
+    window_row_count: usize,
+    window: Vec<u8>,
 }
 
 /// Shared safe file reader for one normalized pair.
@@ -839,6 +1000,7 @@ pub struct FileBackedRows {
     row_stride: usize,
     feature_count: usize,
     tags: Vec<String>,
+    entry_indices: OnceLock<Vec<usize>>,
 }
 
 impl fmt::Debug for FileBackedRows {
@@ -849,6 +1011,7 @@ impl fmt::Debug for FileBackedRows {
             .field("row_stride", &self.row_stride)
             .field("feature_count", &self.feature_count)
             .field("tag_count", &self.tags.len())
+            .field("entry_index_count", &self.entry_indices.get().map(Vec::len))
             .finish_non_exhaustive()
     }
 }
@@ -889,16 +1052,22 @@ impl FileBackedRows {
             ));
         }
         file.seek(SeekFrom::Start(0))?;
+        let rows_per_window = (FILE_BACKED_READ_BUFFER_BYTES / row_stride).max(1);
+        let window_bytes = rows_per_window.checked_mul(row_stride).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "read window is too large")
+        })?;
         Ok(Rc::new(Self {
             state: RefCell::new(FileBackedState {
                 file,
-                cached_index: None,
-                row: vec![0; row_stride],
+                window_start: 0,
+                window_row_count: 0,
+                window: vec![0; window_bytes],
             }),
             row_count,
             row_stride,
             feature_count,
             tags,
+            entry_indices: OnceLock::new(),
         }))
     }
 
@@ -917,20 +1086,42 @@ impl FileBackedRows {
             return None;
         }
         let mut state = self.state.borrow_mut();
-        if state.cached_index != Some(index) {
-            let offset = index
+        let window_end = state
+            .window_start
+            .checked_add(state.window_row_count)
+            .expect("validated read window remains representable");
+        if index < state.window_start || index >= window_end {
+            let rows_per_window = state.window.len() / self.row_stride;
+            // Include the callback-visible lookback in the same window as the
+            // current row. Without this overlap, a candle near a window
+            // boundary alternates between two disk reads while constructing
+            // `last_candle` and `previous_candle_1..5`.
+            let lookback_rows =
+                CALLBACK_FEATURE_LOOKBACK_ROWS.min(rows_per_window.saturating_sub(1));
+            let window_start = index.saturating_sub(lookback_rows);
+            let window_row_count = rows_per_window.min(self.row_count - window_start);
+            let file_offset = window_start
                 .checked_mul(self.row_stride)
                 .and_then(|value| u64::try_from(value).ok())
                 .expect("validated pair spool offset remains representable");
+            let window_bytes = window_row_count
+                .checked_mul(self.row_stride)
+                .expect("validated pair read window remains representable");
             {
-                let FileBackedState { file, row, .. } = &mut *state;
-                file.seek(SeekFrom::Start(offset))
-                    .and_then(|_| file.read_exact(row))
+                let FileBackedState { file, window, .. } = &mut *state;
+                file.seek(SeekFrom::Start(file_offset))
+                    .and_then(|_| file.read_exact(&mut window[..window_bytes]))
                     .expect("private verified pair spool remains readable");
             }
-            state.cached_index = Some(index);
+            state.window_start = window_start;
+            state.window_row_count = window_row_count;
         }
-        Some(read(&state.row))
+        let row_offset = (index - state.window_start)
+            .checked_mul(self.row_stride)
+            .expect("validated pair row offset remains representable");
+        Some(read(
+            &state.window[row_offset..row_offset + self.row_stride],
+        ))
     }
 
     fn candle(&self, index: usize) -> Option<Candle> {
@@ -972,6 +1163,28 @@ impl FileBackedRows {
 
     fn timestamp_ms(&self, index: usize) -> Option<i64> {
         self.with_row(index, |row| read_i64(row, 0))
+    }
+
+    fn has_entry_signal(&self, index: usize) -> Option<bool> {
+        self.with_row(index, |row| {
+            let flags = row[72];
+            flag(flags, 3) || flag(flags, 4)
+        })
+    }
+
+    fn next_entry_index(&self, start: usize) -> Option<usize> {
+        if let Some(indices) = self.entry_indices.get() {
+            let offset = indices.partition_point(|index| *index < start);
+            return indices.get(offset).copied();
+        }
+        (start..self.row_count).find(|index| self.has_entry_signal(*index) == Some(true))
+    }
+
+    fn install_entry_indices(&self, indices: Vec<usize>) {
+        // The row spool is immutable, so a second successful validation would
+        // produce the same index. Keep the first completed index and avoid
+        // replacing storage that may already be used by the scheduler.
+        let _ = self.entry_indices.set(indices);
     }
 
     fn feature_number(&self, row_index: usize, feature_index: usize) -> Option<f64> {
@@ -1060,6 +1273,7 @@ pub struct SimulationResult {
     pub total_volume: f64,
     pub rejected_signals: u64,
     pub maximum_concurrent_trades: usize,
+    pub locks: Vec<PairLockState>,
     pub trades: Vec<ClosedTrade>,
 }
 
@@ -1095,6 +1309,7 @@ pub struct SimulationState {
     pub rejected_signals: u64,
     pub trade_id_counter: u64,
     pub order_id_counter: usize,
+    pub locks: Vec<PairLockState>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -1253,12 +1468,34 @@ struct OpenTrade {
     funding_sum_low: f64,
     realized_partial_profit: f64,
     liquidation_price: Option<f64>,
+    liquidation_price_is_explicit: bool,
     initial_stop_loss: f64,
     stop_loss: f64,
     minimum_rate: f64,
     maximum_rate: f64,
     orders: Vec<FilledOrder>,
     custom_data: BTreeMap<String, Value>,
+    /// Order-derived NFI grind state.
+    ///
+    /// NFI reconstructs this state from immutable filled orders on every
+    /// callback. Caching the exact derived projection is behavior-preserving:
+    /// adjustments only append orders, and the cache records the order count
+    /// used to build it so the next callback invalidates it automatically.
+    nfi_adjustment_state: Option<AdjustmentState>,
+}
+
+/// Immutable inputs shared by every NFI position-adjustment route.
+///
+/// Keeping the callback boundary in one value makes route dispatch readable
+/// and prevents future callback fields from expanding every function
+/// signature independently.
+#[derive(Clone, Copy)]
+struct PositionAdjustmentRequest<'a> {
+    pair: &'a PairSeries,
+    candle_index: usize,
+    candle: &'a Candle,
+    config: &'a PortfolioConfig,
+    available_balance: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1311,7 +1548,7 @@ pub fn parse_simulation_input(encoded: &[u8]) -> Result<SimulationInput, serde_j
 /// validated immutable pair array. Public input cannot construct that state.
 #[allow(clippy::too_many_lines)]
 pub fn simulate(input: &SimulationInput) -> Result<SimulationResult, SimError> {
-    simulate_with_observer(input, |_| {})
+    simulate_internal(input, None).map(|(result, _)| result)
 }
 
 /// Run the simulator and stream one compact state projection after each
@@ -1328,12 +1565,12 @@ pub fn simulate(input: &SimulationInput) -> Result<SimulationResult, SimError> {
 #[allow(clippy::if_not_else, clippy::too_many_lines)]
 pub fn simulate_with_observer<F>(
     input: &SimulationInput,
-    observer: F,
+    mut observer: F,
 ) -> Result<SimulationResult, SimError>
 where
     F: FnMut(&SimulationEvent),
 {
-    simulate_with_observer_profiled(input, observer).map(|(result, _)| result)
+    simulate_internal(input, Some(&mut observer)).map(|(result, _)| result)
 }
 
 /// Run the simulator and return aggregate phase timings beside the result.
@@ -1344,7 +1581,7 @@ where
 pub fn simulate_profiled(
     input: &SimulationInput,
 ) -> Result<(SimulationResult, SimulationProfile), SimError> {
-    simulate_with_observer_profiled(input, |_| {})
+    simulate_internal(input, None)
 }
 
 /// Run with an observer and return aggregate phase timings.
@@ -1364,12 +1601,25 @@ pub fn simulate_with_observer_profiled<F>(
 where
     F: FnMut(&SimulationEvent),
 {
+    simulate_internal(input, Some(&mut observer))
+}
+
+#[allow(clippy::if_not_else, clippy::too_many_lines)]
+fn simulate_internal(
+    input: &SimulationInput,
+    mut observer: Option<&mut dyn FnMut(&SimulationEvent)>,
+) -> Result<(SimulationResult, SimulationProfile), SimError> {
     let validation_started = Instant::now();
-    validate_input(input)?;
+    let validation = validate_input(input)?;
     let validation_ns = duration_ns(validation_started.elapsed());
     let event_loop_started = Instant::now();
-    let mut timestamp_batches = 0_u64;
-    let mut pair_events = 0_u64;
+    let sparse_execution = observer.is_none();
+    let pair_events = logical_pair_event_count(&input.pairs);
+    let mut timestamp_batches = if sparse_execution {
+        validation.logical_timestamp_batches
+    } else {
+        0
+    };
     let config = &input.config;
     // Each pair may retain a different amount of startup context. Initializing
     // from the sealed boundary excludes those rows from global time ordering,
@@ -1377,8 +1627,22 @@ where
     let mut cursors = input
         .pairs
         .iter()
-        .map(|pair| pair.execution_start_index)
+        .map(|pair| scheduled_cursor(pair, pair.execution_start_index, false, sparse_execution))
         .collect::<Vec<_>>();
+    // Reading every pair's file-backed timestamp twice for every global
+    // timestamp batch dominated large pair universes. Cache only the next
+    // timestamp for each cursor. Freqtrade processes pairs with open trades
+    // first on every main candle, followed by the configured pair order. The
+    // reusable buffers below reproduce that order without allocating a fresh
+    // pair list for every timestamp.
+    let mut next_timestamps = input
+        .pairs
+        .iter()
+        .zip(&cursors)
+        .map(|(pair, cursor)| pair.candles.timestamp_ms(*cursor))
+        .collect::<Vec<_>>();
+    let mut processing_order = Vec::with_capacity(input.pairs.len());
+    let mut open_pair_flags = vec![false; input.pairs.len()];
     let mut open_trades: Vec<OpenTrade> = Vec::new();
     let mut closed_trades = Vec::new();
     let mut available_balance = config.starting_balance;
@@ -1387,23 +1651,67 @@ where
     let mut next_order_id = 1_u64;
     let mut maximum_concurrent_trades = 0_usize;
     let mut profit_targets: BTreeMap<String, ProfitTarget> = BTreeMap::new();
+    let mut protection_state = ProtectionState::default();
 
-    while let Some(timestamp_ms) = next_timestamp(&input.pairs, &cursors) {
-        timestamp_batches += 1;
-        for (pair_index, pair) in input.pairs.iter().enumerate() {
-            let cursor = cursors[pair_index];
-            let Some(candle_storage) = pair.candles.get(cursor) else {
-                continue;
-            };
-            let candle = candle_storage.as_ref();
-            if candle.timestamp_ms != timestamp_ms {
+    while let Some(timestamp_ms) = next_timestamps.iter().flatten().copied().min() {
+        if !sparse_execution {
+            timestamp_batches += 1;
+        }
+        processing_order.clear();
+        for trade in &open_trades {
+            if !open_pair_flags[trade.pair_index] {
+                open_pair_flags[trade.pair_index] = true;
+                processing_order.push(trade.pair_index);
+            }
+        }
+        for (pair_index, is_open) in open_pair_flags.iter().copied().enumerate() {
+            if !is_open {
+                processing_order.push(pair_index);
+            }
+        }
+        for pair_index in processing_order.iter().copied() {
+            open_pair_flags[pair_index] = false;
+        }
+
+        for pair_index in processing_order.iter().copied() {
+            let pair = &input.pairs[pair_index];
+            if next_timestamps[pair_index] != Some(timestamp_ms) {
                 continue;
             }
-            pair_events += 1;
-
+            let cursor = cursors[pair_index];
             let existing_trade_index = open_trades
                 .iter()
                 .position(|trade| trade.pair_index == pair_index);
+            if existing_trade_index.is_none()
+                && pair.candles.has_entry_signal(cursor) == Some(false)
+            {
+                // Most long-horizon pair rows have neither an open trade nor
+                // an entry signal. Preserve their chronological trace event
+                // without constructing the full OHLCV/funding/tag object.
+                cursors[pair_index] = scheduled_cursor(pair, cursor + 1, false, sparse_execution);
+                next_timestamps[pair_index] = pair.candles.timestamp_ms(cursors[pair_index]);
+                if cursors[pair_index] > 1 {
+                    if let Some(callback) = observer.as_deref_mut() {
+                        callback(&simulation_event(
+                            timestamp_ms,
+                            &pair.pair,
+                            available_balance,
+                            &open_trades,
+                            &closed_trades,
+                            rejected_signals,
+                            protection_state.locks(),
+                        ));
+                    }
+                }
+                continue;
+            }
+            let candle_storage = pair
+                .candles
+                .get(cursor)
+                .expect("cached pair timestamp identifies a readable candle");
+            let candle = candle_storage.as_ref();
+            debug_assert_eq!(candle.timestamp_ms, timestamp_ms);
+
             // Freqtrade includes the timerange stop-boundary row so callbacks
             // and force exits see its open price, but passes `can_enter=false`
             // for that row. Without this gate a shifted signal at the boundary
@@ -1427,7 +1735,9 @@ where
             let opened_now = if let (Some((side, signal)), None) =
                 (entry_request, existing_trade_index)
             {
-                if open_trades.len() >= config.max_open_trades {
+                if protection_state.is_pair_locked(&pair.pair, candle.timestamp_ms, side) {
+                    false
+                } else if open_trades.len() >= config.max_open_trades {
                     rejected_signals += 1;
                     false
                 } else {
@@ -1457,7 +1767,7 @@ where
                     } else {
                         config.stake_amount.min(stake_available)
                     };
-                    if let Some(trade) = enter_trade(
+                    let attempt = attempt_entry(
                         EntryRequest {
                             pair_index,
                             pair,
@@ -1473,9 +1783,16 @@ where
                             order_id: next_order_id,
                         },
                         config,
-                    )? {
-                        next_trade_id += 1;
+                    )?;
+                    if attempt.order_id_consumed {
+                        // Freqtrade allocates the order ID before amount
+                        // precision and confirm_trade_entry. A callback
+                        // rejection therefore leaves a deliberate gap which
+                        // NFI later exposes inside grind exit tags.
                         next_order_id += 1;
+                    }
+                    if let Some(trade) = attempt.trade {
+                        next_trade_id += 1;
                         open_trades.push(trade);
                         maximum_concurrent_trades =
                             maximum_concurrent_trades.max(open_trades.len());
@@ -1483,7 +1800,6 @@ where
                             wallet_free(config.starting_balance, &open_trades, &closed_trades);
                         true
                     } else {
-                        rejected_signals += 1;
                         false
                     }
                 }
@@ -1524,11 +1840,13 @@ where
                         evaluate_nfi_position_adjustment(
                             manager,
                             &mut open_trades[trade_index],
-                            pair,
-                            feature_index,
-                            candle,
-                            config,
-                            adjustment_available,
+                            &PositionAdjustmentRequest {
+                                pair,
+                                candle_index: feature_index,
+                                candle,
+                                config,
+                                available_balance: adjustment_available,
+                            },
                         )
                         .ok_or_else(|| {
                             SimError::InvalidPositionAdjustment {
@@ -1613,7 +1931,12 @@ where
                             if clear_profit_target {
                                 profit_targets.remove(&pair.pair);
                             }
-                            let trade = open_trades.swap_remove(trade_index);
+                            // LocalTrade removes a closed trade without
+                            // reordering the remaining open-trade list. That
+                            // insertion order becomes the processing prefix
+                            // on the next candle and can affect shared-wallet
+                            // decisions, so a swap removal is not equivalent.
+                            let trade = open_trades.remove(trade_index);
                             let (closed, _) = close_trade(
                                 trade,
                                 candle.timestamp_ms,
@@ -1625,23 +1948,42 @@ where
                             );
                             next_order_id += 1;
                             closed_trades.push(closed);
+                            if let Some(program) = &config.protection_program {
+                                let closed_trade = closed_trades
+                                    .last()
+                                    .expect("a closed trade was appended immediately above");
+                                protection_state.after_trade_close(
+                                    program,
+                                    closed_trade,
+                                    &closed_trades,
+                                    config.starting_balance,
+                                );
+                            }
                             available_balance =
                                 wallet_free(config.starting_balance, &open_trades, &closed_trades);
                         }
                     }
                 }
             }
-            cursors[pair_index] += 1;
+            let next_cursor = cursor + 1;
+            let pair_has_open_trade = open_trades
+                .iter()
+                .any(|trade| trade.pair_index == pair_index);
+            cursors[pair_index] =
+                scheduled_cursor(pair, next_cursor, pair_has_open_trade, sparse_execution);
+            next_timestamps[pair_index] = pair.candles.timestamp_ms(cursors[pair_index]);
             if cursors[pair_index] > 1 {
-                observer(&simulation_event(
-                    candle.timestamp_ms,
-                    &pair.pair,
-                    available_balance,
-                    &open_trades,
-                    &closed_trades,
-                    rejected_signals,
-                    next_trade_id - 1,
-                ));
+                if let Some(callback) = observer.as_deref_mut() {
+                    callback(&simulation_event(
+                        candle.timestamp_ms,
+                        &pair.pair,
+                        available_balance,
+                        &open_trades,
+                        &closed_trades,
+                        rejected_signals,
+                        protection_state.locks(),
+                    ));
+                }
             }
         }
     }
@@ -1664,9 +2006,24 @@ where
         );
         next_order_id += 1;
         closed_trades.push(closed);
+        if let Some(program) = &config.protection_program {
+            let closed_trade = closed_trades
+                .last()
+                .expect("a force-closed trade was appended immediately above");
+            protection_state.after_trade_close(
+                program,
+                closed_trade,
+                &closed_trades,
+                config.starting_balance,
+            );
+        }
     }
     available_balance = wallet_free(config.starting_balance, &[], &closed_trades);
-    closed_trades.sort_by_key(|trade| (trade.open_timestamp_ms, trade.id));
+    // LocalTrade appends a trade to its closed-trade collection when that
+    // trade closes. Freqtrade therefore exports closure order, including the
+    // processing order of trades that close on the same timestamp. Sorting by
+    // open time here looked deterministic but changed the public trade array
+    // whenever overlapping positions closed in a different order.
     for (sequence, trade) in closed_trades.iter_mut().enumerate() {
         trade.sequence = sequence;
     }
@@ -1699,6 +2056,7 @@ where
         total_volume,
         rejected_signals,
         maximum_concurrent_trades,
+        locks: protection_state.locks().to_vec(),
         trades: closed_trades,
     };
     let profile = SimulationProfile {
@@ -1716,6 +2074,38 @@ fn duration_ns(duration: Duration) -> u64 {
     u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX)
 }
 
+fn scheduled_cursor(
+    pair: &PairSeries,
+    start: usize,
+    has_open_trade: bool,
+    sparse_execution: bool,
+) -> usize {
+    if sparse_execution && !has_open_trade {
+        pair.candles
+            .next_entry_index(start)
+            .unwrap_or(pair.candles.len())
+    } else {
+        start
+    }
+}
+
+fn logical_pair_event_count(pairs: &[PairSeries]) -> u64 {
+    pairs.iter().fold(0_u64, |total, pair| {
+        total.saturating_add(
+            u64::try_from(
+                pair.candles
+                    .len()
+                    .saturating_sub(pair.execution_start_index),
+            )
+            .unwrap_or(u64::MAX),
+        )
+    })
+}
+
+struct ValidationSummary {
+    logical_timestamp_batches: u64,
+}
+
 fn simulation_event(
     timestamp_ms: i64,
     pair: &str,
@@ -1723,7 +2113,7 @@ fn simulation_event(
     open_trades: &[OpenTrade],
     closed_trades: &[ClosedTrade],
     rejected_signals: u64,
-    trade_id_counter: u64,
+    locks: &[PairLockState],
 ) -> SimulationEvent {
     let mut base_balances: Vec<AssetBalance> = open_trades
         .iter()
@@ -1741,6 +2131,12 @@ fn simulation_event(
         .collect();
     base_balances.sort_by(|left, right| left.currency.cmp(&right.currency));
     let realized_profit = closed_trades.iter().map(|trade| trade.profit_abs).sum();
+    let trade_id_counter = open_trades
+        .iter()
+        .map(|trade| trade.id)
+        .chain(closed_trades.iter().map(|trade| trade.id))
+        .max()
+        .unwrap_or_default();
     let order_id_counter = closed_trades
         .iter()
         .map(|trade| trade.orders.len())
@@ -1761,6 +2157,7 @@ fn simulation_event(
             rejected_signals,
             trade_id_counter,
             order_id_counter,
+            locks: locks.to_vec(),
         },
     }
 }
@@ -1793,7 +2190,8 @@ fn available_stake_amount(free: f64, tied_up_stake: f64, ratio: f64) -> f64 {
     (total_stake_amount - tied_up_stake).min(free).max(0.0)
 }
 
-fn validate_input(input: &SimulationInput) -> Result<(), SimError> {
+#[allow(clippy::too_many_lines)]
+fn validate_input(input: &SimulationInput) -> Result<ValidationSummary, SimError> {
     if input.schema_version != SIMULATOR_SCHEMA_VERSION {
         return Err(SimError::UnsupportedSchema(input.schema_version.clone()));
     }
@@ -1828,11 +2226,14 @@ fn validate_input(input: &SimulationInput) -> Result<(), SimError> {
             return Err(SimError::InvalidPositiveConfig(name));
         }
     }
+    validate_leverage_contract(config)?;
+    validate_liquidation_contract(config)?;
     if config
-        .leverage
-        .is_some_and(|leverage| !leverage.is_finite() || leverage <= 0.0)
+        .protection_program
+        .as_ref()
+        .is_some_and(|program| !program.is_valid())
     {
-        return Err(SimError::InvalidPositiveConfig("leverage"));
+        return Err(SimError::InvalidPositiveConfig("protection_program"));
     }
     if !config.stoploss_ratio.is_finite()
         || config.stoploss_ratio >= 0.0
@@ -1884,13 +2285,95 @@ fn validate_input(input: &SimulationInput) -> Result<(), SimError> {
         return Err(SimError::InvalidPositiveConfig("exit_confirmation_program"));
     }
     validate_scalar_callback_bundles(config)?;
+    // Timestamp batches are a logical profile counter, not scheduler work.
+    // Collect the distinct execution-visible timestamps while validation is
+    // already reading every row. This avoids a second full scan of multi-year
+    // file-backed vectors solely to preserve the profiling contract.
+    let mut logical_timestamps = BTreeSet::new();
     for (pair_index, pair) in input.pairs.iter().enumerate() {
-        validate_pair_series(pair_index, pair)?;
-        if let Some(manager) = &config.nfi_x7_trade_manager {
-            validate_nfi_pair_signals(pair, manager)?;
+        validate_pair_series(
+            pair_index,
+            pair,
+            config.nfi_x7_trade_manager.as_ref(),
+            &mut logical_timestamps,
+        )?;
+    }
+    Ok(ValidationSummary {
+        logical_timestamp_batches: u64::try_from(logical_timestamps.len()).unwrap_or(u64::MAX),
+    })
+}
+
+fn validate_leverage_contract(config: &PortfolioConfig) -> Result<(), SimError> {
+    if config
+        .leverage
+        .is_some_and(|leverage| !leverage.is_finite() || leverage <= 0.0)
+    {
+        return Err(SimError::InvalidPositiveConfig("leverage"));
+    }
+    if let Some(program) = &config.nfi_leverage_program {
+        let invalid_rule = program.ordered_tag_overrides.iter().any(|rule| {
+            !rule.leverage.is_finite()
+                || rule.leverage <= 0.0
+                || rule.entry_tags.is_empty()
+                || rule.entry_tags.iter().any(String::is_empty)
+                || rule.entry_tags.iter().collect::<BTreeSet<_>>().len() != rule.entry_tags.len()
+        });
+        if !program.default.is_finite()
+            || program.default <= 0.0
+            || program.ordered_tag_overrides.is_empty()
+            || invalid_rule
+        {
+            return Err(SimError::InvalidPositiveConfig("nfi_leverage_program"));
         }
     }
+    if config
+        .maximum_leverage_by_pair
+        .iter()
+        .any(|(pair, value)| pair.is_empty() || !value.is_finite() || *value < 1.0)
+    {
+        return Err(SimError::InvalidPositiveConfig("maximum_leverage_by_pair"));
+    }
     Ok(())
+}
+
+fn validate_liquidation_contract(config: &PortfolioConfig) -> Result<(), SimError> {
+    let Some(model) = &config.liquidation_model else {
+        return Ok(());
+    };
+    let valid_exchange = matches!(model.exchange.as_str(), "binance" | "binanceusdm");
+    let valid_model = config.is_futures
+        && valid_exchange
+        && model.margin_mode == "isolated"
+        && model.buffer.is_finite()
+        && (0.0..=0.99).contains(&model.buffer)
+        && !model.tiers_by_pair.is_empty()
+        && model.tiers_by_pair.iter().all(|(pair, tiers)| {
+            !pair.is_empty()
+                && !tiers.is_empty()
+                && tiers.first().is_some_and(|tier| tier.min_notional == 0.0)
+                && tiers
+                    .windows(2)
+                    .all(|window| window[0].min_notional < window[1].min_notional)
+                && tiers.iter().all(|tier| {
+                    tier.min_notional.is_finite()
+                        && tier.min_notional >= 0.0
+                        && tier
+                            .max_notional
+                            .is_none_or(|value| value.is_finite() && value > tier.min_notional)
+                        && tier.maximum_leverage.is_finite()
+                        && tier.maximum_leverage >= 1.0
+                        && tier.maintenance_margin_rate.is_finite()
+                        && (0.0..1.0).contains(&tier.maintenance_margin_rate)
+                        && tier
+                            .maintenance_amount
+                            .is_some_and(|value| value.is_finite() && value >= 0.0)
+                })
+        });
+    if valid_model {
+        Ok(())
+    } else {
+        Err(SimError::InvalidPositiveConfig("liquidation_model"))
+    }
 }
 
 fn validate_scalar_callback_bundles(config: &PortfolioConfig) -> Result<(), SimError> {
@@ -2018,7 +2501,7 @@ fn validate_nfi_trade_manager(
         .iter()
         .map(|route| route.entry_tags.len())
         .sum::<usize>();
-    let valid_identity = manager.schema_version == "0.8.0"
+    let valid_identity = matches!(manager.schema_version.as_str(), "0.9.0" | "0.10.0")
         && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -2079,6 +2562,8 @@ fn validate_nfi_trade_manager(
             && route.first_entry_stop_threshold_spot.is_finite()
             && route.first_entry_stop_threshold_spot < 0.0
             && route.stateful_input_contract.is_object()
+            && route.regular_decision_program.is_none()
+            && route.regular_constants.is_none()
             && valid_nfi_legacy_grind_constants(&route.constants)
     });
     let grind_tags = long_grind
@@ -2097,7 +2582,7 @@ fn validate_nfi_trade_manager(
             && tags_are_disjoint
             && route.exit_profit_threshold.is_finite()
             && route.exit_profit_threshold > 0.0
-            && route.adjustment_scope == "exit-only-v1"
+            && route.adjustment_scope == "spot-regular-backtest-v1"
             && !route.grind_mode
             && route.decision_program == "long_grind_entry_v3"
             && route.first_entry_profit_threshold_spot.is_finite()
@@ -2105,10 +2590,18 @@ fn validate_nfi_trade_manager(
             && route.first_entry_stop_threshold_spot.is_finite()
             && route.first_entry_stop_threshold_spot < 0.0
             && route.stateful_input_contract.is_object()
+            && route.regular_decision_program.as_deref() == Some("long_grind_entry")
+            && route
+                .regular_constants
+                .as_ref()
+                .is_some_and(valid_nfi_regular_adjustment_constants)
             && valid_nfi_legacy_grind_constants(&route.constants)
     });
     let valid_programs = manager.programs.len()
-        == PROGRAM_ORDER.len() + SHORT_PROGRAM_ORDER.len() + usize::from(adjustment.is_some())
+        == PROGRAM_ORDER.len()
+            + SHORT_PROGRAM_ORDER.len()
+            + usize::from(adjustment.is_some())
+            + usize::from(long_btc.is_some())
         && PROGRAM_ORDER.iter().all(|name| {
             manager
                 .programs
@@ -2121,6 +2614,12 @@ fn validate_nfi_trade_manager(
                 .get(*name)
                 .is_some_and(valid_scalar_program)
         })
+        && long_btc.is_none_or(|route| {
+            route
+                .regular_decision_program
+                .as_ref()
+                .is_some_and(|name| manager.programs.get(name).is_some_and(valid_scalar_program))
+        })
         && adjustment.is_none_or(|adjustment| {
             manager
                 .programs
@@ -2129,6 +2628,14 @@ fn validate_nfi_trade_manager(
         });
     let valid_adjustment_route = adjustment.is_none_or(|adjustment| {
         let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
+        let versioned_rebuy_multiplier = match manager.schema_version.as_str() {
+            "0.9.0" => adjustment.constants.rebuy_stake_multiplier.is_none(),
+            "0.10.0" => adjustment
+                .constants
+                .rebuy_stake_multiplier
+                .is_some_and(|value| value.is_finite() && value > 0.0),
+            _ => false,
+        };
         adjustment_tags == managed_tags
             && adjustment_tags.len() == adjustment.entry_tags.len()
             && adjustment.system_version == constants.system_v3_2_name
@@ -2139,6 +2646,7 @@ fn validate_nfi_trade_manager(
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
             && adjustment.stateful_input_contract.is_object()
+            && versioned_rebuy_multiplier
             && valid_nfi_adjustment_constants(&adjustment.constants)
     });
     let rebuy_route = manager
@@ -2342,6 +2850,60 @@ fn valid_nfi_legacy_grind_constants(constants: &NfiLegacyGrindConstants) -> bool
         && clusters_are_valid
 }
 
+fn valid_nfi_regular_adjustment_constants(constants: &NfiRegularAdjustmentConstants) -> bool {
+    let policy = &constants.policy;
+    let policy_is_valid = policy.entry_retry_ms > 0
+        && policy.grind_force_order_age_ms > policy.entry_retry_ms
+        && policy.grind_order_age_ms > policy.grind_force_order_age_ms
+        && policy.rebuy_order_age_ms > policy.grind_order_age_ms
+        && [
+            policy.grind_entry_profit_gate,
+            policy.additional_grind_profit_gate,
+            policy.forced_age_profit_gate,
+            policy.minimum_entry_multiplier,
+            policy.minimum_remaining_multiplier,
+        ]
+        .iter()
+        .all(|value| value.is_finite())
+        && policy.grind_entry_profit_gate > policy.additional_grind_profit_gate
+        && policy.additional_grind_profit_gate > policy.forced_age_profit_gate
+        && policy.forced_age_profit_gate < 0.0
+        && policy.minimum_entry_multiplier > 1.0
+        && policy.minimum_remaining_multiplier > policy.minimum_entry_multiplier;
+    let rebuy_is_valid = !constants.rebuy_stakes_spot.is_empty()
+        && constants.rebuy_stakes_spot.len() == constants.rebuy_thresholds_spot.len()
+        && constants
+            .rebuy_stakes_spot
+            .iter()
+            .all(|value| value.is_finite() && *value > 0.0)
+        && constants
+            .rebuy_thresholds_spot
+            .iter()
+            .all(|value| value.is_finite());
+    let grinds_are_valid = constants.grinds.len() == 6
+        && constants.grinds.iter().enumerate().all(|(index, grind)| {
+            let level = index + 1;
+            grind.entry_tag == format!("g{level}")
+                && grind.stop_tag == format!("sg{level}")
+                && !grind.stakes_spot.is_empty()
+                && grind.stakes_spot.len() == grind.thresholds_spot.len()
+                && grind
+                    .stakes_spot
+                    .iter()
+                    .all(|value| value.is_finite() && *value > 0.0)
+                && grind.thresholds_spot.iter().all(|value| value.is_finite())
+                && grind.stop_threshold_spot.is_finite()
+                && grind.profit_threshold_spot.is_finite()
+        });
+    constants.derisk_threshold_spot.is_finite()
+        && constants.derisk_threshold_spot < 0.0
+        && constants.derisk_level_1_threshold_spot.is_finite()
+        && constants.derisk_level_1_threshold_spot < 0.0
+        && policy_is_valid
+        && rebuy_is_valid
+        && grinds_are_valid
+}
+
 fn valid_nfi_adjustment_constants(constants: &NfiX7AdjustmentConstants) -> bool {
     let levels = constants
         .derisk_levels
@@ -2387,22 +2949,20 @@ fn valid_nfi_adjustment_constants(constants: &NfiX7AdjustmentConstants) -> bool 
     });
     constants.max_stake_multiplier.is_finite()
         && constants.max_stake_multiplier > 0.0
+        && constants
+            .rebuy_stake_multiplier
+            .is_none_or(|value| value.is_finite() && value > 0.0)
         && levels == [1, 2, 3]
         && grinds == [1, 2, 3, 4, 5]
         && derisk_numbers_are_valid
         && grind_numbers_are_valid
 }
 
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::option_option)] // Outer None rejects invalid state; inner None is a valid no-op.
 fn evaluate_nfi_position_adjustment(
     manager: &NfiX7TradeManager,
     trade: &mut OpenTrade,
-    pair: &PairSeries,
-    candle_index: usize,
-    candle: &Candle,
-    config: &PortfolioConfig,
-    available_balance: f64,
+    request: &PositionAdjustmentRequest<'_>,
 ) -> Option<Option<AdjustmentSignal>> {
     if trade.side == TradeSide::Short {
         let words = trade
@@ -2421,13 +2981,15 @@ fn evaluate_nfi_position_adjustment(
         return evaluate_nfi_short_rebuy_adjustment(
             &manager.short_rebuy_adjustment,
             trade,
-            pair,
-            candle_index,
-            candle,
-            config,
-            available_balance,
+            request.pair,
+            request.candle_index,
+            request.candle,
+            request.config,
+            request.available_balance,
         );
     }
+    let mut initial_stake_multiplier = 1.0;
+    let mut rebuy_mode = false;
     if let Some(route) = manager
         .managed_long_routes
         .iter()
@@ -2450,15 +3012,24 @@ fn evaluate_nfi_position_adjustment(
                 return evaluate_nfi_rebuy_adjustment(
                     &manager.rebuy_adjustment,
                     trade,
-                    pair,
-                    candle_index,
-                    candle,
-                    config,
-                    available_balance,
+                    request.pair,
+                    request.candle_index,
+                    request.candle,
+                    request.config,
+                    request.available_balance,
                 );
             }
             // X7 permanently transfers a rebuy trade to the shared grind-v3
-            // state machine after its first level-3 de-risk fill.
+            // state machine after its first level-3 de-risk fill. The source
+            // first reverses the reduced rebuy entry stake back to the normal
+            // slice size; schema 0.9 did not carry this constant and must fail
+            // closed if such a transition is reached.
+            initial_stake_multiplier = manager
+                .position_adjustment
+                .as_ref()?
+                .constants
+                .rebuy_stake_multiplier?;
+            rebuy_mode = true;
         }
     }
     if let Some(route) = manager.long_grind.as_ref() {
@@ -2467,37 +3038,71 @@ fn evaluate_nfi_position_adjustment(
                 manager,
                 route,
                 trade,
-                pair,
-                candle_index,
-                candle,
-                config,
-                available_balance,
+                request.pair,
+                request.candle_index,
+                request.candle,
+                request.config,
+                request.available_balance,
             );
         }
     }
     if let Some(route) = manager.long_btc.as_ref() {
         if nfi_long_grind_supports_trade(route, trade) {
-            return evaluate_nfi_legacy_grind_adjustment(
+            return evaluate_nfi_long_btc_adjustment(
                 manager,
                 route,
                 trade,
-                pair,
-                candle_index,
-                candle,
-                config,
-                available_balance,
+                request.pair,
+                request.candle_index,
+                request.candle,
+                request.config,
+                request.available_balance,
             );
         }
     }
     evaluate_nfi_system_v3_adjustment(
         manager,
         trade,
+        request,
+        initial_stake_multiplier,
+        rebuy_mode,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::option_option)] // Outer None rejects invalid state; inner None is callback no-op.
+fn evaluate_nfi_long_btc_adjustment(
+    manager: &NfiX7TradeManager,
+    route: &NfiLongGrindRoute,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    config: &PortfolioConfig,
+    available_balance: f64,
+) -> Option<Option<AdjustmentSignal>> {
+    match evaluate_nfi_regular_adjustment(
+        manager,
+        route,
+        trade,
         pair,
         candle_index,
         candle,
         config,
         available_balance,
-    )
+    )? {
+        RegularAdjustmentOutcome::Return(signal) => Some(signal),
+        RegularAdjustmentOutcome::ContinueLegacy => evaluate_nfi_legacy_grind_adjustment(
+            manager,
+            route,
+            trade,
+            pair,
+            candle_index,
+            candle,
+            config,
+            available_balance,
+        ),
+    }
 }
 
 fn nfi_long_grind_supports_trade(route: &NfiLongGrindRoute, trade: &OpenTrade) -> bool {
@@ -2516,21 +3121,18 @@ fn nfi_long_grind_supports_trade(route: &NfiLongGrindRoute, trade: &OpenTrade) -
             .all(|word| route.entry_tags.iter().any(|supported| supported == word))
 }
 
-fn validate_nfi_pair_signals(
+fn unsupported_nfi_pair_signal(
     pair: &PairSeries,
+    candle: &Candle,
     manager: &NfiX7TradeManager,
-) -> Result<(), SimError> {
-    for candle in &pair.candles {
-        if let Some(signal) = &candle.enter_short {
-            if !nfi_entry_signal_is_supported(manager, TradeSide::Short, signal) {
-                return Err(SimError::UnsupportedNfiEntryTag {
-                    pair: pair.pair.clone(),
-                    entry_tag: signal.tag.clone().unwrap_or_else(|| "<short>".to_owned()),
-                });
-            }
+) -> Option<SimError> {
+    let signal = candle.enter_short.as_ref()?;
+    (!nfi_entry_signal_is_supported(manager, TradeSide::Short, signal)).then(|| {
+        SimError::UnsupportedNfiEntryTag {
+            pair: pair.pair.clone(),
+            entry_tag: signal.tag.clone().unwrap_or_else(|| "<short>".to_owned()),
         }
-    }
-    Ok(())
+    })
 }
 
 fn nfi_entry_signal_is_supported(
@@ -2690,7 +3292,12 @@ fn invalid_custom_write(write: &CustomDataWrite) -> bool {
         )
 }
 
-fn validate_pair_series(pair_index: usize, pair: &PairSeries) -> Result<(), SimError> {
+fn validate_pair_series(
+    pair_index: usize,
+    pair: &PairSeries,
+    nfi_manager: Option<&NfiX7TradeManager>,
+    logical_timestamps: &mut BTreeSet<i64>,
+) -> Result<(), SimError> {
     if pair.pair.is_empty() {
         return Err(SimError::EmptyPair(pair_index));
     }
@@ -2732,6 +3339,8 @@ fn validate_pair_series(pair_index: usize, pair: &PairSeries) -> Result<(), SimE
         }
     }
     let mut previous = None;
+    let mut unsupported_nfi_signal = None;
+    let mut entry_indices = Vec::new();
     for (index, candle) in pair.candles.iter().enumerate() {
         if previous.is_some_and(|value| candle.timestamp_ms <= value) {
             return Err(SimError::CandleOrder {
@@ -2741,7 +3350,27 @@ fn validate_pair_series(pair_index: usize, pair: &PairSeries) -> Result<(), SimE
         }
         previous = Some(candle.timestamp_ms);
         validate_candle(pair, index, &candle)?;
+        if index >= pair.execution_start_index {
+            logical_timestamps.insert(candle.timestamp_ms);
+        }
+        if candle.enter_long.is_some() || candle.enter_short.is_some() {
+            entry_indices.push(index);
+        }
+        // The old validator made a second full pass over every pair solely for
+        // this short-tag check. Retain the first unsupported signal while the
+        // general validation pass continues, preserving the prior error
+        // precedence without reading a multi-year spool twice.
+        if unsupported_nfi_signal.is_none() {
+            unsupported_nfi_signal =
+                nfi_manager.and_then(|manager| unsupported_nfi_pair_signal(pair, &candle, manager));
+        }
     }
+    if let Some(error) = unsupported_nfi_signal {
+        return Err(error);
+    }
+    // File-backed scheduling can now jump by binary search instead of reading
+    // every idle row again. Owned fixtures remain in memory and need no index.
+    pair.candles.install_entry_indices(entry_indices);
     Ok(())
 }
 
@@ -2814,19 +3443,30 @@ fn validate_candle(pair: &PairSeries, index: usize, candle: &Candle) -> Result<(
     Ok(())
 }
 
-fn next_timestamp(pairs: &[PairSeries], cursors: &[usize]) -> Option<i64> {
-    pairs
-        .iter()
-        .zip(cursors)
-        .filter_map(|(pair, cursor)| pair.candles.timestamp_ms(*cursor))
-        .min()
-}
-
+#[cfg(test)]
 fn enter_trade(
     request: EntryRequest<'_>,
     config: &PortfolioConfig,
 ) -> Result<Option<OpenTrade>, SimError> {
-    let leverage = entry_leverage(request.signal, config, request.pair, request.candle)?;
+    attempt_entry(request, config).map(|attempt| attempt.trade)
+}
+
+struct EntryAttempt {
+    trade: Option<OpenTrade>,
+    order_id_consumed: bool,
+}
+
+fn attempt_entry(
+    request: EntryRequest<'_>,
+    config: &PortfolioConfig,
+) -> Result<EntryAttempt, SimError> {
+    let leverage = entry_leverage(
+        request.signal,
+        config,
+        request.pair,
+        request.candle,
+        request.stake.proposed,
+    )?;
     let requested = requested_entry_stake(&request, config, leverage)?;
     let EntryRequest {
         pair_index,
@@ -2846,10 +3486,16 @@ fn enter_trade(
         pair.amount_step.unwrap_or(config.amount_step),
         leverage,
     ) else {
-        return Ok(None);
+        return Ok(EntryAttempt {
+            trade: None,
+            order_id_consumed: true,
+        });
     };
     if !entry_is_confirmed(&request, config, amount)? {
-        return Ok(None);
+        return Ok(EntryAttempt {
+            trade: None,
+            order_id_consumed: true,
+        });
     }
     let tag = signal.tag.clone();
     let order = FilledOrder {
@@ -2896,15 +3542,21 @@ fn enter_trade(
         funding_sum_low: 0.0,
         realized_partial_profit: 0.0,
         liquidation_price: signal.liquidation_price,
+        liquidation_price_is_explicit: signal.liquidation_price.is_some(),
         initial_stop_loss: stop_loss,
         stop_loss,
         minimum_rate: candle.low,
         maximum_rate: candle.high,
         orders: vec![order],
         custom_data: BTreeMap::new(),
+        nfi_adjustment_state: None,
     };
     apply_order_filled(&mut trade, signal.tag.as_deref(), config);
-    Ok(Some(trade))
+    update_isolated_liquidation_price(&mut trade, config, candle.timestamp_ms)?;
+    Ok(EntryAttempt {
+        trade: Some(trade),
+        order_id_consumed: true,
+    })
 }
 
 fn requested_entry_stake(
@@ -2969,8 +3621,37 @@ fn entry_leverage(
     config: &PortfolioConfig,
     pair: &PairSeries,
     candle: &Candle,
+    proposed_stake: f64,
 ) -> Result<f64, SimError> {
-    let leverage = signal.leverage.or(config.leverage).unwrap_or(1.0);
+    let proposed = signal
+        .leverage
+        .or_else(|| {
+            config
+                .nfi_leverage_program
+                .as_ref()
+                .map(|program| evaluate_nfi_leverage(program, signal.tag.as_deref()))
+        })
+        .or(config.leverage)
+        .unwrap_or(1.0);
+    let tier_limits = config
+        .liquidation_model
+        .as_ref()
+        .and_then(|model| model.tiers_by_pair.get(&pair.pair));
+    let maximum = if let Some(tiers) = tier_limits {
+        Some(
+            maximum_leverage_for_stake(tiers, proposed_stake).ok_or_else(|| {
+                SimError::InvalidLeverage {
+                    pair: pair.pair.clone(),
+                    timestamp_ms: candle.timestamp_ms,
+                }
+            })?,
+        )
+    } else {
+        config.maximum_leverage_by_pair.get(&pair.pair).copied()
+    };
+    let leverage = maximum
+        .map_or(proposed, |value| proposed.min(value))
+        .max(1.0);
     if leverage.is_finite() && leverage > 0.0 {
         Ok(leverage)
     } else {
@@ -2979,6 +3660,105 @@ fn entry_leverage(
             timestamp_ms: candle.timestamp_ms,
         })
     }
+}
+
+fn maximum_leverage_for_stake(tiers: &[LeverageTier], stake_amount: f64) -> Option<f64> {
+    if stake_amount == 0.0 {
+        return tiers.first().map(|tier| tier.maximum_leverage);
+    }
+    let mut prior_maximum = None;
+    for tier in tiers {
+        let minimum_stake = tier.min_notional / prior_maximum.unwrap_or(tier.maximum_leverage);
+        let maximum_stake = tier
+            .max_notional
+            .map_or(f64::INFINITY, |value| value / tier.maximum_leverage);
+        prior_maximum = Some(tier.maximum_leverage);
+        if minimum_stake <= stake_amount && stake_amount <= maximum_stake {
+            return Some(tier.maximum_leverage);
+        }
+        if stake_amount < minimum_stake && stake_amount <= maximum_stake {
+            // Freqtrade intentionally selects this tier when the stake falls
+            // below its nominal floor but still fits under the tier ceiling.
+            return Some(tier.maximum_leverage);
+        }
+    }
+    None
+}
+
+fn update_isolated_liquidation_price(
+    trade: &mut OpenTrade,
+    config: &PortfolioConfig,
+    timestamp_ms: i64,
+) -> Result<(), SimError> {
+    if !config.is_futures || trade.liquidation_price_is_explicit {
+        return Ok(());
+    }
+    let Some(model) = &config.liquidation_model else {
+        // Generic simulator inputs may still omit a model and provide no
+        // liquidation price. The X7 adapter has a stricter futures preflight.
+        return Ok(());
+    };
+    let tiers =
+        model
+            .tiers_by_pair
+            .get(&trade.pair)
+            .ok_or_else(|| SimError::InvalidLiquidationPrice {
+                pair: trade.pair.clone(),
+                timestamp_ms,
+            })?;
+    // Freqtrade selects the last Binance tier whose minimum notional is not
+    // greater than the current isolated stake amount.
+    let tier = tiers
+        .iter()
+        .rev()
+        .find(|tier| trade.stake_amount >= tier.min_notional)
+        .ok_or_else(|| SimError::InvalidLiquidationPrice {
+            pair: trade.pair.clone(),
+            timestamp_ms,
+        })?;
+    let maintenance_amount =
+        tier.maintenance_amount
+            .ok_or_else(|| SimError::InvalidLiquidationPrice {
+                pair: trade.pair.clone(),
+                timestamp_ms,
+            })?;
+    let direction = if trade.side == TradeSide::Short {
+        -1.0
+    } else {
+        1.0
+    };
+    let numerator =
+        trade.stake_amount + maintenance_amount - direction * trade.amount * trade.open_rate;
+    let denominator = trade.amount * tier.maintenance_margin_rate - direction * trade.amount;
+    let raw_price = numerator / denominator;
+    let buffer_amount = (trade.open_rate - raw_price).abs() * model.buffer;
+    let buffered = if trade.side == TradeSide::Short {
+        raw_price - buffer_amount
+    } else {
+        raw_price + buffer_amount
+    }
+    .max(0.0);
+    if !buffered.is_finite() || buffered <= 0.0 {
+        return Err(SimError::InvalidLiquidationPrice {
+            pair: trade.pair.clone(),
+            timestamp_ms,
+        });
+    }
+    trade.liquidation_price = Some(buffered);
+    Ok(())
+}
+
+fn evaluate_nfi_leverage(program: &NfiLeverageProgram, entry_tag: Option<&str>) -> f64 {
+    let words = entry_tag.unwrap_or_default().split_whitespace();
+    for rule in &program.ordered_tag_overrides {
+        if words
+            .clone()
+            .all(|word| rule.entry_tags.iter().any(|tag| tag == word))
+        {
+            return rule.leverage;
+        }
+    }
+    program.default
 }
 
 fn entry_is_confirmed(
@@ -3813,6 +4593,34 @@ enum ScalarControl {
     Return(Value),
 }
 
+/// Per-program mutable scope over an immutable callback input map.
+///
+/// NFI evaluates several pure exit programs against the same dataframe window.
+/// Keeping program-local writes in this overlay avoids deep-cloning the trade
+/// and seven projected row objects for every program while preserving the
+/// fresh Python local scope each method receives.
+struct ScalarScope<'a> {
+    base: &'a BTreeMap<String, Value>,
+    local: BTreeMap<String, Value>,
+}
+
+impl<'a> ScalarScope<'a> {
+    fn new(base: &'a BTreeMap<String, Value>) -> Self {
+        Self {
+            base,
+            local: BTreeMap::new(),
+        }
+    }
+
+    fn get(&self, name: &str) -> Option<&Value> {
+        self.local.get(name).or_else(|| self.base.get(name))
+    }
+
+    fn insert(&mut self, name: String, value: Value) {
+        self.local.insert(name, value);
+    }
+}
+
 /// Evaluate a compact scalar-decision program without entering Python.
 ///
 /// Inputs are the already-normalized method arguments. The function returns
@@ -3820,7 +4628,7 @@ enum ScalarControl {
 #[must_use]
 pub fn evaluate_scalar_decision_program(
     program: &ScalarDecisionProgram,
-    variables: BTreeMap<String, Value>,
+    variables: &BTreeMap<String, Value>,
 ) -> Option<Value> {
     evaluate_scalar_program(program, variables, None, 0)
 }
@@ -3833,14 +4641,31 @@ pub fn evaluate_scalar_decision_program(
 pub fn evaluate_scalar_program_bundle(
     programs: &BTreeMap<String, ScalarDecisionProgram>,
     entry: &str,
-    variables: BTreeMap<String, Value>,
+    variables: &BTreeMap<String, Value>,
 ) -> Option<Value> {
     evaluate_scalar_program(programs.get(entry)?, variables, Some(programs), 0)
 }
 
+fn evaluate_scalar_program_bundle_from_base(
+    programs: &BTreeMap<String, ScalarDecisionProgram>,
+    entry: &str,
+    variables: &BTreeMap<String, Value>,
+) -> Option<Value> {
+    evaluate_scalar_program_from_base(programs.get(entry)?, variables, Some(programs), 0)
+}
+
 fn evaluate_scalar_program(
     program: &ScalarDecisionProgram,
-    mut variables: BTreeMap<String, Value>,
+    variables: &BTreeMap<String, Value>,
+    programs: Option<&BTreeMap<String, ScalarDecisionProgram>>,
+    depth: usize,
+) -> Option<Value> {
+    evaluate_scalar_program_from_base(program, variables, programs, depth)
+}
+
+fn evaluate_scalar_program_from_base(
+    program: &ScalarDecisionProgram,
+    variables: &BTreeMap<String, Value>,
     programs: Option<&BTreeMap<String, ScalarDecisionProgram>>,
     depth: usize,
 ) -> Option<Value> {
@@ -3857,13 +4682,9 @@ fn evaluate_scalar_program(
     {
         return None;
     }
-    let ScalarControl::Return(value) = evaluate_scalar_statements(
-        &program.statements,
-        &mut variables,
-        program,
-        programs,
-        depth,
-    )?
+    let mut scope = ScalarScope::new(variables);
+    let ScalarControl::Return(value) =
+        evaluate_scalar_statements(&program.statements, &mut scope, program, programs, depth)?
     else {
         return None;
     };
@@ -3872,7 +4693,7 @@ fn evaluate_scalar_program(
 
 fn evaluate_scalar_statements(
     statements: &[Value],
-    variables: &mut BTreeMap<String, Value>,
+    variables: &mut ScalarScope<'_>,
     program: &ScalarDecisionProgram,
     programs: Option<&BTreeMap<String, ScalarDecisionProgram>>,
     depth: usize,
@@ -3968,7 +4789,7 @@ fn evaluate_scalar_statements(
 
 fn evaluate_scalar_if_chain(
     fields: &[Value],
-    variables: &mut BTreeMap<String, Value>,
+    variables: &mut ScalarScope<'_>,
     program: &ScalarDecisionProgram,
     programs: Option<&BTreeMap<String, ScalarDecisionProgram>>,
     depth: usize,
@@ -3998,7 +4819,7 @@ fn evaluate_scalar_if_chain(
 #[allow(clippy::too_many_lines)]
 fn evaluate_scalar_expression(
     index: usize,
-    variables: &mut BTreeMap<String, Value>,
+    variables: &mut ScalarScope<'_>,
     program: &ScalarDecisionProgram,
     programs: Option<&BTreeMap<String, ScalarDecisionProgram>>,
     depth: usize,
@@ -4012,10 +4833,27 @@ fn evaluate_scalar_expression(
         "literal" if fields.len() == 2 => fields.get(1).cloned(),
         "variable" if fields.len() == 2 => variables.get(fields.get(1)?.as_str()?).cloned(),
         "attribute" if fields.len() == 3 => {
+            if let Some(value) =
+                scalar_direct_variable(program, value_index(fields.get(1)?)?, variables)
+            {
+                return value.as_object()?.get(fields.get(2)?.as_str()?).cloned();
+            }
             let value = scalar_operand(fields, 1, variables, program, programs, depth)?;
             value.as_object()?.get(fields.get(2)?.as_str()?).cloned()
         }
         "index" if fields.len() == 3 => {
+            let base_index = value_index(fields.get(1)?)?;
+            let key_index = value_index(fields.get(2)?)?;
+            if let (Some(value), Some(index)) = (
+                scalar_direct_variable(program, base_index, variables),
+                scalar_direct_literal(program, key_index),
+            ) {
+                // Dataframe access is represented as
+                // `last_candle["field"]`. Resolve that immutable lookup by
+                // reference instead of cloning the complete projected row
+                // before selecting one scalar.
+                return scalar_index(value, index);
+            }
             let value = scalar_operand(fields, 1, variables, program, programs, depth)?;
             let index = scalar_operand(fields, 2, variables, program, programs, depth)?;
             scalar_index(&value, &index)
@@ -4167,7 +5005,7 @@ fn evaluate_scalar_expression(
                 )?;
                 callee_variables.insert(parameter.clone(), value);
             }
-            evaluate_scalar_program(callee, callee_variables, Some(programs), depth + 1)
+            evaluate_scalar_program(callee, &callee_variables, Some(programs), depth + 1)
         }
         "is-instance" if fields.len() == 3 => {
             let value = scalar_operand(fields, 1, variables, program, programs, depth)?;
@@ -4197,10 +5035,29 @@ fn evaluate_scalar_expression(
     }
 }
 
+fn scalar_direct_variable<'a>(
+    program: &ScalarDecisionProgram,
+    index: usize,
+    variables: &'a ScalarScope<'_>,
+) -> Option<&'a Value> {
+    let expression = program.expressions.get(index)?.as_array()?;
+    (expression.first()?.as_str()? == "variable")
+        .then(|| expression.get(1)?.as_str())
+        .flatten()
+        .and_then(|name| variables.get(name))
+}
+
+fn scalar_direct_literal(program: &ScalarDecisionProgram, index: usize) -> Option<&Value> {
+    let expression = program.expressions.get(index)?.as_array()?;
+    (expression.first()?.as_str()? == "literal")
+        .then(|| expression.get(1))
+        .flatten()
+}
+
 fn scalar_operand(
     fields: &[Value],
     position: usize,
-    variables: &mut BTreeMap<String, Value>,
+    variables: &mut ScalarScope<'_>,
     program: &ScalarDecisionProgram,
     programs: Option<&BTreeMap<String, ScalarDecisionProgram>>,
     depth: usize,
@@ -4626,6 +5483,7 @@ fn apply_adjustment(
     })?;
     trade.adjustment_count += 1;
     apply_order_filled(trade, Some(&adjustment.tag), config);
+    update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
     Ok(())
 }
 
@@ -4658,6 +5516,12 @@ fn apply_partial_exit(
             timestamp_ms: candle.timestamp_ms,
         });
     }
+    // Freqtrade freezes price precision on the trade when it opens and runs
+    // every later exit through price_to_precision. This remains observable
+    // after an exchange changes the pair tick size during a long-lived NFI
+    // position: callback arithmetic uses the raw candle open, while the
+    // resulting partial-exit order is filled at the frozen rounded price.
+    let exit_rate = round_step(candle.open, trade.price_step);
     let funding_fee = take_running_funding(trade);
     trade.orders.push(FilledOrder {
         id: order_id,
@@ -4667,8 +5531,8 @@ fn apply_partial_exit(
         is_entry: false,
         filled_timestamp_ms: candle.timestamp_ms,
         amount,
-        price: candle.open,
-        cost: amount * candle.open * (1.0 + fee_close(config)),
+        price: exit_rate,
+        cost: amount * exit_rate * (1.0 + fee_close(config)),
         tag: Some(adjustment.tag.clone()),
     });
     recalculate_order_funding_total(trade);
@@ -4693,6 +5557,7 @@ fn apply_partial_exit(
     };
     trade.adjustment_count += 1;
     apply_order_filled(trade, Some(&adjustment.tag), config);
+    update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
     Ok(())
 }
 
@@ -4998,6 +5863,22 @@ fn exit_decision(
             requires_confirmation: true,
         }));
     }
+    // Freqtrade calculates stop-loss and liquidation collisions inside
+    // `IStrategy.ft_stoploss_reached()`. A regular stop-loss wins that
+    // collision and is the only candidate returned to the backtester. This is
+    // observable when `confirm_trade_exit()` rejects the stop-loss: Freqtrade
+    // does not then fall through to a same-candle liquidation candidate.
+    let stopped = match trade.side {
+        TradeSide::Long => candle.low <= trade.stop_loss,
+        TradeSide::Short => candle.high >= trade.stop_loss,
+    };
+    if stopped {
+        return Ok(Some(ExitDecision {
+            rate: trade.stop_loss,
+            reason: "stop_loss".to_owned(),
+            requires_confirmation: true,
+        }));
+    }
     if let Some(liquidation_price) = trade.liquidation_price {
         let liquidated = match trade.side {
             TradeSide::Long => candle.low <= liquidation_price,
@@ -5011,17 +5892,6 @@ fn exit_decision(
             }));
         }
     }
-    let stopped = match trade.side {
-        TradeSide::Long => candle.low <= trade.stop_loss,
-        TradeSide::Short => candle.high >= trade.stop_loss,
-    };
-    if stopped {
-        return Ok(Some(ExitDecision {
-            rate: trade.stop_loss,
-            reason: "stop_loss".to_owned(),
-            requires_confirmation: true,
-        }));
-    }
     Ok(None)
 }
 
@@ -5029,6 +5899,24 @@ enum CustomExitDecision {
     NoExit,
     Exit(String),
 }
+
+const NFI_LONG_EXIT_PROGRAMS: &[&str] = &[
+    "long_exit_signals",
+    "long_exit_main",
+    "long_exit_williams_r",
+    "long_exit_dec",
+];
+const NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING: &[&str] = &[
+    "long_exit_signals",
+    "long_exit_main",
+    "long_exit_williams_r",
+];
+const NFI_SHORT_EXIT_PROGRAMS: &[&str] = &[
+    "short_exit_signals",
+    "short_exit_main",
+    "short_exit_williams_r",
+    "short_exit_dec",
+];
 
 /// Route NFI custom exits in the exact order used by the strategy.
 ///
@@ -5129,12 +6017,6 @@ fn evaluate_nfi_short_exit(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Option<CustomExitDecision> {
-    const PROGRAM_ORDER: &[&str] = &[
-        "short_exit_signals",
-        "short_exit_main",
-        "short_exit_williams_r",
-        "short_exit_dec",
-    ];
     let words = trade
         .entry_tag
         .as_deref()
@@ -5154,7 +6036,7 @@ fn evaluate_nfi_short_exit(
         match evaluate_nfi_managed_long_exit(
             manager,
             route,
-            PROGRAM_ORDER,
+            NFI_SHORT_EXIT_PROGRAMS,
             trade,
             pair,
             candle_index,
@@ -5288,7 +6170,7 @@ fn nfi_managed_long_signals(
     if nfi_profile_requires_positive_profit(route.profile) && snapshot.initial_stake_ratio <= 0.0 {
         return Some((false, None));
     }
-    let base_variables = BTreeMap::from([
+    let mut base_variables = BTreeMap::from([
         (
             "mode_name".to_owned(),
             Value::String(route.mode_name.clone()),
@@ -5313,16 +6195,23 @@ fn nfi_managed_long_signals(
             Value::Array(enter_tags.iter().cloned().map(Value::String).collect()),
         ),
     ]);
+    // All methods in this source-ordered callback see the same analyzed
+    // dataframe window. Materialize the union once, then give each scalar
+    // program a fresh local overlay so temporary assignments cannot leak into
+    // the next method.
+    insert_projected_feature_window(
+        &mut base_variables,
+        pair,
+        candle_index,
+        manager.feature_projection_union(program_order)?,
+    )?;
     let mut result = (false, None);
     for program_name in program_order {
-        let mut variables = base_variables.clone();
-        insert_projected_feature_window(
-            &mut variables,
-            pair,
-            candle_index,
-            manager.feature_projection(program_name)?,
+        let value = evaluate_scalar_program_bundle_from_base(
+            &manager.programs,
+            program_name,
+            &base_variables,
         )?;
-        let value = evaluate_scalar_program_bundle(&manager.programs, program_name, variables)?;
         let fields = value.as_array()?;
         if fields.len() != 2 {
             return None;
@@ -5341,20 +6230,9 @@ fn nfi_managed_long_signals(
 }
 
 fn nfi_profile_program_order(profile: NfiManagedLongProfile) -> &'static [&'static str] {
-    const ALL: &[&str] = &[
-        "long_exit_signals",
-        "long_exit_main",
-        "long_exit_williams_r",
-        "long_exit_dec",
-    ];
-    const WITHOUT_DESCENDING: &[&str] = &[
-        "long_exit_signals",
-        "long_exit_main",
-        "long_exit_williams_r",
-    ];
     match profile {
-        NfiManagedLongProfile::HighProfit => WITHOUT_DESCENDING,
-        _ => ALL,
+        NfiManagedLongProfile::HighProfit => NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING,
+        _ => NFI_LONG_EXIT_PROGRAMS,
     }
 }
 
@@ -5855,7 +6733,7 @@ fn evaluate_custom_exit_bundle(
         ("kwargs".to_owned(), Value::Object(serde_json::Map::new())),
     ]);
     insert_feature_window(&mut variables, pair, candle_index)?;
-    let value = evaluate_scalar_program_bundle(&bundle.programs, &bundle.entry, variables)?;
+    let value = evaluate_scalar_program_bundle(&bundle.programs, &bundle.entry, &variables)?;
     if !scalar_truthy(&value) {
         return Some(CustomExitDecision::NoExit);
     }
@@ -5964,7 +6842,7 @@ fn evaluate_adjustment_bundle(
     ]);
     insert_feature_window(&mut variables, pair, candle_index).ok_or(())?;
     let value =
-        evaluate_scalar_program_bundle(&bundle.programs, &bundle.entry, variables).ok_or(())?;
+        evaluate_scalar_program_bundle(&bundle.programs, &bundle.entry, &variables).ok_or(())?;
     let (stake_amount, tag) = match value {
         Value::Null => return Ok(None),
         Value::Array(values) => {
@@ -6038,6 +6916,45 @@ impl NfiX7TradeManager {
             })
             .get(program_name)
     }
+
+    fn feature_projection_union(&self, program_order: &[&str]) -> Option<&FeatureProjection> {
+        let key = if program_order == NFI_LONG_EXIT_PROGRAMS {
+            "long-all"
+        } else if program_order == NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING {
+            "long-without-descending"
+        } else if program_order == NFI_SHORT_EXIT_PROGRAMS {
+            "short-all"
+        } else {
+            return None;
+        };
+        self.feature_projection_unions
+            .get_or_init(|| {
+                [
+                    ("long-all", NFI_LONG_EXIT_PROGRAMS),
+                    (
+                        "long-without-descending",
+                        NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING,
+                    ),
+                    ("short-all", NFI_SHORT_EXIT_PROGRAMS),
+                ]
+                .into_iter()
+                .filter_map(|(name, programs)| {
+                    let mut union = FeatureProjection::new();
+                    for program in programs {
+                        let projection = self.feature_projection(program)?;
+                        for (variable, columns) in projection {
+                            union
+                                .entry(variable.clone())
+                                .or_default()
+                                .extend(columns.iter().cloned());
+                        }
+                    }
+                    Some((name.to_owned(), union))
+                })
+                .collect()
+            })
+            .get(key)
+    }
 }
 
 /// Derive dataframe field access directly from the immutable scalar arena.
@@ -6095,7 +7012,8 @@ fn scalar_program_feature_projection(program: &ScalarDecisionProgram) -> Feature
 fn is_feature_row_variable(name: &str) -> bool {
     name == "last_candle"
         || name == "previous_candle"
-        || (1..=5).any(|offset| name == format!("previous_candle_{offset}"))
+        || (1..=CALLBACK_FEATURE_LOOKBACK_ROWS)
+            .any(|offset| name == format!("previous_candle_{offset}"))
 }
 
 fn projected_feature_row(
@@ -6133,7 +7051,7 @@ fn insert_projected_feature_window(
         "last_candle".to_owned(),
         projected_feature_row(pair, candle_index, projection.get("last_candle"))?,
     );
-    for offset in 1..=5 {
+    for offset in 1..=CALLBACK_FEATURE_LOOKBACK_ROWS {
         let name = format!("previous_candle_{offset}");
         let value = candle_index
             .checked_sub(offset)
@@ -6163,7 +7081,7 @@ fn insert_feature_window(
     candle_index: usize,
 ) -> Option<()> {
     variables.insert("last_candle".to_owned(), feature_row(pair, candle_index)?);
-    for offset in 1..=5 {
+    for offset in 1..=CALLBACK_FEATURE_LOOKBACK_ROWS {
         let value = candle_index
             .checked_sub(offset)
             .and_then(|index| feature_row(pair, index))
@@ -6351,6 +7269,9 @@ fn close_trade(
     sequence: usize,
     order_id: u64,
 ) -> (ClosedTrade, f64) {
+    // Backtest exit orders use the price precision captured when the trade
+    // opened, not a later market-snapshot precision.
+    let rate = round_step(rate, trade.price_step);
     let gross_proceeds = trade.amount * rate;
     let open_fee_rate = fee_open(config);
     let close_fee_rate = fee_close(config);
@@ -6568,7 +7489,9 @@ fn python_float_sum(values: impl IntoIterator<Item = f64>) -> f64 {
 #[cfg(test)]
 #[allow(clippy::float_cmp)] // These tests assert exact Freqtrade float tokens.
 mod tests {
+    use super::protections::{DrawdownMode, ProtectionHandler, ProtectionTiming};
     use super::*;
+    use std::io::Write as _;
 
     fn candle(timestamp_ms: i64, open: f64, low: f64) -> Candle {
         Candle {
@@ -6589,6 +7512,108 @@ mod tests {
         }
     }
 
+    #[test]
+    fn file_backed_rows_preserve_forward_and_backward_window_access() {
+        let mut file = tempfile::tempfile().expect("create private row spool");
+        let row_stride = FILE_BACKED_ROW_HEADER_BYTES + FILE_BACKED_FEATURE_BYTES;
+        let rows_per_window = (FILE_BACKED_READ_BUFFER_BYTES / row_stride).max(1);
+        let row_count = rows_per_window * 2 + 3;
+        for index in 0..row_count {
+            let feature_value = index.to_f64().expect("test row index fits f64") + 0.5;
+            let mut row = vec![0_u8; row_stride];
+            row[..8].copy_from_slice(
+                &i64::try_from(index)
+                    .expect("test row index fits i64")
+                    .to_le_bytes(),
+            );
+            row[FILE_BACKED_ROW_HEADER_BYTES..].copy_from_slice(&feature_value.to_le_bytes());
+            file.write_all(&row).expect("write normalized test row");
+        }
+        let rows =
+            FileBackedRows::new(file, row_count, 1, Vec::new()).expect("open verified test spool");
+
+        for index in [
+            0,
+            rows_per_window - 1,
+            rows_per_window + 10,
+            2,
+            row_count - 1,
+        ] {
+            assert_eq!(rows.timestamp_ms(index), i64::try_from(index).ok());
+            assert_eq!(
+                rows.feature_number(index, 0),
+                index.to_f64().map(|value| value + 0.5)
+            );
+        }
+    }
+
+    #[test]
+    fn file_backed_rows_keep_callback_lookback_in_the_current_window() {
+        let mut file = tempfile::tempfile().expect("create private row spool");
+        let row_stride = FILE_BACKED_ROW_HEADER_BYTES + FILE_BACKED_FEATURE_BYTES;
+        let rows_per_window = (FILE_BACKED_READ_BUFFER_BYTES / row_stride).max(1);
+        assert!(rows_per_window > CALLBACK_FEATURE_LOOKBACK_ROWS);
+        let row_count = rows_per_window + CALLBACK_FEATURE_LOOKBACK_ROWS + 1;
+        for index in 0..row_count {
+            let mut row = vec![0_u8; row_stride];
+            row[..8].copy_from_slice(
+                &i64::try_from(index)
+                    .expect("test row index fits i64")
+                    .to_le_bytes(),
+            );
+            file.write_all(&row).expect("write normalized test row");
+        }
+        let rows =
+            FileBackedRows::new(file, row_count, 1, Vec::new()).expect("open verified test spool");
+
+        assert_eq!(
+            rows.timestamp_ms(rows_per_window),
+            i64::try_from(rows_per_window).ok()
+        );
+        let retained_start = rows.state.borrow().window_start;
+        assert_eq!(
+            retained_start,
+            rows_per_window - CALLBACK_FEATURE_LOOKBACK_ROWS
+        );
+        for offset in 1..=CALLBACK_FEATURE_LOOKBACK_ROWS {
+            assert_eq!(
+                rows.timestamp_ms(rows_per_window - offset),
+                i64::try_from(rows_per_window - offset).ok()
+            );
+            assert_eq!(rows.state.borrow().window_start, retained_start);
+        }
+    }
+
+    #[test]
+    fn file_backed_entry_index_reuses_validated_signal_positions() {
+        let mut file = tempfile::tempfile().expect("create private row spool");
+        let row_stride = FILE_BACKED_ROW_HEADER_BYTES;
+        let row_count = 12;
+        for index in 0..row_count {
+            let mut row = vec![0_u8; row_stride];
+            row[..8].copy_from_slice(
+                &i64::try_from(index)
+                    .expect("test row index fits i64")
+                    .to_le_bytes(),
+            );
+            if matches!(index, 2 | 7) {
+                row[72] |= 1 << 3;
+            }
+            file.write_all(&row).expect("write normalized test row");
+        }
+        let rows =
+            FileBackedRows::new(file, row_count, 0, Vec::new()).expect("open verified test spool");
+
+        assert_eq!(rows.next_entry_index(0), Some(2));
+        rows.install_entry_indices(vec![2, 7]);
+        assert_eq!(rows.next_entry_index(3), Some(7));
+        assert_eq!(rows.next_entry_index(8), None);
+        assert_eq!(
+            rows.entry_indices.get().map(Vec::as_slice),
+            Some(&[2, 7][..])
+        );
+    }
+
     fn config(max_open_trades: usize) -> PortfolioConfig {
         PortfolioConfig {
             starting_balance: 1_000.0,
@@ -6598,6 +7623,10 @@ mod tests {
             fee_open_rate: None,
             fee_close_rate: None,
             leverage: None,
+            nfi_leverage_program: None,
+            maximum_leverage_by_pair: BTreeMap::new(),
+            liquidation_model: None,
+            protection_program: None,
             stoploss_ratio: -0.01,
             amount_step: 0.00001,
             price_step: 0.01,
@@ -6615,6 +7644,103 @@ mod tests {
             nfi_x7_trade_manager: None,
             max_entry_position_adjustment: -1,
             is_futures: false,
+        }
+    }
+
+    fn isolated_model(pair: &str, tiers: Vec<LeverageTier>) -> IsolatedLiquidationModel {
+        IsolatedLiquidationModel {
+            exchange: "binance".to_owned(),
+            margin_mode: "isolated".to_owned(),
+            buffer: 0.05,
+            tiers_by_pair: BTreeMap::from([(pair.to_owned(), tiers)]),
+        }
+    }
+
+    fn leverage_tier(
+        min_notional: f64,
+        max_notional: Option<f64>,
+        maximum_leverage: f64,
+        maintenance_margin_rate: f64,
+        maintenance_amount: f64,
+    ) -> LeverageTier {
+        LeverageTier {
+            min_notional,
+            max_notional,
+            maximum_leverage,
+            maintenance_margin_rate,
+            maintenance_amount: Some(maintenance_amount),
+        }
+    }
+
+    fn buffered_liquidation_price(
+        side: TradeSide,
+        stake_amount: f64,
+        amount: f64,
+        open_rate: f64,
+        maintenance_margin_rate: f64,
+        maintenance_amount: f64,
+        buffer: f64,
+    ) -> f64 {
+        let direction = if side == TradeSide::Short { -1.0 } else { 1.0 };
+        let raw = (stake_amount + maintenance_amount - direction * amount * open_rate)
+            / (amount * maintenance_margin_rate - direction * amount);
+        let offset = (open_rate - raw).abs() * buffer;
+        if side == TradeSide::Short {
+            raw - offset
+        } else {
+            raw + offset
+        }
+    }
+
+    fn protection_timing(
+        lookback_ms: i64,
+        duration_ms: i64,
+        lookback_text: &str,
+        lock_text: &str,
+    ) -> ProtectionTiming {
+        ProtectionTiming {
+            lookback_ms,
+            lookback_text: lookback_text.to_owned(),
+            duration_ms: Some(duration_ms),
+            unlock_at_minute_utc: None,
+            lock_text: lock_text.to_owned(),
+        }
+    }
+
+    fn protection_trade(
+        id: u64,
+        pair: &str,
+        close_timestamp_ms: i64,
+        profit_ratio: f64,
+        exit_reason: &str,
+        side: TradeSide,
+    ) -> ClosedTrade {
+        ClosedTrade {
+            sequence: usize::try_from(id - 1).expect("small fixture id"),
+            id,
+            pair: pair.to_owned(),
+            is_short: side == TradeSide::Short,
+            leverage: 1.0,
+            open_timestamp_ms: close_timestamp_ms - 60_000,
+            close_timestamp_ms,
+            open_rate: 100.0,
+            close_rate: 100.0 * (1.0 + profit_ratio),
+            amount: 1.0,
+            stake_amount: 100.0,
+            max_stake_amount: 100.0,
+            entry_tag: None,
+            exit_reason: exit_reason.to_owned(),
+            fee_open: 0.0,
+            fee_close: 0.0,
+            funding_fees: 0.0,
+            liquidation_price: None,
+            profit_abs: profit_ratio * 100.0,
+            profit_ratio,
+            initial_stop_loss: 1.0,
+            stop_loss: 1.0,
+            minimum_rate: 100.0,
+            maximum_rate: 100.0,
+            orders: Vec::new(),
         }
     }
 
@@ -6736,6 +7862,64 @@ mod tests {
         }
     }
 
+    fn nfi_regular_adjustment_constants() -> NfiRegularAdjustmentConstants {
+        NfiRegularAdjustmentConstants {
+            use_grind_stops: true,
+            derisk_enable: true,
+            rebuy_stakes_spot: vec![0.2, 0.25],
+            rebuy_thresholds_spot: vec![-0.08, -0.12],
+            derisk_threshold_spot: -0.6,
+            derisk_level_1_threshold_spot: -0.4,
+            grinds: (1..=6)
+                .map(|level| NfiRegularGrind {
+                    entry_tag: format!("g{level}"),
+                    stop_tag: format!("sg{level}"),
+                    stakes_spot: vec![0.2, 0.25],
+                    thresholds_spot: vec![-0.08, -0.12],
+                    stop_threshold_spot: -0.2,
+                    profit_threshold_spot: 0.018,
+                })
+                .collect(),
+            policy: NfiRegularAdjustmentPolicy {
+                entry_retry_ms: 10 * 60 * 1_000,
+                grind_force_order_age_ms: 2 * 60 * 60 * 1_000,
+                grind_order_age_ms: 6 * 60 * 60 * 1_000,
+                rebuy_order_age_ms: 12 * 60 * 60 * 1_000,
+                grind_entry_profit_gate: -0.02,
+                additional_grind_profit_gate: -0.03,
+                forced_age_profit_gate: -0.06,
+                minimum_entry_multiplier: 1.5,
+                minimum_remaining_multiplier: 1.55,
+            },
+        }
+    }
+
+    fn enable_test_long_btc(
+        manager: &mut NfiX7TradeManager,
+        constants: NfiRegularAdjustmentConstants,
+        regular_program: ScalarDecisionProgram,
+    ) {
+        manager
+            .programs
+            .insert("long_grind_entry".to_owned(), regular_program);
+        manager.long_btc = Some(NfiLongGrindRoute {
+            mode_name: "long_btc".to_owned(),
+            entry_tags: vec!["121".to_owned()],
+            exit_profit_threshold: 0.25,
+            adjustment_scope: "spot-regular-backtest-v1".to_owned(),
+            grind_mode: false,
+            decision_program: "long_grind_entry_v3".to_owned(),
+            first_entry_profit_threshold_spot: 0.018,
+            first_entry_stop_threshold_spot: -0.2,
+            derisk_use_grind_stops: true,
+            stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+            constants: nfi_legacy_grind_constants(),
+            regular_decision_program: Some("long_grind_entry".to_owned()),
+            regular_constants: Some(constants),
+        });
+        manager.route_order.insert(6, "long_btc".to_owned());
+    }
+
     #[allow(clippy::too_many_lines)] // Full valid manager fixture is intentionally explicit.
     fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeManager {
         let false_program = nfi_false_program();
@@ -6811,7 +7995,7 @@ mod tests {
             derisk_spot: -0.48,
         };
         NfiX7TradeManager {
-            schema_version: "0.8.0".to_owned(),
+            schema_version: "0.10.0".to_owned(),
             source_sha256: "a".repeat(64),
             route_order: [
                 "long_normal",
@@ -6885,6 +8069,7 @@ mod tests {
                 constants: NfiX7AdjustmentConstants {
                     derisk_enable: false,
                     max_stake_multiplier: 1.0,
+                    rebuy_stake_multiplier: Some(0.25),
                     derisk_levels: (1..=3)
                         .map(|level| NfiX7DeriskLevel {
                             level,
@@ -6938,6 +8123,7 @@ mod tests {
                 ),
             ]),
             feature_projections: OnceLock::new(),
+            feature_projection_unions: OnceLock::new(),
         }
     }
 
@@ -7123,6 +8309,66 @@ mod tests {
     }
 
     #[test]
+    fn open_trade_pairs_run_before_configured_pair_order() {
+        let mut later_entry = candle(1, 100.0, 100.0);
+        later_entry.enter_long = Some(EntrySignal {
+            tag: Some("after-close".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut initial_entry = candle(0, 100.0, 100.0);
+        initial_entry.enter_long = Some(EntrySignal {
+            tag: Some("initial".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut same_candle_exit = candle(1, 101.0, 101.0);
+        same_candle_exit.exit_long = Some(ExitSignal {
+            reason: "scheduled-exit".to_owned(),
+        });
+        let pair = |name: &str, candles: Vec<Candle>| PairSeries {
+            pair: name.to_owned(),
+            execution_start_index: 0,
+            amount_step: None,
+            price_step: None,
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: candles.into(),
+        };
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: config(1),
+            // AAA is deliberately first in configured order. Freqtrade still
+            // processes BBB first at timestamp 1 because BBB has an open
+            // trade, freeing the sole slot before AAA's entry is evaluated.
+            pairs: vec![
+                pair(
+                    "AAA/USDT",
+                    vec![
+                        candle(0, 100.0, 100.0),
+                        later_entry,
+                        candle(2, 100.0, 100.0),
+                    ],
+                ),
+                pair(
+                    "BBB/USDT",
+                    vec![initial_entry, same_candle_exit, candle(2, 101.0, 101.0)],
+                ),
+            ],
+        };
+
+        let result = simulate(&input).expect("valid open-trade-first simulation");
+
+        assert_eq!(result.trades.len(), 2);
+        assert_eq!(result.trades[0].pair, "BBB/USDT");
+        assert_eq!(result.trades[1].pair, "AAA/USDT");
+        assert_eq!(result.rejected_signals, 0);
+    }
+
+    #[test]
     fn profiled_simulation_preserves_result_and_counts_only_visible_rows() {
         let mut first = candle(1, 100.0, 100.0);
         first.enter_long = Some(EntrySignal {
@@ -7153,6 +8399,55 @@ mod tests {
         assert_eq!(profiled, ordinary);
         assert_eq!(profile.timestamp_batches, 2);
         assert_eq!(profile.pair_events, 2);
+    }
+
+    #[test]
+    fn sparse_profile_counts_distinct_visible_timestamps_during_validation() {
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: config(1),
+            pairs: vec![
+                PairSeries {
+                    pair: "AAA/USDT".to_owned(),
+                    execution_start_index: 1,
+                    amount_step: None,
+                    price_step: None,
+                    price_steps: Vec::new(),
+                    minimum_stake: None,
+                    minimum_amount: None,
+                    minimum_cost: None,
+                    feature_columns: BTreeMap::new(),
+                    candles: vec![
+                        candle(0, 100.0, 100.0),
+                        candle(1, 100.0, 100.0),
+                        candle(2, 100.0, 100.0),
+                    ]
+                    .into(),
+                },
+                PairSeries {
+                    pair: "BBB/USDT".to_owned(),
+                    execution_start_index: 1,
+                    amount_step: None,
+                    price_step: None,
+                    price_steps: Vec::new(),
+                    minimum_stake: None,
+                    minimum_amount: None,
+                    minimum_cost: None,
+                    feature_columns: BTreeMap::new(),
+                    candles: vec![
+                        candle(0, 100.0, 100.0),
+                        candle(2, 100.0, 100.0),
+                        candle(3, 100.0, 100.0),
+                    ]
+                    .into(),
+                },
+            ],
+        };
+
+        let (_, profile) = simulate_profiled(&input).expect("valid profiled simulation");
+
+        assert_eq!(profile.timestamp_batches, 3);
+        assert_eq!(profile.pair_events, 4);
     }
 
     #[test]
@@ -7672,6 +8967,63 @@ mod tests {
     }
 
     #[test]
+    fn nfi_validation_rejects_an_unsupported_short_tag_in_the_main_pass() {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_short = Some(EntrySignal {
+            tag: Some("999".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager_config = config(1);
+        enable_nfi_manager(
+            &mut manager_config,
+            nfi_top_coins_manager(nfi_false_program()),
+        );
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![nfi_pair(
+                vec![entry, candle(2, 100.0, 100.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        assert!(matches!(
+            simulate(&input),
+            Err(SimError::UnsupportedNfiEntryTag { entry_tag, .. })
+                if entry_tag == "999"
+        ));
+    }
+
+    #[test]
+    fn nfi_validation_keeps_general_candle_errors_ahead_of_short_tag_errors() {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_short = Some(EntrySignal {
+            tag: Some("999".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager_config = config(1);
+        enable_nfi_manager(
+            &mut manager_config,
+            nfi_top_coins_manager(nfi_false_program()),
+        );
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![nfi_pair(
+                vec![entry, candle(1, 100.0, 100.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        assert!(matches!(
+            simulate(&input),
+            Err(SimError::CandleOrder { index: 1, .. })
+        ));
+    }
+
+    #[test]
     fn nfi_rebuy_adds_the_first_source_ladder_entry() {
         let mut entry = candle(1, 100.0, 100.0);
         // OHLC columns are read from the candle, not duplicated feature
@@ -7865,6 +9217,85 @@ mod tests {
     }
 
     #[test]
+    fn nfi_rebuy_transfer_restores_the_source_slice_before_grind_sizing() {
+        const STEP: i64 = 10 * 60 * 1_000;
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("64".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let derisk = candle(STEP, 40.0, 40.0);
+        let grind = candle(2 * STEP, 39.0, 39.0);
+        let mut force_exit = candle(3 * STEP, 39.0, 39.0);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+        let numeric_values = |value| {
+            vec![
+                serde_json::json!(value),
+                serde_json::json!(value),
+                serde_json::json!(value),
+                serde_json::json!(value),
+            ]
+        };
+        let features = BTreeMap::from([
+            (
+                "protections_long_global".to_owned(),
+                vec![
+                    serde_json::json!(false),
+                    serde_json::json!(false),
+                    serde_json::json!(false),
+                    serde_json::json!(false),
+                ],
+            ),
+            ("RSI_3".to_owned(), numeric_values(20.0)),
+            ("RSI_3_15m".to_owned(), numeric_values(20.0)),
+            ("AROONU_14".to_owned(), numeric_values(10.0)),
+            ("AROONU_14_15m".to_owned(), numeric_values(10.0)),
+            ("RSI_14".to_owned(), numeric_values(20.0)),
+            ("close".to_owned(), numeric_values(39.0)),
+            ("EMA_20".to_owned(), numeric_values(100.0)),
+            ("EMA_26".to_owned(), numeric_values(100.0)),
+        ]);
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        let position_adjustment = manager
+            .position_adjustment
+            .as_mut()
+            .expect("test manager has position adjustment");
+        position_adjustment.enabled = true;
+        position_adjustment.constants.grinds[3].enabled = true;
+        position_adjustment.constants.grinds[3].stakes_futures = vec![0.05];
+        position_adjustment.constants.grinds[3].stakes_spot = vec![0.05];
+        let mut manager_config = config(1);
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(vec![entry, derisk, grind, force_exit], features);
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("reviewed rebuy-to-grind transfer");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders.len(), 4);
+        assert_eq!(trade.orders[1].tag.as_deref(), Some("derisk_level_3"));
+        assert_eq!(trade.orders[2].tag.as_deref(), Some("grind_4_entry"));
+        // X7 divides the initial rebuy entry by 0.25, then applies grind 4's
+        // 0.05 first stake. Precision can floor the filled amount, so assert
+        // the exact source-sized region instead of a pre-fill decimal.
+        assert!(
+            trade.orders[2].cost > trade.orders[0].cost * 0.19
+                && trade.orders[2].cost < trade.orders[0].cost * 0.21,
+            "initial cost {}, transferred grind cost {}",
+            trade.orders[0].cost,
+            trade.orders[2].cost
+        );
+    }
+
+    #[test]
     fn nfi_long_grind_recovers_the_first_entry_once_with_gm0() {
         let mut entry = candle(1, 3.957, 3.957);
         entry.enter_long = Some(EntrySignal {
@@ -7891,6 +9322,8 @@ mod tests {
             derisk_use_grind_stops: true,
             stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
             constants: nfi_legacy_grind_constants(),
+            regular_decision_program: None,
+            regular_constants: None,
         });
         manager.route_order.insert(6, "long_grind".to_owned());
         let mut manager_config = config(1);
@@ -7949,6 +9382,8 @@ mod tests {
             derisk_use_grind_stops: true,
             stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
             constants: nfi_legacy_grind_constants(),
+            regular_decision_program: None,
+            regular_constants: None,
         });
         manager.route_order.insert(6, "long_grind".to_owned());
         let mut manager_config = config(1);
@@ -7986,22 +9421,11 @@ mod tests {
             liquidation_price: None,
         });
         let mut manager = nfi_top_coins_manager(nfi_false_program());
-        manager.long_btc = Some(NfiLongGrindRoute {
-            mode_name: "long_btc".to_owned(),
-            entry_tags: vec!["121".to_owned()],
-            exit_profit_threshold: 0.25,
-            adjustment_scope: "exit-only-v1".to_owned(),
-            grind_mode: false,
-            decision_program: "long_grind_entry_v3".to_owned(),
-            // Keep the independent adjustment branch dormant so this test
-            // isolates the source-ordered BTC custom-exit dispatcher.
-            first_entry_profit_threshold_spot: 10.0,
-            first_entry_stop_threshold_spot: -0.2,
-            derisk_use_grind_stops: true,
-            stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
-            constants: nfi_legacy_grind_constants(),
-        });
-        manager.route_order.insert(6, "long_btc".to_owned());
+        enable_test_long_btc(
+            &mut manager,
+            nfi_regular_adjustment_constants(),
+            nfi_false_program(),
+        );
         let mut manager_config = config(1);
         enable_nfi_manager(&mut manager_config, manager);
         let mut pair = nfi_pair(
@@ -8020,6 +9444,117 @@ mod tests {
         assert_eq!(result.trades.len(), 1);
         assert_eq!(result.trades[0].close_timestamp_ms, 2);
         assert_eq!(result.trades[0].exit_reason, "exit_long_btc_g ( 121)");
+    }
+
+    #[test]
+    fn nfi_long_btc_regular_mode_opens_and_closes_g1_in_source_order() {
+        const HOUR: i64 = 60 * 60 * 1_000;
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("121".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut force_exit = candle(5 * HOUR, 93.0, 93.0);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+
+        let mut constants = nfi_regular_adjustment_constants();
+        // This case isolates g1. Rebuy and de-risk remain structurally valid
+        // but cannot match the selected prices.
+        constants.rebuy_thresholds_spot.fill(-1.0);
+        constants.derisk_threshold_spot = -1.0;
+        constants.derisk_level_1_threshold_spot = -1.0;
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        enable_test_long_btc(&mut manager, constants, nfi_boolean_true_program());
+        let mut manager_config = config(1);
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(
+            vec![
+                entry,
+                candle(3 * HOUR, 90.0, 90.0),
+                candle(4 * HOUR, 93.0, 93.0),
+                force_exit,
+            ],
+            BTreeMap::new(),
+        );
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("reviewed tag-121 regular adjustment");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders.len(), 4);
+        assert_eq!(trade.orders[1].tag.as_deref(), Some("g1"));
+        assert!(trade.orders[1].is_entry);
+        assert_eq!(
+            trade.orders[2].tag.as_deref(),
+            Some(format!("g1 {}", trade.orders[1].id).as_str())
+        );
+        assert!(!trade.orders[2].is_entry);
+        assert_eq!(trade.exit_reason, "force_exit");
+    }
+
+    #[test]
+    fn nfi_long_btc_derisk_transfers_to_the_legacy_continuation() {
+        const HOUR: i64 = 60 * 60 * 1_000;
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("121".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut force_exit = candle(15 * HOUR, 80.0, 80.0);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+
+        let mut constants = nfi_regular_adjustment_constants();
+        constants.rebuy_thresholds_spot.fill(-1.0);
+        for grind in &mut constants.grinds {
+            grind.thresholds_spot.fill(-1.0);
+        }
+        constants.derisk_threshold_spot = -0.05;
+        constants.derisk_level_1_threshold_spot = -1.0;
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        manager
+            .programs
+            .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+        enable_test_long_btc(&mut manager, constants, nfi_boolean_true_program());
+        let mut manager_config = config(1);
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(
+            vec![
+                entry,
+                candle(13 * HOUR, 90.0, 90.0),
+                candle(14 * HOUR, 80.0, 80.0),
+                force_exit,
+            ],
+            BTreeMap::new(),
+        );
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("reviewed tag-121 legacy continuation");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders[1].tag.as_deref(), Some("d"));
+        assert!(!trade.orders[1].is_entry);
+        // A regular `d` (not `d1`) enables the first ordinary legacy grind.
+        // The two `dl*` post-level-1 clusters remain source-ordered but require
+        // an actual level-1 de-risk tag.
+        assert_eq!(trade.orders[2].tag.as_deref(), Some("gd1"));
+        assert!(trade.orders[2].is_entry);
+        assert_eq!(trade.exit_reason, "force_exit");
     }
 
     #[test]
@@ -8141,6 +9676,76 @@ mod tests {
         assert!((result.trades[0].close_rate - 105.0).abs() < f64::EPSILON);
         assert_eq!(result.trades[0].exit_reason, "custom_exit");
         assert!(result.final_balance > result.starting_balance);
+    }
+
+    #[test]
+    fn overlapping_trades_are_exported_in_freqtrade_closure_order() {
+        let mut first_entry = candle(1, 100.0, 100.0);
+        first_entry.enter_long = Some(EntrySignal {
+            tag: Some("first".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut first_exit = candle(4, 103.0, 103.0);
+        first_exit.exit_long = Some(ExitSignal {
+            reason: "late_exit".to_owned(),
+        });
+
+        let mut second_entry = candle(2, 100.0, 100.0);
+        second_entry.enter_long = Some(EntrySignal {
+            tag: Some("second".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut second_exit = candle(3, 102.0, 102.0);
+        second_exit.exit_long = Some(ExitSignal {
+            reason: "early_exit".to_owned(),
+        });
+
+        let pair = |name: &str, candles: Vec<Candle>| PairSeries {
+            pair: name.to_owned(),
+            execution_start_index: 0,
+            amount_step: None,
+            price_step: None,
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: candles.into(),
+        };
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: config(2),
+            pairs: vec![
+                pair(
+                    "AAA/USDT",
+                    vec![
+                        first_entry,
+                        candle(2, 101.0, 101.0),
+                        candle(3, 102.0, 102.0),
+                        first_exit,
+                    ],
+                ),
+                pair(
+                    "BBB/USDT",
+                    vec![
+                        candle(1, 100.0, 100.0),
+                        second_entry,
+                        second_exit,
+                        candle(4, 103.0, 103.0),
+                    ],
+                ),
+            ],
+        };
+
+        let result = simulate(&input).expect("valid overlapping trade simulation");
+
+        assert_eq!(result.trades.len(), 2);
+        assert_eq!(result.trades[0].pair, "BBB/USDT");
+        assert_eq!(result.trades[0].sequence, 0);
+        assert_eq!(result.trades[1].pair, "AAA/USDT");
+        assert_eq!(result.trades[1].sequence, 1);
     }
 
     #[test]
@@ -8446,6 +10051,252 @@ mod tests {
     }
 
     #[test]
+    fn nfi_entry_leverage_preserves_rule_order_and_exchange_cap() {
+        let program = NfiLeverageProgram {
+            default: 4.0,
+            ordered_tag_overrides: vec![
+                NfiLeverageOverride {
+                    entry_tags: vec!["61".to_owned(), "62".to_owned()],
+                    leverage: 3.0,
+                },
+                NfiLeverageOverride {
+                    entry_tags: vec!["120".to_owned(), "121".to_owned()],
+                    leverage: 2.0,
+                },
+            ],
+        };
+        assert!((evaluate_nfi_leverage(&program, Some("61 62")) - 3.0).abs() < f64::EPSILON);
+        assert!((evaluate_nfi_leverage(&program, Some("120")) - 2.0).abs() < f64::EPSILON);
+        assert!((evaluate_nfi_leverage(&program, Some("61 120")) - 4.0).abs() < f64::EPSILON);
+
+        let mut portfolio = config(1);
+        portfolio.nfi_leverage_program = Some(program);
+        portfolio
+            .maximum_leverage_by_pair
+            .insert("AAA/USDT:USDT".to_owned(), 2.5);
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("61".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut exit = candle(2, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT:USDT".to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid tag-dependent leverage");
+
+        assert!((result.trades[0].leverage - 2.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn dynamic_leverage_cap_uses_proposed_stake_tier() {
+        let pair_name = "AAA/USDT:USDT";
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(8.0);
+        portfolio
+            .maximum_leverage_by_pair
+            .insert(pair_name.to_owned(), 20.0);
+        portfolio.liquidation_model = Some(isolated_model(
+            pair_name,
+            vec![
+                leverage_tier(0.0, Some(500.0), 10.0, 0.005, 0.0),
+                leverage_tier(500.0, Some(5_000.0), 5.0, 0.01, 5.0),
+            ],
+        ));
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: None,
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut exit = candle(2, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid tier-capped leverage");
+
+        assert_eq!(result.trades[0].leverage, 5.0);
+    }
+
+    #[test]
+    fn computed_isolated_liquidation_matches_binance_long_and_short_formula() {
+        let pair_name = "AAA/USDT:USDT";
+        for side in [TradeSide::Long, TradeSide::Short] {
+            let mut portfolio = config(1);
+            portfolio.is_futures = true;
+            portfolio.leverage = Some(3.0);
+            portfolio.stoploss_ratio = -0.99;
+            portfolio.liquidation_model = Some(isolated_model(
+                pair_name,
+                vec![leverage_tier(0.0, None, 20.0, 0.005, 0.0)],
+            ));
+            let mut entry = candle(1, 100.0, 100.0);
+            let signal = EntrySignal {
+                tag: None,
+                leverage: None,
+                liquidation_price: None,
+            };
+            if side == TradeSide::Short {
+                entry.enter_short = Some(signal);
+            } else {
+                entry.enter_long = Some(signal);
+            }
+            // Keep this a liquidation-only candle. The stop-loss collision
+            // ordering is covered separately because Freqtrade returns the
+            // stop-loss candidate first when both boundaries are crossed.
+            let mut liquidated = candle(2, 100.0, 100.0);
+            if side == TradeSide::Short {
+                liquidated.high = 132.0;
+            } else {
+                liquidated.low = 68.0;
+            }
+            let input = SimulationInput {
+                schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+                config: portfolio,
+                pairs: vec![PairSeries {
+                    pair: pair_name.to_owned(),
+                    execution_start_index: 0,
+                    amount_step: None,
+                    price_step: None,
+                    price_steps: Vec::new(),
+                    minimum_stake: None,
+                    minimum_amount: None,
+                    minimum_cost: None,
+                    feature_columns: BTreeMap::new(),
+                    candles: vec![entry, liquidated].into(),
+                }],
+            };
+
+            let result = simulate(&input).expect("valid computed liquidation");
+            let trade = &result.trades[0];
+            let expected = buffered_liquidation_price(
+                side,
+                trade.stake_amount,
+                trade.amount,
+                trade.open_rate,
+                0.005,
+                0.0,
+                0.05,
+            );
+
+            assert_eq!(trade.exit_reason, "liquidation");
+            // The calculated liquidation boundary remains exact on the trade,
+            // while the synthetic liquidation order is filled at the price
+            // precision frozen when the position opened.
+            assert_eq!(trade.close_rate, round_step(expected, 0.01));
+            assert_eq!(trade.liquidation_price, Some(expected));
+        }
+    }
+
+    #[test]
+    fn isolated_liquidation_recalculates_after_position_adjustment() {
+        let pair_name = "AAA/USDT:USDT";
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(3.0);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.adjustment_rule = Some(AdjustmentRule {
+            profit_below: -0.1,
+            stake_ratio: 1.0,
+            max_adjustments: 1,
+            tag: "rebuy".to_owned(),
+        });
+        portfolio.liquidation_model = Some(isolated_model(
+            pair_name,
+            vec![leverage_tier(0.0, None, 20.0, 0.005, 0.0)],
+        ));
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: None,
+            leverage: None,
+            liquidation_price: None,
+        });
+        let adjustment = candle(2, 80.0, 75.0);
+        let mut exit = candle(3, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, adjustment, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid adjusted liquidation");
+        let trade = &result.trades[0];
+        let expected = buffered_liquidation_price(
+            TradeSide::Long,
+            trade.stake_amount,
+            trade.amount,
+            trade.open_rate,
+            0.005,
+            0.0,
+            0.05,
+        );
+        let first_order = &trade.orders[0];
+        let initial = buffered_liquidation_price(
+            TradeSide::Long,
+            first_order.cost / trade.leverage,
+            first_order.amount,
+            first_order.price,
+            0.005,
+            0.0,
+            0.05,
+        );
+
+        assert_eq!(trade.orders.len(), 3);
+        assert_eq!(trade.liquidation_price, Some(expected));
+        assert!((expected - initial).abs() > 1e-6);
+    }
+
+    #[test]
     fn ape_short_funding_and_profit_match_freqtrade_2026_5_1() {
         let mut portfolio = config(1);
         portfolio.starting_balance = 10_000.0;
@@ -8502,7 +10353,7 @@ mod tests {
     }
 
     #[test]
-    fn explicit_short_liquidation_price_has_priority_over_stop() {
+    fn rejected_stop_loss_collision_does_not_fall_through_to_liquidation() {
         let mut portfolio = config(1);
         portfolio.exit_confirmation_program = Some(
             serde_json::from_value(serde_json::json!({
@@ -8541,8 +10392,167 @@ mod tests {
 
         let result = simulate(&input).expect("valid liquidation simulation");
 
-        assert_eq!(result.trades[0].exit_reason, "liquidation");
-        assert!((result.trades[0].close_rate - 105.0).abs() < f64::EPSILON);
+        assert_eq!(result.trades[0].exit_reason, "force_exit");
+        assert!((result.trades[0].close_rate - 104.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn cooldown_pair_lock_uses_strict_candle_rounding_and_expiry() {
+        let program = ProtectionProgram {
+            timeframe_ms: 300_000,
+            handlers: vec![ProtectionHandler::CooldownPeriod {
+                timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+            }],
+        };
+        let closed = vec![protection_trade(
+            1,
+            "AAA/USDT",
+            300_000,
+            -0.01,
+            "exit_signal",
+            TradeSide::Long,
+        )];
+        let mut state = ProtectionState::default();
+
+        state.after_trade_close(&program, &closed[0], &closed, 1_000.0);
+
+        assert_eq!(
+            state.locks(),
+            &[PairLockState {
+                pair: "AAA/USDT".to_owned(),
+                lock_timestamp_ms: 300_000,
+                // Requested end 900_000 is already a boundary. CCXT
+                // ROUND_UP advances it to the following 5-minute boundary.
+                lock_end_timestamp_ms: 1_200_000,
+                reason: "Cooldown period for for 10 minutes.".to_owned(),
+                side: "*".to_owned(),
+                active: true,
+            }]
+        );
+        assert!(state.is_pair_locked("AAA/USDT", 1_199_999, TradeSide::Long));
+        assert!(!state.is_pair_locked("AAA/USDT", 1_200_000, TradeSide::Long));
+        assert!(!state.is_pair_locked("BBB/USDT", 600_000, TradeSide::Long));
+    }
+
+    #[test]
+    fn simulator_skips_locked_entry_without_counting_a_rejection() {
+        let mut portfolio = config(1);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.protection_program = Some(ProtectionProgram {
+            timeframe_ms: 300_000,
+            handlers: vec![ProtectionHandler::CooldownPeriod {
+                timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+            }],
+        });
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: None,
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut exit = candle(300_000, 101.0, 101.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "exit_signal".to_owned(),
+        });
+        let mut locked_signal = candle(600_000, 102.0, 102.0);
+        locked_signal.enter_long = Some(EntrySignal {
+            tag: None,
+            leverage: None,
+            liquidation_price: None,
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT".to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit, locked_signal, candle(900_000, 102.0, 102.0)].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid cooldown simulation");
+
+        assert_eq!(result.trades.len(), 1);
+        assert_eq!(result.rejected_signals, 0);
+        assert_eq!(result.locks.len(), 1);
+        assert_eq!(result.locks[0].lock_end_timestamp_ms, 1_200_000);
+    }
+
+    #[test]
+    fn stoploss_guard_global_lock_respects_trade_side() {
+        let program = ProtectionProgram {
+            timeframe_ms: 300_000,
+            handlers: vec![ProtectionHandler::StoplossGuard {
+                timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+                trade_limit: 2,
+                only_per_pair: false,
+                only_per_side: true,
+                required_profit: 0.0,
+            }],
+        };
+        let closed = vec![
+            protection_trade(1, "AAA/USDT", 300_000, -0.1, "stop_loss", TradeSide::Long),
+            protection_trade(2, "BBB/USDT", 600_000, -0.1, "liquidation", TradeSide::Long),
+        ];
+        let mut state = ProtectionState::default();
+
+        state.after_trade_close(&program, &closed[0], &closed[..1], 1_000.0);
+        state.after_trade_close(&program, &closed[1], &closed, 1_000.0);
+
+        assert_eq!(state.locks().len(), 1);
+        assert_eq!(state.locks()[0].pair, "*");
+        assert_eq!(state.locks()[0].side, "long");
+        assert!(state.is_pair_locked("CCC/USDT", 700_000, TradeSide::Long));
+        assert!(!state.is_pair_locked("CCC/USDT", 700_000, TradeSide::Short));
+    }
+
+    #[test]
+    fn low_profit_pairs_and_max_drawdown_create_local_and_global_locks() {
+        let program = ProtectionProgram {
+            timeframe_ms: 300_000,
+            handlers: vec![
+                ProtectionHandler::LowProfitPairs {
+                    timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+                    trade_limit: 1,
+                    only_per_side: false,
+                    required_profit: -0.02,
+                },
+                ProtectionHandler::MaxDrawdown {
+                    timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+                    trade_limit: 2,
+                    maximum_allowed_drawdown: 0.2,
+                    calculation_mode: DrawdownMode::Ratios,
+                },
+            ],
+        };
+        let closed = vec![
+            protection_trade(1, "AAA/USDT", 300_000, 0.1, "exit_signal", TradeSide::Long),
+            protection_trade(2, "AAA/USDT", 600_000, -0.3, "exit_signal", TradeSide::Long),
+        ];
+        let mut state = ProtectionState::default();
+
+        state.after_trade_close(&program, &closed[0], &closed[..1], 1_000.0);
+        state.after_trade_close(&program, &closed[1], &closed, 1_000.0);
+
+        assert_eq!(
+            state
+                .locks()
+                .iter()
+                .map(|lock| lock.pair.as_str())
+                .collect::<Vec<_>>(),
+            vec!["AAA/USDT", "*"]
+        );
+        assert!(state.locks()[0]
+            .reason
+            .starts_with("-0.19999999999999998 < -0.02"));
+        assert!(state.locks()[1].reason.starts_with("0.3 passed 0.2"));
     }
 
     #[test]
@@ -8930,7 +10940,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            evaluate_scalar_decision_program(&program, inputs),
+            evaluate_scalar_decision_program(&program, &inputs),
             Some(serde_json::json!([true, "exit_normal_0_1"]))
         );
         let nan_inputs = BTreeMap::from([
@@ -8942,8 +10952,46 @@ mod tests {
             ),
         ]);
         assert_eq!(
-            evaluate_scalar_decision_program(&program, nan_inputs),
+            evaluate_scalar_decision_program(&program, &nan_inputs),
             Some(serde_json::json!([false, null]))
+        );
+    }
+
+    #[test]
+    fn scalar_program_overlays_do_not_leak_writes_between_callbacks() {
+        let writer: ScalarDecisionProgram = serde_json::from_value(serde_json::json!({
+            "schema_version": "1.0.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["value"],
+            "expressions": [
+                ["literal", 2],
+                ["variable", "value"]
+            ],
+            "statements": [
+                ["set", "value", 0],
+                ["return", 1]
+            ]
+        }))
+        .expect("valid scalar writer");
+        let reader: ScalarDecisionProgram = serde_json::from_value(serde_json::json!({
+            "schema_version": "1.0.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["value"],
+            "expressions": [["variable", "value"]],
+            "statements": [["return", 0]]
+        }))
+        .expect("valid scalar reader");
+        let programs =
+            BTreeMap::from([("writer".to_owned(), writer), ("reader".to_owned(), reader)]);
+        let base = BTreeMap::from([("value".to_owned(), serde_json::json!(1))]);
+
+        assert_eq!(
+            evaluate_scalar_program_bundle_from_base(&programs, "writer", &base),
+            Some(serde_json::json!(2))
+        );
+        assert_eq!(
+            evaluate_scalar_program_bundle_from_base(&programs, "reader", &base),
+            Some(serde_json::json!(1))
         );
     }
 
@@ -8993,15 +11041,15 @@ mod tests {
         ]);
 
         assert_eq!(
-            evaluate_scalar_program_bundle(&programs, "custom_exit", inputs.clone()),
+            evaluate_scalar_program_bundle(&programs, "custom_exit", &inputs),
             Some(serde_json::json!([true, "exit_normal"]))
         );
         assert_eq!(
-            evaluate_scalar_decision_program(&entry_program, inputs),
+            evaluate_scalar_decision_program(&entry_program, &inputs),
             None
         );
         assert_eq!(
-            evaluate_scalar_program_bundle(&programs, "missing", BTreeMap::new()),
+            evaluate_scalar_program_bundle(&programs, "missing", &BTreeMap::new()),
             None
         );
     }
@@ -9034,7 +11082,7 @@ mod tests {
         assert_eq!(
             evaluate_scalar_decision_program(
                 &program,
-                BTreeMap::from([("score".to_owned(), serde_json::json!(2.0))]),
+                &BTreeMap::from([("score".to_owned(), serde_json::json!(2.0))]),
             ),
             Some(Value::String("second".to_owned()))
         );
@@ -9239,5 +11287,58 @@ mod tests {
         let result = simulate(&input).expect("simulation succeeds");
 
         assert_eq!(result.trades.len(), 1);
+    }
+
+    #[test]
+    fn rejected_entry_confirmation_consumes_order_id_but_not_rejected_signal_count() {
+        let mut config = config(1);
+        config.entry_confirmation_program = Some(
+            serde_json::from_value(serde_json::json!({
+                "statements": [{
+                    "op": "return",
+                    "value": {
+                        "op": "greater",
+                        "left": {"op": "variable", "name": "amount"},
+                        "right": {"op": "literal", "value": 0.9}
+                    }
+                }],
+                "functions": {}
+            }))
+            .expect("valid confirmation program"),
+        );
+        let mut rejected = candle(1, 200.0, 200.0);
+        rejected.enter_long = Some(EntrySignal {
+            tag: Some("rejected".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut accepted = candle(2, 100.0, 100.0);
+        accepted.enter_long = Some(EntrySignal {
+            tag: Some("accepted".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config,
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT".to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![rejected, accepted, candle(3, 100.0, 100.0)].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("simulation succeeds");
+
+        assert_eq!(result.trades.len(), 1);
+        assert_eq!(result.trades[0].orders[0].id, 2);
+        assert_eq!(result.rejected_signals, 0);
     }
 }
