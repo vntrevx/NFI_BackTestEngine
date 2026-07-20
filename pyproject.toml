@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "nfi-backtest-engine"
-version = "0.6.0"
+version = "1.0.0"
 description = "Exact-parity research backtesting infrastructure for NFI strategies"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -15,7 +15,7 @@ authors = [
 ]
 keywords = ["backtesting", "freqtrade", "nfi", "rust", "trading"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",

@@ -18,7 +18,7 @@ ordering. The resulting Feather files are SHA-256 sealed; Rust projects only the
 callback columns declared by the source-compiled IR and runs one global chronological
 portfolio loop.
 
-For the reviewed X7 source shape through v17.4.418, these callback families execute in
+For the reviewed X7 source shape through v17.4.421, these callback families execute in
 Rust:
 
 - backtest lifecycle no-op delegation and first-entry `order_filled` state writes;
