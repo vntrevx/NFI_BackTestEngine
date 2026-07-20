@@ -15,6 +15,7 @@ from .docker_resources import (
     derive_docker_policy,
     docker_executable,
     inspect_docker_daemon,
+    inspect_docker_swap_capacity,
 )
 from .errors import BenchmarkError, SpecValidationError
 
@@ -29,6 +30,9 @@ def managed_docker_run(
     docker_config: str | Path,
     role: str,
     memory_cap_bytes: int | None = None,
+    swap_mode: str = "disabled",
+    swap_cap_bytes: int | None = None,
+    swap_probe_image: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Yield a guarded ``docker run`` prefix and always reclaim its exact container."""
     allowed = "abcdefghijklmnopqrstuvwxyz0123456789-"
@@ -40,7 +44,23 @@ def managed_docker_run(
     with _docker_runtime_lock():
         config = Path(docker_config)
         daemon = inspect_docker_daemon(docker_config=config)
-        policy = derive_docker_policy(daemon, memory_cap_bytes=memory_cap_bytes)
+        daemon_swap_bytes = None
+        if swap_mode == "daemon":
+            if swap_probe_image is None:
+                raise SpecValidationError(
+                    "certification swap mode requires a Docker swap probe image"
+                )
+            daemon_swap_bytes = inspect_docker_swap_capacity(
+                docker_config=config,
+                image=swap_probe_image,
+            )
+        policy = derive_docker_policy(
+            daemon,
+            memory_cap_bytes=memory_cap_bytes,
+            swap_mode=swap_mode,
+            daemon_swap_bytes=daemon_swap_bytes,
+            swap_cap_bytes=swap_cap_bytes,
+        )
         cleaned = cleanup_stopped_managed_containers(docker_config=config)
         active = list_managed_containers(docker_config=config, all_containers=False)
         if active:
@@ -69,7 +89,12 @@ def managed_docker_run(
                 limit = str(policy["container_memory_limit_bytes"])
                 prefix.extend(["--memory", limit])
                 if policy["swap_limit_enforced"]:
-                    prefix.extend(["--memory-swap", limit])
+                    prefix.extend(
+                        [
+                            "--memory-swap",
+                            str(policy["container_memory_swap_limit_bytes"]),
+                        ]
+                    )
             try:
                 yield {
                     "command_prefix": prefix,
@@ -87,6 +112,9 @@ def run_managed_container(
     docker_config: str | Path,
     role: str,
     memory_cap_bytes: int | None = None,
+    swap_mode: str = "disabled",
+    swap_cap_bytes: int | None = None,
+    swap_probe_image: str | None = None,
     cwd: str | Path | None = None,
     text: bool = True,
     encoding: str | None = "utf-8",
@@ -101,6 +129,9 @@ def run_managed_container(
         docker_config=docker_config,
         role=role,
         memory_cap_bytes=memory_cap_bytes,
+        swap_mode=swap_mode,
+        swap_cap_bytes=swap_cap_bytes,
+        swap_probe_image=swap_probe_image,
     ) as lease:
         command = [*lease["command_prefix"], *arguments]
         try:

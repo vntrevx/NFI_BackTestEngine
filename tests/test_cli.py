@@ -61,3 +61,25 @@ def test_system_tune_forwards_explicit_spool_directory(monkeypatch, tmp_path: Pa
 
     assert result == 0
     assert captured["spool_directory"] == tmp_path
+
+
+def test_probe_capture_parser_keeps_fixture_and_work_outputs_separate() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "probe",
+            "capture",
+            "probe.json",
+            "--output-dir",
+            "fixture",
+            "--work-dir",
+            ".nfi/probe-work",
+            "--workers",
+            "4",
+        ]
+    )
+
+    assert args.command_name == "probe"
+    assert args.probe_command == "capture"
+    assert args.output_dir == Path("fixture")
+    assert args.work_dir == Path(".nfi/probe-work")
+    assert args.workers == 4

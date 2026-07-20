@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/benchmark-fixture-v3.json",
+  "title": "NFI X7 branch-reaching fixture manifest v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "description",
+    "fixture_kind",
+    "probe_kind",
+    "evidence_status",
+    "created_at",
+    "strategy_provenance",
+    "required_coverage",
+    "freqtrade",
+    "inputs",
+    "artifacts",
+    "measurement"
+  ],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "fixture_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "description": {"type": "string", "minLength": 1},
+    "fixture_kind": {
+      "enum": ["x7-branch-probe", "x7-release-representative"]
+    },
+    "probe_kind": {
+      "enum": [
+        "tag-121",
+        "protections-locks",
+        "liquidation",
+        "compound-tags",
+        "variable-leverage",
+        "callback-route",
+        "release-representative"
+      ]
+    },
+    "evidence_status": {"const": "captured"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "strategy_provenance": {"$ref": "#/$defs/provenance"},
+    "required_coverage": {"$ref": "#/$defs/coverage"},
+    "freqtrade": {"$ref": "#/$defs/freqtrade"},
+    "inputs": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"$ref": "#/$defs/input_file"}
+    },
+    "artifacts": {"$ref": "#/$defs/artifacts"},
+    "measurement": {"$ref": "#/$defs/measurement"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "docker_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256", "bytes"],
+      "properties": {
+        "role": {
+          "enum": [
+            "strategy",
+            "config",
+            "candles",
+            "detail_candles",
+            "informative_candles",
+            "funding_candles",
+            "mark_candles",
+            "pairlist",
+            "market_metadata",
+            "reference_market_metadata",
+            "auxiliary"
+          ]
+        },
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freqtrade_result",
+        "trade_surface",
+        "state_trace",
+        "coverage_report"
+      ],
+      "properties": {
+        "freqtrade_result": {"$ref": "#/$defs/file"},
+        "trade_surface": {"$ref": "#/$defs/file"},
+        "state_trace": {"$ref": "#/$defs/file"},
+        "state_projection": {"$ref": "#/$defs/file"},
+        "coverage_report": {"$ref": "#/$defs/file"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstream_repository",
+        "upstream_commit",
+        "base_source_sha256",
+        "effective_source_sha256",
+        "transformations"
+      ],
+      "properties": {
+        "upstream_repository": {"type": "string", "format": "uri"},
+        "upstream_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "base_source_sha256": {"$ref": "#/$defs/sha256"},
+        "effective_source_sha256": {"$ref": "#/$defs/sha256"},
+        "transformations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "description"],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "source-constant-toggle",
+                  "forced-entry-probe",
+                  "post-entry-candle-path",
+                  "config-override",
+                  "observer-only"
+                ]
+              },
+              "description": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callbacks",
+        "entry_tags",
+        "compound_tags",
+        "protection_methods",
+        "exit_reasons",
+        "sides",
+        "minimum_lock_count",
+        "minimum_distinct_leverages",
+        "require_rejected_locked_entry"
+      ],
+      "properties": {
+        "callbacks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "entry_tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "compound_tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "protection_methods": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "CooldownPeriod",
+              "StoplossGuard",
+              "MaxDrawdown",
+              "LowProfitPairs"
+            ]
+          }
+        },
+        "exit_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "sides": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["long", "short"]}
+        },
+        "minimum_lock_count": {"type": "integer", "minimum": 0},
+        "minimum_distinct_leverages": {"type": "integer", "minimum": 0},
+        "require_rejected_locked_entry": {"type": "boolean"}
+      },
+      "anyOf": [
+        {"properties": {"callbacks": {"minItems": 1}}},
+        {"properties": {"entry_tags": {"minItems": 1}}},
+        {"properties": {"compound_tags": {"minItems": 1}}},
+        {"properties": {"protection_methods": {"minItems": 1}}},
+        {"properties": {"exit_reasons": {"minItems": 1}}},
+        {"properties": {"sides": {"minItems": 1}}},
+        {"properties": {"minimum_lock_count": {"minimum": 1}}},
+        {"properties": {"minimum_distinct_leverages": {"minimum": 1}}},
+        {"properties": {"require_rejected_locked_entry": {"const": true}}}
+      ]
+    },
+    "freqtrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "image",
+        "image_index_digest",
+        "image_platform_digest",
+        "platform",
+        "tracer_version",
+        "exchange",
+        "strategy",
+        "timerange",
+        "timeframe",
+        "timeframe_detail",
+        "trading_mode",
+        "margin_mode",
+        "command"
+      ],
+      "properties": {
+        "version": {"type": "string", "minLength": 1},
+        "image": {"type": "string", "minLength": 1},
+        "image_index_digest": {"$ref": "#/$defs/docker_digest"},
+        "image_platform_digest": {"$ref": "#/$defs/docker_digest"},
+        "platform": {"const": "linux/amd64"},
+        "tracer_version": {"type": "string", "minLength": 1},
+        "strategy": {"type": "string", "minLength": 1},
+        "exchange": {"type": "string", "minLength": 1},
+        "timerange": {"type": "string", "minLength": 1},
+        "timeframe": {"type": "string", "minLength": 1},
+        "timeframe_detail": {"type": ["string", "null"]},
+        "trading_mode": {"enum": ["spot", "futures"]},
+        "margin_mode": {"type": ["string", "null"]},
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warmup_runs",
+        "measured_runs",
+        "poll_interval_ms",
+        "required_profile_phases"
+      ],
+      "properties": {
+        "warmup_runs": {"type": "integer", "minimum": 0},
+        "measured_runs": {"type": "integer", "minimum": 1},
+        "poll_interval_ms": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000
+        },
+        "required_profile_phases": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "indicators",
+              "callbacks",
+              "trade_scans",
+              "event_simulation"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

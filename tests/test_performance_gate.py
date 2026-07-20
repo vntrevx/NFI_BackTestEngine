@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.performance_gate import (
     _certification_verdict,
+    _determinism_assessment,
+    _relative_spread,
     _representative_scope,
 )
 
@@ -67,3 +70,34 @@ def test_short_diagnostic_can_complete_without_becoming_release_evidence() -> No
 
     assert complete is True
     assert certified is False
+
+
+def test_release_gate_rejects_nondeterministic_results() -> None:
+    complete, certified = _certification_verdict(
+        representative=True,
+        parity=True,
+        speed=True,
+        memory=True,
+        determinism=False,
+    )
+
+    assert complete is False
+    assert certified is False
+
+
+def test_result_determinism_requires_one_shared_hash_across_both_lanes() -> None:
+    engine = [{"result_sha256": "a" * 64}, {"result_sha256": "a" * 64}]
+    reference = [{"result_sha256": "a" * 64}, {"result_sha256": "a" * 64}]
+    assert _determinism_assessment(engine, reference)["met"] is True
+
+    reference[1]["result_sha256"] = "b" * 64
+    assert _determinism_assessment(engine, reference)["met"] is False
+
+
+def test_relative_spread_uses_median_and_is_order_independent() -> None:
+    runs = [
+        {"wall_time_seconds": 100.0},
+        {"wall_time_seconds": 104.0},
+        {"wall_time_seconds": 102.0},
+    ]
+    assert _relative_spread(runs) == pytest.approx(4.0 / 102.0)

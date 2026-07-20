@@ -12,12 +12,16 @@ from .canonical import write_json
 from .errors import BenchmarkError
 from .fixture import sha256_file
 from .performance_gate import PerformanceLevel, run_performance_gate
+from .product_contract import (
+    CERTIFICATION_SPREAD_THRESHOLD,
+    DEFAULT_CERTIFICATION_REPETITIONS,
+    DEFAULT_CERTIFICATION_WARMUPS,
+    MAX_CERTIFICATION_REPETITIONS,
+    MIN_CERTIFICATION_REPETITIONS,
+)
 from .specs import CERTIFICATION_REPORT_SCHEMA, validate_schema
 
 CERTIFICATION_REPORT_VERSION = "1.1.0"
-MIN_CERTIFICATION_REPETITIONS = 3
-
-
 def run_certification(
     manifest_path: str | Path,
     output_directory: str | Path,
@@ -25,7 +29,7 @@ def run_certification(
     profile_path: str | Path | None = None,
     verification_level: PerformanceLevel = "quick",
     state_probe_manifests: list[str | Path] | None = None,
-    repetitions: int = 5,
+    repetitions: int = DEFAULT_CERTIFICATION_REPETITIONS,
     timeout_seconds: int = 600,
 ) -> dict[str, Any]:
     """Run the strict gate and package every proof file into one immutable bundle."""
@@ -55,6 +59,11 @@ def run_certification(
         verification_level=verification_level,
         repetitions=repetitions,
         timeout_seconds=timeout_seconds,
+        warmup_runs=DEFAULT_CERTIFICATION_WARMUPS,
+        adaptive=True,
+        max_repetitions=MAX_CERTIFICATION_REPETITIONS,
+        spread_threshold=CERTIFICATION_SPREAD_THRESHOLD,
+        alternate_order=True,
     )
     probe_reports = []
     for index, probe_manifest in enumerate(probe_manifests, start=1):
@@ -107,7 +116,7 @@ def run_certification(
             "manifest_sha256": sha256_file(manifest),
         },
         "verification_level": "quick+full-probes",
-        "repetitions": repetitions,
+        "repetitions": int(performance.get("repetitions", repetitions)),
         "status": "certified" if release_certified else "failed",
         "release_certified": release_certified,
         "claim_scope": performance["claim_scope"],

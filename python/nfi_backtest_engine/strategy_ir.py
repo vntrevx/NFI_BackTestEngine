@@ -14,7 +14,7 @@ from .canonical import write_json
 from .errors import SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
 
-STRATEGY_IR_VERSION = "1.7.0"
+STRATEGY_IR_VERSION = "1.8.0"
 HOT_CALLBACKS = {
     "adjust_trade_position",
     "bot_loop_start",
@@ -398,6 +398,11 @@ def _method_record(
     source_lines: list[bytes],
 ) -> dict[str, Any]:
     segment = _node_source_bytes(node, source_lines)
+    # Method identities protect handwritten lowering against behavior changes,
+    # but a Windows checkout may convert LF to CRLF without changing Python
+    # semantics. Keep the whole-file bundle hash byte exact while making this
+    # narrower callback identity independent of the checkout platform.
+    normalized_segment = segment.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     calls = sorted(
         {
             name
@@ -409,7 +414,7 @@ def _method_record(
     return {
         "name": node.name,
         "location": _location(node),
-        "source_sha256": hashlib.sha256(segment).hexdigest(),
+        "source_sha256": hashlib.sha256(normalized_segment).hexdigest(),
         "is_async": isinstance(node, ast.AsyncFunctionDef),
         "parameters": [argument.arg for argument in node.args.args],
         "node_count": sum(1 for _ in ast.walk(node)),

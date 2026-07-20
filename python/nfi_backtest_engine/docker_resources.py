@@ -90,14 +90,84 @@ def inspect_docker_daemon(
     }
 
 
+def inspect_docker_swap_capacity(
+    *,
+    docker_config: str | Path,
+    image: str,
+    timeout_seconds: int = 30,
+) -> int:
+    """Return swap visible to a container in the selected Docker daemon.
+
+    Docker Desktop runs Linux containers inside a VM.  Host pagefile or swap
+    information is therefore not a safe proxy for what a reference backtest can
+    use.  This short, network-disabled probe reads ``/proc/meminfo`` through the
+    same daemon and image platform as the real workload.
+    """
+    if not image:
+        raise SpecValidationError("Docker swap probe image must be non-empty")
+    command = [
+        docker_executable(),
+        "--config",
+        str(Path(docker_config)),
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--label",
+        "io.nfi-backtest-engine.managed=true",
+        "--label",
+        "io.nfi-backtest-engine.role=resource-probe",
+        "--entrypoint",
+        "/bin/sh",
+        image,
+        "-c",
+        "awk '/^SwapTotal:/ { print $2 * 1024; found=1 } END { if (!found) exit 1 }' "
+        "/proc/meminfo",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BenchmarkError(f"cannot inspect Docker daemon swap: {exc}") from exc
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "swap probe failed"
+        raise BenchmarkError(f"cannot inspect Docker daemon swap: {detail}")
+    value = completed.stdout.strip()
+    try:
+        swap_bytes = int(float(value))
+    except ValueError as exc:
+        raise BenchmarkError(f"Docker swap probe returned an invalid value: {value!r}") from exc
+    if swap_bytes < 0:
+        raise BenchmarkError("Docker swap probe returned a negative capacity")
+    return swap_bytes
+
+
 def derive_docker_policy(
     daemon: dict[str, Any],
     *,
     memory_cap_bytes: int | None = None,
+    swap_mode: str = "disabled",
+    daemon_swap_bytes: int | None = None,
+    swap_cap_bytes: int | None = None,
 ) -> dict[str, Any]:
-    """Reserve daemon headroom and permit only one memory-heavy container at a time."""
+    """Reserve daemon headroom and permit only one memory-heavy container at a time.
+
+    ``disabled`` preserves the normal low-risk policy by setting Docker's total
+    memory+swap limit equal to the RAM limit.  ``daemon`` is intentionally
+    explicit and is reserved for release certification workloads that cannot be
+    timerange-split without changing portfolio semantics.
+    """
     if daemon.get("schema_version") != DOCKER_RESOURCE_VERSION:
         raise SpecValidationError("unsupported Docker resource record")
+    if swap_mode not in {"disabled", "daemon"}:
+        raise SpecValidationError("Docker swap mode must be 'disabled' or 'daemon'")
     total = _positive_int(daemon.get("total_memory_bytes"), "Docker total memory")
     active_memory = _nonnegative_int(
         daemon.get("active_container_memory_bytes", 0),
@@ -105,6 +175,8 @@ def derive_docker_policy(
     )
     if memory_cap_bytes is not None and memory_cap_bytes < GIB:
         raise SpecValidationError("Docker memory cap must be at least 1 GiB")
+    if swap_cap_bytes is not None and swap_cap_bytes < 0:
+        raise SpecValidationError("Docker swap cap must be non-negative")
 
     # Docker Desktop runs a daemon, filesystem cache, and networking services in
     # the same VM. A proportional reserve scales from small CI VMs to workstations,
@@ -116,6 +188,31 @@ def derive_docker_policy(
             "less than 1 GiB remains after Docker daemon reserve and active containers"
         )
     working_memory = min(automatic_budget, memory_cap_bytes or automatic_budget)
+    swap_supported = bool(
+        daemon.get("memory_limit_supported") and daemon.get("swap_limit_supported")
+    )
+    detected_swap = 0 if daemon_swap_bytes is None else _nonnegative_int(
+        daemon_swap_bytes,
+        "Docker daemon swap",
+    )
+    if swap_mode == "daemon":
+        if not swap_supported:
+            raise SpecValidationError(
+                "Docker daemon does not support the memory+swap limit required "
+                "for certification mode"
+            )
+        if daemon_swap_bytes is None:
+            raise SpecValidationError(
+                "certification swap mode requires measured Docker daemon swap"
+            )
+        if detected_swap == 0:
+            raise SpecValidationError(
+                "certification swap mode requested but Docker exposes no swap"
+            )
+        permitted_swap = min(detected_swap, swap_cap_bytes or detected_swap)
+    else:
+        permitted_swap = 0
+    memory_swap_limit = working_memory + permitted_swap
     return {
         "schema_version": DOCKER_RESOURCE_VERSION,
         "execution_mode": "sequential",
@@ -124,10 +221,13 @@ def derive_docker_policy(
         "daemon_reserve_bytes": reserve,
         "active_container_memory_bytes": active_memory,
         "container_memory_limit_bytes": working_memory,
+        "swap_mode": swap_mode,
+        "daemon_swap_bytes": detected_swap,
+        "container_swap_limit_bytes": permitted_swap,
+        # Docker's --memory-swap value is the combined RAM and swap limit.
+        "container_memory_swap_limit_bytes": memory_swap_limit,
         "memory_limit_enforced": bool(daemon.get("memory_limit_supported")),
-        "swap_limit_enforced": bool(
-            daemon.get("memory_limit_supported") and daemon.get("swap_limit_supported")
-        ),
+        "swap_limit_enforced": swap_supported,
     }
 
 

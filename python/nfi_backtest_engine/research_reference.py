@@ -27,10 +27,11 @@ from .reference_runtime import (
     REFERENCE_PLATFORM_DIGEST,
     REFERENCE_VERSION,
     ensure_docker_config,
+    ensure_reference_dependencies,
     ensure_reference_image,
 )
 
-RESEARCH_REFERENCE_VERSION = "1.0.0"
+RESEARCH_REFERENCE_VERSION = "1.2.0"
 
 _RESOURCE_CAPTURE_SCRIPT = """\
 freqtrade "$@"
@@ -43,8 +44,20 @@ fi
 if [ -r /sys/fs/cgroup/memory.events ]; then
   cat /sys/fs/cgroup/memory.events > /output/container-memory.events
 fi
+if [ -r /sys/fs/cgroup/memory.swap.current ]; then
+  cat /sys/fs/cgroup/memory.swap.current > /output/container-memory-swap-current.txt
+fi
+if [ -r /sys/fs/cgroup/memory.swap.peak ]; then
+  cat /sys/fs/cgroup/memory.swap.peak > /output/container-memory-swap-peak.txt
+fi
+if [ -r /sys/fs/cgroup/memory.swap.events ]; then
+  cat /sys/fs/cgroup/memory.swap.events > /output/container-memory.swap.events
+fi
 if [ -r /sys/fs/cgroup/cpu.stat ]; then
   cat /sys/fs/cgroup/cpu.stat > /output/container-cpu.stat
+fi
+if [ -r /sys/fs/cgroup/io.stat ]; then
+  cat /sys/fs/cgroup/io.stat > /output/container-io.stat
 fi
 exit "$status"
 """
@@ -58,6 +71,9 @@ def run_research_reference(
     capture_markets: bool = True,
     audit_timestamps_ms: list[int] | None = None,
     timeout_seconds: int | None = None,
+    reference_memory_mode: str = "normal",
+    swap_cap_bytes: int | None = None,
+    trace_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the pinned oracle against the exact inputs of one completed run."""
     root, run, inputs = _load_completed_run(run_directory)
@@ -94,6 +110,18 @@ def run_research_reference(
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
     project_root = _project_root()
+    validated_trace_identity = _validate_trace_identity(
+        trace_identity,
+        trading_mode=materialized["trading_mode"],
+    )
+    dependency_directory = (
+        ensure_reference_dependencies(
+            project_root=project_root,
+            docker_config=docker_config,
+        )
+        if validated_trace_identity is not None
+        else None
+    )
     stdout_path = output / "stdout.log"
     stderr_path = output / "stderr.log"
     started_at = datetime.now(UTC)
@@ -101,11 +129,26 @@ def run_research_reference(
     timed_out = False
     resources: dict[str, Any] | None = None
     audit_timestamps = _validate_audit_timestamps(audit_timestamps_ms or [])
+    if reference_memory_mode not in {"normal", "certification-swap"}:
+        raise BenchmarkError(
+            "reference memory mode must be 'normal' or 'certification-swap'"
+        )
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         try:
             with managed_docker_run(
                 docker_config=docker_config,
                 role="reference",
+                swap_mode=(
+                    "daemon"
+                    if reference_memory_mode == "certification-swap"
+                    else "disabled"
+                ),
+                swap_cap_bytes=swap_cap_bytes,
+                swap_probe_image=(
+                    REFERENCE_IMAGE_REF
+                    if reference_memory_mode == "certification-swap"
+                    else None
+                ),
             ) as lease:
                 resources = {
                     "daemon": lease["daemon"],
@@ -122,6 +165,8 @@ def run_research_reference(
                     timerange=materialized["timerange"],
                     pairs=materialized["pairs"],
                     audit_timestamps_ms=audit_timestamps,
+                    trace_identity=validated_trace_identity,
+                    dependency_directory=dependency_directory,
                 )
                 completed = subprocess.run(
                     command,
@@ -152,6 +197,11 @@ def run_research_reference(
 
     memory_peak = _read_nonnegative_integer(output / "container-memory-peak.txt")
     memory_events = _read_integer_record(output / "container-memory.events")
+    swap_current = _read_nonnegative_integer(
+        output / "container-memory-swap-current.txt"
+    )
+    swap_peak = _read_nonnegative_integer(output / "container-memory-swap-peak.txt")
+    swap_events = _read_integer_record(output / "container-memory.swap.events")
     memory = _memory_assessment(
         exit_code=exit_code,
         peak_bytes=memory_peak,
@@ -159,8 +209,11 @@ def run_research_reference(
         resources=resources,
     )
     audit_path = output / "callback-audit.json"
+    trace_path = output / "state-trace.nfitrace"
     complete = exit_code == 0 and difference is None and (
         not audit_timestamps or audit_path.is_file()
+    ) and (
+        validated_trace_identity is None or trace_path.is_file()
     )
     report = {
         "schema_version": RESEARCH_REFERENCE_VERSION,
@@ -201,9 +254,19 @@ def run_research_reference(
             if audit_path.is_file()
             else None
         ),
+        "state_trace": (
+            _file_record(trace_path) if trace_path.is_file() else None
+        ),
         "container_resources": resources,
         "container_memory": memory,
+        "container_swap": {
+            "mode": reference_memory_mode,
+            "current_bytes_at_exit": swap_current,
+            "peak_bytes": swap_peak,
+            "events": swap_events,
+        },
         "container_cpu": _read_integer_record(output / "container-cpu.stat"),
+        "container_io": _read_io_stat(output / "container-io.stat"),
         "stdout": _file_record(stdout_path),
         "stderr": _file_record(stderr_path),
     }
@@ -306,6 +369,8 @@ def build_research_reference_command(
     timerange: str,
     pairs: list[str],
     audit_timestamps_ms: list[int],
+    trace_identity: dict[str, str] | None = None,
+    dependency_directory: Path | None = None,
 ) -> list[str]:
     """Build a shell-safe Docker argv for one official research rerun."""
     command = [
@@ -325,7 +390,8 @@ def build_research_reference_command(
         "--volume",
         f"{project_root}:/project:ro",
         "--env",
-        "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python",
+        "PYTHONPATH=/project/benchmarks/reference/tracer:/project/python"
+        + (":/reference-deps" if dependency_directory is not None else ""),
         "--env",
         "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
     ]
@@ -337,6 +403,27 @@ def build_research_reference_command(
                 "--env",
                 "NFI_CALLBACK_AUDIT_TIMESTAMPS_MS="
                 + ",".join(str(value) for value in audit_timestamps_ms),
+            ]
+        )
+    if dependency_directory is not None:
+        command.extend(
+            ["--volume", f"{dependency_directory}:/reference-deps:ro"]
+        )
+    if trace_identity is not None:
+        command.extend(
+            [
+                "--env",
+                "NFI_TRACE_PATH=/output/state-trace.nfitrace",
+                "--env",
+                f"NFI_TRACE_RUN_ID={trace_identity['run_id']}",
+                "--env",
+                f"NFI_TRACE_INPUT_SHA256={trace_identity['input_sha256']}",
+                "--env",
+                f"NFI_TRACE_STRATEGY_SHA256={trace_identity['strategy_sha256']}",
+                "--env",
+                f"NFI_TRACE_PROFILE_SHA256={trace_identity['profile_sha256']}",
+                "--env",
+                "NFI_TRACE_INCLUDE_STATE=1",
             ]
         )
     command.extend(
@@ -371,6 +458,38 @@ def build_research_reference_command(
         ]
     )
     return command
+
+
+def _validate_trace_identity(
+    identity: dict[str, Any] | None,
+    *,
+    trading_mode: str,
+) -> dict[str, str] | None:
+    if identity is None:
+        return None
+    required = {
+        "run_id",
+        "input_sha256",
+        "strategy_sha256",
+        "profile_sha256",
+        "trading_mode",
+    }
+    if not isinstance(identity, dict) or set(identity) != required:
+        raise BenchmarkError("research trace identity fields are invalid")
+    if identity["trading_mode"] != trading_mode:
+        raise BenchmarkError("research trace identity trading mode differs")
+    for field in ("input_sha256", "strategy_sha256", "profile_sha256"):
+        value = identity[field]
+        if (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        ):
+            raise BenchmarkError(f"research trace identity {field} is not SHA-256")
+    run_id = identity["run_id"]
+    if not isinstance(run_id, str) or not run_id:
+        raise BenchmarkError("research trace identity run_id must be non-empty")
+    return {field: str(identity[field]) for field in sorted(required)}
 
 
 def _load_completed_run(
@@ -652,6 +771,24 @@ def _read_integer_record(path: Path) -> dict[str, int] | None:
         if len(parts) == 2 and parts[1].isdigit():
             record[parts[0]] = int(parts[1])
     return record or None
+
+
+def _read_io_stat(path: Path) -> list[dict[str, Any]] | None:
+    """Parse cgroup-v2 per-device IO counters without assuming device names."""
+    if not path.is_file():
+        return None
+    records: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if not parts:
+            continue
+        counters: dict[str, int] = {}
+        for token in parts[1:]:
+            name, separator, raw_value = token.partition("=")
+            if separator and raw_value.isdigit():
+                counters[name] = int(raw_value)
+        records.append({"device": parts[0], "counters": counters})
+    return records or None
 
 
 def _difference_record(difference: Any) -> dict[str, Any] | None:

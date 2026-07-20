@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/full-x7-certification-v1.json",
+  "title": "Full X7 certification report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "status",
+    "release_certified",
+    "claim_scope",
+    "inputs",
+    "environment",
+    "measurement",
+    "runs",
+    "state_probes",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["certified", "failed"]},
+    "release_certified": {"type": "boolean"},
+    "claim_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "upstream_commit",
+        "trading_mode",
+        "timerange",
+        "pair_count",
+        "timeframes",
+        "continuous_timerange",
+        "futures_evidence"
+      ],
+      "properties": {
+        "strategy": {"type": "string", "minLength": 1},
+        "upstream_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "trading_mode": {"const": "spot"},
+        "timerange": {"type": "string", "pattern": "^[0-9]{8}-[0-9]{8}$"},
+        "pair_count": {"const": 80},
+        "timeframes": {"const": ["5m", "15m", "1h", "4h", "1d"]},
+        "continuous_timerange": {"const": true},
+        "futures_evidence": {"const": "official-full-state-probes"}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "release_lock",
+        "strategy_sha256",
+        "config_sha256",
+        "data_aggregate_sha256",
+        "engine_market_snapshot_sha256",
+        "reference_market_snapshot_sha256"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hardware",
+        "execution_profile",
+        "package_version",
+        "engine_build"
+      ],
+      "properties": {
+        "hardware": {"type": "object"},
+        "execution_profile": {"type": "object"},
+        "package_version": {"type": "string", "minLength": 1},
+        "engine_build": {
+          "type": "object",
+          "not": {"required": ["binary_path"]}
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warmups_excluded",
+        "initial_repetitions",
+        "measured_repetitions",
+        "maximum_repetitions",
+        "spread_threshold",
+        "orders",
+        "engine_relative_spread",
+        "reference_relative_spread"
+      ],
+      "properties": {
+        "warmups_excluded": {"const": 1},
+        "initial_repetitions": {"type": "integer", "minimum": 3, "maximum": 5},
+        "measured_repetitions": {"type": "integer", "minimum": 3, "maximum": 5},
+        "maximum_repetitions": {"const": 5},
+        "spread_threshold": {"const": 0.05},
+        "orders": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {
+            "enum": [
+              ["engine", "reference"],
+              ["reference", "engine"]
+            ]
+          }
+        },
+        "engine_relative_spread": {"type": "number", "minimum": 0},
+        "reference_relative_spread": {"type": "number", "minimum": 0}
+      }
+    },
+    "runs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "reference", "engine_summary", "reference_summary"],
+      "properties": {
+        "engine": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {"$ref": "#/$defs/run"}
+        },
+        "reference": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {"$ref": "#/$defs/run"}
+        },
+        "engine_summary": {"$ref": "#/$defs/summary"},
+        "reference_summary": {"$ref": "#/$defs/summary"}
+      }
+    },
+    "state_probes": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixture_id",
+          "probe_kind",
+          "manifest_sha256",
+          "complete",
+          "trade_surface_equal",
+          "full_state_equal",
+          "coverage_met",
+          "performance_report"
+        ],
+        "properties": {
+          "fixture_id": {"type": "string", "minLength": 1},
+          "probe_kind": {
+            "enum": [
+              "tag-121",
+              "protections-locks",
+              "liquidation",
+              "compound-tags",
+              "variable-leverage"
+            ]
+          },
+          "manifest_sha256": {"$ref": "#/$defs/sha256"},
+          "complete": {"type": "boolean"},
+          "trade_surface_equal": {"type": "boolean"},
+          "full_state_equal": {"type": "boolean"},
+          "coverage_met": {"type": "boolean"},
+          "performance_report": {"$ref": "#/$defs/artifact"}
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_lock",
+        "installed_wheel",
+        "native_pipeline",
+        "official_parity",
+        "determinism",
+        "speed",
+        "memory",
+        "state_probes"
+      ],
+      "properties": {
+        "input_lock": {"$ref": "#/$defs/gate"},
+        "installed_wheel": {
+          "allOf": [
+            {"$ref": "#/$defs/gate"},
+            {"not": {"required": ["path"]}}
+          ]
+        },
+        "native_pipeline": {"$ref": "#/$defs/gate"},
+        "official_parity": {"$ref": "#/$defs/gate"},
+        "determinism": {"$ref": "#/$defs/gate"},
+        "speed": {"$ref": "#/$defs/gate"},
+        "memory": {"$ref": "#/$defs/gate"},
+        "state_probes": {"$ref": "#/$defs/gate"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "not": {"pattern": "^(?:[A-Za-z]:[\\\\/]|/)"}
+        },
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wall_time_seconds",
+        "peak_rss_bytes",
+        "exit_code",
+        "timed_out",
+        "result_sha256",
+        "run_report",
+        "stdout",
+        "stderr"
+      ],
+      "properties": {
+        "wall_time_seconds": {"type": "number", "minimum": 0},
+        "peak_rss_bytes": {"type": "integer", "minimum": 0},
+        "exit_code": {"type": "integer"},
+        "timed_out": {"type": "boolean"},
+        "result_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
+        "run_report": {
+          "oneOf": [
+            {"$ref": "#/$defs/artifact"},
+            {"type": "null"}
+          ]
+        },
+        "stdout": {
+          "oneOf": [
+            {"$ref": "#/$defs/artifact"},
+            {"type": "null"}
+          ]
+        },
+        "stderr": {
+          "oneOf": [
+            {"$ref": "#/$defs/artifact"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["wall_time_seconds", "peak_rss_bytes"]
+    },
+    "gate": {
+      "type": "object",
+      "required": ["met"],
+      "properties": {
+        "met": {"type": "boolean"}
+      }
+    }
+  }
+}

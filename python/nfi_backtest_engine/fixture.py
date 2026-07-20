@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .branch_coverage import validate_fixture_coverage
 from .canonical import read_json, write_json
 from .errors import SpecValidationError
 from .specs import validate_fixture_manifest, validate_trade_surface
@@ -58,7 +59,7 @@ def validate_fixture(
 
     surface_path = _safe_fixture_path(root, manifest["artifacts"]["trade_surface"]["path"])
     validate_trade_surface(read_json(surface_path))
-    if manifest["schema_version"] == "2.0.0" and validate_trace_semantics:
+    if manifest["schema_version"] in {"2.0.0", "3.0.0"} and validate_trace_semantics:
         strategy = _one_input(manifest["inputs"], "strategy")
         config = _one_input(manifest["inputs"], "config")
         expected_input_hash = fixture_input_sha256(manifest["inputs"])
@@ -79,6 +80,8 @@ def validate_fixture(
                 input_sha256=expected_input_hash,
                 trading_mode=manifest["freqtrade"]["trading_mode"],
             )
+        if manifest["schema_version"] == "3.0.0":
+            validate_fixture_coverage(manifest_file, manifest)
     return manifest
 
 

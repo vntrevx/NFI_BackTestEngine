@@ -16,7 +16,9 @@ TRADE_SURFACE_SCHEMA = "trade-surface.schema.json"
 TRADE_SURFACE_V2_SCHEMA = "trade-surface-v2.schema.json"
 BENCHMARK_FIXTURE_SCHEMA = "benchmark-fixture.schema.json"
 BENCHMARK_FIXTURE_V2_SCHEMA = "benchmark-fixture-v2.schema.json"
+BENCHMARK_FIXTURE_V3_SCHEMA = "benchmark-fixture-v3.schema.json"
 CERTIFICATION_REPORT_SCHEMA = "certification-report-v1.schema.json"
+FULL_X7_CERTIFICATION_SCHEMA = "full-x7-certification-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -40,7 +42,7 @@ _SUMMARY_DECIMAL_FIELDS = (
 )
 
 
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=6)
 def _validator(schema_name: str) -> Draft202012Validator:
     schema_resource = files("nfi_backtest_engine.schemas").joinpath(schema_name)
     schema = __import__("json").loads(schema_resource.read_text(encoding="utf-8"))
@@ -114,6 +116,8 @@ def validate_fixture_manifest(document: Any) -> None:
         schema = BENCHMARK_FIXTURE_SCHEMA
     elif version == "2.0.0":
         schema = BENCHMARK_FIXTURE_V2_SCHEMA
+    elif version == "3.0.0":
+        schema = BENCHMARK_FIXTURE_V3_SCHEMA
     else:
         raise SpecValidationError(f"$.schema_version: unsupported fixture version {version!r}")
     validate_schema(document, schema)
@@ -133,6 +137,18 @@ def validate_fixture_manifest(document: Any) -> None:
             joined = ", ".join(sorted(missing))
             raise SpecValidationError(
                 f"$.inputs: captured fixture is missing required roles: {joined}"
+            )
+    if version == "3.0.0":
+        strategy = next(
+            item for item in document["inputs"] if item["role"] == "strategy"
+        )
+        if (
+            document["strategy_provenance"]["effective_source_sha256"]
+            != strategy["sha256"]
+        ):
+            raise SpecValidationError(
+                "$.strategy_provenance.effective_source_sha256: "
+                "must match the sealed strategy input"
             )
 
 
