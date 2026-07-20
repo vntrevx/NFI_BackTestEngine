@@ -2,7 +2,7 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
-## Unreleased
+## 1.0.0
 
 - Added seven X7 v17.4.421 branch-reaching official fixtures for tag 121, all four
   supported protections and pair locks, compound tags, variable leverage, and a real

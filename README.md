@@ -13,11 +13,10 @@ then admits worker processes from that observed peak, current free memory, CPU a
 and any explicit user cap. Shared wallet, slot, trade, and order events remain
 deterministic in Rust.
 
-> **Release status:** `v0.6.0` is an alpha release. The engine accepts the NFI file
-> supplied to each run and has exact regression evidence through X7 v17.4.418. It does
-> not claim exact support for every future NFI revision or every branch. New behavior
-> that cannot be compiled exactly stops explicitly instead of falling back to an
-> approximate result.
+> **Release status:** `v1.0.0` is supported only when its GitHub Release includes a
+> Full X7 certificate with `release_certified=true`. The engine accepts the NFI file,
+> fails closed on behavior it cannot lower exactly, and retains official Freqtrade as
+> the final oracle.
 
 ## What you can do
 
@@ -461,7 +460,7 @@ Use `--resume` to reuse only stages whose complete input identity still matches.
 
 ## Current exact-support boundary
 
-Version 0.6.0 compiles the supplied X7 source rather than selecting a whole-file version.
+Version 1.0.0 compiles the supplied X7 source rather than selecting a whole-file version.
 The current native contracts cover the managed long routes, short-rebuy tags 561-563,
 tag-dependent leverage, Binance isolated-futures liquidation inputs, the tag-120 legacy
 grind route, tag-121 regular-mode adjustment followed by legacy grind, and the static

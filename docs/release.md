@@ -2,10 +2,11 @@
 
 ## Product boundary
 
-Version 0.6.0 is an alpha release of the benchmark, exact-parity, native packaging,
-hardware/data preparation, X7 vector, and checkpointed research infrastructure. It is
-not a claim that an arbitrary future NFI file, pair universe, or strategy branch can
-already complete an exact Rust backtest.
+Version 1.0.0 is supported only by a GitHub Release whose attached Full X7 certificate
+sets `release_certified=true`. That certificate binds the benchmark, exact-parity,
+native package, hardware/data preparation, X7 vectors, and checkpointed research
+pipeline to one source commit and sealed input. It is not a claim that an arbitrary
+future NFI file, pair universe, or strategy branch can complete an exact Rust backtest.
 
 The product target is nevertheless revision-independent: a user supplies the current
 NFI file, the engine analyzes and compiles that exact source, the default run spans the
