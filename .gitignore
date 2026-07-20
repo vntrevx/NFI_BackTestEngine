@@ -23,7 +23,6 @@ benchmarks/work/
 .nfi/
 .gjc/
 .agents/
-.codex/
 .compatibility/
 .env
 .env.*
