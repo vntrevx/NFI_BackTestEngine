@@ -32,7 +32,8 @@ REFERENCE_PLATFORM = "linux/amd64"
 REFERENCE_IMAGE_REF = f"{REFERENCE_IMAGE}@{REFERENCE_PLATFORM_DIGEST}"
 REFERENCE_CCXT_VERSION = "4.5.55"
 REFERENCE_BLAKE3_VERSION = "1.0.9"
-REFERENCE_TRACER_VERSION = "1.0.0"
+REFERENCE_TRACER_VERSION = "1.1.0"
+SUPPORTED_REFERENCE_TRACER_VERSIONS = frozenset({"1.0.0", REFERENCE_TRACER_VERSION})
 REFERENCE_REPORT_VERSION = "1.1.0"
 
 # Binance intentionally serves leverage brackets from an authenticated endpoint.
@@ -76,8 +77,20 @@ fi
 if [ -r /sys/fs/cgroup/memory.events ]; then
   cat /sys/fs/cgroup/memory.events > /output/container-memory.events
 fi
+if [ -r /sys/fs/cgroup/memory.swap.current ]; then
+  cat /sys/fs/cgroup/memory.swap.current > /output/container-memory-swap-current.txt
+fi
+if [ -r /sys/fs/cgroup/memory.swap.peak ]; then
+  cat /sys/fs/cgroup/memory.swap.peak > /output/container-memory-swap-peak.txt
+fi
+if [ -r /sys/fs/cgroup/memory.swap.events ]; then
+  cat /sys/fs/cgroup/memory.swap.events > /output/container-memory.swap.events
+fi
 if [ -r /sys/fs/cgroup/cpu.stat ]; then
   cat /sys/fs/cgroup/cpu.stat > /output/container-cpu.stat
+fi
+if [ -r /sys/fs/cgroup/io.stat ]; then
+  cat /sys/fs/cgroup/io.stat > /output/container-io.stat
 fi
 exit "$status"
 """
@@ -98,7 +111,7 @@ def run_reference_fixture(
     manifest_file = Path(manifest_path).resolve()
     manifest = validate_fixture(manifest_file)
     _validate_reference_pin(manifest)
-    market_snapshot = _one_input(manifest["inputs"], "market_metadata")
+    market_snapshot = _reference_market_input(manifest)
     fixture_root = manifest_file.parent
     output = Path(output_directory).resolve()
     _initialize_output_directory(output)
@@ -161,6 +174,15 @@ def run_reference_fixture(
     ended_at = datetime.now(UTC)
     container_peak_memory = _read_nonnegative_integer(output / "container-memory-peak.txt")
     container_memory_events = _read_integer_record(output / "container-memory.events")
+    container_swap_current = _read_nonnegative_integer(
+        output / "container-memory-swap-current.txt"
+    )
+    container_swap_peak = _read_nonnegative_integer(
+        output / "container-memory-swap-peak.txt"
+    )
+    container_swap_events = _read_integer_record(
+        output / "container-memory.swap.events"
+    )
     container_memory = _container_memory_assessment(
         exit_code=exit_code,
         peak_bytes=container_peak_memory,
@@ -192,7 +214,14 @@ def run_reference_fixture(
         "container_peak_memory_bytes": container_peak_memory,
         "container_memory_events": container_memory_events,
         "container_memory": container_memory,
+        "container_swap": {
+            "mode": "disabled",
+            "current_bytes_at_exit": container_swap_current,
+            "peak_bytes": container_swap_peak,
+            "events": container_swap_events,
+        },
         "container_cpu": _read_cpu_stat(output / "container-cpu.stat"),
+        "container_io": _read_io_stat(output / "container-io.stat"),
         "stdout": _file_record(stdout_path),
         "stderr": _file_record(stderr_path),
         "result": None,
@@ -620,7 +649,6 @@ def _validate_reference_pin(manifest: dict[str, Any]) -> None:
         "image_index_digest": REFERENCE_INDEX_DIGEST,
         "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
         "platform": REFERENCE_PLATFORM,
-        "tracer_version": REFERENCE_TRACER_VERSION,
     }
     for key, expected_value in expected.items():
         if actual.get(key) != expected_value:
@@ -628,6 +656,13 @@ def _validate_reference_pin(manifest: dict[str, Any]) -> None:
                 f"fixture reference pin {key} differs: "
                 f"expected {expected_value!r}, actual {actual.get(key)!r}"
             )
+    tracer_version = actual.get("tracer_version")
+    if tracer_version not in SUPPORTED_REFERENCE_TRACER_VERSIONS:
+        raise BenchmarkError(
+            "fixture reference pin tracer_version differs: "
+            f"supported {sorted(SUPPORTED_REFERENCE_TRACER_VERSIONS)!r}, "
+            f"actual {tracer_version!r}"
+        )
 
 
 def _initialize_output_directory(output: Path) -> None:
@@ -650,6 +685,21 @@ def _one_input(inputs: list[dict[str, Any]], role: str) -> dict[str, Any]:
     if len(matches) != 1:
         raise BenchmarkError(f"fixture requires exactly one {role!r} input")
     return matches[0]
+
+
+def _reference_market_input(manifest: dict[str, Any]) -> dict[str, Any]:
+    preferred = [
+        item
+        for item in manifest["inputs"]
+        if item["role"] == "reference_market_metadata"
+    ]
+    if preferred:
+        if len(preferred) != 1:
+            raise BenchmarkError(
+                "fixture requires exactly one reference market metadata input"
+            )
+        return preferred[0]
+    return _one_input(manifest["inputs"], "market_metadata")
 
 
 def _file_record(path: Path) -> dict[str, Any]:
@@ -684,6 +734,24 @@ def _read_integer_record(path: Path) -> dict[str, int] | None:
         if len(parts) == 2 and parts[1].isdigit():
             result[parts[0]] = int(parts[1])
     return result or None
+
+
+def _read_io_stat(path: Path) -> list[dict[str, Any]] | None:
+    """Parse cgroup-v2 IO counters without depending on host device names."""
+    if not path.is_file():
+        return None
+    records: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if not parts:
+            continue
+        counters: dict[str, int] = {}
+        for token in parts[1:]:
+            name, separator, raw_value = token.partition("=")
+            if separator and raw_value.isdigit():
+                counters[name] = int(raw_value)
+        records.append({"device": parts[0], "counters": counters})
+    return records or None
 
 
 def _container_memory_assessment(

@@ -15,7 +15,7 @@ from .canonical import read_json, write_json
 from .config_loader import load_effective_config
 from .doctor import run_doctor
 from .engine_runtime import build_engine, run_engine
-from .errors import NfiBacktestError
+from .errors import NfiBacktestError, SpecValidationError
 from .fixture import seal_fixture, validate_fixture
 from .fixture_engine import run_fixture_engine
 from .hardware import (
@@ -29,7 +29,7 @@ from .parity import ParityMismatch, compare_surface_files
 from .performance_gate import run_performance_gate
 from .product_contract import (
     DEFAULT_CERTIFICATION_REPETITIONS,
-    DEFAULT_CERTIFICATION_TIMEOUT_SECONDS,
+    DEFAULT_FULL_X7_TIMEOUT_SECONDS,
 )
 from .profiling import aggregate_profile_file
 from .reference_runtime import capture_reference_markets, run_reference_fixture
@@ -98,6 +98,98 @@ def build_parser() -> argparse.ArgumentParser:
     fixture_download.add_argument("--output", "-o", type=Path, required=True)
     fixture_download.add_argument("--sha256")
     fixture_download.add_argument("--endpoint-url")
+
+    probe = subcommands.add_parser(
+        "probe",
+        help="capture branch-reaching Full X7 official fixtures",
+    )
+    probe_commands = probe.add_subparsers(dest="probe_command", required=True)
+    probe_capture = probe_commands.add_parser(
+        "capture",
+        help="run native and official lanes, then seal one v3 fixture",
+    )
+    probe_capture.add_argument("spec", type=Path)
+    probe_capture.add_argument("--output-dir", type=Path, required=True)
+    probe_capture.add_argument("--work-dir", type=Path, required=True)
+    probe_capture.add_argument("--workers", type=int)
+    probe_capture.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
+    )
+
+    universe = subcommands.add_parser(
+        "universe",
+        help="select and seal a strict release-grade pair universe",
+    )
+    universe_commands = universe.add_subparsers(
+        dest="universe_command",
+        required=True,
+    )
+    universe_select = universe_commands.add_parser(
+        "select",
+        help="select the first fully covered pairs in frozen candidate order",
+    )
+    universe_select.add_argument("--candidates", type=Path, required=True)
+    universe_select.add_argument("--strategy", type=Path, required=True)
+    universe_select.add_argument("--class-name", required=True)
+    universe_select.add_argument("--config", type=Path, required=True)
+    universe_select.add_argument("--data-dir", type=Path, required=True)
+    universe_select.add_argument("--timerange", required=True)
+    universe_select.add_argument("--output-dir", type=Path, required=True)
+    universe_select.add_argument("--pair-count", type=int, default=80)
+    universe_select.add_argument("--upstream-repository", required=True)
+    universe_select.add_argument("--upstream-commit", required=True)
+    universe_validate = universe_commands.add_parser(
+        "validate",
+        help="validate a sealed release input lock",
+    )
+    universe_validate.add_argument("lock", type=Path)
+    universe_validate.add_argument("--pair-count", type=int, default=80)
+
+    platform_evidence = subcommands.add_parser(
+        "platform",
+        help="measure and seal installed-wheel platform evidence",
+    )
+    platform_commands = platform_evidence.add_subparsers(
+        dest="platform_command",
+        required=True,
+    )
+    platform_benchmark = platform_commands.add_parser(
+        "benchmark",
+        help="run the portable native workload on this host",
+    )
+    platform_benchmark.add_argument("release_lock", type=Path)
+    platform_benchmark.add_argument("--output-dir", type=Path, required=True)
+    platform_benchmark.add_argument("--strategy", type=Path, required=True)
+    platform_benchmark.add_argument("--class-name", required=True)
+    platform_benchmark.add_argument("--config", type=Path, required=True)
+    platform_benchmark.add_argument("--data-dir", type=Path, required=True)
+    platform_benchmark.add_argument("--engine-markets", type=Path, required=True)
+    platform_benchmark.add_argument("--wheel", type=Path, required=True)
+    platform_benchmark.add_argument("--profile", type=Path, required=True)
+    platform_benchmark.add_argument(
+        "--runs",
+        type=int,
+        default=DEFAULT_CERTIFICATION_REPETITIONS,
+    )
+    platform_benchmark.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
+    )
+    platform_benchmark.add_argument("--pair-count", type=int, default=20)
+    platform_seal = platform_commands.add_parser(
+        "seal",
+        help="combine Windows, Linux, and macOS benchmark reports",
+    )
+    platform_seal.add_argument(
+        "--report",
+        action="append",
+        type=Path,
+        required=True,
+    )
+    platform_seal.add_argument("--output-dir", type=Path, required=True)
 
     normalize = subcommands.add_parser(
         "normalize", help="normalize an official Freqtrade JSON export"
@@ -182,6 +274,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="retain callback state at this exact timestamp; may be repeated",
     )
     reference_research.add_argument("--timeout", type=int)
+    reference_research.add_argument(
+        "--memory-mode",
+        choices=("normal", "certification-swap"),
+        default="normal",
+        help="allow measured Docker daemon swap only for continuous release certification",
+    )
+    reference_research.add_argument(
+        "--swap-cap-gib",
+        type=float,
+        help="optional certification swap cap; never increases the detected daemon capacity",
+    )
     reference_capture = reference_commands.add_parser(
         "capture-markets",
         help="capture and freeze CCXT markets for later offline reference runs",
@@ -519,9 +622,26 @@ def build_parser() -> argparse.ArgumentParser:
         "certify",
         help="run release-grade exact parity and package a verified evidence bundle",
     )
-    certify.add_argument("manifest", type=Path)
+    certify.add_argument(
+        "manifest",
+        type=Path,
+        help="contract fixture manifest or Full X7 release-input-lock.json",
+    )
+    certify.add_argument(
+        "--certification-profile",
+        choices=("contract", "full-x7"),
+        default="contract",
+    )
     certify.add_argument("--output-dir", type=Path, required=True)
     certify.add_argument("--profile", type=Path)
+    certify.add_argument("--strategy", type=Path)
+    certify.add_argument("--class-name")
+    certify.add_argument("--config", type=Path)
+    certify.add_argument("--data-dir", type=Path)
+    certify.add_argument("--engine-markets", type=Path)
+    certify.add_argument("--reference-markets", type=Path)
+    certify.add_argument("--wheel", type=Path)
+    certify.add_argument("--swap-cap-gib", type=float)
     certify.add_argument(
         "--state-probe",
         action="append",
@@ -533,12 +653,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--runs",
         type=int,
         default=DEFAULT_CERTIFICATION_REPETITIONS,
-        help="independent engine/reference repetitions (default: 5, minimum: 3)",
+        help="initial engine/reference repetitions (default: 3; extends to 5 above 5% spread)",
     )
     certify.add_argument(
         "--timeout",
         type=int,
-        default=DEFAULT_CERTIFICATION_TIMEOUT_SECONDS,
+        default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
         help="timeout for each engine or official run in seconds",
     )
     return parser
@@ -586,6 +706,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"sha256={record['sha256']} -> {record['local_path']}"
                 )
             return 0
+
+        if args.command_name == "universe":
+            return _execute_universe(args)
+
+        if args.command_name == "probe":
+            from .probe_capture import capture_x7_probe
+
+            report = capture_x7_probe(
+                args.spec,
+                args.output_dir,
+                args.work_dir,
+                timeout_seconds=args.timeout,
+                workers=args.workers,
+            )
+            print(
+                "Full X7 probe captured: "
+                f"fixture={report['fixture_id']}, "
+                f"manifest_sha256={report['manifest_sha256']} -> "
+                f"{args.output_dir / 'manifest.json'}"
+            )
+            return 0
+
+        if args.command_name == "platform":
+            return _execute_platform(args)
 
         if args.command_name == "normalize":
             surface = normalize_file(
@@ -646,6 +790,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     capture_markets=not args.no_market_capture,
                     audit_timestamps_ms=args.audit_timestamp_ms,
                     timeout_seconds=args.timeout,
+                    reference_memory_mode=args.memory_mode,
+                    swap_cap_bytes=(
+                        int(args.swap_cap_gib * 1024**3)
+                        if args.swap_cap_gib is not None
+                        else None
+                    ),
                 )
                 print(
                     "official research parity: "
@@ -1100,23 +1250,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0 if report["complete"] else 1
 
         if args.command_name == "certify":
-            from .certification import run_certification
-
-            report = run_certification(
-                args.manifest,
-                args.output_dir,
-                profile_path=args.profile,
-                state_probe_manifests=args.state_probe,
-                repetitions=args.runs,
-                timeout_seconds=args.timeout,
-            )
-            print(
-                f"certification: status={report['status']}, "
-                f"speedup={report['measurements']['observed_speedup']:.3f}x, "
-                f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
-                f"{args.output_dir / 'certification.json'}"
-            )
-            return 0 if report["release_certified"] else 1
+            return _execute_certification(args)
 
         raise AssertionError(f"unhandled command: {args.command_name}")
     except ParityMismatch as exc:
@@ -1128,6 +1262,151 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (NfiBacktestError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+
+def _execute_universe(args: argparse.Namespace) -> int:
+    from .release_inputs import (
+        select_release_universe,
+        validate_release_input_lock,
+    )
+
+    if args.universe_command == "validate":
+        document = read_json(args.lock)
+        validate_release_input_lock(
+            document,
+            required_pair_count=args.pair_count,
+        )
+        print(
+            "release universe valid: "
+            f"pairs={document['scope']['pair_count']}, "
+            f"identity={document['identity_sha256']}"
+        )
+        return 0
+    lock = select_release_universe(
+        candidates_path=args.candidates,
+        strategy_path=args.strategy,
+        class_name=args.class_name,
+        config_path=args.config,
+        data_directory=args.data_dir,
+        timerange=args.timerange,
+        output_directory=args.output_dir,
+        pair_count=args.pair_count,
+        upstream_repository=args.upstream_repository,
+        upstream_commit=args.upstream_commit,
+    )
+    print(
+        "release universe sealed: "
+        f"pairs={lock['scope']['pair_count']}, "
+        f"data={lock['data']['aggregate_sha256']} -> "
+        f"{args.output_dir / 'release-input-lock.json'}"
+    )
+    return 0
+
+
+def _execute_certification(args: argparse.Namespace) -> int:
+    if args.certification_profile == "full-x7":
+        from .full_x7_certification import run_full_x7_certification
+
+        required = {
+            "--profile": args.profile,
+            "--strategy": args.strategy,
+            "--class-name": args.class_name,
+            "--config": args.config,
+            "--data-dir": args.data_dir,
+            "--engine-markets": args.engine_markets,
+            "--reference-markets": args.reference_markets,
+            "--wheel": args.wheel,
+        }
+        missing = [name for name, value in required.items() if value is None]
+        if missing:
+            raise SpecValidationError(
+                "Full X7 certification requires " + ", ".join(missing)
+            )
+        report = run_full_x7_certification(
+            args.manifest,
+            args.output_dir,
+            strategy_path=args.strategy,
+            class_name=args.class_name,
+            config_path=args.config,
+            data_directory=args.data_dir,
+            engine_market_snapshot=args.engine_markets,
+            reference_market_snapshot=args.reference_markets,
+            wheel_path=args.wheel,
+            execution_profile_path=args.profile,
+            state_probe_manifests=args.state_probe,
+            repetitions=args.runs,
+            timeout_seconds=args.timeout,
+            swap_cap_bytes=(
+                int(args.swap_cap_gib * 1024**3)
+                if args.swap_cap_gib is not None
+                else None
+            ),
+        )
+        print(
+            f"Full X7 certification: status={report['status']}, "
+            f"speedup={report['gates']['speed']['observed_speedup']:.3f}x, "
+            f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
+            f"{args.output_dir / 'full-x7-certification.json'}"
+        )
+        return 0 if report["release_certified"] else 1
+
+    from .certification import run_certification
+
+    report = run_certification(
+        args.manifest,
+        args.output_dir,
+        profile_path=args.profile,
+        state_probe_manifests=args.state_probe,
+        repetitions=args.runs,
+        timeout_seconds=args.timeout,
+    )
+    print(
+        f"certification: status={report['status']}, "
+        f"speedup={report['measurements']['observed_speedup']:.3f}x, "
+        f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
+        f"{args.output_dir / 'certification.json'}"
+    )
+    return 0 if report["release_certified"] else 1
+
+
+def _execute_platform(args: argparse.Namespace) -> int:
+    from .platform_benchmark import (
+        run_platform_benchmark,
+        seal_platform_evidence,
+    )
+
+    if args.platform_command == "seal":
+        evidence = seal_platform_evidence(args.report, args.output_dir)
+        print(
+            "platform evidence sealed: "
+            f"result={evidence['result_sha256']}, "
+            f"bundle={evidence['bundle']['archive']['sha256']} -> "
+            f"{args.output_dir / 'platform-evidence.json'}"
+        )
+        return 0
+    report = run_platform_benchmark(
+        args.release_lock,
+        args.output_dir,
+        strategy_path=args.strategy,
+        class_name=args.class_name,
+        config_path=args.config,
+        data_directory=args.data_dir,
+        engine_market_snapshot=args.engine_markets,
+        wheel_path=args.wheel,
+        execution_profile_path=args.profile,
+        repetitions=args.runs,
+        timeout_seconds=args.timeout,
+        pair_count=args.pair_count,
+    )
+    print(
+        "platform benchmark: "
+        f"complete={report['complete']}, "
+        f"median={report['measurement']['wall_time_seconds']['median']:.3f}s, "
+        f"peak_rss={report['measurement']['peak_rss_bytes']['maximum']} -> "
+        f"{args.output_dir / 'platform-benchmark.json'}"
+    )
+    return 0 if report["complete"] else 1
+
 
 def _execute_research_backtest(
     arguments: dict[str, Any],

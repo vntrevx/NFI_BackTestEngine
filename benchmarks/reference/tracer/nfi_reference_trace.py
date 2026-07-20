@@ -213,11 +213,33 @@ def _patch_backtest_loop(cls: type) -> None:
         trade_dir: str | None,
         can_enter: bool,
     ) -> Any:
+        # Observe the exact PairLocks guard used by the pinned implementation.
+        # This is recorded before the original loop and never changes its inputs.
+        from freqtrade.optimize.backtesting import DATE_IDX
+        from freqtrade.persistence import LocalTrade, PairLocks
+
+        lock_rejected = bool(
+            can_enter
+            and trade_dir is not None
+            and (
+                self._position_stacking
+                or len(LocalTrade.bt_trades_open_pp[pair]) == 0
+            )
+            and PairLocks.is_pair_locked(pair, row[DATE_IDX], trade_dir)
+        )
         started_ns = time.perf_counter_ns()
         try:
             result = original(self, row, pair, current_time, trade_dir, can_enter)
         finally:
             _record_profile(self, "event_simulation", time.perf_counter_ns() - started_ns)
+        if lock_rejected:
+            _append(
+                self,
+                current_time,
+                "entry.lock_rejected",
+                pair=pair,
+                callback="PairLocks.is_pair_locked",
+            )
         _append(self, current_time, "candle.after", pair=pair)
         return result
 

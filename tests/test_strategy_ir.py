@@ -90,6 +90,29 @@ def test_prepared_bundle_preserves_crlf_source_identity(tmp_path: Path) -> None:
     assert validate_strategy_bundle(bundle)["strategy"]["sha256"] == manifest["strategy"]["sha256"]
 
 
+def test_method_identity_normalizes_checkout_line_endings(tmp_path: Path) -> None:
+    lines = [
+        "from freqtrade.strategy import IStrategy",
+        "class PortableStrategy(IStrategy):",
+        "    timeframe = '5m'",
+        "    def custom_exit(self, pair):",
+        "        return pair if pair else None",
+        "",
+    ]
+    lf_source = tmp_path / "PortableLf.py"
+    crlf_source = tmp_path / "PortableCrlf.py"
+    lf_source.write_bytes("\n".join(lines).encode())
+    crlf_source.write_bytes("\r\n".join(lines).encode())
+
+    lf_analysis = analyze_strategy(lf_source, class_name="PortableStrategy")
+    crlf_analysis = analyze_strategy(crlf_source, class_name="PortableStrategy")
+    lf_method = lf_analysis["strategies"][0]["methods"][0]
+    crlf_method = crlf_analysis["strategies"][0]["methods"][0]
+
+    assert lf_analysis["source"]["sha256"] != crlf_analysis["source"]["sha256"]
+    assert lf_method["source_sha256"] == crlf_method["source_sha256"]
+
+
 def test_dynamic_attribute_in_one_time_initialization_requires_freeze_not_fallback(
     tmp_path: Path,
 ) -> None:

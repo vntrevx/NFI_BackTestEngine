@@ -75,6 +75,7 @@ def run_research_backtest(
     execution_profile: dict[str, Any] | None = None,
     recalibrate: bool = False,
     history_coverage_policy: str = "strict",
+    trace_engine_events: bool = False,
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
     pipeline_started_ns = time.perf_counter_ns()
@@ -360,6 +361,9 @@ def run_research_backtest(
         simulation_input_path = output / "simulation-input.manifest.json"
         simulation_result_path = output / "simulation-result.json"
         engine_profile_path = output / "engine-profile.json"
+        engine_events_path = (
+            output / "engine-events.jsonl" if trace_engine_events else None
+        )
         surface_path = output / "trade-surface.json"
         stage_started_ns = time.perf_counter_ns()
         if has_strategy_callbacks:
@@ -387,6 +391,7 @@ def run_research_backtest(
             profile_path=profile_path,
             vector_manifest=True,
             engine_profile_path=engine_profile_path,
+            events_path=engine_events_path,
         )
         engine_seconds = _elapsed_seconds(stage_started_ns)
         stage_started_ns = time.perf_counter_ns()
@@ -407,6 +412,11 @@ def run_research_backtest(
             "simulation_input": _artifact_record(simulation_input_path),
             "simulation_result": _artifact_record(simulation_result_path),
             "trade_surface": _artifact_record(surface_path),
+            "engine_events": (
+                _artifact_record(engine_events_path)
+                if engine_events_path is not None
+                else None
+            ),
             "summary": surface["summary"],
         }
     status = (

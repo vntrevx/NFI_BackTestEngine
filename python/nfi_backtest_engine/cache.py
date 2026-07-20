@@ -8,8 +8,9 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from collections.abc import Iterator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -212,10 +213,11 @@ class ContentCache:
         lock = self.root / f".{key}.lock"
         deadline = time.monotonic() + timeout_seconds
         descriptor: int | None = None
+        owner_token = f"{os.getpid()}:{uuid.uuid4().hex}"
         while descriptor is None:
             try:
                 descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.write(descriptor, str(os.getpid()).encode())
+                os.write(descriptor, owner_token.encode())
                 os.fsync(descriptor)
             except FileExistsError as exc:
                 self._discard_dead_lock(lock)
@@ -226,18 +228,35 @@ class ContentCache:
             yield
         finally:
             os.close(descriptor)
-            lock.unlink(missing_ok=True)
+            # A timed-out owner can be scavenged while its process is exiting.
+            # Remove the lock only when the path still contains this acquisition's
+            # unique token; otherwise the path belongs to a newer process.
+            try:
+                if lock.read_text(encoding="ascii") == owner_token:
+                    lock.unlink()
+            except (FileNotFoundError, PermissionError):
+                pass
 
     @staticmethod
     def _discard_dead_lock(lock: Path) -> None:
         try:
-            owner = int(lock.read_text(encoding="ascii"))
-        except (FileNotFoundError, ValueError):
+            observed_token = lock.read_text(encoding="ascii")
+            owner_text, _, acquisition = observed_token.partition(":")
+            owner = int(owner_text)
+        except (FileNotFoundError, PermissionError, ValueError):
+            return
+        if not acquisition:
             return
         if psutil.pid_exists(owner):
             return
-        with suppress(FileNotFoundError):
-            lock.unlink()
+        try:
+            # A second scavenger may already have removed the dead lock and a new
+            # process may own the same path. Re-read before deletion so we never
+            # knowingly remove a different acquisition.
+            if lock.read_text(encoding="ascii") == observed_token:
+                lock.unlink()
+        except (FileNotFoundError, PermissionError):
+            pass
 
 
 def _canonical_sha256(value: str) -> str:

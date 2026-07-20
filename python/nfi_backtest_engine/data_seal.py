@@ -390,6 +390,235 @@ def timeframe_milliseconds(timeframe: str) -> int:
     return int(match.group("count")) * multipliers[match.group("unit")]
 
 
+def build_data_request(
+    config: dict[str, Any],
+    timerange: str,
+    timeframes: list[str],
+    *,
+    startup_candles: int = 0,
+    require_startup_coverage: bool = False,
+    history_coverage_policy: str = "strict",
+) -> dict[str, Any]:
+    """Build the same normalized request used by preparation and release selection."""
+    return _data_request(
+        config,
+        timerange,
+        timeframes,
+        startup_candles=startup_candles,
+        require_startup_coverage=require_startup_coverage,
+        history_coverage_policy=history_coverage_policy,
+    )
+
+
+def candle_files_for(
+    data_root: str | Path,
+    *,
+    pair: str,
+    timeframe: str,
+    trading_mode: str,
+) -> list[Path]:
+    """Return deterministic base-candle matches without funding/mark side inputs."""
+    root = Path(data_root).resolve()
+    return sorted(
+        (
+            path
+            for path in root.rglob("*")
+            if _is_data_file(path)
+            and _matches_base_candles(path, pair, timeframe, trading_mode)
+        ),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
+
+
+def compact_candle_directory(
+    source_directory: str | Path,
+    destination_directory: str | Path,
+    *,
+    pairs: list[str],
+    timeframes: list[str],
+    trading_mode: str,
+    timerange: str,
+    startup_candles: int,
+) -> dict[str, Any]:
+    """Write the smallest self-contained candle directory for one probe.
+
+    Every timeframe keeps its own strategy-declared startup window. This is
+    important for X7 because an informative 1d frame needs far more wall-clock
+    history than the same number of 5m candles. Natural exchange gaps and all
+    non-date columns are preserved; no candles are synthesized or resampled.
+    """
+    source_root = Path(source_directory).resolve()
+    destination_root = Path(destination_directory).resolve()
+    if not source_root.is_dir():
+        raise SpecValidationError(
+            f"compact candle source does not exist: {source_root}"
+        )
+    if destination_root.exists() and (
+        not destination_root.is_dir() or any(destination_root.iterdir())
+    ):
+        raise SpecValidationError(
+            f"compact candle destination must be empty: {destination_root}"
+        )
+    if (
+        not pairs
+        or len(pairs) != len(set(pairs))
+        or not all(isinstance(pair, str) and pair for pair in pairs)
+    ):
+        raise SpecValidationError("compact candle pairs must be unique strings")
+    if (
+        not timeframes
+        or len(timeframes) != len(set(timeframes))
+        or not all(isinstance(value, str) and value for value in timeframes)
+    ):
+        raise SpecValidationError(
+            "compact candle timeframes must be unique strings"
+        )
+    if trading_mode not in {"spot", "futures"}:
+        raise SpecValidationError("compact candles support spot or futures")
+    if (
+        not isinstance(startup_candles, int)
+        or isinstance(startup_candles, bool)
+        or startup_candles < 0
+    ):
+        raise SpecValidationError(
+            "compact candle startup_candles must be non-negative"
+        )
+    try:
+        start_ms, end_ms = parse_timerange_milliseconds(timerange)
+    except ValueError as exc:
+        raise SpecValidationError(
+            "compact candle timerange must have closed boundaries"
+        ) from exc
+
+    selected: list[tuple[Path, int]] = []
+    seen: set[Path] = set()
+    coverage_starts = {
+        timeframe: start_ms - startup_candles * timeframe_milliseconds(timeframe)
+        for timeframe in timeframes
+    }
+    for pair in pairs:
+        for timeframe in timeframes:
+            matches = candle_files_for(
+                source_root,
+                pair=pair,
+                timeframe=timeframe,
+                trading_mode=trading_mode,
+            )
+            if len(matches) != 1:
+                raise SpecValidationError(
+                    f"expected one candle file for {pair} {timeframe}, "
+                    f"found {len(matches)}"
+                )
+            path = matches[0]
+            if path not in seen:
+                selected.append((path, coverage_starts[timeframe]))
+                seen.add(path)
+
+    if trading_mode == "futures":
+        # Funding and mark inputs are 1h Binance side channels. Retaining them
+        # from the earliest requested startup boundary avoids inventing a
+        # different carry-in rule while still removing unrelated history.
+        side_start = min(coverage_starts.values())
+        all_files = sorted(
+            (path for path in source_root.rglob("*") if _is_data_file(path)),
+            key=lambda path: path.relative_to(source_root).as_posix(),
+        )
+        for pair in pairs:
+            matches = [
+                path
+                for path in all_files
+                if _matches_futures_funding_input(path, pair)
+            ]
+            if len(matches) != 2:
+                raise SpecValidationError(
+                    f"expected funding and mark files for {pair}, "
+                    f"found {len(matches)}"
+                )
+            for path in matches:
+                if path not in seen:
+                    selected.append((path, side_start))
+                    seen.add(path)
+
+    destination_root.mkdir(parents=True, exist_ok=True)
+    records: list[dict[str, Any]] = []
+    for source, required_start_ms in sorted(
+        selected,
+        key=lambda item: item[0].relative_to(source_root).as_posix(),
+    ):
+        frame = _read_candle_frame(source)
+        sliced = frame.filter(
+            (pl.col("date") >= _utc_datetime(required_start_ms))
+            # Freqtrade processes the stop-boundary candle for trades that are
+            # already open, while refusing new entries there. Dropping this
+            # row changes force-exit time and price even for a one-day probe.
+            & (pl.col("date") <= _utc_datetime(end_ms))
+        )
+        if sliced.height == 0:
+            raise SpecValidationError(
+                f"compact candle range is empty for {source}"
+            )
+        relative = source.relative_to(source_root)
+        destination = destination_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.suffix.lower() == ".feather":
+            sliced.write_ipc(destination, compression="uncompressed")
+        else:
+            sliced.write_parquet(destination)
+        records.append(
+            {
+                "path": relative.as_posix(),
+                "source_rows": frame.height,
+                "rows": sliced.height,
+                "bytes": destination.stat().st_size,
+                "sha256": sha256_file(destination),
+            }
+        )
+    return {
+        "schema_version": "1.0.0",
+        "timerange": timerange,
+        "startup_candles": startup_candles,
+        "pairs": pairs,
+        "timeframes": timeframes,
+        "trading_mode": trading_mode,
+        "files": records,
+    }
+
+
+def inspect_candle_quality(path: str | Path, *, timeframe: str) -> dict[str, Any]:
+    """Detect byte-level data acquisition defects while recording natural gaps.
+
+    Missing exchange candles are not synthesized.  They are retained as sealed
+    interval anomalies so official Freqtrade and the native loader consume the
+    same rows.  Duplicate or reversed timestamps are rejected by the release
+    selector because their normalization order is not a stable market input.
+    """
+    source = Path(path).resolve()
+    try:
+        if source.suffix.lower() == ".feather":
+            frame = pl.read_ipc(source, columns=["date"], memory_map=False, rechunk=False)
+        else:
+            frame = pl.read_parquet(source, columns=["date"], rechunk=False)
+    except Exception as exc:
+        raise SpecValidationError(f"cannot inspect candle dates from {source}: {exc}") from exc
+    if frame.height == 0:
+        raise SpecValidationError(f"candle file is empty: {source}")
+    dates = _date_milliseconds(frame.get_column("date"), source)
+    intervals = dates.diff().drop_nulls()
+    expected = timeframe_milliseconds(timeframe)
+    duplicate_count = int((intervals == 0).sum())
+    out_of_order_count = int((intervals < 0).sum())
+    gaps = intervals.filter(intervals > expected)
+    gap_values = [int(value) for value in gaps.to_list()]
+    return {
+        "rows": frame.height,
+        "duplicate_timestamp_count": duplicate_count,
+        "out_of_order_timestamp_count": out_of_order_count,
+        "internal_gap_count": len(gap_values),
+        "missing_candle_count": sum((value // expected) - 1 for value in gap_values),
+        "maximum_gap_ms": max(gap_values, default=0),
+    }
+
+
 def _data_request(
     config: dict[str, Any],
     timerange: str,
@@ -579,28 +808,43 @@ def _file_coverage(path: Path) -> dict[str, int]:
         raise SpecValidationError(f"cannot read candle dates from {path}: {exc}") from exc
     if frame.height == 0:
         raise SpecValidationError(f"candle file is empty: {path}")
-    dates = frame.get_column("date")
-    raw_minimum = dates.cast(pl.Int64).min()
-    raw_maximum = dates.cast(pl.Int64).max()
+    dates = _date_milliseconds(frame.get_column("date"), path)
+    raw_minimum = dates.min()
+    raw_maximum = dates.max()
     if not isinstance(raw_minimum, int) or not isinstance(raw_maximum, int):
-        raise SpecValidationError(f"candle date column is not datetime: {path}")
-    time_unit = getattr(dates.dtype, "time_unit", None)
-    if time_unit == "ns":
-        minimum_ms, maximum_ms = raw_minimum // 1_000_000, raw_maximum // 1_000_000
-    elif time_unit == "us":
-        minimum_ms, maximum_ms = raw_minimum // 1_000, raw_maximum // 1_000
-    elif time_unit == "ms":
-        minimum_ms, maximum_ms = raw_minimum, raw_maximum
-    elif dates.dtype == pl.Date:
-        minimum_ms = raw_minimum * 86_400_000
-        maximum_ms = raw_maximum * 86_400_000
-    else:
         raise SpecValidationError(f"candle date column is not datetime: {path}")
     return {
         "rows": frame.height,
-        "start_timestamp_ms": minimum_ms,
-        "end_timestamp_ms": maximum_ms,
+        "start_timestamp_ms": raw_minimum,
+        "end_timestamp_ms": raw_maximum,
     }
+
+
+def _read_candle_frame(path: Path) -> pl.DataFrame:
+    try:
+        if path.suffix.lower() == ".feather":
+            return pl.read_ipc(path, memory_map=False, rechunk=False)
+        return pl.read_parquet(path, rechunk=False)
+    except Exception as exc:
+        raise SpecValidationError(f"cannot read candle data from {path}: {exc}") from exc
+
+
+def _utc_datetime(timestamp_ms: int) -> datetime:
+    return datetime.fromtimestamp(timestamp_ms / 1000, tz=UTC)
+
+
+def _date_milliseconds(dates: pl.Series, path: Path) -> pl.Series:
+    raw = dates.cast(pl.Int64)
+    time_unit = getattr(dates.dtype, "time_unit", None)
+    if time_unit == "ns":
+        return raw // 1_000_000
+    elif time_unit == "us":
+        return raw // 1_000
+    elif time_unit == "ms":
+        return raw
+    elif dates.dtype == pl.Date:
+        return raw * 86_400_000
+    raise SpecValidationError(f"candle date column is not datetime: {path}")
 
 
 def _matches_base_candles(path: Path, pair: str, timeframe: str, trading_mode: str) -> bool:

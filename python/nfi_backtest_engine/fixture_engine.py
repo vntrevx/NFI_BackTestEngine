@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 import polars as pl
 
+from .branch_coverage import validate_fixture_coverage
 from .canonical import canonical_decimal, read_json, write_json
 from .engine_runtime import run_engine
 from .errors import BenchmarkError, StrategyAnalysisError
@@ -40,6 +41,15 @@ def run_fixture_engine(
         manifest_file,
         validate_trace_semantics=False,
     )
+    if manifest["schema_version"] == "3.0.0":
+        return _run_x7_fixture_engine(
+            manifest_file,
+            manifest,
+            output_directory=output_directory,
+            profile_path=profile_path,
+            timeout_seconds=timeout_seconds,
+            verification_level=verification_level,
+        )
     strategy_analysis = analyze_strategy(
         manifest_file.parent / _one_input(manifest, "strategy")["path"],
         class_name=manifest["freqtrade"]["strategy"],
@@ -172,6 +182,151 @@ def run_fixture_engine(
             ),
         },
         "complete": parity_equal,
+    }
+    write_json(output / "run.json", report)
+    return report
+
+
+def _run_x7_fixture_engine(
+    manifest_file: Path,
+    manifest: dict[str, Any],
+    *,
+    output_directory: str | Path,
+    profile_path: str | Path | None,
+    timeout_seconds: int | None,
+    verification_level: VerificationLevel,
+) -> dict[str, Any]:
+    """Execute a branch-reaching X7 fixture through the real research pipeline."""
+    from .research_runner import run_research_backtest
+
+    output = Path(output_directory).resolve()
+    if output.exists() and any(output.iterdir()):
+        raise BenchmarkError(f"engine output directory must be empty: {output}")
+    output.mkdir(parents=True, exist_ok=True)
+    root = manifest_file.parent
+    strategy_input = _one_input(manifest, "strategy")
+    config_input = _one_input(manifest, "config")
+    market_input = _one_input(manifest, "market_metadata")
+    config = read_json(root / config_input["path"])
+    pairs = config["exchange"]["pair_whitelist"]
+    research_output = output / "research"
+    selected_profile = (
+        Path(profile_path).resolve()
+        if profile_path is not None
+        else output / "execution-profile.json"
+    )
+    research = run_research_backtest(
+        strategy_path=root / strategy_input["path"],
+        class_name=manifest["freqtrade"]["strategy"],
+        config_path=root / config_input["path"],
+        data_directory=root / "inputs",
+        timerange=manifest["freqtrade"]["timerange"],
+        output_directory=research_output,
+        pairs=pairs,
+        workers=1,
+        cache_directory=output / "vector-cache",
+        profile_path=selected_profile,
+        resume=False,
+        prepare_only=False,
+        download_missing=False,
+        market_metadata_path=root / market_input["path"],
+        download_market_metadata=False,
+        recalibrate=True,
+        history_coverage_policy="strict",
+        trace_engine_events=verification_level == "full",
+    )
+    surface_path = research_output / "trade-surface.json"
+    expected_path = root / manifest["artifacts"]["trade_surface"]["path"]
+    trade_difference = (
+        first_difference(read_json(expected_path), read_json(surface_path))
+        if surface_path.is_file()
+        else None
+    )
+    trade_equal = research["complete"] and surface_path.is_file() and trade_difference is None
+    state_parity: dict[str, Any] = {
+        "checked": False,
+        "equal": None,
+        "difference": None,
+        "expected": None,
+        "actual": None,
+    }
+    actual_trace_path: Path | None = None
+    state_difference = None
+    if verification_level == "full" and research["complete"]:
+        engine_events = research_output / "engine-events.jsonl"
+        expected_trace_path = (
+            root / manifest["artifacts"]["state_projection"]["path"]
+            if "state_projection" in manifest["artifacts"]
+            else output / "reference-state-projected.trace"
+        )
+        if "state_projection" not in manifest["artifacts"]:
+            project_reference_trace(
+                manifest_file,
+                expected_trace_path,
+                manifest=manifest,
+            )
+        actual_trace_path = output / "engine-state-projected.trace"
+        project_engine_events(
+            manifest_file,
+            engine_events,
+            actual_trace_path,
+            manifest=manifest,
+        )
+        state_difference = first_trace_difference(expected_trace_path, actual_trace_path)
+        state_parity = {
+            "checked": True,
+            "equal": state_difference is None,
+            "difference": _trace_difference_document(state_difference),
+            "expected": {
+                "path": str(expected_trace_path),
+                **trace_summary(expected_trace_path),
+            },
+            "actual": {
+                "path": str(actual_trace_path),
+                **trace_summary(actual_trace_path),
+            },
+        }
+    parity_equal = trade_equal and state_parity["equal"] is not False
+    coverage = validate_fixture_coverage(manifest_file, manifest)
+    report = {
+        "schema_version": "1.1.0",
+        "fixture_id": manifest["fixture_id"],
+        "verification_level": verification_level,
+        "execution": (
+            research["result"]["execution"]
+            if isinstance(research.get("result"), dict)
+            else {
+                "peak_rss_bytes": None,
+                "exit_code": 1,
+            }
+        ),
+        "strategy": {
+            "class_name": manifest["freqtrade"]["strategy"],
+            "source_sha256": strategy_input["sha256"],
+            "static_safe": research["capability"]["strategy_static_safe"],
+            "diagnostic_count": len(research["capability"]["blockers"]),
+        },
+        "parity": {
+            "equal": parity_equal,
+            "trade_surface": {
+                "equal": trade_equal,
+                "difference": _difference_document(trade_difference),
+            },
+            "state_trace": state_parity,
+        },
+        "branch_coverage": coverage,
+        "research_report": _artifact_record(research_output / "run.json"),
+        "artifacts": {
+            "trade_surface": (
+                _artifact_record(surface_path) if surface_path.is_file() else None
+            ),
+            "engine_state_projection": (
+                _artifact_record(actual_trace_path)
+                if actual_trace_path is not None
+                else None
+            ),
+        },
+        "complete": parity_equal and coverage["met"],
     }
     write_json(output / "run.json", report)
     return report

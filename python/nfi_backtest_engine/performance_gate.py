@@ -18,6 +18,8 @@ from .errors import BenchmarkError
 from .fixture import sha256_file, validate_fixture
 from .hardware import current_resource_limits, inspect_hardware, load_execution_profile
 from .product_contract import (
+    CERTIFICATION_SPREAD_THRESHOLD,
+    MAX_CERTIFICATION_REPETITIONS,
     MIN_RELEASE_BACKTEST_DAYS,
     MIN_RELEASE_PAIR_COUNT,
     TARGET_SCREENING_SPEEDUP,
@@ -34,12 +36,23 @@ def run_performance_gate(
     verification_level: PerformanceLevel = "full",
     repetitions: int = 1,
     timeout_seconds: int = 600,
+    warmup_runs: int = 0,
+    adaptive: bool = False,
+    max_repetitions: int = MAX_CERTIFICATION_REPETITIONS,
+    spread_threshold: float = CERTIFICATION_SPREAD_THRESHOLD,
+    alternate_order: bool = False,
 ) -> dict[str, Any]:
     """Measure fresh CLI processes and retain complete proof artifacts."""
     if verification_level not in {"quick", "full"}:
         raise BenchmarkError(f"unsupported verification level: {verification_level!r}")
     if repetitions < 1:
         raise BenchmarkError("performance repetitions must be at least 1")
+    if warmup_runs < 0:
+        raise BenchmarkError("performance warmup count must be non-negative")
+    if max_repetitions < repetitions:
+        raise BenchmarkError("maximum repetitions cannot be less than initial repetitions")
+    if not 0 <= spread_threshold <= 1:
+        raise BenchmarkError("performance spread threshold must be between 0 and 1")
     manifest_file = Path(manifest_path).resolve()
     manifest = validate_fixture(manifest_file)
     output = Path(output_directory).resolve()
@@ -50,56 +63,57 @@ def run_performance_gate(
     profile = load_execution_profile(profile_file) if profile_file is not None else None
     build = build_engine()
 
-    engine_runs = []
-    reference_runs = []
-    for index in range(repetitions):
-        run_number = index + 1
-        engine_output = output / f"engine-{run_number:02d}"
-        engine_measurement = _measure_cli(
-            [
-                "engine",
-                "fixture",
-                str(manifest_file),
-                "--output-dir",
-                str(engine_output),
-                "--level",
-                verification_level,
-                "--timeout",
-                str(timeout_seconds),
-                *(["--profile", str(profile_file)] if profile_file is not None else []),
-            ],
-            output / f"engine-{run_number:02d}.stdout.log",
-            output / f"engine-{run_number:02d}.stderr.log",
-            timeout_seconds=timeout_seconds,
-        )
-        engine_report_path = engine_output / "run.json"
-        engine_measurement["report"] = (
-            read_json(engine_report_path) if engine_report_path.is_file() else None
-        )
-        engine_runs.append(engine_measurement)
+    warmups: dict[str, list[dict[str, Any]]] = {"engine": [], "reference": []}
+    for index in range(warmup_runs):
+        for lane in ("engine", "reference"):
+            warmups[lane].append(
+                _measure_fixture_lane(
+                    lane,
+                    manifest_file=manifest_file,
+                    output=output / "warmups",
+                    run_number=index + 1,
+                    profile_file=profile_file,
+                    verification_level=verification_level,
+                    timeout_seconds=timeout_seconds,
+                )
+            )
 
-        reference_output = output / f"reference-{run_number:02d}"
-        reference_measurement = _measure_cli(
-            [
-                "reference",
-                "run",
-                str(manifest_file),
-                "--output-dir",
-                str(reference_output),
-                "--trace",
-                "full" if verification_level == "full" else "off",
-                "--timeout",
-                str(timeout_seconds),
-            ],
-            output / f"reference-{run_number:02d}.stdout.log",
-            output / f"reference-{run_number:02d}.stderr.log",
-            timeout_seconds=timeout_seconds,
+    engine_runs: list[dict[str, Any]] = []
+    reference_runs: list[dict[str, Any]] = []
+    measured_orders: list[list[str]] = []
+    target_repetitions = repetitions
+    while len(engine_runs) < target_repetitions:
+        run_number = len(engine_runs) + 1
+        order = (
+            ["reference", "engine"]
+            if alternate_order and run_number % 2 == 0
+            else ["engine", "reference"]
         )
-        reference_report_path = reference_output / "run.json"
-        reference_measurement["report"] = (
-            read_json(reference_report_path) if reference_report_path.is_file() else None
-        )
-        reference_runs.append(reference_measurement)
+        measured_orders.append(order)
+        measurements: dict[str, dict[str, Any]] = {}
+        for lane in order:
+            measurements[lane] = _measure_fixture_lane(
+                lane,
+                manifest_file=manifest_file,
+                output=output,
+                run_number=run_number,
+                profile_file=profile_file,
+                verification_level=verification_level,
+                timeout_seconds=timeout_seconds,
+            )
+        engine_runs.append(measurements["engine"])
+        reference_runs.append(measurements["reference"])
+        if (
+            adaptive
+            and len(engine_runs) == repetitions
+            and repetitions < max_repetitions
+            and max(
+                _relative_spread(engine_runs),
+                _relative_spread(reference_runs),
+            )
+            > spread_threshold
+        ):
+            target_repetitions = max_repetitions
 
     engine_summary = _measurement_summary(engine_runs, engine=True)
     reference_summary = _measurement_summary(reference_runs, engine=False)
@@ -118,6 +132,7 @@ def run_performance_gate(
         run["exit_code"] == 0 and run["report"] is not None and run["report"]["complete"]
         for run in [*engine_runs, *reference_runs]
     )
+    determinism = _determinism_assessment(engine_runs, reference_runs)
     speed_target_met = speedup >= TARGET_SCREENING_SPEEDUP
     memory_target_met = engine_summary["peak_rss_bytes"]["maximum"] <= memory_limit
     complete, release_certified = _certification_verdict(
@@ -125,6 +140,7 @@ def run_performance_gate(
         parity=parity_complete,
         speed=speed_target_met,
         memory=memory_target_met,
+        determinism=determinism["met"],
     )
     report = {
         "schema_version": "1.0.0",
@@ -133,8 +149,17 @@ def run_performance_gate(
         "manifest_path": str(manifest_file),
         "manifest_sha256": sha256_file(manifest_file),
         "verification_level": verification_level,
-        "repetitions": repetitions,
-        "measurement_order": "engine_then_reference",
+        "repetitions": len(engine_runs),
+        "measurement": {
+            "warmup_runs": warmup_runs,
+            "initial_repetitions": repetitions,
+            "maximum_repetitions": max_repetitions,
+            "adaptive": adaptive,
+            "spread_threshold": spread_threshold,
+            "orders": measured_orders,
+            "engine_relative_spread": _relative_spread(engine_runs),
+            "reference_relative_spread": _relative_spread(reference_runs),
+        },
         "hardware": measured_hardware,
         "execution_profile": (
             {
@@ -147,10 +172,12 @@ def run_performance_gate(
         ),
         "engine_build": build,
         "engine": {
+            "warmups": warmups["engine"],
             "runs": engine_runs,
             "summary": engine_summary,
         },
         "reference": {
+            "warmups": warmups["reference"],
             "runs": reference_runs,
             "summary": reference_summary,
         },
@@ -173,6 +200,7 @@ def run_performance_gate(
                 "observed_peak_bytes": engine_summary["peak_rss_bytes"]["maximum"],
                 "met": memory_target_met,
             },
+            "determinism": determinism,
         },
         "claim_scope": representative,
         "release_certified": release_certified,
@@ -188,10 +216,116 @@ def _certification_verdict(
     parity: bool,
     speed: bool,
     memory: bool,
+    determinism: bool = True,
 ) -> tuple[bool, bool]:
     """Separate a completed diagnostic from release-grade certification."""
-    complete = parity and memory and (speed if representative else True)
+    complete = parity and memory and determinism and (speed if representative else True)
     return complete, representative and complete
+
+
+def _measure_fixture_lane(
+    lane: str,
+    *,
+    manifest_file: Path,
+    output: Path,
+    run_number: int,
+    profile_file: Path | None,
+    verification_level: PerformanceLevel,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    """Measure one fresh lane while keeping warmups and measured runs identical."""
+    output.mkdir(parents=True, exist_ok=True)
+    lane_output = output / f"{lane}-{run_number:02d}"
+    if lane == "engine":
+        arguments = [
+            "engine",
+            "fixture",
+            str(manifest_file),
+            "--output-dir",
+            str(lane_output),
+            "--level",
+            verification_level,
+            "--timeout",
+            str(timeout_seconds),
+            *(["--profile", str(profile_file)] if profile_file is not None else []),
+        ]
+    elif lane == "reference":
+        arguments = [
+            "reference",
+            "run",
+            str(manifest_file),
+            "--output-dir",
+            str(lane_output),
+            "--trace",
+            "full" if verification_level == "full" else "off",
+            "--timeout",
+            str(timeout_seconds),
+        ]
+    else:
+        raise BenchmarkError(f"unsupported performance lane: {lane!r}")
+    measurement = _measure_cli(
+        arguments,
+        output / f"{lane}-{run_number:02d}.stdout.log",
+        output / f"{lane}-{run_number:02d}.stderr.log",
+        timeout_seconds=timeout_seconds,
+    )
+    report_path = lane_output / "run.json"
+    measurement["report"] = read_json(report_path) if report_path.is_file() else None
+    measurement["result_sha256"] = _result_sha256(measurement["report"], lane=lane)
+    return measurement
+
+
+def _result_sha256(report: Any, *, lane: str) -> str | None:
+    if not isinstance(report, dict):
+        return None
+    record: Any
+    if lane == "engine":
+        artifacts = report.get("artifacts")
+        record = artifacts.get("trade_surface") if isinstance(artifacts, dict) else None
+    else:
+        record = report.get("trade_surface")
+    value = record.get("sha256") if isinstance(record, dict) else None
+    return value if isinstance(value, str) else None
+
+
+def _determinism_assessment(
+    engine_runs: list[dict[str, Any]],
+    reference_runs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    raw_engine_hashes = [run.get("result_sha256") for run in engine_runs]
+    raw_reference_hashes = [run.get("result_sha256") for run in reference_runs]
+    valid = all(
+        isinstance(value, str)
+        for value in [*raw_engine_hashes, *raw_reference_hashes]
+    )
+    engine_hashes = [
+        value for value in raw_engine_hashes if isinstance(value, str)
+    ]
+    reference_hashes = [
+        value for value in raw_reference_hashes if isinstance(value, str)
+    ]
+    engine_unique = sorted(set(engine_hashes)) if valid else []
+    reference_unique = sorted(set(reference_hashes)) if valid else []
+    met = (
+        valid
+        and len(engine_unique) == 1
+        and len(reference_unique) == 1
+        and engine_unique == reference_unique
+    )
+    return {
+        "met": met,
+        "engine_result_sha256": engine_unique,
+        "reference_result_sha256": reference_unique,
+        "rule": "every measured engine and reference trade surface must have one identical SHA-256",
+    }
+
+
+def _relative_spread(runs: list[dict[str, Any]]) -> float:
+    values = [float(run["wall_time_seconds"]) for run in runs]
+    if not values:
+        return 0.0
+    median = statistics.median(values)
+    return (max(values) - min(values)) / median if median > 0 else 0.0
 
 
 def _measure_cli(
@@ -222,11 +356,7 @@ def _measure_cli(
             )
             if (time.perf_counter_ns() - started_ns) / 1_000_000_000 > timeout_seconds:
                 timed_out = True
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
+                _terminate_process_tree(root_process)
                 break
             time.sleep(0.01)
         peak_rss_bytes = max(peak_rss_bytes, _process_tree_rss(root_process))
@@ -240,6 +370,22 @@ def _measure_cli(
         "stdout": _artifact(stdout_path),
         "stderr": _artifact(stderr_path),
     }
+
+
+def measure_cli_process(
+    arguments: list[str],
+    stdout_path: str | Path,
+    stderr_path: str | Path,
+    *,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    """Measure an installed CLI process and its complete descendant RSS tree."""
+    return _measure_cli(
+        arguments,
+        Path(stdout_path),
+        Path(stderr_path),
+        timeout_seconds=timeout_seconds,
+    )
 
 
 def _process_tree_rss(root_process: psutil.Process) -> int:
@@ -256,6 +402,33 @@ def _process_tree_rss(root_process: psutil.Process) -> int:
     return total
 
 
+def _terminate_process_tree(root_process: psutil.Process) -> None:
+    """Stop a timed-out command and every descendant it created.
+
+    Backtests may launch worker processes or a Docker CLI child. Terminating only
+    the Python parent would leave those processes consuming memory and poisoning
+    later repetitions, so descendants are captured before termination and killed
+    if they do not exit within the grace period.
+    """
+    try:
+        descendants = root_process.children(recursive=True)
+    except psutil.Error:
+        descendants = []
+    processes = [*descendants, root_process]
+    for process in reversed(processes):
+        try:
+            process.terminate()
+        except psutil.Error:
+            continue
+    _, alive = psutil.wait_procs(processes, timeout=5)
+    for process in alive:
+        try:
+            process.kill()
+        except psutil.Error:
+            continue
+    psutil.wait_procs(alive, timeout=5)
+
+
 def _measurement_summary(
     runs: list[dict[str, Any]],
     *,
@@ -263,24 +436,30 @@ def _measurement_summary(
 ) -> dict[str, Any]:
     wall_times = [run["wall_time_seconds"] for run in runs]
     pipeline_peaks = [run["peak_rss_bytes"] for run in runs]
-    core_peaks = []
+    core_peaks_by_run: list[int | None] = []
     if engine:
-        core_peaks = [
-            run["report"]["execution"]["peak_rss_bytes"]
-            for run in runs
-            if run["report"] is not None
-            and run["report"]["execution"]["peak_rss_bytes"] is not None
-        ]
+        for run in runs:
+            report = run.get("report")
+            execution = report.get("execution") if isinstance(report, dict) else None
+            peak = execution.get("peak_rss_bytes") if isinstance(execution, dict) else None
+            core_peaks_by_run.append(peak if isinstance(peak, int) else None)
     else:
-        core_peaks = [
-            run["report"]["container_peak_memory_bytes"]
-            for run in runs
-            if run["report"] is not None
-            and run["report"]["container_peak_memory_bytes"] is not None
-        ]
+        for run in runs:
+            report = run.get("report")
+            peak = (
+                report.get("container_peak_memory_bytes")
+                if isinstance(report, dict)
+                else None
+            )
+            core_peaks_by_run.append(peak if isinstance(peak, int) else None)
+    core_peaks = [peak for peak in core_peaks_by_run if peak is not None]
     combined_peaks = [
-        max(pipeline_peak, core_peaks[index] if index < len(core_peaks) else 0)
-        for index, pipeline_peak in enumerate(pipeline_peaks)
+        max(pipeline_peak, core_peak or 0)
+        for pipeline_peak, core_peak in zip(
+            pipeline_peaks,
+            core_peaks_by_run,
+            strict=True,
+        )
     ]
     return {
         "wall_time_seconds": {

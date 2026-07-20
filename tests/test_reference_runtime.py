@@ -182,6 +182,24 @@ def test_container_memory_assessment_distinguishes_headroom_and_oom() -> None:
     assert exhausted["oom_kill_count"] == 1
 
 
+def test_cgroup_io_stat_parser_preserves_device_counters(tmp_path: Path) -> None:
+    source = tmp_path / "io.stat"
+    source.write_text(
+        "8:0 rbytes=1024 wbytes=2048 rios=3 wios=4\n",
+        encoding="utf-8",
+    )
+
+    assert reference_runtime._read_io_stat(source) == [
+        {
+            "device": "8:0",
+            "counters": {
+                "rbytes": 1024,
+                "wbytes": 2048,
+                "rios": 3,
+                "wios": 4,
+            },
+        }
+    ]
 def test_reference_leverage_tiers_are_loaded_from_pinned_offline_image(
     monkeypatch,
     tmp_path: Path,

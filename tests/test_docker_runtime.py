@@ -10,6 +10,7 @@ from nfi_backtest_engine.docker_resources import (
     GIB,
     derive_docker_policy,
     inspect_docker_daemon,
+    inspect_docker_swap_capacity,
 )
 from nfi_backtest_engine.docker_runtime import (
     cleanup_stopped_managed_containers,
@@ -83,6 +84,39 @@ def test_daemon_policy_reserves_vm_headroom_without_mac_specific_constants() -> 
     assert policy["container_memory_limit_bytes"] == 24 * GIB - (24 * GIB // 5)
     assert policy["memory_limit_enforced"]
     assert policy["swap_limit_enforced"]
+    assert policy["swap_mode"] == "disabled"
+    assert policy["container_swap_limit_bytes"] == 0
+    assert (
+        policy["container_memory_swap_limit_bytes"]
+        == policy["container_memory_limit_bytes"]
+    )
+
+
+def test_certification_policy_uses_measured_daemon_swap_without_changing_ram_cap() -> None:
+    policy = derive_docker_policy(
+        _daemon(total_gib=24),
+        memory_cap_bytes=18 * GIB,
+        swap_mode="daemon",
+        daemon_swap_bytes=32 * GIB,
+        swap_cap_bytes=20 * GIB,
+    )
+
+    assert policy["container_memory_limit_bytes"] == 18 * GIB
+    assert policy["container_swap_limit_bytes"] == 20 * GIB
+    assert policy["container_memory_swap_limit_bytes"] == 38 * GIB
+
+
+def test_certification_swap_requires_measured_supported_capacity() -> None:
+    with pytest.raises(SpecValidationError, match="requires measured"):
+        derive_docker_policy(_daemon(), swap_mode="daemon")
+    with pytest.raises(SpecValidationError, match="exposes no swap"):
+        derive_docker_policy(_daemon(), swap_mode="daemon", daemon_swap_bytes=0)
+    with pytest.raises(SpecValidationError, match="does not support"):
+        derive_docker_policy(
+            {**_daemon(), "swap_limit_supported": False},
+            swap_mode="daemon",
+            daemon_swap_bytes=GIB,
+        )
 
 
 def test_explicit_docker_cap_can_only_reduce_the_automatic_budget() -> None:
@@ -156,6 +190,70 @@ def test_managed_prefix_labels_limits_and_reclaims_the_exact_container(
         assert lease["cleaned_stopped_containers"] == ["old-container"]
 
     assert len(removed) == 1
+
+
+def test_managed_certification_prefix_uses_total_ram_and_swap_limit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(docker_runtime, "_LOCK_PATH", tmp_path / "runtime.lock")
+    monkeypatch.setattr(docker_runtime, "docker_executable", lambda: "docker")
+    monkeypatch.setattr(
+        docker_runtime,
+        "inspect_docker_daemon",
+        lambda **_kwargs: _daemon(),
+    )
+    monkeypatch.setattr(
+        docker_runtime,
+        "inspect_docker_swap_capacity",
+        lambda **_kwargs: 12 * GIB,
+    )
+    monkeypatch.setattr(
+        docker_runtime,
+        "cleanup_stopped_managed_containers",
+        lambda **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        docker_runtime,
+        "list_managed_containers",
+        lambda **_kwargs: [],
+    )
+    monkeypatch.setattr(docker_runtime, "_force_remove_cid", lambda **_kwargs: None)
+
+    with managed_docker_run(
+        docker_config=tmp_path,
+        role="reference",
+        memory_cap_bytes=8 * GIB,
+        swap_mode="daemon",
+        swap_cap_bytes=6 * GIB,
+        swap_probe_image="freqtrade@test",
+    ) as lease:
+        prefix = lease["command_prefix"]
+        assert prefix[prefix.index("--memory") + 1] == str(8 * GIB)
+        assert prefix[prefix.index("--memory-swap") + 1] == str(14 * GIB)
+
+
+def test_swap_probe_reads_capacity_from_the_daemon_container(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: list[str] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured.extend(command)
+        return subprocess.CompletedProcess(command, 0, str(32 * GIB) + "\n", "")
+
+    monkeypatch.setattr(docker_resources, "docker_executable", lambda: "docker")
+    monkeypatch.setattr(docker_resources.subprocess, "run", fake_run)
+
+    capacity = inspect_docker_swap_capacity(
+        docker_config=tmp_path,
+        image="freqtrade@test",
+    )
+
+    assert capacity == 32 * GIB
+    assert "--network" in captured
+    assert "none" in captured
 
 
 def test_managed_run_refuses_an_existing_owned_container(

@@ -7,6 +7,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .branch_coverage import (
+    COVERAGE_REPORT_VERSION,
+    configured_protection_methods,
+    derive_fixture_observed,
+)
 from .canonical import read_json, write_json
 from .errors import SpecValidationError
 from .fixture import fixture_input_sha256, sha256_file, validate_fixture
@@ -23,8 +28,10 @@ INPUT_ROLES = {
     "mark_candles",
     "pairlist",
     "market_metadata",
+    "reference_market_metadata",
     "auxiliary",
 }
+CaptureInput = tuple[str, str | Path] | tuple[str, str | Path, str]
 
 
 def stage_fixture_v2(
@@ -35,7 +42,7 @@ def stage_fixture_v2(
     fixture_kind: str,
     strategy: str | Path,
     config: str | Path,
-    inputs: list[tuple[str, str | Path]],
+    inputs: list[CaptureInput],
 ) -> dict[str, Any]:
     """Copy immutable inputs first so the tracer can bind to their aggregate identity."""
     destination = Path(root).resolve()
@@ -50,14 +57,18 @@ def stage_fixture_v2(
         _copy_input(Path(config), destination, "config", "inputs/config.json"),
     ]
     role_counts: dict[str, int] = {}
-    for role, source_value in inputs:
+    for input_record in inputs:
+        role, source_value = input_record[:2]
         if role not in INPUT_ROLES:
             raise SpecValidationError(f"unsupported capture input role: {role}")
         source = Path(source_value)
         index = role_counts.get(role, 0)
         role_counts[role] = index + 1
-        filename = source.name if index == 0 else f"{index:03d}-{source.name}"
-        relative = f"inputs/{role}/{filename}"
+        if len(input_record) == 3:
+            relative = _capture_relative_path(input_record[2])
+        else:
+            filename = source.name if index == 0 else f"{index:03d}-{source.name}"
+            relative = f"inputs/{role}/{filename}"
         references.append(_copy_input(source, destination, role, relative))
 
     if not any(item["role"] == "candles" for item in references):
@@ -78,6 +89,40 @@ def stage_fixture_v2(
     return stage
 
 
+def stage_fixture_v3(
+    root: str | Path,
+    *,
+    fixture_id: str,
+    description: str,
+    probe_kind: str,
+    strategy_provenance: dict[str, Any],
+    required_coverage: dict[str, Any],
+    strategy: str | Path,
+    config: str | Path,
+    inputs: list[CaptureInput],
+) -> dict[str, Any]:
+    """Stage immutable X7 probe inputs and bind source provenance before execution."""
+    stage = stage_fixture_v2(
+        root,
+        fixture_id=fixture_id,
+        description=description,
+        fixture_kind="x7-branch-probe",
+        strategy=strategy,
+        config=config,
+        inputs=inputs,
+    )
+    stage.update(
+        {
+            "schema_version": "capture-stage-v2",
+            "probe_kind": probe_kind,
+            "strategy_provenance": strategy_provenance,
+            "required_coverage": required_coverage,
+        }
+    )
+    write_json(Path(root).resolve() / STAGE_FILE, stage)
+    return stage
+
+
 def finalize_fixture_v2(
     root: str | Path,
     *,
@@ -88,12 +133,57 @@ def finalize_fixture_v2(
     measurement: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Copy artifacts, write manifest v2, and validate every byte and trace binding."""
+    return _finalize_fixture(
+        root,
+        freqtrade_result=freqtrade_result,
+        trade_surface=trade_surface,
+        state_trace=state_trace,
+        freqtrade=freqtrade,
+        measurement=measurement,
+        manifest_version="2.0.0",
+    )
+
+
+def finalize_fixture_v3(
+    root: str | Path,
+    *,
+    freqtrade_result: str | Path,
+    trade_surface: str | Path,
+    state_trace: str | Path,
+    freqtrade: dict[str, Any],
+    measurement: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Finalize a v3 probe and compute branch coverage from official artifacts."""
+    return _finalize_fixture(
+        root,
+        freqtrade_result=freqtrade_result,
+        trade_surface=trade_surface,
+        state_trace=state_trace,
+        freqtrade=freqtrade,
+        measurement=measurement,
+        manifest_version="3.0.0",
+    )
+
+
+def _finalize_fixture(
+    root: str | Path,
+    *,
+    freqtrade_result: str | Path,
+    trade_surface: str | Path,
+    state_trace: str | Path,
+    freqtrade: dict[str, Any],
+    measurement: dict[str, Any] | None,
+    manifest_version: str,
+) -> dict[str, Any]:
     destination = Path(root).resolve()
     stage_path = destination / STAGE_FILE
     if not stage_path.is_file():
         raise SpecValidationError(f"capture stage does not exist: {stage_path}")
     stage = read_json(stage_path)
-    if stage.get("schema_version") != "capture-stage-v1":
+    expected_stage_version = (
+        "capture-stage-v2" if manifest_version == "3.0.0" else "capture-stage-v1"
+    )
+    if stage.get("schema_version") != expected_stage_version:
         raise SpecValidationError(f"unsupported capture stage: {stage.get('schema_version')!r}")
 
     artifacts = {
@@ -125,8 +215,8 @@ def finalize_fixture_v2(
                 f"captured trace {field} mismatch: expected {expected}, actual {trace[field]}"
             )
 
-    manifest = {
-        "schema_version": "2.0.0",
+    manifest: dict[str, Any] = {
+        "schema_version": manifest_version,
         "fixture_id": stage["fixture_id"],
         "description": stage["description"],
         "fixture_kind": stage["fixture_kind"],
@@ -137,6 +227,45 @@ def finalize_fixture_v2(
         "artifacts": artifacts,
         "measurement": measurement or _default_measurement(),
     }
+    if manifest_version == "3.0.0":
+        coverage_path = destination / "artifacts/coverage-report.json"
+        protection_methods = configured_protection_methods(
+            destination
+            / next(
+                item["path"] for item in stage["inputs"] if item["role"] == "strategy"
+            ),
+            destination
+            / next(
+                item["path"] for item in stage["inputs"] if item["role"] == "config"
+            ),
+            class_name=freqtrade["strategy"],
+        )
+        coverage = {
+            "schema_version": COVERAGE_REPORT_VERSION,
+            "source": "official-freqtrade-observer",
+            "bindings": {
+                "trade_surface_sha256": artifacts["trade_surface"]["sha256"],
+                "state_trace_sha256": artifacts["state_trace"]["sha256"],
+            },
+            "observed": derive_fixture_observed(
+                surface_document,
+                destination / artifacts["state_trace"]["path"],
+                configured_protection_methods=protection_methods,
+            ),
+        }
+        write_json(coverage_path, coverage)
+        artifacts["coverage_report"] = {
+            "path": "artifacts/coverage-report.json",
+            "sha256": sha256_file(coverage_path),
+            "bytes": coverage_path.stat().st_size,
+        }
+        manifest.update(
+            {
+                "probe_kind": stage["probe_kind"],
+                "strategy_provenance": stage["strategy_provenance"],
+                "required_coverage": stage["required_coverage"],
+            }
+        )
     validate_fixture_manifest(manifest)
     manifest_path = destination / "manifest.json"
     write_json(manifest_path, manifest)
@@ -160,6 +289,19 @@ def finalize_fixture_v2(
 def _copy_input(source: Path, root: Path, role: str, relative: str) -> dict[str, Any]:
     reference = _copy_file(source, root, relative)
     return {"role": role, **reference}
+
+
+def _capture_relative_path(value: str) -> str:
+    relative = Path(value)
+    if (
+        relative.is_absolute()
+        or ".." in relative.parts
+        or relative.parts[:2] != ("inputs", "data")
+    ):
+        raise SpecValidationError(
+            "explicit capture paths must remain below inputs/data"
+        )
+    return relative.as_posix()
 
 
 def _copy_artifact(source: Path, root: Path, relative: str) -> dict[str, Any]:
