@@ -4,6 +4,74 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+- Matched the pinned Freqtrade 2026.5.1 final surface exactly for the latest X7
+  v17.4.418 over 80 configured spot pairs and the bounded
+  `20250701-20260101` interval: 167 trades, 402 orders, 23 rejected signals,
+  and every normalized numeric token are byte-identical.
+- Preserved Freqtrade's open-trade-first pair scheduling, confirmation-rejected
+  order-ID consumption, closure-order export, trade-open price precision, and
+  rebuy-to-shared-grind stake transition. Focused Rust regressions protect each
+  lifecycle rule without pair- or date-specific exceptions.
+- Compiled X7's source-ordered tag-dependent leverage callback, per-pair exchange caps,
+  tag-121 regular adjustment, and transition into the legacy grind state machine.
+- Added Binance isolated-liquidation tiers and recalculation after position adjustment;
+  matched Freqtrade's stop-loss-before-liquidation collision order and retained a
+  focused no-fallthrough regression.
+- Added static `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`
+  programs with deterministic local/global pair-lock state in the Rust event loop.
+- Added a one-command official reference for completed research runs. Strategy and
+  sanitized effective-config copies are now sealed inside the run so daily NFI updates
+  cannot change an older verification input.
+- Added an X7 v17.4.418 annual APE futures certificate: the engine and pinned Freqtrade
+  2026.5.1 produce the same 11-trade, 164-order surface with zero tolerance. The narrow
+  evidence does not claim an actual liquidation exit, enabled protection, pair lock, or
+  tag-121 entry.
+- Added long-horizon history-availability seals and avoided a redundant prepend
+  download when a requested candle file did not exist yet.
+- Reduced long-history precision extraction from one Python formatting call per
+  OHLC value to one call per distinct monthly price while preserving Freqtrade's
+  exact NumPy formatting rule.
+- Stabilized nullable tag columns in every compressed Arrow record batch and
+  decode the transport marker before simulation, avoiding Arrow2's zero-byte
+  UTF-8 buffer panic without changing strategy tags.
+- Removed redundant vector-cache copies and repeated hashes on same-volume runs
+  with immutable hard links, verified copy fallback, fail-closed cache-hit hash
+  binding, and one prune pass per vector batch.
+- Buffered each pair's sequential file-backed event stream across chronological
+  round-robin switches, removing one seek/read system-call pair per candle while
+  keeping long-history vectors outside the Rust heap. Read windows overlap the
+  compiled five-candle callback history so block boundaries do not cause alternating
+  current/previous-row reads.
+- Buffered Arrow-to-spool writes as well, removing one kernel write per normalized
+  candle while preserving the same fixed-width disk-backed transport.
+- Folded NFI short-tag validation into the existing candle-validation pass while
+  retaining general-validation error precedence, removing a redundant full-history
+  spool scan.
+- Cached one next timestamp per pair in the chronological event loop, removing
+  repeated file-backed timestamp reads while retaining original pair order for
+  equal-time wallet and slot decisions.
+- Added a no-position/no-entry fast path that reads only the two entry-flag bits
+  instead of materializing a complete candle; observer ordering and event counters
+  remain unchanged.
+- Added a result-only sparse scheduler: idle pairs advance directly to their next
+  sealed entry signal, while pairs with an open trade retain every-candle execution.
+  Full-state observer runs remain dense, and lightweight timestamp counting preserves
+  comparable profile totals.
+- Added end-to-end research stage timings so vector preparation, manifest
+  construction, native simulation, and surface generation can be optimized from
+  measured evidence rather than engine-core timing alone.
+- Added reproducible certification bundles with at least three representative
+  repetitions, maximum memory, median timing, and separate branch-reaching full-state
+  probes. S3-compatible evidence transfer verifies both object metadata and content
+  hashes.
+- Preserved the exact 750-trade result on a sealed X7 v17.4.418, 80-pair,
+  `20210101-20260101` native diagnostic while reducing process time from 2,022.07
+  seconds to 763.70 seconds and event-loop time from 1,638.36 seconds to 474.86
+  seconds. The evidence explicitly remains single-host, warm-vector, and non-official.
+- Hardened completed-run official verification against common service-only API settings
+  and the pinned Freqtrade `list-pairs` CLI contract while retaining a read-only,
+  hash-checked source configuration.
+
 ## 0.5.0 - 2026-07-20
 
 - Replaced fixed per-worker memory assumptions and reserve percentages with a

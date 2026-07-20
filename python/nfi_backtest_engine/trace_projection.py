@@ -95,7 +95,7 @@ def _reference_state(state: dict[str, Any], quote_currency: str) -> dict[str, An
         if currency != quote_currency and Decimal(str(values[1])) != 0
     ]
     counters = state["counters"]
-    return {
+    projected = {
         "quote_free": _decimal(quote[1]),
         "base_balances": base_balances,
         "open_trade_count": state["open_trade_count"],
@@ -105,10 +105,27 @@ def _reference_state(state: dict[str, Any], quote_currency: str) -> dict[str, An
         "trade_id_counter": counters["trade_id"],
         "order_id_counter": counters["order_id"],
     }
+    locks = [
+        {
+            "pair": lock["pair"],
+            "lock_timestamp_ms": lock["lock_timestamp"],
+            "lock_end_timestamp_ms": lock["lock_end_timestamp"],
+            "reason": lock["reason"],
+            "side": lock["side"],
+            "active": lock["active"],
+        }
+        for lock in state.get("locks", [])
+    ]
+    # Empty lock state was absent from the original exact-parity fixtures.
+    # Omitting it preserves those immutable captures while non-empty lists still
+    # make protection and pair-lock transitions part of full-state parity.
+    if locks:
+        projected["locks"] = locks
+    return projected
 
 
 def _engine_state(state: dict[str, Any]) -> dict[str, Any]:
-    return {
+    projected = {
         "quote_free": _decimal(state["quote_free"]),
         "base_balances": [
             {
@@ -125,6 +142,20 @@ def _engine_state(state: dict[str, Any]) -> dict[str, Any]:
         "trade_id_counter": state["trade_id_counter"],
         "order_id_counter": state["order_id_counter"],
     }
+    locks = [
+        {
+            "pair": lock["pair"],
+            "lock_timestamp_ms": lock["lock_timestamp_ms"],
+            "lock_end_timestamp_ms": lock["lock_end_timestamp_ms"],
+            "reason": lock["reason"],
+            "side": lock["side"],
+            "active": lock["active"],
+        }
+        for lock in state.get("locks", [])
+    ]
+    if locks:
+        projected["locks"] = locks
+    return projected
 
 
 def _projection_writer(

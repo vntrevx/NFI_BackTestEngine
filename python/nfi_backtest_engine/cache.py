@@ -53,16 +53,35 @@ class ContentCache:
             return None
         return payload
 
-    def put_file(self, key: str, source: str | Path) -> Path:
+    def put_file(
+        self,
+        key: str,
+        source: str | Path,
+        *,
+        expected_sha256: str | None = None,
+        prune: bool = True,
+    ) -> Path:
+        """Publish an immutable file without duplicating same-volume vector data.
+
+        Vector workers already hash their completed artifact. Passing that digest
+        lets the cache create an atomic hard link when the run and cache share a
+        filesystem. Cross-filesystem publication falls back to a copy and verifies
+        the copied bytes before making the entry visible.
+        """
         source_path = Path(source).resolve()
         if not source_path.is_file():
             raise SpecValidationError(f"cache source is not a file: {source_path}")
-        source_digest = sha256_file(source_path)
+        source_digest = (
+            _canonical_sha256(expected_sha256)
+            if expected_sha256 is not None
+            else sha256_file(source_path)
+        )
         with self._key_lock(key):
             entry = self._entry(key)
             existing = self.get(key)
             if existing is not None:
-                if sha256_file(existing) != source_digest:
+                metadata = read_json(entry / "metadata.json")
+                if metadata.get("sha256") != source_digest:
                     raise SpecValidationError(f"cache key collision: {key}")
                 return existing
             if entry.exists():
@@ -72,8 +91,13 @@ class ContentCache:
             )
             try:
                 payload = temporary / "payload"
-                shutil.copyfile(source_path, payload)
-                payload_digest = sha256_file(payload)
+                linked = False
+                try:
+                    os.link(source_path, payload)
+                    linked = True
+                except OSError:
+                    shutil.copyfile(source_path, payload)
+                payload_digest = source_digest if linked else sha256_file(payload)
                 if payload_digest != source_digest:
                     raise SpecValidationError(f"cache copy changed while publishing: {key}")
                 write_json(
@@ -89,10 +113,11 @@ class ContentCache:
                 temporary.replace(entry)
             finally:
                 self._discard_temporary(temporary)
-        self.prune()
+        if prune:
+            self.prune()
         return entry / "payload"
 
-    def put_bytes(self, key: str, contents: bytes) -> Path:
+    def put_bytes(self, key: str, contents: bytes, *, prune: bool = True) -> Path:
         digest = hashlib.sha256(contents).hexdigest()
         with self._key_lock(key):
             entry = self._entry(key)
@@ -122,7 +147,8 @@ class ContentCache:
                 temporary.replace(entry)
             finally:
                 self._discard_temporary(temporary)
-        self.prune()
+        if prune:
+            self.prune()
         return entry / "payload"
 
     def prune(self) -> None:
@@ -212,3 +238,9 @@ class ContentCache:
             return
         with suppress(FileNotFoundError):
             lock.unlink()
+
+
+def _canonical_sha256(value: str) -> str:
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise SpecValidationError("expected cache SHA-256 must be 64 lowercase hexadecimal digits")
+    return value

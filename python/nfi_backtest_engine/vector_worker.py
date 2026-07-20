@@ -24,9 +24,10 @@ from .strategy_compat import (
     timeframe_minutes,
 )
 from .timerange import parse_timerange_milliseconds
+from .vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 
 VECTOR_REQUEST_VERSION = "1.2.0"
-VECTOR_OUTPUT_VERSION = "1.8.0"
+VECTOR_OUTPUT_VERSION = "1.10.0"
 
 
 @dataclass(frozen=True)
@@ -89,8 +90,9 @@ def run_vector_request(request: dict[str, Any]) -> dict[str, Any]:
         _attach_funding_events(prepared.frame, request["funding_data"]),
         prepared.execution_start_index,
     )
+    transport_frame = _stabilize_compressed_tag_columns(prepared.frame)
     temporary = output.with_suffix(f"{output.suffix}.tmp")
-    prepared.frame.reset_index(drop=True).to_feather(temporary)
+    transport_frame.reset_index(drop=True).to_feather(temporary)
     temporary.replace(output)
     record = {
         "schema_version": VECTOR_OUTPUT_VERSION,
@@ -114,6 +116,49 @@ def run_vector_request(request: dict[str, Any]) -> dict[str, Any]:
     }
     write_json(metadata_path, record)
     return record
+
+
+def _stabilize_compressed_tag_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Keep nullable strings readable in every compressed Arrow record batch.
+
+    PyArrow emits a compressed zero-byte values buffer when one record batch has
+    only null UTF-8 values. Arrow2 0.18 cannot decode that valid IPC corner case
+    and panics before it can return a structured error. A long vector can contain
+    real tags and still have later all-null batches, so marking only the first row
+    or only entirely empty columns is insufficient.
+
+    Null and empty tag values become one transport-only marker. Compression keeps
+    repeated markers compact, and every adapter maps the marker back to ``None``.
+    The analyzed dataframe and real strategy tags remain unchanged.
+    """
+    if frame.empty:
+        return frame
+    result = frame
+    copied = False
+    for name in ("nfi_exec_enter_tag", "nfi_exec_exit_tag"):
+        if name not in result:
+            continue
+        column = result[name]
+        if not isinstance(column, pd.Series):
+            raise StrategyAnalysisError(f"vector tag column is not one-dimensional: {name}")
+        non_null = column.dropna()
+        if bool(non_null.map(lambda value: not isinstance(value, str)).any()):
+            raise StrategyAnalysisError(f"vector tag column contains a non-string value: {name}")
+        if bool(non_null.eq(EMPTY_TAG_TRANSPORT_SENTINEL).any()):
+            raise StrategyAnalysisError(
+                f"vector tag column contains the reserved transport marker: {name}"
+            )
+        missing = column.isna() | column.eq("")
+        if not bool(missing.any()):
+            continue
+        if not copied:
+            result = result.copy()
+            copied = True
+        result[name] = column.astype("object").where(
+            ~missing,
+            EMPTY_TAG_TRANSPORT_SENTINEL,
+        )
+    return result
 
 
 def _signal_counts(frame: pd.DataFrame) -> dict[str, int]:

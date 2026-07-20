@@ -20,7 +20,7 @@ from typing import Any
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.8.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.10.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -35,6 +35,7 @@ _MANAGED_SHORT_PROGRAM_ORDER = (
     "short_exit_dec",
 )
 _MANAGED_LONG_ADJUSTMENT_PROGRAM = "long_grind_entry_v3"
+_LONG_REGULAR_ADJUSTMENT_PROGRAM = "long_grind_entry"
 _MANAGED_LONG_STATEFUL_STEPS = (
     "long_exit_stoploss",
     "exit_profit_target",
@@ -284,7 +285,7 @@ _MANAGED_LONG_ADJUSTMENT_FEATURES = {
 # remains outside the simulator because a Freqtrade backtest exposes filled
 # orders with ``safe_remaining == 0`` and cannot execute that branch.
 _LONG_GRIND_ADJUSTMENT_SCOPE = "spot-grind-backtest-v1"
-_LONG_BTC_ADJUSTMENT_SCOPE = "exit-only-v1"
+_LONG_BTC_ADJUSTMENT_SCOPE = "spot-regular-backtest-v1"
 _LONG_GRIND_STATEFUL_METHODS = (
     "long_exit_grind",
     "long_grind_adjust_trade_position",
@@ -298,11 +299,15 @@ _LONG_GRIND_METHOD_SHA256 = {
 _LONG_BTC_STATEFUL_METHODS = (
     "long_exit_btc",
     "long_grind_adjust_trade_position",
+    "long_adjust_trade_position_no_derisk",
 )
 _LONG_BTC_METHOD_SHA256 = {
     "long_exit_btc": "bcd170a5a79176914aafd2f026d7483b8c9607367953a8d947093aba92a606af",
     "long_grind_adjust_trade_position": (
         "f989ea57b2fe8c654d78a58bc45c0bd76a57aa41f4703440db98bc727e408cc9"
+    ),
+    "long_adjust_trade_position_no_derisk": (
+        "bada72d3886558cab169526a4a7033fe7dab033dc578d3a1af266f012b0026e1"
     ),
 }
 _LONG_GRIND_IMPLEMENTED_STEPS = (
@@ -313,9 +318,16 @@ _LONG_GRIND_IMPLEMENTED_STEPS = (
     "legacy grind profit exits and stops",
     "legacy de-risk level-1 re-entry",
 )
+_LONG_BTC_IMPLEMENTED_STEPS = (
+    "tag-121 regular-mode order-history reconstruction",
+    "tag-121 regular-mode rebuy",
+    "tag-121 regular-mode grind levels 1-6",
+    "tag-121 regular-mode grind profit exits and stops",
+    "tag-121 regular-mode de-risk levels",
+    "tag-121 post-de-risk legacy grind continuation",
+)
 _LONG_GRIND_REMAINING_STEPS = (
     "live partial-fill retry",
-    "long-btc regular-mode adjustment",
     "legacy futures adjustment",
 )
 
@@ -365,6 +377,11 @@ _ADJUSTMENT_BOOL_CONSTANTS = (
 )
 _ADJUSTMENT_NUMBER_CONSTANTS = (
     "system_v3_max_stake",
+    # Rebuy entries deliberately start below the normal slot size. After the
+    # level-3 de-risk, X7 transfers those trades into the shared grind-v3
+    # state machine and restores the normal slice by dividing by this source
+    # constant. Omitting it changes every subsequent grind order.
+    "system_v3_rebuy_mode_stake_multiplier",
     "system_v3_2_derisk_level_1_stake_futures",
     "system_v3_2_derisk_level_1_stake_spot",
     "system_v3_2_derisk_level_2_stake_futures",
@@ -528,13 +545,10 @@ def build_nfi_trade_manager_ir(
     # (``exit_func``), so ordinary call-graph discovery cannot infer those
     # targets. Compile the structurally proven literal tuple as explicit roots.
     decision_roots = (
-        (
-            *_MANAGED_LONG_PROGRAM_ORDER,
-            *_MANAGED_SHORT_PROGRAM_ORDER,
-            _MANAGED_LONG_ADJUSTMENT_PROGRAM,
-        )
-        if has_position_adjustment
-        else (*_MANAGED_LONG_PROGRAM_ORDER, *_MANAGED_SHORT_PROGRAM_ORDER)
+        *_MANAGED_LONG_PROGRAM_ORDER,
+        *_MANAGED_SHORT_PROGRAM_ORDER,
+        *((_MANAGED_LONG_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
+        *((_LONG_REGULAR_ADJUSTMENT_PROGRAM,) if long_btc_route is not None else ()),
     )
     decision_report = build_trade_dependency_ir(analysis, roots=decision_roots)
     compiled = decision_report.get("compiled_scalar_methods")
@@ -682,6 +696,7 @@ def build_nfi_trade_manager_ir(
             "short-rebuy stop and target state",
             "short-rebuy pre-derisk position adjustment",
             *(_LONG_GRIND_IMPLEMENTED_STEPS if long_grind_route is not None else ()),
+            *(_LONG_BTC_IMPLEMENTED_STEPS if long_btc_route is not None else ()),
         ],
         "remaining_steps": (
             [*_LONG_GRIND_REMAINING_STEPS, "short-rebuy post-derisk grind adjustment"]
@@ -884,8 +899,8 @@ def _build_long_btc_route(
     methods: dict[str, ast.FunctionDef],
     method_records: Any,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Describe tag-121, which X7 sends through the same legacy grind callback."""
-    return _build_legacy_grind_route(
+    """Describe tag 121's regular prelude and legacy post-de-risk continuation."""
+    route, identity = _build_legacy_grind_route(
         constants,
         methods,
         method_records,
@@ -896,7 +911,15 @@ def _build_long_btc_route(
         method_sha256=_LONG_BTC_METHOD_SHA256,
         adjustment_scope=_LONG_BTC_ADJUSTMENT_SCOPE,
         grind_mode=False,
+        regular_mode=True,
     )
+    if route is not None:
+        route["regular_decision_program"] = _LONG_REGULAR_ADJUSTMENT_PROGRAM
+        route["regular_constants"] = _build_regular_adjustment_constants(
+            constants,
+            methods["long_adjust_trade_position_no_derisk"],
+        )
+    return route, identity
 
 
 def _build_legacy_grind_route(
@@ -911,6 +934,7 @@ def _build_legacy_grind_route(
     method_sha256: dict[str, str],
     adjustment_scope: str,
     grind_mode: bool,
+    regular_mode: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Validate one source-pinned route into X7's legacy grind state machine."""
     if not isinstance(constants, dict):
@@ -997,12 +1021,19 @@ def _build_legacy_grind_route(
                 "previous_candle": [],
             }
         },
-        "constants": _build_legacy_grind_constants(constants),
+        "constants": _build_legacy_grind_constants(
+            constants,
+            regular_stake_multiplier=regular_mode,
+        ),
     }
     return route, identity
 
 
-def _build_legacy_grind_constants(constants: dict[str, Any]) -> dict[str, Any]:
+def _build_legacy_grind_constants(
+    constants: dict[str, Any],
+    *,
+    regular_stake_multiplier: bool = False,
+) -> dict[str, Any]:
     """Freeze the repeated constants read by the legacy grind callback.
 
     The source names eight clusters separately. The IR stores them in source
@@ -1059,11 +1090,184 @@ def _build_legacy_grind_constants(constants: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "max_stake_multiplier": number("grinding_v1_max_stake"),
-        "stake_multipliers_futures": number_list("grind_mode_stake_multiplier_futures"),
-        "stake_multipliers_spot": number_list("grind_mode_stake_multiplier_spot"),
+        "stake_multipliers_futures": number_list(
+            "regular_mode_stake_multiplier_futures"
+            if regular_stake_multiplier
+            else "grind_mode_stake_multiplier_futures"
+        ),
+        "stake_multipliers_spot": number_list(
+            "regular_mode_stake_multiplier_spot"
+            if regular_stake_multiplier
+            else "grind_mode_stake_multiplier_spot"
+        ),
         "derisk_1_reentry_futures": number("regular_mode_derisk_1_reentry_futures"),
         "derisk_1_reentry_spot": number("regular_mode_derisk_1_reentry_spot"),
         "clusters": clusters,
+    }
+
+
+def _build_regular_adjustment_constants(
+    constants: dict[str, Any],
+    method: ast.FunctionDef,
+) -> dict[str, Any]:
+    """Freeze the spot/backtest branch used before tag 121 reaches legacy grind.
+
+    The source spells out six nearly identical ``g1`` through ``g6`` branches.
+    The IR stores them in callback order. Rust may then share arithmetic while
+    preserving every strict comparison and early return from the Python body.
+    """
+
+    def number(name: str) -> int | float:
+        value = constants.get(name)
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise StrategyAnalysisError(
+                f"NFI regular adjustment constant {name} must be numeric"
+            )
+        return value
+
+    def number_list(name: str) -> list[int | float]:
+        value = constants.get(name)
+        if (
+            not isinstance(value, list)
+            or not value
+            or any(
+                isinstance(item, bool) or not isinstance(item, int | float)
+                for item in value
+            )
+        ):
+            raise StrategyAnalysisError(
+                f"NFI regular adjustment constant {name} must be a non-empty numeric list"
+            )
+        return value
+
+    use_grind_stops = constants.get("regular_mode_use_grind_stops")
+    derisk_enable = constants.get("derisk_enable")
+    if not isinstance(use_grind_stops, bool) or not isinstance(derisk_enable, bool):
+        raise StrategyAnalysisError("NFI regular adjustment switches must be boolean")
+
+    rebuy_stakes = number_list("regular_mode_rebuy_stakes_spot")
+    rebuy_thresholds = number_list("regular_mode_rebuy_thresholds_spot")
+    if len(rebuy_stakes) != len(rebuy_thresholds):
+        raise StrategyAnalysisError(
+            "NFI regular adjustment rebuy stake/threshold lengths differ for spot"
+        )
+
+    grinds: list[dict[str, Any]] = []
+    for level in range(1, 7):
+        prefix = f"regular_mode_grind_{level}"
+        stakes = number_list(f"{prefix}_stakes_spot")
+        thresholds = number_list(f"{prefix}_thresholds_spot")
+        if len(stakes) != len(thresholds):
+            raise StrategyAnalysisError(
+                f"NFI regular adjustment g{level} stake/threshold lengths differ for spot"
+            )
+        grinds.append(
+            {
+                "entry_tag": f"g{level}",
+                "stop_tag": f"sg{level}",
+                "stakes_spot": stakes,
+                "thresholds_spot": thresholds,
+                "stop_threshold_spot": number(f"{prefix}_stop_grinds_spot"),
+                "profit_threshold_spot": number(f"{prefix}_profit_threshold_spot"),
+            }
+        )
+
+    return {
+        "use_grind_stops": use_grind_stops,
+        "derisk_enable": derisk_enable,
+        "rebuy_stakes_spot": rebuy_stakes,
+        "rebuy_thresholds_spot": rebuy_thresholds,
+        "derisk_threshold_spot": number("regular_mode_derisk_spot"),
+        "derisk_level_1_threshold_spot": number("regular_mode_derisk_1_spot"),
+        "grinds": grinds,
+        "policy": _regular_adjustment_literal_policy(method),
+    }
+
+
+def _regular_adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, int | float]:
+    """Extract callback literals that NFI does not expose as class constants.
+
+    These values are part of the reviewed Python method, not engine tuning.
+    Extracting them into the typed IR keeps Rust free of strategy-version
+    literals and makes the effective policy visible in a certification bundle.
+    The surrounding method hash still rejects a structural source change.
+    """
+
+    def numeric(node: ast.AST) -> float | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, int | float):
+            return float(node.value)
+        if (
+            isinstance(node, ast.UnaryOp)
+            and isinstance(node.op, ast.USub)
+            and isinstance(node.operand, ast.Constant)
+            and isinstance(node.operand.value, int | float)
+        ):
+            return -float(node.operand.value)
+        return None
+
+    named_gates: dict[str, float] = {}
+    durations: dict[str, set[float]] = {"minutes": set(), "hours": set()}
+    minimum_multipliers: set[float] = set()
+    for node in ast.walk(method):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id.startswith("slice_profit_lt_neg_")
+            and isinstance(node.value, ast.Compare)
+            and len(node.value.comparators) == 1
+            and (value := numeric(node.value.comparators[0])) is not None
+        ):
+            named_gates[node.targets[0].id] = value
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "timedelta"
+        ):
+            for keyword in node.keywords:
+                if (
+                    keyword.arg in durations
+                    and (value := numeric(keyword.value)) is not None
+                    and value > 0.0
+                ):
+                    durations[keyword.arg].add(value)
+        if (
+            isinstance(node, ast.BinOp)
+            and isinstance(node.op, ast.Mult)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "min_stake"
+            and (value := numeric(node.right)) is not None
+            and value > 1.0
+        ):
+            minimum_multipliers.add(value)
+
+    gate_names = (
+        "slice_profit_lt_neg_0_02",
+        "slice_profit_lt_neg_0_03",
+        "slice_profit_lt_neg_0_06",
+    )
+    hours = sorted(durations["hours"])
+    minutes = sorted(durations["minutes"])
+    multipliers = sorted(minimum_multipliers)
+    if (
+        any(name not in named_gates for name in gate_names)
+        or len(minutes) != 1
+        or len(hours) != 3
+        or len(multipliers) != 2
+    ):
+        raise StrategyAnalysisError(
+            "NFI regular adjustment literal policy changed; exact lowering requires review"
+        )
+    return {
+        "entry_retry_ms": int(minutes[0] * 60_000),
+        "grind_force_order_age_ms": int(hours[0] * 3_600_000),
+        "grind_order_age_ms": int(hours[1] * 3_600_000),
+        "rebuy_order_age_ms": int(hours[2] * 3_600_000),
+        "grind_entry_profit_gate": named_gates["slice_profit_lt_neg_0_02"],
+        "additional_grind_profit_gate": named_gates["slice_profit_lt_neg_0_03"],
+        "forced_age_profit_gate": named_gates["slice_profit_lt_neg_0_06"],
+        "minimum_entry_multiplier": multipliers[0],
+        "minimum_remaining_multiplier": multipliers[1],
     }
 
 
@@ -1155,6 +1359,7 @@ def _build_adjustment_constants(constants: dict[str, Any]) -> dict[str, Any]:
     return {
         "derisk_enable": constants["derisk_enable"],
         "max_stake_multiplier": constants["system_v3_max_stake"],
+        "rebuy_stake_multiplier": constants["system_v3_rebuy_mode_stake_multiplier"],
         "derisk_levels": [
             {
                 "level": level,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+from subprocess import CompletedProcess
 
 from nfi_backtest_engine import reference_runtime
 from nfi_backtest_engine.canonical import read_json
@@ -179,3 +180,49 @@ def test_container_memory_assessment_distinguishes_headroom_and_oom() -> None:
     assert healthy["peak_ratio"] == 0.4
     assert exhausted["verdict"] == "oom_killed"
     assert exhausted["oom_kill_count"] == 1
+
+
+def test_reference_leverage_tiers_are_loaded_from_pinned_offline_image(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        reference_runtime,
+        "ensure_docker_config",
+        lambda: tmp_path / "docker-config",
+    )
+    monkeypatch.setattr(
+        reference_runtime,
+        "ensure_reference_image",
+        lambda **_kwargs: None,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_run(arguments, **kwargs):
+        captured["arguments"] = arguments
+        captured["kwargs"] = kwargs
+        return (
+            CompletedProcess(
+                arguments,
+                0,
+                stdout='{"BTC/USDT:USDT":[{"minNotional":0}]}',
+                stderr="",
+            ),
+            {"policy": {"container_memory_limit_bytes": 1024}},
+        )
+
+    monkeypatch.setattr(reference_runtime, "run_managed_container", fake_run)
+
+    result = reference_runtime.load_reference_leverage_tiers(
+        ["BTC/USDT:USDT", "BTC/USDT:USDT"]
+    )
+
+    arguments = captured["arguments"]
+    assert isinstance(arguments, list)
+    assert arguments[arguments.index("--network") + 1] == "none"
+    assert arguments[arguments.index("--entrypoint") + 1] == "python"
+    assert arguments.count("BTC/USDT:USDT") == 1
+    assert result["source"]["image_platform_digest"] == (
+        reference_runtime.REFERENCE_PLATFORM_DIGEST
+    )
+    assert list(result["tiers"]) == ["BTC/USDT:USDT"]

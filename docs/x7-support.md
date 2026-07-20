@@ -18,7 +18,8 @@ ordering. The resulting Feather files are SHA-256 sealed; Rust projects only the
 callback columns declared by the source-compiled IR and runs one global chronological
 portfolio loop.
 
-For the reviewed X7 v17.4.413 source shape, these callback families execute in Rust:
+For the reviewed X7 source shape through v17.4.418, these callback families execute in
+Rust:
 
 - backtest lifecycle no-op delegation and first-entry `order_filled` state writes;
 - source-compiled custom stake and entry/exit confirmation programs;
@@ -31,9 +32,15 @@ For the reviewed X7 v17.4.413 source shape, these callback families execute in R
   including rebuy trades after their first level-3 de-risk fill;
 - the tag-120 spot/backtest legacy grind route: source-ordered `gm0`, `dl1`/`dl2`,
   `gd1` through `gd6`, their partial exits and stops, and the `d1` buyback cycle.
-- isolated-futures transport with a source-compiled uniform leverage value, long/short
-  signals, mark-price funding events, fees, historical precision, derisk/grind order
-  replay, and final-surface normalization.
+- the tag-121 regular-mode de-risk/grind prelude and its source-ordered transition into
+  the legacy grind state machine;
+- source-ordered tag-dependent futures leverage, capped by the frozen per-pair market
+  limit;
+- Binance isolated-futures transport with frozen leverage tiers, calculated and
+  adjustment-updated liquidation prices, long/short signals, mark-price funding events,
+  fees, historical precision, derisk/grind order replay, and final-surface normalization;
+- static `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`
+  definitions with side-aware local/global pair locks in the global event loop.
 
 The route table preserves X7's callback order. A mixed tag is accepted only when every
 word belongs to the compiled scope. Rebuy, rapid, and scalp combinations retain their
@@ -43,15 +50,18 @@ source-specific dispatch order; an unknown companion word fails before simulatio
 
 The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
 method SHA. A changed callback cannot silently inherit the prior Rust policy.
-It also inventories literal condition-index branches. For v17.4.413 this proves that
-tag 120 has an entry branch while tag 121 exists only as a dormant routing constant.
+It also inventories literal condition-index branches and the effective strategy
+switches. In v17.4.418 the tag-121 branch exists but its source-defined entry switch is
+disabled, so the implementation has native proof without a naturally reached
+Freqtrade differential trade.
 
-The strongest certificate is APE/USDT:USDT isolated futures from 2022-04-01 through
-2023-01-01. The engine and offline Freqtrade 2026.5.1 produce byte-identical normalized
-surfaces with zero numeric tolerance: 11 trades, 164 orders, 142 adjustment orders,
-one short trade, and eight funded trades. The run reaches derisk levels 1-3 and grind
-levels 1-5. It has no liquidation event and does not certify other pairs, pair locks,
-or protections.
+The latest certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
+2022-04-01 through 2023-01-01. The engine and offline Freqtrade 2026.5.1 produce
+byte-identical normalized surfaces with zero numeric tolerance: 11 trades, 164 orders,
+142 adjustment orders, one short trade, and eight funded trades. The run reaches
+derisk levels 1-3 and grind levels 1-5. Its sealed official callback audit exposed and
+then protected Freqtrade's stop-loss-before-liquidation collision order. The run has no
+liquidation exit and does not certify other pairs, pair locks, or protections.
 
 The full-year APE/USDT spot fixture separately proves exact final trade-surface parity
 for the top-coins path: 12 trades, 232 orders, and a byte-identical normalized surface.
@@ -79,6 +89,17 @@ The equal-timestamp shared-slot hashes are in
 [`benchmarks/evidence/x7-ape-aave-shared-slot-v17.4.413.json`](../benchmarks/evidence/x7-ape-aave-shared-slot-v17.4.413.json).
 The annual futures inputs, dependency versions, result hashes, and exact counts are in
 [`benchmarks/evidence/x7-ape-futures-2022-v17.4.413.json`](../benchmarks/evidence/x7-ape-futures-2022-v17.4.413.json).
+The corresponding current-source proof, official callback-audit hash, container-memory
+measurement, and zero-tolerance surface hashes are in
+[`benchmarks/evidence/x7-ape-futures-2022-v17.4.418.json`](../benchmarks/evidence/x7-ape-futures-2022-v17.4.418.json).
+
+The broad bounded spot proof uses the same X7 v17.4.418 source over 80 configured
+pairs and `20250701-20260101`. Its 167 trades, 402 orders, rejected-signal count,
+balances, tags, and numeric tokens are byte-identical to pinned Freqtrade 2026.5.1.
+The exact hashes and resource observations are in
+[`benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json`](../benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json).
+This is the broadest current portfolio differential, but it does not turn an
+unreached branch into a certified one or replace the continuous multi-year gate.
 
 Generated `hot-callback-ir.json` remains the source of truth for the exact strategy
 file used by a run. Context-only callbacks may be inactive for a mode; for example,
@@ -95,12 +116,11 @@ run consumes resources.
 The engine rejects rather than approximates:
 
 - the live-only partial-fill retry in the tag-120 route;
-- tag-121 entry admission and regular-mode position adjustment; v17.4.413 has no
-  literal 121 entry branch, and the adapter rejects any future or synthetic signal;
 - short routes outside the compiled 561-563 family;
-- per-entry futures leverage when source branches are not uniform;
-- liquidation-event parity beyond the no-liquidation annual certificate;
-- protections and pair locks;
+- dynamic or structurally new leverage callback programs;
+- actual liquidation-exit parity beyond the no-liquidation annual certificate;
+- dynamic protection properties, unsupported protection methods, and direct live
+  pair-lock mutation outside the compiled protection program;
 - broader shared-wallet pressure and multi-pair tie-breaks beyond the captured
   APE/AAVE equal-timestamp fixture.
 
