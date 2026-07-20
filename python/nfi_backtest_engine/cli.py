@@ -661,7 +661,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--runs",
         type=int,
         default=DEFAULT_CERTIFICATION_REPETITIONS,
-        help="initial engine/reference repetitions (default: 3; extends to 5 above 5% spread)",
+        help="initial engine/reference repetitions (default: 3; extends to 5 above 5%% spread)",
     )
     certify.add_argument(
         "--timeout",

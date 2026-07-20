@@ -3,7 +3,20 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import pytest
 from nfi_backtest_engine import cli, config_loader, market_snapshot
+
+
+def test_certification_help_renders_literal_spread_percentage(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as stopped:
+        cli.main(["certify", "--help"])
+
+    assert stopped.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "extends to 5 above 5% spread" in help_text
+    assert "option_strings" not in help_text
 
 
 def test_benchmark_command_after_separator_is_not_swallowed(monkeypatch, tmp_path: Path) -> None:
