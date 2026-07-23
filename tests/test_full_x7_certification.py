@@ -5,8 +5,8 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from nfi_backtest_engine import full_x7_certification
-from nfi_backtest_engine.canonical import read_json
+from nfi_backtest_engine import full_x7_certification, full_x7_resume
+from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.full_x7_certification import (
     _determinism,
@@ -59,6 +59,336 @@ def test_full_x7_determinism_includes_warmup_native_and_official_hashes() -> Non
 
     reference[1]["result_sha256"] = "b" * 64
     assert _determinism("a" * 64, engine, reference)["met"] is False
+
+
+def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    calls = {"engine": 0, "reference": 0}
+    surface_sha = "a" * 64
+    lock = {
+        "identity_sha256": "b" * 64,
+        "data": {"aggregate_sha256": "c" * 64},
+        "scope": {
+            "timerange": "20210101-20260101",
+            "pair_count": 80,
+            "timeframes": ["5m", "15m", "1h", "4h", "1d"],
+        },
+        "strategy": {"upstream_commit": "d" * 40},
+    }
+    inputs = {
+        "lock": lock,
+        "reference_market_snapshot": tmp_path / "markets.json",
+        "public": {
+            "release_lock": {
+                "sha256": "e" * 64,
+                "identity_sha256": lock["identity_sha256"],
+            },
+            "strategy_sha256": "f" * 64,
+            "config_sha256": "1" * 64,
+            "data_aggregate_sha256": lock["data"]["aggregate_sha256"],
+            "engine_market_snapshot_sha256": "2" * 64,
+            "reference_market_snapshot_sha256": "3" * 64,
+        },
+    }
+
+    def measurement(output: Path) -> dict[str, object]:
+        return {
+            "wall_time_seconds": 10.0,
+            "peak_rss_bytes": 100,
+            "exit_code": 0,
+            "timed_out": False,
+            "stdout": None,
+            "stderr": None,
+            "output_directory": output,
+            "result_sha256": surface_sha,
+            "report": {
+                "result": {"trade_surface": {"sha256": surface_sha}},
+            },
+        }
+
+    def fake_engine(_inputs, output, **_kwargs):
+        calls["engine"] += 1
+        return measurement(output)
+
+    def fake_reference(_baseline, _markets, output, **_kwargs):
+        calls["reference"] += 1
+        return measurement(output)
+
+    monkeypatch.setattr(
+        full_x7_certification,
+        "validate_full_x7_inputs",
+        lambda **_kwargs: inputs,
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "build_engine",
+        lambda: {"kind": "pyo3-extension"},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "verify_installed_wheel",
+        lambda *_args, **_kwargs: {"installed_extension_equal": True},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "load_execution_profile",
+        lambda _path: {"hardware_fingerprint": "hardware"},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_validate_probe_matrix",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(full_x7_certification, "_measure_engine", fake_engine)
+    monkeypatch.setattr(full_x7_certification, "_measure_reference", fake_reference)
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_require_complete_baseline",
+        lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_engine_complete",
+        lambda *_args: True,
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_reference_complete",
+        lambda *_args: True,
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_run_probes",
+        lambda *_args, **_kwargs: [
+            {
+                "fixture_id": f"probe-{index}",
+                "probe_kind": kind,
+                "manifest_sha256": "5" * 64,
+                "complete": True,
+                "trade_surface_equal": True,
+                "full_state_equal": True,
+                "coverage_met": True,
+                "performance_report": {
+                    "path": f"state-probes/probe-{index}.json",
+                    "bytes": 0,
+                    "sha256": "6" * 64,
+                },
+            }
+            for index, kind in enumerate(
+                (
+                    "tag-121",
+                    "protections-locks",
+                    "liquidation",
+                    "compound-tags",
+                    "variable-leverage",
+                ),
+                start=1,
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "current_resource_limits",
+        lambda _profile: {"working_memory_bytes": 1_000},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "inspect_hardware",
+        lambda: {},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "public_hardware_record",
+        lambda _hardware: {},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "public_engine_build_record",
+        lambda _build: {},
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "write_evidence_bundle",
+        lambda *_args, **_kwargs: {"archive": {"sha256": "4" * 64}},
+    )
+
+    report = full_x7_certification.run_full_x7_certification(
+        tmp_path / "lock.json",
+        tmp_path / "certificate",
+        strategy_path=tmp_path / "strategy.py",
+        class_name="NostalgiaForInfinityX7",
+        config_path=tmp_path / "config.json",
+        data_directory=tmp_path / "data",
+        engine_market_snapshot=tmp_path / "engine-markets.json",
+        reference_market_snapshot=tmp_path / "markets.json",
+        wheel_path=tmp_path / "candidate.whl",
+        execution_profile_path=tmp_path / "profile.json",
+        state_probe_manifests=[],
+        repetitions=3,
+        timeout_seconds=60,
+    )
+
+    assert calls == {"engine": 4, "reference": 1}
+    assert report["measurement"]["native_measured_repetitions"] == 3
+    assert report["measurement"]["official_reference_repetitions"] == 1
+    assert "reference" not in report["runs"]
+    assert report["runs"]["official_reference"]["result_sha256"] == surface_sha
+
+
+def test_imported_official_oracle_must_match_current_research_identity() -> None:
+    from nfi_backtest_engine.reference_runtime import (
+        REFERENCE_PLATFORM,
+        REFERENCE_PLATFORM_DIGEST,
+    )
+
+    surface_sha = "a" * 64
+    run_id = "b" * 64
+    strategy_sha = "c" * 64
+    market_sha = "d" * 64
+    baseline = {
+        "result_sha256": surface_sha,
+        "report": {"run_id": run_id},
+    }
+    report = {
+        "run_id": run_id,
+        "complete": True,
+        "exact_parity": True,
+        "reference": {
+            "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
+            "platform": REFERENCE_PLATFORM,
+        },
+        "inputs": {
+            "strategy": {"sha256": strategy_sha},
+            "engine_trade_surface": {"sha256": surface_sha},
+            "market_snapshot": {"sha256": market_sha},
+        },
+        "official_trade_surface": {"sha256": surface_sha},
+        "container_memory": {"verdict": "within_limit"},
+    }
+    measurement = {
+        "exit_code": 0,
+        "result_sha256": surface_sha,
+        "report": report,
+    }
+    inputs = {
+        "public": {
+            "strategy_sha256": strategy_sha,
+            "reference_market_snapshot_sha256": market_sha,
+        }
+    }
+
+    full_x7_resume.validate_reference_oracle(
+        measurement,
+        baseline=baseline,
+        inputs=inputs,
+        validator=full_x7_certification._reference_complete,
+    )
+
+    report["run_id"] = "e" * 64
+    with pytest.raises(BenchmarkError, match="research run identity"):
+        full_x7_resume.validate_reference_oracle(
+            measurement,
+            baseline=baseline,
+            inputs=inputs,
+            validator=full_x7_certification._reference_complete,
+        )
+
+
+def test_imported_oracle_reconciles_a_completed_official_export(
+    tmp_path: Path,
+) -> None:
+    from nfi_backtest_engine.reference_runtime import (
+        REFERENCE_PLATFORM,
+        REFERENCE_PLATFORM_DIGEST,
+    )
+
+    source = tmp_path / "source-oracle"
+    destination = tmp_path / "imported-oracle"
+    source.mkdir()
+    official_surface = source / "official-trade-surface.json"
+    official_surface.write_bytes(b"sealed-official-surface")
+    result_zip = source / "backtest-result.zip"
+    result_zip.write_bytes(b"sealed-freqtrade-export")
+    strategy = source / "strategy.py"
+    strategy.write_bytes(b"sealed-strategy")
+    market = source / "reference-markets.json"
+    market.write_bytes(b"sealed-market-snapshot")
+    baseline_surface = tmp_path / "native-trade-surface.json"
+    baseline_surface.write_bytes(official_surface.read_bytes())
+
+    def record(path: Path) -> dict[str, object]:
+        return {
+            "path": str(path),
+            "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+
+    surface_sha = record(official_surface)["sha256"]
+    run_id = "a" * 64
+    strategy_sha = record(strategy)["sha256"]
+    market_sha = record(market)["sha256"]
+    write_json(
+        source / "run.json",
+        {
+            "schema_version": "1.3.0",
+            "run_id": run_id,
+            "wall_time_seconds": 3600.0,
+            "exit_code": 0,
+            "timed_out": False,
+            "complete": False,
+            "exact_parity": False,
+            "difference": {"path": "$.summary.total_trades"},
+            "reference": {
+                "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
+                "platform": REFERENCE_PLATFORM,
+            },
+            "inputs": {
+                "strategy": record(strategy),
+                "engine_trade_surface": {"sha256": "d" * 64},
+                "market_snapshot": record(market),
+            },
+            "result": record(result_zip),
+            "official_trade_surface": record(official_surface),
+            "reference_storage": {"complete": True},
+            "container_memory": {
+                "verdict": "within_limit",
+                "peak_bytes": 1024,
+            },
+        },
+    )
+    baseline = {
+        "result_sha256": surface_sha,
+        "report": {
+            "run_id": run_id,
+            "result": {"trade_surface": record(baseline_surface)},
+        },
+    }
+    inputs = {
+        "public": {
+            "strategy_sha256": strategy_sha,
+            "reference_market_snapshot_sha256": market_sha,
+        }
+    }
+
+    imported = full_x7_resume.import_reference_oracle(
+        source,
+        destination,
+        baseline=baseline,
+        inputs=inputs,
+        validator=full_x7_certification._reference_complete,
+    )
+
+    report = imported["report"]
+    assert report["complete"] is True
+    assert report["exact_parity"] is True
+    assert report["difference"] is None
+    assert (
+        report["parity_reconciliation"]["prior_engine_surface_sha256"] == "d" * 64
+    )
+    assert report["inputs"]["engine_trade_surface"]["sha256"] == surface_sha
+    assert (destination / result_zip.name).read_bytes() == result_zip.read_bytes()
 
 
 def test_cold_strict_engine_gate_rejects_checkpoint_or_coverage_shortfall() -> None:
@@ -183,7 +513,12 @@ def test_full_x7_warmup_can_capture_or_reuse_reference_markets(
             stderr_path=stderr_path,
             timeout_seconds=timeout_seconds,
         )
-        return {"exit_code": 0}
+        return {
+            "wall_time_seconds": 1.0,
+            "peak_rss_bytes": 1,
+            "exit_code": 0,
+            "timed_out": False,
+        }
 
     monkeypatch.setattr(
         full_x7_certification,
@@ -208,3 +543,5 @@ def test_full_x7_warmup_can_capture_or_reuse_reference_markets(
     assert isinstance(arguments, list)
     assert ("--markets" in arguments) is reuse_snapshot
     assert ("--no-market-capture" in arguments) is reuse_snapshot
+    storage_index = arguments.index("--storage-mode")
+    assert arguments[storage_index + 1] == "spooled"

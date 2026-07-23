@@ -20,6 +20,9 @@ from typing import Any
 PINNED_FREQTRADE_VERSION = "2026.5.1"
 PINNED_METHOD_HASHES = {
     "backtest": "c65dbdd3427a758d2b7b3b9e5c113970cc39c94affadfde70d8e6a2ab9452fbf",
+    "backtest_one_strategy": (
+        "d1e700943a7aa952fffe42ab68449d19525847d000077df377470d0aa47e024a"
+    ),
     "backtest_loop": "e6db4c1d0a841366eafd78d3ec2cc4d71d7a50b9331d45a5ebb9d3fd6558bc77",
     "_enter_trade": "e04325821a53f56ac22e1ee6a1ee13355f2eca7b88c193837364febf6c8bd952",
     "_exit_trade": "ab4bfae7ee432cfc740b9a71a301ce16fe261ba5545a0d58676184a5f3c1cbb7",
@@ -34,6 +37,18 @@ PINNED_METHOD_HASHES = {
 PINNED_EXCHANGE_METHOD_HASHES = {
     "_api_reload_markets": ("5ff713afa253ccb9538a2e3a5e03b101767c3e6dbf509246a34288197584f07e"),
 }
+PINNED_DATA_PROVIDER_METHOD_HASHES = {
+    "_set_cached_df": "1d9d480b23c77f5e2900b87a29c0356bc0820deafd4bbf85fa0da7ec6ff6987a",
+    "get_analyzed_dataframe": (
+        "b3f20023eb1a1b035d65c7ea17fa15ab7781955a957c84345a24f890990f6e45"
+    ),
+    "clear_cache": "5442026fb519c5eb3f729cd261cd1fdba15c04814af1ad1cb09092c64e1b0099",
+}
+PINNED_STRATEGY_METHOD_HASHES = {
+    "advise_all_indicators": (
+        "43e7c0d9ee81ae77fb47a4aeed0e74dd3d164acb6fe8ebaa4a2553690b983bbb"
+    ),
+}
 PROFILE_PHASES = ("indicators", "callbacks", "trade_scans", "event_simulation")
 _INSTALLED = False
 
@@ -46,8 +61,10 @@ def install_reference_tracer() -> None:
 
     import ccxt
     import freqtrade
+    from freqtrade.data.dataprovider import DataProvider
     from freqtrade.exchange.exchange import Exchange
     from freqtrade.optimize.backtesting import Backtesting
+    from freqtrade.strategy.interface import IStrategy
 
     version = getattr(freqtrade, "__version__", "")
     if version != PINNED_FREQTRADE_VERSION:
@@ -72,9 +89,29 @@ def install_reference_tracer() -> None:
                 f"NFI tracer source drift in Exchange.{name}: "
                 f"expected {expected_hash}, actual {actual_hash}"
             )
+    for name, expected_hash in PINNED_DATA_PROVIDER_METHOD_HASHES.items():
+        actual_hash = hashlib.sha256(
+            inspect.getsource(getattr(DataProvider, name)).encode()
+        ).hexdigest()
+        if actual_hash != expected_hash:
+            raise RuntimeError(
+                f"NFI tracer source drift in DataProvider.{name}: "
+                f"expected {expected_hash}, actual {actual_hash}"
+            )
+    for name, expected_hash in PINNED_STRATEGY_METHOD_HASHES.items():
+        actual_hash = hashlib.sha256(
+            inspect.getsource(getattr(IStrategy, name)).encode()
+        ).hexdigest()
+        if actual_hash != expected_hash:
+            raise RuntimeError(
+                f"NFI tracer source drift in IStrategy.{name}: "
+                f"expected {expected_hash}, actual {actual_hash}"
+            )
 
     _patch_market_loader(Exchange, ccxt.__version__)
+    _patch_advise_all_indicators(IStrategy)
     _patch_backtest(Backtesting)
+    _patch_backtest_one_strategy(Backtesting)
     _patch_backtest_loop(Backtesting)
     _patch_enter_trade(Backtesting)
     _patch_exit_trade(Backtesting)
@@ -83,6 +120,8 @@ def install_reference_tracer() -> None:
     _patch_open_order_management(Backtesting)
     _patch_ohlcv_lists(Backtesting)
     _patch_set_strategy(Backtesting)
+    if _spooled_storage_enabled():
+        _reference_storage_module().patch_data_provider(DataProvider)
     _INSTALLED = True
 
 
@@ -201,6 +240,87 @@ def _patch_backtest(cls: type) -> None:
     cls.backtest = traced
 
 
+def _patch_backtest_one_strategy(cls: type) -> None:
+    """Retain only dates in Freqtrade's temporary timerange-check frames.
+
+    Pinned Freqtrade keeps ``preprocessed_tmp`` alive across the whole backtest
+    even though a trades export uses it only to derive the minimum and maximum
+    dates.  The wrapper temporarily supplies an equivalent date-only trimming
+    function.  Signal exports fail closed because they legitimately consume
+    every analyzed column after the trade loop.
+    """
+
+    original = cls.backtest_one_strategy
+
+    @wraps(original)
+    def traced(self: Any, *args: Any, **kwargs: Any) -> Any:
+        if not _spooled_storage_enabled():
+            return original(self, *args, **kwargs)
+        if self.config.get("export", "none") == "signals":
+            raise RuntimeError(
+                "spooled reference datastore does not support Freqtrade signal exports"
+            )
+        from freqtrade.data.dataprovider import MAX_DATAFRAME_CANDLES
+
+        storage_module = _reference_storage_module()
+        storage_module.begin_storage(row_block_rows=MAX_DATAFRAME_CANDLES)
+        original_trim_dataframes = original.__globals__["trim_dataframes"]
+
+        def date_only_trim_dataframes(
+            preprocessed: dict[str, Any],
+            timerange: Any,
+            startup_candles: int,
+        ) -> dict[str, Any]:
+            storage_module = _reference_storage_module()
+            if not isinstance(preprocessed, storage_module.SpooledFrames):
+                raise RuntimeError(
+                    "strategy returned an unsupported indicator mapping in "
+                    "spooled reference mode"
+                )
+            date_frames = preprocessed.date_frames()
+            return original_trim_dataframes(
+                date_frames,
+                timerange,
+                startup_candles,
+            )
+
+        original.__globals__["trim_dataframes"] = date_only_trim_dataframes
+        try:
+            return original(self, *args, **kwargs)
+        finally:
+            original.__globals__["trim_dataframes"] = original_trim_dataframes
+            storage_module.finish_storage()
+
+    cls.backtest_one_strategy = traced
+
+
+def _patch_advise_all_indicators(cls: type) -> None:
+    """Spool each official indicator result before calculating the next pair."""
+    original = cls.advise_all_indicators
+    validator_class = original.__globals__["StrategyResultValidator"]
+
+    @wraps(original)
+    def spooled(self: Any, data: dict[str, Any]) -> Any:
+        if not _spooled_storage_enabled():
+            return original(self, data)
+        result = _reference_storage_module().active_storage().new_preprocessed_frames()
+        for pair, pair_data in data.items():
+            validator = validator_class(
+                pair_data,
+                warn_only=not self.disable_dataframe_checks,
+            )
+            analyzed = self.advise_indicators(
+                pair_data.copy(),
+                {"pair": pair},
+            ).copy()
+            validator.assert_df(analyzed)
+            result[pair] = analyzed
+            del analyzed
+        return result
+
+    cls.advise_all_indicators = spooled
+
+
 def _patch_backtest_loop(cls: type) -> None:
     original = cls.backtest_loop
 
@@ -260,11 +380,109 @@ def _patch_ohlcv_lists(cls: type) -> None:
 
     @wraps(original)
     def traced(self: Any, processed: dict[str, Any]) -> dict[str, tuple]:
-        data = original(self, processed)
+        if _spooled_storage_enabled():
+            data = _get_spooled_ohlcv_as_rows(self, processed)
+        else:
+            data = original(self, processed)
         _write_signal_audit(self, data, processed)
         return data
 
     cls._get_ohlcv_as_lists = traced
+
+
+def _get_spooled_ohlcv_as_rows(
+    backtesting: Any,
+    processed: dict[str, Any],
+) -> dict[str, Any]:
+    """Reproduce the pinned conversion while releasing each source frame.
+
+    Every strategy and Freqtrade call is kept in the same order as
+    ``Backtesting._get_ohlcv_as_lists``.  Only the final in-memory
+    ``values.tolist()`` representation is replaced by ``ColumnarRows``.
+    """
+    from freqtrade.optimize.backtesting import (
+        HEADERS,
+        BacktestState,
+        trim_dataframe,
+    )
+
+    if os.environ.get("NFI_SIGNAL_AUDIT_FEATURES", "").strip():
+        raise RuntimeError(
+            "spooled reference datastore cannot retain signal feature frames; "
+            "run that diagnostic with --storage-mode in-memory"
+        )
+
+    storage_module = _reference_storage_module()
+    storage = storage_module.active_storage()
+    data: dict[str, Any] = {}
+    pairs = tuple(processed)
+    backtesting.progress.init_step(BacktestState.CONVERT, len(pairs))
+    for pair in pairs:
+        pair_data = processed[pair]
+        backtesting.check_abort()
+        backtesting.progress.increment()
+
+        if not pair_data.empty:
+            pair_data.drop(HEADERS[5:] + ["buy", "sell"], axis=1, errors="ignore")
+        df_analyzed = backtesting.strategy.ft_advise_signals(
+            pair_data,
+            {"pair": pair},
+        )
+        backtesting.dataprovider._set_cached_df(
+            pair,
+            backtesting.timeframe,
+            df_analyzed,
+            backtesting.config["candle_type_def"],
+        )
+        df_analyzed = pair_data = trim_dataframe(
+            df_analyzed,
+            backtesting.timerange,
+            startup_candles=backtesting.required_startup,
+        )
+        df_analyzed = df_analyzed.copy()
+
+        for column in HEADERS[5:]:
+            tag_column = column in ("enter_tag", "exit_tag")
+            if column in df_analyzed.columns:
+                df_analyzed[column] = (
+                    df_analyzed.loc[:, column]
+                    .replace([math.nan], [0 if not tag_column else None])
+                    .shift(1)
+                )
+            elif not df_analyzed.empty:
+                df_analyzed[column] = 0 if not tag_column else None
+
+        df_analyzed = df_analyzed.drop(df_analyzed.head(1).index)
+        data[pair] = (
+            storage_module.ColumnarRows.from_dataframe(
+                df_analyzed,
+                HEADERS,
+                block_rows=storage.row_block_rows,
+            )
+            if not df_analyzed.empty
+            else []
+        )
+        # Freqtrade's docstring promises that ``processed`` gets cleared, but
+        # the pinned implementation retains it.  The backtest has no consumer
+        # after this conversion when export=trades, so release one pair at a
+        # time after its callback cache and hot-loop columns are detached.
+        del processed[pair]
+        del pair_data
+        del df_analyzed
+    return data
+
+
+def _spooled_storage_enabled() -> bool:
+    mode = os.environ.get("NFI_REFERENCE_DATASTORE", "")
+    if mode not in {"", "in-memory", "spooled"}:
+        raise RuntimeError(f"unsupported NFI reference datastore mode: {mode!r}")
+    return mode == "spooled"
+
+
+def _reference_storage_module() -> Any:
+    import nfi_reference_storage
+
+    return nfi_reference_storage
 
 
 def _write_signal_audit(

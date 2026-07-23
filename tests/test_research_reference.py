@@ -35,6 +35,8 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
         "ETH/USDT:USDT",
     ]
     assert "NFI_CALLBACK_AUDIT_TIMESTAMPS_MS=1650000000000" in command
+    assert "NFI_REFERENCE_DATASTORE=spooled" in command
+    assert "NFI_REFERENCE_STORAGE_REPORT=/output/reference-storage.json" in command
     assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
     assert any(
         value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command
@@ -124,7 +126,26 @@ def test_callback_audit_timestamps_are_sorted_unique_and_nonnegative() -> None:
     assert _validate_audit_timestamps([30, 10, 30]) == [10, 30]
     with pytest.raises(BenchmarkError, match="non-negative"):
         _validate_audit_timestamps([-1])
-    assert RESEARCH_REFERENCE_VERSION == "1.2.0"
+    assert RESEARCH_REFERENCE_VERSION == "1.3.0"
+
+
+def test_research_reference_can_retain_the_in_memory_diagnostic_baseline(
+    tmp_path: Path,
+) -> None:
+    command = build_research_reference_command(
+        run_prefix=["docker", "run", "--rm"],
+        input_directory=tmp_path / "inputs",
+        output_directory=tmp_path / "output",
+        data_directory=tmp_path / "data",
+        strategy="NostalgiaForInfinityX7",
+        timerange="20250101-20250102",
+        pairs=["BTC/USDT"],
+        audit_timestamps_ms=[],
+        storage_mode="in-memory",
+    )
+
+    assert "NFI_REFERENCE_DATASTORE=spooled" not in command
+    assert "NFI_REFERENCE_STORAGE_REPORT=/output/reference-storage.json" not in command
 
 
 def test_research_reference_trace_is_full_state_and_hash_bound(

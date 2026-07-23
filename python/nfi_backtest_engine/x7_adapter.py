@@ -1128,7 +1128,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
             "mode_name": route["mode_name"],
             "entry_tags": route["entry_tags"],
         }
-        for name in ("stop_threshold_futures", "stop_threshold_spot"):
+        for name in ("stop_threshold_futures", "stop_threshold_spot", "terminal_exit"):
             if name in route:
                 record[name] = route[name]
         managed_routes.append(record)

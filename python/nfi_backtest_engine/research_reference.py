@@ -31,7 +31,7 @@ from .reference_runtime import (
     ensure_reference_image,
 )
 
-RESEARCH_REFERENCE_VERSION = "1.2.0"
+RESEARCH_REFERENCE_VERSION = "1.3.0"
 
 _RESOURCE_CAPTURE_SCRIPT = """\
 freqtrade "$@"
@@ -72,6 +72,7 @@ def run_research_reference(
     audit_timestamps_ms: list[int] | None = None,
     timeout_seconds: int | None = None,
     reference_memory_mode: str = "normal",
+    reference_storage_mode: str = "spooled",
     swap_cap_bytes: int | None = None,
     trace_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -133,6 +134,10 @@ def run_research_reference(
         raise BenchmarkError(
             "reference memory mode must be 'normal' or 'certification-swap'"
         )
+    if reference_storage_mode not in {"in-memory", "spooled"}:
+        raise BenchmarkError(
+            "reference storage mode must be 'in-memory' or 'spooled'"
+        )
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         try:
             with managed_docker_run(
@@ -164,6 +169,7 @@ def run_research_reference(
                     timerange=materialized["timerange"],
                     pairs=materialized["pairs"],
                     audit_timestamps_ms=audit_timestamps,
+                    storage_mode=reference_storage_mode,
                     trace_identity=validated_trace_identity,
                     dependency_directory=dependency_directory,
                 )
@@ -209,11 +215,21 @@ def run_research_reference(
     )
     audit_path = output / "callback-audit.json"
     trace_path = output / "state-trace.nfitrace"
+    storage_path = output / "reference-storage.json"
+    storage_metrics = read_json(storage_path) if storage_path.is_file() else None
+    storage_complete = (
+        reference_storage_mode == "in-memory"
+        or (
+            isinstance(storage_metrics, dict)
+            and storage_metrics.get("mode") == "spooled"
+            and storage_metrics.get("removed_on_exit") is True
+        )
+    )
     complete = exit_code == 0 and difference is None and (
         not audit_timestamps or audit_path.is_file()
     ) and (
         validated_trace_identity is None or trace_path.is_file()
-    )
+    ) and storage_complete
     report = {
         "schema_version": RESEARCH_REFERENCE_VERSION,
         "run_id": run["run_id"],
@@ -256,6 +272,14 @@ def run_research_reference(
         "state_trace": (
             _file_record(trace_path) if trace_path.is_file() else None
         ),
+        "reference_storage": {
+            "mode": reference_storage_mode,
+            "complete": storage_complete,
+            "metrics": storage_metrics,
+            "artifact": (
+                _file_record(storage_path) if storage_path.is_file() else None
+            ),
+        },
         "container_resources": resources,
         "container_memory": memory,
         "container_swap": {
@@ -368,6 +392,7 @@ def build_research_reference_command(
     timerange: str,
     pairs: list[str],
     audit_timestamps_ms: list[int],
+    storage_mode: str = "spooled",
     trace_identity: dict[str, str] | None = None,
     dependency_directory: Path | None = None,
 ) -> list[str]:
@@ -398,6 +423,21 @@ def build_research_reference_command(
         "--env",
         "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
     ]
+    if storage_mode == "spooled":
+        command.extend(
+            [
+                "--env",
+                "NFI_REFERENCE_DATASTORE=spooled",
+                "--env",
+                "NFI_REFERENCE_STORAGE_REPORT=/output/reference-storage.json",
+                "--env",
+                "NFI_REFERENCE_SPOOL_DIRECTORY=/tmp/nfi-reference-spool",
+            ]
+        )
+    elif storage_mode != "in-memory":
+        raise BenchmarkError(
+            "reference storage mode must be 'in-memory' or 'spooled'"
+        )
     if audit_timestamps_ms:
         command.extend(
             [

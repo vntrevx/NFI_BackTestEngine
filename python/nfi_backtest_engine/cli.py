@@ -285,6 +285,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="allow measured Docker daemon swap only for continuous release certification",
     )
     reference_research.add_argument(
+        "--storage-mode",
+        choices=("in-memory", "spooled"),
+        default="spooled",
+        help="use bounded Arrow storage by default; in-memory is a diagnostic baseline",
+    )
+    reference_research.add_argument(
         "--swap-cap-gib",
         type=float,
         help="optional certification swap cap; never increases the detected daemon capacity",
@@ -648,6 +654,19 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="reuse a frozen raw oracle snapshot; omit to capture it during warmup",
     )
+    certify.add_argument(
+        "--official-oracle",
+        type=Path,
+        help=(
+            "import one completed continuous official Full X7 reference directory "
+            "instead of running it again"
+        ),
+    )
+    certify.add_argument(
+        "--resume",
+        action="store_true",
+        help="resume completed Full X7 stages from the selected output directory",
+    )
     certify.add_argument("--wheel", type=Path)
     certify.add_argument("--swap-cap-gib", type=float)
     certify.add_argument(
@@ -661,7 +680,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--runs",
         type=int,
         default=DEFAULT_CERTIFICATION_REPETITIONS,
-        help="initial engine/reference repetitions (default: 3; extends to 5 above 5%% spread)",
+        help=(
+            "extends to 5 above 5%% spread; native default 3, "
+            "continuous official oracle once"
+        ),
     )
     certify.add_argument(
         "--timeout",
@@ -799,6 +821,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     audit_timestamps_ms=args.audit_timestamp_ms,
                     timeout_seconds=args.timeout,
                     reference_memory_mode=args.memory_mode,
+                    reference_storage_mode=args.storage_mode,
                     swap_cap_bytes=(
                         int(args.swap_cap_gib * 1024**3)
                         if args.swap_cap_gib is not None
@@ -1323,6 +1346,8 @@ def _execute_certification(args: argparse.Namespace) -> int:
             state_probe_manifests=args.state_probe,
             repetitions=args.runs,
             timeout_seconds=args.timeout,
+            official_oracle_directory=args.official_oracle,
+            resume=args.resume,
             swap_cap_bytes=(
                 int(args.swap_cap_gib * 1024**3)
                 if args.swap_cap_gib is not None

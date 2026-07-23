@@ -4,6 +4,17 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## 1.0.0
 
+- Completed the continuous X7 v17.4.421 spot oracle over 80 pairs and
+  `20210101-20260101` with pinned Freqtrade 2026.5.1. The final 927-trade,
+  11,783-order native and official surfaces are byte-identical at SHA-256
+  `8ae4fe84eaf869904cc8a26056f08218548546b316f620441e57417c24cac38c`.
+- Added identity-bound reconciliation for a completed official export after a native
+  parity correction. It reuses the immutable Freqtrade ZIP only when the run, strategy,
+  image, platform, market snapshot, and official surface all match the new cold native
+  baseline; official backtest bytes are never rewritten.
+- Compiled X7's source-ordered signal-65 early-recovery exit and structurally proved its
+  orderbook timeout callbacks unreachable only under the native immediate-fill backtest
+  contract. Threshold, side, orderbook, or price-callback changes still fail closed.
 - Added seven X7 v17.4.421 branch-reaching official fixtures for tag 121, all four
   supported protections and pair locks, compound tags, variable leverage, and a real
   isolated-futures liquidation exit. Each fixture passes zero-tolerance surface parity
@@ -28,6 +39,19 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 - Packaged the pinned Freqtrade tracer with the wheel and mount only the engine
   package plus tracer roots into official containers, so installed release tools
   neither depend on a source checkout nor shadow container binary dependencies.
+- Separated Full X7 proof roles: the continuous official Freqtrade oracle now runs
+  once for exactness, while only the installed native candidate repeats three to five
+  times for timing and peak-RSS statistics. Added identity-bound oracle import and
+  resumable native/probe checkpoints so an interrupted certificate does not discard a
+  completed multi-year reference run.
+- Replaced the official research lane's duplicate all-RAM analyzed frames and
+  per-candle Python row lists with a source-hash-guarded Arrow datastore. Indicator
+  calls retain official pair order, callback reads retain the exact 1,000-candle
+  DataProvider window, and storage metrics plus ephemeral cleanup are sealed in every
+  reference report. Flushed/read Arrow files are advised out of Linux page cache so
+  disk-backed data does not exhaust the cgroup allowance. The final 80-pair,
+  six-month proof remained byte-identical while using 3,637,440,512 peak bytes and
+  zero swap.
 - Matched the pinned Freqtrade 2026.5.1 final surface exactly for the latest X7
   v17.4.418 over 80 configured spot pairs and the bounded
   `20250701-20260101` interval: 167 trades, 402 orders, 23 rejected signals,

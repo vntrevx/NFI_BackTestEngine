@@ -26,7 +26,7 @@ from .workload_calibration import (
     load_workload_calibration,
 )
 
-VECTOR_PIPELINE_VERSION = "1.14.0"
+VECTOR_PIPELINE_VERSION = "1.15.0"
 
 
 def load_strategy_analysis(

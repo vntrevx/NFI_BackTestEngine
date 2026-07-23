@@ -105,6 +105,19 @@ enum LegacyMode {
     RegularContinuation,
 }
 
+/// Source-order result for one legacy grind cluster.
+///
+/// The strategy's callback distinguishes an unmatched cluster from a matched
+/// entry that exceeds Freqtrade's current `max_stake`. The former continues to
+/// the next cluster; the latter executes `return None` and must stop the whole
+/// callback. Keeping those outcomes explicit prevents a smaller, later grind
+/// from bypassing the wallet guard.
+enum LegacyClusterOutcome {
+    Continue,
+    ReturnNone,
+    Signal(AdjustmentSignal),
+}
+
 /// Evaluate the legacy part of `long_grind_adjust_trade_position()`.
 ///
 /// The outer `Option` is the exactness boundary used by the simulator. `None`
@@ -214,13 +227,17 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
     // clusters in the source. A signal from an earlier cluster must prevent
     // every later branch from observing this candle.
     for index in [6_usize, 7] {
-        if let Some(signal) = evaluate_cluster(&context, &state, index, true)? {
-            return Some(Some(signal));
+        match evaluate_cluster(&context, &state, index, true)? {
+            LegacyClusterOutcome::Continue => {}
+            LegacyClusterOutcome::ReturnNone => return Some(None),
+            LegacyClusterOutcome::Signal(signal) => return Some(Some(signal)),
         }
     }
     for index in 0..6 {
-        if let Some(signal) = evaluate_cluster(&context, &state, index, false)? {
-            return Some(Some(signal));
+        match evaluate_cluster(&context, &state, index, false)? {
+            LegacyClusterOutcome::Continue => {}
+            LegacyClusterOutcome::ReturnNone => return Some(None),
+            LegacyClusterOutcome::Signal(signal) => return Some(Some(signal)),
         }
     }
     if let Some(signal) = evaluate_derisk_one_reentry(&context, &state, pair, candle_index)? {
@@ -443,13 +460,12 @@ fn evaluate_first_entry_recovery(
     }))
 }
 
-#[allow(clippy::option_option)] // Preserve evaluator validity separately from callback no-op.
 fn evaluate_cluster(
     context: &LegacyContext<'_>,
     state: &LegacyState,
     index: usize,
     post_derisk: bool,
-) -> Option<Option<AdjustmentSignal>> {
+) -> Option<LegacyClusterOutcome> {
     let definition = context.route.constants.clusters.get(index)?;
     let cluster = state.clusters.get(index)?;
     let stakes = &definition.stakes_spot;
@@ -491,9 +507,9 @@ fn evaluate_cluster(
         let requested =
             (context.slice_amount * scaled_stakes[cluster.count]).max(context.minimum_stake * 1.5);
         if requested > context.available_balance {
-            return Some(None);
+            return Some(LegacyClusterOutcome::ReturnNone);
         }
-        return Some(Some(AdjustmentSignal {
+        return Some(LegacyClusterOutcome::Signal(AdjustmentSignal {
             stake_amount: requested,
             tag: definition.entry_tag.clone(),
         }));
@@ -512,7 +528,7 @@ fn evaluate_cluster(
             context.minimum_stake,
             requested,
         ) {
-            return Some(Some(AdjustmentSignal {
+            return Some(LegacyClusterOutcome::Signal(AdjustmentSignal {
                 stake_amount: -stake_amount,
                 tag: order_id_tag(&definition.entry_tag, &cluster.entry_ids),
             }));
@@ -536,13 +552,13 @@ fn evaluate_cluster(
             context.minimum_stake,
             requested,
         ) {
-            return Some(Some(AdjustmentSignal {
+            return Some(LegacyClusterOutcome::Signal(AdjustmentSignal {
                 stake_amount: -stake_amount,
                 tag: order_id_tag(&definition.stop_tag, &cluster.entry_ids),
             }));
         }
     }
-    Some(None)
+    Some(LegacyClusterOutcome::Continue)
 }
 
 #[allow(clippy::option_option)] // Preserve evaluator validity separately from callback no-op.

@@ -8,7 +8,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -27,7 +27,7 @@ from .timerange import parse_timerange_milliseconds
 from .vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 
 VECTOR_REQUEST_VERSION = "1.2.0"
-VECTOR_OUTPUT_VERSION = "1.10.0"
+VECTOR_OUTPUT_VERSION = "1.11.0"
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,8 @@ def run_vector_request(request: dict[str, Any]) -> dict[str, Any]:
     output.parent.mkdir(parents=True, exist_ok=True)
     started_ns = time.perf_counter_ns()
     raw_frames = {
-        _split_frame_key(key): _read_frame(Path(path)) for key, path in request["frames"].items()
+        _split_frame_key(key): _read_frame(Path(path), deduplicate=False)
+        for key, path in request["frames"].items()
     }
     frames = _bound_indicator_frames(
         raw_frames,
@@ -247,7 +248,7 @@ def _prepare_execution_frame(
     return PreparedExecutionFrame(selected, execution_start_index)
 
 
-def _read_frame(path: Path) -> pd.DataFrame:
+def _read_frame(path: Path, *, deduplicate: bool = True) -> pd.DataFrame:
     if not path.is_file():
         raise StrategyAnalysisError(f"candle input does not exist: {path}")
     if path.suffix.lower() == ".feather":
@@ -261,7 +262,8 @@ def _read_frame(path: Path) -> pd.DataFrame:
         missing = ", ".join(sorted(required - set(frame.columns)))
         raise StrategyAnalysisError(f"candle input {path} is missing columns: {missing}")
     frame.sort_values("date", kind="stable", inplace=True)
-    frame.drop_duplicates("date", keep="last", inplace=True)
+    if deduplicate:
+        frame.drop_duplicates("date", keep="last", inplace=True)
     frame.reset_index(drop=True, inplace=True)
     return frame
 
@@ -332,16 +334,101 @@ def _bound_indicator_frames(
     stop = pd.to_datetime(stop_ms, unit="ms", utc=True)
     bounded: dict[tuple[str, str], pd.DataFrame] = {}
     for key, frame in frames.items():
-        _, timeframe = key
+        pair, timeframe = key
         load_start = start - pd.to_timedelta(
             startup_candles * timeframe_minutes(timeframe),
             unit="m",
         )
         dates = pd.to_datetime(frame["date"], utc=True)
         selected = frame.loc[(dates >= load_start) & (dates <= stop)].copy()
-        selected.reset_index(drop=True, inplace=True)
-        bounded[key] = selected
+        bounded[key] = _clean_ohlcv_like_freqtrade(
+            selected,
+            pair=pair,
+            timeframe=timeframe,
+        )
     return bounded
+
+
+def _clean_ohlcv_like_freqtrade(
+    frame: pd.DataFrame,
+    *,
+    pair: str,
+    timeframe: str,
+) -> pd.DataFrame:
+    """Apply the pinned Freqtrade OHLCV duplicate and gap contract.
+
+    Raw exchange archives can omit candles.  Freqtrade 2026.5.1 groups
+    duplicate timestamps and then resamples every strategy timeframe before
+    calling ``populate_indicators``.  A missing candle is represented by the
+    previous close for OHLC and zero volume.  Skipping those synthetic rows is
+    semantically observable: rolling indicators receive a different number of
+    observations and can emit a trade that the official oracle never sees.
+
+    Funding-rate and mark-price frames intentionally do not use this helper;
+    their sparse inner-join contract is handled separately in
+    ``_attach_funding_events``.
+    """
+    required = {"date", "open", "high", "low", "close", "volume"}
+    missing = required - set(frame.columns)
+    if missing:
+        raise StrategyAnalysisError(
+            f"candle frame for {pair} {timeframe} is missing columns: "
+            f"{', '.join(sorted(missing))}"
+        )
+    grouped = cast(
+        pd.DataFrame,
+        frame.groupby(by="date", as_index=False, sort=True).agg(
+            {
+                "open": "first",
+                "high": "max",
+                "low": "min",
+                "close": "last",
+                "volume": "max",
+            }
+        ),
+    )
+    if grouped.empty:
+        return grouped
+
+    frequency = _freqtrade_resample_frequency(timeframe)
+    filled = cast(
+        pd.DataFrame,
+        grouped.resample(frequency, on="date").agg(
+            {
+                "open": "first",
+                "high": "max",
+                "low": "min",
+                "close": "last",
+                "volume": "sum",
+            }
+        ),
+    )
+    close = cast(pd.Series, filled["close"]).ffill()
+    filled["close"] = close
+    price_columns = ["open", "high", "low"]
+    prices = cast(pd.DataFrame, filled[price_columns]).fillna(
+        value={
+            "open": close,
+            "high": close,
+            "low": close,
+        }
+    )
+    filled.loc[:, price_columns] = prices
+    filled.reset_index(inplace=True)
+    return filled
+
+
+def _freqtrade_resample_frequency(timeframe: str) -> str:
+    """Return the resample anchor used by pinned Freqtrade 2026.5.1."""
+    if timeframe.endswith("w"):
+        try:
+            weeks = int(timeframe[:-1])
+        except ValueError as exc:
+            raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}") from exc
+        if weeks <= 0:
+            raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}")
+        return f"{weeks}W-MON"
+    return f"{timeframe_minutes(timeframe) * 60}s"
 
 
 def _trim_timerange(

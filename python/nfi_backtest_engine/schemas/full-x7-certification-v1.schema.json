@@ -18,7 +18,7 @@
     "gates"
   ],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "created_at": {"type": "string", "format": "date-time"},
     "status": {"enum": ["certified", "failed"]},
     "release_certified": {"type": "boolean"},
@@ -80,40 +80,39 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "warmups_excluded",
-        "initial_repetitions",
-        "measured_repetitions",
-        "maximum_repetitions",
-        "spread_threshold",
-        "orders",
+        "native_warmups_excluded",
+        "native_initial_repetitions",
+        "native_measured_repetitions",
+        "native_maximum_repetitions",
+        "native_spread_threshold",
         "engine_relative_spread",
-        "reference_relative_spread"
+        "official_reference_repetitions",
+        "official_reference_role",
+        "resumed"
       ],
       "properties": {
-        "warmups_excluded": {"const": 1},
-        "initial_repetitions": {"type": "integer", "minimum": 3, "maximum": 5},
-        "measured_repetitions": {"type": "integer", "minimum": 3, "maximum": 5},
-        "maximum_repetitions": {"const": 5},
-        "spread_threshold": {"const": 0.05},
-        "orders": {
-          "type": "array",
-          "minItems": 3,
-          "maxItems": 5,
-          "items": {
-            "enum": [
-              ["engine", "reference"],
-              ["reference", "engine"]
-            ]
-          }
-        },
+        "native_warmups_excluded": {"const": 1},
+        "native_initial_repetitions": {"type": "integer", "minimum": 3, "maximum": 5},
+        "native_measured_repetitions": {"type": "integer", "minimum": 3, "maximum": 5},
+        "native_maximum_repetitions": {"const": 5},
+        "native_spread_threshold": {"const": 0.05},
         "engine_relative_spread": {"type": "number", "minimum": 0},
-        "reference_relative_spread": {"type": "number", "minimum": 0}
+        "official_reference_repetitions": {"const": 1},
+        "official_reference_role": {
+          "const": "single-continuous-exact-parity-oracle"
+        },
+        "resumed": {"type": "boolean"}
       }
     },
     "runs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["engine", "reference", "engine_summary", "reference_summary"],
+      "required": [
+        "engine",
+        "official_reference",
+        "engine_summary",
+        "official_reference_summary"
+      ],
       "properties": {
         "engine": {
           "type": "array",
@@ -121,14 +120,9 @@
           "maxItems": 5,
           "items": {"$ref": "#/$defs/run"}
         },
-        "reference": {
-          "type": "array",
-          "minItems": 3,
-          "maxItems": 5,
-          "items": {"$ref": "#/$defs/run"}
-        },
+        "official_reference": {"$ref": "#/$defs/run"},
         "engine_summary": {"$ref": "#/$defs/summary"},
-        "reference_summary": {"$ref": "#/$defs/summary"}
+        "official_reference_summary": {"$ref": "#/$defs/summary"}
       }
     },
     "state_probes": {
