@@ -219,7 +219,7 @@ def _run_x7_fixture_engine(
         strategy_path=root / strategy_input["path"],
         class_name=manifest["freqtrade"]["strategy"],
         config_path=root / config_input["path"],
-        data_directory=root / "inputs",
+        data_directory=_fixture_data_directory(root, manifest),
         timerange=manifest["freqtrade"]["timerange"],
         output_directory=research_output,
         pairs=pairs,
@@ -636,6 +636,40 @@ def _candle_input_for_pair(manifest: dict[str, Any], pair: str) -> dict[str, Any
     if len(candidates) != 1:
         raise BenchmarkError(f"expected one candle input for {pair}, found {len(candidates)}")
     return candidates[0]
+
+
+def _fixture_data_directory(root: Path, manifest: dict[str, Any]) -> Path:
+    """Derive the Freqtrade datadir from the fixture's sealed candle inputs.
+
+    Captured fixtures retain their original layout. Spot captures can store
+    candles directly under ``inputs/candles`` or ``inputs/data`` while futures
+    captures use Freqtrade's ``inputs/data/futures`` subdirectory. Deriving the
+    root from input roles keeps the runner independent of a particular fixture
+    name and avoids recursive file searches on large datasets.
+    """
+
+    data_roots: set[Path] = set()
+    for item in manifest.get("inputs", []):
+        if item.get("role") not in {"candles", "funding_candles", "mark_candles"}:
+            continue
+        parent = Path(item["path"]).parent
+        data_roots.add(parent.parent if parent.name == "futures" else parent)
+    if len(data_roots) != 1:
+        raise BenchmarkError(
+            "fixture candle inputs must resolve to one shared data directory"
+        )
+
+    fixture_root = root.resolve()
+    data_directory = (fixture_root / data_roots.pop()).resolve()
+    try:
+        data_directory.relative_to(fixture_root)
+    except ValueError as exc:
+        raise BenchmarkError("fixture candle data directory escapes the fixture") from exc
+    if not data_directory.is_dir():
+        raise BenchmarkError(
+            f"fixture candle data directory is missing: {data_directory}"
+        )
+    return data_directory
 
 
 def _one_input(manifest: dict[str, Any], role: str) -> dict[str, Any]:

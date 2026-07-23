@@ -173,8 +173,8 @@
     },
     "state_projection": {
       "path": "artifacts/state-projection.nfitrace",
-      "sha256": "dfa05a9f7ed5d8a81299757f1989d7e7cda44e2388bb04dbb91b74c4b75a730d",
-      "bytes": 523609
+      "sha256": "919f774ae8499a46eb03b613f439c529425fc7763a4ec6458264a166b13bffcd",
+      "bytes": 522074
     }
   },
   "measurement": {

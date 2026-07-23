@@ -296,3 +296,49 @@ def test_trade_surface_omits_internal_liquidation_price(tmp_path: Path) -> None:
     )
 
     assert surface["trades"][0]["liquidation_price"] is None
+
+
+def test_trade_surface_writes_locks_in_official_canonical_order(tmp_path: Path) -> None:
+    result_path = tmp_path / "result.json"
+    write_json(
+        result_path,
+        {
+            "starting_balance": 1000.0,
+            "final_balance": 1000.0,
+            "profit_total_abs": 0.0,
+            "total_volume": 0.0,
+            "rejected_signals": 0,
+            "maximum_concurrent_trades": 0,
+            "trades": [],
+            "locks": [
+                {
+                    "pair": "BTC/USDT",
+                    "lock_timestamp_ms": 1,
+                    "lock_end_timestamp_ms": 2,
+                    "reason": "Cooldown period.",
+                    "side": "*",
+                    "active": True,
+                }
+            ],
+        },
+    )
+
+    surface = generic_result_to_surface(
+        result_path=result_path,
+        strategy_name="Simple",
+        config={"trading_mode": "spot"},
+        timeframe="5m",
+        timerange="20250101-20250102",
+        stoploss_ratio=-0.1,
+        destination=tmp_path / "surface.json",
+    )
+
+    assert list(surface["locks"][0]) == [
+        "sequence",
+        "pair",
+        "side",
+        "lock_timestamp_ms",
+        "lock_end_timestamp_ms",
+        "reason",
+        "active",
+    ]

@@ -19,6 +19,11 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   supported protections and pair locks, compound tags, variable leverage, and a real
   isolated-futures liquidation exit. Each fixture passes zero-tolerance surface parity
   and complete-state parity against pinned Freqtrade 2026.5.1.
+- Derived fixture data roots from sealed candle roles so both spot layouts and the
+  standard `data/futures` layout run identically on Windows, Linux, and macOS. Lock
+  surfaces now retain the official canonical field order, while full-state futures
+  projections exclude synthetic base positions, normalize sub-nano wallet float noise,
+  and sort lock snapshots independently of insertion order.
 - Added AST-bound numeric probe toggles, informative-only pair staging, and pinned
   on-demand reference-market capture without line-number or date-specific source edits.
 - Matched Freqtrade's config-over-strategy stoploss precedence and its observable
