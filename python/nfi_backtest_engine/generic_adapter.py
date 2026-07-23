@@ -551,7 +551,16 @@ def generic_result_to_surface(
         "locks": [
             {
                 "sequence": sequence,
-                **lock,
+                # Keep the official normalized field order. JSON object order is
+                # semantically irrelevant, but release evidence also seals the
+                # artifact bytes so a different order would produce a false
+                # determinism failure.
+                "pair": lock["pair"],
+                "side": lock["side"],
+                "lock_timestamp_ms": lock["lock_timestamp_ms"],
+                "lock_end_timestamp_ms": lock["lock_end_timestamp_ms"],
+                "reason": lock["reason"],
+                "active": lock["active"],
             }
             for sequence, lock in enumerate(result.get("locks", []))
         ],
