@@ -452,9 +452,20 @@ def _project_root() -> Path:
 
 def _project_root_or_none() -> Path | None:
     current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "rust" / "Cargo.toml").is_file():
-            return parent
+    # A release wheel may be installed into ``<checkout>/.venv``. Walking all
+    # ancestors would then mistake that ordinary site-packages copy for the
+    # editable source package merely because the checkout also contains
+    # ``rust/Cargo.toml``. The source layout has one unambiguous boundary:
+    # this module must live directly below ``<root>/python/nfi_backtest_engine``.
+    package_directory = current.parent
+    python_directory = package_directory.parent
+    root = python_directory.parent
+    if (
+        package_directory.name == "nfi_backtest_engine"
+        and python_directory.name == "python"
+        and (root / "rust" / "Cargo.toml").is_file()
+    ):
+        return root
     return None
 
 

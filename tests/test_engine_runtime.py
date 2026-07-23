@@ -19,6 +19,34 @@ def _rust_checkout(root: Path) -> Path:
     return rust
 
 
+def test_project_root_ignores_a_release_venv_nested_in_a_checkout(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    (root / "rust").mkdir(parents=True)
+    (root / "rust" / "Cargo.toml").write_text("[workspace]\n", encoding="utf-8")
+    source_module = root / "python" / "nfi_backtest_engine" / "engine_runtime.py"
+    source_module.parent.mkdir(parents=True)
+    source_module.write_text("", encoding="utf-8")
+    wheel_module = (
+        root
+        / ".venv"
+        / "Lib"
+        / "site-packages"
+        / "nfi_backtest_engine"
+        / "engine_runtime.py"
+    )
+    wheel_module.parent.mkdir(parents=True)
+    wheel_module.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(engine_runtime, "__file__", str(source_module))
+    assert engine_runtime._project_root_or_none() == root
+
+    monkeypatch.setattr(engine_runtime, "__file__", str(wheel_module))
+    assert engine_runtime._project_root_or_none() is None
+
+
 def test_build_engine_uses_native_only_when_checkout_source_matches(
     monkeypatch, tmp_path: Path
 ) -> None:
