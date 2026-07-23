@@ -8,12 +8,12 @@ from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.reference_runtime import REFERENCE_CCXT_VERSION
 from nfi_backtest_engine.research_reference import (
     RESEARCH_REFERENCE_VERSION,
-    _official_backtest_config,
     _sealed_input_path,
     _validate_audit_timestamps,
     _validate_reference_market_snapshot,
     build_research_market_capture_command,
     build_research_reference_command,
+    official_backtest_config,
 )
 
 
@@ -38,9 +38,7 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
     assert "NFI_REFERENCE_DATASTORE=spooled" in command
     assert "NFI_REFERENCE_STORAGE_REPORT=/output/reference-storage.json" in command
     assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
-    assert any(
-        value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command
-    )
+    assert any(value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command)
     assert "PYTHONPATH=/nfi-reference-tracer:/nfi-python" in command
     assert command[-6:] == [
         "--cache",
@@ -68,9 +66,7 @@ def test_market_capture_uses_the_pinned_list_pairs_contract(tmp_path: Path) -> N
     assert "--json" not in command
     assert "NFI_MARKET_CAPTURE_PATH=/output/reference-markets.json" in command
     assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
-    assert any(
-        value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command
-    )
+    assert any(value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command)
 
 
 def test_official_config_drops_only_the_unrelated_api_service() -> None:
@@ -83,7 +79,7 @@ def test_official_config_drops_only_the_unrelated_api_service() -> None:
         },
     }
 
-    result = _official_backtest_config(source)
+    result = official_backtest_config(source)
 
     assert result == {
         "strategy": "NostalgiaForInfinityX7",
@@ -95,7 +91,7 @@ def test_official_config_drops_only_the_unrelated_api_service() -> None:
 
 def test_official_config_rejects_an_unexecuted_dynamic_pairlist() -> None:
     with pytest.raises(BenchmarkError, match="static sealed pairlist"):
-        _official_backtest_config(
+        official_backtest_config(
             {
                 "exchange": {"name": "binance"},
                 "pairlists": [{"method": "VolumePairList", "number_assets": 20}],

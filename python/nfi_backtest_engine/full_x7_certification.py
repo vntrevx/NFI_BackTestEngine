@@ -46,6 +46,7 @@ from .product_contract import (
     TARGET_SCREENING_SPEEDUP,
 )
 from .release_inputs import validate_release_input_lock
+from .research_reference import official_backtest_config
 from .specs import FULL_X7_CERTIFICATION_SCHEMA, validate_schema
 from .timerange import parse_timerange_milliseconds
 
@@ -147,11 +148,7 @@ def run_full_x7_certification(
             timeout_seconds=timeout_seconds,
         )
     _require_complete_baseline(baseline, inputs["lock"])
-    reference_warmup = (
-        load_reference_measurement(warmup_root / "reference")
-        if resume
-        else None
-    )
+    reference_warmup = load_reference_measurement(warmup_root / "reference") if resume else None
     if reference_warmup is None:
         require_stage_available(warmup_root / "reference", stage="official oracle")
         if official_oracle_directory is not None:
@@ -179,9 +176,7 @@ def run_full_x7_certification(
             )
         reference_markets = captured.resolve()
         inputs["reference_market_snapshot"] = reference_markets
-        inputs["public"]["reference_market_snapshot_sha256"] = sha256_file(
-            reference_markets
-        )
+        inputs["public"]["reference_market_snapshot_sha256"] = sha256_file(reference_markets)
     if not _reference_complete(reference_warmup):
         raise BenchmarkError(
             "official Full X7 warmup did not complete exact parity; "
@@ -243,9 +238,7 @@ def run_full_x7_certification(
         engine_runs,
         [reference_warmup],
     )
-    engine_complete = all(
-        _engine_complete(run, inputs["lock"]) for run in engine_runs
-    )
+    engine_complete = all(_engine_complete(run, inputs["lock"]) for run in engine_runs)
     reference_complete = _reference_complete(reference_warmup)
     profile_memory = current_resource_limits(profile)["working_memory_bytes"]
     memory_met = engine_summary["peak_rss_bytes"]["maximum"] <= profile_memory
@@ -373,9 +366,7 @@ def verify_installed_wheel(
     installed_sha = build.get("binary_sha256")
     equal = member_sha == installed_sha
     if not equal:
-        raise BenchmarkError(
-            "imported native extension does not match the candidate wheel"
-        )
+        raise BenchmarkError("imported native extension does not match the candidate wheel")
     return {
         "path": str(wheel),
         "sha256": sha256_file(wheel),
@@ -439,9 +430,7 @@ def _resolve_full_x7_inputs(
     data_root = Path(data_directory).resolve()
     engine_markets = Path(engine_market_snapshot).resolve()
     reference_markets = (
-        Path(reference_market_snapshot).resolve()
-        if reference_market_snapshot is not None
-        else None
+        Path(reference_market_snapshot).resolve() if reference_market_snapshot is not None else None
     )
     required_files = [
         (source, "strategy"),
@@ -489,12 +478,13 @@ def _resolve_full_x7_inputs(
             },
             "strategy_sha256": sha256_file(source),
             "config_sha256": loaded["sha256"],
+            "official_reference_config_sha256": config_sha256(
+                official_backtest_config(loaded["config"])
+            ),
             "data_aggregate_sha256": seal["aggregate_sha256"],
             "engine_market_snapshot_sha256": sha256_file(engine_markets),
             "reference_market_snapshot_sha256": (
-                sha256_file(reference_markets)
-                if reference_markets is not None
-                else None
+                sha256_file(reference_markets) if reference_markets is not None else None
             ),
         },
     }
@@ -511,9 +501,7 @@ def _validate_release_data_seal(
     data = lock["data"]
     scope = lock["scope"]
     if Path(seal["data_root"]).resolve() != data_directory:
-        raise SpecValidationError(
-            "selected data directory differs from the release data seal"
-        )
+        raise SpecValidationError("selected data directory differs from the release data seal")
     if (
         seal["aggregate_sha256"] != data["aggregate_sha256"]
         or len(seal["files"]) != data["file_count"]
@@ -528,9 +516,7 @@ def _validate_release_data_seal(
         or request["history_coverage_policy"] != "strict"
         or request["startup_coverage_policy"] != data["startup_coverage_policy"]
     ):
-        raise SpecValidationError(
-            "data seal request differs from the release input lock"
-        )
+        raise SpecValidationError("data seal request differs from the release input lock")
 
 
 def _validate_probe_matrix(
@@ -547,32 +533,24 @@ def _validate_probe_matrix(
         if manifest["schema_version"] != "3.0.0":
             raise SpecValidationError("Full X7 probes must use fixture manifest v3")
         provenance = manifest.get("strategy_provenance")
-        if (
-            expected_upstream_commit is not None
-            and (
-                not isinstance(provenance, dict)
-                or provenance.get("upstream_commit") != expected_upstream_commit
-            )
+        if expected_upstream_commit is not None and (
+            not isinstance(provenance, dict)
+            or provenance.get("upstream_commit") != expected_upstream_commit
         ):
             raise SpecValidationError(
                 "Full X7 probe upstream commit differs from the release input lock"
             )
         validate_fixture_coverage(path, manifest)
         kinds.add(manifest["probe_kind"])
-        protection_methods.update(
-            manifest["required_coverage"]["protection_methods"]
-        )
+        protection_methods.update(manifest["required_coverage"]["protection_methods"])
         probes.append((path, manifest))
     missing = sorted(REQUIRED_PROBE_KINDS - kinds)
     if missing:
-        raise SpecValidationError(
-            "Full X7 probe matrix is incomplete: " + ", ".join(missing)
-        )
+        raise SpecValidationError("Full X7 probe matrix is incomplete: " + ", ".join(missing))
     missing_protections = sorted(REQUIRED_PROTECTION_METHODS - protection_methods)
     if missing_protections:
         raise SpecValidationError(
-            "Full X7 protection probe matrix is incomplete: "
-            + ", ".join(missing_protections)
+            "Full X7 protection probe matrix is incomplete: " + ", ".join(missing_protections)
         )
     return probes
 
@@ -744,8 +722,7 @@ def _engine_complete(measurement: dict[str, Any], lock: dict[str, Any]) -> bool:
         and report.get("pipeline_evidence", {}).get("cold") is True
         and report.get("data", {}).get("history_coverage_policy") == "strict"
         and report.get("data", {}).get("coverage_shortfall_count") == 0
-        and report.get("data", {}).get("aggregate_sha256")
-        == lock["data"]["aggregate_sha256"]
+        and report.get("data", {}).get("aggregate_sha256") == lock["data"]["aggregate_sha256"]
         and not report.get("capability", {}).get("blockers")
         and isinstance(measurement.get("result_sha256"), str)
     )
@@ -808,9 +785,7 @@ def _run_summary(runs: list[dict[str, Any]], *, lane: str) -> dict[str, Any]:
         if lane == "engine" and isinstance(report, dict):
             result = report.get("result")
             execution = result.get("execution") if isinstance(result, dict) else None
-            native_peak = (
-                execution.get("peak_rss_bytes") if isinstance(execution, dict) else None
-            )
+            native_peak = execution.get("peak_rss_bytes") if isinstance(execution, dict) else None
             if isinstance(native_peak, int):
                 peak = max(peak, native_peak)
         elif lane == "reference" and isinstance(report, dict):
@@ -876,9 +851,7 @@ def _performance_full_state_equal(performance: dict[str, Any]) -> bool:
         for run in runs:
             report = run.get("report")
             state = (
-                report.get("parity", {}).get("state_trace")
-                if isinstance(report, dict)
-                else None
+                report.get("parity", {}).get("state_trace") if isinstance(report, dict) else None
             )
             if not isinstance(state, dict) or state.get("equal") is not True:
                 return False
