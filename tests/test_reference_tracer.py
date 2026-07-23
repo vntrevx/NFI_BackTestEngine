@@ -19,12 +19,22 @@ TRACER = (
     / "reference_tracer"
     / "nfi_reference_trace.py"
 )
+STORAGE = TRACER.with_name("nfi_reference_storage.py")
 
 
 def _load_tracer():
     spec = importlib.util.spec_from_file_location("nfi_reference_trace_test", TRACER)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_storage():
+    spec = importlib.util.spec_from_file_location("nfi_reference_storage_test", STORAGE)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -277,3 +287,139 @@ def test_signal_feature_audit_samples_requested_and_source_signal_rows(
         "enter_tag": "562 ",
         "close": "2",
     }
+
+
+def test_columnar_rows_match_freqtrade_values_tolist_scalar_contract() -> None:
+    storage = _load_storage()
+    start = pd.Timestamp("2025-01-01T00:00:00Z")
+    headers = (
+        "date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "enter_long",
+        "exit_long",
+        "enter_short",
+        "exit_short",
+        "enter_tag",
+        "exit_tag",
+    )
+    frame = pd.DataFrame(
+        {
+            "date": pd.date_range(start, periods=5, freq="5min"),
+            "open": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "high": [2.0, 3.0, 4.0, 5.0, 6.0],
+            "low": [0.5, 1.5, 2.5, 3.5, 4.5],
+            "close": [1.5, 2.5, 3.5, 4.5, 5.5],
+            "enter_long": [0, 1, 0, 0, 0],
+            "exit_long": [0, 0, 1, 0, 0],
+            "enter_short": [0, 0, 0, 1, 0],
+            "exit_short": [0, 0, 0, 0, 1],
+            "enter_tag": [None, "121", None, "562 ", None],
+            "exit_tag": [None, None, "exit", None, None],
+        }
+    )
+    expected = frame.loc[:, list(headers)].values.tolist()
+
+    rows = storage.ColumnarRows.from_dataframe(
+        frame,
+        headers,
+        block_rows=2,
+    )
+
+    assert list(rows) == expected
+    assert rows[-1] == expected[-1]
+    assert rows[1:4] == expected[1:4]
+    for actual_row, expected_row in zip(rows, expected, strict=True):
+        assert [type(value) for value in actual_row] == [
+            type(value) for value in expected_row
+        ]
+
+
+def test_arrow_reference_storage_returns_exact_callback_window(
+    tmp_path: Path,
+) -> None:
+    storage_module = _load_storage()
+
+    class Provider:
+        pass
+
+    provider = Provider()
+    pair_key = ("BTC/USDT", "5m", "spot")
+    frame = pd.DataFrame(
+        {
+            "date": pd.date_range("2025-01-01", periods=9, freq="5min", tz="UTC"),
+            "close": [float(value) for value in range(9)],
+            "signal": [None, "a", None, None, "b", None, None, None, "c"],
+        },
+        index=pd.RangeIndex(start=7, stop=25, step=2, name="candle"),
+    )
+    report = tmp_path / "reference-storage.json"
+    storage = storage_module.ReferenceStorage(
+        base_directory=tmp_path / "spool",
+        report_path=report,
+        row_block_rows=3,
+        cache_limit_bytes=1024**2,
+    )
+    storage.spool_dataframe(provider, pair_key, frame)
+
+    first, refreshed = storage.read_window(
+        provider,
+        pair_key,
+        start=2,
+        stop=7,
+    )
+    second, second_refreshed = storage.read_window(
+        provider,
+        pair_key,
+        start=3,
+        stop=6,
+    )
+
+    pd.testing.assert_frame_equal(first, frame.iloc[2:7])
+    pd.testing.assert_frame_equal(second, frame.iloc[3:6])
+    assert refreshed == second_refreshed
+    metrics = storage.finish()
+    assert metrics["block_loads"] == 3
+    assert metrics["cache_hits"] == 1
+    assert metrics["cache_misses"] == 1
+    assert metrics["removed_on_exit"] is True
+    assert report.is_file()
+    assert not storage.root.exists()
+
+
+def test_indicator_frames_spool_pairwise_without_retaining_full_frames(
+    tmp_path: Path,
+) -> None:
+    storage_module = _load_storage()
+    frame_a = pd.DataFrame(
+        {
+            "date": pd.date_range("2025-01-01", periods=4, freq="5min", tz="UTC"),
+            "close": [1.0, 2.0, 3.0, 4.0],
+            "indicator": [10.0, 20.0, 30.0, 40.0],
+        }
+    )
+    frame_b = frame_a.assign(close=lambda frame: frame["close"] * 2)
+    storage = storage_module.ReferenceStorage(
+        base_directory=tmp_path / "spool",
+        report_path=tmp_path / "reference-storage.json",
+        row_block_rows=2,
+        cache_limit_bytes=1024**2,
+    )
+    frames = storage.new_preprocessed_frames()
+
+    frames["A/USDT"] = frame_a
+    frames["B/USDT"] = frame_b
+
+    assert list(frames) == ["A/USDT", "B/USDT"]
+    pd.testing.assert_frame_equal(frames["A/USDT"], frame_a)
+    pd.testing.assert_frame_equal(
+        frames.date_frames()["B/USDT"],
+        frame_b.loc[:, ["date"]],
+    )
+    del frames["A/USDT"]
+    assert list(frames) == ["B/USDT"]
+    metrics = storage.finish()
+    assert metrics["indicator_rows_written"] == 8
+    assert metrics["indicator_spool_bytes_written"] > 0

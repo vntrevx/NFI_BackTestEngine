@@ -375,6 +375,20 @@ pub enum NfiManagedLongProfile {
     Scalp,
 }
 
+/// One pure exit appended to a reviewed managed-long callback.
+///
+/// Python extracts these values from the supplied strategy AST. Keeping the
+/// policy in the source-bound IR lets threshold and tag changes preserve their
+/// exact meaning without embedding an NFI revision in the simulator.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiManagedTerminalExit {
+    pub entry_tags: Vec<String>,
+    pub minimum_age_ms: i64,
+    pub minimum_profit_ratio: f64,
+    pub reason: String,
+}
+
 /// One source-pinned branch in X7's managed long-side exit router.
 ///
 /// The profile selects a closed Rust implementation. Thresholds are carried
@@ -391,6 +405,8 @@ pub struct NfiManagedLongRoute {
     pub stop_threshold_futures: Option<f64>,
     #[serde(default)]
     pub stop_threshold_spot: Option<f64>,
+    #[serde(default)]
+    pub terminal_exit: Option<NfiManagedTerminalExit>,
 }
 
 /// One repeated cluster in X7's legacy long-grind callback.
@@ -1990,7 +2006,11 @@ fn simulate_internal(
 
     let event_loop_ns = duration_ns(event_loop_started.elapsed());
     let finalization_started = Instant::now();
-    for trade in open_trades {
+    // Freqtrade's LocalTrade registry exposes still-open trades newest first
+    // when the backtest force-closes its remaining positions. Preserve that
+    // insertion-stack order here; otherwise the trades themselves are exact,
+    // but their final exported sequence numbers are reversed.
+    for trade in open_trades.into_iter().rev() {
         let last = input.pairs[trade.pair_index]
             .candles
             .last()
@@ -2501,8 +2521,10 @@ fn validate_nfi_trade_manager(
         .iter()
         .map(|route| route.entry_tags.len())
         .sum::<usize>();
-    let valid_identity = matches!(manager.schema_version.as_str(), "0.9.0" | "0.10.0")
-        && manager.source_sha256.len() == 64
+    let valid_identity = matches!(
+        manager.schema_version.as_str(),
+        "0.9.0" | "0.10.0" | "0.11.0"
+    ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
             .bytes()
@@ -2514,6 +2536,11 @@ fn validate_nfi_trade_manager(
             .managed_long_routes
             .iter()
             .all(valid_nfi_managed_long_route);
+    let valid_terminal_exit_version = manager.schema_version == "0.11.0"
+        || manager
+            .managed_long_routes
+            .iter()
+            .all(|route| route.terminal_exit.is_none());
     let valid_short_routes = manager.managed_short_routes.len() == 1
         && short_keys == BTreeSet::from(["short_rebuy"])
         && short_tags.len() == total_short_tag_count
@@ -2630,7 +2657,7 @@ fn validate_nfi_trade_manager(
         let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
         let versioned_rebuy_multiplier = match manager.schema_version.as_str() {
             "0.9.0" => adjustment.constants.rebuy_stake_multiplier.is_none(),
-            "0.10.0" => adjustment
+            "0.10.0" | "0.11.0" => adjustment
                 .constants
                 .rebuy_stake_multiplier
                 .is_some_and(|value| value.is_finite() && value > 0.0),
@@ -2707,6 +2734,7 @@ fn validate_nfi_trade_manager(
         });
     if !valid_identity
         || !valid_managed_routes
+        || !valid_terminal_exit_version
         || !valid_short_routes
         || !valid_route_order
         || !valid_long_grind
@@ -2738,6 +2766,7 @@ fn valid_nfi_managed_short_route(route: &NfiManagedLongRoute) -> bool {
         && route
             .stop_threshold_spot
             .is_some_and(|value| value.is_finite() && value >= 0.0)
+        && route.terminal_exit.is_none()
 }
 
 fn valid_nfi_managed_long_route(route: &NfiManagedLongRoute) -> bool {
@@ -2753,6 +2782,16 @@ fn valid_nfi_managed_long_route(route: &NfiManagedLongRoute) -> bool {
             | ("long_scalp", NfiManagedLongProfile::Scalp)
     );
     let route_tags = route.entry_tags.iter().collect::<BTreeSet<_>>();
+    let terminal_exit_is_valid = route.terminal_exit.as_ref().is_none_or(|terminal| {
+        let terminal_tags = terminal.entry_tags.iter().collect::<BTreeSet<_>>();
+        route.profile == NfiManagedLongProfile::Rebuy
+            && !terminal.entry_tags.is_empty()
+            && terminal_tags.len() == terminal.entry_tags.len()
+            && terminal_tags.iter().all(|tag| route_tags.contains(*tag))
+            && terminal.minimum_age_ms > 0
+            && terminal.minimum_profit_ratio.is_finite()
+            && !terminal.reason.is_empty()
+    });
     let stop_thresholds_are_valid = match route.profile {
         NfiManagedLongProfile::Rebuy
         | NfiManagedLongProfile::Rapid
@@ -2772,6 +2811,7 @@ fn valid_nfi_managed_long_route(route: &NfiManagedLongRoute) -> bool {
         && route_tags.len() == route.entry_tags.len()
         && route.entry_tags.iter().all(|tag| !tag.is_empty())
         && stop_thresholds_are_valid
+        && terminal_exit_is_valid
 }
 
 fn valid_nfi_rebuy_constants(constants: &NfiX7RebuyConstants) -> bool {
@@ -6145,13 +6185,24 @@ fn evaluate_nfi_managed_long_exit(
         profit_targets,
     );
 
-    let Some(reason) = signal_name else {
-        return Some(CustomExitDecision::NoExit);
-    };
-    if sell && !nfi_ignored_signal(route, &reason) {
-        return Some(CustomExitDecision::Exit(nfi_exit_reason(
-            &reason, entry_tag,
-        )));
+    if let Some(reason) = signal_name {
+        if sell && !nfi_ignored_signal(route, &reason) {
+            return Some(CustomExitDecision::Exit(nfi_exit_reason(
+                &reason, entry_tag,
+            )));
+        }
+    }
+    if route.terminal_exit.as_ref().is_some_and(|terminal| {
+        enter_tags == terminal.entry_tags
+            && candle.timestamp_ms - trade.open_timestamp_ms >= terminal.minimum_age_ms
+            && snapshot.initial_stake_ratio >= terminal.minimum_profit_ratio
+    }) {
+        let reason = &route
+            .terminal_exit
+            .as_ref()
+            .expect("terminal exit was checked immediately above")
+            .reason;
+        return Some(CustomExitDecision::Exit(nfi_exit_reason(reason, entry_tag)));
     }
     Some(CustomExitDecision::NoExit)
 }
@@ -7830,6 +7881,7 @@ mod tests {
             entry_tags: entry_tags.iter().map(ToString::to_string).collect(),
             stop_threshold_futures: has_dedicated_stop.then_some(0.35),
             stop_threshold_spot: has_dedicated_stop.then_some(0.12),
+            terminal_exit: None,
         }
     }
 
@@ -8315,6 +8367,45 @@ mod tests {
     }
 
     #[test]
+    fn final_force_exits_export_newest_open_trade_first() {
+        let pair = |name: &str, entry_timestamp_ms: i64| {
+            let mut entry = candle(entry_timestamp_ms, 100.0, 100.0);
+            entry.enter_long = Some(EntrySignal {
+                tag: Some(name.to_owned()),
+                leverage: None,
+                liquidation_price: None,
+            });
+            PairSeries {
+                pair: name.to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, candle(2, 100.0, 100.0)].into(),
+            }
+        };
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: config(2),
+            pairs: vec![pair("OLDER/USDT", 0), pair("NEWER/USDT", 1)],
+        };
+
+        let result = simulate(&input).expect("valid force-exit ordering simulation");
+
+        assert_eq!(result.trades.len(), 2);
+        assert_eq!(result.trades[0].pair, "NEWER/USDT");
+        assert_eq!(result.trades[1].pair, "OLDER/USDT");
+        assert!(result
+            .trades
+            .iter()
+            .all(|trade| trade.exit_reason == "force_exit"));
+    }
+
+    #[test]
     fn open_trade_pairs_run_before_configured_pair_order() {
         let mut later_entry = candle(1, 100.0, 100.0);
         later_entry.enter_long = Some(EntrySignal {
@@ -8716,6 +8807,71 @@ mod tests {
         let result = simulate(&input).expect("normal positive-profit guard");
 
         assert_eq!(result.trades[0].exit_reason, "force_exit");
+    }
+
+    #[test]
+    fn nfi_rebuy_terminal_exit_uses_source_compiled_policy() {
+        const MINUTE: i64 = 60 * 1_000;
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("65 ".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        manager.schema_version = "0.11.0".to_owned();
+        manager
+            .managed_long_routes
+            .iter_mut()
+            .find(|route| route.profile == NfiManagedLongProfile::Rebuy)
+            .expect("test manager has a rebuy route")
+            .terminal_exit = Some(NfiManagedTerminalExit {
+            entry_tags: vec!["65".to_owned()],
+            minimum_age_ms: 90 * MINUTE,
+            minimum_profit_ratio: 0.0125,
+            reason: "exit_long_rebuy_signal65_early_recovery".to_owned(),
+        });
+        assert!(
+            manager
+                .managed_long_routes
+                .iter()
+                .all(valid_nfi_managed_long_route),
+            "source-compiled managed routes must validate"
+        );
+        let mut manager_config = config(1);
+        enable_nfi_manager(&mut manager_config, manager);
+        let neutral_values = vec![serde_json::json!(0.0); 4];
+        let mut pair = nfi_pair(
+            vec![
+                entry,
+                // Profit is sufficient, but the source age gate is not.
+                candle(89 * MINUTE, 102.0, 102.0),
+                // Age is sufficient, but the source profit gate is not.
+                candle(90 * MINUTE, 101.0, 101.0),
+                candle(91 * MINUTE, 102.0, 102.0),
+            ],
+            BTreeMap::from([
+                ("RSI_14".to_owned(), vec![serde_json::json!(50.0); 4]),
+                ("CMF_20".to_owned(), neutral_values.clone()),
+                ("CMF_20_1h".to_owned(), neutral_values.clone()),
+                ("CMF_20_4h".to_owned(), neutral_values.clone()),
+                ("ROC_9_4h".to_owned(), neutral_values),
+            ]),
+        );
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("source-compiled rebuy terminal exit");
+
+        assert_eq!(result.trades[0].close_timestamp_ms, 91 * MINUTE);
+        assert_eq!(
+            result.trades[0].exit_reason,
+            "exit_long_rebuy_signal65_early_recovery ( 65 )"
+        );
     }
 
     #[test]
@@ -9354,6 +9510,73 @@ mod tests {
         assert_eq!(trade.orders[1].price, 4.037);
         assert!(!trade.orders[1].is_entry);
         assert_eq!(trade.exit_reason, "force_exit");
+    }
+
+    #[test]
+    fn nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters() {
+        const HOUR: i64 = 60 * 60 * 1_000;
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("120 ".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let oversized_first_cluster = candle(25 * HOUR, 90.0, 90.0);
+        let mut force_exit = candle(26 * HOUR, 90.0, 90.0);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+
+        let mut constants = nfi_legacy_grind_constants();
+        // The first matching cluster asks for more than the remaining wallet,
+        // while gd6 would fit. NFI returns None at the first wallet guard and
+        // never lets the smaller later cluster bypass source order.
+        constants.clusters[0].stakes_spot = vec![1.0];
+        constants.clusters[0].thresholds_spot = vec![-0.12];
+        constants.clusters[5].stakes_spot = vec![0.1];
+        constants.clusters[5].thresholds_spot = vec![-0.03];
+
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        manager
+            .programs
+            .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+        manager.long_grind = Some(NfiLongGrindRoute {
+            mode_name: "long_grind".to_owned(),
+            entry_tags: vec!["120".to_owned()],
+            exit_profit_threshold: 0.25,
+            adjustment_scope: "spot-grind-backtest-v1".to_owned(),
+            grind_mode: true,
+            decision_program: "long_grind_entry_v3".to_owned(),
+            first_entry_profit_threshold_spot: 0.018,
+            first_entry_stop_threshold_spot: -0.2,
+            derisk_use_grind_stops: true,
+            stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+            constants,
+            regular_decision_program: None,
+            regular_constants: None,
+        });
+        manager.route_order.insert(6, "long_grind".to_owned());
+
+        let mut manager_config = config(1);
+        manager_config.starting_balance = 175.0;
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(
+            vec![entry, oversized_first_cluster, force_exit],
+            BTreeMap::new(),
+        );
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("wallet rejection is an ordinary callback no-op");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders.len(), 2);
+        assert_eq!(trade.orders[0].tag.as_deref(), Some("120 "));
+        assert_eq!(trade.orders[1].tag.as_deref(), Some("force_exit"));
     }
 
     #[test]

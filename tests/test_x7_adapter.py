@@ -751,6 +751,59 @@ def test_x7_adapter_serializes_scope_limited_nfi_trade_manager(
     assert document["config"]["custom_exit_program"] is None
 
 
+def test_x7_adapter_serializes_source_compiled_terminal_exit(
+    tmp_path: Path,
+) -> None:
+    vector = tmp_path / "BTC_USDT.feather"
+    pd.DataFrame(
+        {
+            "date": pd.date_range("2025-01-01", periods=2, freq="5min", tz="UTC"),
+            "open": [100.0, 102.0],
+            "high": [101.0, 103.0],
+            "low": [99.0, 101.0],
+            "close": [100.5, 102.5],
+            "volume": [1.0, 1.0],
+            "CMF_20": [0.1, 0.2],
+            "RSI_14": [49.0, 50.0],
+            "nfi_exec_enter_long": [0, 1],
+            "nfi_exec_exit_long": [0, 0],
+            "nfi_exec_enter_tag": [None, "65"],
+        }
+    ).to_feather(vector)
+    markets = tmp_path / "markets.json"
+    _markets(markets)
+    hot_ir = _nfi_manager_hot_ir()
+    operation = hot_ir["nfi_trade_manager"]["operation"]
+    operation["schema_version"] = "0.11.0"
+    operation["supported_routes"]["long_rebuy"]["terminal_exit"] = {
+        "entry_tags": ["65"],
+        "minimum_age_ms": 5_400_000,
+        "minimum_profit_ratio": 0.0125,
+        "reason": "exit_long_rebuy_signal65_early_recovery",
+    }
+
+    document = build_x7_simulation_input(
+        analysis=_analysis(),
+        hot_ir=hot_ir,
+        config=_config(),
+        vector_report={"outputs": [{"pair": "BTC/USDT", "path": str(vector)}]},
+        market_metadata_path=markets,
+        destination=tmp_path / "nfi-simulation.json",
+    )
+
+    rebuy = next(
+        route
+        for route in document["config"]["nfi_x7_trade_manager"]["managed_long_routes"]
+        if route["key"] == "long_rebuy"
+    )
+    assert rebuy["terminal_exit"] == {
+        "entry_tags": ["65"],
+        "minimum_age_ms": 5_400_000,
+        "minimum_profit_ratio": 0.0125,
+        "reason": "exit_long_rebuy_signal65_early_recovery",
+    }
+
+
 def test_x7_adapter_serializes_the_declared_long_grind_route(
     tmp_path: Path,
 ) -> None:

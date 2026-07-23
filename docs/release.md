@@ -14,7 +14,7 @@ previous five complete calendar years, and official Freqtrade verifies the final
 The versioned evidence below describes reproducible regressions, not a permanent input
 allowlist.
 
-The current alpha executes the source-compiled managed long routes, short-rebuy tags
+The current release executes the source-compiled managed long routes, short-rebuy tags
 561-563, tag-dependent futures leverage, Binance isolated-liquidation accounting,
 tag-120 legacy grind, tag-121 regular adjustment, and four static Freqtrade protection
 methods with deterministic pair-lock state. The X7 v17.4.421 branch matrix pins
@@ -29,25 +29,32 @@ v17.4.418, tag 121 has a compiled entry branch whose source switch is disabled; 
 regular-mode path therefore has focused native proof but no branch-reaching official
 trade.
 
-The first large v0.6 native diagnostic covers 80 configured spot pairs and
-`20210101-20260101`. It preserves the exact 750-trade result while reducing the native
-process from 2,022.07 seconds to 763.70 seconds on the observed WSL2 host. This is not a
-release speed certificate: vectors were reused, the available-history policy recorded
-275 shortfalls, and the measurement has not yet been repeated across operating systems.
+The continuous representative proof covers 80 configured spot pairs,
+`20210101-20260101`, and all five required timeframes. Pinned Freqtrade 2026.5.1
+completed once in 221,661.91 seconds with a 16,636,026,880-byte container peak and no
+OOM kill. Its final surface is byte-identical to the native result: 927 trades, 11,783
+orders, 4,499 rejected signals, final balance `14779.379760020001`, and SHA-256
+`8ae4fe84eaf869904cc8a26056f08218548546b316f620441e57417c24cac38c`.
+The release certificate repeats only the installed native candidate and reports its
+median wall time and maximum process-tree RSS.
 
-The continuous official run of that workload was OOM-killed at the enforced
-21,852,071,527-byte Docker limit and produced no comparison result. The safe bounded
-follow-up kept all 80 pairs but used `20250701-20260101` and ran sequentially. It
-matches Freqtrade 2026.5.1 byte-for-byte at the normalized final surface: 167 trades,
-402 orders, 23 rejected signals, and zero numeric tolerance. The native-core
-observation was 58.93 seconds and 88,928,256 peak bytes versus 253.09 seconds and
-9,450,651,648 peak bytes for the complete official container process. These 4.29x and
-106.27x ratios are diagnostic because the native measurement begins with sealed
-vectors, while Freqtrade performs its analysis inside the measured process.
+The release reference now defaults to a hash-guarded spooled datastore. It
+preserves the pinned Freqtrade strategy/callback/order/trade methods and their
+pair order, while indicator results and DataProvider frames move through Arrow
+record batches one pair at a time. Flushed Arrow files are released from Linux
+page cache so on-disk evidence is not charged as resident cgroup memory. On the
+current X7 v17.4.421,
+80-pair `20250701-20260101` proof, this final representation retained exact
+native/Freqtrade surface parity, used zero swap, and reduced the official
+container peak from 7,236,866,048 bytes before pairwise indicator spooling to
+3,637,440,512 bytes. Wall time increased from 570.19 to 658.06 seconds. This
+bounded proof validates the representation but does not replace the pending
+continuous five-year oracle.
 
-The bounded result does not replace the representative five-year release gate.
-Independent timerange chunks reset wallet, open positions, and protection state and
-therefore cannot be joined into a continuous-state parity certificate.
+The older bounded result remains a regression but does not replace the representative
+five-year release gate. Independent timerange chunks reset wallet, open positions, and
+protection state and therefore cannot be joined into a continuous-state parity
+certificate.
 
 Release input selection is strict over the declared timerange: all 80 pairs must have
 every required timeframe at both interval edges, with duplicate and reversed
@@ -94,8 +101,12 @@ Before tagging:
     official confirmation
 16. Verify the representative run uses at least 80 pairs and 1,825 days before
     publishing any 10x or long-horizon memory claim
-17. Run `nfi-bte certify` with at least three representative repetitions and one or
-    more branch-reaching `--state-probe` fixtures; retain the reproducible bundle
+17. Run the continuous 80-pair, five-year official Freqtrade oracle once, then run
+    `nfi-bte certify` with at least three fresh native candidate repetitions and one or
+    more branch-reaching `--state-probe` fixtures; retain the reproducible bundle.
+    Extend the native candidate to five repetitions when its wall-time spread exceeds
+    5%; never repeat the multi-year official oracle merely to calculate native timing
+    variance.
 
 The CI workflow runs the tests on Linux, Windows, and macOS and repeats native full
 parity on Linux. Docker-free CI validates the portable resource and command contracts;

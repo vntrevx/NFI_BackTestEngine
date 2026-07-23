@@ -23,6 +23,13 @@ from .evidence_bundle import (
     write_evidence_bundle,
 )
 from .fixture import sha256_file, validate_fixture
+from .full_x7_resume import (
+    import_reference_oracle,
+    load_engine_measurement,
+    load_reference_measurement,
+    require_stage_available,
+    write_measurement_checkpoint,
+)
 from .hardware import (
     current_resource_limits,
     inspect_hardware,
@@ -42,7 +49,7 @@ from .release_inputs import validate_release_input_lock
 from .specs import FULL_X7_CERTIFICATION_SCHEMA, validate_schema
 from .timerange import parse_timerange_milliseconds
 
-FULL_X7_CERTIFICATION_VERSION = "1.0.0"
+FULL_X7_CERTIFICATION_VERSION = "1.1.0"
 REQUIRED_PROBE_KINDS = frozenset(
     {
         "tag-121",
@@ -78,8 +85,16 @@ def run_full_x7_certification(
     repetitions: int = MIN_CERTIFICATION_REPETITIONS,
     timeout_seconds: int,
     swap_cap_bytes: int | None = None,
+    official_oracle_directory: str | Path | None = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
-    """Run one continuous Full X7 oracle comparison and seal every verdict."""
+    """Run one continuous official oracle and repeat only the native candidate.
+
+    The official five-year run proves exactness. Repeating that memory-heavy
+    oracle does not improve the native timing distribution, so release timing
+    repeats apply only to fresh candidate-wheel executions. Small full-state
+    probes still execute both lanes once.
+    """
     if repetitions < MIN_CERTIFICATION_REPETITIONS:
         raise BenchmarkError(
             f"Full X7 certification requires at least {MIN_CERTIFICATION_REPETITIONS} runs"
@@ -89,7 +104,7 @@ def run_full_x7_certification(
             f"Full X7 certification permits at most {MAX_CERTIFICATION_REPETITIONS} runs"
         )
     output = Path(output_directory).resolve()
-    if output.exists() and any(output.iterdir()):
+    if output.exists() and any(output.iterdir()) and not resume:
         raise BenchmarkError(f"Full X7 output directory must be empty: {output}")
     output.mkdir(parents=True, exist_ok=True)
 
@@ -111,20 +126,50 @@ def run_full_x7_certification(
     )
 
     warmup_root = output / "warmups"
-    baseline = _measure_engine(
-        inputs,
-        warmup_root / "engine",
-        profile_path=Path(execution_profile_path).resolve(),
-        timeout_seconds=timeout_seconds,
+    baseline = (
+        load_engine_measurement(
+            warmup_root / "engine",
+            validator=lambda measurement: _engine_complete(
+                measurement,
+                inputs["lock"],
+            ),
+            allow_report_fallback=True,
+        )
+        if resume
+        else None
     )
+    if baseline is None:
+        require_stage_available(warmup_root / "engine", stage="native warmup")
+        baseline = _measure_engine(
+            inputs,
+            warmup_root / "engine",
+            profile_path=Path(execution_profile_path).resolve(),
+            timeout_seconds=timeout_seconds,
+        )
     _require_complete_baseline(baseline, inputs["lock"])
-    reference_warmup = _measure_reference(
-        baseline["output_directory"],
-        inputs["reference_market_snapshot"],
-        warmup_root / "reference",
-        timeout_seconds=timeout_seconds,
-        swap_cap_bytes=swap_cap_bytes,
+    reference_warmup = (
+        load_reference_measurement(warmup_root / "reference")
+        if resume
+        else None
     )
+    if reference_warmup is None:
+        require_stage_available(warmup_root / "reference", stage="official oracle")
+        if official_oracle_directory is not None:
+            reference_warmup = import_reference_oracle(
+                official_oracle_directory,
+                warmup_root / "reference",
+                baseline=baseline,
+                inputs=inputs,
+                validator=_reference_complete,
+            )
+        else:
+            reference_warmup = _measure_reference(
+                baseline["output_directory"],
+                inputs["reference_market_snapshot"],
+                warmup_root / "reference",
+                timeout_seconds=timeout_seconds,
+                swap_cap_bytes=swap_cap_bytes,
+            )
     reference_markets = inputs["reference_market_snapshot"]
     if reference_markets is None:
         captured = Path(reference_warmup["output_directory"]) / "reference-markets.json"
@@ -144,40 +189,38 @@ def run_full_x7_certification(
         )
 
     engine_runs: list[dict[str, Any]] = []
-    reference_runs: list[dict[str, Any]] = []
-    orders: list[list[str]] = []
     target_repetitions = repetitions
     while len(engine_runs) < target_repetitions:
         run_number = len(engine_runs) + 1
-        order = ["reference", "engine"] if run_number % 2 == 0 else ["engine", "reference"]
-        orders.append(order)
-        measured: dict[str, dict[str, Any]] = {}
-        for lane in order:
-            if lane == "engine":
-                measured[lane] = _measure_engine(
-                    inputs,
-                    output / "measurements" / f"engine-{run_number:02d}",
-                    profile_path=Path(execution_profile_path).resolve(),
-                    timeout_seconds=timeout_seconds,
-                )
-            else:
-                measured[lane] = _measure_reference(
-                    baseline["output_directory"],
-                    reference_markets,
-                    output / "measurements" / f"reference-{run_number:02d}",
-                    timeout_seconds=timeout_seconds,
-                    swap_cap_bytes=swap_cap_bytes,
-                )
-        engine_runs.append(measured["engine"])
-        reference_runs.append(measured["reference"])
+        run_output = output / "measurements" / f"engine-{run_number:02d}"
+        measured = (
+            load_engine_measurement(
+                run_output,
+                validator=lambda measurement: _engine_complete(
+                    measurement,
+                    inputs["lock"],
+                ),
+                allow_report_fallback=False,
+            )
+            if resume
+            else None
+        )
+        if measured is None:
+            require_stage_available(
+                run_output,
+                stage=f"native measurement {run_number}",
+            )
+            measured = _measure_engine(
+                inputs,
+                run_output,
+                profile_path=Path(execution_profile_path).resolve(),
+                timeout_seconds=timeout_seconds,
+            )
+        engine_runs.append(measured)
         if (
             len(engine_runs) == repetitions
             and repetitions < MAX_CERTIFICATION_REPETITIONS
-            and max(
-                _relative_spread(engine_runs),
-                _relative_spread(reference_runs),
-            )
-            > CERTIFICATION_SPREAD_THRESHOLD
+            and _relative_spread(engine_runs) > CERTIFICATION_SPREAD_THRESHOLD
         ):
             target_repetitions = MAX_CERTIFICATION_REPETITIONS
 
@@ -186,9 +229,10 @@ def run_full_x7_certification(
         output / "state-probes",
         execution_profile_path=execution_profile_path,
         timeout_seconds=timeout_seconds,
+        resume=resume,
     )
     engine_summary = _run_summary(engine_runs, lane="engine")
-    reference_summary = _run_summary(reference_runs, lane="reference")
+    reference_summary = _run_summary([reference_warmup], lane="reference")
     speedup = (
         reference_summary["wall_time_seconds"]["median"]
         / engine_summary["wall_time_seconds"]["median"]
@@ -197,12 +241,12 @@ def run_full_x7_certification(
     determinism = _determinism(
         baseline_hash,
         engine_runs,
-        reference_runs,
+        [reference_warmup],
     )
     engine_complete = all(
         _engine_complete(run, inputs["lock"]) for run in engine_runs
     )
-    reference_complete = all(_reference_complete(run) for run in reference_runs)
+    reference_complete = _reference_complete(reference_warmup)
     profile_memory = current_resource_limits(profile)["working_memory_bytes"]
     memory_met = engine_summary["peak_rss_bytes"]["maximum"] <= profile_memory
     probe_met = all(
@@ -224,7 +268,7 @@ def run_full_x7_certification(
         },
         "official_parity": {
             "met": reference_complete,
-            "rule": "every continuous official Freqtrade run completes exact surface parity",
+            "rule": "one continuous official Freqtrade oracle completes exact surface parity",
         },
         "determinism": determinism,
         "speed": {
@@ -270,22 +314,21 @@ def run_full_x7_certification(
             "engine_build": public_engine_build_record(build),
         },
         "measurement": {
-            "warmups_excluded": 1,
-            "initial_repetitions": repetitions,
-            "measured_repetitions": len(engine_runs),
-            "maximum_repetitions": MAX_CERTIFICATION_REPETITIONS,
-            "spread_threshold": CERTIFICATION_SPREAD_THRESHOLD,
-            "orders": orders,
+            "native_warmups_excluded": 1,
+            "native_initial_repetitions": repetitions,
+            "native_measured_repetitions": len(engine_runs),
+            "native_maximum_repetitions": MAX_CERTIFICATION_REPETITIONS,
+            "native_spread_threshold": CERTIFICATION_SPREAD_THRESHOLD,
             "engine_relative_spread": _relative_spread(engine_runs),
-            "reference_relative_spread": _relative_spread(reference_runs),
+            "official_reference_repetitions": 1,
+            "official_reference_role": "single-continuous-exact-parity-oracle",
+            "resumed": resume,
         },
         "runs": {
             "engine": [_public_run_record(run, root=output) for run in engine_runs],
-            "reference": [
-                _public_run_record(run, root=output) for run in reference_runs
-            ],
+            "official_reference": _public_run_record(reference_warmup, root=output),
             "engine_summary": engine_summary,
-            "reference_summary": reference_summary,
+            "official_reference_summary": reference_summary,
         },
         "state_probes": probe_reports,
         "gates": gates,
@@ -582,6 +625,7 @@ def _measure_engine(
     measurement["report"] = read_json(report_path) if report_path.is_file() else None
     measurement["output_directory"] = output
     measurement["result_sha256"] = _engine_surface_sha(measurement)
+    write_measurement_checkpoint(output, measurement)
     return measurement
 
 
@@ -604,6 +648,8 @@ def _measure_reference(
         str(timeout_seconds),
         "--memory-mode",
         "certification-swap",
+        "--storage-mode",
+        "spooled",
     ]
     if market_snapshot is not None:
         arguments.extend(
@@ -625,6 +671,7 @@ def _measure_reference(
     measurement["report"] = read_json(report_path) if report_path.is_file() else None
     measurement["output_directory"] = output
     measurement["result_sha256"] = _reference_surface_sha(measurement)
+    write_measurement_checkpoint(output, measurement)
     return measurement
 
 
@@ -634,18 +681,31 @@ def _run_probes(
     *,
     execution_profile_path: str | Path,
     timeout_seconds: int,
+    resume: bool,
 ) -> list[dict[str, Any]]:
     reports: list[dict[str, Any]] = []
     for index, (manifest_path, manifest) in enumerate(probes, start=1):
         probe_output = output / f"{index:02d}-{manifest['probe_kind']}"
-        performance = run_performance_gate(
-            manifest_path,
-            probe_output,
-            profile_path=execution_profile_path,
-            verification_level="full",
-            repetitions=1,
-            timeout_seconds=timeout_seconds,
-        )
+        performance_path = probe_output / "performance.json"
+        if resume and performance_path.is_file():
+            performance = read_json(performance_path)
+            if performance.get("fixture_id") != manifest["fixture_id"]:
+                raise BenchmarkError(
+                    f"resumed state probe differs from its manifest: {probe_output}"
+                )
+        else:
+            require_stage_available(
+                probe_output,
+                stage=f"state probe {manifest['fixture_id']}",
+            )
+            performance = run_performance_gate(
+                manifest_path,
+                probe_output,
+                profile_path=execution_profile_path,
+                verification_level="full",
+                repetitions=1,
+                timeout_seconds=timeout_seconds,
+            )
         reports.append(
             {
                 "fixture_id": manifest["fixture_id"],

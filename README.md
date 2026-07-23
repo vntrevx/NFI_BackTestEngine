@@ -343,6 +343,22 @@ nfi-bte reference research artifacts\x7-2025 `
   --output-dir artifacts\x7-2025-official
 ```
 
+Research references use the `spooled` datastore by default. The pinned
+Freqtrade 2026.5.1 strategy, callback, protection, order, and trade-loop methods
+remain the oracle; only the analyzed-frame cache and hot-loop row container are
+replaced with hash-guarded Arrow record batches. Indicator results are written
+one pair at a time, callback reads retain Freqtrade's exact last-1,000-candle
+window, and `reference-storage.json` records bytes, cache activity, timings, and
+ephemeral-spool cleanup. On Linux, completed Arrow reads and writes also issue a
+`POSIX_FADV_DONTNEED` hint after flushing, so clean spool page cache does not
+consume the container memory allowance. Any pinned source-method drift stops
+the run.
+
+`--storage-mode in-memory` retains Freqtrade's original all-RAM representation
+for a small diagnostic comparison. It is not the default because multi-year X7
+runs otherwise retain full analyzed frames, a second DataProvider cache, and one
+Python list per candle at the same time.
+
 To make the entire operation offline, reuse a previously captured raw reference market
 snapshot:
 
@@ -379,33 +395,27 @@ recorded in the immutable data seal, and missing pre-listing candles are never i
 This distinction matters because an 800-candle 1-day startup before 2021 would require
 the pair to have traded since October 2018, which is not a realistic 80-pair universe.
 
-The current large native diagnostic uses the supplied X7 v17.4.418 source, 80 configured
-spot pairs, five timeframes, and `20210101-20260101`. On one WSL2 host, the same sealed
-21,102,441-row manifest produced byte-identical results before and after the hot-loop
-changes. Native process time fell from 2,022.07 seconds to 763.70 seconds (2.65x), while
-the chronological event loop fell from 1,638.36 seconds to 474.86 seconds (3.45x);
-optimized peak RSS was 100,286,464 bytes. This is deliberately labeled diagnostic:
-the run reused vector checkpoints, used `history-coverage=available` with 275 recorded
-coverage shortfalls, and has one observation on one host. See
-[`benchmarks/evidence/x7-80pair-spot-5y-native-2026-07-20.json`](benchmarks/evidence/x7-80pair-spot-5y-native-2026-07-20.json).
-It is not an official Freqtrade, cold-pipeline, repeated-median, or cross-platform speed
-certificate.
+The continuous release oracle uses X7 v17.4.421, 80 configured spot pairs, all five
+required timeframes, and `20210101-20260101`. Pinned Freqtrade 2026.5.1 completed the
+single unsplit run in 221,661.91 seconds with a 16,636,026,880-byte container peak and
+no OOM kill. The native and official normalized surfaces are byte-identical:
+927 trades, 11,783 orders, 4,499 rejected signals, final balance
+`14779.379760020001`, and SHA-256
+`8ae4fe84eaf869904cc8a26056f08218548546b316f620441e57417c24cac38c`.
 
-The pinned official lane could not complete that continuous five-year workload inside
-Docker's enforced 21.85 GB limit; it was OOM-killed before producing a result. A
-strictly sequential, bounded `20250701-20260101` verification did complete over the
-same 80-pair universe. Its 167 trades and 402 orders match the native normalized
-surface byte-for-byte at zero tolerance, including final balance, rejected signals,
-order IDs, tags, and export order. The official container took 253.09 seconds and
-peaked at 9,450,651,648 bytes; the native core starting from sealed vectors took
-58.93 seconds and peaked at 88,928,256 bytes. The observed 4.29x wall and 106.27x
-memory ratios are diagnostic execution comparisons, not cold end-to-end or
-cross-platform certificates. See
-[`benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json`](benchmarks/evidence/x7-80pair-spot-2025h2-parity-2026-07-20.json)
-and
-[`benchmarks/evidence/x7-80pair-spot-5y-official-oom-2026-07-20.json`](benchmarks/evidence/x7-80pair-spot-5y-official-oom-2026-07-20.json).
-Independent bounded runs are not concatenated into a continuous five-year result
-because wallet, open-trade, and protection state reset at each boundary.
+The final native core observation from the same sealed vectors recorded 1,217.03
+seconds of profiled decode, validation, event-loop, and serialization work. It is not
+presented alone as the release speed certificate: the attached Full X7 certificate
+contains fresh installed-wheel repetitions, median wall time, process-tree peak RSS,
+and the exact official comparison. A later NFI revision may reuse this oracle only when
+the entire sealed strategy and input identity is unchanged. A changed strategy always
+requires a new official confirmation; compatibility preflight never promotes old
+trading results to a new source.
+
+Earlier bounded and OOM diagnostics remain useful representation regressions in
+[`benchmarks/evidence`](benchmarks/evidence), but they no longer describe the broadest
+parity proof. Independent timerange chunks are still never concatenated because wallet,
+open-trade, and protection state reset at each boundary.
 
 Release certification keeps the large performance workload at final-surface parity and
 uses smaller branch-reaching fixtures for every-candle state parity. This avoids
@@ -421,6 +431,15 @@ nfi-bte certify path\to\representative-manifest.json `
 
 The bundle is certified only when the repeated representative gate and every full-state
 probe pass. Median wall time and maximum memory are retained with immutable hashes.
+
+The continuous Full X7 lane deliberately assigns different jobs to the two kinds of
+repetition. Pinned official Freqtrade executes the sealed 80-pair, five-year interval
+once as the exact-parity oracle. `--runs` repeats the installed native candidate three
+times, extending to five only when its wall-time spread exceeds 5%. Branch-reaching
+state probes still execute both native and official lanes once. A completed official
+oracle can be imported with `--official-oracle`, and interrupted native/probe stages can
+continue with `--resume`; every imported artifact is rebound to the current research
+run identity, strategy, market snapshot, image digest, and native surface before use.
 
 ## Verify the included exact fixture
 
@@ -465,7 +484,10 @@ The current native contracts cover the managed long routes, short-rebuy tags 561
 tag-dependent leverage, Binance isolated-futures liquidation inputs, the tag-120 legacy
 grind route, tag-121 regular-mode adjustment followed by legacy grind, and the static
 Freqtrade protections `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and
-`LowProfitPairs` with deterministic pair locks.
+`LowProfitPairs` with deterministic pair locks. Source-compiled managed routes also
+cover the signal-65 early-recovery terminal exit. X7's 3% orderbook timeout callbacks
+are accepted only when the same strategy has no price-adjustment callbacks and the
+native immediate-fill model makes open-order callbacks unreachable.
 
 The branch-reaching matrix now pins X7 v17.4.421 at upstream commit
 `5e168431991e05a889514eb1e16fdbebc6a09811` and official Freqtrade 2026.5.1.
@@ -476,18 +498,18 @@ the official result, normalized surface, complete observer trace, market metadat
 and every input hash. The older annual and v17.4.413 fixtures remain independent
 regressions for the wider adjustment routes and shared-wallet ordering.
 
-The broadest current spot proof is the bounded 80-pair
-`20250701-20260101` differential: 167 trades and 402 orders are byte-identical to
-Freqtrade at zero tolerance. It reaches a much wider real portfolio surface than the
-small route fixtures, but it still does not certify routes absent from that interval,
-enabled lock generation, continuous five-year official execution, or arbitrary future
-X7 source changes.
+The broadest current spot proof is the continuous 80-pair
+`20210101-20260101` differential: all 927 trades and 11,783 orders are byte-identical
+to Freqtrade at zero tolerance. It reaches a much wider real portfolio surface than
+the small route fixtures, but the branch-reaching fixtures remain necessary for
+behaviors absent from that interval. Neither proof certifies arbitrary future X7 source
+changes.
 
 Branch-reaching fixtures do not replace the representative release gate. Unknown tags,
 unsupported mixed tags, dynamic protection definitions, unsupported exchanges or
-margin modes, and new stateful callback shapes remain fail-closed. Full X7 release
-status still requires the latest source over a strict 80-pair, continuous five-year
-spot input, repeated official parity, and the cross-platform performance seal.
+margin modes, and new stateful callback shapes remain fail-closed. The release
+certificate binds Full X7 status to its exact source, strict 80-pair continuous
+five-year input, official parity, repeated native measurements, and packaged binary.
 
 See:
 

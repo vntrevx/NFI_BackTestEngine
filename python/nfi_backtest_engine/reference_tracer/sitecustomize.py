@@ -13,6 +13,7 @@ if any(
         "NFI_MARKET_CAPTURE_PATH",
         "NFI_CALLBACK_AUDIT_PATH",
         "NFI_SIGNAL_AUDIT_PATH",
+        "NFI_REFERENCE_DATASTORE",
     )
 ):
     from nfi_reference_trace import install_reference_tracer

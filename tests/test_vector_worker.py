@@ -10,6 +10,7 @@ from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 from nfi_backtest_engine.vector_worker import (
     _attach_funding_events,
     _bound_indicator_frames,
+    _clean_ohlcv_like_freqtrade,
     _prepare_execution_frame,
     _stabilize_compressed_tag_columns,
     _trim_timerange,
@@ -25,11 +26,26 @@ def test_vector_dependency_identity_covers_dataframe_runtime() -> None:
 
 def test_indicator_frames_use_freqtrade_timeframe_specific_startup_windows() -> None:
     dates = pd.date_range("2024-01-01T23:00:00Z", periods=19, freq="5min")
-    base = pd.DataFrame({"date": dates, "close": range(len(dates))})
+    base_values = list(range(len(dates)))
+    base = pd.DataFrame(
+        {
+            "date": dates,
+            "open": base_values,
+            "high": base_values,
+            "low": base_values,
+            "close": base_values,
+            "volume": base_values,
+        }
+    )
+    informative_values = list(range(11))
     informative = pd.DataFrame(
         {
             "date": pd.date_range("2024-01-01T22:00:00Z", periods=11, freq="15min"),
-            "close": range(11),
+            "open": informative_values,
+            "high": informative_values,
+            "low": informative_values,
+            "close": informative_values,
+            "volume": informative_values,
         }
     )
 
@@ -48,6 +64,58 @@ def test_indicator_frames_use_freqtrade_timeframe_specific_startup_windows() -> 
     assert bounded[("APE/USDT", "15m")]["date"].tolist() == list(
         pd.date_range("2024-01-01T23:30:00Z", "2024-01-02T00:30:00Z", freq="15min")
     )
+
+
+def test_indicator_frames_match_freqtrade_duplicate_and_gap_fill_contract() -> None:
+    frame = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                [
+                    "2024-01-01T00:00:00Z",
+                    "2024-01-01T00:00:00Z",
+                    "2024-01-01T00:10:00Z",
+                ]
+            ),
+            "open": [10.0, 11.0, 20.0],
+            "high": [12.0, 13.0, 21.0],
+            "low": [9.0, 8.0, 19.0],
+            "close": [11.0, 12.0, 20.0],
+            "volume": [2.0, 3.0, 4.0],
+        }
+    )
+
+    result = _clean_ohlcv_like_freqtrade(
+        frame,
+        pair="APE/USDT",
+        timeframe="5m",
+    )
+
+    assert result.to_dict(orient="records") == [
+        {
+            "date": pd.Timestamp("2024-01-01T00:00:00Z"),
+            "open": 10.0,
+            "high": 13.0,
+            "low": 8.0,
+            "close": 12.0,
+            "volume": 3.0,
+        },
+        {
+            "date": pd.Timestamp("2024-01-01T00:05:00Z"),
+            "open": 12.0,
+            "high": 12.0,
+            "low": 12.0,
+            "close": 12.0,
+            "volume": 0.0,
+        },
+        {
+            "date": pd.Timestamp("2024-01-01T00:10:00Z"),
+            "open": 20.0,
+            "high": 21.0,
+            "low": 19.0,
+            "close": 20.0,
+            "volume": 4.0,
+        },
+    ]
 
 
 def test_trim_timerange_keeps_freqtrade_stop_boundary() -> None:

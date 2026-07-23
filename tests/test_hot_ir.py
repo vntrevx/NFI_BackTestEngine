@@ -304,6 +304,96 @@ def test_bot_loop_near_miss_with_side_effect_before_return_fails_closed(
     assert result["callbacks"][0]["backend"] == "uncompiled-python-source"
 
 
+def test_x7_open_order_timeouts_are_bound_to_immediate_fill_backtests(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "Timeouts.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Timeouts(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def check_entry_timeout(self, pair, trade, order, current_time, **kwargs):\n"
+        "        ob = self.dp.orderbook(pair, 1)\n"
+        "        bids = ob['bids'][0][0]\n"
+        "        asks = ob['asks'][0][0]\n"
+        "        if trade.is_short:\n"
+        "            if asks < order.price * 0.97:\n"
+        "                return True\n"
+        "        else:\n"
+        "            if bids > order.price * 1.03:\n"
+        "                return True\n"
+        "        return False\n"
+        "    def check_exit_timeout(self, pair, trade, order, current_time, **kwargs):\n"
+        "        ob = self.dp.orderbook(pair, 1)\n"
+        "        bids = ob['bids'][0][0]\n"
+        "        asks = ob['asks'][0][0]\n"
+        "        if trade.is_short:\n"
+        "            if bids > order.price * 1.03:\n"
+        "                return True\n"
+        "        else:\n"
+        "            if asks < order.price * 0.97:\n"
+        "                return True\n"
+        "        return False\n",
+        encoding="utf-8",
+    )
+
+    result = build_hot_callback_ir(
+        analyze_strategy(source, class_name="Timeouts"),
+        run_mode="backtest",
+    )
+
+    callbacks = {item["name"]: item for item in result["callbacks"]}
+    assert result["hot_loop_ready"]
+    assert result["blockers"] == []
+    assert {
+        callback["backend"] for callback in callbacks.values()
+    } == {"rust-immediate-fill-open-order-proof"}
+    assert callbacks["check_entry_timeout"]["lowering"]["operation"] == {
+        "opcode": "open-order-timeout-policy-v1",
+        "execution_scope": "unreachable-immediate-fill-backtest-v1",
+        "orderbook_depth": 1,
+        "short": {
+            "price": "asks",
+            "comparison": "less-than",
+            "order_price_multiplier": 0.97,
+        },
+        "long": {
+            "price": "bids",
+            "comparison": "greater-than",
+            "order_price_multiplier": 1.03,
+        },
+    }
+
+
+def test_open_order_timeout_near_miss_fails_closed(tmp_path: Path) -> None:
+    source = tmp_path / "Timeout.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Timeout(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def check_entry_timeout(self, pair, trade, order, current_time, **kwargs):\n"
+        "        ob = self.dp.orderbook(pair, 1)\n"
+        "        bids = ob['bids'][0][0]\n"
+        "        asks = ob['asks'][0][0]\n"
+        "        if trade.is_short:\n"
+        "            if asks < order.price * 0.96:\n"
+        "                return True\n"
+        "        else:\n"
+        "            if bids > order.price * 1.03:\n"
+        "                return True\n"
+        "        return False\n",
+        encoding="utf-8",
+    )
+
+    result = build_hot_callback_ir(
+        analyze_strategy(source, class_name="Timeout"),
+        run_mode="backtest",
+    )
+
+    assert not result["hot_loop_ready"]
+    assert result["callbacks"][0]["backend"] == "uncompiled-python-source"
+
+
 def test_callback_lowering_hash_check_accepts_windows_crlf(tmp_path: Path) -> None:
     source = tmp_path / "Crlf.py"
     source.write_bytes(

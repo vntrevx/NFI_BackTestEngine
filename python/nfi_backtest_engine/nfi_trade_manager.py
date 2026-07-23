@@ -11,16 +11,18 @@ simulation when a tag or side falls outside that scope.
 from __future__ import annotations
 
 import ast
+import copy
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.10.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.11.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -194,6 +196,13 @@ _MANAGED_LONG_METHOD_SHA256 = {
         "c57bef2165c41fc9f3e9c1b90c92a1cd39323796d8f35d818b97856593f9cdf0"
     ),
 }
+# `long_exit_rebuy` may append a structurally compiled terminal exit after the
+# reviewed stateful router. Removing that one recognized branch must leave this
+# exact AST. This keeps unrelated callback changes fail-closed while allowing
+# source-provided tags, thresholds, duration, and reason to flow through the IR.
+_LONG_EXIT_REBUY_BASE_AST_SHA256 = (
+    "8a90732274e5f1f3e8c72694279e29f5ae36a5fa88d1d4dc56e192ef701db2dc"
+)
 _MANAGED_SHORT_METHOD_SHA256 = {
     # The pure predicates below are source-compiled. The wrapper is pinned
     # because its call order, stop boundary, and target-cache mutations are
@@ -467,7 +476,7 @@ def build_nfi_trade_manager_ir(
         for method in strategy.get("methods", [])
         if isinstance(method, dict) and isinstance(method.get("name"), str)
     }
-    _validate_managed_long_method_identity(methods, method_records)
+    rebuy_terminal_exit = _validate_managed_long_method_identity(methods, method_records)
     _validate_managed_short_method_identity(methods, method_records)
 
     # The top-coins route uses a literal tuple that can be checked
@@ -496,6 +505,8 @@ def build_nfi_trade_manager_ir(
     if not isinstance(constants, dict):
         raise StrategyAnalysisError("NFI trade manager constants are invalid")
     managed_routes = _build_managed_long_routes(constants)
+    if rebuy_terminal_exit is not None:
+        managed_routes["long_rebuy"]["terminal_exit"] = rebuy_terminal_exit
     managed_short_routes = _build_managed_short_routes(constants)
     managed_entry_tags = sorted(
         {tag for route in managed_routes.values() for tag in route["entry_tags"]}
@@ -709,7 +720,7 @@ def build_nfi_trade_manager_ir(
 def _validate_managed_long_method_identity(
     methods: dict[str, ast.FunctionDef],
     method_records: dict[str, dict[str, Any]],
-) -> None:
+) -> dict[str, Any] | None:
     """Reject a missing or changed stateful managed-long callback.
 
     Scalar predicates remain source-compiled, but routing, target-cache writes,
@@ -724,13 +735,207 @@ def _validate_managed_long_method_identity(
     changed = [
         name
         for name, expected in _MANAGED_LONG_METHOD_SHA256.items()
+        if name != "long_exit_rebuy"
         if method_records.get(name, {}).get("source_sha256") != expected
     ]
+    rebuy_terminal_exit, terminal_index = _extract_rebuy_terminal_exit(
+        methods["long_exit_rebuy"]
+    )
+    if (
+        _method_ast_sha256(
+            methods["long_exit_rebuy"],
+            remove_statement_index=terminal_index,
+        )
+        != _LONG_EXIT_REBUY_BASE_AST_SHA256
+    ):
+        changed.append("long_exit_rebuy")
     if changed:
         raise StrategyAnalysisError(
             "NFI X7 managed-long route changed; exact lowering requires review: "
             + ", ".join(changed)
         )
+    return rebuy_terminal_exit
+
+
+def _extract_rebuy_terminal_exit(
+    method: ast.FunctionDef,
+) -> tuple[dict[str, Any] | None, int | None]:
+    """Extract the optional pure terminal exit appended to `long_exit_rebuy`.
+
+    The stateful portion of the method remains pinned by its masked AST hash.
+    Only this closed expression shape is dynamic: exact entry tags, elapsed
+    trade age, initial-basis profit, and a literal exit reason.
+    """
+
+    if len(method.body) < 2:
+        return None, None
+    statement_index = len(method.body) - 2
+    statement = method.body[statement_index]
+    if (
+        not isinstance(statement, ast.If)
+        or statement.orelse
+        or len(statement.body) != 1
+        or not isinstance(statement.test, ast.BoolOp)
+        or not isinstance(statement.test.op, ast.And)
+        or len(statement.test.values) != 3
+    ):
+        return None, None
+    returned = statement.body[0]
+    if (
+        not isinstance(returned, ast.Return)
+        or not isinstance(returned.value, ast.Tuple)
+        or len(returned.value.elts) != 2
+        or not isinstance(returned.value.elts[0], ast.Constant)
+        or returned.value.elts[0].value is not True
+        or not isinstance(returned.value.elts[1], ast.Constant)
+        or not isinstance(returned.value.elts[1].value, str)
+        or not returned.value.elts[1].value
+    ):
+        return None, None
+
+    entry_tags: list[str] | None = None
+    minimum_age_seconds: float | None = None
+    minimum_profit_ratio: float | None = None
+    for condition in statement.test.values:
+        tags = _exact_string_list_comparison(condition, "enter_tags")
+        if tags is not None:
+            entry_tags = tags
+            continue
+        age = _elapsed_trade_seconds_comparison(condition)
+        if age is not None:
+            minimum_age_seconds = age
+            continue
+        profit = _minimum_number_comparison(condition, "profit_init_ratio")
+        if profit is not None:
+            minimum_profit_ratio = profit
+
+    age_ms = (
+        minimum_age_seconds * 1_000.0
+        if minimum_age_seconds is not None
+        else math.nan
+    )
+    if (
+        entry_tags is None
+        or not entry_tags
+        or len(entry_tags) != len(set(entry_tags))
+        or not all(entry_tags)
+        or not math.isfinite(age_ms)
+        or age_ms <= 0.0
+        or not age_ms.is_integer()
+        or minimum_profit_ratio is None
+        or not math.isfinite(minimum_profit_ratio)
+    ):
+        return None, None
+    return (
+        {
+            "entry_tags": entry_tags,
+            "minimum_age_ms": int(age_ms),
+            "minimum_profit_ratio": minimum_profit_ratio,
+            "reason": returned.value.elts[1].value,
+        },
+        statement_index,
+    )
+
+
+def _exact_string_list_comparison(node: ast.AST, name: str) -> list[str] | None:
+    if (
+        not isinstance(node, ast.Compare)
+        or not isinstance(node.left, ast.Name)
+        or node.left.id != name
+        or len(node.ops) != 1
+        or not isinstance(node.ops[0], ast.Eq)
+        or len(node.comparators) != 1
+        or not isinstance(node.comparators[0], ast.List | ast.Tuple)
+    ):
+        return None
+    values = node.comparators[0].elts
+    if not all(
+        isinstance(value, ast.Constant) and isinstance(value.value, str)
+        for value in values
+    ):
+        return None
+    return [cast(str, cast(ast.Constant, value).value) for value in values]
+
+
+def _elapsed_trade_seconds_comparison(node: ast.AST) -> float | None:
+    if (
+        not isinstance(node, ast.Compare)
+        or len(node.ops) != 1
+        or not isinstance(node.ops[0], ast.GtE)
+        or len(node.comparators) != 1
+        or not isinstance(node.left, ast.Call)
+        or node.left.args
+        or node.left.keywords
+        or not isinstance(node.left.func, ast.Attribute)
+        or node.left.func.attr != "total_seconds"
+        or not isinstance(node.left.func.value, ast.BinOp)
+        or not isinstance(node.left.func.value.op, ast.Sub)
+        or not isinstance(node.left.func.value.left, ast.Name)
+        or node.left.func.value.left.id != "current_time"
+        or not isinstance(node.left.func.value.right, ast.Attribute)
+        or node.left.func.value.right.attr != "open_date_utc"
+        or not isinstance(node.left.func.value.right.value, ast.Name)
+        or node.left.func.value.right.value.id != "trade"
+    ):
+        return None
+    return _numeric_expression(node.comparators[0])
+
+
+def _minimum_number_comparison(node: ast.AST, name: str) -> float | None:
+    if (
+        not isinstance(node, ast.Compare)
+        or not isinstance(node.left, ast.Name)
+        or node.left.id != name
+        or len(node.ops) != 1
+        or not isinstance(node.ops[0], ast.GtE)
+        or len(node.comparators) != 1
+    ):
+        return None
+    return _numeric_expression(node.comparators[0])
+
+
+def _numeric_expression(node: ast.AST) -> float | None:
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int | float)
+        and not isinstance(node.value, bool)
+    ):
+        return float(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub | ast.UAdd):
+        value = _numeric_expression(node.operand)
+        if value is None:
+            return None
+        return -value if isinstance(node.op, ast.USub) else value
+    if isinstance(node, ast.BinOp) and isinstance(
+        node.op,
+        ast.Add | ast.Sub | ast.Mult | ast.Div,
+    ):
+        left = _numeric_expression(node.left)
+        right = _numeric_expression(node.right)
+        if left is None or right is None:
+            return None
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if right == 0.0:
+            return None
+        return left / right
+    return None
+
+
+def _method_ast_sha256(
+    method: ast.FunctionDef,
+    *,
+    remove_statement_index: int | None,
+) -> str:
+    normalized = copy.deepcopy(method)
+    if remove_statement_index is not None:
+        del normalized.body[remove_statement_index]
+    encoded = ast.dump(normalized, include_attributes=False).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _validate_managed_short_method_identity(
