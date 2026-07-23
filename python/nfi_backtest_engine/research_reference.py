@@ -131,28 +131,20 @@ def run_research_reference(
     resources: dict[str, Any] | None = None
     audit_timestamps = _validate_audit_timestamps(audit_timestamps_ms or [])
     if reference_memory_mode not in {"normal", "certification-swap"}:
-        raise BenchmarkError(
-            "reference memory mode must be 'normal' or 'certification-swap'"
-        )
+        raise BenchmarkError("reference memory mode must be 'normal' or 'certification-swap'")
     if reference_storage_mode not in {"in-memory", "spooled"}:
-        raise BenchmarkError(
-            "reference storage mode must be 'in-memory' or 'spooled'"
-        )
+        raise BenchmarkError("reference storage mode must be 'in-memory' or 'spooled'")
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         try:
             with managed_docker_run(
                 docker_config=docker_config,
                 role="reference",
                 swap_mode=(
-                    "daemon"
-                    if reference_memory_mode == "certification-swap"
-                    else "disabled"
+                    "daemon" if reference_memory_mode == "certification-swap" else "disabled"
                 ),
                 swap_cap_bytes=swap_cap_bytes,
                 swap_probe_image=(
-                    REFERENCE_IMAGE_REF
-                    if reference_memory_mode == "certification-swap"
-                    else None
+                    REFERENCE_IMAGE_REF if reference_memory_mode == "certification-swap" else None
                 ),
             ) as lease:
                 resources = {
@@ -202,9 +194,7 @@ def run_research_reference(
 
     memory_peak = _read_nonnegative_integer(output / "container-memory-peak.txt")
     memory_events = _read_integer_record(output / "container-memory.events")
-    swap_current = _read_nonnegative_integer(
-        output / "container-memory-swap-current.txt"
-    )
+    swap_current = _read_nonnegative_integer(output / "container-memory-swap-current.txt")
     swap_peak = _read_nonnegative_integer(output / "container-memory-swap-peak.txt")
     swap_events = _read_integer_record(output / "container-memory.swap.events")
     memory = _memory_assessment(
@@ -217,19 +207,18 @@ def run_research_reference(
     trace_path = output / "state-trace.nfitrace"
     storage_path = output / "reference-storage.json"
     storage_metrics = read_json(storage_path) if storage_path.is_file() else None
-    storage_complete = (
-        reference_storage_mode == "in-memory"
-        or (
-            isinstance(storage_metrics, dict)
-            and storage_metrics.get("mode") == "spooled"
-            and storage_metrics.get("removed_on_exit") is True
-        )
+    storage_complete = reference_storage_mode == "in-memory" or (
+        isinstance(storage_metrics, dict)
+        and storage_metrics.get("mode") == "spooled"
+        and storage_metrics.get("removed_on_exit") is True
     )
-    complete = exit_code == 0 and difference is None and (
-        not audit_timestamps or audit_path.is_file()
-    ) and (
-        validated_trace_identity is None or trace_path.is_file()
-    ) and storage_complete
+    complete = (
+        exit_code == 0
+        and difference is None
+        and (not audit_timestamps or audit_path.is_file())
+        and (validated_trace_identity is None or trace_path.is_file())
+        and storage_complete
+    )
     report = {
         "schema_version": RESEARCH_REFERENCE_VERSION,
         "run_id": run["run_id"],
@@ -269,16 +258,12 @@ def run_research_reference(
             if audit_path.is_file()
             else None
         ),
-        "state_trace": (
-            _file_record(trace_path) if trace_path.is_file() else None
-        ),
+        "state_trace": (_file_record(trace_path) if trace_path.is_file() else None),
         "reference_storage": {
             "mode": reference_storage_mode,
             "complete": storage_complete,
             "metrics": storage_metrics,
-            "artifact": (
-                _file_record(storage_path) if storage_path.is_file() else None
-            ),
+            "artifact": (_file_record(storage_path) if storage_path.is_file() else None),
         },
         "container_resources": resources,
         "container_memory": memory,
@@ -435,9 +420,7 @@ def build_research_reference_command(
             ]
         )
     elif storage_mode != "in-memory":
-        raise BenchmarkError(
-            "reference storage mode must be 'in-memory' or 'spooled'"
-        )
+        raise BenchmarkError("reference storage mode must be 'in-memory' or 'spooled'")
     if audit_timestamps_ms:
         command.extend(
             [
@@ -449,9 +432,7 @@ def build_research_reference_command(
             ]
         )
     if dependency_directory is not None:
-        command.extend(
-            ["--volume", f"{dependency_directory}:/reference-deps:ro"]
-        )
+        command.extend(["--volume", f"{dependency_directory}:/reference-deps:ro"])
     if trace_identity is not None:
         command.extend(
             [
@@ -591,12 +572,12 @@ def _materialize_reference_inputs(
         or config_sha256(config) != expected_config_hash
     ):
         raise BenchmarkError("research effective config failed its hash binding")
-    write_json(destination / "config.json", _official_backtest_config(config))
+    write_json(destination / "config.json", official_backtest_config(config))
 
     market_config = read_json(root / "download-config.json")
     if not isinstance(market_config, dict):
         raise BenchmarkError("research market/download config is invalid")
-    market_config = _official_backtest_config(market_config)
+    market_config = official_backtest_config(market_config)
     write_json(destination / "market-config.json", market_config)
     exchange_config = config.get("exchange")
     market_exchange = market_config.get("exchange")
@@ -656,7 +637,7 @@ def _materialize_reference_inputs(
     }
 
 
-def _official_backtest_config(config: dict[str, Any]) -> dict[str, Any]:
+def official_backtest_config(config: dict[str, Any]) -> dict[str, Any]:
     """Remove service-only settings from the immutable backtest copy.
 
     User configs commonly leave API credentials blank because the service is
@@ -684,9 +665,7 @@ def _official_backtest_config(config: dict[str, Any]) -> dict[str, Any]:
             for item in pairlists
         )
     ):
-        raise BenchmarkError(
-            "official research verification requires a static sealed pairlist"
-        )
+        raise BenchmarkError("official research verification requires a static sealed pairlist")
     else:
         for item in pairlists:
             item["allow_inactive"] = True
@@ -703,11 +682,7 @@ def _sealed_input_path(root: Path, record: Any) -> Path | None:
     ):
         raise BenchmarkError("research sealed-input record is invalid")
     path = (root / record["path"]).resolve()
-    if (
-        not path.is_relative_to(root)
-        or not path.is_file()
-        or sha256_file(path) != record["sha256"]
-    ):
+    if not path.is_relative_to(root) or not path.is_file() or sha256_file(path) != record["sha256"]:
         raise BenchmarkError("research sealed input failed its hash binding")
     return path
 
@@ -738,9 +713,7 @@ def _validate_reference_market_snapshot(
         raise BenchmarkError("reference market snapshot markets must be an object")
     missing = [pair for pair in required_pairs if pair not in markets]
     if missing:
-        raise BenchmarkError(
-            "reference market snapshot is missing pairs: " + ", ".join(missing)
-        )
+        raise BenchmarkError("reference market snapshot is missing pairs: " + ", ".join(missing))
 
 
 def _initialize_output(output: Path) -> None:

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import zipfile
 from pathlib import Path
 
 import pytest
 from nfi_backtest_engine import full_x7_certification, full_x7_resume
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.config_loader import config_sha256
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.full_x7_certification import (
     _determinism,
@@ -237,22 +239,57 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     assert report["runs"]["official_reference"]["result_sha256"] == surface_sha
 
 
-def test_imported_official_oracle_must_match_current_research_identity() -> None:
+def test_imported_official_oracle_accepts_engine_identity_change_when_seals_match(
+    tmp_path: Path,
+) -> None:
     from nfi_backtest_engine.reference_runtime import (
         REFERENCE_PLATFORM,
         REFERENCE_PLATFORM_DIGEST,
     )
 
+    config = {
+        "exchange": {"pair_whitelist": ["BTC/USDT"]},
+        "pairlists": [{"method": "StaticPairList", "allow_inactive": True}],
+    }
+    config_path = tmp_path / "config.json"
+    write_json(config_path, config)
+    data_sha = "9" * 64
+    data_seal = tmp_path / "data-seal.json"
+    write_json(
+        data_seal,
+        {"schema_version": "1.3.0", "aggregate_sha256": data_sha},
+    )
+    result_zip = tmp_path / "backtest-result.zip"
+    with zipfile.ZipFile(result_zip, "w") as archive:
+        archive.writestr(
+            "backtest-result.meta.json",
+            json.dumps(
+                {
+                    "NostalgiaForInfinityX7": {
+                        "timeframe": "5m",
+                        "backtest_start_ts": 1609459200,
+                        "backtest_end_ts": 1767225600,
+                    }
+                }
+            ),
+        )
+
+    def record(path: Path) -> dict[str, object]:
+        return {
+            "path": str(path),
+            "bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+
     surface_sha = "a" * 64
-    run_id = "b" * 64
     strategy_sha = "c" * 64
     market_sha = "d" * 64
     baseline = {
         "result_sha256": surface_sha,
-        "report": {"run_id": run_id},
+        "report": {"run_id": "b" * 64},
     }
     report = {
-        "run_id": run_id,
+        "run_id": "e" * 64,
         "complete": True,
         "exact_parity": True,
         "reference": {
@@ -261,9 +298,12 @@ def test_imported_official_oracle_must_match_current_research_identity() -> None
         },
         "inputs": {
             "strategy": {"sha256": strategy_sha},
+            "config": record(config_path),
+            "data_seal": record(data_seal),
             "engine_trade_surface": {"sha256": surface_sha},
             "market_snapshot": {"sha256": market_sha},
         },
+        "result": record(result_zip),
         "official_trade_surface": {"sha256": surface_sha},
         "container_memory": {"verdict": "within_limit"},
     }
@@ -271,12 +311,24 @@ def test_imported_official_oracle_must_match_current_research_identity() -> None
         "exit_code": 0,
         "result_sha256": surface_sha,
         "report": report,
+        "output_directory": tmp_path,
     }
     inputs = {
+        "lock": {
+            "strategy": {"class_name": "NostalgiaForInfinityX7"},
+            "data": {"seal_version": "1.3.0"},
+            "pairlist": {"pairs": ["BTC/USDT"]},
+            "scope": {
+                "timerange": "20210101-20260101",
+                "timeframes": ["5m"],
+            },
+        },
         "public": {
             "strategy_sha256": strategy_sha,
+            "official_reference_config_sha256": config_sha256(config),
+            "data_aggregate_sha256": data_sha,
             "reference_market_snapshot_sha256": market_sha,
-        }
+        },
     }
 
     full_x7_resume.validate_reference_oracle(
@@ -286,8 +338,53 @@ def test_imported_official_oracle_must_match_current_research_identity() -> None
         validator=full_x7_certification._reference_complete,
     )
 
-    report["run_id"] = "e" * 64
-    with pytest.raises(BenchmarkError, match="research run identity"):
+    config["exchange"]["pair_whitelist"] = ["ETH/USDT"]
+    write_json(config_path, config)
+    report["inputs"]["config"] = record(config_path)
+    with pytest.raises(BenchmarkError, match="official config"):
+        full_x7_resume.validate_reference_oracle(
+            measurement,
+            baseline=baseline,
+            inputs=inputs,
+            validator=full_x7_certification._reference_complete,
+        )
+
+    config["exchange"]["pair_whitelist"] = ["BTC/USDT"]
+    write_json(config_path, config)
+    report["inputs"]["config"] = record(config_path)
+    write_json(
+        data_seal,
+        {"schema_version": "1.3.0", "aggregate_sha256": "8" * 64},
+    )
+    report["inputs"]["data_seal"] = record(data_seal)
+    with pytest.raises(BenchmarkError, match="candle data seal"):
+        full_x7_resume.validate_reference_oracle(
+            measurement,
+            baseline=baseline,
+            inputs=inputs,
+            validator=full_x7_certification._reference_complete,
+        )
+
+    write_json(
+        data_seal,
+        {"schema_version": "1.3.0", "aggregate_sha256": data_sha},
+    )
+    report["inputs"]["data_seal"] = record(data_seal)
+    with zipfile.ZipFile(result_zip, "w") as archive:
+        archive.writestr(
+            "backtest-result.meta.json",
+            json.dumps(
+                {
+                    "NostalgiaForInfinityX7": {
+                        "timeframe": "5m",
+                        "backtest_start_ts": 1640995200,
+                        "backtest_end_ts": 1767225600,
+                    }
+                }
+            ),
+        )
+    report["result"] = record(result_zip)
+    with pytest.raises(BenchmarkError, match="official timerange"):
         full_x7_resume.validate_reference_oracle(
             measurement,
             baseline=baseline,
@@ -310,11 +407,35 @@ def test_imported_oracle_reconciles_a_completed_official_export(
     official_surface = source / "official-trade-surface.json"
     official_surface.write_bytes(b"sealed-official-surface")
     result_zip = source / "backtest-result.zip"
-    result_zip.write_bytes(b"sealed-freqtrade-export")
+    with zipfile.ZipFile(result_zip, "w") as archive:
+        archive.writestr(
+            "backtest-result.meta.json",
+            json.dumps(
+                {
+                    "NostalgiaForInfinityX7": {
+                        "timeframe": "5m",
+                        "backtest_start_ts": 1609459200,
+                        "backtest_end_ts": 1767225600,
+                    }
+                }
+            ),
+        )
     strategy = source / "strategy.py"
     strategy.write_bytes(b"sealed-strategy")
     market = source / "reference-markets.json"
     market.write_bytes(b"sealed-market-snapshot")
+    config = {
+        "exchange": {"pair_whitelist": ["BTC/USDT"]},
+        "pairlists": [{"method": "StaticPairList", "allow_inactive": True}],
+    }
+    config_path = source / "config.json"
+    write_json(config_path, config)
+    data_sha = "9" * 64
+    data_seal = tmp_path / "data-seal.json"
+    write_json(
+        data_seal,
+        {"schema_version": "1.3.0", "aggregate_sha256": data_sha},
+    )
     baseline_surface = tmp_path / "native-trade-surface.json"
     baseline_surface.write_bytes(official_surface.read_bytes())
 
@@ -346,6 +467,8 @@ def test_imported_oracle_reconciles_a_completed_official_export(
             },
             "inputs": {
                 "strategy": record(strategy),
+                "config": record(config_path),
+                "data_seal": record(data_seal),
                 "engine_trade_surface": {"sha256": "d" * 64},
                 "market_snapshot": record(market),
             },
@@ -361,15 +484,26 @@ def test_imported_oracle_reconciles_a_completed_official_export(
     baseline = {
         "result_sha256": surface_sha,
         "report": {
-            "run_id": run_id,
+            "run_id": "b" * 64,
             "result": {"trade_surface": record(baseline_surface)},
         },
     }
     inputs = {
+        "lock": {
+            "strategy": {"class_name": "NostalgiaForInfinityX7"},
+            "data": {"seal_version": "1.3.0"},
+            "pairlist": {"pairs": ["BTC/USDT"]},
+            "scope": {
+                "timerange": "20210101-20260101",
+                "timeframes": ["5m"],
+            },
+        },
         "public": {
             "strategy_sha256": strategy_sha,
+            "official_reference_config_sha256": config_sha256(config),
+            "data_aggregate_sha256": data_sha,
             "reference_market_snapshot_sha256": market_sha,
-        }
+        },
     }
 
     imported = full_x7_resume.import_reference_oracle(
@@ -384,10 +518,10 @@ def test_imported_oracle_reconciles_a_completed_official_export(
     assert report["complete"] is True
     assert report["exact_parity"] is True
     assert report["difference"] is None
-    assert (
-        report["parity_reconciliation"]["prior_engine_surface_sha256"] == "d" * 64
-    )
+    assert report["parity_reconciliation"]["prior_engine_surface_sha256"] == "d" * 64
     assert report["inputs"]["engine_trade_surface"]["sha256"] == surface_sha
+    assert Path(report["inputs"]["data_seal"]["path"]).is_relative_to(destination)
+    assert (destination / "inputs" / "data-seal.json").is_file()
     assert (destination / result_zip.name).read_bytes() == result_zip.read_bytes()
 
 
@@ -425,8 +559,7 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
         if path.name.startswith("x7-") and (path / "manifest.json").is_file()
     )
     upstream_commits = {
-        read_json(path)["strategy_provenance"]["upstream_commit"]
-        for path in manifests
+        read_json(path)["strategy_provenance"]["upstream_commit"] for path in manifests
     }
     assert len(upstream_commits) == 1
     upstream_commit = upstream_commits.pop()
