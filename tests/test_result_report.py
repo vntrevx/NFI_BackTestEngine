@@ -23,6 +23,15 @@ FIXTURE = (
     / "artifacts"
     / "trade-surface.json"
 )
+FUTURES_FIXTURE = (
+    Path(__file__).parents[1]
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "x7-liquidation-stoploss-guard-futures-v17.4.421-2022-04-29_05-02"
+    / "artifacts"
+    / "trade-surface.json"
+)
 
 
 def _complete_run(root: Path) -> dict:
@@ -137,6 +146,34 @@ def test_confirmation_refreshes_only_derived_presentation(tmp_path: Path) -> Non
         summary,
         run,
     )
+
+
+def test_futures_report_shows_funding_leverage_liquidation_and_locks(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "futures"
+    run.mkdir()
+    report = _complete_run(run)
+    shutil.copyfile(FUTURES_FIXTURE, run / "trade-surface.json")
+    surface = run / "trade-surface.json"
+    report["result"]["trade_count"] = 3
+    report["result"]["trade_surface"] = {
+        "path": str(surface),
+        "bytes": surface.stat().st_size,
+        "sha256": sha256_file(surface),
+    }
+    write_json(run / "run.json", report)
+
+    summary = write_result_presentation(run)
+    terminal = format_terminal_summary(summary, run)
+    html = (run / "report.html").read_text(encoding="utf-8")
+
+    assert "Long / short          3 / 0" in terminal
+    assert "Leverage              5.00x–5.00x (1 distinct)" in terminal
+    assert "Liquidations / locks  1 / 2" in terminal
+    assert "Futures lifecycle" in html
+    assert "Funding total" in html
+    assert "Liquidation exits" in html
 
 
 def test_report_uses_an_adjacent_certification_peak_rss_measurement(

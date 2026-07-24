@@ -19,6 +19,8 @@ BENCHMARK_FIXTURE_V2_SCHEMA = "benchmark-fixture-v2.schema.json"
 BENCHMARK_FIXTURE_V3_SCHEMA = "benchmark-fixture-v3.schema.json"
 CERTIFICATION_REPORT_SCHEMA = "certification-report-v1.schema.json"
 FULL_X7_CERTIFICATION_SCHEMA = "full-x7-certification-v1.schema.json"
+FULL_X7_CERTIFICATION_V2_SCHEMA = "full-x7-certification-v2.schema.json"
+FULL_X7_COMBINED_RELEASE_SCHEMA = "full-x7-combined-release-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",

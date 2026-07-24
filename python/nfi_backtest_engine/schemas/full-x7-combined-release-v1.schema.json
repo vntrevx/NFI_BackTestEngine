@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/full-x7-combined-release-v1.json",
+  "title": "Combined Full X7 release report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "status",
+    "release_certified",
+    "shared_candidate",
+    "certificates",
+    "platform_evidence",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["preview", "certified"]},
+    "release_certified": {"type": "boolean"},
+    "shared_candidate": {
+      "type": "object",
+      "required": [
+        "strategy",
+        "upstream_commit",
+        "strategy_sha256",
+        "package_version",
+        "wheel_sha256",
+        "native_extension_sha256",
+        "engine_source_fingerprint",
+        "reference",
+        "timerange",
+        "pair_count",
+        "timeframes",
+        "continuous_timerange"
+      ]
+    },
+    "certificates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binance-spot", "binance-usdtm-isolated"],
+      "properties": {
+        "binance-spot": {"$ref": "#/$defs/artifact"},
+        "binance-usdtm-isolated": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "platform_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "binance-spot": {"$ref": "#/$defs/file"},
+        "binance-usdtm-isolated": {"$ref": "#/$defs/file"}
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode_certificates",
+        "shared_candidate",
+        "platform_evidence"
+      ],
+      "properties": {
+        "mode_certificates": {"$ref": "#/$defs/gate"},
+        "shared_candidate": {"$ref": "#/$defs/gate"},
+        "platform_evidence": {"$ref": "#/$defs/gate"}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "bytes", "sha256"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "bytes", "sha256", "bundle_sha256"],
+      "properties": {
+        "file": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bundle_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "required": ["met"],
+      "properties": {
+        "met": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -29,10 +29,91 @@ from .reference_runtime import (
     REFERENCE_PLATFORM_DIGEST,
     REFERENCE_VERSION,
 )
+from .release_contract import (
+    ReleaseModeContract,
+    data_role_for_path,
+    release_contract_for_config,
+    release_contract_for_scope,
+)
 from .strategy_ir import analyze_strategy
+from .timerange import parse_timerange_milliseconds
 
-RELEASE_INPUT_LOCK_VERSION = "1.1.0"
+RELEASE_INPUT_LOCK_VERSION = "1.2.0"
+LEGACY_RELEASE_INPUT_LOCK_VERSION = "1.1.0"
 DEFAULT_RELEASE_PAIR_COUNT = 80
+
+
+def discover_release_universe(
+    *,
+    config_path: str | Path,
+    market_snapshot_path: str | Path,
+    timerange: str,
+    destination: str | Path,
+) -> dict[str, Any]:
+    """Select historically eligible release candidates from one frozen market view."""
+    config_file = Path(config_path).resolve()
+    snapshot_file = Path(market_snapshot_path).resolve()
+    target = Path(destination).resolve()
+    if target.exists():
+        raise BenchmarkError(f"release candidate output already exists: {target}")
+    loaded = load_effective_config(config_file)
+    effective = sanitize_config(loaded["config"])
+    if not isinstance(effective, dict):
+        raise SpecValidationError("effective release config must be an object")
+    contract = release_contract_for_config(effective)
+    snapshot = read_json(snapshot_file)
+    if not isinstance(snapshot, dict):
+        raise SpecValidationError("release market snapshot must be an object")
+    if (
+        snapshot.get("exchange") != contract.exchange
+        or snapshot.get("trading_mode") not in {None, contract.trading_mode}
+        or not isinstance(snapshot.get("markets"), dict)
+    ):
+        raise SpecValidationError(
+            "release market snapshot differs from the selected mode contract"
+        )
+    start_ms, _ = parse_timerange_milliseconds(timerange)
+    markets = snapshot["markets"]
+    declared_pairs = snapshot.get("pairs")
+    candidates = (
+        declared_pairs
+        if isinstance(declared_pairs, list)
+        and all(isinstance(pair, str) for pair in declared_pairs)
+        else list(markets)
+    )
+    exchange = effective["exchange"]
+    assert isinstance(exchange, dict)
+    blacklist = _compile_blacklist(exchange.get("pair_blacklist", []))
+    selected: list[str] = []
+    rejected: list[dict[str, str]] = []
+    for pair in candidates:
+        market = markets.get(pair)
+        reason = _market_candidate_rejection(
+            pair,
+            market,
+            contract=contract,
+            timerange_start_ms=start_ms,
+            blacklist=blacklist,
+        )
+        if reason is None:
+            selected.append(pair)
+        else:
+            rejected.append({"pair": pair, "reason": reason})
+    document = {
+        "schema_version": "1.0.0",
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "mode_contract": contract.contract_id,
+        "timerange": timerange,
+        "market_snapshot": {
+            "path": str(snapshot_file),
+            "sha256": sha256_file(snapshot_file),
+        },
+        "config_sha256": loaded["sha256"],
+        "pairs": selected,
+        "rejected": rejected,
+    }
+    write_json(target, document)
+    return document
 
 
 def select_release_universe(
@@ -81,10 +162,9 @@ def select_release_universe(
     exchange = effective.get("exchange")
     if not isinstance(exchange, dict):
         raise SpecValidationError("effective release config exchange must be an object")
-    if effective.get("trading_mode", "spot") != "spot":
-        raise SpecValidationError("the representative Full X7 universe must use spot mode")
+    contract = release_contract_for_config(effective)
 
-    candidates = _load_candidates(candidates_file)
+    candidates = _load_candidates(candidates_file, contract=contract)
     blacklist = _compile_blacklist(exchange.get("pair_blacklist", []))
     accepted_candidates = [
         pair for pair in candidates if not any(pattern.fullmatch(pair) for pattern in blacklist)
@@ -118,7 +198,7 @@ def select_release_universe(
                 data_root,
                 pair=pair,
                 timeframe=timeframe,
-                trading_mode="spot",
+                trading_mode=contract.trading_mode,
             )
             if len(matches) != 1:
                 reasons.append(
@@ -171,6 +251,7 @@ def select_release_universe(
                 blacklisted,
                 quality,
                 pair_count,
+                contract,
             ),
         )
         raise BenchmarkError(
@@ -202,6 +283,7 @@ def select_release_universe(
     )
     pairlist = freeze_pairlist(selected_config)
     write_json(output / "pairlist.json", pairlist)
+    role_counts = validate_release_data_roles(data_seal, contract=contract)
     report = _selection_report(
         candidates_file,
         candidates,
@@ -210,6 +292,7 @@ def select_release_universe(
         blacklisted,
         quality,
         pair_count,
+        contract,
     )
     write_json(output / "selection-report.json", report)
 
@@ -236,7 +319,7 @@ def select_release_universe(
             "selected_sha256": config_sha256(selected_config),
         },
         "scope": {
-            "trading_mode": "spot",
+            **contract.scope_fields(),
             "timerange": timerange,
             "pair_count": len(selected),
             "timeframes": timeframes,
@@ -253,6 +336,7 @@ def select_release_universe(
             "coverage_shortfall_count": len(data_seal["coverage_shortfalls"]),
             "startup_shortfall_count": len(data_seal["startup_shortfalls"]),
             "startup_coverage_policy": "record",
+            "role_counts": role_counts,
         },
         "selection": {
             "candidate_sha256": sha256_file(candidates_file),
@@ -271,9 +355,10 @@ def validate_release_input_lock(
     required_pair_count: int = DEFAULT_RELEASE_PAIR_COUNT,
 ) -> None:
     """Validate the release-critical invariants without machine-specific paths."""
-    if not isinstance(document, dict) or document.get("schema_version") != (
-        RELEASE_INPUT_LOCK_VERSION
-    ):
+    if not isinstance(document, dict) or document.get("schema_version") not in {
+        RELEASE_INPUT_LOCK_VERSION,
+        LEGACY_RELEASE_INPUT_LOCK_VERSION,
+    }:
         raise SpecValidationError("unsupported release input lock")
     if document.get("status") != "sealed":
         raise SpecValidationError("release input lock is not sealed")
@@ -285,8 +370,11 @@ def validate_release_input_lock(
     assert isinstance(scope, dict)
     assert isinstance(pairlist, dict)
     assert isinstance(data, dict)
-    if scope.get("trading_mode") != "spot":
-        raise SpecValidationError("Full X7 representative lock must use spot mode")
+    version = document["schema_version"]
+    contract = release_contract_for_scope(
+        scope,
+        legacy_spot=version == LEGACY_RELEASE_INPUT_LOCK_VERSION,
+    )
     pairs = pairlist.get("pairs")
     if not isinstance(pairs, list) or len(pairs) != required_pair_count:
         raise SpecValidationError(
@@ -294,6 +382,9 @@ def validate_release_input_lock(
         )
     if scope.get("pair_count") != len(pairs):
         raise SpecValidationError("release input lock pair counts differ")
+    if not all(isinstance(pair, str) for pair in pairs):
+        raise SpecValidationError("release input lock pairs must be strings")
+    contract.validate_pairs(pairs)
     if data.get("coverage_shortfall_count") != 0:
         raise SpecValidationError("release input lock has history coverage shortfalls")
     startup_shortfalls = data.get("startup_shortfall_count")
@@ -306,11 +397,137 @@ def validate_release_input_lock(
         raise SpecValidationError(
             "release input lock startup coverage contract is invalid"
         )
+    if version == RELEASE_INPUT_LOCK_VERSION:
+        timeframes = scope.get("timeframes")
+        if not isinstance(timeframes, list) or not all(
+            isinstance(timeframe, str) for timeframe in timeframes
+        ):
+            raise SpecValidationError("release input lock timeframes are invalid")
+        expected_roles = _expected_role_counts(
+            contract,
+            pair_count=len(pairs),
+            timeframe_count=len(timeframes),
+        )
+        if data.get("role_counts") != expected_roles:
+            raise SpecValidationError("release input lock data-role counts differ")
     expected_identity = _identity_sha256(
         {key: value for key, value in document.items() if key != "identity_sha256"}
     )
     if document.get("identity_sha256") != expected_identity:
         raise SpecValidationError("release input lock identity is corrupt")
+
+
+def validate_release_data_roles(
+    seal: dict[str, Any],
+    *,
+    contract: ReleaseModeContract,
+) -> dict[str, int]:
+    """Require one complete set of mode-specific files for every sealed pair."""
+    request = seal.get("request")
+    files = seal.get("files")
+    if not isinstance(request, dict) or not isinstance(files, list):
+        raise SpecValidationError("release data seal request or files are invalid")
+    pairs = request.get("pairs")
+    timeframes = request.get("timeframes")
+    start_ms = request.get("start_timestamp_ms")
+    end_ms = request.get("end_timestamp_ms")
+    if (
+        not isinstance(pairs, list)
+        or not all(isinstance(pair, str) for pair in pairs)
+        or not isinstance(timeframes, list)
+        or not all(isinstance(timeframe, str) for timeframe in timeframes)
+        or not isinstance(start_ms, int)
+        or not isinstance(end_ms, int)
+    ):
+        raise SpecValidationError("release data seal scope is invalid")
+    if (
+        request.get("trading_mode") != contract.trading_mode
+        or request.get("exchange") != contract.exchange
+    ):
+        raise SpecValidationError("release data seal mode differs from its contract")
+    contract.validate_pairs(pairs)
+
+    per_pair = {
+        pair: {role: [] for role in contract.required_data_roles}
+        for pair in pairs
+    }
+    for record in files:
+        if not isinstance(record, dict) or not isinstance(record.get("path"), str):
+            raise SpecValidationError("release data seal contains a malformed file record")
+        for pair in pairs:
+            role = data_role_for_path(
+                record["path"],
+                pair=pair,
+                timeframes=timeframes,
+                contract=contract,
+            )
+            if role is not None:
+                per_pair[pair][role].append(record)
+                break
+
+    side_intervals = dict(contract.side_channel_intervals_ms)
+    for pair, roles in per_pair.items():
+        candle_records = roles["candles"]
+        if len(candle_records) != len(timeframes):
+            raise SpecValidationError(
+                f"release data requires one candle file per timeframe for {pair}"
+            )
+        for timeframe in timeframes:
+            matches = [
+                record
+                for record in candle_records
+                if data_role_for_path(
+                    record["path"],
+                    pair=pair,
+                    timeframes=[timeframe],
+                    contract=contract,
+                )
+                == "candles"
+            ]
+            if len(matches) != 1:
+                raise SpecValidationError(
+                    f"release data requires exactly one {timeframe} candle file "
+                    f"for {pair}"
+                )
+        for role, interval_ms in side_intervals.items():
+            records = roles[role]
+            if len(records) != 1:
+                raise SpecValidationError(
+                    f"release data requires exactly one {role} file for {pair}"
+                )
+            coverage = records[0].get("coverage")
+            if (
+                not isinstance(coverage, dict)
+                or not isinstance(coverage.get("start_timestamp_ms"), int)
+                or not isinstance(coverage.get("end_timestamp_ms"), int)
+                or coverage["start_timestamp_ms"] > start_ms
+                or coverage["end_timestamp_ms"] + interval_ms < end_ms
+            ):
+                raise SpecValidationError(
+                    f"release {role} coverage is incomplete for {pair}"
+                )
+
+    return _expected_role_counts(
+        contract,
+        pair_count=len(pairs),
+        timeframe_count=len(timeframes),
+    )
+
+
+def _expected_role_counts(
+    contract: ReleaseModeContract,
+    *,
+    pair_count: int,
+    timeframe_count: int,
+) -> dict[str, int]:
+    return {
+        role: (
+            pair_count * timeframe_count
+            if role == "candles"
+            else pair_count
+        )
+        for role in contract.required_data_roles
+    }
 
 
 def _coverage_by_pair(
@@ -332,7 +549,11 @@ def _coverage_by_pair(
     return result
 
 
-def _load_candidates(path: Path) -> list[str]:
+def _load_candidates(
+    path: Path,
+    *,
+    contract: ReleaseModeContract,
+) -> list[str]:
     document = read_json(path)
     if isinstance(document, list):
         raw = document
@@ -352,13 +573,9 @@ def _load_candidates(path: Path) -> list[str]:
     pairs: list[str] = []
     seen: set[str] = set()
     for index, pair in enumerate(raw):
-        if (
-            not isinstance(pair, str)
-            or "/" not in pair
-            or ":" in pair
-            or pair.strip() != pair
-        ):
-            raise SpecValidationError(f"candidate pair {index} is not canonical spot CCXT")
+        if not isinstance(pair, str) or pair.strip() != pair:
+            raise SpecValidationError(f"candidate pair {index} is not canonical CCXT")
+        contract.validate_pair(pair)
         if pair in seen:
             raise SpecValidationError(f"candidate list contains duplicate pair: {pair}")
         seen.add(pair)
@@ -366,6 +583,50 @@ def _load_candidates(path: Path) -> list[str]:
     if not pairs:
         raise SpecValidationError("candidate list must not be empty")
     return pairs
+
+
+def _market_candidate_rejection(
+    pair: str,
+    market: Any,
+    *,
+    contract: ReleaseModeContract,
+    timerange_start_ms: int,
+    blacklist: list[re.Pattern[str]],
+) -> str | None:
+    try:
+        contract.validate_pair(pair)
+    except SpecValidationError:
+        return "PAIR_CONTRACT"
+    if any(pattern.fullmatch(pair) for pattern in blacklist):
+        return "BLACKLISTED"
+    if not isinstance(market, dict):
+        return "MARKET_MISSING"
+    if market.get("active") is not True:
+        return "INACTIVE"
+    created = market.get("created")
+    if not isinstance(created, int):
+        info = market.get("info")
+        created = info.get("onboardDate") if isinstance(info, dict) else None
+        if isinstance(created, str) and created.isdecimal():
+            created = int(created)
+    if not isinstance(created, int):
+        return "ONBOARD_DATE_MISSING"
+    if created > timerange_start_ms:
+        return "LISTED_AFTER_TIMERANGE_START"
+    if contract.trading_mode == "spot":
+        return None if market.get("spot") is True else "NOT_SPOT"
+    margin_modes = market.get("marginModes")
+    if (
+        market.get("settle") != contract.settlement_currency
+        or market.get("swap") is not True
+        or market.get("contract") is not True
+        or market.get("linear") is not True
+        or market.get("inverse") is not False
+        or not isinstance(margin_modes, dict)
+        or margin_modes.get("isolated") is not True
+    ):
+        return "NOT_BINANCE_USDTM_ISOLATED"
+    return None
 
 
 def _compile_blacklist(value: Any) -> list[re.Pattern[str]]:
@@ -387,9 +648,11 @@ def _selection_report(
     blacklisted: list[str],
     quality: dict[str, list[dict[str, Any]]],
     required: int,
+    contract: ReleaseModeContract,
 ) -> dict[str, Any]:
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
+        "mode_contract": contract.contract_id,
         "candidate_source": {
             "path": str(candidates_file),
             "sha256": sha256_file(candidates_file),

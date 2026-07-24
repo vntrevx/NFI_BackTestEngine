@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/full-x7-certification-v2.json",
+  "title": "Mode-aware Full X7 certification report v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "status",
+    "release_certified",
+    "claim_scope",
+    "inputs",
+    "environment",
+    "measurement",
+    "runs",
+    "state_probes",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["certified", "failed"]},
+    "release_certified": {"type": "boolean"},
+    "claim_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "upstream_commit",
+        "mode_contract",
+        "trading_mode",
+        "margin_mode",
+        "exchange",
+        "settlement_currency",
+        "required_data_roles",
+        "timerange",
+        "pair_count",
+        "timeframes",
+        "continuous_timerange",
+        "evidence"
+      ],
+      "properties": {
+        "strategy": {"type": "string", "minLength": 1},
+        "upstream_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "mode_contract": {
+          "enum": ["binance-spot", "binance-usdtm-isolated"]
+        },
+        "trading_mode": {"enum": ["spot", "futures"]},
+        "margin_mode": {
+          "oneOf": [
+            {"type": "null"},
+            {"const": "isolated"}
+          ]
+        },
+        "exchange": {"const": "binance"},
+        "settlement_currency": {"const": "USDT"},
+        "required_data_roles": {
+          "oneOf": [
+            {"const": ["candles"]},
+            {"const": ["candles", "funding_rate", "mark"]}
+          ]
+        },
+        "timerange": {"type": "string", "pattern": "^[0-9]{8}-[0-9]{8}$"},
+        "pair_count": {"const": 80},
+        "timeframes": {"const": ["5m", "15m", "1h", "4h", "1d"]},
+        "continuous_timerange": {"const": true},
+        "evidence": {
+          "const": "continuous-oracle-plus-official-full-state-probes"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"trading_mode": {"const": "spot"}},
+            "required": ["trading_mode"]
+          },
+          "then": {
+            "properties": {
+              "mode_contract": {"const": "binance-spot"},
+              "margin_mode": {"type": "null"},
+              "required_data_roles": {"const": ["candles"]}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"trading_mode": {"const": "futures"}},
+            "required": ["trading_mode"]
+          },
+          "then": {
+            "properties": {
+              "mode_contract": {"const": "binance-usdtm-isolated"},
+              "margin_mode": {"const": "isolated"},
+              "required_data_roles": {
+                "const": ["candles", "funding_rate", "mark"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "release_lock",
+        "mode_contract",
+        "reference",
+        "strategy_sha256",
+        "config_sha256",
+        "data_aggregate_sha256",
+        "engine_market_snapshot_sha256",
+        "reference_market_snapshot_sha256"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hardware",
+        "execution_profile",
+        "package_version",
+        "engine_build"
+      ],
+      "properties": {
+        "hardware": {"type": "object"},
+        "execution_profile": {"type": "object"},
+        "package_version": {"type": "string", "minLength": 1},
+        "engine_build": {
+          "type": "object",
+          "not": {"required": ["binary_path"]}
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native_warmups_excluded",
+        "native_initial_repetitions",
+        "native_measured_repetitions",
+        "native_maximum_repetitions",
+        "native_spread_threshold",
+        "engine_relative_spread",
+        "official_reference_repetitions",
+        "official_reference_role",
+        "resumed"
+      ],
+      "properties": {
+        "native_warmups_excluded": {"const": 1},
+        "native_initial_repetitions": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 5
+        },
+        "native_measured_repetitions": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 5
+        },
+        "native_maximum_repetitions": {"const": 5},
+        "native_spread_threshold": {"const": 0.05},
+        "engine_relative_spread": {"type": "number", "minimum": 0},
+        "official_reference_repetitions": {"const": 1},
+        "official_reference_role": {
+          "const": "single-continuous-exact-parity-oracle"
+        },
+        "resumed": {"type": "boolean"}
+      }
+    },
+    "runs": {
+      "type": "object",
+      "required": [
+        "engine",
+        "official_reference",
+        "engine_summary",
+        "official_reference_summary"
+      ],
+      "properties": {
+        "engine": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {"type": "object"}
+        },
+        "official_reference": {"type": "object"},
+        "engine_summary": {"type": "object"},
+        "official_reference_summary": {"type": "object"}
+      }
+    },
+    "state_probes": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"type": "object"}
+    },
+    "gates": {
+      "type": "object",
+      "required": [
+        "input_lock",
+        "installed_wheel",
+        "native_pipeline",
+        "official_parity",
+        "determinism",
+        "speed",
+        "memory",
+        "state_probes"
+      ]
+    }
+  }
+}

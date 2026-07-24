@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+from .branch_coverage import funded_trade_count
 from .canonical import read_json
 from .data_seal import compact_candle_directory
 from .errors import BenchmarkError, SpecValidationError
@@ -549,6 +550,19 @@ def _require_native_surface_coverage(
             "distinct_leverages:"
             f"{len(observed['leverages'])}<{minimum}"
         )
+    minimum_funded = required.get("minimum_funded_trades", 0)
+    if (
+        not isinstance(minimum_funded, int)
+        or isinstance(minimum_funded, bool)
+        or minimum_funded < 0
+    ):
+        raise SpecValidationError(
+            "probe required_coverage.minimum_funded_trades "
+            "must be a non-negative integer"
+        )
+    funded = funded_trade_count(surface)
+    if funded < minimum_funded:
+        missing.append(f"funded_trades:{funded}<{minimum_funded}")
     if missing:
         raise BenchmarkError(
             "native probe did not reach trade-visible required coverage: "

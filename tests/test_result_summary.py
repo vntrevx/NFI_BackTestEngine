@@ -15,6 +15,15 @@ FIXTURE = (
     / "artifacts"
     / "trade-surface.json"
 )
+FUTURES_FIXTURE = (
+    Path(__file__).parents[1]
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "x7-liquidation-stoploss-guard-futures-v17.4.421-2022-04-29_05-02"
+    / "artifacts"
+    / "trade-surface.json"
+)
 
 
 def _run_report() -> dict:
@@ -47,7 +56,7 @@ def test_summary_calculates_readable_performance_and_risk_metrics() -> None:
     surface = read_json(FIXTURE)
     summary = build_result_summary(_run_report(), surface)
 
-    assert summary["schema_version"] == "1.0.0"
+    assert summary["schema_version"] == "1.1.0"
     assert summary["run"]["strategy"] == "ContractLifecycleStrategy"
     assert summary["performance"]["profit_total_abs"] == pytest.approx(1.30196076)
     assert summary["performance"]["return_ratio"] == pytest.approx(0.00130196076)
@@ -76,6 +85,24 @@ def test_summary_calculates_readable_performance_and_risk_metrics() -> None:
     assert summary["breakdowns"]["by_pair"][0]["pair"] == "BTC/USDT"
     assert summary["breakdowns"]["by_month"][0]["month"] == "2025-01"
     assert len(summary["equity_curve"]["points"]) == 7
+    assert summary["futures"] is None
+
+
+def test_summary_exposes_exact_futures_lifecycle_metrics() -> None:
+    summary = build_result_summary(_run_report(), read_json(FUTURES_FIXTURE))
+    futures = summary["futures"]
+
+    assert futures["margin_mode"] == "isolated"
+    assert futures["long_trades"] == 3
+    assert futures["short_trades"] == 0
+    assert futures["funded_trades"] == 2
+    assert futures["funding_total"] == pytest.approx(784.210046632299)
+    assert futures["liquidation_exits"] == 1
+    assert futures["protection_locks"] == 2
+    assert futures["distinct_leverages"] == 1
+    assert futures["minimum_leverage"] == 5.0
+    assert futures["maximum_leverage"] == 5.0
+    assert futures["by_leverage"][0]["leverage"] == "5"
 
 
 def test_summary_represents_a_safe_block_without_fake_trading_metrics() -> None:

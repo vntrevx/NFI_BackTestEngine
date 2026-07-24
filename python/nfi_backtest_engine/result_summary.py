@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-RESULT_SUMMARY_VERSION = "1.0.0"
+RESULT_SUMMARY_VERSION = "1.1.0"
 MAX_EQUITY_POINTS = 1_000
 
 
@@ -131,6 +131,7 @@ def build_result_summary(
         "blockers": _blocker_summary(run_report),
         "performance": None,
         "risk": None,
+        "futures": None,
         "activity": {
             "pairs": pair_count,
             "trades": len(trades),
@@ -211,6 +212,12 @@ def build_result_summary(
         "maximum_consecutive_wins": consecutive_wins,
         "maximum_consecutive_losses": consecutive_losses,
     }
+    if context.get("trading_mode") == "futures":
+        summary["futures"] = _futures_summary(
+            trades,
+            lock_count=len(_sequence(trade_surface, "locks")),
+            margin_mode=context.get("margin_mode"),
+        )
     summary["activity"] = {
         "pairs": pair_count,
         "trades": len(trades),
@@ -281,6 +288,49 @@ def build_result_summary(
         "points": sampled_points,
     }
     return summary
+
+
+def _futures_summary(
+    trades: Sequence[Mapping[str, Any]],
+    *,
+    lock_count: int,
+    margin_mode: Any,
+) -> dict[str, Any]:
+    """Derive futures-only metrics from fields already sealed for parity.
+
+    Funding is reported as the exact signed value exported by the trade surface.
+    We deliberately count liquidation only from ``exit_reason``; an internal or
+    reconstructed liquidation price is not promoted into release evidence.
+    """
+
+    funding_values = [
+        _decimal(_mapping(trade, "fees").get("funding"))
+        for trade in trades
+    ]
+    leverages = [
+        _decimal(trade.get("leverage"))
+        for trade in trades
+        if trade.get("leverage") is not None
+    ]
+    leverage_rows = _group(trades, "leverage", "leverage")
+    return {
+        "margin_mode": margin_mode,
+        "long_trades": sum(trade.get("direction") == "long" for trade in trades),
+        "short_trades": sum(trade.get("direction") == "short" for trade in trades),
+        "funded_trades": sum(value != 0 for value in funding_values),
+        "funding_total": _number(sum(funding_values, Decimal(0))),
+        "liquidation_exits": sum(
+            trade.get("exit_reason") == "liquidation" for trade in trades
+        ),
+        "protection_locks": lock_count,
+        "distinct_leverages": len(set(leverages)),
+        "minimum_leverage": _number(min(leverages)) if leverages else None,
+        "maximum_leverage": _number(max(leverages)) if leverages else None,
+        "by_leverage": sorted(
+            leverage_rows,
+            key=lambda row: _decimal(row["leverage"]),
+        ),
+    }
 
 
 def _verification_summary(

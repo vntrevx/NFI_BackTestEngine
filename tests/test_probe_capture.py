@@ -190,3 +190,28 @@ def test_native_surface_coverage_accepts_compound_and_variable_leverage() -> Non
     }
 
     _require_native_surface_coverage(required, surface)
+
+
+def test_native_surface_coverage_requires_an_actual_funding_charge() -> None:
+    required = {
+        "entry_tags": [],
+        "compound_tags": [],
+        "exit_reasons": [],
+        "sides": ["long"],
+        "minimum_distinct_leverages": 1,
+        "minimum_funded_trades": 1,
+    }
+    surface = {
+        "trades": [
+            {
+                "entry_tag": "121",
+                "exit_reason": "force_exit",
+                "direction": "long",
+                "leverage": "3",
+                "fees": {"funding": "0"},
+            }
+        ]
+    }
+
+    with pytest.raises(BenchmarkError, match="funded_trades:0<1"):
+        _require_native_surface_coverage(required, surface)

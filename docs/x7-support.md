@@ -70,6 +70,14 @@ The fixtures live under `benchmarks/fixtures/captured/x7-*`. Every manifest seal
 effective strategy, compact candle inputs, native and raw reference market metadata,
 official export, normalized surface, observer trace, and coverage report.
 
+These seven fixtures are a mixed-mode branch matrix, not a continuous futures
+release certificate. The mode-aware release gate now requires a separate futures
+matrix that reaches tag 121, both long and short trades, non-zero funding, all
+four protections and locks in futures mode, compound tags, variable leverage,
+and liquidation. It also requires a continuous 80-pair, five-year futures oracle.
+Until those inputs and three-OS futures measurements are sealed, the combined
+spot/futures release status is `preview`.
+
 The latest certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
 2022-04-01 through 2023-01-01. The engine and offline Freqtrade 2026.5.1 produce
 byte-identical normalized surfaces with zero numeric tolerance: 11 trades, 164 orders,

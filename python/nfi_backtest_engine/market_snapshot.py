@@ -12,8 +12,53 @@ import ccxt
 from .canonical import write_json
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
+from .release_contract import ReleaseModeContract
 
 MARKET_SNAPSHOT_VERSION = "1.3.0"
+
+
+def validate_release_market_snapshot(
+    document: Any,
+    *,
+    contract: ReleaseModeContract,
+    pairs: list[str],
+) -> None:
+    """Validate the frozen simulator market state required by a release contract."""
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != MARKET_SNAPSHOT_VERSION
+        or document.get("exchange") != contract.exchange
+        or document.get("pairs") != pairs
+        or document.get("trading_mode") not in {None, contract.trading_mode}
+    ):
+        raise SpecValidationError(
+            "release market snapshot identity differs from its mode contract"
+        )
+    markets = document.get("markets")
+    if not isinstance(markets, dict) or set(markets) != set(pairs):
+        raise SpecValidationError("release market snapshot pair set differs")
+    for pair in pairs:
+        market = markets.get(pair)
+        if not isinstance(market, dict):
+            raise SpecValidationError(f"release market record is invalid for {pair}")
+        if market.get("quote") != "USDT":
+            raise SpecValidationError(f"release market quote differs for {pair}")
+        if contract.trading_mode == "futures":
+            tiers = market.get("leverage_tiers")
+            if (
+                market.get("settle") != contract.settlement_currency
+                or market.get("swap") is not True
+                or market.get("contract") is not True
+                or market.get("linear") is not True
+                or market.get("inverse") is not False
+                or not isinstance(tiers, list)
+                or not tiers
+            ):
+                raise SpecValidationError(
+                    f"release futures market contract or leverage tiers differ for {pair}"
+                )
+        elif market.get("spot") is not True:
+            raise SpecValidationError(f"release spot market contract differs for {pair}")
 
 
 def capture_market_snapshot(
@@ -103,6 +148,8 @@ def capture_market_snapshot(
             "linear": market.get("linear"),
             "inverse": market.get("inverse"),
             "contractSize": market.get("contractSize"),
+            "created": market.get("created"),
+            "marginModes": market.get("marginModes"),
             "precision": {
                 "amount": amount_step,
                 "price": price_step,
@@ -152,6 +199,7 @@ def capture_market_snapshot(
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "ccxt_version": ccxt.__version__,
         "exchange": exchange_name,
+        "trading_mode": config.get("trading_mode", "spot"),
         "precision_mode": client.precisionMode,
         "pairs": pairs,
         "leverage_tier_source": leverage_tier_source,

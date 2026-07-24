@@ -17,9 +17,11 @@ It does not silently approximate unknown behavior. If an NFI update introduces
 semantics that cannot be lowered exactly, the run stops with a clear compatibility
 result before consuming days of compute.
 
-> **v1.0.0 is Full X7 release-certified.** The release includes the candidate wheels,
-> checksums, machine-readable certificate, and evidence bundle. Official Freqtrade
-> remains the final oracle for deployment-sensitive validation.
+> **v1.0.0 certifies the continuous five-year spot workload.** The current
+> unreleased release contract certifies spot and Binance USDT-M isolated futures
+> independently, then requires both certificates plus three-OS evidence before a
+> combined Full X7 release can leave `PREVIEW`. Official Freqtrade remains the
+> final oracle for deployment-sensitive validation.
 
 ## The result
 
@@ -218,8 +220,10 @@ nfi-bte runs show RUN_ID --full-report
 
 `report.html` is a responsive, self-contained file with an equity curve, monthly
 returns, risk and execution metrics, pair/tag/exit/year breakdowns, recent trades,
-and a large official-parity verdict. It has no web server, JavaScript runtime,
-external asset, npm, or bun dependency.
+and a large official-parity verdict. Futures reports additionally show long/short
+counts, observed leverage distribution, signed funding total, liquidation exits,
+and protection locks. It has no web server, JavaScript runtime, external asset,
+npm, or bun dependency.
 
 `--resume` is a fail-closed stage machine. It reuses only hash-valid data, vectors,
 simulation input, simulation result, and trade-surface checkpoints. A completed run
@@ -403,6 +407,49 @@ results inherit an exactness claim.
 
 See the full [X7 support boundary](docs/x7-support.md).
 
+## Full X7 release inputs
+
+Release selection is mode-aware and fail-closed. Spot accepts only Binance
+`BASE/USDT` pairs. Futures accepts only Binance USDT-M `BASE/USDT:USDT` pairs with
+isolated margin and requires candles, funding-rate data, mark data, leverage tiers,
+and exact five-year edge coverage for all 80 pairs.
+
+Discover eligible pairs from a frozen market snapshot, then seal only a completely
+covered universe:
+
+```bash
+nfi-bte universe discover \
+  --config user_data/config-futures.json \
+  --markets artifacts/futures-markets.json \
+  --timerange 20210101-20260101 \
+  --output artifacts/futures-candidates.json
+
+nfi-bte universe select \
+  --candidates artifacts/futures-candidates.json \
+  --strategy user_data/strategies/NostalgiaForInfinityX7.py \
+  --class-name NostalgiaForInfinityX7 \
+  --config user_data/config-futures.json \
+  --data-dir user_data/data/binance \
+  --timerange 20210101-20260101 \
+  --pair-count 80 \
+  --upstream-repository https://github.com/iterativv/NostalgiaForInfinity \
+  --upstream-commit UPSTREAM_COMMIT \
+  --output-dir artifacts/futures-input-lock
+```
+
+Each mode produces its own Full X7 certificate. Combining valid mode certificates
+without both sealed Windows/Linux/macOS evidence sets intentionally produces
+`PREVIEW`, not a partial certification:
+
+```bash
+nfi-bte release combine \
+  --spot-certificate artifacts/spot/full-x7-certification.json \
+  --futures-certificate artifacts/futures/full-x7-certification.json \
+  --platform-evidence artifacts/platform/spot/platform-evidence.json \
+  --platform-evidence artifacts/platform/futures/platform-evidence.json \
+  --output-dir artifacts/full-x7-release
+```
+
 ## Useful commands
 
 | Command | Use |
@@ -418,6 +465,8 @@ See the full [X7 support boundary](docs/x7-support.md).
 | `nfi-bte runs list` | Inspect the durable run index as a readable table |
 | `nfi-bte performance ...` | Repeat a same-fixture parity and resource gate |
 | `nfi-bte certify ...` | Create a release-grade evidence bundle |
+| `nfi-bte universe discover/select ...` | Freeze an exact 80-pair spot or futures universe |
+| `nfi-bte release combine ...` | Bind spot, futures, and platform certificates |
 
 Add `--json` to `nfi-bte runs list` or `nfi-bte runs show` for automation.
 

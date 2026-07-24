@@ -4,15 +4,30 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+- Added centralized release-mode contracts for Binance spot and Binance USDT-M
+  isolated futures. Cross margin, other exchanges, malformed pairs, incomplete
+  role sets, and fewer than 80 fully covered five-year pairs now fail closed.
+- Added deterministic universe discovery from frozen market metadata, mode-aware
+  input locks, exact futures candle/funding/mark role validation, and read-only
+  compatibility for existing spot locks.
+- Split Full X7 certification by mode and added a combined release gate. Spot and
+  futures must bind the same strategy, package, native engine, reference identity,
+  timerange, and five-timeframe scope. Missing per-mode three-OS evidence leaves
+  the combined result in `preview`.
+- Strengthened official probe contracts: futures release evidence must reach tag
+  121, long and short lifecycle paths, non-zero funding, compound tags, variable
+  leverage, a real liquidation exit, all four protections, pair locks, and a
+  locked-entry rejection.
 - Added an automatic result presentation layer for every research outcome:
   `summary.json`, spreadsheet-ready `trades.csv`, and a responsive self-contained
   `report.html` with equity/monthly charts, performance and risk metrics,
   pair/tag/exit/year breakdowns, recent trades, execution context, blockers, and
-  an official exact-parity verdict.
+  an official exact-parity verdict. Futures views include direction, leverage,
+  signed funding, liquidation-exit, and protection-lock summaries.
 - Replaced raw-JSON-only terminal results and run listings with compact readable
   summaries while retaining explicit `--json` output for automation.
 - Added opt-in `--full-report` terminal tables for every pair, entry-tag group,
-  and exit-reason group, including average profit, total profit, win rate,
+  exit-reason group, and direction, including average profit, total profit, win rate,
   win/draw/loss counts, zero-trade configured pairs, and totals.
 - Added `nfi-bte report` to regenerate derived presentation files without
   repeating a backtest. Official confirmation refreshes only the derived verdict;

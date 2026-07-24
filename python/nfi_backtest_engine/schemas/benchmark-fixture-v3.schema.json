@@ -36,6 +36,7 @@
         "liquidation",
         "compound-tags",
         "variable-leverage",
+        "futures-lifecycle",
         "callback-route",
         "release-representative"
       ]
@@ -208,6 +209,7 @@
         },
         "minimum_lock_count": {"type": "integer", "minimum": 0},
         "minimum_distinct_leverages": {"type": "integer", "minimum": 0},
+        "minimum_funded_trades": {"type": "integer", "minimum": 0},
         "require_rejected_locked_entry": {"type": "boolean"}
       },
       "anyOf": [
@@ -219,6 +221,7 @@
         {"properties": {"sides": {"minItems": 1}}},
         {"properties": {"minimum_lock_count": {"minimum": 1}}},
         {"properties": {"minimum_distinct_leverages": {"minimum": 1}}},
+        {"properties": {"minimum_funded_trades": {"minimum": 1}}},
         {"properties": {"require_rejected_locked_entry": {"const": true}}}
       ]
     },

@@ -2,11 +2,17 @@
 
 ## Product boundary
 
-Version 1.0.0 is supported only by a GitHub Release whose attached Full X7 certificate
-sets `release_certified=true`. That certificate binds the benchmark, exact-parity,
-native package, hardware/data preparation, X7 vectors, and checkpointed research
-pipeline to one source commit and sealed input. It is not a claim that an arbitrary
-future NFI file, pair universe, or strategy branch can complete an exact Rust backtest.
+Version 1.0.0 is supported by its published continuous five-year spot certificate.
+The next Full X7 contract does not extend that spot certificate to futures by
+inference. It creates independent `binance-spot` and
+`binance-usdtm-isolated` certificates, then produces a combined release only when
+both set `release_certified=true` and both have sealed Windows, Linux, and macOS
+native evidence. A missing mode or platform set produces `preview`.
+
+Each mode certificate binds the benchmark, exact parity, native package,
+hardware/data preparation, X7 vectors, checkpointed research pipeline, strategy
+commit, and sealed input. It is not a claim that an arbitrary future NFI file,
+pair universe, or strategy branch can complete an exact Rust backtest.
 
 The product target is nevertheless revision-independent: a user supplies the current
 NFI file, the engine analyzes and compiles that exact source, the default run spans the
@@ -140,6 +146,12 @@ jobs remain read-only; only the two explicitly dispatched publishing workflows r
 
 A later release can claim full X7 support only when all of these are true:
 
+- spot uses Binance `BASE/USDT`; futures uses Binance USDT-M
+  `BASE/USDT:USDT` with isolated margin; cross margin and other exchanges fail
+  before certification;
+- each mode has exactly 80 pairs with complete continuous five-year coverage;
+- futures seals one candle file per pair/timeframe plus one funding-rate and one
+  mark series per pair, including required interval edges;
 - every active X7 strategy callback is executable in Rust with no per-candle Python;
 - spot and futures market metadata, funding, liquidation events, fees, and precision are frozen;
 - position adjustment covers rebuy, partial exits, derisk, and grind order history;
@@ -147,6 +159,9 @@ A later release can claim full X7 support only when all of these are true:
 - every claimed pair/route combination has branch-reaching differential evidence;
 - repeated runs are deterministic;
 - exact normalized trade parity and full state parity pass on the supported certificate;
+- the futures fixture matrix reaches tag 121, long and short lifecycle trades,
+  non-zero funding, compound tags, variable leverage, a liquidation exit, all
+  four protection methods, real locks, and at least one locked-entry rejection;
 - an 80-pair, five-year fresh benchmark demonstrates at least 10x screening speed without
   exceeding the memory gate;
 - finalists are reproducible with official Freqtrade.

@@ -288,7 +288,8 @@ The engine fails before simulation instead of approximating:
 
 - live-only tag-120 partial-fill retry;
 - leverage programs outside the compiled source-ordered X7 callback shape;
-- liquidation-exit parity outside the annual no-liquidation certificate;
+- arbitrary long-range liquidation behavior outside the bounded
+  branch-reaching liquidation fixture;
 - dynamic protection definitions, unsupported protection handlers, direct live pair-lock
   mutation, dynamic pairlists, and live exchange behavior;
 - new stateful NFI callback shapes that do not yet match an exact compiled contract;

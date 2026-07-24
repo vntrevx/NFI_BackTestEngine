@@ -49,6 +49,14 @@ direction, calendar month, and calendar year. The HTML shows compact top tables;
 `summary.json` retains the complete breakdown, and `trades.csv` retains every
 trade.
 
+For a futures surface, `summary.json` 1.1 also contains a `futures` object. It
+counts long and short trades, trades with a non-zero official funding value,
+the signed funding total, exact `liquidation` exit reasons, protection locks,
+and the observed leverage distribution. Spot and blocked runs use `null` rather
+than synthetic zero-valued futures metrics. Liquidation is counted only from the
+sealed exit reason; the presentation layer does not reconstruct a liquidation
+price or promote internal simulator state into evidence.
+
 ## Verification lifecycle
 
 A native run starts with:
@@ -89,7 +97,8 @@ nfi-bte report RESULT_DIR --confirmation CONFIRM_DIR/confirmation.json
 ```
 
 The default terminal card is intentionally compact. Print complete
-Freqtrade-style pair, entry-tag, and exit-reason tables when investigating a run:
+Freqtrade-style pair, entry-tag, exit-reason, and direction tables when
+investigating a run:
 
 ```bash
 nfi-bte report RESULT_DIR --full-report

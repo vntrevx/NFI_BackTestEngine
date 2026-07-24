@@ -716,6 +716,22 @@ def _validate_reference_market_snapshot(
         raise BenchmarkError("reference market snapshot is missing pairs: " + ", ".join(missing))
 
 
+def validate_reference_market_snapshot(
+    snapshot: Any,
+    *,
+    expected_exchange: str,
+    expected_trading_mode: str,
+    required_pairs: list[str],
+) -> None:
+    """Public release preflight for a pinned Freqtrade/CCXT market snapshot."""
+    _validate_reference_market_snapshot(
+        snapshot,
+        expected_exchange=expected_exchange,
+        expected_trading_mode=expected_trading_mode,
+        required_pairs=required_pairs,
+    )
+
+
 def _initialize_output(output: Path) -> None:
     if output.exists() and any(output.iterdir()):
         raise BenchmarkError(f"research reference output directory must be empty: {output}")

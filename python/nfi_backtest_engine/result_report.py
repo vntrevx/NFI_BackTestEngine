@@ -149,6 +149,7 @@ def format_terminal_summary(
     run = _mapping(summary, "run")
     performance = _mapping(summary, "performance")
     risk = _mapping(summary, "risk")
+    futures = _mapping(summary, "futures")
     activity = _mapping(summary, "activity")
     execution = _mapping(summary, "execution")
     verification = _mapping(summary, "verification")
@@ -197,6 +198,30 @@ def format_terminal_summary(
                 ),
             ]
         )
+        if futures:
+            lines.extend(
+                [
+                    _terminal_row(
+                        "Long / short",
+                        f"{_integer_text(futures.get('long_trades'))} / "
+                        f"{_integer_text(futures.get('short_trades'))}",
+                    ),
+                    _terminal_row(
+                        "Leverage",
+                        _leverage_range(futures),
+                    ),
+                    _terminal_row(
+                        "Funding",
+                        f"{_signed_money(futures.get('funding_total'), currency)}  "
+                        f"({_integer_text(futures.get('funded_trades'))} trades)",
+                    ),
+                    _terminal_row(
+                        "Liquidations / locks",
+                        f"{_integer_text(futures.get('liquidation_exits'))} / "
+                        f"{_integer_text(futures.get('protection_locks'))}",
+                    ),
+                ]
+            )
     lines.extend(
         [
             _terminal_row(
@@ -266,6 +291,12 @@ def format_terminal_breakdowns(summary: Mapping[str, Any]) -> str:
             "EXIT REASON",
             "exit_reason",
             breakdowns.get("by_exit_reason"),
+        ),
+        (
+            "DIRECTION PERFORMANCE",
+            "DIRECTION",
+            "direction",
+            breakdowns.get("by_direction"),
         ),
     )
     tables = [
@@ -596,6 +627,7 @@ def _render_html(
     performance = _mapping(summary, "performance")
     risk = _mapping(summary, "risk")
     activity = _mapping(summary, "activity")
+    futures = _mapping(summary, "futures")
     verification = _mapping(summary, "verification")
     context = _mapping(run, "context")
     breakdowns = _mapping(summary, "breakdowns")
@@ -654,6 +686,7 @@ def _render_html(
     )
     verification_markup = _verification_panel(verification)
     blockers_markup = _blockers_panel(summary.get("blockers"))
+    futures_markup = _futures_panel(futures, currency)
     equity_markup = _equity_chart(_mapping(summary, "equity_curve"))
     monthly_markup = _monthly_chart(breakdowns.get("by_month"))
     details = _detail_grid(summary, currency)
@@ -860,6 +893,7 @@ def _render_html(
     </div>
   </section>
   {blockers_markup}
+  {futures_markup}
   <section class="grid-2">
     <div class="panel">
       <div class="panel-head"><div><h2>Monthly returns</h2><h3>Profit divided by opening monthly equity</h3></div></div>
@@ -951,6 +985,61 @@ def _blockers_panel(value: Any) -> str:
         '<div class="panel-head"><div><h2>Exact lowering blocked</h2>'
         "<h3>This is a safety verdict, not a crash</h3></div></div>" + "".join(rows) + "</section>"
     )
+
+
+def _futures_panel(futures: Mapping[str, Any], currency: str | None) -> str:
+    """Render futures lifecycle evidence without inventing spot placeholders."""
+
+    if not futures:
+        return ""
+    values = (
+        (
+            "Long / short trades",
+            f"{_integer_text(futures.get('long_trades'))} / "
+            f"{_integer_text(futures.get('short_trades'))}",
+        ),
+        ("Leverage range", _leverage_range(futures)),
+        (
+            "Funding total",
+            f"{_signed_money(futures.get('funding_total'), currency)} across "
+            f"{_integer_text(futures.get('funded_trades'))} trades",
+        ),
+        ("Liquidation exits", _integer_text(futures.get("liquidation_exits"))),
+        ("Protection locks", _integer_text(futures.get("protection_locks"))),
+        ("Margin mode", str(futures.get("margin_mode") or "unknown")),
+    )
+    details = (
+        "<dl>"
+        + "".join(
+            f"<dt>{_escape(label)}</dt><dd>{_escape(value)}</dd>"
+            for label, value in values
+        )
+        + "</dl>"
+    )
+    leverage_table = _breakdown_table(
+        futures.get("by_leverage"),
+        key="leverage",
+        heading="Leverage",
+        currency=currency,
+    )
+    return f"""
+<section class="grid-2">
+  <div class="panel">
+    <div class="panel-head"><div><h2>Futures lifecycle</h2><h3>Exact fields from the sealed trade surface</h3></div></div>
+    {details}
+  </div>
+  {leverage_table}
+</section>
+"""
+
+
+def _leverage_range(futures: Mapping[str, Any]) -> str:
+    count = _integer_text(futures.get("distinct_leverages"))
+    minimum = _decimal_text(futures.get("minimum_leverage"))
+    maximum = _decimal_text(futures.get("maximum_leverage"))
+    if minimum == "—" or maximum == "—":
+        return "—"
+    return f"{minimum}x–{maximum}x ({count} distinct)"
 
 
 def _detail_grid(summary: Mapping[str, Any], currency: str | None) -> str:

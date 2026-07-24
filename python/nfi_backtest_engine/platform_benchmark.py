@@ -29,7 +29,7 @@ from .product_contract import (
 )
 from .timerange import parse_timerange_milliseconds
 
-PLATFORM_BENCHMARK_VERSION = "1.0.0"
+PLATFORM_BENCHMARK_VERSION = "1.1.0"
 PORTABLE_PAIR_COUNT = 20
 REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
 REQUIRED_PLATFORM_MACHINES = {
@@ -85,6 +85,7 @@ def run_platform_benchmark(
     pairs = inputs["lock"]["pairlist"]["pairs"][:pair_count]
     timerange = _portable_timerange(inputs["lock"]["scope"]["timerange"])
     workload = {
+        "mode_contract": inputs["contract"].contract_id,
         "strategy_sha256": inputs["public"]["strategy_sha256"],
         "config_sha256": inputs["lock"]["config"]["selected_sha256"],
         "data_aggregate_sha256": inputs["public"]["data_aggregate_sha256"],
@@ -217,6 +218,7 @@ def seal_platform_evidence(
     if len(systems) != len(reports):
         raise SpecValidationError("platform evidence must contain exactly one report per system")
     workload_hashes = {report["workload"]["identity_sha256"] for report in reports}
+    mode_contracts = {report["workload"]["mode_contract"] for report in reports}
     result_hashes = {
         hash_value
         for report in reports
@@ -225,6 +227,7 @@ def seal_platform_evidence(
     package_versions = {report["package"]["version"] for report in reports}
     complete = (
         len(workload_hashes) == 1
+        and len(mode_contracts) == 1
         and len(result_hashes) == 1
         and len(package_versions) == 1
         and all(report["complete"] for report in reports)
@@ -237,7 +240,9 @@ def seal_platform_evidence(
         "schema_version": "1.0.0",
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "release_certified": True,
+        "mode_contract": next(iter(mode_contracts)),
         "workload_identity_sha256": next(iter(workload_hashes)),
+        "workload": reports[0]["workload"],
         "result_sha256": next(iter(result_hashes)),
         "package_version": next(iter(package_versions)),
         "platforms": [
@@ -375,8 +380,9 @@ def _validate_platform_report(report: Any) -> None:
         raise SpecValidationError(
             f"{system} platform evidence has unsupported machine: {machine!r}"
         )
-    if system == "linux" and report.get("platform", {}).get("wsl") is not True:
-        raise SpecValidationError("Linux platform evidence must be captured under WSL2")
+    mode_contract = report.get("workload", {}).get("mode_contract")
+    if mode_contract not in {"binance-spot", "binance-usdtm-isolated"}:
+        raise SpecValidationError("platform report has an unsupported mode contract")
     pairs = report.get("workload", {}).get("pairs")
     if not isinstance(pairs, list) or len(pairs) != PORTABLE_PAIR_COUNT:
         raise SpecValidationError(

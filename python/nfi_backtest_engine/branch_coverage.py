@@ -8,6 +8,7 @@ and then checks the manifest's required coverage.
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -73,19 +74,27 @@ def validate_fixture_coverage(
         raise SpecValidationError(
             "coverage report cannot reject a locked entry without an observed lock"
         )
-    for field, value in derived.items():
+    for field in _OBSERVED_FIELDS:
+        value = derived[field]
         if observed[field] != value:
             raise SpecValidationError(
                 f"coverage report {field} differs from immutable official artifacts"
             )
 
-    assessment = assess_required_coverage(manifest["required_coverage"], observed)
+    assessed_observed = {
+        **observed,
+        "funded_trades": funded_trade_count(surface),
+    }
+    assessment = assess_required_coverage(
+        manifest["required_coverage"],
+        assessed_observed,
+    )
     if not assessment["met"]:
         missing = ", ".join(assessment["missing"])
         raise SpecValidationError(f"fixture did not reach required branch coverage: {missing}")
     return {
         **assessment,
-        "observed": observed,
+        "observed": assessed_observed,
         "report_path": str(report_path),
     }
 
@@ -121,10 +130,33 @@ def assess_required_coverage(
         "rejected_locked_entry"
     ]:
         missing.append("rejected_locked_entry:false")
+    minimum_funded_trades = required.get("minimum_funded_trades", 0)
+    if observed.get("funded_trades", 0) < minimum_funded_trades:
+        missing.append(
+            "funded_trades:"
+            f"{observed.get('funded_trades', 0)}<{minimum_funded_trades}"
+        )
     return {
         "met": not missing,
         "missing": missing,
     }
+
+
+def funded_trade_count(surface: dict[str, Any]) -> int:
+    """Count trades with a non-zero official funding value."""
+
+    funded = 0
+    for trade in surface.get("trades", []):
+        fees = trade.get("fees") if isinstance(trade, dict) else None
+        value = fees.get("funding") if isinstance(fees, dict) else None
+        try:
+            funding = Decimal(str(value if value is not None else "0"))
+        except InvalidOperation as exc:
+            raise SpecValidationError(
+                "official trade surface contains an invalid funding value"
+            ) from exc
+        funded += funding != 0
+    return funded
 
 
 def derive_fixture_observed(

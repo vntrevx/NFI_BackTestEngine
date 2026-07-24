@@ -138,6 +138,14 @@ def build_parser() -> argparse.ArgumentParser:
         dest="universe_command",
         required=True,
     )
+    universe_discover = universe_commands.add_parser(
+        "discover",
+        help="derive historically eligible pairs from a frozen market snapshot",
+    )
+    universe_discover.add_argument("--config", type=Path, required=True)
+    universe_discover.add_argument("--markets", type=Path, required=True)
+    universe_discover.add_argument("--timerange", required=True)
+    universe_discover.add_argument("--output", type=Path, required=True)
     universe_select = universe_commands.add_parser(
         "select",
         help="select the first fully covered pairs in frozen candidate order",
@@ -723,6 +731,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
         help="timeout for each engine or official run in seconds",
     )
+
+    release = subcommands.add_parser(
+        "release",
+        help="combine independently certified mode and platform evidence",
+    )
+    release_commands = release.add_subparsers(
+        dest="release_command",
+        required=True,
+    )
+    release_combine = release_commands.add_parser(
+        "combine",
+        help="bind spot and futures certificates into one Full X7 release",
+    )
+    release_combine.add_argument("--spot-certificate", type=Path, required=True)
+    release_combine.add_argument("--futures-certificate", type=Path, required=True)
+    release_combine.add_argument(
+        "--platform-evidence",
+        action="append",
+        type=Path,
+        default=[],
+        help="sealed three-OS evidence for one mode; repeat for spot and futures",
+    )
+    release_combine.add_argument("--output-dir", type=Path, required=True)
     return parser
 
 
@@ -1230,6 +1261,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.command_name == "certify":
             return _execute_certification(args)
+        if args.command_name == "release":
+            return _execute_release(args)
 
         raise AssertionError(f"unhandled command: {args.command_name}")
     except ParityMismatch as exc:
@@ -1245,10 +1278,24 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _execute_universe(args: argparse.Namespace) -> int:
     from .release_inputs import (
+        discover_release_universe,
         select_release_universe,
         validate_release_input_lock,
     )
 
+    if args.universe_command == "discover":
+        report = discover_release_universe(
+            config_path=args.config,
+            market_snapshot_path=args.markets,
+            timerange=args.timerange,
+            destination=args.output,
+        )
+        print(
+            "release candidates discovered: "
+            f"mode={report['mode_contract']}, pairs={len(report['pairs'])}, "
+            f"rejected={len(report['rejected'])} -> {args.output}"
+        )
+        return 0
     if args.universe_command == "validate":
         document = read_json(args.lock)
         validate_release_input_lock(
@@ -1257,6 +1304,7 @@ def _execute_universe(args: argparse.Namespace) -> int:
         )
         print(
             "release universe valid: "
+            f"mode={document['scope'].get('mode_contract', 'binance-spot')}, "
             f"pairs={document['scope']['pair_count']}, "
             f"identity={document['identity_sha256']}"
         )
@@ -1275,6 +1323,7 @@ def _execute_universe(args: argparse.Namespace) -> int:
     )
     print(
         "release universe sealed: "
+        f"mode={lock['scope']['mode_contract']}, "
         f"pairs={lock['scope']['pair_count']}, "
         f"data={lock['data']['aggregate_sha256']} -> "
         f"{args.output_dir / 'release-input-lock.json'}"
@@ -1341,6 +1390,26 @@ def _execute_certification(args: argparse.Namespace) -> int:
         f"speedup={report['measurements']['observed_speedup']:.3f}x, "
         f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
         f"{args.output_dir / 'certification.json'}"
+    )
+    return 0 if report["release_certified"] else 1
+
+
+def _execute_release(args: argparse.Namespace) -> int:
+    from .combined_release import combine_full_x7_release
+
+    if args.release_command != "combine":
+        raise AssertionError(f"unhandled release command: {args.release_command}")
+    report = combine_full_x7_release(
+        spot_certificate_path=args.spot_certificate,
+        futures_certificate_path=args.futures_certificate,
+        platform_evidence_paths=args.platform_evidence,
+        output_directory=args.output_dir,
+    )
+    print(
+        f"Full X7 release: status={report['status']}, "
+        f"platform_modes={len(report['platform_evidence'])}/2, "
+        f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
+        f"{args.output_dir / 'full-x7-release.json'}"
     )
     return 0 if report["release_certified"] else 1
 

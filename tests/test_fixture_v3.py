@@ -29,6 +29,13 @@ TAG_121_FIXTURE = (
     / "captured"
     / "x7-tag121-spot-v17.4.421-2023-01-01_02"
 )
+LIQUIDATION_FIXTURE = (
+    ROOT
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "x7-liquidation-stoploss-guard-futures-v17.4.421-2022-04-29_05-02"
+)
 
 
 def _required_coverage() -> dict:
@@ -114,6 +121,19 @@ def test_real_tag_121_fixture_is_fully_sealed_and_branch_reaching() -> None:
         "confirm_trade_entry",
         "custom_exit",
     ]
+
+
+def test_futures_lifecycle_contract_counts_funding_from_the_official_surface() -> None:
+    manifest_path = LIQUIDATION_FIXTURE / "manifest.json"
+    manifest = read_json(manifest_path)
+    manifest["probe_kind"] = "futures-lifecycle"
+    manifest["required_coverage"]["minimum_funded_trades"] = 1
+    validate_fixture_manifest(manifest)
+
+    coverage = validate_fixture_coverage(manifest_path, manifest)
+
+    assert coverage["met"] is True
+    assert coverage["observed"]["funded_trades"] == 2
 
 
 def test_v3_provenance_must_match_effective_strategy_hash(tmp_path: Path) -> None:

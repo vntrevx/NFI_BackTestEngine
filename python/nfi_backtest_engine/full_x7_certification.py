@@ -35,6 +35,7 @@ from .hardware import (
     inspect_hardware,
     load_execution_profile,
 )
+from .market_snapshot import validate_release_market_snapshot
 from .performance_gate import measure_cli_process, run_performance_gate
 from .product_contract import (
     CERTIFICATION_SPREAD_THRESHOLD,
@@ -45,30 +46,25 @@ from .product_contract import (
     MIN_RELEASE_PAIR_COUNT,
     TARGET_SCREENING_SPEEDUP,
 )
-from .release_inputs import validate_release_input_lock
-from .research_reference import official_backtest_config
+from .release_contract import (
+    ReleaseModeContract,
+    release_contract_for_config,
+    release_contract_for_scope,
+)
+from .release_inputs import (
+    LEGACY_RELEASE_INPUT_LOCK_VERSION,
+    validate_release_data_roles,
+    validate_release_input_lock,
+)
+from .research_reference import (
+    official_backtest_config,
+    validate_reference_market_snapshot,
+)
 from .result_report import write_result_presentation
-from .specs import FULL_X7_CERTIFICATION_SCHEMA, validate_schema
+from .specs import FULL_X7_CERTIFICATION_V2_SCHEMA, validate_schema
 from .timerange import parse_timerange_milliseconds
 
-FULL_X7_CERTIFICATION_VERSION = "1.1.0"
-REQUIRED_PROBE_KINDS = frozenset(
-    {
-        "tag-121",
-        "protections-locks",
-        "liquidation",
-        "compound-tags",
-        "variable-leverage",
-    }
-)
-REQUIRED_PROTECTION_METHODS = frozenset(
-    {
-        "CooldownPeriod",
-        "StoplossGuard",
-        "MaxDrawdown",
-        "LowProfitPairs",
-    }
-)
+FULL_X7_CERTIFICATION_VERSION = "2.0.0"
 
 
 def run_full_x7_certification(
@@ -124,6 +120,7 @@ def run_full_x7_certification(
     profile = load_execution_profile(execution_profile_path)
     probes = _validate_probe_matrix(
         state_probe_manifests,
+        contract=inputs["contract"],
         expected_upstream_commit=inputs["lock"]["strategy"]["upstream_commit"],
     )
 
@@ -277,11 +274,15 @@ def run_full_x7_certification(
         },
         "state_probes": {
             "met": probe_met,
-            "required_kinds": sorted(REQUIRED_PROBE_KINDS),
+            "required_kinds": sorted(inputs["contract"].required_probe_kinds),
+            "required_protection_methods": sorted(
+                inputs["contract"].required_protection_methods
+            ),
             "completed": sum(1 for item in probe_reports if item["complete"]),
         },
     }
     release_certified = all(bool(gate["met"]) for gate in gates.values())
+    contract = inputs["contract"]
     report = {
         "schema_version": FULL_X7_CERTIFICATION_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -290,12 +291,12 @@ def run_full_x7_certification(
         "claim_scope": {
             "strategy": class_name,
             "upstream_commit": inputs["lock"]["strategy"]["upstream_commit"],
-            "trading_mode": "spot",
+            **contract.scope_fields(),
             "timerange": inputs["lock"]["scope"]["timerange"],
             "pair_count": inputs["lock"]["scope"]["pair_count"],
             "timeframes": inputs["lock"]["scope"]["timeframes"],
             "continuous_timerange": True,
-            "futures_evidence": "official-full-state-probes",
+            "evidence": "continuous-oracle-plus-official-full-state-probes",
         },
         "inputs": inputs["public"],
         "environment": {
@@ -328,7 +329,7 @@ def run_full_x7_certification(
         "gates": gates,
     }
     report_path = output / "full-x7-certification.json"
-    validate_schema(report, FULL_X7_CERTIFICATION_SCHEMA)
+    validate_schema(report, FULL_X7_CERTIFICATION_V2_SCHEMA)
     write_json(report_path, report)
     bundle = write_evidence_bundle(
         output,
@@ -392,10 +393,15 @@ def validate_full_x7_inputs(
     lock_path = Path(release_lock_path).resolve()
     lock = read_json(lock_path)
     validate_release_input_lock(lock, required_pair_count=MIN_RELEASE_PAIR_COUNT)
+    contract = release_contract_for_scope(
+        lock["scope"],
+        legacy_spot=lock["schema_version"] == LEGACY_RELEASE_INPUT_LOCK_VERSION,
+    )
     _validate_full_x7_timeframes(lock["scope"]["timeframes"])
     return _resolve_full_x7_inputs(
         lock_path=lock_path,
         lock=lock,
+        contract=contract,
         strategy_path=strategy_path,
         class_name=class_name,
         config_path=config_path,
@@ -419,6 +425,7 @@ def _resolve_full_x7_inputs(
     *,
     lock_path: Path,
     lock: dict[str, Any],
+    contract: ReleaseModeContract,
     strategy_path: str | Path,
     class_name: str,
     config_path: str | Path,
@@ -452,13 +459,29 @@ def _resolve_full_x7_inputs(
     loaded = load_effective_config(config)
     if config_sha256(loaded["config"]) != lock["config"]["selected_sha256"]:
         raise SpecValidationError("selected config differs from the release input lock")
+    config_contract = release_contract_for_config(loaded["config"])
+    if config_contract.contract_id != contract.contract_id:
+        raise SpecValidationError("selected config mode differs from the release input lock")
     seal_path = lock_path.parent / "data-seal.json"
     seal = validate_data_seal(seal_path)
     _validate_release_data_seal(
         lock,
         seal,
         data_directory=data_root,
+        contract=contract,
     )
+    validate_release_market_snapshot(
+        read_json(engine_markets),
+        contract=contract,
+        pairs=lock["pairlist"]["pairs"],
+    )
+    if reference_markets is not None:
+        validate_reference_market_snapshot(
+            read_json(reference_markets),
+            expected_exchange=contract.exchange,
+            expected_trading_mode=contract.trading_mode,
+            required_pairs=lock["pairlist"]["pairs"],
+        )
     start_ms, end_ms = parse_timerange_milliseconds(lock["scope"]["timerange"])
     actual_days = (end_ms - start_ms) // 86_400_000
     if actual_days < MIN_RELEASE_BACKTEST_DAYS:
@@ -467,6 +490,7 @@ def _resolve_full_x7_inputs(
         )
     return {
         "lock": lock,
+        "contract": contract,
         "strategy_path": source,
         "config_path": config,
         "data_directory": data_root,
@@ -477,6 +501,8 @@ def _resolve_full_x7_inputs(
                 "sha256": sha256_file(lock_path),
                 "identity_sha256": lock["identity_sha256"],
             },
+            "mode_contract": contract.contract_id,
+            "reference": lock["reference"],
             "strategy_sha256": sha256_file(source),
             "config_sha256": loaded["sha256"],
             "official_reference_config_sha256": config_sha256(
@@ -496,6 +522,7 @@ def _validate_release_data_seal(
     seal: dict[str, Any],
     *,
     data_directory: Path,
+    contract: ReleaseModeContract,
 ) -> None:
     """Bind the machine-local data seal to every portable lock invariant."""
     request = seal["request"]
@@ -518,21 +545,45 @@ def _validate_release_data_seal(
         or request["startup_coverage_policy"] != data["startup_coverage_policy"]
     ):
         raise SpecValidationError("data seal request differs from the release input lock")
+    role_counts = validate_release_data_roles(seal, contract=contract)
+    locked_role_counts = data.get("role_counts")
+    if (
+        lock.get("schema_version") != LEGACY_RELEASE_INPUT_LOCK_VERSION
+        and role_counts != locked_role_counts
+    ):
+        raise SpecValidationError("data seal roles differ from the release input lock")
 
 
 def _validate_probe_matrix(
     manifests: list[str | Path],
     *,
+    contract: ReleaseModeContract,
     expected_upstream_commit: str | None = None,
 ) -> list[tuple[Path, dict[str, Any]]]:
     probes: list[tuple[Path, dict[str, Any]]] = []
     kinds: set[str] = set()
-    protection_methods: set[str] = set()
+    coverage_by_kind: dict[str, list[dict[str, Any]]] = {}
+    all_coverage: list[dict[str, Any]] = []
     for value in manifests:
         path = Path(value).resolve()
         manifest = validate_fixture(path)
         if manifest["schema_version"] != "3.0.0":
             raise SpecValidationError("Full X7 probes must use fixture manifest v3")
+        config_inputs = [
+            item
+            for item in manifest["inputs"]
+            if isinstance(item, dict) and item.get("role") == "config"
+        ]
+        if len(config_inputs) != 1:
+            raise SpecValidationError("Full X7 probe must seal exactly one config")
+        probe_config = read_json(path.parent / config_inputs[0]["path"])
+        if not isinstance(probe_config, dict):
+            raise SpecValidationError("Full X7 probe config must be an object")
+        probe_contract = release_contract_for_config(probe_config)
+        if probe_contract.contract_id != contract.contract_id:
+            raise SpecValidationError(
+                "Full X7 probe mode differs from the release input lock"
+            )
         provenance = manifest.get("strategy_provenance")
         if expected_upstream_commit is not None and (
             not isinstance(provenance, dict)
@@ -541,19 +592,81 @@ def _validate_probe_matrix(
             raise SpecValidationError(
                 "Full X7 probe upstream commit differs from the release input lock"
             )
-        validate_fixture_coverage(path, manifest)
-        kinds.add(manifest["probe_kind"])
-        protection_methods.update(manifest["required_coverage"]["protection_methods"])
+        coverage = validate_fixture_coverage(path, manifest)
+        observed = coverage["observed"]
+        kind = manifest["probe_kind"]
+        kinds.add(kind)
+        coverage_by_kind.setdefault(kind, []).append(observed)
+        all_coverage.append(observed)
         probes.append((path, manifest))
-    missing = sorted(REQUIRED_PROBE_KINDS - kinds)
+    missing = sorted(contract.required_probe_kinds - kinds)
     if missing:
         raise SpecValidationError("Full X7 probe matrix is incomplete: " + ", ".join(missing))
-    missing_protections = sorted(REQUIRED_PROTECTION_METHODS - protection_methods)
+    for requirement in contract.probe_evidence:
+        observed = _merge_probe_coverage(
+            coverage_by_kind.get(requirement.probe_kind, [])
+        )
+        missing_evidence = requirement.missing_from(observed)
+        if missing_evidence:
+            raise SpecValidationError(
+                f"Full X7 {requirement.probe_kind} probe evidence is incomplete: "
+                + ", ".join(missing_evidence)
+            )
+    aggregate = _merge_probe_coverage(all_coverage)
+    missing_protections = sorted(
+        contract.required_protection_methods
+        - set(aggregate["protection_methods"])
+    )
     if missing_protections:
         raise SpecValidationError(
             "Full X7 protection probe matrix is incomplete: " + ", ".join(missing_protections)
         )
+    if (
+        contract.require_rejected_locked_entry
+        and not aggregate["rejected_locked_entry"]
+    ):
+        raise SpecValidationError(
+            "Full X7 protection probe matrix did not reject a locked entry"
+        )
     return probes
+
+
+def _merge_probe_coverage(
+    observations: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Combine independent official probes without weakening any observation."""
+
+    list_fields = (
+        "callbacks",
+        "entry_tags",
+        "compound_tags",
+        "protection_methods",
+        "exit_reasons",
+        "sides",
+        "leverages",
+    )
+    return {
+        **{
+            field: sorted(
+                {
+                    value
+                    for observed in observations
+                    for value in observed.get(field, [])
+                }
+            )
+            for field in list_fields
+        },
+        "lock_count": sum(
+            int(observed.get("lock_count", 0)) for observed in observations
+        ),
+        "funded_trades": sum(
+            int(observed.get("funded_trades", 0)) for observed in observations
+        ),
+        "rejected_locked_entry": any(
+            observed.get("rejected_locked_entry") is True
+            for observed in observations
+        ),
+    }
 
 
 def _measure_engine(

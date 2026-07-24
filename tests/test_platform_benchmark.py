@@ -11,9 +11,15 @@ from nfi_backtest_engine.platform_benchmark import (
 )
 
 
-def _report(system: str, machine: str, *, result: str = "a" * 64) -> dict:
+def _report(
+    system: str,
+    machine: str,
+    *,
+    result: str = "a" * 64,
+    mode_contract: str = "binance-usdtm-isolated",
+) -> dict:
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "complete": True,
         "platform": {
             "system": system,
@@ -26,6 +32,7 @@ def _report(system: str, machine: str, *, result: str = "a" * 64) -> dict:
             "installed_extension_equal": True,
         },
         "workload": {
+            "mode_contract": mode_contract,
             "identity_sha256": "d" * 64,
             "pairs": [f"PAIR-{index}" for index in range(20)],
         },
@@ -56,6 +63,8 @@ def test_platform_seal_requires_three_systems_and_one_result(tmp_path: Path) -> 
     evidence = seal_platform_evidence(paths, tmp_path / "sealed")
 
     assert evidence["release_certified"] is True
+    assert evidence["mode_contract"] == "binance-usdtm-isolated"
+    assert evidence["workload"]["identity_sha256"] == "d" * 64
     assert evidence["result_sha256"] == "a" * 64
     assert [item["system"] for item in evidence["platforms"]] == [
         "darwin",

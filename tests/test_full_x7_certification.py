@@ -19,6 +19,11 @@ from nfi_backtest_engine.full_x7_certification import (
     _validate_release_data_seal,
     verify_installed_wheel,
 )
+from nfi_backtest_engine.release_contract import (
+    FUTURES_RELEASE_CONTRACT,
+    SPOT_RELEASE_CONTRACT,
+    release_contract_for_config,
+)
 
 ROOT = Path(__file__).parents[1]
 CAPTURED = ROOT / "benchmarks" / "fixtures" / "captured"
@@ -81,11 +86,17 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     }
     inputs = {
         "lock": lock,
+        "contract": SPOT_RELEASE_CONTRACT,
         "reference_market_snapshot": tmp_path / "markets.json",
         "public": {
             "release_lock": {
                 "sha256": "e" * 64,
                 "identity_sha256": lock["identity_sha256"],
+            },
+            "mode_contract": SPOT_RELEASE_CONTRACT.contract_id,
+            "reference": {
+                "version": "2026.5.1",
+                "image_platform_digest": "sha256:" + "9" * 64,
             },
             "strategy_sha256": "f" * 64,
             "config_sha256": "1" * 64,
@@ -549,7 +560,7 @@ def test_cold_strict_engine_gate_rejects_checkpoint_or_coverage_shortfall() -> N
 
 def test_full_x7_probe_matrix_cannot_be_empty() -> None:
     with pytest.raises(SpecValidationError, match="probe matrix is incomplete"):
-        _validate_probe_matrix([])
+        _validate_probe_matrix([], contract=SPOT_RELEASE_CONTRACT)
 
 
 def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
@@ -564,17 +575,163 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
     assert len(upstream_commits) == 1
     upstream_commit = upstream_commits.pop()
 
+    spot_manifests = []
+    for path in manifests:
+        manifest = read_json(path)
+        config_record = next(
+            item for item in manifest["inputs"] if item["role"] == "config"
+        )
+        config = read_json(path.parent / config_record["path"])
+        if release_contract_for_config(config).trading_mode == "spot":
+            spot_manifests.append(path)
+
     probes = _validate_probe_matrix(
-        manifests,
+        spot_manifests,
+        contract=SPOT_RELEASE_CONTRACT,
         expected_upstream_commit=upstream_commit,
     )
 
     assert probes
-    assert len(probes) == len(manifests)
+    assert len(probes) == len(spot_manifests)
     with pytest.raises(SpecValidationError, match="upstream commit differs"):
         _validate_probe_matrix(
-            manifests[:1],
+            spot_manifests[:1],
+            contract=SPOT_RELEASE_CONTRACT,
             expected_upstream_commit="0" * 40,
+        )
+
+
+def test_current_futures_probe_matrix_is_not_yet_release_complete() -> None:
+    manifests = sorted(
+        path / "manifest.json"
+        for path in CAPTURED.iterdir()
+        if "futures" in path.name and (path / "manifest.json").is_file()
+    )
+
+    with pytest.raises(SpecValidationError, match="probe matrix is incomplete"):
+        _validate_probe_matrix(
+            manifests,
+            contract=FUTURES_RELEASE_CONTRACT,
+        )
+
+
+def test_futures_probe_matrix_requires_observed_lifecycle_and_all_protections(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_observed = {
+        "callbacks": [],
+        "entry_tags": [],
+        "compound_tags": [],
+        "protection_methods": [],
+        "exit_reasons": [],
+        "sides": [],
+        "leverages": [],
+        "lock_count": 0,
+        "funded_trades": 0,
+        "rejected_locked_entry": False,
+    }
+    definitions = [
+        ("tag-121", {**base_observed, "entry_tags": ["121"]}),
+        (
+            "futures-lifecycle",
+            {
+                **base_observed,
+                "sides": ["long", "short"],
+                "leverages": ["3"],
+                "funded_trades": 1,
+            },
+        ),
+        (
+            "liquidation",
+            {**base_observed, "exit_reasons": ["liquidation"]},
+        ),
+        (
+            "compound-tags",
+            {**base_observed, "compound_tags": ["141 142"]},
+        ),
+        (
+            "variable-leverage",
+            {**base_observed, "leverages": ["2", "3"]},
+        ),
+        *[
+            (
+                "protections-locks",
+                {
+                    **base_observed,
+                    "protection_methods": [method],
+                    "lock_count": 1,
+                    "rejected_locked_entry": index == 0,
+                },
+            )
+            for index, method in enumerate(
+                (
+                    "CooldownPeriod",
+                    "StoplossGuard",
+                    "MaxDrawdown",
+                    "LowProfitPairs",
+                )
+            )
+        ],
+    ]
+    manifests: dict[Path, dict] = {}
+    observations: dict[Path, dict] = {}
+    for index, (kind, observed) in enumerate(definitions):
+        root = tmp_path / f"probe-{index}"
+        root.mkdir()
+        write_json(
+            root / "config.json",
+            {
+                "trading_mode": "futures",
+                "margin_mode": "isolated",
+                "stake_currency": "USDT",
+                "exchange": {
+                    "name": "binance",
+                    "pair_whitelist": ["BTC/USDT:USDT"],
+                },
+            },
+        )
+        path = (root / "manifest.json").resolve()
+        manifests[path] = {
+            "schema_version": "3.0.0",
+            "probe_kind": kind,
+            "inputs": [{"role": "config", "path": "config.json"}],
+            "strategy_provenance": {"upstream_commit": "a" * 40},
+        }
+        observations[path] = observed
+
+    monkeypatch.setattr(
+        full_x7_certification,
+        "validate_fixture",
+        lambda path: manifests[Path(path).resolve()],
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "validate_fixture_coverage",
+        lambda path, _manifest: {
+            "met": True,
+            "observed": observations[Path(path).resolve()],
+        },
+    )
+
+    manifest_paths: list[str | Path] = list(manifests)
+    probes = _validate_probe_matrix(
+        manifest_paths,
+        contract=FUTURES_RELEASE_CONTRACT,
+        expected_upstream_commit="a" * 40,
+    )
+    assert len(probes) == len(definitions)
+
+    lifecycle = next(
+        path
+        for path, manifest in manifests.items()
+        if manifest["probe_kind"] == "futures-lifecycle"
+    )
+    observations[lifecycle]["funded_trades"] = 0
+    with pytest.raises(SpecValidationError, match="funded_trades:0<1"):
+        _validate_probe_matrix(
+            manifest_paths,
+            contract=FUTURES_RELEASE_CONTRACT,
         )
 
 
@@ -592,7 +749,20 @@ def test_full_x7_data_seal_is_bound_to_lock_and_selected_directory(
     data.mkdir()
     pairs = ["BTC/USDT"]
     timeframes = ["5m", "15m", "1h", "4h", "1d"]
+    start_ms = 1_609_459_200_000
+    end_ms = 1_767_225_600_000
+    files = [
+        {
+            "path": f"BTC_USDT-{timeframe}.feather",
+            "coverage": {
+                "start_timestamp_ms": start_ms,
+                "end_timestamp_ms": end_ms,
+            },
+        }
+        for timeframe in timeframes
+    ]
     lock = {
+        "schema_version": "1.1.0",
         "pairlist": {"pairs": pairs},
         "scope": {
             "timerange": "20210101-20260101",
@@ -600,7 +770,7 @@ def test_full_x7_data_seal_is_bound_to_lock_and_selected_directory(
         },
         "data": {
             "aggregate_sha256": "a" * 64,
-            "file_count": 1,
+            "file_count": len(files),
             "coverage_shortfall_count": 0,
             "startup_shortfall_count": 1,
             "startup_coverage_policy": "record",
@@ -609,25 +779,35 @@ def test_full_x7_data_seal_is_bound_to_lock_and_selected_directory(
     seal = {
         "data_root": str(data),
         "aggregate_sha256": "a" * 64,
-        "files": [{}],
+        "files": files,
         "coverage_shortfalls": [],
         "startup_shortfalls": [{}],
         "request": {
+            "exchange": "binance",
+            "trading_mode": "spot",
             "pairs": pairs,
             "timerange": "20210101-20260101",
             "timeframes": timeframes,
+            "start_timestamp_ms": start_ms,
+            "end_timestamp_ms": end_ms,
             "history_coverage_policy": "strict",
             "startup_coverage_policy": "record",
         },
     }
 
-    _validate_release_data_seal(lock, seal, data_directory=data)
+    _validate_release_data_seal(
+        lock,
+        seal,
+        data_directory=data,
+        contract=SPOT_RELEASE_CONTRACT,
+    )
 
     with pytest.raises(SpecValidationError, match="selected data directory"):
         _validate_release_data_seal(
             lock,
             seal,
             data_directory=tmp_path / "other-data",
+            contract=SPOT_RELEASE_CONTRACT,
         )
 
 
