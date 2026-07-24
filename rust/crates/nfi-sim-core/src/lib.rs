@@ -600,6 +600,59 @@ pub struct NfiX7AdjustmentConstants {
     pub rebuy_stake_multiplier: Option<f64>,
     pub derisk_levels: Vec<NfiX7DeriskLevel>,
     pub grinds: Vec<NfiX7GrindLevel>,
+    /// Method-local retry windows and late-grind predicates extracted from
+    /// the reviewed strategy source. Older inputs omit this field and fail
+    /// closed only if the enabled adjustment route is reached.
+    #[serde(default)]
+    pub policy: Option<NfiX7AdjustmentPolicy>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiX7AdjustmentPolicy {
+    pub entry_retry_ms: i64,
+    pub stale_order_ms: i64,
+    pub extra_entry_profit_condition: NfiX7AdjustmentCondition,
+    pub extra_entry_derisk_levels: Vec<usize>,
+    pub grind_entry_fallbacks: Vec<NfiX7GrindFallbackLevel>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiX7GrindFallbackLevel {
+    pub level: usize,
+    pub predicates: Vec<NfiX7AdjustmentPredicate>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiX7AdjustmentPredicate {
+    pub any_derisk_levels: Vec<usize>,
+    pub conditions: Vec<NfiX7AdjustmentCondition>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiX7AdjustmentCondition {
+    pub left: NfiX7AdjustmentOperand,
+    pub operator: NfiX7AdjustmentComparison,
+    pub right: NfiX7AdjustmentOperand,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum NfiX7AdjustmentOperand {
+    Literal { value: f64 },
+    Variable { name: String },
+    Feature { name: String, multiplier: f64 },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NfiX7AdjustmentComparison {
+    Lt,
+    Gt,
+    Eq,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -2523,7 +2576,7 @@ fn validate_nfi_trade_manager(
         .sum::<usize>();
     let valid_identity = matches!(
         manager.schema_version.as_str(),
-        "0.9.0" | "0.10.0" | "0.11.0"
+        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -2536,11 +2589,12 @@ fn validate_nfi_trade_manager(
             .managed_long_routes
             .iter()
             .all(valid_nfi_managed_long_route);
-    let valid_terminal_exit_version = manager.schema_version == "0.11.0"
-        || manager
-            .managed_long_routes
-            .iter()
-            .all(|route| route.terminal_exit.is_none());
+    let valid_terminal_exit_version =
+        matches!(manager.schema_version.as_str(), "0.11.0" | "0.12.0")
+            || manager
+                .managed_long_routes
+                .iter()
+                .all(|route| route.terminal_exit.is_none());
     let valid_short_routes = manager.managed_short_routes.len() == 1
         && short_keys == BTreeSet::from(["short_rebuy"])
         && short_tags.len() == total_short_tag_count
@@ -2656,11 +2710,28 @@ fn validate_nfi_trade_manager(
     let valid_adjustment_route = adjustment.is_none_or(|adjustment| {
         let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
         let versioned_rebuy_multiplier = match manager.schema_version.as_str() {
-            "0.9.0" => adjustment.constants.rebuy_stake_multiplier.is_none(),
-            "0.10.0" | "0.11.0" => adjustment
-                .constants
-                .rebuy_stake_multiplier
-                .is_some_and(|value| value.is_finite() && value > 0.0),
+            "0.9.0" => {
+                adjustment.constants.rebuy_stake_multiplier.is_none()
+                    && adjustment.constants.policy.is_none()
+            }
+            "0.10.0" | "0.11.0" => {
+                adjustment
+                    .constants
+                    .rebuy_stake_multiplier
+                    .is_some_and(|value| value.is_finite() && value > 0.0)
+                    && adjustment.constants.policy.is_none()
+            }
+            "0.12.0" => {
+                adjustment
+                    .constants
+                    .rebuy_stake_multiplier
+                    .is_some_and(|value| value.is_finite() && value > 0.0)
+                    && adjustment
+                        .constants
+                        .policy
+                        .as_ref()
+                        .is_some_and(valid_nfi_adjustment_policy)
+            }
             _ => false,
         };
         adjustment_tags == managed_tags
@@ -2996,6 +3067,54 @@ fn valid_nfi_adjustment_constants(constants: &NfiX7AdjustmentConstants) -> bool 
         && grinds == [1, 2, 3, 4, 5]
         && derisk_numbers_are_valid
         && grind_numbers_are_valid
+}
+
+fn valid_nfi_adjustment_policy(policy: &NfiX7AdjustmentPolicy) -> bool {
+    let fallback_levels = policy
+        .grind_entry_fallbacks
+        .iter()
+        .map(|fallback| fallback.level)
+        .collect::<Vec<_>>();
+    let valid_derisk_levels = |levels: &[usize]| {
+        !levels.is_empty()
+            && levels.windows(2).all(|pair| pair[0] < pair[1])
+            && levels.iter().all(|level| (1..=3).contains(level))
+    };
+    let fallbacks_are_valid = policy.grind_entry_fallbacks.iter().all(|fallback| {
+        fallback.predicates.iter().all(|predicate| {
+            (predicate.any_derisk_levels.is_empty()
+                || valid_derisk_levels(&predicate.any_derisk_levels))
+                && !predicate.conditions.is_empty()
+                && predicate
+                    .conditions
+                    .iter()
+                    .all(valid_nfi_adjustment_condition)
+        })
+    });
+
+    policy.entry_retry_ms > 0
+        && policy.stale_order_ms > policy.entry_retry_ms
+        && valid_derisk_levels(&policy.extra_entry_derisk_levels)
+        && valid_nfi_adjustment_condition(&policy.extra_entry_profit_condition)
+        && fallback_levels == [1, 2, 3, 4, 5]
+        && fallbacks_are_valid
+}
+
+fn valid_nfi_adjustment_condition(condition: &NfiX7AdjustmentCondition) -> bool {
+    valid_nfi_adjustment_operand(&condition.left) && valid_nfi_adjustment_operand(&condition.right)
+}
+
+fn valid_nfi_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> bool {
+    match operand {
+        NfiX7AdjustmentOperand::Literal { value } => value.is_finite(),
+        NfiX7AdjustmentOperand::Variable { name } => matches!(
+            name.as_str(),
+            "slice_profit" | "slice_profit_entry" | "num_open_grinds_and_buybacks"
+        ),
+        NfiX7AdjustmentOperand::Feature { name, multiplier } => {
+            !name.is_empty() && multiplier.is_finite()
+        }
+    }
 }
 
 #[allow(clippy::option_option)] // Outer None rejects invalid state; inner None is a valid no-op.
@@ -8053,7 +8172,7 @@ mod tests {
             derisk_spot: -0.48,
         };
         NfiX7TradeManager {
-            schema_version: "0.10.0".to_owned(),
+            schema_version: "0.12.0".to_owned(),
             source_sha256: "a".repeat(64),
             route_order: [
                 "long_normal",
@@ -8153,6 +8272,7 @@ mod tests {
                             thresholds_spot: vec![-0.1],
                         })
                         .collect(),
+                    policy: Some(nfi_adjustment_policy()),
                 },
             }),
             constants: NfiManagedLongConstants {
@@ -8182,6 +8302,89 @@ mod tests {
             ]),
             feature_projections: OnceLock::new(),
             feature_projection_unions: OnceLock::new(),
+        }
+    }
+
+    fn nfi_adjustment_policy() -> NfiX7AdjustmentPolicy {
+        let variable = |name: &str| NfiX7AdjustmentOperand::Variable {
+            name: name.to_owned(),
+        };
+        let feature = |name: &str, multiplier: f64| NfiX7AdjustmentOperand::Feature {
+            name: name.to_owned(),
+            multiplier,
+        };
+        let literal = |value| NfiX7AdjustmentOperand::Literal { value };
+        let condition = |left, operator, right| NfiX7AdjustmentCondition {
+            left,
+            operator,
+            right,
+        };
+        let mut fallbacks = (1..=5)
+            .map(|level| NfiX7GrindFallbackLevel {
+                level,
+                predicates: Vec::new(),
+            })
+            .collect::<Vec<_>>();
+        fallbacks[3].predicates = vec![NfiX7AdjustmentPredicate {
+            any_derisk_levels: Vec::new(),
+            conditions: vec![
+                condition(
+                    variable("slice_profit_entry"),
+                    NfiX7AdjustmentComparison::Lt,
+                    literal(-0.06),
+                ),
+                condition(
+                    variable("num_open_grinds_and_buybacks"),
+                    NfiX7AdjustmentComparison::Eq,
+                    literal(0.0),
+                ),
+                condition(
+                    feature("RSI_14", 1.0),
+                    NfiX7AdjustmentComparison::Lt,
+                    literal(30.0),
+                ),
+                condition(
+                    feature("close", 1.0),
+                    NfiX7AdjustmentComparison::Lt,
+                    feature("EMA_20", 0.98),
+                ),
+            ],
+        }];
+        fallbacks[4].predicates = vec![NfiX7AdjustmentPredicate {
+            any_derisk_levels: vec![1, 2, 3],
+            conditions: vec![
+                condition(
+                    variable("slice_profit_entry"),
+                    NfiX7AdjustmentComparison::Lt,
+                    literal(-0.06),
+                ),
+                condition(
+                    feature("RSI_3", 1.0),
+                    NfiX7AdjustmentComparison::Gt,
+                    literal(10.0),
+                ),
+                condition(
+                    feature("RSI_3_15m", 1.0),
+                    NfiX7AdjustmentComparison::Gt,
+                    literal(20.0),
+                ),
+                condition(
+                    feature("AROONU_14", 1.0),
+                    NfiX7AdjustmentComparison::Lt,
+                    literal(50.0),
+                ),
+            ],
+        }];
+        NfiX7AdjustmentPolicy {
+            entry_retry_ms: 5 * 60 * 1_000,
+            stale_order_ms: 6 * 60 * 60 * 1_000,
+            extra_entry_profit_condition: condition(
+                variable("slice_profit"),
+                NfiX7AdjustmentComparison::Lt,
+                literal(-0.06),
+            ),
+            extra_entry_derisk_levels: vec![3],
+            grind_entry_fallbacks: fallbacks,
         }
     }
 
@@ -8819,7 +9022,6 @@ mod tests {
             liquidation_price: None,
         });
         let mut manager = nfi_top_coins_manager(nfi_false_program());
-        manager.schema_version = "0.11.0".to_owned();
         manager
             .managed_long_routes
             .iter_mut()

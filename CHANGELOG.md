@@ -42,6 +42,15 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   contradictory, or uncheckpointed result artifacts fail closed without deletion.
   Completed v1.4 evidence remains readable through the same artifact validation,
   without in-place migration.
+- Extended static exact lowering through upstream X7 v17.4.435. Method-local grind
+  retry windows, late-entry profit gates, de-risk dependencies, and grind 4/5
+  fallback predicates are now compiled into typed IR from the reviewed callback
+  source and evaluated generically in Rust. A changed literal changes the IR; an
+  unsupported expression still fails closed. The X7 adapter now also consumes the
+  exact immediate-fill proof for unreachable open-order timeout callbacks and
+  revalidates its opcode and execution scope before omitting executable state.
+  This is a compatibility result, not a replacement for a continuous official spot
+  or futures certificate.
 
 ## 1.0.0
 

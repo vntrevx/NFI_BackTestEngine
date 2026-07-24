@@ -177,6 +177,23 @@ def _config() -> dict:
     }
 
 
+def _immediate_fill_timeout_callback() -> dict:
+    return {
+        "name": "check_entry_timeout",
+        "kind": "open-order",
+        "active_for_run": True,
+        "backend": "rust-immediate-fill-open-order-proof",
+        "executable_in_rust": True,
+        "lowering": {
+            "operation": {
+                "opcode": "open-order-timeout-policy-v1",
+                "execution_scope": "unreachable-immediate-fill-backtest-v1",
+                "orderbook_depth": 1,
+            }
+        },
+    }
+
+
 def _legacy_grind_constants() -> dict:
     tags = (
         ("gd1", "dd1"),
@@ -435,6 +452,49 @@ def test_x7_adapter_requires_frozen_amount_and_cost_limits(tmp_path: Path) -> No
     )
 
     assert [item["code"] for item in blockers] == ["MARKET_LIMITS_REQUIRED"]
+
+
+def test_x7_adapter_accepts_proven_unreachable_open_order_timeout(
+    tmp_path: Path,
+) -> None:
+    markets = tmp_path / "markets.json"
+    _markets(markets)
+    hot_ir = _hot_ir()
+    hot_ir["callbacks"].append(_immediate_fill_timeout_callback())
+
+    assert (
+        x7_adapter_blockers(
+            _analysis(),
+            hot_ir,
+            _config(),
+            market_metadata_path=markets,
+        )
+        == []
+    )
+
+
+def test_x7_adapter_rejects_a_timeout_without_the_immediate_fill_scope(
+    tmp_path: Path,
+) -> None:
+    markets = tmp_path / "markets.json"
+    _markets(markets)
+    hot_ir = _hot_ir()
+    timeout = _immediate_fill_timeout_callback()
+    timeout["lowering"]["operation"]["execution_scope"] = "live-open-order"
+    hot_ir["callbacks"].append(timeout)
+
+    blockers = x7_adapter_blockers(
+        _analysis(),
+        hot_ir,
+        _config(),
+        market_metadata_path=markets,
+    )
+
+    assert blockers[0] == {
+        "code": "X7_ADAPTER_BACKEND_UNSUPPORTED",
+        "callbacks": ["check_entry_timeout"],
+        "message": "X7 adapter cannot serialize one or more callback backends",
+    }
 
 
 def test_x7_futures_preflight_accepts_compiled_tag_dependent_leverage(

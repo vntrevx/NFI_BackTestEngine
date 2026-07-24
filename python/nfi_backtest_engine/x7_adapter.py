@@ -25,7 +25,22 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-X7_ADAPTER_VERSION = "0.15.0"
+X7_ADAPTER_VERSION = "0.16.0"
+
+_SERIALIZED_CALLBACK_BACKENDS = frozenset(
+    {
+        "rust-entry-confirm-vm",
+        "rust-exit-confirm-vm",
+        "rust-custom-exit-vm",
+        "rust-nfi-x7-trade-manager",
+        "rust-nfi-x7-position-adjustment",
+        "rust-nfi-x7-leverage",
+        "rust-adjustment-vm",
+        "rust-noop",
+        "rust-order-state",
+        "rust-stake-vm",
+    }
+)
 
 
 def x7_adapter_blockers(
@@ -47,22 +62,10 @@ def x7_adapter_blockers(
     for item in hot_ir.get("callbacks", []):
         if isinstance(item, dict) and isinstance(item.get("name"), str):
             callbacks[item["name"]] = item
-    supported_backends = {
-        "rust-entry-confirm-vm",
-        "rust-exit-confirm-vm",
-        "rust-custom-exit-vm",
-        "rust-nfi-x7-trade-manager",
-        "rust-nfi-x7-position-adjustment",
-        "rust-nfi-x7-leverage",
-        "rust-adjustment-vm",
-        "rust-noop",
-        "rust-order-state",
-        "rust-stake-vm",
-    }
     unsupported = sorted(
         name
         for name, callback in callbacks.items()
-        if callback.get("active_for_run") and callback.get("backend") not in supported_backends
+        if callback.get("active_for_run") and not _callback_backend_is_consumed(callback)
     )
     if unsupported:
         blockers.append(
@@ -176,6 +179,34 @@ def x7_adapter_blockers(
             }
         )
     return blockers
+
+
+def _callback_backend_is_consumed(callback: dict[str, Any]) -> bool:
+    """Return whether the adapter serializes or proves away this callback.
+
+    Open-order timeout callbacks are not simulator programs: the native backtest
+    fills accepted orders immediately, so no open order exists on which Freqtrade
+    could invoke them. The callback compiler proves that exact execution scope.
+    Rechecking the proof envelope here prevents an arbitrary backend label from
+    silently dropping executable behavior at the adapter boundary.
+    """
+
+    backend = callback.get("backend")
+    if backend in _SERIALIZED_CALLBACK_BACKENDS:
+        return True
+    if backend != "rust-immediate-fill-open-order-proof":
+        return False
+    lowering = callback.get("lowering")
+    operation = lowering.get("operation") if isinstance(lowering, dict) else None
+    return (
+        callback.get("name") in {"check_entry_timeout", "check_exit_timeout"}
+        and callback.get("kind") == "open-order"
+        and callback.get("executable_in_rust") is True
+        and isinstance(operation, dict)
+        and operation.get("opcode") == "open-order-timeout-policy-v1"
+        and operation.get("execution_scope") == "unreachable-immediate-fill-backtest-v1"
+        and operation.get("orderbook_depth") == 1
+    )
 
 
 def _x7_leverage_program_error(
@@ -379,16 +410,16 @@ def build_x7_vector_manifest(
         vector_sha256 = verified_vector_sha256(source, artifact, pair)
         columns = feather_column_names(source, pair)
         required_columns = {
-                "date",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-                "nfi_exec_enter_long",
-                "nfi_exec_exit_long",
-                "nfi_exec_enter_tag",
-                *required_features,
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "nfi_exec_enter_long",
+            "nfi_exec_exit_long",
+            "nfi_exec_enter_tag",
+            *required_features,
         }
         if can_short:
             required_columns.update(
@@ -956,9 +987,7 @@ def _x7_liquidation_contract(
         raise StrategyAnalysisError("X7 futures execution requires isolated margin mode")
 
     exchange_config = config.get("exchange")
-    configured_exchange = (
-        exchange_config.get("name") if isinstance(exchange_config, dict) else None
-    )
+    configured_exchange = exchange_config.get("name") if isinstance(exchange_config, dict) else None
     snapshot_exchange = market_snapshot.get("exchange")
     if not isinstance(configured_exchange, str) or not configured_exchange:
         raise StrategyAnalysisError("X7 futures execution requires config.exchange.name")
@@ -1350,9 +1379,7 @@ def _x7_signal_candles(
         enter_tag = _optional_text(row.get("nfi_exec_enter_tag"))
         exit_tag = _optional_text(row.get("nfi_exec_exit_tag"))
         funding_rate = _optional_finite_number(row.get("nfi_exec_funding_rate"))
-        funding_mark_price = _optional_finite_number(
-            row.get("nfi_exec_funding_mark_price")
-        )
+        funding_mark_price = _optional_finite_number(row.get("nfi_exec_funding_mark_price"))
         if (funding_rate is None) != (funding_mark_price is None):
             raise StrategyAnalysisError(
                 "funding rate and mark price must be present on the same candle"

@@ -22,7 +22,7 @@ from typing import Any, cast
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.11.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.12.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -207,9 +207,7 @@ _MANAGED_SHORT_METHOD_SHA256 = {
     # The pure predicates below are source-compiled. The wrapper is pinned
     # because its call order, stop boundary, and target-cache mutations are
     # executed by the handwritten Rust route.
-    "short_exit_rebuy": (
-        "bce3263e3df13f9f2873949631b1813d573aeb7e1beb48302409e466d9cdad1a"
-    ),
+    "short_exit_rebuy": ("bce3263e3df13f9f2873949631b1813d573aeb7e1beb48302409e466d9cdad1a"),
 }
 
 _QUICK_RAPID_STATEFUL_FEATURES = {
@@ -346,22 +344,33 @@ _LONG_GRIND_REMAINING_STEPS = (
 # Pinning the normalized method hashes makes a strategy change fail closed and
 # forces a deliberate review of order classification, branch order, and stake
 # arithmetic.
-_ADJUSTMENT_METHOD_SHA256 = {
-    "adjust_trade_position": ("64d19512c5968f3cc4e329a8a7b33eb93dc8ce9debbf39c4d8c70c09529dfd1a"),
-    "calc_total_profit": ("ba0fc031f36140bbb3b5ae5feffa70ea7a5943e0315ff630407f2f92cdd9f70b"),
-    "long_grind_adjust_trade_position_v3": (
-        "ce49efa4449cf42610238f37456be6e5f5aac76e33af1fd244c3c8dd66ce03a8"
+_ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
+    "adjust_trade_position": frozenset(
+        {"64d19512c5968f3cc4e329a8a7b33eb93dc8ce9debbf39c4d8c70c09529dfd1a"}
     ),
-    "short_rebuy_adjust_trade_position_v3": (
-        "539eb5c23f52650df0fc40474d0890aafe87df6830157197935f723e360fe801"
+    "calc_total_profit": frozenset(
+        {"ba0fc031f36140bbb3b5ae5feffa70ea7a5943e0315ff630407f2f92cdd9f70b"}
     ),
-    "long_grind_entry_v3": ("717efe7dac38b6483391aa23974179f345b3bbe37b2822721cb9d97e1d1e8374"),
-    "long_grind_exit_v3": ("48dde430a4d4607444af697ce3708089656f99cc1470450e53bdf1b2de8c5af4"),
-    "profit_or_order_snapshot": (
-        "d3460303e0dd66274f8e02782818bac8b910220c1947178f8d20836dd0217add"
+    "long_grind_adjust_trade_position_v3": frozenset(
+        {
+            "ce49efa4449cf42610238f37456be6e5f5aac76e33af1fd244c3c8dd66ce03a8",
+            "edde89ee993890c4b0d76233c4b58680bea031a844739b23a9cb23760bf3d4bb",
+        }
     ),
-    "scale_stakes_for_min_stake": (
-        "9c08fcc82d086ee776962060bb55719db939a89137e106d458ebf030c666316c"
+    "short_rebuy_adjust_trade_position_v3": frozenset(
+        {"539eb5c23f52650df0fc40474d0890aafe87df6830157197935f723e360fe801"}
+    ),
+    # ``long_grind_entry_v3`` is intentionally absent. Its boolean behavior is
+    # compiled from the supplied source, and its only write is proven
+    # observability-only by trade_ir before this stateful router can use it.
+    "long_grind_exit_v3": frozenset(
+        {"48dde430a4d4607444af697ce3708089656f99cc1470450e53bdf1b2de8c5af4"}
+    ),
+    "profit_or_order_snapshot": frozenset(
+        {"d3460303e0dd66274f8e02782818bac8b910220c1947178f8d20836dd0217add"}
+    ),
+    "scale_stakes_for_min_stake": frozenset(
+        {"9c08fcc82d086ee776962060bb55719db939a89137e106d458ebf030c666316c"}
     ),
 }
 
@@ -549,7 +558,10 @@ def build_nfi_trade_manager_ir(
     rebuy_adjustment_constants: dict[str, Any] | None = None
     if has_position_adjustment:
         _validate_adjustment_method_identity(method_records)
-        adjustment_constants = _build_adjustment_constants(constants)
+        adjustment_constants = _build_adjustment_constants(
+            constants,
+            methods["long_grind_adjust_trade_position_v3"],
+        )
         rebuy_adjustment_constants = _build_rebuy_adjustment_constants(constants)
 
     # The stateful router calls its decisions through a tuple variable
@@ -738,9 +750,7 @@ def _validate_managed_long_method_identity(
         if name != "long_exit_rebuy"
         if method_records.get(name, {}).get("source_sha256") != expected
     ]
-    rebuy_terminal_exit, terminal_index = _extract_rebuy_terminal_exit(
-        methods["long_exit_rebuy"]
-    )
+    rebuy_terminal_exit, terminal_index = _extract_rebuy_terminal_exit(methods["long_exit_rebuy"])
     if (
         _method_ast_sha256(
             methods["long_exit_rebuy"],
@@ -809,11 +819,7 @@ def _extract_rebuy_terminal_exit(
         if profit is not None:
             minimum_profit_ratio = profit
 
-    age_ms = (
-        minimum_age_seconds * 1_000.0
-        if minimum_age_seconds is not None
-        else math.nan
-    )
+    age_ms = minimum_age_seconds * 1_000.0 if minimum_age_seconds is not None else math.nan
     if (
         entry_tags is None
         or not entry_tags
@@ -850,8 +856,7 @@ def _exact_string_list_comparison(node: ast.AST, name: str) -> list[str] | None:
         return None
     values = node.comparators[0].elts
     if not all(
-        isinstance(value, ast.Constant) and isinstance(value.value, str)
-        for value in values
+        isinstance(value, ast.Constant) and isinstance(value.value, str) for value in values
     ):
         return None
     return [cast(str, cast(ast.Constant, value).value) for value in values]
@@ -979,10 +984,7 @@ def _build_managed_short_routes(constants: dict[str, Any]) -> dict[str, dict[str
         raise StrategyAnalysisError("NFI short_rebuy entry tags must be frozen strings")
     stop_names = _ROUTE_STOP_CONSTANTS["rebuy"]
     stop_values = [constants.get(name) for name in stop_names]
-    if any(
-        isinstance(value, bool) or not isinstance(value, int | float)
-        for value in stop_values
-    ):
+    if any(isinstance(value, bool) or not isinstance(value, int | float) for value in stop_values):
         raise StrategyAnalysisError("NFI short_rebuy stop thresholds must be numeric")
     return {
         "short_rebuy": {
@@ -994,8 +996,7 @@ def _build_managed_short_routes(constants: dict[str, Any]) -> dict[str, dict[str
             "program_order": list(_MANAGED_SHORT_PROGRAM_ORDER),
             "stateful_input_contract": {
                 "indexed_fields": {
-                    name: list(fields)
-                    for name, fields in _MANAGED_LONG_STATEFUL_FEATURES.items()
+                    name: list(fields) for name, fields in _MANAGED_LONG_STATEFUL_FEATURES.items()
                 }
             },
         }
@@ -1325,9 +1326,7 @@ def _build_regular_adjustment_constants(
     def number(name: str) -> int | float:
         value = constants.get(name)
         if isinstance(value, bool) or not isinstance(value, int | float):
-            raise StrategyAnalysisError(
-                f"NFI regular adjustment constant {name} must be numeric"
-            )
+            raise StrategyAnalysisError(f"NFI regular adjustment constant {name} must be numeric")
         return value
 
     def number_list(name: str) -> list[int | float]:
@@ -1335,10 +1334,7 @@ def _build_regular_adjustment_constants(
         if (
             not isinstance(value, list)
             or not value
-            or any(
-                isinstance(item, bool) or not isinstance(item, int | float)
-                for item in value
-            )
+            or any(isinstance(item, bool) or not isinstance(item, int | float) for item in value)
         ):
             raise StrategyAnalysisError(
                 f"NFI regular adjustment constant {name} must be a non-empty numeric list"
@@ -1488,7 +1484,7 @@ def _validate_adjustment_method_identity(
     changed = [
         name
         for name, expected in _ADJUSTMENT_METHOD_SHA256.items()
-        if methods.get(name, {}).get("source_sha256") != expected
+        if methods.get(name, {}).get("source_sha256") not in expected
     ]
     if changed:
         raise StrategyAnalysisError(
@@ -1497,7 +1493,10 @@ def _validate_adjustment_method_identity(
         )
 
 
-def _build_adjustment_constants(constants: dict[str, Any]) -> dict[str, Any]:
+def _build_adjustment_constants(
+    constants: dict[str, Any],
+    method: ast.FunctionDef,
+) -> dict[str, Any]:
     """Freeze the reachable system-v3.2 adjustment constants.
 
     Buyback and level-4 de-risk branches are deliberately required to be
@@ -1577,7 +1576,268 @@ def _build_adjustment_constants(constants: dict[str, Any]) -> dict[str, Any]:
             for level in range(1, 4)
         ],
         "grinds": grinds,
+        "policy": _adjustment_literal_policy(method),
     }
+
+
+def _adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, Any]:
+    """Extract non-constant entry gates from the reviewed stateful callback.
+
+    The grind stake tables are class constants, but X7 keeps retry windows and
+    two late-level fallback predicates as literals inside the method. Encoding
+    those expressions as typed operands keeps Rust strategy-version agnostic:
+    a reviewed upstream change updates this IR instead of requiring a hidden
+    engine constant.
+    """
+
+    retry = _named_assignment(method, "grind_entry_retry_time")
+    retry_ms = _duration_subtraction_ms(retry, unit="minutes")
+    extra = _named_assignment(method, "is_long_extra_checks_entry")
+    stale_durations = _timedelta_values_ms(extra, unit="hours")
+    extra_profit_conditions = [
+        descriptor
+        for node in ast.walk(extra)
+        if isinstance(node, ast.Compare)
+        and (descriptor := _adjustment_comparison(node)) is not None
+        and descriptor["left"] == {"kind": "variable", "name": "slice_profit"}
+    ]
+    extra_derisk_levels = sorted(
+        {
+            int(node.id.removeprefix("is_derisk_"))
+            for node in ast.walk(extra)
+            if isinstance(node, ast.Name)
+            and node.id.startswith("is_derisk_")
+            and node.id.removeprefix("is_derisk_").isdecimal()
+        }
+    )
+    if (
+        retry_ms <= 0
+        or len(stale_durations) != 1
+        or len(extra_profit_conditions) != 1
+        or not extra_derisk_levels
+    ):
+        raise StrategyAnalysisError(
+            "NFI adjustment extra-entry policy changed; exact lowering requires review"
+        )
+
+    fallback_records = [_grind_entry_fallbacks(method, level=level) for level in range(1, 6)]
+    return {
+        "entry_retry_ms": retry_ms,
+        "stale_order_ms": stale_durations[0],
+        "extra_entry_profit_condition": extra_profit_conditions[0],
+        "extra_entry_derisk_levels": extra_derisk_levels,
+        "grind_entry_fallbacks": fallback_records,
+    }
+
+
+def _grind_entry_fallbacks(
+    method: ast.FunctionDef,
+    *,
+    level: int,
+) -> dict[str, Any]:
+    tag = f"grind_{level}_entry"
+    candidates = [
+        node
+        for node in method.body
+        if isinstance(node, ast.If)
+        and any(isinstance(value, ast.Constant) and value.value == tag for value in ast.walk(node))
+        and any(
+            isinstance(value, ast.Attribute)
+            and isinstance(value.value, ast.Name)
+            and value.value.id == "self"
+            and value.attr == f"system_v3_grind_{level}_enable"
+            for value in ast.walk(node.test)
+        )
+    ]
+    if len(candidates) != 1 or not isinstance(candidates[0].test, ast.BoolOp):
+        raise StrategyAnalysisError(f"NFI adjustment grind {level} entry structure changed")
+    signal_terms = [
+        value
+        for value in candidates[0].test.values
+        if any(
+            isinstance(node, ast.Name) and node.id == "is_long_grind_entry"
+            for node in ast.walk(value)
+        )
+    ]
+    if len(signal_terms) != 1:
+        raise StrategyAnalysisError(f"NFI adjustment grind {level} signal gate changed")
+    signal = signal_terms[0]
+    if isinstance(signal, ast.Name) and signal.id == "is_long_grind_entry":
+        predicates: list[dict[str, Any]] = []
+    elif isinstance(signal, ast.BoolOp) and isinstance(signal.op, ast.Or):
+        if (
+            not signal.values
+            or not isinstance(signal.values[0], ast.Name)
+            or signal.values[0].id != "is_long_grind_entry"
+        ):
+            raise StrategyAnalysisError(f"NFI adjustment grind {level} primary signal changed")
+        predicates = [_adjustment_predicate(value, level=level) for value in signal.values[1:]]
+    else:
+        raise StrategyAnalysisError(f"NFI adjustment grind {level} signal expression changed")
+    return {"level": level, "predicates": predicates}
+
+
+def _adjustment_predicate(node: ast.AST, *, level: int) -> dict[str, Any]:
+    if not isinstance(node, ast.BoolOp) or not isinstance(node.op, ast.And):
+        raise StrategyAnalysisError(
+            f"NFI adjustment grind {level} fallback must be an AND expression"
+        )
+    any_derisk_levels: list[int] = []
+    conditions: list[dict[str, Any]] = []
+    for value in node.values:
+        if isinstance(value, ast.BoolOp) and isinstance(value.op, ast.Or):
+            levels = sorted(
+                {
+                    int(item.id.removeprefix("is_derisk_").removesuffix("_found"))
+                    for item in value.values
+                    if isinstance(item, ast.Name)
+                    and item.id.startswith("is_derisk_")
+                    and item.id.endswith("_found")
+                    and item.id.removeprefix("is_derisk_").removesuffix("_found").isdecimal()
+                }
+            )
+            if levels and len(levels) == len(value.values):
+                any_derisk_levels.extend(levels)
+                continue
+        condition = _adjustment_comparison(value)
+        if condition is None:
+            raise StrategyAnalysisError(f"NFI adjustment grind {level} fallback condition changed")
+        conditions.append(condition)
+    if not conditions:
+        raise StrategyAnalysisError(
+            f"NFI adjustment grind {level} fallback has no numeric conditions"
+        )
+    return {
+        "any_derisk_levels": sorted(set(any_derisk_levels)),
+        "conditions": conditions,
+    }
+
+
+def _adjustment_comparison(node: ast.AST) -> dict[str, Any] | None:
+    if not isinstance(node, ast.Compare) or len(node.ops) != 1 or len(node.comparators) != 1:
+        return None
+    operator = {
+        ast.Lt: "lt",
+        ast.Gt: "gt",
+        ast.Eq: "eq",
+    }.get(type(node.ops[0]))
+    left = _adjustment_operand(node.left)
+    right = _adjustment_operand(node.comparators[0])
+    if operator is None or left is None or right is None:
+        return None
+    return {
+        "left": left,
+        "operator": operator,
+        "right": right,
+    }
+
+
+def _adjustment_operand(node: ast.AST) -> dict[str, Any] | None:
+    number = _ast_number(node)
+    if number is not None:
+        return {"kind": "literal", "value": number}
+    if isinstance(node, ast.Name) and node.id in {
+        "slice_profit",
+        "slice_profit_entry",
+        "num_open_grinds_and_buybacks",
+    }:
+        return {"kind": "variable", "name": node.id}
+    feature = _last_candle_feature(node)
+    if feature is not None:
+        return {"kind": "feature", "name": feature, "multiplier": 1.0}
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+        feature = _last_candle_feature(node.left)
+        multiplier = _ast_number(node.right)
+        if feature is None or multiplier is None or not math.isfinite(multiplier):
+            return None
+        return {
+            "kind": "feature",
+            "name": feature,
+            "multiplier": multiplier,
+        }
+    return None
+
+
+def _last_candle_feature(node: ast.AST) -> str | None:
+    if (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "last_candle"
+        and isinstance(node.slice, ast.Constant)
+        and isinstance(node.slice.value, str)
+        and node.slice.value
+    ):
+        return node.slice.value
+    return None
+
+
+def _named_assignment(method: ast.FunctionDef, name: str) -> ast.AST:
+    values = [
+        node.value
+        for node in method.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == name
+    ]
+    if len(values) != 1:
+        raise StrategyAnalysisError(f"NFI adjustment assignment changed: {name}")
+    return values[0]
+
+
+def _duration_subtraction_ms(node: ast.AST, *, unit: str) -> int:
+    if (
+        not isinstance(node, ast.BinOp)
+        or not isinstance(node.op, ast.Sub)
+        or not isinstance(node.left, ast.Name)
+        or node.left.id != "current_time"
+    ):
+        raise StrategyAnalysisError("NFI adjustment retry timestamp changed")
+    values = _timedelta_values_ms(node.right, unit=unit)
+    if len(values) != 1:
+        raise StrategyAnalysisError("NFI adjustment retry duration changed")
+    return values[0]
+
+
+def _timedelta_values_ms(node: ast.AST, *, unit: str) -> list[int]:
+    unit_ms = {"minutes": 60_000, "hours": 3_600_000}[unit]
+    result: list[int] = []
+    for call in ast.walk(node):
+        if (
+            not isinstance(call, ast.Call)
+            or not isinstance(call.func, ast.Name)
+            or call.func.id != "timedelta"
+        ):
+            continue
+        for keyword in call.keywords:
+            value = _ast_number(keyword.value)
+            milliseconds = value * unit_ms if value is not None else math.nan
+            if (
+                keyword.arg == unit
+                and math.isfinite(milliseconds)
+                and milliseconds > 0
+                and milliseconds.is_integer()
+            ):
+                result.append(int(milliseconds))
+    return sorted(set(result))
+
+
+def _ast_number(node: ast.AST) -> float | None:
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int | float)
+        and not isinstance(node.value, bool)
+    ):
+        return float(node.value)
+    if (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, ast.USub)
+        and isinstance(node.operand, ast.Constant)
+        and isinstance(node.operand.value, int | float)
+        and not isinstance(node.operand.value, bool)
+    ):
+        return -float(node.operand.value)
+    return None
 
 
 def _build_rebuy_adjustment_constants(constants: dict[str, Any]) -> dict[str, Any]:

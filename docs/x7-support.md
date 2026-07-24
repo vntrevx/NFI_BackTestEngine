@@ -18,7 +18,7 @@ ordering. The resulting Feather files are SHA-256 sealed; Rust projects only the
 callback columns declared by the source-compiled IR and runs one global chronological
 portfolio loop.
 
-For the reviewed X7 source shape through v17.4.421, these callback families execute in
+For the reviewed X7 source shape through v17.4.435, these callback families execute in
 Rust:
 
 - backtest lifecycle no-op delegation and first-entry `order_filled` state writes;
@@ -54,6 +54,15 @@ It also inventories literal condition-index branches and the effective strategy
 switches. Probe-only source changes are AST-bound to the expected class attribute and
 old literal; routine upstream edits fail closed instead of silently changing the wrong
 line.
+
+Static exact lowering also passes for X7 v17.4.435 at upstream commit
+`2bc3058ed4f8480ed7498efca49b5195c7b47e9b`. Its source SHA-256 is
+`6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a`.
+The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
+de-risk state dependencies, and late grind predicates as typed operands and
+comparisons. Rust therefore does not carry release-specific grind 4/5 thresholds.
+This establishes source compatibility only; the release evidence below remains bound
+to its sealed v17.4.421 inputs until fresh official oracles pass.
 
 The latest branch matrix pins X7 v17.4.421 at upstream commit
 `5e168431991e05a889514eb1e16fdbebc6a09811` and Freqtrade 2026.5.1. Its seven

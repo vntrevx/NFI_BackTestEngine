@@ -10,12 +10,10 @@ use super::{
     adjustment_minimum_pair_stake, evaluate_scalar_program_bundle, feature_number_at, fee_close,
     fee_open, insert_projected_feature_window, nfi_profit_snapshot, number_value,
     scalar_trade_value, scalar_truthy, AdjustmentSignal, BTreeMap, Candle, NfiProfitSnapshot,
-    NfiX7GrindLevel, NfiX7PositionAdjustment, NfiX7TradeManager, OpenTrade, PairSeries,
-    PortfolioConfig, PositionAdjustmentRequest, TradeSide, Value,
+    NfiX7AdjustmentComparison, NfiX7AdjustmentCondition, NfiX7AdjustmentOperand,
+    NfiX7AdjustmentPredicate, NfiX7GrindLevel, NfiX7PositionAdjustment, NfiX7TradeManager,
+    OpenTrade, PairSeries, PortfolioConfig, PositionAdjustmentRequest, TradeSide, Value,
 };
-
-const FIVE_MINUTES_MS: i64 = 5 * 60 * 1_000;
-const SIX_HOURS_MS: i64 = 6 * 60 * 60 * 1_000;
 
 #[derive(Debug, Clone, Default)]
 struct GrindCluster {
@@ -70,6 +68,7 @@ struct AdjustmentContext<'a> {
     minimum_stake: f64,
     snapshot: NfiProfitSnapshot,
     slice_amount: f64,
+    slice_profit: f64,
     slice_profit_entry: f64,
     current_stake_amount: f64,
     rebuy_mode: bool,
@@ -182,11 +181,31 @@ fn evaluate_nfi_position_adjustment_with_state(
         slice_profit_entry,
         slice_profit_exit,
     )?;
-    let extra_entry_checks = candle.timestamp_ms - FIVE_MINUTES_MS
-        > state.latest_entry_timestamp_ms
-        && (candle.timestamp_ms - SIX_HOURS_MS > state.latest_order_timestamp_ms
-            || slice_profit < -0.06
-            || state.derisk_found[2]);
+    let policy = adjustment.constants.policy.as_ref()?;
+    if policy.entry_retry_ms <= 0
+        || policy.stale_order_ms <= 0
+        || policy.extra_entry_derisk_levels.is_empty()
+    {
+        return None;
+    }
+    let retry_cutoff = candle.timestamp_ms.checked_sub(policy.entry_retry_ms)?;
+    let stale_cutoff = candle.timestamp_ms.checked_sub(policy.stale_order_ms)?;
+    let num_open_grinds = state
+        .clusters
+        .iter()
+        .map(|cluster| cluster.count)
+        .sum::<usize>();
+    let extra_profit = adjustment_condition_matches(
+        &policy.extra_entry_profit_condition,
+        pair,
+        request.candle_index,
+        slice_profit,
+        slice_profit_entry,
+        num_open_grinds,
+    )?;
+    let extra_derisk = any_derisk_level(state, &policy.extra_entry_derisk_levels)?;
+    let extra_entry_checks = retry_cutoff > state.latest_entry_timestamp_ms
+        && (stale_cutoff > state.latest_order_timestamp_ms || extra_profit || extra_derisk);
 
     // X7 reads the previous maxima for this invocation, then persists any new
     // maxima before evaluating exits. `long_grind_exit_v3` currently has its
@@ -204,6 +223,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         minimum_stake,
         snapshot,
         slice_amount,
+        slice_profit,
         slice_profit_entry,
         current_stake_amount: trade.amount * candle.open,
         rebuy_mode,
@@ -567,30 +587,137 @@ fn grind_entry_signal(
     state: &AdjustmentState,
     index: usize,
 ) -> Option<bool> {
-    if index < 3 {
-        return Some(context.is_long_grind_entry);
+    let policy = context.adjustment.constants.policy.as_ref()?;
+    let level = index.checked_add(1)?;
+    let matching = policy
+        .grind_entry_fallbacks
+        .iter()
+        .filter(|record| record.level == level)
+        .collect::<Vec<_>>();
+    if matching.len() != 1 {
+        return None;
     }
-    if index == 3 {
-        let secondary = context.slice_profit_entry < -0.04
-            && feature_number_at(context.pair, context.candle_index, "RSI_3")? > 5.0
-            && feature_number_at(context.pair, context.candle_index, "RSI_3_15m")? > 10.0
-            && feature_number_at(context.pair, context.candle_index, "RSI_14")? < 35.0
-            && feature_number_at(context.pair, context.candle_index, "close")?
-                < feature_number_at(context.pair, context.candle_index, "EMA_20")? * 0.985;
-        let empty_cluster_fallback = context.slice_profit_entry < -0.06
-            && state.clusters.iter().all(|cluster| cluster.count == 0)
-            && feature_number_at(context.pair, context.candle_index, "RSI_14")? < 30.0
-            && feature_number_at(context.pair, context.candle_index, "close")?
-                < feature_number_at(context.pair, context.candle_index, "EMA_20")? * 0.980;
-        return Some(context.is_long_grind_entry || secondary || empty_cluster_fallback);
+    let num_open_grinds = state
+        .clusters
+        .iter()
+        .map(|cluster| cluster.count)
+        .sum::<usize>();
+    let fallback =
+        matching[0]
+            .predicates
+            .iter()
+            .try_fold(false, |matched, predicate| -> Option<bool> {
+                if matched {
+                    return Some(true);
+                }
+                adjustment_predicate_matches(
+                    predicate,
+                    state,
+                    context.pair,
+                    context.candle_index,
+                    context.slice_profit,
+                    context.slice_profit_entry,
+                    num_open_grinds,
+                )
+            })?;
+    Some(context.is_long_grind_entry || fallback)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn adjustment_predicate_matches(
+    predicate: &NfiX7AdjustmentPredicate,
+    state: &AdjustmentState,
+    pair: &PairSeries,
+    candle_index: usize,
+    slice_profit: f64,
+    slice_profit_entry: f64,
+    num_open_grinds: usize,
+) -> Option<bool> {
+    if !predicate.any_derisk_levels.is_empty()
+        && !any_derisk_level(state, &predicate.any_derisk_levels)?
+    {
+        return Some(false);
     }
-    let derisked = state.derisk_found.iter().any(|found| *found);
-    let secondary = derisked
-        && context.slice_profit_entry < -0.06
-        && feature_number_at(context.pair, context.candle_index, "RSI_3")? > 10.0
-        && feature_number_at(context.pair, context.candle_index, "RSI_3_15m")? > 20.0
-        && feature_number_at(context.pair, context.candle_index, "AROONU_14")? < 50.0;
-    Some(context.is_long_grind_entry || secondary)
+    predicate
+        .conditions
+        .iter()
+        .try_fold(true, |matched, condition| {
+            if matched {
+                adjustment_condition_matches(
+                    condition,
+                    pair,
+                    candle_index,
+                    slice_profit,
+                    slice_profit_entry,
+                    num_open_grinds,
+                )
+            } else {
+                Some(false)
+            }
+        })
+}
+
+fn any_derisk_level(state: &AdjustmentState, levels: &[usize]) -> Option<bool> {
+    levels.iter().try_fold(false, |found, level| {
+        let index = level.checked_sub(1)?;
+        Some(found || state.derisk_found.get(index).copied()?)
+    })
+}
+
+fn adjustment_condition_matches(
+    condition: &NfiX7AdjustmentCondition,
+    pair: &PairSeries,
+    candle_index: usize,
+    slice_profit: f64,
+    slice_profit_entry: f64,
+    num_open_grinds: usize,
+) -> Option<bool> {
+    let left = adjustment_operand_value(
+        &condition.left,
+        pair,
+        candle_index,
+        slice_profit,
+        slice_profit_entry,
+        num_open_grinds,
+    )?;
+    let right = adjustment_operand_value(
+        &condition.right,
+        pair,
+        candle_index,
+        slice_profit,
+        slice_profit_entry,
+        num_open_grinds,
+    )?;
+    Some(match condition.operator {
+        NfiX7AdjustmentComparison::Lt => left < right,
+        NfiX7AdjustmentComparison::Gt => left > right,
+        NfiX7AdjustmentComparison::Eq => {
+            matches!(left.partial_cmp(&right), Some(std::cmp::Ordering::Equal))
+        }
+    })
+}
+
+fn adjustment_operand_value(
+    operand: &NfiX7AdjustmentOperand,
+    pair: &PairSeries,
+    candle_index: usize,
+    slice_profit: f64,
+    slice_profit_entry: f64,
+    num_open_grinds: usize,
+) -> Option<f64> {
+    let value = match operand {
+        NfiX7AdjustmentOperand::Literal { value } => *value,
+        NfiX7AdjustmentOperand::Variable { name } => match name.as_str() {
+            "slice_profit" => slice_profit,
+            "slice_profit_entry" => slice_profit_entry,
+            "num_open_grinds_and_buybacks" => f64::from(u32::try_from(num_open_grinds).ok()?),
+            _ => return None,
+        },
+        NfiX7AdjustmentOperand::Feature { name, multiplier } => {
+            feature_number_at(pair, candle_index, name)? * multiplier
+        }
+    };
+    value.is_finite().then_some(value)
 }
 
 fn grind_exit_signal(
