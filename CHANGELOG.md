@@ -2,6 +2,22 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## Unreleased
+
+- Added an automatic result presentation layer for every research outcome:
+  `summary.json`, spreadsheet-ready `trades.csv`, and a responsive self-contained
+  `report.html` with equity/monthly charts, performance and risk metrics,
+  pair/tag/exit/year breakdowns, recent trades, execution context, blockers, and
+  an official exact-parity verdict.
+- Replaced raw-JSON-only terminal results and run listings with compact readable
+  summaries while retaining explicit `--json` output for automation.
+- Added `nfi-bte report` to regenerate derived presentation files without
+  repeating a backtest. Official confirmation refreshes only the derived verdict;
+  original run and trade-surface evidence bytes remain unchanged.
+- Display peak RSS only from a measured process-tree checkpoint and otherwise
+  label the enforced memory budget. Drawdown is explicitly defined as
+  closed-trade equity drawdown to avoid overstating Freqtrade metric equivalence.
+
 ## 1.0.0
 
 - Completed the continuous X7 v17.4.421 spot oracle over 80 pairs and

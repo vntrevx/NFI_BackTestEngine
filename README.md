@@ -167,6 +167,32 @@ After setup:
 nfi-bte run
 ```
 
+Completed runs now finish with a compact result card:
+
+```text
+NFI BACKTEST — COMPLETE ✓
+──────────────────────────────────────────────────────────────
+Strategy              NostalgiaForInfinityX7
+Period                2021-01-01 → 2026-01-01
+Mode                  spot · 5m
+Pairs / trades        80 / 927
+Total profit          +1377.94%  (+13,779.38 USDT)
+Win rate              99.57%  (923W / 4L / 0D)
+Max drawdown          8.99%
+Profit factor         10.44
+Runtime               26m 24s
+Official parity       NOT RUN — confirmation required
+──────────────────────────────────────────────────────────────
+HTML report           artifacts/x7-2021-2025/report.html
+Machine summary       artifacts/x7-2021-2025/summary.json
+Trades CSV            artifacts/x7-2021-2025/trades.csv
+```
+
+`report.html` is a responsive, self-contained file with an equity curve, monthly
+returns, risk and execution metrics, pair/tag/exit/year breakdowns, recent trades,
+and a large official-parity verdict. It has no web server, JavaScript runtime,
+external asset, npm, or bun dependency.
+
 Interrupted runs resume only hash-valid data and vector stages. Changed strategy,
 config, candle, market, dependency, or hardware identities invalidate the affected
 checkpoint instead of being silently reused.
@@ -220,6 +246,11 @@ nfi-bte confirm `
 
 The comparator normalizes both surfaces and stops at the first exact semantic
 difference. There is no floating-point tolerance.
+
+Successful confirmation refreshes the research directory's `summary.json` and
+`report.html` with `EXACT MATCH`. A mismatch is shown just as prominently with its
+first exact difference. The original `run.json` and `trade-surface.json` evidence
+bytes are never rewritten.
 
 The official reference lane:
 
@@ -276,7 +307,30 @@ Every run is a directory of ordinary, hash-linked files:
 | `data-seal.json` | Candle coverage, file sizes, and SHA-256 identities |
 | `simulation-result.json` | Deterministic native result |
 | `trade-surface.json` | Normalized exact-parity surface |
+| `summary.json` | Small, versioned performance/risk/execution summary |
+| `trades.csv` | Spreadsheet-ready full trade export |
+| `report.html` | Self-contained, responsive one-page result report |
 | `checkpoints/` | Hash-validated resumable stages |
+
+The three presentation files are derived views. `trade-surface.json` remains the
+parity authority, and `run.json` remains the evidence index. Regenerate presentation
+files for an older or copied run without repeating the backtest:
+
+```powershell
+nfi-bte report artifacts\x7-2021-2025
+```
+
+Attach an existing official proof while regenerating:
+
+```powershell
+nfi-bte report artifacts\x7-2021-2025 `
+  --confirmation artifacts\x7-2021-2025-official\run.json
+```
+
+Peak RSS is displayed only when a process-tree measurement exists. Ordinary runs
+show their enforced memory budget instead of inventing an observed peak. Maximum
+drawdown is explicitly labeled as closed-trade equity drawdown. See the
+[result-report contract](docs/result-report.md) for exact metric definitions.
 
 Run outcomes are intentionally small:
 
@@ -328,10 +382,13 @@ See the full [X7 support boundary](docs/x7-support.md).
 | `nfi-bte system tune` | Inspect hardware and create an execution profile |
 | `nfi-bte reference research ...` | Run the official Freqtrade oracle |
 | `nfi-bte confirm ...` | Compare an existing Freqtrade export |
+| `nfi-bte report RUN_DIRECTORY` | Regenerate HTML, JSON summary, and CSV |
 | `nfi-bte batch ...` | Run independent candidates within resource limits |
-| `nfi-bte runs list` | Inspect the durable run index |
+| `nfi-bte runs list` | Inspect the durable run index as a readable table |
 | `nfi-bte performance ...` | Repeat a same-fixture parity and resource gate |
 | `nfi-bte certify ...` | Create a release-grade evidence bundle |
+
+Add `--json` to `nfi-bte runs list` or `nfi-bte runs show` for automation.
 
 Use `nfi-bte COMMAND --help` for the complete contract.
 

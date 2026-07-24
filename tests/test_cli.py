@@ -99,6 +99,27 @@ def test_probe_capture_parser_keeps_fixture_and_work_outputs_separate() -> None:
     assert args.workers == 4
 
 
+def test_result_report_and_run_registry_machine_modes_parse() -> None:
+    parser = cli.build_parser()
+
+    report = parser.parse_args(
+        [
+            "report",
+            "artifacts/x7",
+            "--confirmation",
+            "artifacts/x7-official/run.json",
+        ]
+    )
+    runs = parser.parse_args(["runs", "list", "--limit", "5", "--json"])
+
+    assert report.command_name == "report"
+    assert report.run_directory == Path("artifacts/x7")
+    assert report.confirmation == Path("artifacts/x7-official/run.json")
+    assert runs.runs_command == "list"
+    assert runs.limit == 5
+    assert runs.json is True
+
+
 def test_futures_market_capture_loads_pinned_binance_tiers(
     monkeypatch,
     tmp_path: Path,

@@ -144,12 +144,16 @@ def test_research_prepare_is_checkpointed_and_resumable(
     assert second["pipeline_evidence"]["cold"] is False
     assert calls == 1
     assert (output / "run.json").is_file()
+    assert (output / "summary.json").is_file()
+    assert (output / "trades.csv").is_file()
+    assert (output / "report.html").is_file()
     assert (output / first["inputs"]["strategy"]["sealed"]["path"]).read_bytes() == (
         source.read_bytes()
     )
-    assert read_json(output / first["inputs"]["config"]["sealed"]["path"]) == read_json(
-        output / "effective-config.redacted.json"
-    )["config"]
+    assert (
+        read_json(output / first["inputs"]["config"]["sealed"]["path"])
+        == read_json(output / "effective-config.redacted.json")["config"]
+    )
 
 
 def test_research_backtest_reports_uncompiled_callback_blocker(

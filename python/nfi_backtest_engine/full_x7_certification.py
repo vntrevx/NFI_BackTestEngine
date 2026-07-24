@@ -47,6 +47,7 @@ from .product_contract import (
 )
 from .release_inputs import validate_release_input_lock
 from .research_reference import official_backtest_config
+from .result_report import write_result_presentation
 from .specs import FULL_X7_CERTIFICATION_SCHEMA, validate_schema
 from .timerange import parse_timerange_milliseconds
 
@@ -604,6 +605,8 @@ def _measure_engine(
     measurement["output_directory"] = output
     measurement["result_sha256"] = _engine_surface_sha(measurement)
     write_measurement_checkpoint(output, measurement)
+    if report_path.is_file():
+        write_result_presentation(output)
     return measurement
 
 

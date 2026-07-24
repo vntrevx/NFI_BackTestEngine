@@ -38,6 +38,7 @@ from .hardware import (
 from .hot_ir import HOT_IR_VERSION, build_hot_callback_ir
 from .market_snapshot import MARKET_SNAPSHOT_VERSION, capture_market_snapshot
 from .reference_runtime import load_reference_leverage_tiers
+from .result_report import write_result_presentation
 from .run_registry import RunRegistry
 from .strategy_ir import STRATEGY_IR_VERSION
 from .strategy_overrides import effective_stoploss_ratio
@@ -505,6 +506,7 @@ def run_research_backtest(
         },
     }
     write_json(output / "run.json", report)
+    write_result_presentation(output)
     if registry_path is not None:
         with RunRegistry(registry_path) as registry:
             registry.record(report, output)

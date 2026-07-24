@@ -560,14 +560,35 @@ def build_parser() -> argparse.ArgumentParser:
     confirm.add_argument("--output-dir", type=Path, required=True)
     confirm.add_argument("--strategy")
 
+    report = subcommands.add_parser(
+        "report",
+        help="build a readable HTML, JSON summary, and trades CSV for a research run",
+    )
+    report.add_argument("run_directory", type=Path)
+    report.add_argument(
+        "--confirmation",
+        type=Path,
+        help="optional confirmation.json or official reference run.json",
+    )
+
     runs = subcommands.add_parser("runs", help="inspect the durable research-run index")
     runs_commands = runs.add_subparsers(dest="runs_command", required=True)
     runs_list = runs_commands.add_parser("list", help="list recent runs")
     runs_list.add_argument("--registry", type=Path, default=Path(".nfi/runs.sqlite"))
     runs_list.add_argument("--limit", type=int, default=20)
+    runs_list.add_argument(
+        "--json",
+        action="store_true",
+        help="emit the machine-readable registry records",
+    )
     runs_show = runs_commands.add_parser("show", help="show one run and its report")
     runs_show.add_argument("run_id")
     runs_show.add_argument("--registry", type=Path, default=Path(".nfi/runs.sqlite"))
+    runs_show.add_argument(
+        "--json",
+        action="store_true",
+        help="emit the machine-readable registry record and run report",
+    )
 
     batch = subcommands.add_parser("batch", help="run independent candidate jobs safely")
     batch.add_argument("manifest", type=Path)
@@ -680,10 +701,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--runs",
         type=int,
         default=DEFAULT_CERTIFICATION_REPETITIONS,
-        help=(
-            "extends to 5 above 5%% spread; native default 3, "
-            "continuous official oracle once"
-        ),
+        help=("extends to 5 above 5%% spread; native default 3, continuous official oracle once"),
     )
     certify.add_argument(
         "--timeout",
@@ -811,38 +829,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 return 0
             if args.reference_command == "research":
-                from .research_reference import run_research_reference
-
-                report = run_research_reference(
-                    args.run_directory,
-                    args.output_dir,
-                    market_snapshot_path=args.markets,
-                    capture_markets=not args.no_market_capture,
-                    audit_timestamps_ms=args.audit_timestamp_ms,
-                    timeout_seconds=args.timeout,
-                    reference_memory_mode=args.memory_mode,
-                    reference_storage_mode=args.storage_mode,
-                    swap_cap_bytes=(
-                        int(args.swap_cap_gib * 1024**3)
-                        if args.swap_cap_gib is not None
-                        else None
-                    ),
-                )
-                print(
-                    "official research parity: "
-                    f"equal={report['exact_parity']}, "
-                    f"trades={report['official_trade_surface'] is not None}, "
-                    f"report={args.output_dir / 'run.json'}"
-                )
-                memory_verdict = report["container_memory"]["verdict"]
-                if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
-                    print(
-                        "reference container memory: "
-                        f"{memory_verdict}, peak={report['container_memory']['peak_bytes']}, "
-                        f"limit={report['container_memory']['limit_bytes']}",
-                        file=sys.stderr,
-                    )
-                return 0 if report["complete"] else 1
+                return _execute_research_reference(args)
             report = run_reference_fixture(
                 args.manifest,
                 args.output_dir,
@@ -973,9 +960,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "schema_version": "1.0.0",
                     "daemon": daemon,
                     "policy": derive_docker_policy(daemon),
-                    "managed_containers": list_managed_containers(
-                        docker_config=docker_config
-                    ),
+                    "managed_containers": list_managed_containers(docker_config=docker_config),
                     "cleaned_stopped_containers": cleaned,
                 }
                 if args.output:
@@ -993,9 +978,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 profile = create_execution_profile(
                     args.output,
                     memory_cap_bytes=(
-                        int(args.memory_cap_gib * GIB)
-                        if args.memory_cap_gib is not None
-                        else None
+                        int(args.memory_cap_gib * GIB) if args.memory_cap_gib is not None else None
                     ),
                     spool_directory=args.spool_directory,
                 )
@@ -1142,44 +1125,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
 
         if args.command_name == "confirm":
-            from .confirmation import confirm_research_run
+            return _execute_confirmation(args)
 
-            report = confirm_research_run(
-                args.run_directory,
-                args.freqtrade_export,
-                args.output_dir,
-                strategy=args.strategy,
-            )
-            if report["equal"]:
-                print(
-                    f"official exact parity: run={report['run_id']} -> "
-                    f"{args.output_dir / 'confirmation.json'}"
-                )
-                return 0
-            difference = report["difference"]
-            print(
-                f"official parity mismatch at {difference['path']}: "
-                f"{difference['reason']} -> {args.output_dir / 'confirmation.json'}",
-                file=sys.stderr,
-            )
-            return 1
+        if args.command_name == "report":
+            return _execute_result_report(args)
 
         if args.command_name == "runs":
-            from .run_registry import RunRegistry
-
-            with RunRegistry(args.registry) as registry:
-                if args.runs_command == "list":
-                    records = registry.list(limit=args.limit)
-                    print(json.dumps(records, ensure_ascii=False, indent=2))
-                else:
-                    print(
-                        json.dumps(
-                            registry.show(args.run_id),
-                            ensure_ascii=False,
-                            indent=2,
-                        )
-                    )
-            return 0
+            return _execute_run_registry(args)
 
         if args.command_name == "batch":
             from .batch_runner import run_batch
@@ -1329,9 +1281,7 @@ def _execute_certification(args: argparse.Namespace) -> int:
         }
         missing = [name for name, value in required.items() if value is None]
         if missing:
-            raise SpecValidationError(
-                "Full X7 certification requires " + ", ".join(missing)
-            )
+            raise SpecValidationError("Full X7 certification requires " + ", ".join(missing))
         report = run_full_x7_certification(
             args.manifest,
             args.output_dir,
@@ -1349,9 +1299,7 @@ def _execute_certification(args: argparse.Namespace) -> int:
             official_oracle_directory=args.official_oracle,
             resume=args.resume,
             swap_cap_bytes=(
-                int(args.swap_cap_gib * 1024**3)
-                if args.swap_cap_gib is not None
-                else None
+                int(args.swap_cap_gib * 1024**3) if args.swap_cap_gib is not None else None
             ),
         )
         print(
@@ -1443,11 +1391,7 @@ def _execute_market_capture(args: argparse.Namespace) -> int:
         }
     elif config.get("trading_mode") == "futures":
         exchange = config.get("exchange")
-        exchange_name = (
-            str(exchange.get("name", "")).lower()
-            if isinstance(exchange, dict)
-            else ""
-        )
+        exchange_name = str(exchange.get("name", "")).lower() if isinstance(exchange, dict) else ""
         if exchange_name != "binance":
             raise NfiBacktestError(
                 "automatic futures leverage-tier capture requires Binance; "
@@ -1474,6 +1418,112 @@ def _execute_market_capture(args: argparse.Namespace) -> int:
     return 0
 
 
+def _execute_research_reference(args: argparse.Namespace) -> int:
+    from .research_reference import run_research_reference
+    from .result_report import format_terminal_summary, write_result_presentation
+
+    report = run_research_reference(
+        args.run_directory,
+        args.output_dir,
+        market_snapshot_path=args.markets,
+        capture_markets=not args.no_market_capture,
+        audit_timestamps_ms=args.audit_timestamp_ms,
+        timeout_seconds=args.timeout,
+        reference_memory_mode=args.memory_mode,
+        reference_storage_mode=args.storage_mode,
+        swap_cap_bytes=(
+            int(args.swap_cap_gib * 1024**3) if args.swap_cap_gib is not None else None
+        ),
+    )
+    summary = write_result_presentation(
+        args.run_directory,
+        verification=report,
+        verification_path=args.output_dir / "run.json",
+    )
+    print(
+        "official research parity: "
+        f"equal={report['exact_parity']}, "
+        f"trades={report['official_trade_surface'] is not None}, "
+        f"report={args.output_dir / 'run.json'}"
+    )
+    print(format_terminal_summary(summary, args.run_directory))
+    memory_verdict = report["container_memory"]["verdict"]
+    if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
+        print(
+            "reference container memory: "
+            f"{memory_verdict}, peak={report['container_memory']['peak_bytes']}, "
+            f"limit={report['container_memory']['limit_bytes']}",
+            file=sys.stderr,
+        )
+    return 0 if report["complete"] else 1
+
+
+def _execute_confirmation(args: argparse.Namespace) -> int:
+    from .confirmation import confirm_research_run
+    from .result_report import format_terminal_summary, write_result_presentation
+
+    report = confirm_research_run(
+        args.run_directory,
+        args.freqtrade_export,
+        args.output_dir,
+        strategy=args.strategy,
+    )
+    confirmation_path = args.output_dir / "confirmation.json"
+    summary = write_result_presentation(
+        args.run_directory,
+        verification=report,
+        verification_path=confirmation_path,
+    )
+    if report["equal"]:
+        print(f"official exact parity: run={report['run_id']} -> {confirmation_path}")
+    else:
+        difference = report["difference"]
+        print(
+            f"official parity mismatch at {difference['path']}: "
+            f"{difference['reason']} -> {confirmation_path}",
+            file=sys.stderr,
+        )
+    print(format_terminal_summary(summary, args.run_directory))
+    return 0 if report["equal"] else 1
+
+
+def _execute_result_report(args: argparse.Namespace) -> int:
+    from .result_report import format_terminal_summary, write_result_presentation
+
+    verification = read_json(args.confirmation) if args.confirmation else None
+    if verification is not None and not isinstance(verification, dict):
+        raise NfiBacktestError("confirmation report must be a JSON object")
+    summary = write_result_presentation(
+        args.run_directory,
+        verification=verification,
+        verification_path=args.confirmation,
+    )
+    print(format_terminal_summary(summary, args.run_directory))
+    return 0
+
+
+def _execute_run_registry(args: argparse.Namespace) -> int:
+    from .result_report import format_run_list, format_run_record
+    from .run_registry import RunRegistry
+
+    with RunRegistry(args.registry) as registry:
+        if args.runs_command == "list":
+            records = registry.list(limit=args.limit)
+            print(
+                json.dumps(records, ensure_ascii=False, indent=2)
+                if args.json
+                else format_run_list(records)
+            )
+        else:
+            record = registry.show(args.run_id)
+            print(
+                json.dumps(record, ensure_ascii=False, indent=2)
+                if args.json
+                else format_run_record(record)
+            )
+    return 0
+
+
 def _execute_research_backtest(
     arguments: dict[str, Any],
     *,
@@ -1488,6 +1538,7 @@ def _execute_research_backtest(
 ) -> int:
     """Run the existing research contract for advanced and wizard-backed commands."""
     from .research_runner import run_research_backtest
+    from .result_report import format_terminal_summary, load_result_summary
 
     report = run_research_backtest(
         **arguments,
@@ -1501,13 +1552,20 @@ def _execute_research_backtest(
         history_coverage_policy=history_coverage_policy,
     )
     output = Path(arguments["output_directory"])
-    print(
-        f"research backtest: status={report['status']}, "
-        f"pairs={report['vectors']['pair_count']}, "
-        f"cache_hits={report['vectors']['cache_hits']}, "
-        f"resumed={','.join(report['resumed_stages']) or 'none'} -> "
-        f"{output / 'run.json'}"
-    )
+    if (output / "summary.json").is_file():
+        summary = load_result_summary(output)
+        print(format_terminal_summary(summary, output))
+    else:
+        # Third-party wrappers may substitute the research runner and return only
+        # its historical dictionary contract. Keep that integration usable while
+        # native runs always produce the richer presentation files.
+        print(
+            f"research backtest: status={report['status']}, "
+            f"pairs={report['vectors']['pair_count']}, "
+            f"cache_hits={report['vectors']['cache_hits']}, "
+            f"resumed={','.join(report['resumed_stages']) or 'none'} -> "
+            f"{output / 'run.json'}"
+        )
     if not report["complete"] and not report["prepared_only"]:
         for blocker in report["capability"]["blockers"]:
             detail = blocker.get("callback", "")

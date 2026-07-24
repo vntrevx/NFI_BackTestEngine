@@ -90,6 +90,9 @@ class RunRegistry:
         return [dict(row) for row in rows]
 
     def show(self, run_id: str) -> dict[str, Any]:
+        requested_id = run_id.strip()
+        if not requested_id:
+            raise BenchmarkError("run id must not be empty")
         row = self.connection.execute(
             """
             SELECT run_id, status, output_directory, strategy_class, strategy_sha256,
@@ -97,10 +100,27 @@ class RunRegistry:
             FROM research_runs
             WHERE run_id = ?
             """,
-            (run_id,),
+            (requested_id,),
         ).fetchone()
         if row is None:
-            raise BenchmarkError(f"run registry does not contain: {run_id}")
+            # Human-readable listings deliberately abbreviate the SHA-256 run ID.
+            # Resolve that displayed prefix only when it identifies one run.
+            prefix_rows = self.connection.execute(
+                """
+                SELECT run_id, status, output_directory, strategy_class, strategy_sha256,
+                       config_sha256, pair_count, trade_count, updated_at
+                FROM research_runs
+                WHERE substr(run_id, 1, length(?)) = ?
+                ORDER BY run_id
+                LIMIT 2
+                """,
+                (requested_id, requested_id),
+            ).fetchall()
+            if len(prefix_rows) > 1:
+                raise BenchmarkError(f"run id prefix is ambiguous: {requested_id}")
+            row = prefix_rows[0] if prefix_rows else None
+        if row is None:
+            raise BenchmarkError(f"run registry does not contain: {requested_id}")
         record = dict(row)
         run_path = Path(record["output_directory"]) / "run.json"
         record["report"] = read_json(run_path) if run_path.is_file() else None
