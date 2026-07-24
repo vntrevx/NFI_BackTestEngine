@@ -107,3 +107,33 @@ def test_summary_represents_a_safe_block_without_fake_trading_metrics() -> None:
             "message": "new callback shape",
         }
     ]
+
+
+def test_pair_breakdown_includes_configured_pairs_without_trades() -> None:
+    run = _run_report()
+    run["vectors"]["pair_count"] = 2
+    run["execution"]["workload_calibration"] = {
+        "identity": {
+            "pairs": [
+                {"pair": "BTC/USDT"},
+                {"pair": "ETH/USDT"},
+            ]
+        }
+    }
+
+    summary = build_result_summary(run, read_json(FIXTURE))
+    pairs = {row["pair"]: row for row in summary["breakdowns"]["by_pair"]}
+
+    assert pairs["BTC/USDT"]["trades"] == 6
+    assert pairs["ETH/USDT"] == {
+        "pair": "ETH/USDT",
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0,
+        "profit_abs": 0.0,
+        "profit_ratio_sum": 0.0,
+        "average_profit_ratio": 0.0,
+        "average_duration_minutes": 0.0,
+    }

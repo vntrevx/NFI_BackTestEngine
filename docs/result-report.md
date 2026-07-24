@@ -88,6 +88,19 @@ Bind an existing proof explicitly:
 nfi-bte report RESULT_DIR --confirmation CONFIRM_DIR/confirmation.json
 ```
 
+The default terminal card is intentionally compact. Print complete
+Freqtrade-style pair, entry-tag, and exit-reason tables when investigating a run:
+
+```bash
+nfi-bte report RESULT_DIR --full-report
+nfi-bte runs show RUN_ID --full-report
+```
+
+Each table includes trade count, average profit, absolute profit, win rate,
+win/draw/loss counts, and a total row. Every group is printed. Terminal-only
+labels longer than 48 characters are shortened with an ellipsis; exact labels
+remain available in `summary.json` and `trades.csv`.
+
 The durable run index is human-readable by default:
 
 ```bash

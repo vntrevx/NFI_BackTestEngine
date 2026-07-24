@@ -71,6 +71,14 @@ def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_full_report_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--full-report",
+        action="store_true",
+        help="append complete pair, entry-tag, and exit-reason tables to terminal output",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nfi-bte")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -295,6 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help="optional certification swap cap; never increases the detected daemon capacity",
     )
+    _add_full_report_argument(reference_research)
     reference_capture = reference_commands.add_parser(
         "capture-markets",
         help="capture and freeze CCXT markets for later offline reference runs",
@@ -355,6 +364,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="require --markets instead of capturing public market metadata",
     )
+    _add_full_report_argument(run)
 
     system = subcommands.add_parser("system", help="inspect and tune this computer")
     system_commands = system.add_subparsers(dest="system_command", required=True)
@@ -550,6 +560,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="available",
         help="accept post-listing starts or require every pair at the range start",
     )
+    _add_full_report_argument(backtest)
 
     confirm = subcommands.add_parser(
         "confirm",
@@ -559,6 +570,7 @@ def build_parser() -> argparse.ArgumentParser:
     confirm.add_argument("freqtrade_export", type=Path)
     confirm.add_argument("--output-dir", type=Path, required=True)
     confirm.add_argument("--strategy")
+    _add_full_report_argument(confirm)
 
     report = subcommands.add_parser(
         "report",
@@ -570,6 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="optional confirmation.json or official reference run.json",
     )
+    _add_full_report_argument(report)
 
     runs = subcommands.add_parser("runs", help="inspect the durable research-run index")
     runs_commands = runs.add_subparsers(dest="runs_command", required=True)
@@ -589,6 +602,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="emit the machine-readable registry record and run report",
     )
+    _add_full_report_argument(runs_show)
 
     batch = subcommands.add_parser("batch", help="run independent candidate jobs safely")
     batch.add_argument("manifest", type=Path)
@@ -929,6 +943,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 download_market_metadata=not args.no_market_download,
                 recalibrate=args.recalibrate,
                 history_coverage_policy=args.history_coverage,
+                full_report=args.full_report,
             )
 
         if args.command_name == "system":
@@ -1122,6 +1137,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 download_market_metadata=not args.no_market_download,
                 recalibrate=args.recalibrate,
                 history_coverage_policy=args.history_coverage,
+                full_report=args.full_report,
             )
 
         if args.command_name == "confirm":
@@ -1446,7 +1462,13 @@ def _execute_research_reference(args: argparse.Namespace) -> int:
         f"trades={report['official_trade_surface'] is not None}, "
         f"report={args.output_dir / 'run.json'}"
     )
-    print(format_terminal_summary(summary, args.run_directory))
+    print(
+        format_terminal_summary(
+            summary,
+            args.run_directory,
+            include_breakdowns=args.full_report,
+        )
+    )
     memory_verdict = report["container_memory"]["verdict"]
     if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
         print(
@@ -1483,7 +1505,13 @@ def _execute_confirmation(args: argparse.Namespace) -> int:
             f"{difference['reason']} -> {confirmation_path}",
             file=sys.stderr,
         )
-    print(format_terminal_summary(summary, args.run_directory))
+    print(
+        format_terminal_summary(
+            summary,
+            args.run_directory,
+            include_breakdowns=args.full_report,
+        )
+    )
     return 0 if report["equal"] else 1
 
 
@@ -1498,7 +1526,13 @@ def _execute_result_report(args: argparse.Namespace) -> int:
         verification=verification,
         verification_path=args.confirmation,
     )
-    print(format_terminal_summary(summary, args.run_directory))
+    print(
+        format_terminal_summary(
+            summary,
+            args.run_directory,
+            include_breakdowns=args.full_report,
+        )
+    )
     return 0
 
 
@@ -1519,7 +1553,10 @@ def _execute_run_registry(args: argparse.Namespace) -> int:
             print(
                 json.dumps(record, ensure_ascii=False, indent=2)
                 if args.json
-                else format_run_record(record)
+                else format_run_record(
+                    record,
+                    include_breakdowns=args.full_report,
+                )
             )
     return 0
 
@@ -1535,6 +1572,7 @@ def _execute_research_backtest(
     download_market_metadata: bool,
     recalibrate: bool,
     history_coverage_policy: str,
+    full_report: bool,
 ) -> int:
     """Run the existing research contract for advanced and wizard-backed commands."""
     from .research_runner import run_research_backtest
@@ -1554,7 +1592,13 @@ def _execute_research_backtest(
     output = Path(arguments["output_directory"])
     if (output / "summary.json").is_file():
         summary = load_result_summary(output)
-        print(format_terminal_summary(summary, output))
+        print(
+            format_terminal_summary(
+                summary,
+                output,
+                include_breakdowns=full_report,
+            )
+        )
     else:
         # Third-party wrappers may substitute the research runner and return only
         # its historical dictionary contract. Keep that integration usable while

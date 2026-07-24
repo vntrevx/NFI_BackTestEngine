@@ -229,6 +229,10 @@ def build_result_summary(
         ),
     }
     by_pair = _group(trades, "pair", "pair")
+    grouped_pairs = {str(row["pair"]) for row in by_pair}
+    for pair in _configured_pair_names(run_report):
+        if pair not in grouped_pairs:
+            by_pair.append(_Aggregate().export("pair", pair))
     by_entry_tag = _group(
         trades,
         "entry_tag",
@@ -465,6 +469,30 @@ def _group_by_period(
         equity += aggregate.profit_abs
         row["ending_equity"] = _number(equity)
         result.append(row)
+    return result
+
+
+def _configured_pair_names(run_report: Mapping[str, Any]) -> list[str]:
+    """Read the sealed workload pair order without depending on candle files."""
+
+    execution = _mapping(run_report, "execution")
+    calibration = _mapping(execution, "workload_calibration")
+    identity = _mapping(calibration, "identity")
+    raw_pairs = identity.get("pairs")
+    if not isinstance(raw_pairs, list):
+        return []
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in raw_pairs:
+        if isinstance(item, Mapping):
+            pair = str(item.get("pair", "")).strip()
+        elif isinstance(item, str):
+            pair = item.strip()
+        else:
+            continue
+        if pair and pair not in seen:
+            seen.add(pair)
+            result.append(pair)
     return result
 
 

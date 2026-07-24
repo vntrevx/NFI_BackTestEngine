@@ -188,6 +188,34 @@ Machine summary       artifacts/x7-2021-2025/summary.json
 Trades CSV            artifacts/x7-2021-2025/trades.csv
 ```
 
+The compact card is the default so routine runs remain easy to scan. Add
+`--full-report` when you want Freqtrade-style terminal tables:
+
+```powershell
+nfi-bte run --full-report
+```
+
+```text
+PAIR PERFORMANCE · 80 rows
+PAIR        TRADES  AVG PROFIT     TOTAL PROFIT  WIN RATE    W / D / L
+──────────  ──────  ──────────  ───────────────  ────────  ───────────
+DASH/USDT       34      +2.35%   +1,396.01 USDT   100.00%   34 / 0 / 0
+ZEC/USDT        39      +2.13%   +1,188.98 USDT   100.00%   39 / 0 / 0
+...
+TOTAL          927      +2.36%  +13,779.38 USDT    99.57%  923 / 0 / 4
+```
+
+The full output includes every pair, exact entry-tag group, and exit-reason group,
+plus a total row for each table. It can be long for NFI strategies with dynamic
+exit reasons. Long names are shortened only for terminal layout; `summary.json`
+and `trades.csv` retain the exact strings. You can also inspect an existing result
+without rerunning the backtest:
+
+```powershell
+nfi-bte report artifacts\x7-2021-2025 --full-report
+nfi-bte runs show RUN_ID --full-report
+```
+
 `report.html` is a responsive, self-contained file with an equity curve, monthly
 returns, risk and execution metrics, pair/tag/exit/year breakdowns, recent trades,
 and a large official-parity verdict. It has no web server, JavaScript runtime,
@@ -383,6 +411,7 @@ See the full [X7 support boundary](docs/x7-support.md).
 | `nfi-bte reference research ...` | Run the official Freqtrade oracle |
 | `nfi-bte confirm ...` | Compare an existing Freqtrade export |
 | `nfi-bte report RUN_DIRECTORY` | Regenerate HTML, JSON summary, and CSV |
+| `nfi-bte report RUN_DIRECTORY --full-report` | Print pair, entry-tag, and exit-reason tables |
 | `nfi-bte batch ...` | Run independent candidates within resource limits |
 | `nfi-bte runs list` | Inspect the durable run index as a readable table |
 | `nfi-bte performance ...` | Repeat a same-fixture parity and resource gate |

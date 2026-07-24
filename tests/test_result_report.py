@@ -97,6 +97,20 @@ def test_report_writes_html_json_and_csv_without_mutating_evidence(tmp_path: Pat
     assert "Pairs / trades        1 / 6" in terminal
     assert "Official parity       NOT RUN" in terminal
     assert str(run / "report.html") in terminal
+    assert "PAIR PERFORMANCE" not in terminal
+
+    full_terminal = format_terminal_summary(
+        summary,
+        run,
+        include_breakdowns=True,
+    )
+    assert "PAIR PERFORMANCE · 1 rows" in full_terminal
+    assert "ENTRY TAG PERFORMANCE" in full_terminal
+    assert "EXIT REASON PERFORMANCE" in full_terminal
+    assert "BTC/USDT" in full_terminal
+    assert "AVG PROFIT" in full_terminal
+    assert "W / D / L" in full_terminal
+    assert "TOTAL" in full_terminal
 
 
 def test_confirmation_refreshes_only_derived_presentation(tmp_path: Path) -> None:

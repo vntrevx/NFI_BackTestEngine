@@ -22,6 +22,7 @@ from .specs import validate_trade_surface
 SUMMARY_FILENAME = "summary.json"
 TRADES_FILENAME = "trades.csv"
 HTML_FILENAME = "report.html"
+_TERMINAL_BREAKDOWN_NAME_LIMIT = 48
 
 _CSV_FIELDS = (
     "sequence",
@@ -140,8 +141,10 @@ def load_result_summary(run_directory: str | Path) -> dict[str, Any]:
 def format_terminal_summary(
     summary: Mapping[str, Any],
     run_directory: str | Path,
+    *,
+    include_breakdowns: bool = False,
 ) -> str:
-    """Render the compact report printed after a backtest or report refresh."""
+    """Render the compact result and optional Freqtrade-style detail tables."""
 
     run = _mapping(summary, "run")
     performance = _mapping(summary, "performance")
@@ -217,6 +220,10 @@ def format_terminal_summary(
                         f"{blocker.get('code', 'UNKNOWN')}: {blocker.get('message', '')}",
                     )
                 )
+    if include_breakdowns:
+        detail = format_terminal_breakdowns(summary)
+        if detail:
+            lines.extend(["", detail])
     lines.extend(
         [
             "─" * 62,
@@ -226,6 +233,112 @@ def format_terminal_summary(
         ]
     )
     return "\n".join(lines)
+
+
+def format_terminal_breakdowns(summary: Mapping[str, Any]) -> str:
+    """Render complete pair, entry-tag, and exit-reason performance tables."""
+
+    performance = _mapping(summary, "performance")
+    activity = _mapping(summary, "activity")
+    breakdowns = _mapping(summary, "breakdowns")
+    if not performance or not activity:
+        return ""
+    currency = _summary_currency(summary)
+    total = {
+        "trades": activity.get("trades"),
+        "wins": activity.get("wins"),
+        "losses": activity.get("losses"),
+        "draws": activity.get("draws"),
+        "win_rate": activity.get("win_rate"),
+        "profit_abs": performance.get("profit_total_abs"),
+        "average_profit_ratio": performance.get("average_profit_ratio"),
+    }
+    definitions = (
+        ("PAIR PERFORMANCE", "PAIR", "pair", breakdowns.get("by_pair")),
+        (
+            "ENTRY TAG PERFORMANCE",
+            "ENTRY TAG",
+            "entry_tag",
+            breakdowns.get("by_entry_tag"),
+        ),
+        (
+            "EXIT REASON PERFORMANCE",
+            "EXIT REASON",
+            "exit_reason",
+            breakdowns.get("by_exit_reason"),
+        ),
+    )
+    tables = [
+        _terminal_breakdown_table(
+            value,
+            title=title,
+            name_header=name_header,
+            key=key,
+            currency=currency,
+            total=total,
+        )
+        for title, name_header, key, value in definitions
+    ]
+    return "\n\n".join(table for table in tables if table)
+
+
+def _terminal_breakdown_table(
+    value: Any,
+    *,
+    title: str,
+    name_header: str,
+    key: str,
+    currency: str | None,
+    total: Mapping[str, Any],
+) -> str:
+    raw_rows = [row for row in value if isinstance(row, Mapping)] if isinstance(value, list) else []
+    if not raw_rows:
+        return ""
+
+    def cells(row: Mapping[str, Any], name: str) -> tuple[str, ...]:
+        return (
+            name,
+            _integer_text(row.get("trades")),
+            _signed_percent(row.get("average_profit_ratio")),
+            _signed_money(row.get("profit_abs"), currency),
+            _percent(row.get("win_rate")),
+            (
+                f"{_integer_text(row.get('wins'))} / "
+                f"{_integer_text(row.get('draws'))} / "
+                f"{_integer_text(row.get('losses'))}"
+            ),
+        )
+
+    rows = [cells(row, str(row.get(key, "(none)"))) for row in raw_rows]
+    total_cells = cells(total, "TOTAL")
+    headers = (name_header, "TRADES", "AVG PROFIT", "TOTAL PROFIT", "WIN RATE", "W / D / L")
+    all_rows = [*rows, total_cells]
+    widths = [
+        max(len(headers[index]), *(len(row[index]) for row in all_rows))
+        for index in range(len(headers))
+    ]
+    widths[0] = min(widths[0], _TERMINAL_BREAKDOWN_NAME_LIMIT)
+
+    def render(row: tuple[str, ...]) -> str:
+        values = list(row)
+        values[0] = _truncate(values[0], widths[0])
+        return "  ".join(
+            value.ljust(widths[index]) if index == 0 else value.rjust(widths[index])
+            for index, value in enumerate(values)
+        )
+
+    header = render(headers)
+    separator = "  ".join("─" * width for width in widths)
+    return "\n".join(
+        [
+            f"{title} · {len(rows)} rows",
+            header,
+            separator,
+            *(render(row) for row in rows),
+            separator,
+            render(total_cells),
+        ]
+    )
 
 
 def format_run_list(records: Sequence[Mapping[str, Any]]) -> str:
@@ -264,7 +377,11 @@ def format_run_list(records: Sequence[Mapping[str, Any]]) -> str:
     return "\n".join(rows)
 
 
-def format_run_record(record: Mapping[str, Any]) -> str:
+def format_run_record(
+    record: Mapping[str, Any],
+    *,
+    include_breakdowns: bool = False,
+) -> str:
     report = record.get("report")
     if not isinstance(report, Mapping):
         return (
@@ -278,7 +395,11 @@ def format_run_record(record: Mapping[str, Any]) -> str:
     if summary_path.is_file():
         summary = read_json(summary_path)
         if isinstance(summary, dict):
-            return format_terminal_summary(summary, output)
+            return format_terminal_summary(
+                summary,
+                output,
+                include_breakdowns=include_breakdowns,
+            )
     return (
         f"Run {record.get('run_id', 'unknown')}\n"
         f"Status: {record.get('status', 'unknown')}\n"
@@ -572,105 +693,139 @@ def _render_html(
   <title>{_escape(title)}</title>
   <style>
     :root {{
-      color-scheme: dark;
-      --bg: #07100f;
-      --panel: #0d1917;
-      --panel-2: #11211e;
-      --line: #233733;
-      --text: #edf5f1;
-      --muted: #91a49e;
-      --accent: #58e6b0;
-      --accent-soft: rgba(88, 230, 176, .12);
-      --negative: #ff7b86;
-      --negative-soft: rgba(255, 123, 134, .12);
-      --warning: #f5c96a;
-      --info: #80bfff;
-      --radius: 18px;
+      color-scheme: light;
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-2: #f5f6f3;
+      --line: #d9ddd9;
+      --line-strong: #838b85;
+      --text: #151815;
+      --muted: #69716c;
+      --accent: #087a4b;
+      --negative: #b4232f;
+      --warning: #946200;
+      --info: #245f96;
     }}
     * {{ box-sizing: border-box; }}
     body {{
       margin: 0;
-      background:
-        radial-gradient(circle at 12% -10%, rgba(88,230,176,.13), transparent 33rem),
-        var(--bg);
+      background: var(--bg);
       color: var(--text);
-      font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       font-variant-numeric: tabular-nums;
     }}
-    main {{ width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 42px 0 80px; }}
+    main {{ width: min(1320px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 64px; }}
     header {{
       display: flex; justify-content: space-between; gap: 28px; align-items: flex-start;
-      margin-bottom: 28px;
+      padding: 20px 0 24px; border-top: 3px solid var(--text);
+      border-bottom: 1px solid var(--line-strong);
     }}
     .eyebrow {{
-      color: var(--accent); font-size: 12px; font-weight: 750; letter-spacing: .16em;
-      text-transform: uppercase; margin-bottom: 8px;
+      color: var(--muted); font: 600 11px/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px;
     }}
-    h1 {{ margin: 0; font-size: clamp(30px, 5vw, 54px); line-height: 1.02; letter-spacing: -.045em; }}
-    h2 {{ margin: 0 0 4px; font-size: 20px; letter-spacing: -.025em; }}
-    h3 {{ margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; }}
-    .subhead {{ margin: 14px 0 0; color: var(--muted); max-width: 760px; }}
+    h1 {{ margin: 0; font-size: clamp(28px, 3.4vw, 42px); line-height: 1.08; letter-spacing: -.035em; font-weight: 680; }}
+    h2 {{ margin: 0 0 3px; font-size: 17px; letter-spacing: -.01em; font-weight: 680; }}
+    h3 {{
+      margin: 0; color: var(--muted);
+      font: 500 11px/1.4 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }}
+    .subhead {{ margin: 10px 0 0; color: var(--muted); max-width: 760px; }}
     .badge {{
-      flex: none; padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px;
-      font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      flex: none; display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border: 1px solid var(--line-strong); background: var(--panel);
+      font: 700 11px/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .08em; text-transform: uppercase;
     }}
-    .badge.good {{ color: var(--accent); background: var(--accent-soft); border-color: rgba(88,230,176,.3); }}
-    .badge.warn {{ color: var(--warning); background: rgba(245,201,106,.1); }}
-    .badge.info {{ color: var(--info); background: rgba(128,191,255,.1); }}
-    .badge.bad {{ color: var(--negative); background: var(--negative-soft); }}
-    .meta {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 30px; }}
-    .pill {{ border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 7px 11px; }}
-    .metrics {{ display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 12px; }}
-    .metric, .panel {{
-      background: linear-gradient(145deg, rgba(17,33,30,.96), rgba(10,20,18,.98));
-      border: 1px solid var(--line); border-radius: var(--radius);
+    .badge::before {{ content: ""; width: 6px; height: 6px; background: currentColor; }}
+    .badge.good {{ color: var(--accent); }}
+    .badge.warn {{ color: var(--warning); }}
+    .badge.info {{ color: var(--info); }}
+    .badge.bad {{ color: var(--negative); }}
+    .meta {{
+      display: grid; grid-template-columns: 1.35fr .8fr .65fr .65fr 1fr;
+      margin: 0 0 22px; border: 1px solid var(--line); border-top: 0;
+      background: var(--line); gap: 1px;
     }}
-    .metric {{ padding: 18px; min-height: 128px; }}
-    .metric .label {{ color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }}
-    .metric .value {{ margin-top: 12px; font-size: clamp(20px, 2vw, 30px); font-weight: 760; letter-spacing: -.035em; white-space: nowrap; }}
-    .metric .note {{ margin-top: 5px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+    .meta-item {{ min-width: 0; padding: 10px 12px; background: var(--panel); }}
+    .meta-item span {{
+      display: block; margin-bottom: 2px; color: var(--muted);
+      font: 500 10px/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .08em; text-transform: uppercase;
+    }}
+    .meta-item strong {{ display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }}
+    .metrics {{
+      display: grid; grid-template-columns: repeat(6, minmax(0,1fr));
+      gap: 1px; padding: 1px; background: var(--line);
+    }}
+    .metric {{ padding: 17px 16px; min-height: 112px; background: var(--panel); }}
+    .metric .label {{
+      color: var(--muted);
+      font: 600 10px/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      text-transform: uppercase; letter-spacing: .08em;
+    }}
+    .metric .value {{ margin-top: 11px; font-size: clamp(19px, 1.8vw, 27px); font-weight: 690; letter-spacing: -.03em; white-space: nowrap; }}
+    .metric .note {{ margin-top: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
     .positive {{ color: var(--accent); }} .negative {{ color: var(--negative); }}
-    .grid-2 {{ display: grid; grid-template-columns: 1.45fr 1fr; gap: 14px; margin-top: 14px; }}
-    .grid-3 {{ display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; margin-top: 14px; }}
-    .panel {{ padding: 20px; min-width: 0; }}
-    .panel-head {{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }}
+    .grid-2 {{ display: grid; grid-template-columns: 1.45fr 1fr; gap: 10px; margin-top: 10px; }}
+    .grid-3 {{ display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 10px; }}
+    .panel {{ min-width: 0; padding: 18px; border: 1px solid var(--line); background: var(--panel); }}
+    .panel-head {{
+      display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+      margin-bottom: 16px; padding-bottom: 11px; border-bottom: 1px solid var(--line);
+    }}
     .panel-head p {{ margin: 0; color: var(--muted); font-size: 12px; }}
     svg {{ display: block; width: 100%; height: auto; overflow: visible; }}
-    .verification {{ display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }}
+    .verification {{ display: grid; grid-template-columns: auto 1fr; gap: 13px; align-items: center; }}
     .seal {{
-      width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
-      font-size: 24px; font-weight: 900; border: 1px solid var(--line);
+      width: 42px; height: 42px; display: grid; place-items: center;
+      font: 800 20px/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      border: 1px solid currentColor;
     }}
-    .seal.good {{ color: var(--accent); background: var(--accent-soft); }}
-    .seal.warn {{ color: var(--warning); background: rgba(245,201,106,.1); }}
-    .seal.bad {{ color: var(--negative); background: var(--negative-soft); }}
-    .verification strong {{ display: block; font-size: 18px; }}
-    .verification span {{ color: var(--muted); font-size: 13px; }}
-    dl {{ display: grid; grid-template-columns: 1fr auto; gap: 11px 16px; margin: 0; }}
-    dt {{ color: var(--muted); }} dd {{ margin: 0; font-weight: 650; text-align: right; }}
+    .seal.good {{ color: var(--accent); }} .seal.warn {{ color: var(--warning); }} .seal.bad {{ color: var(--negative); }}
+    .verification strong {{ display: block; margin-bottom: 2px; font-size: 16px; letter-spacing: .01em; }}
+    .verification span {{ color: var(--muted); font-size: 12px; }}
+    dl {{ display: grid; grid-template-columns: 1fr auto; gap: 0 16px; margin: 0; }}
+    dt, dd {{ padding: 7px 0; border-bottom: 1px solid var(--line); }}
+    dt {{ color: var(--muted); }} dd {{ margin: 0; font-weight: 620; text-align: right; }}
     .table-wrap {{ overflow-x: auto; }}
     table {{ width: 100%; border-collapse: collapse; }}
-    th {{ color: var(--muted); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; text-align: right; padding: 0 10px 10px; }}
+    th {{
+      color: var(--muted);
+      font: 600 10px/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .06em; text-transform: uppercase; text-align: right; padding: 0 9px 9px;
+    }}
     th:first-child, td:first-child {{ text-align: left; padding-left: 0; }}
-    td {{ padding: 10px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }}
+    td {{ padding: 8px 9px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; font-size: 12px; }}
+    tbody tr:hover {{ background: var(--panel-2); }}
     td.name {{ max-width: 290px; overflow: hidden; text-overflow: ellipsis; }}
     .blocked {{ border-left: 3px solid var(--warning); }}
     .blocked code {{ color: var(--warning); }}
     code {{ font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; }}
     a {{ color: var(--accent); text-decoration: none; }} a:hover {{ text-decoration: underline; }}
-    .evidence {{ display: flex; flex-wrap: wrap; gap: 10px; }}
-    .evidence a {{ border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }}
-    footer {{ margin-top: 18px; color: var(--muted); font-size: 12px; }}
+    .evidence {{ display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line); }}
+    .evidence a {{
+      padding: 9px 11px; background: var(--panel-2);
+      font: 600 10px/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .04em; text-transform: uppercase;
+    }}
+    footer {{ margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }}
     @media (max-width: 1180px) {{ .metrics {{ grid-template-columns: repeat(3,1fr); }} }}
     @media (max-width: 820px) {{
-      main {{ width: min(100% - 24px, 1440px); padding-top: 24px; }}
-      header {{ display: block; }} header .badge {{ display: inline-block; margin-top: 18px; }}
+      main {{ width: min(100% - 24px, 1320px); padding-top: 14px; }}
+      header {{ display: block; }} header .badge {{ margin-top: 16px; }}
+      .meta {{ grid-template-columns: repeat(2, 1fr); }}
+      .meta-item:last-child:nth-child(odd) {{ grid-column: 1 / -1; }}
       .metrics {{ grid-template-columns: repeat(2,1fr); }}
       .grid-2, .grid-3 {{ grid-template-columns: 1fr; }}
     }}
-    @media (max-width: 500px) {{ .metrics {{ grid-template-columns: 1fr; }} .metric {{ min-height: 0; }} }}
+    @media (max-width: 500px) {{
+      .metric {{ min-height: 100px; padding: 14px 12px; }}
+      .metric .value {{ font-size: 19px; white-space: normal; }}
+      .panel {{ padding: 14px; }}
+    }}
+    @media (max-width: 350px) {{ .metrics, .meta {{ grid-template-columns: 1fr; }} }}
     @media print {{
-      :root {{ color-scheme: light; --bg:#fff; --panel:#fff; --panel-2:#fff; --line:#d8dfdc; --text:#111; --muted:#566; }}
       body {{ background: white; }} main {{ width: 100%; padding: 0; }}
       .metric, .panel {{ break-inside: avoid; }} a {{ color: #075; }}
     }}
@@ -682,16 +837,16 @@ def _render_html(
     <div>
       <div class="eyebrow">NFI Backtest Engine · Result report</div>
       <h1>{_escape(run.get("strategy") or "Unknown strategy")}</h1>
-      <p class="subhead">A compact view of native research results. Exact parity evidence remains in the linked JSON artifacts.</p>
+      <p class="subhead">Native simulation summary. Source artifacts remain hash-bound and unchanged.</p>
     </div>
     <div class="badge {status_class}">{_escape(_status_label(status))}</div>
   </header>
   <div class="meta">
-    <span class="pill">{_escape(_format_timerange(context.get("timerange")))}</span>
-    <span class="pill">{_escape(_mode_label(context))}</span>
-    <span class="pill">{_integer_text(run.get("pair_count"))} pairs</span>
-    <span class="pill">{_integer_text(activity.get("trades"))} trades</span>
-    <span class="pill">Run {_escape(str(run.get("id") or "unknown")[:12])}</span>
+    <div class="meta-item"><span>Period</span><strong>{_escape(_format_timerange(context.get("timerange")))}</strong></div>
+    <div class="meta-item"><span>Mode</span><strong>{_escape(_mode_label(context))}</strong></div>
+    <div class="meta-item"><span>Pairs</span><strong>{_integer_text(run.get("pair_count"))}</strong></div>
+    <div class="meta-item"><span>Trades</span><strong>{_integer_text(activity.get("trades"))}</strong></div>
+    <div class="meta-item"><span>Run ID</span><strong>{_escape(str(run.get("id") or "unknown")[:12])}</strong></div>
   </div>
   <section class="metrics">{cards}</section>
   <section class="grid-2">
@@ -717,7 +872,7 @@ def _render_html(
   </section>
   <section class="grid-3">{pair_table}{tag_table}{exit_table}</section>
   <section class="grid-2">{yearly_table}{recent_trades}</section>
-  <section class="panel" style="margin-top:14px">
+  <section class="panel" style="margin-top:10px">
     <div class="panel-head"><div><h2>Evidence and exports</h2><h3>Portable files beside this report</h3></div></div>
     {evidence}
   </section>
@@ -873,20 +1028,13 @@ def _equity_chart(equity: Mapping[str, Any]) -> str:
     last_date = _date_label(int(numeric_times[-1]))
     return f"""
 <svg viewBox="0 0 1000 330" role="img" aria-label="Closed-trade equity curve">
-  <defs>
-    <linearGradient id="equity-fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#58e6b0" stop-opacity=".28"/>
-      <stop offset="1" stop-color="#58e6b0" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <line x1="22" y1="26" x2="978" y2="26" stroke="#233733"/>
-  <line x1="22" y1="274" x2="978" y2="274" stroke="#233733"/>
-  <path d="{area}" fill="url(#equity-fill)"/>
-  <polyline points="{line}" fill="none" stroke="#58e6b0" stroke-width="3"
-            stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="22" y="18" fill="#91a49e" font-size="12">{_escape(_compact_number(high))}</text>
-  <text x="22" y="294" fill="#91a49e" font-size="12">{_escape(first_date)}</text>
-  <text x="978" y="294" fill="#91a49e" font-size="12" text-anchor="end">{_escape(last_date)}</text>
+  <line x1="22" y1="26" x2="978" y2="26" stroke="#d9ddd9"/>
+  <line x1="22" y1="274" x2="978" y2="274" stroke="#d9ddd9"/>
+  <path d="{area}" fill="#087a4b" fill-opacity=".06"/>
+  <polyline points="{line}" fill="none" stroke="#087a4b" stroke-width="2"/>
+  <text x="22" y="18" fill="#69716c" font-size="12">{_escape(_compact_number(high))}</text>
+  <text x="22" y="294" fill="#69716c" font-size="12">{_escape(first_date)}</text>
+  <text x="978" y="294" fill="#69716c" font-size="12" text-anchor="end">{_escape(last_date)}</text>
 </svg>
 """
 
@@ -907,20 +1055,20 @@ def _monthly_chart(value: Any) -> str:
         bar_height = abs(value) / maximum * 105
         x = pad_x + index * slot + gap / 2
         y = axis_y - bar_height if value >= 0 else axis_y
-        color = "#58e6b0" if value >= 0 else "#ff7b86"
+        color = "#087a4b" if value >= 0 else "#b4232f"
         month = str(displayed[index].get("month", ""))
         bars.append(
             f'<rect x="{x:.2f}" y="{y:.2f}" width="{bar_width:.2f}" '
-            f'height="{bar_height:.2f}" rx="2" fill="{color}">'
+            f'height="{bar_height:.2f}" fill="{color}">'
             f"<title>{_escape(month)}: {_signed_percent(value)}</title></rect>"
         )
     return f"""
 <svg viewBox="0 0 1000 310" role="img" aria-label="Monthly return chart">
-  <line x1="22" y1="{axis_y}" x2="978" y2="{axis_y}" stroke="#53645f"/>
+  <line x1="22" y1="{axis_y}" x2="978" y2="{axis_y}" stroke="#838b85"/>
   {"".join(bars)}
-  <text x="22" y="18" fill="#91a49e" font-size="12">{_escape(_signed_percent(maximum))}</text>
-  <text x="22" y="292" fill="#91a49e" font-size="12">{_escape(str(displayed[0].get("month", "")))}</text>
-  <text x="978" y="292" fill="#91a49e" font-size="12" text-anchor="end">{_escape(str(displayed[-1].get("month", "")))}</text>
+  <text x="22" y="18" fill="#69716c" font-size="12">{_escape(_signed_percent(maximum))}</text>
+  <text x="22" y="292" fill="#69716c" font-size="12">{_escape(str(displayed[0].get("month", "")))}</text>
+  <text x="978" y="292" fill="#69716c" font-size="12" text-anchor="end">{_escape(str(displayed[-1].get("month", "")))}</text>
 </svg>
 """
 

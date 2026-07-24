@@ -108,16 +108,22 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
             "artifacts/x7",
             "--confirmation",
             "artifacts/x7-official/run.json",
+            "--full-report",
         ]
     )
     runs = parser.parse_args(["runs", "list", "--limit", "5", "--json"])
+    saved_run = parser.parse_args(["run", "--full-report"])
+    shown = parser.parse_args(["runs", "show", "1234567890ab", "--full-report"])
 
     assert report.command_name == "report"
     assert report.run_directory == Path("artifacts/x7")
     assert report.confirmation == Path("artifacts/x7-official/run.json")
+    assert report.full_report is True
     assert runs.runs_command == "list"
     assert runs.limit == 5
     assert runs.json is True
+    assert saved_run.full_report is True
+    assert shown.full_report is True
 
 
 def test_futures_market_capture_loads_pinned_binance_tiers(

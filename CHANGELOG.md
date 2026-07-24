@@ -11,6 +11,9 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   an official exact-parity verdict.
 - Replaced raw-JSON-only terminal results and run listings with compact readable
   summaries while retaining explicit `--json` output for automation.
+- Added opt-in `--full-report` terminal tables for every pair, entry-tag group,
+  and exit-reason group, including average profit, total profit, win rate,
+  win/draw/loss counts, zero-trade configured pairs, and totals.
 - Added `nfi-bte report` to regenerate derived presentation files without
   repeating a backtest. Official confirmation refreshes only the derived verdict;
   original run and trade-surface evidence bytes remain unchanged.
