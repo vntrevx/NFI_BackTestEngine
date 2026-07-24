@@ -1,4 +1,4 @@
-//! Exact spot/backtest regular-mode adjustment used by NFI X7 tag 121.
+//! Exact backtest regular-mode adjustment used by NFI X7 tag 121.
 //!
 //! X7 sends tag 121 through `long_adjust_trade_position_no_derisk()` before
 //! the legacy grind callback. The source rebuilds one rebuy bucket and six
@@ -84,10 +84,9 @@ pub(super) fn evaluate_nfi_regular_adjustment(
     config: &PortfolioConfig,
     available_balance: f64,
 ) -> Option<RegularAdjustmentOutcome> {
-    if config.is_futures
-        || trade.side != TradeSide::Long
+    if trade.side != TradeSide::Long
         || route.grind_mode
-        || route.adjustment_scope != "spot-regular-backtest-v1"
+        || route.adjustment_scope != "regular-backtest-v2"
         || !nfi_long_grind_supports_trade(route, trade)
     {
         return None;
@@ -108,7 +107,7 @@ pub(super) fn evaluate_nfi_regular_adjustment(
         candle.open,
         fee_open(config),
         fee_close(config),
-        false,
+        config.is_futures,
     )?;
     let slice_profit = price_distance(candle.open, state.latest_order_price)?;
     let slice_profit_entry = price_distance(candle.open, state.latest_entry_price)?;
@@ -124,6 +123,7 @@ pub(super) fn evaluate_nfi_regular_adjustment(
         constants,
         trade,
         candle,
+        config,
         available_balance,
         minimum_stake,
         snapshot.initial_stake_ratio,
@@ -171,6 +171,7 @@ pub(super) fn evaluate_nfi_regular_adjustment(
     if let Some(signal) = evaluate_derisk(
         constants,
         trade,
+        config,
         candle.open,
         minimum_stake,
         snapshot.stake,
@@ -192,6 +193,7 @@ fn evaluate_rebuy(
     constants: &NfiRegularAdjustmentConstants,
     trade: &OpenTrade,
     candle: &Candle,
+    config: &PortfolioConfig,
     available_balance: f64,
     minimum_stake: f64,
     initial_stake_ratio: f64,
@@ -201,10 +203,21 @@ fn evaluate_rebuy(
     state: &RegularState,
 ) -> Option<BranchOutcome> {
     let cluster = &state.rebuy;
-    if cluster.count >= constants.rebuy_stakes_spot.len() {
+    let (stakes, thresholds) = if config.is_futures {
+        (
+            &constants.rebuy_stakes_futures,
+            &constants.rebuy_thresholds_futures,
+        )
+    } else {
+        (
+            &constants.rebuy_stakes_spot,
+            &constants.rebuy_thresholds_spot,
+        )
+    };
+    if cluster.count >= stakes.len() {
         return Some(BranchOutcome::Continue);
     }
-    let threshold = *constants.rebuy_thresholds_spot.get(cluster.count)?;
+    let threshold = *thresholds.get(cluster.count)?;
     let distance = if cluster.count > 0 {
         cluster.latest_distance(candle.open)
     } else {
@@ -225,12 +238,17 @@ fn evaluate_rebuy(
     // NFI caps rebuy to max_stake before applying the exchange minimum. If the
     // minimum then exceeds max_stake the callback explicitly returns None.
     let scaled = scale_stakes_for_minimum(
-        &constants.rebuy_stakes_spot,
+        stakes,
         state.first_entry_cost,
         minimum_stake,
         trade.leverage,
     )?;
-    let requested = (state.first_entry_cost * scaled[cluster.count])
+    let stake_leverage = if config.is_futures {
+        trade.leverage
+    } else {
+        1.0
+    };
+    let requested = (state.first_entry_cost * scaled[cluster.count] / stake_leverage)
         .min(available_balance)
         .max(minimum_stake * policy.minimum_entry_multiplier);
     if requested > available_balance {
@@ -260,8 +278,23 @@ fn evaluate_grind(
     policy: &NfiRegularAdjustmentPolicy,
 ) -> Option<BranchOutcome> {
     let cluster = state.grinds.get(index)?;
-    if cluster.count < definition.stakes_spot.len() {
-        let threshold = *definition.thresholds_spot.get(cluster.count)?;
+    let (stakes, thresholds, profit_threshold, stop_threshold) = if config.is_futures {
+        (
+            &definition.stakes_futures,
+            &definition.thresholds_futures,
+            definition.profit_threshold_futures,
+            definition.stop_threshold_futures,
+        )
+    } else {
+        (
+            &definition.stakes_spot,
+            &definition.thresholds_spot,
+            definition.profit_threshold_spot,
+            definition.stop_threshold_spot,
+        )
+    };
+    if cluster.count < stakes.len() {
+        let threshold = *thresholds.get(cluster.count)?;
         let distance = if cluster.count > 0 {
             cluster.latest_distance(candle.open)
         } else {
@@ -279,12 +312,17 @@ fn evaluate_grind(
             && (num_open_grinds == 0 || slice_profit < policy.additional_grind_profit_gate);
         if distance < threshold && age_allows && entry_program_allows {
             let scaled = scale_stakes_for_minimum(
-                &definition.stakes_spot,
+                stakes,
                 state.first_entry_cost,
                 minimum_stake,
                 trade.leverage,
             )?;
-            let requested = (state.first_entry_cost * scaled[cluster.count])
+            let stake_leverage = if config.is_futures {
+                trade.leverage
+            } else {
+                1.0
+            };
+            let requested = (state.first_entry_cost * scaled[cluster.count] / stake_leverage)
                 .max(minimum_stake * policy.minimum_entry_multiplier);
             if requested > available_balance {
                 return Some(BranchOutcome::ReturnNone);
@@ -297,8 +335,7 @@ fn evaluate_grind(
     }
 
     if cluster.count > 0
-        && cluster.profit_rate
-            > definition.profit_threshold_spot + fee_open(config) + fee_close(config)
+        && cluster.profit_rate > profit_threshold + fee_open(config) + fee_close(config)
     {
         let requested = cluster.total_amount * candle.open / trade.leverage;
         if let Some(stake_amount) = partial_exit_stake(
@@ -315,8 +352,7 @@ fn evaluate_grind(
         }
     }
 
-    if use_grind_stops && cluster.count > 0 && cluster.profit_rate < definition.stop_threshold_spot
-    {
+    if use_grind_stops && cluster.count > 0 && cluster.profit_rate < stop_threshold {
         let requested = cluster.total_amount * candle.open / trade.leverage;
         if let Some(stake_amount) = partial_exit_stake(
             trade,
@@ -500,6 +536,7 @@ fn derisk_signal(
 fn evaluate_derisk(
     constants: &NfiRegularAdjustmentConstants,
     trade: &OpenTrade,
+    config: &PortfolioConfig,
     rate: f64,
     minimum_stake: f64,
     profit_stake: f64,
@@ -509,7 +546,19 @@ fn evaluate_derisk(
         return None;
     }
     let minimum_remaining_multiplier = constants.policy.minimum_remaining_multiplier;
-    if profit_stake < state.first_entry_cost * constants.derisk_threshold_spot {
+    let (derisk_threshold, derisk_level_1_threshold) = if config.is_futures {
+        (
+            constants.derisk_threshold_futures,
+            constants.derisk_level_1_threshold_futures,
+        )
+    } else {
+        (
+            constants.derisk_threshold_spot,
+            constants.derisk_level_1_threshold_spot,
+        )
+    };
+    let threshold_basis = state.first_entry_cost / trade.leverage;
+    if profit_stake < threshold_basis * derisk_threshold {
         if let Some(signal) = derisk_signal(
             trade,
             rate,
@@ -520,9 +569,7 @@ fn evaluate_derisk(
             return Some(signal);
         }
     }
-    if !state.is_derisk_1
-        && profit_stake < state.first_entry_cost * constants.derisk_level_1_threshold_spot
-    {
+    if !state.is_derisk_1 && profit_stake < threshold_basis * derisk_level_1_threshold {
         return derisk_signal(
             trade,
             rate,

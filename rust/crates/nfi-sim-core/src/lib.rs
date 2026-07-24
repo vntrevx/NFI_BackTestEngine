@@ -446,25 +446,33 @@ pub struct NfiLegacyGrindConstants {
 pub struct NfiRegularGrind {
     pub entry_tag: String,
     pub stop_tag: String,
+    pub stakes_futures: Vec<f64>,
     pub stakes_spot: Vec<f64>,
+    pub thresholds_futures: Vec<f64>,
     pub thresholds_spot: Vec<f64>,
+    pub stop_threshold_futures: f64,
     pub stop_threshold_spot: f64,
+    pub profit_threshold_futures: f64,
     pub profit_threshold_spot: f64,
 }
 
 /// Frozen constants read by ``long_adjust_trade_position_no_derisk()``.
 ///
-/// Only the spot/backtest path is admitted by the surrounding route. Futures
-/// constants are intentionally absent so a broader route cannot be enabled by
-/// changing one flag without extending and re-certifying this contract.
+/// Both market-mode branches are source-derived and stored independently. The
+/// evaluator selects one complete branch from ``PortfolioConfig::is_futures``;
+/// it never falls back from missing futures values to spot values.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NfiRegularAdjustmentConstants {
     pub use_grind_stops: bool,
     pub derisk_enable: bool,
+    pub rebuy_stakes_futures: Vec<f64>,
     pub rebuy_stakes_spot: Vec<f64>,
+    pub rebuy_thresholds_futures: Vec<f64>,
     pub rebuy_thresholds_spot: Vec<f64>,
+    pub derisk_threshold_futures: f64,
     pub derisk_threshold_spot: f64,
+    pub derisk_level_1_threshold_futures: f64,
     pub derisk_level_1_threshold_spot: f64,
     pub grinds: Vec<NfiRegularGrind>,
     pub policy: NfiRegularAdjustmentPolicy,
@@ -2576,7 +2584,7 @@ fn validate_nfi_trade_manager(
         .sum::<usize>();
     let valid_identity = matches!(
         manager.schema_version.as_str(),
-        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0"
+        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0" | "0.13.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -2589,12 +2597,13 @@ fn validate_nfi_trade_manager(
             .managed_long_routes
             .iter()
             .all(valid_nfi_managed_long_route);
-    let valid_terminal_exit_version =
-        matches!(manager.schema_version.as_str(), "0.11.0" | "0.12.0")
-            || manager
-                .managed_long_routes
-                .iter()
-                .all(|route| route.terminal_exit.is_none());
+    let valid_terminal_exit_version = matches!(
+        manager.schema_version.as_str(),
+        "0.11.0" | "0.12.0" | "0.13.0"
+    ) || manager
+        .managed_long_routes
+        .iter()
+        .all(|route| route.terminal_exit.is_none());
     let valid_short_routes = manager.managed_short_routes.len() == 1
         && short_keys == BTreeSet::from(["short_rebuy"])
         && short_tags.len() == total_short_tag_count
@@ -2663,7 +2672,7 @@ fn validate_nfi_trade_manager(
             && tags_are_disjoint
             && route.exit_profit_threshold.is_finite()
             && route.exit_profit_threshold > 0.0
-            && route.adjustment_scope == "spot-regular-backtest-v1"
+            && route.adjustment_scope == "regular-backtest-v2"
             && !route.grind_mode
             && route.decision_program == "long_grind_entry_v3"
             && route.first_entry_profit_threshold_spot.is_finite()
@@ -2721,7 +2730,7 @@ fn validate_nfi_trade_manager(
                     .is_some_and(|value| value.is_finite() && value > 0.0)
                     && adjustment.constants.policy.is_none()
             }
-            "0.12.0" => {
+            "0.12.0" | "0.13.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -2981,33 +2990,50 @@ fn valid_nfi_regular_adjustment_constants(constants: &NfiRegularAdjustmentConsta
         && policy.forced_age_profit_gate < 0.0
         && policy.minimum_entry_multiplier > 1.0
         && policy.minimum_remaining_multiplier > policy.minimum_entry_multiplier;
-    let rebuy_is_valid = !constants.rebuy_stakes_spot.is_empty()
-        && constants.rebuy_stakes_spot.len() == constants.rebuy_thresholds_spot.len()
-        && constants
-            .rebuy_stakes_spot
-            .iter()
-            .all(|value| value.is_finite() && *value > 0.0)
-        && constants
-            .rebuy_thresholds_spot
-            .iter()
-            .all(|value| value.is_finite());
+    let rebuy_is_valid = [
+        (
+            &constants.rebuy_stakes_futures,
+            &constants.rebuy_thresholds_futures,
+        ),
+        (
+            &constants.rebuy_stakes_spot,
+            &constants.rebuy_thresholds_spot,
+        ),
+    ]
+    .iter()
+    .all(|(stakes, thresholds)| {
+        !stakes.is_empty()
+            && stakes.len() == thresholds.len()
+            && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
+            && thresholds.iter().all(|value| value.is_finite())
+    });
     let grinds_are_valid = constants.grinds.len() == 6
         && constants.grinds.iter().enumerate().all(|(index, grind)| {
             let level = index + 1;
             grind.entry_tag == format!("g{level}")
                 && grind.stop_tag == format!("sg{level}")
-                && !grind.stakes_spot.is_empty()
-                && grind.stakes_spot.len() == grind.thresholds_spot.len()
-                && grind
-                    .stakes_spot
-                    .iter()
-                    .all(|value| value.is_finite() && *value > 0.0)
-                && grind.thresholds_spot.iter().all(|value| value.is_finite())
+                && [
+                    (&grind.stakes_futures, &grind.thresholds_futures),
+                    (&grind.stakes_spot, &grind.thresholds_spot),
+                ]
+                .iter()
+                .all(|(stakes, thresholds)| {
+                    !stakes.is_empty()
+                        && stakes.len() == thresholds.len()
+                        && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
+                        && thresholds.iter().all(|value| value.is_finite())
+                })
+                && grind.stop_threshold_futures.is_finite()
                 && grind.stop_threshold_spot.is_finite()
+                && grind.profit_threshold_futures.is_finite()
                 && grind.profit_threshold_spot.is_finite()
         });
-    constants.derisk_threshold_spot.is_finite()
+    constants.derisk_threshold_futures.is_finite()
+        && constants.derisk_threshold_futures < 0.0
+        && constants.derisk_threshold_spot.is_finite()
         && constants.derisk_threshold_spot < 0.0
+        && constants.derisk_level_1_threshold_futures.is_finite()
+        && constants.derisk_level_1_threshold_futures < 0.0
         && constants.derisk_level_1_threshold_spot.is_finite()
         && constants.derisk_level_1_threshold_spot < 0.0
         && policy_is_valid
@@ -8043,17 +8069,25 @@ mod tests {
         NfiRegularAdjustmentConstants {
             use_grind_stops: true,
             derisk_enable: true,
+            rebuy_stakes_futures: vec![0.2, 0.25],
             rebuy_stakes_spot: vec![0.2, 0.25],
+            rebuy_thresholds_futures: vec![-0.08, -0.12],
             rebuy_thresholds_spot: vec![-0.08, -0.12],
+            derisk_threshold_futures: -0.6,
             derisk_threshold_spot: -0.6,
+            derisk_level_1_threshold_futures: -0.4,
             derisk_level_1_threshold_spot: -0.4,
             grinds: (1..=6)
                 .map(|level| NfiRegularGrind {
                     entry_tag: format!("g{level}"),
                     stop_tag: format!("sg{level}"),
+                    stakes_futures: vec![0.2, 0.25],
                     stakes_spot: vec![0.2, 0.25],
+                    thresholds_futures: vec![-0.08, -0.12],
                     thresholds_spot: vec![-0.08, -0.12],
+                    stop_threshold_futures: -0.2,
                     stop_threshold_spot: -0.2,
+                    profit_threshold_futures: 0.018,
                     profit_threshold_spot: 0.018,
                 })
                 .collect(),
@@ -8083,7 +8117,7 @@ mod tests {
             mode_name: "long_btc".to_owned(),
             entry_tags: vec!["121".to_owned()],
             exit_profit_threshold: 0.25,
-            adjustment_scope: "spot-regular-backtest-v1".to_owned(),
+            adjustment_scope: "regular-backtest-v2".to_owned(),
             grind_mode: false,
             decision_program: "long_grind_entry_v3".to_owned(),
             first_entry_profit_threshold_spot: 0.018,
@@ -8172,7 +8206,7 @@ mod tests {
             derisk_spot: -0.48,
         };
         NfiX7TradeManager {
-            schema_version: "0.12.0".to_owned(),
+            schema_version: "0.13.0".to_owned(),
             source_sha256: "a".repeat(64),
             route_order: [
                 "long_normal",
@@ -9929,6 +9963,118 @@ mod tests {
         );
         assert!(!trade.orders[2].is_entry);
         assert_eq!(trade.exit_reason, "force_exit");
+    }
+
+    #[test]
+    fn nfi_long_btc_futures_selects_the_futures_regular_branch() {
+        const HOUR: i64 = 60 * 60 * 1_000;
+        let mut entry = candle(0, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("121".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut force_exit = candle(14 * HOUR, 90.0, 90.0);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+
+        let mut constants = nfi_regular_adjustment_constants();
+        // Only the futures rebuy threshold can match. This proves mode
+        // selection without relying on the two branches sharing today's X7
+        // values.
+        constants.rebuy_thresholds_futures.fill(-0.01);
+        constants.rebuy_thresholds_spot.fill(-1.0);
+        constants.derisk_threshold_futures = -1.0;
+        constants.derisk_level_1_threshold_futures = -1.0;
+        for grind in &mut constants.grinds {
+            grind.thresholds_futures.fill(-1.0);
+            grind.thresholds_spot.fill(-1.0);
+        }
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        enable_test_long_btc(&mut manager, constants, nfi_boolean_true_program());
+        let mut manager_config = config(1);
+        manager_config.is_futures = true;
+        manager_config.leverage = Some(3.0);
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(
+            vec![entry, candle(13 * HOUR, 90.0, 90.0), force_exit],
+            BTreeMap::new(),
+        );
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("reviewed tag-121 futures adjustment");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.leverage, 3.0);
+        assert_eq!(trade.orders[1].tag.as_deref(), Some("r"));
+        assert!(trade.orders[1].is_entry);
+        assert_eq!(trade.exit_reason, "force_exit");
+    }
+
+    #[test]
+    fn nfi_long_btc_futures_funding_precedes_regular_adjustment() {
+        const MINUTE: i64 = 60 * 1_000;
+        let mut entry = candle(0, 21_084.0, 21_084.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("121".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut funding = candle(435 * MINUTE, 20_913.0, 20_913.0);
+        funding.funding_rate = Some(0.000_458_47);
+        funding.funding_mark_price = Some(20_913.0);
+        let adjustment = candle(515 * MINUTE, 20_476.4, 20_476.4);
+        let mut force_exit = candle(520 * MINUTE, 20_476.4, 20_476.4);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+
+        let mut constants = nfi_regular_adjustment_constants();
+        constants.rebuy_thresholds_futures.fill(-1.0);
+        constants.derisk_threshold_futures = -1.0;
+        constants.derisk_level_1_threshold_futures = -1.0;
+        for (grind, threshold) in constants
+            .grinds
+            .iter_mut()
+            .zip([-0.06, -0.04, -0.03, -0.03, -0.03, -0.025])
+        {
+            grind.thresholds_futures.fill(threshold);
+        }
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        enable_test_long_btc(&mut manager, constants, nfi_boolean_true_program());
+        let mut manager_config = config(1);
+        manager_config.starting_balance = 10_000.0;
+        manager_config.stake_amount = 1_977.994_266_67;
+        manager_config.fee_rate = 0.0005;
+        manager_config.fee_open_rate = Some(0.0005);
+        manager_config.fee_close_rate = Some(0.0005);
+        manager_config.is_futures = true;
+        manager_config.leverage = Some(3.0);
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(
+            vec![entry, funding, adjustment, force_exit],
+            BTreeMap::new(),
+        );
+        pair.minimum_cost = Some(50.0);
+        pair.amount_step = Some(0.001);
+        pair.price_step = Some(0.1);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("funding-aware tag-121 futures adjustment");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders[1].tag.as_deref(), Some("g3"));
+        assert!(trade.orders[1].is_entry);
     }
 
     #[test]

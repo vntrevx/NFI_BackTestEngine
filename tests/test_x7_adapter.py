@@ -233,17 +233,25 @@ def _regular_adjustment_constants() -> dict:
     return {
         "use_grind_stops": True,
         "derisk_enable": True,
+        "rebuy_stakes_futures": [0.2, 0.25],
         "rebuy_stakes_spot": [0.2, 0.25],
+        "rebuy_thresholds_futures": [-0.08, -0.12],
         "rebuy_thresholds_spot": [-0.08, -0.12],
+        "derisk_threshold_futures": -0.6,
         "derisk_threshold_spot": -0.6,
+        "derisk_level_1_threshold_futures": -0.4,
         "derisk_level_1_threshold_spot": -0.4,
         "grinds": [
             {
                 "entry_tag": f"g{level}",
                 "stop_tag": f"sg{level}",
+                "stakes_futures": [0.2, 0.25],
                 "stakes_spot": [0.2, 0.25],
+                "thresholds_futures": [-0.08, -0.12],
                 "thresholds_spot": [-0.08, -0.12],
+                "stop_threshold_futures": -0.2,
                 "stop_threshold_spot": -0.2,
+                "profit_threshold_futures": 0.018,
                 "profit_threshold_spot": 0.018,
             }
             for level in range(1, 7)
@@ -951,7 +959,7 @@ def test_x7_adapter_serializes_the_source_bound_long_btc_adjustment_route(
         "mode_name": "long_btc",
         "entry_tags": ["121"],
         "exit_profit_threshold": 0.25,
-        "adjustment_scope": "spot-regular-backtest-v1",
+        "adjustment_scope": "regular-backtest-v2",
         "grind_mode": False,
         "decision_program": "long_grind_entry_v3",
         "regular_decision_program": "long_grind_entry",
@@ -976,7 +984,7 @@ def test_x7_adapter_serializes_the_source_bound_long_btc_adjustment_route(
     )
 
     route = document["config"]["nfi_x7_trade_manager"]["long_btc"]
-    assert route["adjustment_scope"] == "spot-regular-backtest-v1"
+    assert route["adjustment_scope"] == "regular-backtest-v2"
     assert route["regular_decision_program"] == "long_grind_entry"
     assert [grind["entry_tag"] for grind in route["regular_constants"]["grinds"]] == [
         "g1",

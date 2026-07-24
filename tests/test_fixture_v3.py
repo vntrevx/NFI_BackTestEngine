@@ -27,14 +27,14 @@ TAG_121_FIXTURE = (
     / "benchmarks"
     / "fixtures"
     / "captured"
-    / "x7-tag121-spot-v17.4.421-2023-01-01_02"
+    / "x7-tag121-spot-v17.4.435-2023-01-01_02"
 )
 LIQUIDATION_FIXTURE = (
     ROOT
     / "benchmarks"
     / "fixtures"
     / "captured"
-    / "x7-liquidation-stoploss-guard-futures-v17.4.421-2022-04-29_05-02"
+    / "x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02"
 )
 
 
@@ -112,7 +112,7 @@ def test_real_tag_121_fixture_is_fully_sealed_and_branch_reaching() -> None:
     assert manifest["schema_version"] == "3.0.0"
     assert manifest["probe_kind"] == "tag-121"
     assert manifest["strategy_provenance"]["upstream_commit"] == (
-        "5e168431991e05a889514eb1e16fdbebc6a09811"
+        "2bc3058ed4f8480ed7498efca49b5195c7b47e9b"
     )
     assert coverage["met"] is True
     assert coverage["observed"]["entry_tags"] == ["121"]

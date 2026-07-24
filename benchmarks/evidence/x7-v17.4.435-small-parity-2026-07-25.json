@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-small-final-surface-exact",
+  "recorded_at": "2026-07-25",
+  "claim_boundary": "X7 v17.4.435 executes through the current native adapter in both Binance spot and Binance USDT-M isolated-futures modes and matches pinned Freqtrade 2026.5.1 exactly for the two sealed one-pair intervals below. This does not certify 80 pairs, five continuous years, every futures branch, cross-platform performance, or a combined release.",
+  "upstream": {
+    "repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "commit": "2bc3058ed4f8480ed7498efca49b5195c7b47e9b",
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.435",
+    "source_bytes": 3218966,
+    "source_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a"
+  },
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "network_during_backtest": false
+  },
+  "pipeline": {
+    "package_version": "1.0.0",
+    "strategy_ir_version": "1.8.0",
+    "hot_ir_version": "1.9.0",
+    "data_seal_version": "1.3.0",
+    "vector_pipeline_version": "1.15.0",
+    "simulation_checkpoint_version": "1.0.0",
+    "market_snapshot_version": "1.3.0",
+    "generic_adapter_version": "1.4.0",
+    "x7_adapter_version": "0.17.0",
+    "nfi_trade_manager_ir_version": "0.13.0",
+    "native_binary_sha256": "566555a41a12a55178eea43aec742379d229200938a379aaece9b602e1dd5d1f",
+    "native_source_fingerprint": "966b9ccdd9217a54c684d41d74b7e5865e58615c067fd51187ba980b75202180"
+  },
+  "lanes": {
+    "spot": {
+      "scope": {
+        "mode_contract": "binance-spot",
+        "pair": "ALGO/USDT",
+        "timerange": "20210101-20210105",
+        "timeframes": [
+          "5m",
+          "15m",
+          "1h",
+          "4h",
+          "1d"
+        ],
+        "history_coverage_policy": "strict"
+      },
+      "identity": {
+        "run_id": "3cd2696d03ea8a615a7ee5b45dc77e245ab5cd9ff12c15e924f077f614a22baa",
+        "config_sha256": "b61bc6a508846a30fc366ecb9fb4f3e3aba644e1e56eef34255f0385ae56ff69",
+        "pairlist_sha256": "bb7a9e67127901c6d2ccf969ec6aa2510554243ff2b4ec0f8b15069d6218eb2e",
+        "data_aggregate_sha256": "7988ad2609b5882478a552302bb8ded9cf988f59dec9fa1f7b7e59bc456eab96",
+        "engine_market_snapshot_sha256": "3e250a50d1424771d58a1959fd5216734a2785e72bc2ec205fd2a520ebc4919a",
+        "reference_market_snapshot_sha256": "d9c8a738a2d9602005f441566de31889a0cbf2e98b9b8307917a2e39da3e1223",
+        "hot_ir_fingerprint": "24533718d13400c53aca1996d465ee47a166d6cf4accb830ca57a434e80e7a80"
+      },
+      "native": {
+        "cold_pipeline": false,
+        "vector_cache_hits": 1,
+        "pipeline_wall_time_seconds": 40.682268061,
+        "engine_wall_time_seconds": 0.053567581,
+        "engine_peak_rss_bytes": 592732160,
+        "simulation_input_sha256": "4417aed7f70bce964eabce59f2be58be0a131cc2f011b722f2907b5a08b5914a",
+        "simulation_result_sha256": "77b5c7936fd7f1b7129df63138e4a1c0ff1e169df37cc87c1b8099e7767a1aad",
+        "trade_surface_sha256": "b6c04a437566a7a43da6dc99cf9c3b469cae0530995d02a9f887d79f7a18ac29"
+      },
+      "official": {
+        "wall_time_seconds": 5.900359384,
+        "container_peak_bytes": 465293312,
+        "result_zip_bytes": 308223,
+        "result_zip_sha256": "0ade01c21c180cc17ac151e010f1da96c918867b5fd777d1ee79d2a2b8819f16",
+        "trade_surface_sha256": "b6c04a437566a7a43da6dc99cf9c3b469cae0530995d02a9f887d79f7a18ac29"
+      },
+      "exact_comparison": {
+        "equal": true,
+        "numeric_tolerance": 0,
+        "first_difference": null,
+        "trades": 5,
+        "orders": 10,
+        "starting_balance": "1000",
+        "final_balance": "1107.9397955",
+        "profit_total_abs": "107.9397955"
+      }
+    },
+    "futures": {
+      "scope": {
+        "mode_contract": "binance-usdtm-isolated",
+        "pair": "ALGO/USDT:USDT",
+        "timerange": "20210204-20210209",
+        "timeframes": [
+          "5m",
+          "15m",
+          "1h",
+          "4h",
+          "1d"
+        ],
+        "history_coverage_policy": "available"
+      },
+      "identity": {
+        "run_id": "40017e6bdf71c26f575d296c0fcf3ba72c6196ade1ff043975cd03ac60e4b133",
+        "config_sha256": "93d14414b7ca2181ae9f201e8248d255c998fed1807ab385c4b68f79683074f2",
+        "pairlist_sha256": "a8104c4c07f3d6cf758eb6d88344c74a36b8e795be5e3b04302192dc13c37b66",
+        "data_aggregate_sha256": "d9f392280f1fe3f6d8043c4b32b92d6056b0cad5bcf80f124bacdbe15d38e2e5",
+        "engine_market_snapshot_sha256": "a2d829c3b16d5a167190504782a8f87a33c758a35348e5f492c86102863e4060",
+        "reference_market_snapshot_sha256": "f9b3b56b88a0df6aaeb2e7a5d3a0787768497a8a2cd5d29f6d81b47ec9a49b0d",
+        "hot_ir_fingerprint": "120e94af697451ba5dc8f4756ccc2bd9cc949d9bcbcf86c772a6d01815d6ecf4"
+      },
+      "native": {
+        "cold_pipeline": false,
+        "vector_cache_hits": 1,
+        "pipeline_wall_time_seconds": 38.104813058,
+        "engine_wall_time_seconds": 0.060634726,
+        "engine_peak_rss_bytes": 590917632,
+        "simulation_input_sha256": "04b92670af41c54d030420306de20f885d6a8c5cb5f967e288c52f4e065d6cc7",
+        "simulation_result_sha256": "bb24a3b67fe9645c6b4d92765e39ca3856e81647a610ecbd170ff8b552ca7cfe",
+        "trade_surface_sha256": "e2bfd39756bbe0c7142208e5f4abbbacd6c5f73d7c0fcd1a85ef968b3989b423"
+      },
+      "official": {
+        "wall_time_seconds": 6.693445069,
+        "container_peak_bytes": 392241152,
+        "result_zip_bytes": 311565,
+        "result_zip_sha256": "2c1c1bbf46053ad68b26281fcb23d7182a413df0eb25cff9452b6edd2ab44c06",
+        "trade_surface_sha256": "e2bfd39756bbe0c7142208e5f4abbbacd6c5f73d7c0fcd1a85ef968b3989b423"
+      },
+      "exact_comparison": {
+        "equal": true,
+        "numeric_tolerance": 0,
+        "first_difference": null,
+        "trades": 3,
+        "orders": 6,
+        "starting_balance": "10000",
+        "final_balance": "11754.78332222",
+        "profit_total_abs": "1754.78332222"
+      }
+    }
+  },
+  "limitations": [
+    "The spot lane covers one pair and four days; the futures lane covers one pair and five days.",
+    "The futures lane reaches long trades only and does not reach funding, liquidation, protection locks, tag 121, compound tags, or variable leverage.",
+    "Each native and official lane was measured once; these timings are diagnostics rather than performance claims.",
+    "The continuous 80-pair five-year spot and futures certificates remain separate release requirements."
+  ]
+}

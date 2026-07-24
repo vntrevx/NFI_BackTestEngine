@@ -22,7 +22,7 @@ from typing import Any, cast
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.12.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.13.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -292,7 +292,7 @@ _MANAGED_LONG_ADJUSTMENT_FEATURES = {
 # remains outside the simulator because a Freqtrade backtest exposes filled
 # orders with ``safe_remaining == 0`` and cannot execute that branch.
 _LONG_GRIND_ADJUSTMENT_SCOPE = "spot-grind-backtest-v1"
-_LONG_BTC_ADJUSTMENT_SCOPE = "spot-regular-backtest-v1"
+_LONG_BTC_ADJUSTMENT_SCOPE = "regular-backtest-v2"
 _LONG_GRIND_STATEFUL_METHODS = (
     "long_exit_grind",
     "long_grind_adjust_trade_position",
@@ -1316,11 +1316,13 @@ def _build_regular_adjustment_constants(
     constants: dict[str, Any],
     method: ast.FunctionDef,
 ) -> dict[str, Any]:
-    """Freeze the spot/backtest branch used before tag 121 reaches legacy grind.
+    """Freeze both market-mode branches before tag 121 reaches legacy grind.
 
     The source spells out six nearly identical ``g1`` through ``g6`` branches.
     The IR stores them in callback order. Rust may then share arithmetic while
     preserving every strict comparison and early return from the Python body.
+    Futures and spot values remain separate source-derived fields; the runtime
+    selects one complete mode and never substitutes values between them.
     """
 
     def number(name: str) -> int | float:
@@ -1346,39 +1348,53 @@ def _build_regular_adjustment_constants(
     if not isinstance(use_grind_stops, bool) or not isinstance(derisk_enable, bool):
         raise StrategyAnalysisError("NFI regular adjustment switches must be boolean")
 
-    rebuy_stakes = number_list("regular_mode_rebuy_stakes_spot")
-    rebuy_thresholds = number_list("regular_mode_rebuy_thresholds_spot")
-    if len(rebuy_stakes) != len(rebuy_thresholds):
-        raise StrategyAnalysisError(
-            "NFI regular adjustment rebuy stake/threshold lengths differ for spot"
-        )
+    rebuy: dict[str, tuple[list[int | float], list[int | float]]] = {}
+    for mode in ("futures", "spot"):
+        stakes = number_list(f"regular_mode_rebuy_stakes_{mode}")
+        thresholds = number_list(f"regular_mode_rebuy_thresholds_{mode}")
+        if len(stakes) != len(thresholds):
+            raise StrategyAnalysisError(
+                f"NFI regular adjustment rebuy stake/threshold lengths differ for {mode}"
+            )
+        rebuy[mode] = (stakes, thresholds)
 
     grinds: list[dict[str, Any]] = []
     for level in range(1, 7):
         prefix = f"regular_mode_grind_{level}"
-        stakes = number_list(f"{prefix}_stakes_spot")
-        thresholds = number_list(f"{prefix}_thresholds_spot")
-        if len(stakes) != len(thresholds):
-            raise StrategyAnalysisError(
-                f"NFI regular adjustment g{level} stake/threshold lengths differ for spot"
+        grind: dict[str, Any] = {
+            "entry_tag": f"g{level}",
+            "stop_tag": f"sg{level}",
+        }
+        for mode in ("futures", "spot"):
+            stakes = number_list(f"{prefix}_stakes_{mode}")
+            thresholds = number_list(f"{prefix}_thresholds_{mode}")
+            if len(stakes) != len(thresholds):
+                raise StrategyAnalysisError(
+                    f"NFI regular adjustment g{level} "
+                    f"stake/threshold lengths differ for {mode}"
+                )
+            grind[f"stakes_{mode}"] = stakes
+            grind[f"thresholds_{mode}"] = thresholds
+            grind[f"stop_threshold_{mode}"] = number(
+                f"{prefix}_stop_grinds_{mode}"
             )
-        grinds.append(
-            {
-                "entry_tag": f"g{level}",
-                "stop_tag": f"sg{level}",
-                "stakes_spot": stakes,
-                "thresholds_spot": thresholds,
-                "stop_threshold_spot": number(f"{prefix}_stop_grinds_spot"),
-                "profit_threshold_spot": number(f"{prefix}_profit_threshold_spot"),
-            }
-        )
+            grind[f"profit_threshold_{mode}"] = number(
+                f"{prefix}_profit_threshold_{mode}"
+            )
+        grinds.append(grind)
 
     return {
         "use_grind_stops": use_grind_stops,
         "derisk_enable": derisk_enable,
-        "rebuy_stakes_spot": rebuy_stakes,
-        "rebuy_thresholds_spot": rebuy_thresholds,
+        "rebuy_stakes_futures": rebuy["futures"][0],
+        "rebuy_thresholds_futures": rebuy["futures"][1],
+        "rebuy_stakes_spot": rebuy["spot"][0],
+        "rebuy_thresholds_spot": rebuy["spot"][1],
+        "derisk_threshold_futures": number("regular_mode_derisk_futures"),
         "derisk_threshold_spot": number("regular_mode_derisk_spot"),
+        "derisk_level_1_threshold_futures": number(
+            "regular_mode_derisk_1_futures"
+        ),
         "derisk_level_1_threshold_spot": number("regular_mode_derisk_1_spot"),
         "grinds": grinds,
         "policy": _regular_adjustment_literal_policy(method),

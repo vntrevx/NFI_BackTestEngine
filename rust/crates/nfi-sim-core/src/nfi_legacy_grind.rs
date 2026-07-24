@@ -1,4 +1,4 @@
-//! Exact spot/backtest state machine for NFI X7's legacy grind continuation.
+//! Exact backtest state machine for NFI X7's legacy grind continuation.
 //!
 //! X7 reconstructs eight open grind clusters from filled orders on every
 //! candle. This module preserves that reversed walk, callback branch order,
@@ -8,8 +8,8 @@
 use super::nfi_adjustment::evaluate_grind_entry_program;
 use super::{
     adjustment_minimum_pair_stake, fee_close, fee_open, nfi_long_grind_supports_trade,
-    AdjustmentSignal, Candle, FilledOrder, NfiLongGrindRoute, NfiX7TradeManager, OpenTrade,
-    PairSeries, PortfolioConfig, TradeSide,
+    AdjustmentSignal, Candle, FilledOrder, NfiLegacyGrindCluster, NfiLongGrindRoute,
+    NfiX7TradeManager, OpenTrade, PairSeries, PortfolioConfig, TradeSide,
 };
 
 const TEN_MINUTES_MS: i64 = 10 * 60 * 1_000;
@@ -105,6 +105,43 @@ enum LegacyMode {
     RegularContinuation,
 }
 
+fn legacy_mode_for_route(
+    route: &NfiLongGrindRoute,
+    config: &PortfolioConfig,
+) -> Option<LegacyMode> {
+    match (route.adjustment_scope.as_str(), route.grind_mode) {
+        ("spot-grind-backtest-v1", true) if !config.is_futures => Some(LegacyMode::Grind),
+        ("regular-backtest-v2", false) => Some(LegacyMode::RegularContinuation),
+        _ => None,
+    }
+}
+
+type LegacyClusterMode<'a> = (&'a [f64], &'a [f64], f64, f64, f64);
+
+fn legacy_cluster_mode<'a>(
+    definition: &'a NfiLegacyGrindCluster,
+    config: &PortfolioConfig,
+    trade_leverage: f64,
+) -> LegacyClusterMode<'a> {
+    if config.is_futures {
+        (
+            &definition.stakes_futures,
+            &definition.thresholds_futures,
+            definition.profit_threshold_futures,
+            definition.stop_threshold_futures,
+            trade_leverage,
+        )
+    } else {
+        (
+            &definition.stakes_spot,
+            &definition.thresholds_spot,
+            definition.profit_threshold_spot,
+            definition.stop_threshold_spot,
+            1.0,
+        )
+    }
+}
+
 /// Source-order result for one legacy grind cluster.
 ///
 /// The strategy's callback distinguishes an unmatched cluster from a matched
@@ -135,22 +172,18 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
     config: &PortfolioConfig,
     available_balance: f64,
 ) -> Option<Option<AdjustmentSignal>> {
-    if config.is_futures
-        || trade.side != TradeSide::Long
-        || !nfi_long_grind_supports_trade(route, trade)
-    {
+    if trade.side != TradeSide::Long || !nfi_long_grind_supports_trade(route, trade) {
         return None;
     }
-    let grind_route = route.adjustment_scope == "spot-grind-backtest-v1" && route.grind_mode;
-    let regular_continuation =
-        route.adjustment_scope == "spot-regular-backtest-v1" && !route.grind_mode;
-    if !grind_route && !regular_continuation {
-        return None;
-    }
+    let mode = legacy_mode_for_route(route, config)?;
 
     let minimum_stake = legacy_adjustment_minimum_stake(pair, candle, trade, config)?;
     let state = rebuild_legacy_state(trade, candle.open, fee_close(config))?;
-    let stake_multipliers = &route.constants.stake_multipliers_spot;
+    let stake_multipliers = if config.is_futures {
+        &route.constants.stake_multipliers_futures
+    } else {
+        &route.constants.stake_multipliers_spot
+    };
     let first_multiplier = *stake_multipliers.first()?;
     if first_multiplier <= 0.0 || trade.amount <= 0.0 || trade.leverage <= 0.0 {
         return None;
@@ -159,7 +192,7 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
     // Freqtrade backtests only place filled adjustment orders in the trade
     // history. Their safe_remaining is zero, so NFI's live partial-fill retry
     // branch is structurally unreachable and no state is omitted here.
-    if route.grind_mode {
+    if mode == LegacyMode::Grind {
         if let Some(signal) =
             evaluate_first_entry_recovery(route, trade, candle, config, minimum_stake, &state)?
         {
@@ -211,16 +244,12 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
         is_derisk: trade.amount < state.first_entry.amount * 0.95,
         is_long_grind_entry,
         entry_age_allows,
-        maximum_stake_divisor: if route.grind_mode {
+        maximum_stake_divisor: if mode == LegacyMode::Grind {
             first_multiplier
         } else {
             1.0
         },
-        mode: if route.grind_mode {
-            LegacyMode::Grind
-        } else {
-            LegacyMode::RegularContinuation
-        },
+        mode,
     };
 
     // The two post-de-risk clusters execute before the six ordinary grind
@@ -468,13 +497,13 @@ fn evaluate_cluster(
 ) -> Option<LegacyClusterOutcome> {
     let definition = context.route.constants.clusters.get(index)?;
     let cluster = state.clusters.get(index)?;
-    let stakes = &definition.stakes_spot;
-    let thresholds = &definition.thresholds_spot;
+    let (stakes, thresholds, profit_threshold, stop_threshold, stake_leverage) =
+        legacy_cluster_mode(definition, context.config, context.trade.leverage);
     let scaled_stakes = scale_stakes_for_minimum(
         stakes,
         context.slice_amount,
         context.minimum_stake,
-        1.0,
+        stake_leverage,
         context.trade.leverage,
     )?;
     let first_entry_condition = if post_derisk {
@@ -504,8 +533,8 @@ fn evaluate_cluster(
         && context.is_long_grind_entry
         && below_maximum
     {
-        let requested =
-            (context.slice_amount * scaled_stakes[cluster.count]).max(context.minimum_stake * 1.5);
+        let requested = (context.slice_amount * scaled_stakes[cluster.count] / stake_leverage)
+            .max(context.minimum_stake * 1.5);
         if requested > context.available_balance {
             return Some(LegacyClusterOutcome::ReturnNone);
         }
@@ -517,9 +546,7 @@ fn evaluate_cluster(
 
     if cluster.count > 0
         && cluster.profit_rate
-            > definition.profit_threshold_spot
-                + fee_open(context.config)
-                + fee_close(context.config)
+            > profit_threshold + fee_open(context.config) + fee_close(context.config)
     {
         let requested = cluster.total_amount * context.candle.open / context.trade.leverage;
         if let Some(stake_amount) = legacy_partial_exit_stake(
@@ -542,7 +569,7 @@ fn evaluate_cluster(
     };
     if context.route.derisk_use_grind_stops
         && cluster.count > 0
-        && cluster.profit_stake < context.slice_amount * definition.stop_threshold_spot
+        && cluster.profit_stake < context.slice_amount * stop_threshold
         && stop_condition
     {
         let requested = cluster.total_amount * context.candle.open / context.trade.leverage;
@@ -568,7 +595,11 @@ fn evaluate_derisk_one_reentry(
     pair: &PairSeries,
     candle_index: usize,
 ) -> Option<Option<AdjustmentSignal>> {
-    let threshold = context.route.constants.derisk_1_reentry_spot;
+    let threshold = if context.config.is_futures {
+        context.route.constants.derisk_1_reentry_futures
+    } else {
+        context.route.constants.derisk_1_reentry_spot
+    };
     if state.is_derisk_1 && state.derisk_1_reentry.is_none() {
         let exit = state.derisk_1_exit?;
         if price_distance(context.candle.open, exit.price)? < threshold
@@ -577,7 +608,13 @@ fn evaluate_derisk_one_reentry(
             && super::feature_bool_at(pair, candle_index, "global_protections_long_dump")?
             && context.is_long_grind_entry
         {
-            let requested = (exit.amount * exit.price).max(context.minimum_stake * 1.5);
+            let stake_leverage = if context.config.is_futures {
+                context.trade.leverage
+            } else {
+                1.0
+            };
+            let requested =
+                (exit.amount * exit.price / stake_leverage).max(context.minimum_stake * 1.5);
             if requested > context.available_balance {
                 return Some(None);
             }

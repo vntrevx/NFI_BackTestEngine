@@ -20,7 +20,7 @@ FUTURES_FIXTURE = (
     / "benchmarks"
     / "fixtures"
     / "captured"
-    / "x7-liquidation-stoploss-guard-futures-v17.4.421-2022-04-29_05-02"
+    / "x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02"
     / "artifacts"
     / "trade-surface.json"
 )

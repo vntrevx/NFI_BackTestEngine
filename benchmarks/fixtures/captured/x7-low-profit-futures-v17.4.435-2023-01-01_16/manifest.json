@@ -1,0 +1,188 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "x7-v17.4.435-low-profit-lock-btc-futures",
+  "description": "Official Freqtrade probe for an X7 LowProfitPairs lock in isolated futures mode.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-07-24T18:17:08.572182Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20230101-20230116",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20230101-20230116",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "3f1b2c15091c0958fe4ebd70a9cf60ea55416ea34196003ab2f7bd43a104d3eb",
+      "bytes": 3219172
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "92a12a3eab9adda743d3c0989bfdaa4b60df6613eaa16546b4c908ddeadca6db",
+      "bytes": 852
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "61199fc4e144bfa10d3d2e2f8bf7fe273f794263dcf91776ae0c64704b501b45",
+      "bytes": 108719
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "c7df0b2412a2dc23ee55504bea45a7df946474d9f9fe495981aa3206d76a0ef3",
+      "bytes": 40367
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "c2fa0b7c793c51f7a4290cde3bca74409c7690e8aa8b2b2c9acf3be6550b9e66",
+      "bytes": 118703
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "9ff1829a7e9d550effe88162bd52e0dc9f167bc3cd5ddd999d7760c89c1309f4",
+      "bytes": 57263
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "7dab79c4fa0e382264f2ffed90596530e8d20867eb35b64c840128f6e1f5d3ca",
+      "bytes": 940463
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "06ca5da26e730b69671a20571f9ea841e30c8335b532720bdda294b1e1ff8645",
+      "bytes": 44207
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "a8bb835a7bb574747aba2dc990e96613f2a9d2adda15d11902b561d0958d5cad",
+      "bytes": 246959
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/full-x7-futures-20210101-markets.json",
+      "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+      "bytes": 171531
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "f9b3b56b88a0df6aaeb2e7a5d3a0787768497a8a2cd5d29f6d81b47ec9a49b0d",
+      "bytes": 9264
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "c8d13972a0e4abf535d9196bccbc3e91ca597625c4bca760cf18c3a10d08dc41",
+      "bytes": 357537
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "95fc39d4f86ea79485128e00c9eafed199b735ac9d87cdbc288b708961538621",
+      "bytes": 5122
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "78b64fdba2fe2eb02b511e71cc289e098f4283a1340ee1a8d63c949184b05189",
+      "bytes": 17936621
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "24135a9205b38044e41467dbfee244b4c634e8cdbc69156e37f61ef57c70f5a9",
+      "bytes": 775
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "df1f7fbff8c9e49c44dc03476faf8a0e89d83a3c952856fdeae0183bbf10585c",
+      "bytes": 2219025
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "protections-locks",
+  "strategy_provenance": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "2bc3058ed4f8480ed7498efca49b5195c7b47e9b",
+    "base_source_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a",
+    "effective_source_sha256": "3f1b2c15091c0958fe4ebd70a9cf60ea55416ea34196003ab2f7bd43a104d3eb",
+    "transformations": [
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.long_entry_signal_params['long_entry_condition_121_enable'] False -> True"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound static protections property injected into NostalgiaForInfinityX7: LowProfitPairs"
+      },
+      {
+        "kind": "config-override",
+        "description": "Deterministic recursive config override: enable_protections, exchange.pair_whitelist, max_open_trades, pairlists"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [],
+    "entry_tags": [
+      "121"
+    ],
+    "compound_tags": [],
+    "protection_methods": [
+      "LowProfitPairs"
+    ],
+    "exit_reasons": [],
+    "sides": [
+      "long"
+    ],
+    "minimum_lock_count": 1,
+    "minimum_distinct_leverages": 1,
+    "minimum_funded_trades": 0,
+    "require_rejected_locked_entry": true
+  }
+}

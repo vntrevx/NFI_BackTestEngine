@@ -601,18 +601,25 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
         )
 
 
-def test_current_futures_probe_matrix_is_not_yet_release_complete() -> None:
+def test_current_futures_probe_matrix_is_release_complete() -> None:
     manifests = sorted(
         path / "manifest.json"
         for path in CAPTURED.iterdir()
         if "futures" in path.name and (path / "manifest.json").is_file()
     )
+    upstream_commits = {
+        read_json(path)["strategy_provenance"]["upstream_commit"] for path in manifests
+    }
+    assert len(upstream_commits) == 1
 
-    with pytest.raises(SpecValidationError, match="probe matrix is incomplete"):
-        _validate_probe_matrix(
-            manifests,
-            contract=FUTURES_RELEASE_CONTRACT,
-        )
+    probes = _validate_probe_matrix(
+        manifests,
+        contract=FUTURES_RELEASE_CONTRACT,
+        expected_upstream_commit=upstream_commits.pop(),
+    )
+
+    assert probes
+    assert len(probes) == len(manifests)
 
 
 def test_futures_probe_matrix_requires_observed_lifecycle_and_all_protections(

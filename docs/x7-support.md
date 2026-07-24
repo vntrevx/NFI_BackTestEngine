@@ -61,33 +61,44 @@ Static exact lowering also passes for X7 v17.4.435 at upstream commit
 The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
 de-risk state dependencies, and late grind predicates as typed operands and
 comparisons. Rust therefore does not carry release-specific grind 4/5 thresholds.
-This establishes source compatibility only; the release evidence below remains bound
-to its sealed v17.4.421 inputs until fresh official oracles pass.
+The tag-121 regular-adjustment compiler likewise extracts separate spot and futures
+stake ladders, thresholds, stop levels, and de-risk levels. Funding is included in the
+futures callback profit snapshot before branch selection, matching Freqtrade's
+callback boundary.
 
-The latest branch matrix pins X7 v17.4.421 at upstream commit
-`5e168431991e05a889514eb1e16fdbebc6a09811` and Freqtrade 2026.5.1. Its seven
-official full-state fixtures reach:
+A narrow v17.4.435 runtime check additionally records exact final-surface parity for
+one spot interval and one isolated-futures interval in
+[`benchmarks/evidence/x7-v17.4.435-small-parity-2026-07-25.json`](../benchmarks/evidence/x7-v17.4.435-small-parity-2026-07-25.json).
+Its claim boundary is deliberately limited to those eight trades and does not replace
+the branch matrices or either continuous release certificate.
 
-- tag 121 in spot mode;
+The latest branch matrices pin X7 v17.4.435 at upstream commit
+`2bc3058ed4f8480ed7498efca49b5195c7b47e9b` and Freqtrade 2026.5.1.
+Thirteen official full-state fixtures reach:
+
+- tag 121 in both spot and isolated-futures modes;
 - `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`, including
-  generated locks and locked-entry rejection where applicable;
+  generated locks and locked-entry rejection in futures, plus the spot protection
+  regression matrix;
+- both long and short isolated-futures lifecycle paths with non-zero funding;
 - the compound top-coins tag `141 142`;
-- tag-dependent futures leverage values 2 and 3;
+- tag-dependent futures leverage values 2, 3, and an exchange-tier-capped 5;
 - an actual isolated-futures liquidation exit after partial position reductions.
 
 The fixtures live under `benchmarks/fixtures/captured/x7-*`. Every manifest seals the
 effective strategy, compact candle inputs, native and raw reference market metadata,
 official export, normalized surface, observer trace, and coverage report.
 
-These seven fixtures are a mixed-mode branch matrix, not a continuous futures
-release certificate. The mode-aware release gate now requires a separate futures
-matrix that reaches tag 121, both long and short trades, non-zero funding, all
-four protections and locks in futures mode, compound tags, variable leverage,
-and liquidation. It also requires a continuous 80-pair, five-year futures oracle.
-Until those inputs and three-OS futures measurements are sealed, the combined
-spot/futures release status is `preview`.
+The spot and futures branch contracts now pass independently. These compact fixtures
+are not continuous release certificates: the mode-aware release gate separately
+requires each 80-pair, five-year oracle and three-OS measurements. As of 2026-07-25,
+only 58 currently active Binance USDT-M perpetuals have uninterrupted history back to
+2021-01-01. The 80th eligible active market, C98/USDT:USDT, was onboarded on
+2021-08-23, so the strict futures interval cannot close before 2026-08-23. The gate
+remains fail-closed and the combined spot/futures release status remains `preview`;
+the contract is not weakened to manufacture an earlier certificate.
 
-The latest certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
+The latest annual single-pair certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
 2022-04-01 through 2023-01-01. The engine and offline Freqtrade 2026.5.1 produce
 byte-identical normalized surfaces with zero numeric tolerance: 11 trades, 164 orders,
 142 adjustment orders, one short trade, and eight funded trades. The run reaches

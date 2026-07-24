@@ -28,7 +28,7 @@ FUTURES_FIXTURE = (
     / "benchmarks"
     / "fixtures"
     / "captured"
-    / "x7-variable-leverage-futures-v17.4.421-2021-02-04_09"
+    / "x7-variable-leverage-futures-v17.4.435-2021-02-04_09"
 )
 
 

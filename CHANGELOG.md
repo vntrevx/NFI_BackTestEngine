@@ -51,6 +51,19 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   revalidates its opcode and execution scope before omitting executable state.
   This is a compatibility result, not a replacement for a continuous official spot
   or futures certificate.
+- Sealed a path-independent v17.4.435 compatibility record for one spot and one
+  isolated-futures interval. Both native trade surfaces are byte-identical to
+  pinned Freqtrade 2026.5.1; the record explicitly excludes long-horizon,
+  branch-completeness, and performance claims.
+- Compiled tag 121's complete spot and futures regular-adjustment branches from
+  upstream source into typed IR. Futures stake sizing, de-risk profitability, and
+  funding-before-adjustment ordering now follow the selected market mode without
+  fallback constants or tag-specific runtime patches.
+- Replaced the older mixed-source probe set with thirteen v17.4.435 fixtures bound
+  to one upstream commit and Freqtrade 2026.5.1. The independent futures matrix now
+  proves tag 121, long and short lifecycle paths, funding, compound tags, variable
+  leverage, liquidation, all four protections, locks, and locked-entry rejection
+  with zero-tolerance final-surface and full-state parity.
 
 ## 1.0.0
 

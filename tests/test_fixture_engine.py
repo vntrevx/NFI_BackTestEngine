@@ -30,7 +30,7 @@ COMPOUND_FUTURES = (
     / "benchmarks"
     / "fixtures"
     / "captured"
-    / "x7-compound-tag-futures-v17.4.421-2022-04-29_05-02"
+    / "x7-compound-tag-futures-v17.4.435-2022-04-29_05-02"
     / "manifest.json"
 )
 
