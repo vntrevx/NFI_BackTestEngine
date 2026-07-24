@@ -321,6 +321,27 @@ target, the live-memory gate, and every full-state probe pass. Research `run.jso
 separately marks a pipeline cold only when it reused no data/vector checkpoint and had
 zero vector cache hits.
 
+## Research resume state machine
+
+Research resume is ordered by committed stage, not by loose file existence:
+
+1. validate `identity.json` against current strategy, config, pairlist, timerange,
+   market data, coverage policy, and output options;
+2. validate data and vector checkpoints before reuse;
+3. validate hash-linked simulation-input, engine-result, and trade-surface
+   checkpoints in order;
+4. for `complete=true`, validate the size and SHA-256 of all three result artifacts
+   and return the existing `run.json` without invoking the simulator;
+5. for a prepared or interrupted run, continue after the last committed stage.
+
+A checkpoint that skips a stage, contradicts `run.json`, points outside its owned
+output path, or fails byte/hash validation stops immediately. Uncheckpointed
+simulation artifacts are preserved and rejected rather than deleted or overwritten.
+Only incomplete vector output without a published vector checkpoint may be cleared
+and rebuilt; it is not committed evidence. Completed v1.4 runs remain read-only
+resumable after their three recorded simulation artifacts pass validation. Incomplete
+v1.4 runs are rejected because they do not contain ordered simulation checkpoints.
+
 The X7 v17.4.418 80-pair native diagnostic is intentionally below that release boundary.
 Its sealed 21,102,441-row input stayed byte-exact while native process time improved
 from 2,022.07 seconds to 763.70 seconds and event-loop time improved from 1,638.36

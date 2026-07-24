@@ -221,9 +221,11 @@ returns, risk and execution metrics, pair/tag/exit/year breakdowns, recent trade
 and a large official-parity verdict. It has no web server, JavaScript runtime,
 external asset, npm, or bun dependency.
 
-Interrupted runs resume only hash-valid data and vector stages. Changed strategy,
-config, candle, market, dependency, or hardware identities invalidate the affected
-checkpoint instead of being silently reused.
+`--resume` is a fail-closed stage machine. It reuses only hash-valid data, vectors,
+simulation input, simulation result, and trade-surface checkpoints. A completed run
+validates its identity plus the recorded size and SHA-256 of all three simulation
+artifacts, then returns without calling the simulator. Changed or contradictory
+evidence is never deleted, overwritten, or silently recomputed.
 
 ### Explicit paths
 

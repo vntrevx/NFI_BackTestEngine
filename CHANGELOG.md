@@ -20,6 +20,13 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 - Display peak RSS only from a measured process-tree checkpoint and otherwise
   label the enforced memory budget. Drawdown is explicitly defined as
   closed-trade equity drawdown to avoid overstating Freqtrade metric equivalence.
+- Replaced loose `--resume` file reuse with an identity-bound stage machine.
+  Completed runs now validate simulation-input, simulation-result, and trade-surface
+  byte counts and SHA-256 values before returning without an engine call. Partial
+  simulation stages resume only from ordered checkpoints, while tampered,
+  contradictory, or uncheckpointed result artifacts fail closed without deletion.
+  Completed v1.4 evidence remains readable through the same artifact validation,
+  without in-place migration.
 
 ## 1.0.0
 

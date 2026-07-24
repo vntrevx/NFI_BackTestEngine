@@ -3,8 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.engine_runtime import run_engine
+from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.generic_adapter import (
     _optional_text,
@@ -206,23 +208,71 @@ def test_feather_manifest_matches_the_legacy_json_transport(tmp_path: Path) -> N
 
 
 def test_public_generic_runner_matches_captured_freqtrade_surface(tmp_path: Path) -> None:
-    report = run_research_backtest(
-        strategy_path=STOPS_FIXTURE / "inputs" / "strategy.py",
-        class_name="ContractStopsOnly",
-        config_path=STOPS_FIXTURE / "inputs" / "config.json",
-        data_directory=STOPS_FIXTURE / "inputs" / "candles",
-        timerange="20250101-20250104",
-        output_directory=tmp_path / "run",
-        cache_directory=tmp_path / "cache",
-        profile_path=tmp_path / "profile.json",
-        market_metadata_path=(STOPS_FIXTURE / "inputs" / "market_metadata" / "markets.json"),
-        download_missing=False,
+    arguments = {
+        "strategy_path": STOPS_FIXTURE / "inputs" / "strategy.py",
+        "class_name": "ContractStopsOnly",
+        "config_path": STOPS_FIXTURE / "inputs" / "config.json",
+        "data_directory": STOPS_FIXTURE / "inputs" / "candles",
+        "timerange": "20250101-20250104",
+        "output_directory": tmp_path / "run",
+        "cache_directory": tmp_path / "cache",
+        "profile_path": tmp_path / "profile.json",
+        "market_metadata_path": (
+            STOPS_FIXTURE / "inputs" / "market_metadata" / "markets.json"
+        ),
+        "download_missing": False,
+    }
+    report = run_research_backtest(**arguments)
+    output = tmp_path / "run"
+    evidence_before = {
+        name: (output / name).read_bytes()
+        for name in (
+            "run.json",
+            "simulation-input.manifest.json",
+            "simulation-result.json",
+            "trade-surface.json",
+        )
+    }
+    resumed = run_research_backtest(
+        **arguments,
+        resume=True,
     )
 
     expected = read_json(STOPS_FIXTURE / "artifacts" / "trade-surface.json")
-    actual = read_json(tmp_path / "run" / "trade-surface.json")
+    actual = read_json(output / "trade-surface.json")
     assert report["status"] == "complete"
+    assert resumed == report
+    assert evidence_before == {
+        name: (output / name).read_bytes()
+        for name in evidence_before
+    }
     assert first_difference(expected, actual) is None
+
+
+def test_public_generic_runner_rejects_tampered_completed_result(tmp_path: Path) -> None:
+    arguments = {
+        "strategy_path": STOPS_FIXTURE / "inputs" / "strategy.py",
+        "class_name": "ContractStopsOnly",
+        "config_path": STOPS_FIXTURE / "inputs" / "config.json",
+        "data_directory": STOPS_FIXTURE / "inputs" / "candles",
+        "timerange": "20250101-20250104",
+        "output_directory": tmp_path / "run",
+        "cache_directory": tmp_path / "cache",
+        "profile_path": tmp_path / "profile.json",
+        "market_metadata_path": (
+            STOPS_FIXTURE / "inputs" / "market_metadata" / "markets.json"
+        ),
+        "download_missing": False,
+    }
+    run_research_backtest(**arguments)
+    result = tmp_path / "run" / "simulation-result.json"
+    result.write_bytes(result.read_bytes() + b"\n")
+
+    with pytest.raises(BenchmarkError, match="simulation result artifact bytes differ"):
+        run_research_backtest(
+            **arguments,
+            resume=True,
+        )
 
 
 def test_trade_surface_omits_internal_liquidation_price(tmp_path: Path) -> None:
