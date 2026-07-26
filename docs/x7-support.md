@@ -30,8 +30,8 @@ Rust:
 - the dedicated rebuy ladder and level-3 de-risk transition for tags 61-65;
 - the shared system-v3.2 derisk/grind adjustment used by all 57 managed tags,
   including rebuy trades after their first level-3 de-risk fill;
-- the tag-120 spot/backtest legacy grind route: source-ordered `gm0`, `dl1`/`dl2`,
-  `gd1` through `gd6`, their partial exits and stops, and the `d1` buyback cycle.
+- the tag-120 spot/futures backtest grind route: source-ordered `gm0`, `dl1`/`dl2`,
+  `gd1` through `gd6`, their partial exits and stops, and the `d1` buyback cycle;
 - the tag-121 regular-mode de-risk/grind prelude and its source-ordered transition into
   the legacy grind state machine;
 - source-ordered tag-dependent futures leverage, capped by the frozen per-pair market
@@ -97,6 +97,16 @@ only 58 currently active Binance USDT-M perpetuals have uninterrupted history ba
 2021-08-23, so the strict futures interval cannot close before 2026-08-23. The gate
 remains fail-closed and the combined spot/futures release status remains `preview`;
 the contract is not weakened to manufacture an earlier certificate.
+
+The broadest current isolated-futures portfolio differential uses the same v17.4.435
+source over ten pairs and `20220101-20220701`. Native and pinned Freqtrade 2026.5.1
+surfaces are byte-identical: 63 trades, 296 orders, 53 long trades, 10 short trades,
+24 funded trades, two tag-120 trades, and every summary token match at zero tolerance.
+The engine core completed in 10.89 seconds and the full cache-warm native pipeline in
+38.37 seconds; the offline official run took 339.61 seconds. These one-run timings are
+diagnostic, not a repeated or release-grade speed claim. The sealed hashes and explicit
+limitations are in
+[`benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json`](../benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json).
 
 The latest annual single-pair certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
 2022-04-01 through 2023-01-01. The engine and offline Freqtrade 2026.5.1 produce

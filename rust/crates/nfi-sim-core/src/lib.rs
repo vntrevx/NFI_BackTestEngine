@@ -493,11 +493,12 @@ pub struct NfiRegularAdjustmentPolicy {
     pub minimum_remaining_multiplier: f64,
 }
 
-/// Source-bound X7 legacy grind/BTC exit and adjustment route.
+/// Source-bound X7 grind/BTC exit and adjustment route.
 ///
-/// ``adjustment_scope`` remains explicit because tag 120's spot/backtest
-/// state machine and tag 121's regular-mode prelude have different proof
-/// boundaries even though both eventually call the same Python method.
+/// ``adjustment_scope`` remains explicit because tag 120's versioned
+/// spot/futures state machine and tag 121's regular-mode prelude have
+/// different proof boundaries even though both eventually call the same
+/// Python method.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NfiLongGrindRoute {
@@ -1543,6 +1544,12 @@ struct OpenTrade {
     /// the next order.
     funding_sum_high: f64,
     funding_sum_low: f64,
+    /// Post-partial-exit value of the funding row at the fill timestamp.
+    ///
+    /// Freqtrade temporarily retains the pre-exit forced refresh. At the next
+    /// funding tick it recalculates the inclusive segment with the reduced
+    /// amount, replacing that temporary value rather than adding to it.
+    funding_rebase_seed: Option<f64>,
     realized_partial_profit: f64,
     liquidation_price: Option<f64>,
     liquidation_price_is_explicit: bool,
@@ -2584,7 +2591,7 @@ fn validate_nfi_trade_manager(
         .sum::<usize>();
     let valid_identity = matches!(
         manager.schema_version.as_str(),
-        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0" | "0.13.0"
+        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -2599,7 +2606,7 @@ fn validate_nfi_trade_manager(
             .all(valid_nfi_managed_long_route);
     let valid_terminal_exit_version = matches!(
         manager.schema_version.as_str(),
-        "0.11.0" | "0.12.0" | "0.13.0"
+        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -2644,7 +2651,12 @@ fn validate_nfi_trade_manager(
             && tags_are_disjoint
             && route.exit_profit_threshold.is_finite()
             && route.exit_profit_threshold > 0.0
-            && route.adjustment_scope == "spot-grind-backtest-v1"
+            && match route.adjustment_scope.as_str() {
+                // Preserve the narrower replay contract of older evidence.
+                "spot-grind-backtest-v1" => true,
+                "grind-backtest-v2" => manager.schema_version == "0.14.0",
+                _ => false,
+            }
             && route.grind_mode
             && route.decision_program == "long_grind_entry_v3"
             && route.first_entry_profit_threshold_spot.is_finite()
@@ -2730,7 +2742,7 @@ fn validate_nfi_trade_manager(
                     .is_some_and(|value| value.is_finite() && value > 0.0)
                     && adjustment.constants.policy.is_none()
             }
-            "0.12.0" | "0.13.0" => {
+            "0.12.0" | "0.13.0" | "0.14.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -3739,6 +3751,7 @@ fn attempt_entry(
         funding_fees_total: 0.0,
         funding_sum_high: 0.0,
         funding_sum_low: 0.0,
+        funding_rebase_seed: None,
         realized_partial_profit: 0.0,
         liquidation_price: signal.liquidation_price,
         liquidation_price_is_explicit: signal.liquidation_price.is_some(),
@@ -3750,6 +3763,7 @@ fn attempt_entry(
         custom_data: BTreeMap::new(),
         nfi_adjustment_state: None,
     };
+    reapply_inclusive_funding_after_entry_fill(&mut trade, candle);
     apply_order_filled(&mut trade, signal.tag.as_deref(), config);
     update_isolated_liquidation_price(&mut trade, config, candle.timestamp_ms)?;
     Ok(EntryAttempt {
@@ -5677,6 +5691,7 @@ fn apply_adjustment(
             timestamp_ms: candle.timestamp_ms,
         }
     })?;
+    reapply_inclusive_funding_after_entry_fill(trade, candle);
     trade.adjustment_count += 1;
     apply_order_filled(trade, Some(&adjustment.tag), config);
     update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
@@ -5690,6 +5705,7 @@ fn apply_partial_exit(
     config: &PortfolioConfig,
     order_id: u64,
 ) -> Result<(), SimError> {
+    let amount_before_fill = trade.amount;
     let requested_stake = -adjustment.stake_amount;
     if requested_stake >= trade.stake_amount {
         return Err(SimError::InvalidAdjustment {
@@ -5743,6 +5759,7 @@ fn apply_partial_exit(
             timestamp_ms: candle.timestamp_ms,
         }
     })?;
+    preserve_partial_exit_funding_refresh(trade, candle, amount_before_fill);
     trade.realized_partial_profit = if is_unleveraged_spot(trade, config) {
         replay_spot_profit(trade, config)
             .map(|replay| replay.profit_abs)
@@ -7318,20 +7335,38 @@ fn scalar_adjustment_number(value: &Value) -> Option<f64> {
 }
 
 fn apply_funding(trade: &mut OpenTrade, candle: &Candle) {
-    let (Some(rate), Some(mark_price)) = (candle.funding_rate, candle.funding_mark_price) else {
+    let Some(signed) = funding_fee_at_candle(trade.side, trade.amount, candle) else {
         return;
+    };
+    if let Some(seed) = trade.funding_rebase_seed.take() {
+        reset_running_funding(trade, seed);
+    }
+    add_running_funding(trade, signed);
+
+    // `Trade.set_funding_fees()` separately performs Python `sum()` over the
+    // already-filled orders, then adds the current running segment.
+    let prior_funding = python_float_sum(trade.orders.iter().map(|order| order.funding_fee));
+    trade.funding_fees_total = prior_funding + trade.funding_fees;
+}
+
+fn funding_fee_at_candle(side: TradeSide, amount: f64, candle: &Candle) -> Option<f64> {
+    let (Some(rate), Some(mark_price)) = (candle.funding_rate, candle.funding_mark_price) else {
+        return None;
     };
     // Pandas evaluates Freqtrade's expression left-to-right as
     // `(open_fund * open_mark) * amount`. Multiplying amount first is
     // mathematically equivalent but changes exported float tokens.
-    let fee = rate * mark_price * trade.amount;
+    let fee = rate * mark_price * amount;
     // Freqtrade's persisted convention is positive when the trade receives
     // funding and negative when it pays. A positive market funding rate is
     // therefore income for shorts and a cost for longs.
-    let signed = match trade.side {
+    Some(match side {
         TradeSide::Long => -fee,
         TradeSide::Short => fee,
-    };
+    })
+}
+
+fn add_running_funding(trade: &mut OpenTrade, signed: f64) {
     // `Exchange.calculate_funding_fees()` uses Python `sum()` over all
     // funding rows since the most recent filled order. CPython 3.14 uses a
     // Neumaier correction for float iterables, so a plain `+=` can differ by
@@ -7344,11 +7379,51 @@ fn apply_funding(trade: &mut OpenTrade, candle: &Candle) {
     }
     trade.funding_sum_high = next;
     trade.funding_fees = compensated_sum_result(trade.funding_sum_high, trade.funding_sum_low);
+}
 
-    // `Trade.set_funding_fees()` separately performs Python `sum()` over the
-    // already-filled orders, then adds the current running segment.
-    let prior_funding = python_float_sum(trade.orders.iter().map(|order| order.funding_fee));
-    trade.funding_fees_total = prior_funding + trade.funding_fees;
+fn reset_running_funding(trade: &mut OpenTrade, value: f64) {
+    trade.funding_sum_high = value;
+    trade.funding_sum_low = 0.0;
+    trade.funding_fees = value;
+}
+
+/// Reproduce Freqtrade's forced funding refresh after an additional entry.
+///
+/// Backtesting first calculates funding before `adjust_trade_position`, moves
+/// that running segment onto the newly filled order, and then calls
+/// `_run_funding_fees(..., force=True)`. The exchange filter is inclusive at
+/// both ends, so a fill exactly on a funding timestamp sees that row again
+/// using the post-entry amount. A later exit attaches this refreshed running
+/// segment to its order. Candles without funding data remain a no-op.
+fn reapply_inclusive_funding_after_entry_fill(trade: &mut OpenTrade, candle: &Candle) {
+    apply_funding(trade, candle);
+}
+
+/// Preserve Freqtrade's two-stage funding state after a partial exit.
+///
+/// The fill first attaches the pre-exit running segment to the exit order.
+/// Freqtrade then force-refreshes the inclusive range while the trade still
+/// exposes its pre-exit amount. After order replay reduces the position,
+/// `funding_fee_running` keeps that temporary value but the callback-visible
+/// total contains filled-order funding only. The next scheduled funding tick
+/// recalculates from the fill timestamp with the reduced amount. Retaining the
+/// post-exit seed lets `apply_funding` replace the temporary segment exactly.
+fn preserve_partial_exit_funding_refresh(
+    trade: &mut OpenTrade,
+    candle: &Candle,
+    amount_before_fill: f64,
+) {
+    let Some(pre_exit_fee) = funding_fee_at_candle(trade.side, amount_before_fill, candle) else {
+        return;
+    };
+    let post_exit_fee = funding_fee_at_candle(trade.side, trade.amount, candle)
+        .expect("the same validated funding candle remains available");
+    reset_running_funding(trade, pre_exit_fee);
+    trade.funding_rebase_seed = Some(post_exit_fee);
+    // `recalc_trade_from_orders()` runs after the forced refresh and resets
+    // `funding_fees` to filled-order funding without clearing the separate
+    // running value.
+    recalculate_order_funding_total(trade);
 }
 
 fn compensated_sum_result(high: f64, low: f64) -> f64 {
@@ -7367,6 +7442,7 @@ fn compensated_sum_result(high: f64, low: f64) -> f64 {
 fn take_running_funding(trade: &mut OpenTrade) -> f64 {
     trade.funding_sum_high = 0.0;
     trade.funding_sum_low = 0.0;
+    trade.funding_rebase_seed = None;
     std::mem::take(&mut trade.funding_fees)
 }
 
@@ -7645,7 +7721,14 @@ fn replay_closed_profit(
 }
 
 fn round_eight(value: f64) -> f64 {
-    (value * 100_000_000.0).round() / 100_000_000.0
+    // Freqtrade intentionally crosses a text boundary with
+    // `float(f"{value:.8f}")`. Rust's numeric `round()` resolves exact halves
+    // away from zero, while Python formatting uses ties-to-even. Formatting
+    // here mirrors the pinned contract and also avoids a second rounding from
+    // multiplying a large binary float by 1e8 first.
+    format!("{value:.8}")
+        .parse::<f64>()
+        .expect("finite simulator profit formats as a finite decimal")
 }
 
 fn pairwise_sum(values: &[f64]) -> f64 {
@@ -7654,24 +7737,23 @@ fn pairwise_sum(values: &[f64]) -> f64 {
         return values.iter().fold(-0.0, |sum, value| sum + value);
     }
     if values.len() <= NUMPY_BLOCK_SIZE {
-        // NumPy seeds four accumulators from the first eight values, combines
-        // them as a balanced tree, and then folds the block tail in order.
-        // The grouping is observable in Pandas' exported profit_total_abs.
+        // NumPy seeds eight independent lanes from the first eight values,
+        // accumulates complete eight-value blocks lane by lane, and then
+        // combines those lanes as a balanced tree. The grouping is observable
+        // in Pandas' exported profit_total_abs.
         let mut accumulators = [
-            values[0] + values[1],
-            values[2] + values[3],
-            values[4] + values[5],
-            values[6] + values[7],
+            values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7],
         ];
         let mut index = 8;
         while index + 7 < values.len() {
-            for lane in 0..4 {
-                accumulators[lane] += values[index + (lane * 2)];
-                accumulators[lane] += values[index + (lane * 2) + 1];
+            for lane in 0..8 {
+                accumulators[lane] += values[index + lane];
             }
             index += 8;
         }
-        let mut result = (accumulators[0] + accumulators[1]) + (accumulators[2] + accumulators[3]);
+        let mut result = ((accumulators[0] + accumulators[1])
+            + (accumulators[2] + accumulators[3]))
+            + ((accumulators[4] + accumulators[5]) + (accumulators[6] + accumulators[7]));
         while index < values.len() {
             result += values[index];
             index += 1;
@@ -9860,6 +9942,56 @@ mod tests {
     }
 
     #[test]
+    fn nfi_long_grind_dual_mode_scope_accepts_a_futures_trade() {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("120 ".to_owned()),
+            leverage: Some(3.0),
+            liquidation_price: None,
+        });
+        let ordinary_callback = candle(2, 99.0, 99.0);
+        let mut force_exit = candle(3, 99.0, 99.0);
+        force_exit.exit_long = Some(ExitSignal {
+            reason: "force_exit".to_owned(),
+        });
+
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        manager.schema_version = "0.14.0".to_owned();
+        manager.long_grind = Some(NfiLongGrindRoute {
+            mode_name: "long_grind".to_owned(),
+            entry_tags: vec!["120".to_owned()],
+            exit_profit_threshold: 0.25,
+            adjustment_scope: "grind-backtest-v2".to_owned(),
+            grind_mode: true,
+            decision_program: "long_grind_entry_v3".to_owned(),
+            first_entry_profit_threshold_spot: 0.018,
+            first_entry_stop_threshold_spot: -0.2,
+            derisk_use_grind_stops: true,
+            stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+            constants: nfi_legacy_grind_constants(),
+            regular_decision_program: None,
+            regular_constants: None,
+        });
+        manager.route_order.insert(6, "long_grind".to_owned());
+        let mut manager_config = config(1);
+        manager_config.is_futures = true;
+        enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(vec![entry, ordinary_callback, force_exit], BTreeMap::new());
+        pair.minimum_cost = Some(5.0);
+
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![pair],
+        })
+        .expect("reviewed tag-120 futures callback route");
+
+        assert_eq!(result.trades.len(), 1);
+        assert_eq!(result.trades[0].entry_tag.as_deref(), Some("120 "));
+        assert_eq!(result.trades[0].exit_reason, "force_exit");
+    }
+
+    #[test]
     fn nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters() {
         const HOUR: i64 = 60 * 60 * 1_000;
         let mut entry = candle(0, 100.0, 100.0);
@@ -10284,6 +10416,225 @@ mod tests {
         assert_eq!(trade.orders[1].tag.as_deref(), Some("rebuy"));
         assert!(trade.profit_abs < 0.0);
         assert!((trade.close_rate - 99.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn futures_entry_adjustment_replays_funding_at_the_fill_timestamp() {
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(2.0);
+        portfolio.fee_rate = 0.0;
+        portfolio.fee_open_rate = Some(0.0);
+        portfolio.fee_close_rate = Some(0.0);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.amount_step = 1.0;
+
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("entry".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut adjustment = candle(2, 100.0, 100.0);
+        adjustment.funding_rate = Some(0.001);
+        adjustment.funding_mark_price = Some(100.0);
+        adjustment.adjustment = Some(AdjustmentSignal {
+            stake_amount: 100.0,
+            tag: "rebuy".to_owned(),
+        });
+        let mut exit = candle(3, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT:USDT".to_owned(),
+                execution_start_index: 0,
+                amount_step: Some(1.0),
+                price_step: Some(0.01),
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, adjustment, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid same-timestamp funding adjustment");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders[0].amount, 2.0);
+        assert_eq!(trade.orders[1].amount, 2.0);
+        assert_eq!(trade.orders[1].funding_fee, -0.2);
+        // Pinned Freqtrade first moves the pre-fill funding to the adjustment
+        // order, then force-recalculates the inclusive funding range with the
+        // new position amount: -(0.001 * 100 * 2) - (0.001 * 100 * 4).
+        assert_eq!(trade.orders[2].funding_fee, -0.4);
+        assert_eq!(trade.funding_fees, -0.600_000_000_000_000_1);
+        assert_eq!(trade.profit_abs, -0.6);
+    }
+
+    #[test]
+    fn futures_initial_entry_seeds_funding_at_the_fill_timestamp() {
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(2.0);
+        portfolio.fee_rate = 0.0;
+        portfolio.fee_open_rate = Some(0.0);
+        portfolio.fee_close_rate = Some(0.0);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.amount_step = 1.0;
+
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.funding_rate = Some(0.001);
+        entry.funding_mark_price = Some(100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("entry".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut exit = candle(2, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT:USDT".to_owned(),
+                execution_start_index: 0,
+                amount_step: Some(1.0),
+                price_step: Some(0.01),
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid same-timestamp entry funding");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders[0].amount, 2.0);
+        assert_eq!(trade.orders[1].funding_fee, -0.2);
+        assert_eq!(trade.funding_fees, -0.2);
+        assert_eq!(trade.profit_abs, -0.2);
+    }
+
+    #[test]
+    fn futures_partial_exit_rebases_inclusive_funding_on_the_next_tick() {
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        portfolio.leverage = Some(2.0);
+        portfolio.stake_amount = 200.0;
+        portfolio.fee_rate = 0.0;
+        portfolio.fee_open_rate = Some(0.0);
+        portfolio.fee_close_rate = Some(0.0);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.amount_step = 1.0;
+
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("entry".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut partial_exit = candle(2, 100.0, 100.0);
+        partial_exit.funding_rate = Some(0.001);
+        partial_exit.funding_mark_price = Some(100.0);
+        partial_exit.adjustment = Some(AdjustmentSignal {
+            stake_amount: -100.0,
+            tag: "derisk".to_owned(),
+        });
+        let mut next_funding = candle(3, 100.0, 100.0);
+        next_funding.funding_rate = Some(0.002);
+        next_funding.funding_mark_price = Some(100.0);
+        let mut exit = candle(4, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: "AAA/USDT:USDT".to_owned(),
+                execution_start_index: 0,
+                amount_step: Some(1.0),
+                price_step: Some(0.01),
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, partial_exit, next_funding, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid partial-exit funding rebase");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.orders[0].amount, 4.0);
+        assert_eq!(trade.orders[1].amount, 2.0);
+        assert_eq!(trade.orders[1].funding_fee, -0.4);
+        // The next segment is recalculated with the reduced amount and remains
+        // inclusive of the partial-fill row: -0.2 + -0.4.
+        assert_eq!(trade.orders[2].funding_fee, -0.600_000_000_000_000_1);
+        assert_eq!(trade.funding_fees, -1.0);
+        assert_eq!(trade.profit_abs, -1.0);
+    }
+
+    #[test]
+    fn futures_profit_uses_python_eight_decimal_ties_to_even() {
+        let pair_name = "BAND/USDT:USDT";
+        let mut portfolio = config(1);
+        portfolio.starting_balance = 1_000.0;
+        portfolio.stake_amount = 216.343_926_67;
+        portfolio.fee_rate = 0.0005;
+        portfolio.fee_open_rate = Some(0.0005);
+        portfolio.fee_close_rate = Some(0.0005);
+        portfolio.leverage = Some(3.0);
+        portfolio.stoploss_ratio = -0.99;
+        portfolio.amount_step = 0.1;
+        portfolio.price_step = 0.0001;
+        portfolio.is_futures = true;
+
+        let mut entry = candle(1, 1.8094, 1.8033);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("104 ".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut exit = candle(2, 1.8951, 1.89);
+        exit.exit_long = Some(ExitSignal {
+            reason: "exit_long_rapid_d_4_71 ( 104 )".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: Some(0.1),
+                price_step: Some(0.0001),
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: Some(5.0),
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid decimal tie boundary trade");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.amount, 358.7);
+        assert_eq!(trade.profit_abs, 30.076_187_92);
     }
 
     #[test]

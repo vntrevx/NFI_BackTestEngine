@@ -25,7 +25,7 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-X7_ADAPTER_VERSION = "0.17.0"
+X7_ADAPTER_VERSION = "0.18.0"
 
 _SERIALIZED_CALLBACK_BACKENDS = frozenset(
     {

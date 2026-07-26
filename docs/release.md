@@ -22,8 +22,8 @@ allowlist.
 
 The current release executes the source-compiled managed long routes, short-rebuy tags
 561-563, tag-dependent futures leverage, Binance isolated-liquidation accounting,
-tag-120 legacy grind, tag-121 regular adjustment, and four static Freqtrade protection
-methods with deterministic pair-lock state. The X7 v17.4.421 branch matrix pins
+tag-120 spot/futures grind, tag-121 regular adjustment, and four static Freqtrade
+protection methods with deterministic pair-lock state. The X7 v17.4.421 branch matrix pins
 upstream commit `5e168431991e05a889514eb1e16fdbebc6a09811` and reaches tag 121,
 all four protection methods with real locks, a compound tag, variable leverage, and an
 actual liquidation exit in seven official full-state fixtures. It does not certify an
@@ -34,6 +34,12 @@ equal-timestamp shared-slot fixtures remain additional exact spot evidence. In
 v17.4.418, tag 121 has a compiled entry branch whose source switch is disabled; its
 regular-mode path therefore has focused native proof but no branch-reaching official
 trade.
+
+The latest v17.4.435 bounded Futures portfolio proof covers ten pairs and six months.
+Its 63 trades and 296 orders, including long, short, funded, compound-tag, and tag-120
+routes, match the immutable Freqtrade 2026.5.1 export exactly. It is a wider
+differential regression, not the pending 80-pair continuous five-year Futures
+certificate or three-platform performance evidence.
 
 The continuous representative proof covers 80 configured spot pairs,
 `20210101-20260101`, and all five required timeframes. Pinned Freqtrade 2026.5.1

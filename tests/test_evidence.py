@@ -296,3 +296,39 @@ def test_x7_80pair_bounded_official_surface_is_exact_without_a_five_year_claim()
     assert resources["observed_peak_memory_ratio"] > 100
     assert "not a cold end-to-end" in resources["comparison_note"]
     assert any("five-year official run remains blocked" in item for item in limitations)
+
+
+def test_x7_10pair_futures_surface_is_exact_without_a_full_release_claim() -> None:
+    """Pin the broad Futures differential and its deliberately bounded claim."""
+    root = Path(__file__).resolve().parents[1]
+    evidence = read_json(
+        root / "benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json"
+    )
+
+    comparison = evidence["exact_comparison"]
+    resources = evidence["resource_observation"]
+    limitations = evidence["limitations"]
+
+    assert evidence["status"] == "captured-bounded-final-surface-exact"
+    assert evidence["scope"]["mode_contract"] == "binance-usdtm-isolated"
+    assert evidence["scope"]["pair_count"] == 10
+    assert evidence["scope"]["timerange"] == "20220101-20220701"
+    assert evidence["pipeline"]["nfi_trade_manager_ir_version"] == "0.14.0"
+    assert evidence["pipeline"]["tag_120_adjustment_scope"] == "grind-backtest-v2"
+    assert comparison["equal"] is True
+    assert comparison["byte_equal"] is True
+    assert comparison["numeric_tolerance"] == 0
+    assert comparison["first_difference"] is None
+    assert comparison["official_surface_sha256"] == comparison[
+        "engine_surface_sha256"
+    ]
+    assert comparison["trades"] == 63
+    assert comparison["orders"] == 296
+    assert comparison["long_trades"] == 53
+    assert comparison["short_trades"] == 10
+    assert comparison["funded_trades"] == 24
+    assert comparison["tag_120_trades"] == 2
+    assert resources["observed_core_wall_ratio"] > 31
+    assert resources["native_vector_cache_hits"] == 10
+    assert evidence["oracle_reconciliation"]["official_zip_rewritten"] is False
+    assert any("not 80 pairs and five continuous years" in item for item in limitations)

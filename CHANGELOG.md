@@ -64,6 +64,15 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   proves tag 121, long and short lifecycle paths, funding, compound tags, variable
   leverage, liquidation, all four protections, locks, and locked-entry rejection
   with zero-tolerance final-surface and full-state parity.
+- Extended tag 120's source-bound grind state machine to both spot and Futures
+  backtests without widening older spot-only evidence. Added exact Freqtrade funding
+  refresh at same-timestamp position increases, Python ties-to-even profit formatting,
+  configured slot reporting, and NumPy's eight-lane summary reduction.
+- Sealed a v17.4.435 ten-pair, six-month Binance isolated-futures differential:
+  all 63 trades and 296 orders, including long, short, funded, compound-tag, and
+  tag-120 routes, are byte-identical to the immutable Freqtrade 2026.5.1 surface.
+  The one-run cache-warm timings remain diagnostic and do not replace the full release
+  gates.
 
 ## 1.0.0
 

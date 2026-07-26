@@ -22,7 +22,7 @@ from typing import Any, cast
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.13.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.14.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -285,13 +285,14 @@ _MANAGED_LONG_ADJUSTMENT_FEATURES = {
     "previous_candle_1": [],
 }
 
-# X7 routes tag 120 through the older, independent grinding state machine.
-# Its spot/backtest route is now lowered as one order-history state machine:
+# X7 routes tag 120 through the independent grinding state machine.
+# Both of its backtest market-mode branches are lowered from the same reviewed
+# callback and source constants as one order-history state machine:
 # first-entry recovery, two post-de-risk clusters, six grind clusters, their
 # profit exits/stops, and the level-1 de-risk re-entry. Live partial-fill retry
 # remains outside the simulator because a Freqtrade backtest exposes filled
 # orders with ``safe_remaining == 0`` and cannot execute that branch.
-_LONG_GRIND_ADJUSTMENT_SCOPE = "spot-grind-backtest-v1"
+_LONG_GRIND_ADJUSTMENT_SCOPE = "grind-backtest-v2"
 _LONG_BTC_ADJUSTMENT_SCOPE = "regular-backtest-v2"
 _LONG_GRIND_STATEFUL_METHODS = (
     "long_exit_grind",
@@ -1080,11 +1081,12 @@ def _build_long_grind_route(
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Describe the reviewed tag-120 branch without widening its proof.
 
-    X7 keeps this legacy route beside the system-v3.2 adjustment machinery.
-    We only publish it when both stateful methods and every required constant
-    are present. Once the shape is recognizable, a changed method hash is a
-    hard error: silently falling back to an older handwritten state machine
-    would turn a source update into an undetected parity bug.
+    X7 keeps this route beside the system-v3.2 adjustment machinery and selects
+    its stake, threshold, and precision behavior from ``is_futures_mode``.
+    We publish the dual-mode scope only when both stateful methods and every
+    spot and futures constant are present. Once the shape is recognizable, a
+    changed method hash is a hard error: silently falling back to a handwritten
+    state machine would turn a source update into an undetected parity bug.
     """
     return _build_legacy_grind_route(
         constants,

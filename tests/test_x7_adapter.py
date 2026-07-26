@@ -934,7 +934,7 @@ def test_x7_adapter_serializes_the_declared_long_grind_route(
         "mode_name": "long_grind",
         "entry_tags": ["120"],
         "exit_profit_threshold": 0.25,
-        "adjustment_scope": "spot-grind-backtest-v1",
+        "adjustment_scope": "grind-backtest-v2",
         "grind_mode": True,
         "decision_program": "long_grind_entry_v3",
         "first_entry_profit_threshold_spot": 0.018,
@@ -956,7 +956,7 @@ def test_x7_adapter_serializes_the_declared_long_grind_route(
 
     route = document["config"]["nfi_x7_trade_manager"]["long_grind"]
     assert route["entry_tags"] == ["120"]
-    assert route["adjustment_scope"] == "spot-grind-backtest-v1"
+    assert route["adjustment_scope"] == "grind-backtest-v2"
     assert [cluster["entry_tag"] for cluster in route["constants"]["clusters"]] == [
         "gd1",
         "gd2",

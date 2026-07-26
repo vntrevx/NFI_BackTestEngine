@@ -110,6 +110,9 @@ fn legacy_mode_for_route(
     config: &PortfolioConfig,
 ) -> Option<LegacyMode> {
     match (route.adjustment_scope.as_str(), route.grind_mode) {
+        ("grind-backtest-v2", true) => Some(LegacyMode::Grind),
+        // Schema v1 artifacts remain readable, but their claim was
+        // intentionally spot-only and must never be widened during replay.
         ("spot-grind-backtest-v1", true) if !config.is_futures => Some(LegacyMode::Grind),
         ("regular-backtest-v2", false) => Some(LegacyMode::RegularContinuation),
         _ => None,

@@ -50,6 +50,13 @@ Release evidence:
 - [Certification evidence bundle](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/full-x7-certification-evidence.zip)
 - [SHA-256 checksums](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/SHA256SUMS.txt)
 
+Unreleased Futures progress is tracked separately from the certified v1.0.0 spot
+claim. The latest bounded v17.4.435 differential matches Freqtrade exactly across ten
+isolated-futures pairs, six months, 63 trades, and 296 orders, including long, short,
+funding, compound tags, and tag 120. Its
+[sealed evidence](benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json)
+does not replace the pending continuous 80-pair, five-year, three-platform gate.
+
 ## How it works
 
 ```mermaid

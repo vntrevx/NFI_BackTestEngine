@@ -260,7 +260,7 @@ The source-bound X7 adapter additionally executes:
   into the shared grind-v3 adjustment;
 - ordered per-pair target-cache mutation for mixed supported tags;
 - custom stake, entry/exit confirmation, lifecycle no-op, and order-filled writes;
-- the tag-120 spot/backtest legacy grind state machine, including source-ordered
+- the tag-120 spot/futures backtest grind state machine, including source-ordered
   de-risk, six grind levels, partial exits, stops, and the `d1` buyback cycle;
 - the tag-121 regular-mode adjustment prelude and source-ordered transition into legacy
   grind;
@@ -281,6 +281,12 @@ captured official final-surface certificates. The rebuy fixture does not reach a
 adjustment order. The ZEC fixture reaches `gm0`, `gd1`, and `gd2`; deeper legacy
 branches have source hashes and focused native tests, not a branch-reaching Freqtrade
 differential certificate.
+
+The newer v17.4.435 bounded Futures portfolio differential covers ten pairs and six
+months. It proves byte-identical final surfaces for 63 trades and 296 orders, including
+53 long trades, 10 short trades, 24 funded trades, compound tags, and two tag-120
+trades. Its cache-warm timing is diagnostic only; it does not widen the continuous
+release or cross-platform performance boundary.
 
 ## Explicitly unsupported
 

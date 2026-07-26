@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0.0",
+  "status": "captured-bounded-final-surface-exact",
+  "recorded_at": "2026-07-27",
+  "claim_boundary": "X7 v17.4.435 over ten Binance USDT-M isolated-futures pairs from 2022-01-01 through 2022-07-01 matches pinned Freqtrade 2026.5.1 at zero tolerance for the complete normalized final trade surface. The interval reaches long and short trades, non-zero funding, compound tags, and the tag-120 futures grind route. It does not reach tag 121, a liquidation exit, or a protection lock and does not replace the 80-pair continuous five-year futures or three-platform release gates.",
+  "upstream": {
+    "repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "commit": "2bc3058ed4f8480ed7498efca49b5195c7b47e9b",
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "17.4.435",
+    "source_bytes": 3218966,
+    "source_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a"
+  },
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "ccxt_version": "4.5.55",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "network_during_backtest": false
+  },
+  "scope": {
+    "mode_contract": "binance-usdtm-isolated",
+    "pair_count": 10,
+    "pairs": [
+      "BTC/USDT:USDT",
+      "1INCH/USDT:USDT",
+      "AAVE/USDT:USDT",
+      "ADA/USDT:USDT",
+      "ALGO/USDT:USDT",
+      "ATOM/USDT:USDT",
+      "AVAX/USDT:USDT",
+      "AXS/USDT:USDT",
+      "BAND/USDT:USDT",
+      "BAT/USDT:USDT"
+    ],
+    "timeframes": [
+      "5m",
+      "15m",
+      "1h",
+      "4h",
+      "1d"
+    ],
+    "timerange": "20220101-20220701",
+    "history_coverage_policy": "strict",
+    "coverage_shortfall_count": 0
+  },
+  "pipeline": {
+    "package_version": "1.0.0",
+    "strategy_ir_version": "1.8.0",
+    "hot_ir_version": "1.9.0",
+    "data_seal_version": "1.3.0",
+    "vector_pipeline_version": "1.15.0",
+    "simulation_checkpoint_version": "1.0.0",
+    "market_snapshot_version": "1.3.0",
+    "generic_adapter_version": "1.4.0",
+    "x7_adapter_version": "0.18.0",
+    "nfi_trade_manager_ir_version": "0.14.0",
+    "tag_120_adjustment_scope": "grind-backtest-v2",
+    "native_source_fingerprint": "865ce9174a4535be956560b2739e5295be06eaa3eaa4e9226218f6d3e43bc8f4",
+    "native_binary_sha256": "94b9d987b4db82140ef9217c3f36aa5ebf4af9c9dda7d9e32b38899f71841513"
+  },
+  "identity": {
+    "run_id": "10014d1bd45b6a4b83b8abd3233a350db7ab7bd051f4ef9a26e8733c65a63c37",
+    "capability_fingerprint": "53dc22ade31d202408a51457af5b2229e90c8976617116a5cee282ee6e841637",
+    "effective_config_sha256": "bbd4bb6641de3c2c858a78b3a740f87912728fb1522bb25884ab25de47d3e311",
+    "pairlist_sha256": "769104aaf77930f32e8718929916b323b718927386ccc56eff2fec7642031c39",
+    "data_aggregate_sha256": "cfbe28f9b240062c3c3fde02fc9015ef9e834449a5554fb0bbcf3a27f0a3724a",
+    "engine_market_snapshot_sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+    "official_market_snapshot_sha256": "866b41f8dafaeeab1659a42f04be79883df876d9fb688943196700a8b6d425ae"
+  },
+  "sealed_artifacts": {
+    "strategy_analysis_sha256": "bf11d04e4b34c206f603ed9e76664e4ff9ffaa136a82f4a2e2651b79d307db61",
+    "hot_callback_ir_sha256": "64a999f132472ce01fef6673a4f3ab94152b076d81a7e6abb68ac0f580375fb0",
+    "data_seal_sha256": "5dedd075f41ecf32e84827edd2cc9dc8198f5ee62eba91dd1df46edebe53d46c",
+    "simulation_input_sha256": "19ea9a3231a5f9e326922c9c131e66d006cdbb012042e2e5cfceb16905894e56",
+    "simulation_result_sha256": "ceba28c643ef9165abbc11d6f3f678905875c35f9b70d58cc0d67277d97bd65a",
+    "official_result_zip_sha256": "4ecdadddf354dbd8201d3f6b24791f05bddfd3885b24f065e185448f2b83aecf",
+    "confirmation_sha256": "92f0ccaba2f85d2ca3d8fb1c1b91432e37f164fcba3d722369c219589b9d8896"
+  },
+  "exact_comparison": {
+    "equal": true,
+    "byte_equal": true,
+    "numeric_tolerance": 0,
+    "first_difference": null,
+    "official_surface_sha256": "5d86a81bdc38ca398a11507aa5327a9abce8f9ae68663ce71335f26c52487de2",
+    "engine_surface_sha256": "5d86a81bdc38ca398a11507aa5327a9abce8f9ae68663ce71335f26c52487de2",
+    "trades": 63,
+    "orders": 296,
+    "long_trades": 53,
+    "short_trades": 10,
+    "funded_trades": 24,
+    "tag_120_trades": 2,
+    "locks": 0,
+    "rejected_signals": 0,
+    "max_open_trades": 6,
+    "starting_balance": "1000",
+    "final_balance": "1541.02050065",
+    "profit_total_abs": "541.02050065",
+    "total_volume": "71290.63016133"
+  },
+  "resource_observation": {
+    "environment": "one native Ubuntu 24.04 x86_64 development host with 16 logical CPUs",
+    "native_vector_cache_hits": 10,
+    "native_pipeline_wall_time_seconds": 38.373562783,
+    "native_core_wall_time_seconds": 10.890274539,
+    "native_core_cpu_time_seconds": 10.878521105999997,
+    "native_process_peak_rss_bytes": 583495680,
+    "native_event_loop_seconds": 5.341866118,
+    "official_wall_time_seconds": 339.60889857,
+    "official_container_peak_bytes": 932937728,
+    "official_container_limit_bytes": 43752632320,
+    "official_oom_kill_count": 0,
+    "observed_core_wall_ratio": 31.184603965106707,
+    "observed_pipeline_wall_ratio": 8.85007473740362,
+    "comparison_note": "The official time covers its complete offline containerized analysis and backtest. The native core ratio starts at the sealed vector manifest, while the native pipeline reused ten vector-cache entries. Both ratios are diagnostic observations, not a cold, repeated, 80-pair, five-year, or cross-platform performance certificate."
+  },
+  "oracle_reconciliation": {
+    "official_zip_reused": true,
+    "official_zip_rewritten": false,
+    "reason": "The original official run completed against an earlier native candidate. After source-backed accounting corrections, the confirmation command re-normalized the immutable official ZIP and compared it with the new identity-matched native surface instead of repeating Freqtrade.",
+    "confirmation_equal": true
+  },
+  "limitations": [
+    "The interval covers ten pairs and six months, not 80 pairs and five continuous years.",
+    "Tag 121, a liquidation exit, protection locks, and locked-entry rejection were not reached in this portfolio result; separate full-state fixtures cover those paths.",
+    "The native vectors were cache hits and each native and official timing was measured once, so the speed ratios are diagnostic only.",
+    "Only one Linux x86_64 host was measured; Windows, Linux, and macOS installed-candidate repetition medians remain required.",
+    "The combined Full X7 release remains preview until both continuous mode certificates and all platform evidence pass."
+  ]
+}

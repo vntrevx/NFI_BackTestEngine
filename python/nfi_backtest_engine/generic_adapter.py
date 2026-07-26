@@ -546,7 +546,7 @@ def generic_result_to_surface(
             "canceled_trade_entries": 0,
             "canceled_entry_orders": 0,
             "replaced_entry_orders": 0,
-            "max_open_trades": result["maximum_concurrent_trades"],
+            "max_open_trades": _surface_max_open_trades(config, result),
         },
         "locks": [
             {
@@ -569,6 +569,32 @@ def generic_result_to_surface(
     validate_trade_surface(surface)
     write_json(destination, surface)
     return surface
+
+
+def _surface_max_open_trades(config: dict[str, Any], result: dict[str, Any]) -> int:
+    """Return the configured slot limit exported by Freqtrade.
+
+    ``maximum_concurrent_trades`` is an engine diagnostic high-water mark.
+    Freqtrade's result field instead records the effective configuration
+    limit, even when a run never fills every slot. Generic fixture callers may
+    omit the full run configuration, so those diagnostic-only uses retain the
+    observed-value fallback.
+    """
+    configured = config.get("max_open_trades")
+    if (
+        isinstance(configured, int | float)
+        and not isinstance(configured, bool)
+        and math.isfinite(float(configured))
+        and float(configured).is_integer()
+        and configured > 0
+    ):
+        configured_slots = int(configured)
+        exchange = config.get("exchange")
+        whitelist = exchange.get("pair_whitelist") if isinstance(exchange, dict) else None
+        if isinstance(whitelist, list) and whitelist:
+            return min(configured_slots, len(whitelist))
+        return configured_slots
+    return int(result["maximum_concurrent_trades"])
 
 
 def _signal_candles(
