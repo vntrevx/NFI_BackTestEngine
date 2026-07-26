@@ -1267,30 +1267,37 @@ def _validate_nfi_frame_scope(
     if not supported_long:
         raise StrategyAnalysisError("NFI adapter has no executable entry-tag route")
     required = {"nfi_exec_enter_long", "nfi_exec_enter_tag"}
+    # X7 stores long and short labels in one ``enter_tag`` column. A spot row
+    # can therefore carry a valid long label plus a simultaneous short label,
+    # even though Freqtrade will only open the long side. Compile the short
+    # scope in spot mode too so this source-defined compound representation is
+    # validated by meaning rather than by a side-specific string whitelist.
+    managed_short = manager.get("managed_short_routes")
+    if not isinstance(managed_short, list) or not managed_short:
+        raise StrategyAnalysisError("NFI managed-short routes are invalid")
     supported_short: set[str] = set()
+    for route in managed_short:
+        entry_tags = route.get("entry_tags") if isinstance(route, dict) else None
+        if not isinstance(entry_tags, list) or not all(
+            isinstance(tag, str) and tag for tag in entry_tags
+        ):
+            raise StrategyAnalysisError("NFI short route tags are invalid")
+        supported_short.update(entry_tags)
+    if not supported_short:
+        raise StrategyAnalysisError("NFI adapter has no executable short entry-tag route")
     if can_short:
-        managed_short = manager.get("managed_short_routes")
-        if not isinstance(managed_short, list) or not managed_short:
-            raise StrategyAnalysisError("NFI managed-short routes are invalid")
-        for route in managed_short:
-            entry_tags = route.get("entry_tags") if isinstance(route, dict) else None
-            if not isinstance(entry_tags, list) or not all(
-                isinstance(tag, str) and tag for tag in entry_tags
-            ):
-                raise StrategyAnalysisError("NFI short route tags are invalid")
-            supported_short.update(entry_tags)
-        if not supported_short:
-            raise StrategyAnalysisError("NFI adapter has no executable short entry-tag route")
         required.add("nfi_exec_enter_short")
     missing = required - set(frame.columns)
     if missing:
         raise StrategyAnalysisError(
             "NFI route scope check is missing: " + ", ".join(sorted(missing))
         )
+    compiled_callback_tags = supported_long | supported_short
     _validate_signal_tags(
         _series_column(frame, "nfi_exec_enter_long"),
         _series_column(frame, "nfi_exec_enter_tag"),
-        supported_long,
+        compiled_callback_tags,
+        required_side_tags=supported_long,
         pair=pair,
         side="long",
     )
@@ -1298,7 +1305,8 @@ def _validate_nfi_frame_scope(
         _validate_signal_tags(
             _series_column(frame, "nfi_exec_enter_short"),
             _series_column(frame, "nfi_exec_enter_tag"),
-            supported_short,
+            compiled_callback_tags,
+            required_side_tags=supported_short,
             pair=pair,
             side="short",
         )
@@ -1316,6 +1324,7 @@ def _validate_signal_tags(
     tags: pd.Series,
     supported: set[str],
     *,
+    required_side_tags: set[str],
     pair: str,
     side: str,
 ) -> None:
@@ -1324,7 +1333,11 @@ def _validate_signal_tags(
             continue
         entry_tag = _optional_text(raw_tag)
         words = entry_tag.split() if entry_tag is not None else []
-        if not words or any(word not in supported for word in words):
+        if (
+            not words
+            or any(word not in supported for word in words)
+            or not any(word in required_side_tags for word in words)
+        ):
             shown = entry_tag if entry_tag is not None else "<none>"
             side_label = "" if side == "long" else f"{side} "
             raise StrategyAnalysisError(

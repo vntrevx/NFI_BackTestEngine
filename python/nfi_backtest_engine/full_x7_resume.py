@@ -45,6 +45,7 @@ def load_engine_measurement(
     *,
     validator: MeasurementValidator,
     allow_report_fallback: bool,
+    allow_incomplete: bool = False,
 ) -> Measurement | None:
     """Restore one native stage without discarding process-tree RSS evidence."""
     report_path = output / "run.json"
@@ -78,6 +79,11 @@ def load_engine_measurement(
         "result_sha256": _engine_surface_sha(report),
     }
     if not validator(measurement):
+        if allow_incomplete and report.get("complete") is False:
+            # The inner research state machine owns the detailed consistency
+            # and artifact-hash checks. Returning None asks the certification
+            # orchestrator to invoke that state machine with --resume.
+            return None
         raise BenchmarkError(f"native certification stage is incomplete: {output}")
     return measurement
 

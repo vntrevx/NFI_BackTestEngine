@@ -13,6 +13,7 @@ from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.full_x7_certification import (
     _determinism,
     _engine_complete,
+    _measure_engine,
     _measure_reference,
     _validate_full_x7_timeframes,
     _validate_probe_matrix,
@@ -66,6 +67,78 @@ def test_full_x7_determinism_includes_warmup_native_and_official_hashes() -> Non
 
     reference[1]["result_sha256"] = "b" * 64
     assert _determinism("a" * 64, engine, reference)["met"] is False
+
+
+def test_full_x7_native_measurement_forwards_resume_to_the_research_state_machine(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: list[str] = []
+
+    def fake_measure(arguments, *_args, **_kwargs):
+        captured.extend(arguments)
+        return {
+            "wall_time_seconds": 1.0,
+            "peak_rss_bytes": 1,
+            "exit_code": 2,
+            "timed_out": False,
+        }
+
+    monkeypatch.setattr(full_x7_certification, "measure_cli_process", fake_measure)
+    inputs = {
+        "strategy_path": tmp_path / "strategy.py",
+        "config_path": tmp_path / "config.json",
+        "data_directory": tmp_path / "data",
+        "engine_market_snapshot": tmp_path / "markets.json",
+        "lock": {
+            "strategy": {"class_name": "NostalgiaForInfinityX7"},
+            "scope": {"timerange": "20210101-20260101"},
+            "pairlist": {"pairs": ["BTC/USDT"]},
+        },
+    }
+
+    _measure_engine(
+        inputs,
+        tmp_path / "run",
+        profile_path=tmp_path / "profile.json",
+        timeout_seconds=60,
+        resume=True,
+    )
+
+    assert captured[-1] == "--resume"
+
+
+def test_full_x7_loader_delegates_only_incomplete_reports_to_resume(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "partial"
+    output.mkdir()
+    write_json(output / "run.json", {"complete": False})
+    write_json(
+        output / "certification-measurement.json",
+        {
+            "wall_time_seconds": 1.0,
+            "peak_rss_bytes": 1,
+            "exit_code": 0,
+            "timed_out": False,
+        },
+    )
+
+    assert (
+        full_x7_resume.load_engine_measurement(
+            output,
+            validator=lambda _measurement: False,
+            allow_report_fallback=False,
+            allow_incomplete=True,
+        )
+        is None
+    )
+    with pytest.raises(BenchmarkError, match="stage is incomplete"):
+        full_x7_resume.load_engine_measurement(
+            output,
+            validator=lambda _measurement: False,
+            allow_report_fallback=False,
+        )
 
 
 def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
@@ -556,6 +629,7 @@ def test_cold_strict_engine_gate_rejects_checkpoint_or_coverage_shortfall() -> N
 
     measurement["report"]["pipeline_evidence"]["cold"] = False
     assert _engine_complete(measurement, lock) is False
+    assert _engine_complete(measurement, lock, require_cold=False) is True
 
 
 def test_full_x7_probe_matrix_cannot_be_empty() -> None:

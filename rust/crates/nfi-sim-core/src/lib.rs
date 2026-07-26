@@ -3150,28 +3150,7 @@ fn evaluate_nfi_position_adjustment(
     request: &PositionAdjustmentRequest<'_>,
 ) -> Option<Option<AdjustmentSignal>> {
     if trade.side == TradeSide::Short {
-        let words = trade
-            .entry_tag
-            .as_deref()
-            .unwrap_or("")
-            .split_whitespace()
-            .collect::<Vec<_>>();
-        let route = manager
-            .managed_short_routes
-            .iter()
-            .find(|route| nfi_short_route_supports_tags(route, &words))?;
-        if route.profile != NfiManagedLongProfile::Rebuy {
-            return None;
-        }
-        return evaluate_nfi_short_rebuy_adjustment(
-            &manager.short_rebuy_adjustment,
-            trade,
-            request.pair,
-            request.candle_index,
-            request.candle,
-            request.config,
-            request.available_balance,
-        );
+        return evaluate_nfi_short_position_adjustment(manager, trade, request);
     }
     let mut initial_stake_multiplier = 1.0;
     let mut rebuy_mode = false;
@@ -3245,6 +3224,25 @@ fn evaluate_nfi_position_adjustment(
             );
         }
     }
+    let words = trade
+        .entry_tag
+        .as_deref()
+        .unwrap_or("")
+        .split_whitespace()
+        .collect::<Vec<_>>();
+    let uses_regular_adjustment = rebuy_mode
+        || manager.managed_long_routes.iter().any(|route| {
+            route.profile != NfiManagedLongProfile::Rebuy
+                && words
+                    .iter()
+                    .any(|word| route.entry_tags.iter().any(|tag| tag == word))
+        });
+    if !uses_regular_adjustment {
+        // This is the source's valid no-op branch for compounds such as a
+        // rebuy/grind tag plus an opposite-side tag. Do not accidentally
+        // promote those trades into the regular long adjustment machine.
+        return Some(None);
+    }
     evaluate_nfi_system_v3_adjustment(
         manager,
         trade,
@@ -3252,6 +3250,42 @@ fn evaluate_nfi_position_adjustment(
         initial_stake_multiplier,
         rebuy_mode,
     )
+}
+
+#[allow(clippy::option_option)] // Outer None rejects invalid state; inner None is a valid no-op.
+fn evaluate_nfi_short_position_adjustment(
+    manager: &NfiX7TradeManager,
+    trade: &mut OpenTrade,
+    request: &PositionAdjustmentRequest<'_>,
+) -> Option<Option<AdjustmentSignal>> {
+    let words = trade
+        .entry_tag
+        .as_deref()
+        .unwrap_or("")
+        .split_whitespace()
+        .collect::<Vec<_>>();
+    let route = manager
+        .managed_short_routes
+        .iter()
+        .find(|route| nfi_short_route_supports_tags(route, &words));
+    if let Some(route) = route {
+        if route.profile != NfiManagedLongProfile::Rebuy {
+            return None;
+        }
+        return evaluate_nfi_short_rebuy_adjustment(
+            &manager.short_rebuy_adjustment,
+            trade,
+            request.pair,
+            request.candle_index,
+            request.candle,
+            request.config,
+            request.available_balance,
+        );
+    }
+    // A simultaneous long signal can append a long word to X7's shared
+    // entry-tag column. That makes short rebuy's all-tags predicate false,
+    // and the reviewed source then performs no short adjustment.
+    Some(None)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3330,28 +3364,23 @@ fn nfi_entry_signal_is_supported(
         if words.is_empty() {
             return false;
         }
-        match side {
-            TradeSide::Long => {
-                // Reject mixed tags containing a route that has not been
-                // lowered. Checking only one recognized word can skip an
-                // earlier source branch and silently change callback state.
-                words
-                    .iter()
-                    .all(|tag| nfi_long_tag_is_in_compiled_scope(manager, tag))
-                    && nfi_any_route_matches(manager, &words)
-            }
-            TradeSide::Short => {
-                words.iter().all(|tag| {
-                    manager
-                        .managed_short_routes
-                        .iter()
-                        .any(|route| route.entry_tags.iter().any(|supported| supported == tag))
-                }) && manager
-                    .managed_short_routes
-                    .iter()
-                    .any(|route| nfi_short_route_supports_tags(route, &words))
-            }
-        }
+        let all_words_are_compiled = words.iter().all(|tag| {
+            nfi_long_tag_is_in_compiled_scope(manager, tag)
+                || nfi_short_tag_is_in_compiled_scope(manager, tag)
+        });
+        let contains_entry_side = match side {
+            TradeSide::Long => words
+                .iter()
+                .any(|tag| nfi_long_tag_is_in_compiled_scope(manager, tag)),
+            TradeSide::Short => words
+                .iter()
+                .any(|tag| nfi_short_tag_is_in_compiled_scope(manager, tag)),
+        };
+        // X7 appends both sides to one tag column. Requiring one word for the
+        // side being opened rejects malformed vectors, while the union check
+        // permits only opposite-side words whose callback route was compiled
+        // and reviewed from the same source snapshot.
+        all_words_are_compiled && contains_entry_side
     })
 }
 
@@ -3370,26 +3399,18 @@ fn nfi_long_tag_is_in_compiled_scope(manager: &NfiX7TradeManager, tag: &str) -> 
             .is_some_and(|route| route.entry_tags.iter().any(|supported| supported == tag))
 }
 
+fn nfi_short_tag_is_in_compiled_scope(manager: &NfiX7TradeManager, tag: &str) -> bool {
+    manager
+        .managed_short_routes
+        .iter()
+        .any(|route| route.entry_tags.iter().any(|supported| supported == tag))
+}
+
 fn nfi_short_route_supports_tags(route: &NfiManagedLongRoute, words: &[&str]) -> bool {
     !words.is_empty()
         && words
             .iter()
             .all(|word| route.entry_tags.iter().any(|supported| supported == word))
-}
-
-fn nfi_any_route_matches(manager: &NfiX7TradeManager, words: &[&str]) -> bool {
-    manager
-        .managed_long_routes
-        .iter()
-        .any(|route| nfi_managed_route_supports_tags(manager, route, words))
-        || manager
-            .long_grind
-            .as_ref()
-            .is_some_and(|route| nfi_legacy_route_supports_tags(route, words))
-        || manager
-            .long_btc
-            .as_ref()
-            .is_some_and(|route| nfi_legacy_route_supports_tags(route, words))
 }
 
 fn nfi_managed_route_supports_tags(
@@ -3442,13 +3463,6 @@ fn nfi_managed_route_supports_tags(
         }),
         _ => true,
     }
-}
-
-fn nfi_legacy_route_supports_tags(route: &NfiLongGrindRoute, words: &[&str]) -> bool {
-    !words.is_empty()
-        && words
-            .iter()
-            .all(|word| route.entry_tags.iter().any(|supported| supported == word))
 }
 
 fn validate_callback_program(program: &CallbackProgram) -> Result<(), SimError> {
@@ -6120,24 +6134,12 @@ fn evaluate_nfi_exit(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Option<CustomExitDecision> {
-    if trade.side == TradeSide::Short {
-        return evaluate_nfi_short_exit(
-            manager,
-            trade,
-            pair,
-            candle_index,
-            candle,
-            config,
-            profit_targets,
-        );
-    }
     let words = trade
         .entry_tag
         .as_deref()
         .unwrap_or("")
         .split_whitespace()
         .collect::<Vec<_>>();
-    let mut matched = false;
     for key in &manager.route_order {
         if let Some(route) = manager
             .managed_long_routes
@@ -6147,7 +6149,6 @@ fn evaluate_nfi_exit(
             if !nfi_managed_route_supports_tags(manager, route, &words) {
                 continue;
             }
-            matched = true;
             match evaluate_nfi_managed_long_exit(
                 manager,
                 route,
@@ -6172,7 +6173,6 @@ fn evaluate_nfi_exit(
             _ => None,
         };
         if let Some(route) = legacy.filter(|route| nfi_long_grind_supports_trade(route, trade)) {
-            matched = true;
             let snapshot = nfi_profit_snapshot(
                 trade,
                 candle.open,
@@ -6189,7 +6189,25 @@ fn evaluate_nfi_exit(
             }
         }
     }
-    matched.then_some(CustomExitDecision::NoExit)
+    // X7's custom_exit callback checks every long block before every short
+    // block without filtering on trade.is_short. This is observable when its
+    // shared enter_tag column contains labels from both sides.
+    if let Some(decision) = evaluate_nfi_short_exit(
+        manager,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        config,
+        profit_targets,
+    ) {
+        if let CustomExitDecision::Exit(_) = decision {
+            return Some(decision);
+        }
+    }
+    // A compound of individually compiled words may intentionally match no
+    // all-tags route. The source callback returns None in that case.
+    Some(CustomExitDecision::NoExit)
 }
 
 /// Execute the bounded short-rebuy branch in source order.
@@ -9361,6 +9379,99 @@ mod tests {
             simulate(&input),
             Err(SimError::UnsupportedNfiEntryTag { entry_tag, .. })
                 if entry_tag == "61 999"
+        ));
+    }
+
+    #[test]
+    fn nfi_trade_manager_accepts_a_compiled_cross_side_compound_noop() {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            // X7's shared enter_tag column can contain a simultaneous short
+            // label in spot mode. Neither all-tags route matches this pair.
+            tag: Some("101 562 ".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager_config = config(1);
+        enable_nfi_manager(
+            &mut manager_config,
+            nfi_top_coins_manager(nfi_false_program()),
+        );
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![nfi_pair(
+                vec![entry, candle(2, 100.0, 100.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        let result = simulate(&input).expect("compiled cross-side compound");
+
+        assert_eq!(result.trades.len(), 1);
+        assert_eq!(result.trades[0].entry_tag.as_deref(), Some("101 562 "));
+        assert_eq!(result.trades[0].exit_reason, "force_exit");
+    }
+
+    #[test]
+    fn nfi_cross_side_compound_keeps_source_callback_order() {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_short = Some(EntrySignal {
+            // The source evaluates long-normal's any-tag branch before the
+            // short branches, regardless of the opened trade side.
+            tag: Some("1 562".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager_config = config(1);
+        enable_nfi_manager(
+            &mut manager_config,
+            nfi_top_coins_manager(nfi_profit_program(0.01, "exit_long_normal_test")),
+        );
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![nfi_pair(
+                vec![entry, candle(2, 90.0, 90.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        let result = simulate(&input).expect("source-ordered cross-side callbacks");
+
+        assert!(result.trades[0].is_short);
+        assert_eq!(
+            result.trades[0].exit_reason,
+            "exit_long_normal_test ( 1 562)"
+        );
+    }
+
+    #[test]
+    fn nfi_trade_manager_requires_a_tag_for_the_opened_side() {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some("562".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager_config = config(1);
+        enable_nfi_manager(
+            &mut manager_config,
+            nfi_top_coins_manager(nfi_false_program()),
+        );
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![nfi_pair(
+                vec![entry, candle(2, 100.0, 100.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        assert!(matches!(
+            simulate(&input),
+            Err(SimError::UnsupportedNfiEntryTag { entry_tag, .. })
+                if entry_tag == "562"
         ));
     }
 

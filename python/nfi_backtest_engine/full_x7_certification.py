@@ -131,19 +131,23 @@ def run_full_x7_certification(
             validator=lambda measurement: _engine_complete(
                 measurement,
                 inputs["lock"],
+                require_cold=False,
             ),
             allow_report_fallback=True,
+            allow_incomplete=True,
         )
         if resume
         else None
     )
     if baseline is None:
-        require_stage_available(warmup_root / "engine", stage="native warmup")
+        if not resume:
+            require_stage_available(warmup_root / "engine", stage="native warmup")
         baseline = _measure_engine(
             inputs,
             warmup_root / "engine",
             profile_path=Path(execution_profile_path).resolve(),
             timeout_seconds=timeout_seconds,
+            resume=resume,
         )
     _require_complete_baseline(baseline, inputs["lock"])
     reference_warmup = load_reference_measurement(warmup_root / "reference") if resume else None
@@ -675,6 +679,7 @@ def _measure_engine(
     *,
     profile_path: Path,
     timeout_seconds: int,
+    resume: bool = False,
 ) -> dict[str, Any]:
     output.parent.mkdir(parents=True, exist_ok=True)
     pairs = inputs["lock"]["pairlist"]["pairs"]
@@ -707,6 +712,8 @@ def _measure_engine(
     ]
     for pair in pairs:
         arguments.extend(["--pair", pair])
+    if resume:
+        arguments.append("--resume")
     measurement = measure_cli_process(
         arguments,
         output.parent / f"{output.name}.stdout.log",
@@ -822,20 +829,25 @@ def _require_complete_baseline(
     measurement: dict[str, Any],
     lock: dict[str, Any],
 ) -> None:
-    if not _engine_complete(measurement, lock):
+    if not _engine_complete(measurement, lock, require_cold=False):
         raise BenchmarkError(
-            "Full X7 warmup/baseline did not complete a cold strict native run; "
+            "Full X7 warmup/baseline did not complete a strict native run; "
             "inspect warmups/engine/run.json"
         )
 
 
-def _engine_complete(measurement: dict[str, Any], lock: dict[str, Any]) -> bool:
+def _engine_complete(
+    measurement: dict[str, Any],
+    lock: dict[str, Any],
+    *,
+    require_cold: bool = True,
+) -> bool:
     report = measurement.get("report")
     return bool(
         measurement.get("exit_code") == 0
         and isinstance(report, dict)
         and report.get("complete") is True
-        and report.get("pipeline_evidence", {}).get("cold") is True
+        and (not require_cold or report.get("pipeline_evidence", {}).get("cold") is True)
         and report.get("data", {}).get("history_coverage_policy") == "strict"
         and report.get("data", {}).get("coverage_shortfall_count") == 0
         and report.get("data", {}).get("aggregate_sha256") == lock["data"]["aggregate_sha256"]
