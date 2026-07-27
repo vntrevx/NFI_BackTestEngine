@@ -32,10 +32,6 @@ jobs:
             manylinux: "off"
             portable_evidence: true
     steps:
-      - name: Preserve repository line endings
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: git config --global core.autocrlf false
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

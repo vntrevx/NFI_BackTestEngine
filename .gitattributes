@@ -1,4 +1,7 @@
-* text=auto
+# Release wheels must embed the same portable source bytes on every build host.
+# Explicit LF checkout semantics prevent Windows Git settings from rewriting
+# Python and metadata files before maturin packages them.
+* text=auto eol=lf
 *.sh text eol=lf
 *.ps1 text eol=lf
 
