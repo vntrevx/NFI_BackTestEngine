@@ -186,13 +186,13 @@ def _prepare_reference_oracle_copy(source: Path, output: Path) -> None:
     directories become owner-writable; source modes and all copied artifact
     bytes remain unchanged.
 
-    A failed import may leave the complete source tree at ``output`` before
-    those local records are written. Resume accepts that state only when every
-    file is still byte-identical and no extra file exists.
+    A failed import may leave the complete source tree at ``output`` before or
+    after its local data-seal record is written. Resume accepts only those
+    explicitly modelled states; every immutable source artifact must still
+    match byte-for-byte.
     """
     if output.exists():
-        if not output.is_dir() or _tree_file_records(output) != _tree_file_records(source):
-            raise BenchmarkError("partial official oracle import differs from the immutable source")
+        _validate_partial_reference_oracle_copy(source, output)
     else:
         shutil.copytree(source, output)
 
@@ -200,6 +200,73 @@ def _prepare_reference_oracle_copy(source: Path, output: Path) -> None:
     for directory in directories:
         mode = stat.S_IMODE(directory.stat().st_mode)
         directory.chmod(mode | stat.S_IWUSR | stat.S_IXUSR)
+    report_path = output / "run.json"
+    report_mode = stat.S_IMODE(report_path.stat().st_mode)
+    report_path.chmod(report_mode | stat.S_IWUSR)
+
+
+def _validate_partial_reference_oracle_copy(source: Path, output: Path) -> None:
+    """Accept only known import checkpoints over an immutable source tree."""
+    if not output.is_dir():
+        raise BenchmarkError("partial official oracle import is not a directory")
+    source_records = _tree_file_records(source)
+    output_records = _tree_file_records(output)
+    report_name = "run.json"
+    local_seal_name = "inputs/data-seal.json"
+    immutable_names = set(source_records) - {report_name}
+    if any(output_records.get(name) != source_records[name] for name in immutable_names):
+        raise BenchmarkError("partial official oracle import differs from the immutable source")
+    if set(output_records) - set(source_records) - {local_seal_name}:
+        raise BenchmarkError("partial official oracle import has unexpected local artifacts")
+
+    source_report_record = source_records.get(report_name)
+    output_report_record = output_records.get(report_name)
+    if source_report_record is None or output_report_record is None:
+        raise BenchmarkError("partial official oracle import lost its run report")
+    if output_report_record == source_report_record:
+        _validate_optional_local_data_seal(source, output)
+        return
+
+    expected = _expected_materialized_oracle_report(source, output)
+    try:
+        actual = read_json(output / report_name)
+    except (OSError, ValueError) as exc:
+        raise BenchmarkError("partial official oracle import has an invalid run report") from exc
+    if actual != expected:
+        raise BenchmarkError("partial official oracle import has unexpected run metadata")
+
+
+def _validate_optional_local_data_seal(source: Path, output: Path) -> None:
+    destination = output / "inputs" / "data-seal.json"
+    if not destination.exists():
+        return
+    source_report = read_json(source / "run.json")
+    inputs = source_report.get("inputs")
+    record = inputs.get("data_seal") if isinstance(inputs, dict) else None
+    if _verified_artifact_path(output, record) != destination:
+        raise BenchmarkError("partial official oracle import data-seal bytes differ")
+
+
+def _expected_materialized_oracle_report(source: Path, output: Path) -> dict[str, Any]:
+    """Build the sole mutable report state allowed before parity reconciliation."""
+    _validate_optional_local_data_seal(source, output)
+    destination = output / "inputs" / "data-seal.json"
+    if not destination.is_file():
+        raise BenchmarkError("partial official oracle import lost its local data seal")
+    report = copy.deepcopy(read_json(source / "run.json"))
+    inputs = report.get("inputs")
+    if not isinstance(inputs, dict):
+        raise BenchmarkError("partial official oracle import has no input identity record")
+    inputs["data_seal"] = {
+        "path": str(destination),
+        "bytes": destination.stat().st_size,
+        "sha256": sha256_file(destination),
+    }
+    report["oracle_import"] = {
+        "schema_version": "1.0.0",
+        "source_run_report_sha256": sha256_file(source / "run.json"),
+    }
+    return report
 
 
 def _tree_file_records(root: Path) -> dict[str, tuple[int, str]]:

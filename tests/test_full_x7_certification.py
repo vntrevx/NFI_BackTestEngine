@@ -618,7 +618,18 @@ def test_oracle_import_resumes_only_an_exact_source_copy(tmp_path: Path) -> None
     source = tmp_path / "source"
     source_inputs = source / "inputs"
     source_inputs.mkdir(parents=True)
-    (source / "run.json").write_bytes(b"sealed-report")
+    data_seal = tmp_path / "data-seal.json"
+    data_seal.write_bytes(b"sealed-data")
+    source_report = {
+        "inputs": {
+            "data_seal": {
+                "path": str(data_seal),
+                "bytes": data_seal.stat().st_size,
+                "sha256": full_x7_resume.sha256_file(data_seal),
+            }
+        }
+    }
+    write_json(source / "run.json", source_report)
     (source_inputs / "strategy.py").write_bytes(b"sealed-strategy")
     source_inputs.chmod(0o555)
     source.chmod(0o555)
@@ -628,12 +639,20 @@ def test_oracle_import_resumes_only_an_exact_source_copy(tmp_path: Path) -> None
     try:
         shutil.copytree(source, exact)
         full_x7_resume._prepare_reference_oracle_copy(source, exact)
-        (exact / "inputs" / "local-record.json").write_bytes(b"local")
+        assert exact.joinpath("run.json").stat().st_mode & 0o200
+
+        local_seal = exact / "inputs" / "data-seal.json"
+        local_seal.write_bytes(data_seal.read_bytes())
+        full_x7_resume._prepare_reference_oracle_copy(source, exact)
+
+        materialized_report = full_x7_resume._expected_materialized_oracle_report(source, exact)
+        write_json(exact / "run.json", materialized_report)
+        full_x7_resume._prepare_reference_oracle_copy(source, exact)
 
         shutil.copytree(source, changed)
         changed.chmod(0o755)
         (changed / "extra.json").write_bytes(b"unexpected")
-        with pytest.raises(BenchmarkError, match="differs from the immutable source"):
+        with pytest.raises(BenchmarkError, match="partial official oracle import"):
             full_x7_resume._prepare_reference_oracle_copy(source, changed)
     finally:
         source.chmod(0o755)
