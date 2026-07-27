@@ -4,9 +4,10 @@ import json
 import os
 from pathlib import Path
 
+import psutil
 import pytest
 from nfi_backtest_engine import cli
-from nfi_backtest_engine.clean import create_clean_audit, format_clean_audit
+from nfi_backtest_engine.clean import _pid_active, create_clean_audit, format_clean_audit
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.evidence_bundle import write_evidence_bundle
 
@@ -154,6 +155,23 @@ def test_active_pid_protects_its_run_and_checkpoints(tmp_path: Path) -> None:
     assert entry["active_pids"][0]["pid"] == os.getpid()
     assert audit["safety"]["active_pid_count"] == 1
     assert audit["safety"]["fail_closed"] is True
+
+
+def test_pid_liveness_uses_a_cross_platform_process_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: list[int] = []
+
+    def pid_exists(pid: int) -> bool:
+        observed.append(pid)
+        return pid == 42
+
+    monkeypatch.setattr(psutil, "pid_exists", pid_exists)
+
+    assert _pid_active(42) is True
+    assert _pid_active(43) is False
+    assert _pid_active(0) is False
+    assert observed == [42, 43]
 
 
 @pytest.mark.skipif(os.name != "posix", reason="fcntl lock assertion is POSIX-specific")

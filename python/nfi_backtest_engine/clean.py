@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import psutil
+
 from .canonical import read_json, write_json
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
@@ -658,17 +660,7 @@ def _inspect_pid_file(root: Path, path: Path) -> dict[str, Any]:
 
 
 def _pid_active(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
+    return pid > 0 and psutil.pid_exists(pid)
 
 
 def _inspect_lock_file(root: Path, path: Path) -> dict[str, Any]:
