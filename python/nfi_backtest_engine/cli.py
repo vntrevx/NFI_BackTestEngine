@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -11,38 +10,40 @@ from typing import Any
 
 from . import __version__
 from .benchmark import run_benchmark
-from .canonical import read_json, write_json
-from .config_loader import load_effective_config
-from .doctor import run_doctor
-from .engine_runtime import build_engine, run_engine
-from .errors import NfiBacktestError, SpecValidationError
-from .fixture import seal_fixture, sha256_file, validate_fixture
-from .fixture_engine import run_fixture_engine
-from .hardware import (
-    GIB,
-    create_execution_profile,
-    inspect_hardware,
-    load_execution_profile,
+from .commands import (
+    certify as certify_commands,
 )
-from .normalize import normalize_file
-from .parity import ParityMismatch, compare_surface_files
-from .performance_gate import run_performance_gate
+from .commands import (
+    clean as clean_commands,
+)
+from .commands import (
+    fixture as fixture_commands,
+)
+from .commands import (
+    reference as reference_commands,
+)
+from .commands import (
+    release as release_commands,
+)
+from .commands import (
+    report as report_commands,
+)
+from .commands import (
+    run as run_commands,
+)
+from .commands import (
+    system as system_commands,
+)
+from .config_loader import load_effective_config
+from .errors import NfiBacktestError
+from .hardware import create_execution_profile
+from .parity import ParityMismatch
 from .product_contract import (
     DEFAULT_CERTIFICATION_REPETITIONS,
     DEFAULT_FULL_X7_TIMEOUT_SECONDS,
 )
-from .profiling import aggregate_profile_file
-from .reference_runtime import (
-    capture_reference_markets,
-    load_reference_leverage_tiers,
-    run_reference_fixture,
-)
-from .state_trace import TraceMismatch, compare_state_traces, trace_summary
-from .strategy_ir import (
-    analyze_strategy,
-    prepare_strategy,
-    validate_strategy_bundle,
-)
+from .reference_runtime import load_reference_leverage_tiers
+from .state_trace import TraceMismatch
 
 
 def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
@@ -911,6 +912,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _dispatch_command(
+    args: argparse.Namespace,
+    *,
+    benchmark_command: list[str] | None,
+) -> int:
+    """Route parsed arguments to one behavior-preserving command module."""
+    command_name = args.command_name
+    if command_name in fixture_commands.COMMAND_NAMES:
+        return fixture_commands.execute(
+            args,
+            benchmark_command=benchmark_command,
+            run_benchmark_service=run_benchmark,
+        )
+    if command_name in reference_commands.COMMAND_NAMES:
+        return reference_commands.execute(args, market_capture=_execute_market_capture)
+    if command_name in report_commands.COMMAND_NAMES:
+        return report_commands.execute(args)
+    if command_name in run_commands.COMMAND_NAMES:
+        return run_commands.execute(args)
+    if command_name in system_commands.COMMAND_NAMES:
+        return system_commands.execute(
+            args,
+            create_profile=create_execution_profile,
+        )
+    if command_name in clean_commands.COMMAND_NAMES:
+        return clean_commands.execute(args)
+    if command_name in certify_commands.COMMAND_NAMES:
+        return certify_commands.execute(args)
+    if command_name in release_commands.COMMAND_NAMES:
+        return release_commands.execute(args)
+    raise AssertionError(f"unhandled command: {command_name}")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     raw_args = list(argv) if argv is not None else sys.argv[1:]
     benchmark_command: list[str] | None = None
@@ -920,539 +954,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raw_args = raw_args[:separator]
     args = build_parser().parse_args(raw_args)
     try:
-        if args.command_name == "fixture":
-            if args.fixture_command == "validate":
-                manifest = validate_fixture(args.manifest, verify_hashes=not args.skip_hashes)
-                print(f"fixture valid: {manifest['fixture_id']} ({manifest['evidence_status']})")
-            elif args.fixture_command == "seal":
-                manifest = seal_fixture(args.manifest)
-                print(f"fixture sealed: {manifest['fixture_id']}")
-            elif args.fixture_command == "upload":
-                from .object_storage import upload_artifact
-
-                record = upload_artifact(
-                    args.source,
-                    args.destination,
-                    endpoint_url=args.endpoint_url,
-                )
-                print(
-                    f"S3 artifact uploaded and verified: {record['bytes']} bytes, "
-                    f"sha256={record['sha256']} -> {record['uri']}"
-                )
-            else:
-                from .object_storage import download_artifact
-
-                record = download_artifact(
-                    args.source,
-                    args.output,
-                    expected_sha256=args.sha256,
-                    endpoint_url=args.endpoint_url,
-                )
-                print(
-                    f"S3 artifact downloaded and verified: {record['bytes']} bytes, "
-                    f"sha256={record['sha256']} -> {record['local_path']}"
-                )
-            return 0
-
-        if args.command_name == "universe":
-            return _execute_universe(args)
-
-        if args.command_name == "probe":
-            from .probe_capture import capture_x7_probe
-
-            report = capture_x7_probe(
-                args.spec,
-                args.output_dir,
-                args.work_dir,
-                timeout_seconds=args.timeout,
-                workers=args.workers,
-            )
-            print(
-                "Full X7 probe captured: "
-                f"fixture={report['fixture_id']}, "
-                f"manifest_sha256={report['manifest_sha256']} -> "
-                f"{args.output_dir / 'manifest.json'}"
-            )
-            return 0
-
-        if args.command_name == "platform":
-            return _execute_platform(args)
-
-        if args.command_name == "normalize":
-            surface = normalize_file(
-                args.source,
-                args.output,
-                strategy=args.strategy,
-                surface_version=args.surface_version,
-            )
-            print(f"normalized {len(surface['trades'])} trades -> {args.output}")
-            return 0
-
-        if args.command_name == "parity":
-            compare_surface_files(args.expected, args.actual)
-            print(f"exact parity: {args.expected} == {args.actual}")
-            return 0
-
-        if args.command_name == "trace":
-            if args.trace_command == "inspect":
-                summary = trace_summary(args.source)
-                print(
-                    f"state trace valid: {summary['event_count']} events, "
-                    f"stream {summary['stream_hash']}"
-                )
-            else:
-                compare_state_traces(args.expected, args.actual)
-                print(f"exact state parity: {args.expected} == {args.actual}")
-            return 0
-
-        if args.command_name == "profile":
-            report = aggregate_profile_file(args.events, args.output)
-            print(f"profile aggregated: {len(report['phases'])} phases -> {args.output}")
-            return 0 if not report["missing_phases"] else 1
-
-        if args.command_name == "benchmark":
-            report = run_benchmark(args.manifest, args.output, command_override=benchmark_command)
-            print(f"benchmark report -> {args.output}")
-            return 0 if report["complete"] else 1
-
-        if args.command_name == "reference":
-            if args.reference_command == "capture-markets":
-                record = capture_reference_markets(
-                    args.manifest,
-                    args.output,
-                    timeout_seconds=args.timeout,
-                )
-                print(
-                    f"market snapshot captured: {record['bytes']} bytes, "
-                    f"sha256={record['sha256']} -> {args.output}"
-                )
-                return 0
-            if args.reference_command == "research":
-                return _execute_research_reference(args)
-            report = run_reference_fixture(
-                args.manifest,
-                args.output_dir,
-                trace_mode=args.trace,
-                profile=not args.no_profile,
-                timeout_seconds=args.timeout,
-            )
-            print(
-                f"reference parity: trades={report['parity']['trade_surface']['equal']}, "
-                f"state={report['parity']['state_trace']}, report={args.output_dir / 'run.json'}"
-            )
-            memory_verdict = report["container_memory"]["verdict"]
-            if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
-                print(
-                    "reference container memory: "
-                    f"{memory_verdict}, peak={report['container_memory']['peak_bytes']}, "
-                    f"limit={report['container_memory']['limit_bytes']}",
-                    file=sys.stderr,
-                )
-            return 0 if report["complete"] else 1
-
-        if args.command_name == "doctor":
-            report = run_doctor(profile_path=args.profile)
-            if args.output:
-                write_json(args.output, report)
-            print(
-                f"doctor: {'healthy' if report['healthy'] else 'unhealthy'}; "
-                + ", ".join(f"{check['name']}={check['status']}" for check in report["checks"])
-            )
-            return 0 if report["healthy"] else 1
-
-        if args.command_name == "clean":
-            from .clean import create_clean_audit, format_clean_audit
-
-            audit = create_clean_audit(
-                args.root,
-                output_path=args.output,
-                preserve=args.preserve,
-                inspect_runtime=not args.no_runtime_probes,
-            )
-            print(format_clean_audit(audit))
-            return 0
-
-        if args.command_name == "init":
-            from .project_setup import initialize_project
-
-            initialize_project(
-                project_path=args.project,
-                source=args.source,
-                class_name=args.class_name,
-                config_path=args.config,
-                data_directory=args.datadir,
-                timerange=args.timerange,
-                output_directory=args.output_dir,
-                pairs=args.pair,
-                interactive=not args.yes,
-                force=args.force,
-            )
-            return 0
-
-        if args.command_name == "run":
-            from .project_setup import (
-                initialize_project,
-                load_project,
-                project_run_arguments,
-            )
-
-            project_path = args.project.resolve()
-            if project_path.is_file():
-                supplied = {
-                    "source": args.source,
-                    "--class": args.class_name,
-                    "--config": args.config,
-                    "--datadir": args.datadir,
-                    "--timerange": args.timerange,
-                    "--output-dir": args.output_dir,
-                    "--pair": args.pair,
-                }
-                changed = [name for name, value in supplied.items() if value is not None]
-                if changed:
-                    raise NfiBacktestError(
-                        "saved project already exists; reconfigure with "
-                        f"`nfi-bte init --force` instead of overriding {', '.join(changed)}"
-                    )
-                settings = load_project(project_path)
-            else:
-                settings = initialize_project(
-                    project_path=project_path,
-                    source=args.source,
-                    class_name=args.class_name,
-                    config_path=args.config,
-                    data_directory=args.datadir,
-                    timerange=args.timerange,
-                    output_directory=args.output_dir,
-                    pairs=args.pair,
-                    interactive=not args.yes,
-                )
-            output = settings.output_directory
-            resume = output.is_dir() and any(output.iterdir())
-            if resume:
-                print(f"existing run found; resuming hash-valid stages from {output}")
-            return _execute_research_backtest(
-                project_run_arguments(settings),
-                workers=args.workers,
-                resume=resume,
-                prepare_only=args.prepare_only,
-                download_missing=not args.no_download,
-                market_metadata_path=args.markets,
-                download_market_metadata=not args.no_market_download,
-                recalibrate=args.recalibrate,
-                history_coverage_policy=args.history_coverage,
-                full_report=args.full_report,
-            )
-
-        if args.command_name == "system":
-            if args.system_command == "inspect":
-                hardware = inspect_hardware()
-                if args.output:
-                    write_json(args.output, hardware)
-                print(json.dumps(hardware, ensure_ascii=False, indent=2))
-                return 0
-            if args.system_command == "docker":
-                from .docker_resources import (
-                    derive_docker_policy,
-                    inspect_docker_daemon,
-                )
-                from .docker_runtime import (
-                    cleanup_stopped_managed_containers,
-                    list_managed_containers,
-                )
-                from .reference_runtime import ensure_docker_config
-
-                docker_config = ensure_docker_config()
-                cleaned = (
-                    cleanup_stopped_managed_containers(docker_config=docker_config)
-                    if args.cleanup_stopped
-                    else []
-                )
-                daemon = inspect_docker_daemon(docker_config=docker_config)
-                report = {
-                    "schema_version": "1.0.0",
-                    "daemon": daemon,
-                    "policy": derive_docker_policy(daemon),
-                    "managed_containers": list_managed_containers(docker_config=docker_config),
-                    "cleaned_stopped_containers": cleaned,
-                }
-                if args.output:
-                    write_json(args.output, report)
-                print(json.dumps(report, ensure_ascii=False, indent=2))
-                return 0
-            if args.system_command == "tune":
-                if args.memory_cap_gib is not None and args.memory_cap_gib <= 0:
-                    raise NfiBacktestError("--memory-cap-gib must be positive")
-                if args.output.exists() and not args.force:
-                    raise NfiBacktestError(
-                        f"execution profile already exists: {args.output}; "
-                        "use --force to recalibrate"
-                    )
-                profile = create_execution_profile(
-                    args.output,
-                    memory_cap_bytes=(
-                        int(args.memory_cap_gib * GIB) if args.memory_cap_gib is not None else None
-                    ),
-                    spool_directory=args.spool_directory,
-                )
-                limits = profile["limits"]
-                print(
-                    f"execution profile -> {args.output}; "
-                    f"cpu_process_limit={limits['cpu_process_limit']}, "
-                    f"memory_cap={limits['memory_cap_bytes']}; "
-                    "workload process counts are measured on the first run"
-                )
-                return 0
-            profile = load_execution_profile(args.profile)
-            print(json.dumps(profile, ensure_ascii=False, indent=2))
-            return 0
-
-        if args.command_name == "data":
-            from .data_seal import prepare_data, validate_data_seal
-
-            if args.data_command == "prepare":
-                seal = prepare_data(
-                    config_path=args.config,
-                    data_directory=args.datadir,
-                    timerange=args.timerange,
-                    timeframes=args.timeframe,
-                    destination=args.output,
-                    download_missing=not args.no_download,
-                    startup_candles=args.startup_candles,
-                    require_startup_coverage=args.require_startup_coverage,
-                    history_coverage_policy=args.history_coverage,
-                )
-                print(
-                    f"data sealed: {len(seal['files'])} files, "
-                    f"downloads={len(seal['downloads'])}, "
-                    f"aggregate={seal['aggregate_sha256']} -> {args.output}"
-                )
-            else:
-                seal = validate_data_seal(args.seal)
-                print(
-                    f"data seal valid: {len(seal['files'])} files, "
-                    f"aggregate={seal['aggregate_sha256']}"
-                )
-            return 0
-
-        if args.command_name == "markets":
-            return _execute_market_capture(args)
-
-        if args.command_name == "strategy":
-            if args.strategy_command == "inspect":
-                analysis = analyze_strategy(args.source, class_name=args.class_name)
-                if args.output:
-                    write_json(args.output, analysis)
-                print(
-                    f"strategy inspection: classes={len(analysis['strategies'])}, "
-                    f"diagnostics={len(analysis['diagnostics'])}, "
-                    f"static_safe={analysis['static_safe']}"
-                )
-                for diagnostic in analysis["diagnostics"]:
-                    location = diagnostic["location"]
-                    print(
-                        f"{location['path']}:{location['line']}:{location['column']}: "
-                        f"{diagnostic['code']}: {diagnostic['message']}",
-                        file=sys.stderr,
-                    )
-                return 0 if analysis["static_safe"] else 1
-            if args.strategy_command == "check":
-                from .strategy_compatibility import check_strategy_compatibility
-                from .verification_ledger import (
-                    VerificationLedger,
-                    record_strategy_compatibility,
-                )
-
-                report = check_strategy_compatibility(
-                    args.source,
-                    class_name=args.class_name,
-                    config_path=args.config,
-                    trading_mode=args.trading_mode,
-                    output_path=args.output,
-                )
-                print(
-                    "strategy compatibility: "
-                    f"native_compatible={report['native_compatible']}, "
-                    f"class={report['selected_class']}, "
-                    f"source={report['source']['sha256']}"
-                )
-                for blocker in report["blockers"]:
-                    print(
-                        f"blocked: {blocker['code']} - {blocker['message']}",
-                        file=sys.stderr,
-                    )
-                if args.verification_ledger is not None:
-                    with VerificationLedger(args.verification_ledger) as ledger:
-                        sequence = record_strategy_compatibility(
-                            ledger,
-                            report,
-                            upstream_repository=args.upstream_repository,
-                            upstream_commit=args.upstream_commit,
-                            strategy_version=args.strategy_version,
-                            report_path=args.output,
-                        )
-                    print(
-                        "verification ledger: "
-                        f"sequence={sequence}, state=latest_checked, "
-                        f"outcome={'success' if report['native_compatible'] else 'failure'}"
-                    )
-                return 0 if report["native_compatible"] else 1
-            if args.strategy_command == "prepare":
-                manifest = prepare_strategy(
-                    args.source,
-                    args.output_dir,
-                    class_name=args.class_name,
-                )
-                print(f"strategy prepared: {manifest['selected_class']} -> {args.output_dir}")
-                return 0
-            if args.strategy_command == "vectors":
-                from .vector_runtime import prepare_vector_signals
-
-                loaded = load_effective_config(args.config)
-                report = prepare_vector_signals(
-                    strategy_path=args.source,
-                    class_name=args.class_name,
-                    config=loaded["config"],
-                    pairs=args.pair,
-                    data_directory=args.datadir,
-                    timerange=args.timerange,
-                    output_directory=args.output_dir,
-                    workers=args.workers,
-                    cache_directory=args.cache_dir,
-                )
-                print(
-                    f"strategy vectors: pairs={report['pair_count']}, "
-                    f"cache_hits={report['cache_hits']} -> {args.output_dir}"
-                )
-                return 0
-            manifest = validate_strategy_bundle(args.bundle)
-            print(
-                f"strategy bundle valid: {manifest['selected_class']}, "
-                f"sha256={manifest['strategy']['sha256']}"
-            )
-            return 0
-
-        if args.command_name == "backtest":
-            return _execute_research_backtest(
-                {
-                    "strategy_path": args.source,
-                    "class_name": args.class_name,
-                    "config_path": args.config,
-                    "data_directory": args.datadir,
-                    "timerange": args.timerange,
-                    "output_directory": args.output_dir,
-                    "pairs": args.pair,
-                    "cache_directory": args.cache_dir,
-                    "profile_path": args.profile,
-                    "registry_path": args.registry,
-                },
-                workers=args.workers,
-                resume=args.resume,
-                prepare_only=args.prepare_only,
-                download_missing=not args.no_download,
-                market_metadata_path=args.markets,
-                download_market_metadata=not args.no_market_download,
-                recalibrate=args.recalibrate,
-                history_coverage_policy=args.history_coverage,
-                full_report=args.full_report,
-            )
-
-        if args.command_name == "confirm":
-            return _execute_confirmation(args)
-
-        if args.command_name == "report":
-            return _execute_result_report(args)
-
-        if args.command_name == "runs":
-            return _execute_run_registry(args)
-
-        if args.command_name == "batch":
-            from .batch_runner import run_batch
-
-            report = run_batch(
-                args.manifest,
-                args.output_dir,
-                profile_path=args.profile,
-                cache_directory=args.cache_dir,
-                registry_path=args.registry,
-                resume=args.resume,
-                download_missing=not args.no_download,
-                max_jobs=args.max_jobs,
-            )
-            print(
-                f"batch: complete={report['complete']}, "
-                f"jobs={len(report['jobs'])}, parallel={report['parallel_jobs']} -> "
-                f"{args.output_dir / 'batch.json'}"
-            )
-            return 0 if report["complete"] else 1
-
-        if args.command_name == "engine":
-            if args.engine_command == "build":
-                build = build_engine(force=args.force)
-                print(
-                    f"engine built: sha256={build['binary_sha256']}, "
-                    f"source={build['source_fingerprint']}, "
-                    f"seconds={build['build_seconds']}"
-                )
-                return 0
-            if args.engine_command == "run":
-                report = run_engine(
-                    args.input,
-                    args.output,
-                    profile_path=args.profile,
-                    timeout_seconds=args.timeout,
-                    events_path=args.events,
-                    vector_manifest=args.vector_manifest,
-                    engine_profile_path=args.engine_profile,
-                )
-                print(
-                    f"engine result: trades={report['trade_count']}, "
-                    f"seconds={report['wall_time_seconds']} -> {args.output}"
-                )
-                return 0
-            report = run_fixture_engine(
-                args.manifest,
-                args.output_dir,
-                profile_path=args.profile,
-                timeout_seconds=args.timeout,
-                verification_level=args.level,
-            )
-            print(
-                f"engine fixture parity ({report['verification_level']}): "
-                f"trades={report['parity']['trade_surface']['equal']}, "
-                f"state={report['parity']['state_trace']['equal']} -> "
-                f"{args.output_dir / 'run.json'}"
-            )
-            return 0 if report["complete"] else 1
-
-        if args.command_name == "performance":
-            report = run_performance_gate(
-                args.manifest,
-                args.output_dir,
-                profile_path=args.profile,
-                verification_level=args.level,
-                repetitions=args.runs,
-                timeout_seconds=args.timeout,
-            )
-            speed = report["gates"]["speed"]
-            memory = report["gates"]["memory"]
-            print(
-                f"performance gate: parity={report['gates']['parity']['met']}, "
-                f"speedup={speed['observed_speedup']:.3f}x "
-                f"({speed['verdict']}), memory={memory['observed_peak_bytes']}, "
-                f"release_certified={report['release_certified']} -> "
-                f"{args.output_dir / 'performance.json'}"
-            )
-            return 0 if report["complete"] else 1
-
-        if args.command_name == "certify":
-            return _execute_certification(args)
-        if args.command_name == "release":
-            return _execute_release(args)
-
-        if args.command_name == "contract":
-            return _execute_regression_contract(args)
-
-        raise AssertionError(f"unhandled command: {args.command_name}")
+        return _dispatch_command(args, benchmark_command=benchmark_command)
     except ParityMismatch as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -1464,477 +966,50 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
 
+# Compatibility wrappers for callers that used the original private helpers.
 def _execute_universe(args: argparse.Namespace) -> int:
-    from .release_inputs import (
-        discover_release_universe,
-        materialize_release_candidate_config,
-        select_release_universe,
-        validate_release_input_lock,
-    )
-
-    if args.universe_command == "discover":
-        report = discover_release_universe(
-            config_path=args.config,
-            market_snapshot_path=args.markets,
-            timerange=args.timerange,
-            destination=args.output,
-            history_coverage_policy=args.history_coverage,
-        )
-        print(
-            "release candidates discovered: "
-            f"mode={report['mode_contract']}, pairs={len(report['pairs'])}, "
-            f"rejected={len(report['rejected'])} -> {args.output}"
-        )
-        return 0
-    if args.universe_command == "configure":
-        report = materialize_release_candidate_config(
-            candidates_path=args.candidates,
-            config_path=args.config,
-            timerange=args.timerange,
-            destination=args.output,
-            pair_count=args.pair_count,
-            history_coverage_policy=args.history_coverage,
-        )
-        print(
-            "release candidate config written: "
-            f"mode={report['mode_contract']}, pairs={report['pair_count']}, "
-            f"config={report['config_sha256']} -> {args.output}"
-        )
-        return 0
-    if args.universe_command == "validate":
-        document = read_json(args.lock)
-        validate_release_input_lock(
-            document,
-            required_pair_count=args.pair_count,
-        )
-        print(
-            "release universe valid: "
-            f"mode={document['scope'].get('mode_contract', 'binance-spot')}, "
-            f"pairs={document['scope']['pair_count']}, "
-            f"identity={document['identity_sha256']}"
-        )
-        return 0
-    lock = select_release_universe(
-        candidates_path=args.candidates,
-        strategy_path=args.strategy,
-        class_name=args.class_name,
-        config_path=args.config,
-        data_directory=args.data_dir,
-        timerange=args.timerange,
-        output_directory=args.output_dir,
-        pair_count=args.pair_count,
-        upstream_repository=args.upstream_repository,
-        upstream_commit=args.upstream_commit,
-        history_coverage_policy=args.history_coverage,
-    )
-    print(
-        "release universe sealed: "
-        f"mode={lock['scope']['mode_contract']}, "
-        f"pairs={lock['scope']['pair_count']}, "
-        f"data={lock['data']['aggregate_sha256']} -> "
-        f"{args.output_dir / 'release-input-lock.json'}"
-    )
-    return 0
+    return release_commands.execute_universe(args)
 
 
 def _execute_certification(args: argparse.Namespace) -> int:
-    if args.certification_profile == "full-x7":
-        from .full_x7_certification import run_full_x7_certification
-
-        required = {
-            "--profile": args.profile,
-            "--strategy": args.strategy,
-            "--class-name": args.class_name,
-            "--config": args.config,
-            "--data-dir": args.data_dir,
-            "--engine-markets": args.engine_markets,
-            "--wheel": args.wheel,
-        }
-        missing = [name for name, value in required.items() if value is None]
-        if missing:
-            raise SpecValidationError("Full X7 certification requires " + ", ".join(missing))
-        report = run_full_x7_certification(
-            args.manifest,
-            args.output_dir,
-            strategy_path=args.strategy,
-            class_name=args.class_name,
-            config_path=args.config,
-            data_directory=args.data_dir,
-            engine_market_snapshot=args.engine_markets,
-            reference_market_snapshot=args.reference_markets,
-            wheel_path=args.wheel,
-            execution_profile_path=args.profile,
-            state_probe_manifests=args.state_probe,
-            repetitions=args.runs,
-            timeout_seconds=args.timeout,
-            official_oracle_directory=args.official_oracle,
-            resume=args.resume,
-            swap_cap_bytes=(
-                int(args.swap_cap_gib * 1024**3) if args.swap_cap_gib is not None else None
-            ),
-        )
-        print(
-            f"Full X7 certification: status={report['status']}, "
-            f"speedup={report['gates']['speed']['observed_speedup']:.3f}x, "
-            f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
-            f"{args.output_dir / 'full-x7-certification.json'}"
-        )
-        return 0 if report["release_certified"] else 1
-
-    from .certification import run_certification
-
-    report = run_certification(
-        args.manifest,
-        args.output_dir,
-        profile_path=args.profile,
-        state_probe_manifests=args.state_probe,
-        repetitions=args.runs,
-        timeout_seconds=args.timeout,
-    )
-    print(
-        f"certification: status={report['status']}, "
-        f"speedup={report['measurements']['observed_speedup']:.3f}x, "
-        f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
-        f"{args.output_dir / 'certification.json'}"
-    )
-    return 0 if report["release_certified"] else 1
+    return certify_commands.execute(args)
 
 
 def _execute_release(args: argparse.Namespace) -> int:
-    if args.release_command == "combine":
-        from .combined_release import combine_full_x7_release
-
-        report = combine_full_x7_release(
-            spot_certificate_path=args.spot_certificate,
-            futures_certificate_path=args.futures_certificate,
-            platform_evidence_paths=args.platform_evidence,
-            output_directory=args.output_dir,
-        )
-        print(
-            f"Full X7 release: status={report['status']}, "
-            f"platform_modes={len(report['platform_evidence'])}/2, "
-            f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
-            f"{args.output_dir / 'full-x7-release.json'}"
-        )
-        return 0 if report["release_certified"] else 1
-    if args.release_command == "gate":
-        from .release_gate import seal_release_gate
-
-        report = seal_release_gate(
-            candidate_directory=args.candidate_dir,
-            certificate_path=args.certificate,
-            certificate_evidence_path=args.certificate_evidence,
-            platform_evidence_path=args.platform_evidence,
-            candidate_commit=args.candidate_commit,
-            output_directory=args.output_dir,
-        )
-        print(
-            f"release gate: status={report['status']}, "
-            f"commit={report['candidate_commit']}, "
-            f"assets={len(report['sealed_assets'])} -> "
-            f"{args.output_dir / 'RELEASE-SHA256SUMS.txt'}"
-        )
-        return 0
-    raise AssertionError(f"unhandled release command: {args.release_command}")
+    return release_commands.execute_release(args)
 
 
 def _execute_regression_contract(args: argparse.Namespace) -> int:
-    from .regression_contract import (
-        parse_release_asset_roots,
-        verify_regression_contract,
-    )
-
-    if args.contract_command != "verify":
-        raise AssertionError(f"unhandled contract command: {args.contract_command}")
-    report = verify_regression_contract(
-        args.manifest,
-        repository_root=args.root,
-        release_asset_roots=parse_release_asset_roots(args.release_assets),
-        fetch_release_assets=not args.offline,
-    )
-    if args.output:
-        write_json(args.output, report)
-    checks = report["checks"]
-    print(
-        "regression contract valid: "
-        f"version={report['contract_version']}, "
-        f"files={checks['repository_files']}, "
-        f"fixtures={checks['full_state_fixtures']}, "
-        f"release={checks['release_mode']}"
-    )
-    return 0
+    return release_commands.execute_regression_contract(args)
 
 
 def _execute_platform(args: argparse.Namespace) -> int:
-    from .platform_benchmark import (
-        run_platform_benchmark,
-        run_platform_fixture_benchmark,
-        seal_platform_evidence,
-    )
-
-    if args.platform_command == "seal":
-        evidence = seal_platform_evidence(args.report, args.output_dir)
-        print(
-            "platform evidence sealed: "
-            f"result={evidence['result_sha256']}, "
-            f"bundle={evidence['bundle']['archive']['sha256']} -> "
-            f"{args.output_dir / 'platform-evidence.json'}"
-        )
-        return 0
-    if args.platform_command == "fixture-benchmark":
-        report = run_platform_fixture_benchmark(
-            args.manifest,
-            args.output_dir,
-            wheel_path=args.wheel,
-            repetitions=args.runs,
-            timeout_seconds=args.timeout,
-        )
-        print(
-            "platform exact fixture: "
-            f"complete={report['complete']}, "
-            f"median={report['measurement']['wall_time_seconds']['median']:.3f}s, "
-            f"peak_rss={report['measurement']['peak_rss_bytes']['maximum']} -> "
-            f"{args.output_dir / 'platform-benchmark.json'}"
-        )
-        return 0 if report["complete"] else 1
-    report = run_platform_benchmark(
-        args.release_lock,
-        args.output_dir,
-        strategy_path=args.strategy,
-        class_name=args.class_name,
-        config_path=args.config,
-        data_directory=args.data_dir,
-        engine_market_snapshot=args.engine_markets,
-        wheel_path=args.wheel,
-        execution_profile_path=args.profile,
-        repetitions=args.runs,
-        timeout_seconds=args.timeout,
-        pair_count=args.pair_count,
-    )
-    print(
-        "platform benchmark: "
-        f"complete={report['complete']}, "
-        f"median={report['measurement']['wall_time_seconds']['median']:.3f}s, "
-        f"peak_rss={report['measurement']['peak_rss_bytes']['maximum']} -> "
-        f"{args.output_dir / 'platform-benchmark.json'}"
-    )
-    return 0 if report["complete"] else 1
+    return release_commands.execute_platform(args)
 
 
 def _execute_market_capture(args: argparse.Namespace) -> int:
-    """Capture one sealed market snapshot, including pinned futures tiers."""
-    from .config_loader import freeze_pairlist, sanitize_config
-    from .market_snapshot import capture_market_catalog, capture_market_snapshot
-
-    loaded = load_effective_config(args.config)
-    config = sanitize_config(loaded["config"])
-    if not isinstance(config, dict):
-        raise NfiBacktestError("effective config must be an object")
-    # Direct library callers from the original capture-only CLI do not carry
-    # the newer subcommand discriminator. Treat that shape as `capture`;
-    # argparse still supplies an explicit value for every command-line call.
-    if getattr(args, "markets_command", "capture") == "catalog":
-        report = capture_market_catalog(config, args.output)
-        print(
-            f"market catalog captured: exchange={report['exchange']}, "
-            f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
-            f"{args.output}"
-        )
-        return 0
-
-    pairlist = freeze_pairlist(loaded["config"], resolved_pairs=args.pair)
-
-    leverage_tier_source = None
-    if args.leverage_tiers:
-        tier_path = args.leverage_tiers.resolve()
-        leverage_tiers = read_json(tier_path)
-        leverage_tier_source = {
-            "kind": "sealed-file",
-            "path": str(tier_path),
-            "bytes": tier_path.stat().st_size,
-            "sha256": sha256_file(tier_path),
-        }
-    elif config.get("trading_mode") == "futures":
-        exchange = config.get("exchange")
-        exchange_name = str(exchange.get("name", "")).lower() if isinstance(exchange, dict) else ""
-        if exchange_name != "binance":
-            raise NfiBacktestError(
-                "automatic futures leverage-tier capture requires Binance; "
-                "provide --leverage-tiers for this exchange"
-            )
-        captured_tiers = load_reference_leverage_tiers(pairlist["pairs"])
-        leverage_tiers = captured_tiers["tiers"]
-        leverage_tier_source = captured_tiers["source"]
-    else:
-        leverage_tiers = None
-
-    report = capture_market_snapshot(
-        config,
-        pairlist["pairs"],
-        args.output,
-        leverage_tiers=leverage_tiers,
-        leverage_tier_source=leverage_tier_source,
+    """Preserve the original private market-capture entry point."""
+    return reference_commands.execute_market_capture(
+        args,
+        load_config=load_effective_config,
+        load_leverage_tiers=load_reference_leverage_tiers,
     )
-    print(
-        f"markets captured: exchange={report['exchange']}, "
-        f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
-        f"{args.output}"
-    )
-    return 0
 
 
 def _execute_research_reference(args: argparse.Namespace) -> int:
-    from .research_reference import run_research_reference
-    from .result_report import format_terminal_summary, write_result_presentation
-
-    report = run_research_reference(
-        args.run_directory,
-        args.output_dir,
-        market_snapshot_path=args.markets,
-        capture_markets=not args.no_market_capture,
-        audit_timestamps_ms=args.audit_timestamp_ms,
-        timeout_seconds=args.timeout,
-        reference_memory_mode=args.memory_mode,
-        reference_storage_mode=args.storage_mode,
-        swap_cap_bytes=(
-            int(args.swap_cap_gib * 1024**3) if args.swap_cap_gib is not None else None
-        ),
-    )
-    summary = write_result_presentation(
-        args.run_directory,
-        verification=report,
-        verification_path=args.output_dir / "run.json",
-    )
-    print(
-        "official research parity: "
-        f"equal={report['exact_parity']}, "
-        f"trades={report['official_trade_surface'] is not None}, "
-        f"report={args.output_dir / 'run.json'}"
-    )
-    print(
-        format_terminal_summary(
-            summary,
-            args.run_directory,
-            include_breakdowns=args.full_report,
-        )
-    )
-    memory_verdict = report["container_memory"]["verdict"]
-    if memory_verdict in {"oom_killed", "possible_oom", "near_limit"}:
-        print(
-            "reference container memory: "
-            f"{memory_verdict}, peak={report['container_memory']['peak_bytes']}, "
-            f"limit={report['container_memory']['limit_bytes']}",
-            file=sys.stderr,
-        )
-    return 0 if report["complete"] else 1
+    return reference_commands.execute_research_reference(args)
 
 
 def _execute_confirmation(args: argparse.Namespace) -> int:
-    from .confirmation import confirm_research_run
-    from .result_report import format_terminal_summary, write_result_presentation
-
-    report = confirm_research_run(
-        args.run_directory,
-        args.freqtrade_export,
-        args.output_dir,
-        strategy=args.strategy,
-    )
-    confirmation_path = args.output_dir / "confirmation.json"
-    summary = write_result_presentation(
-        args.run_directory,
-        verification=report,
-        verification_path=confirmation_path,
-    )
-    if report["equal"]:
-        print(f"official exact parity: run={report['run_id']} -> {confirmation_path}")
-    else:
-        difference = report["difference"]
-        print(
-            f"official parity mismatch at {difference['path']}: "
-            f"{difference['reason']} -> {confirmation_path}",
-            file=sys.stderr,
-        )
-    print(
-        format_terminal_summary(
-            summary,
-            args.run_directory,
-            include_breakdowns=args.full_report,
-        )
-    )
-    return 0 if report["equal"] else 1
+    return report_commands.execute_confirmation(args)
 
 
 def _execute_result_report(args: argparse.Namespace) -> int:
-    from .result_report import format_terminal_summary, write_result_presentation
-    from .verification_ledger import (
-        VerificationLedger,
-        format_verification_projection,
-        write_verification_projection,
-    )
-
-    verification = read_json(args.confirmation) if args.confirmation else None
-    if verification is not None and not isinstance(verification, dict):
-        raise NfiBacktestError("confirmation report must be a JSON object")
-    summary = write_result_presentation(
-        args.run_directory,
-        verification=verification,
-        verification_path=args.confirmation,
-    )
-    print(
-        format_terminal_summary(
-            summary,
-            args.run_directory,
-            include_breakdowns=args.full_report,
-        )
-    )
-    if args.verification_ledger is not None:
-        with VerificationLedger(args.verification_ledger, create=False) as ledger:
-            projection = ledger.project()
-        output = Path(args.run_directory).resolve() / "verification-status.html"
-        write_verification_projection(projection, html_path=output)
-        print(format_verification_projection(projection))
-        print(f"Verification status  {output}")
-    return 0
+    return report_commands.execute_result_report(args)
 
 
 def _execute_run_registry(args: argparse.Namespace) -> int:
-    from .result_report import format_run_list, format_run_record
-    from .run_registry import RunRegistry
-    from .verification_ledger import (
-        VerificationLedger,
-        format_verification_projection,
-    )
-
-    with RunRegistry(args.registry) as registry:
-        if args.runs_command == "list":
-            records = registry.list(limit=args.limit)
-            projection = None
-            if args.verification_ledger is not None:
-                with VerificationLedger(args.verification_ledger, create=False) as ledger:
-                    projection = ledger.project()
-            if args.json:
-                payload: Any = (
-                    {"runs": records, "verification": projection}
-                    if projection is not None
-                    else records
-                )
-                print(json.dumps(payload, ensure_ascii=False, indent=2))
-            else:
-                print(format_run_list(records))
-                if projection is not None:
-                    print()
-                    print(format_verification_projection(projection))
-        else:
-            record = registry.show(args.run_id)
-            print(
-                json.dumps(record, ensure_ascii=False, indent=2)
-                if args.json
-                else format_run_record(
-                    record,
-                    include_breakdowns=args.full_report,
-                )
-            )
-    return 0
+    return report_commands.execute_run_registry(args)
 
 
 def _execute_research_backtest(
@@ -1950,12 +1025,8 @@ def _execute_research_backtest(
     history_coverage_policy: str,
     full_report: bool,
 ) -> int:
-    """Run the existing research contract for advanced and wizard-backed commands."""
-    from .research_runner import run_research_backtest
-    from .result_report import format_terminal_summary, load_result_summary
-
-    report = run_research_backtest(
-        **arguments,
+    return run_commands.execute_research_backtest(
+        arguments,
         workers=workers,
         resume=resume,
         prepare_only=prepare_only,
@@ -1964,37 +1035,8 @@ def _execute_research_backtest(
         download_market_metadata=download_market_metadata,
         recalibrate=recalibrate,
         history_coverage_policy=history_coverage_policy,
+        full_report=full_report,
     )
-    output = Path(arguments["output_directory"])
-    if (output / "summary.json").is_file():
-        summary = load_result_summary(output)
-        print(
-            format_terminal_summary(
-                summary,
-                output,
-                include_breakdowns=full_report,
-            )
-        )
-    else:
-        # Third-party wrappers may substitute the research runner and return only
-        # its historical dictionary contract. Keep that integration usable while
-        # native runs always produce the richer presentation files.
-        print(
-            f"research backtest: status={report['status']}, "
-            f"pairs={report['vectors']['pair_count']}, "
-            f"cache_hits={report['vectors']['cache_hits']}, "
-            f"resumed={','.join(report['resumed_stages']) or 'none'} -> "
-            f"{output / 'run.json'}"
-        )
-    if not report["complete"] and not report["prepared_only"]:
-        for blocker in report["capability"]["blockers"]:
-            detail = blocker.get("callback", "")
-            print(
-                f"blocked: {blocker['code']} {detail} - {blocker['message']}",
-                file=sys.stderr,
-            )
-        return 1
-    return 0
 
 
 if __name__ == "__main__":

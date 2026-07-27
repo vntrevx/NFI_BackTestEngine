@@ -5,6 +5,31 @@ from pathlib import Path
 
 import pytest
 from nfi_backtest_engine import cli, config_loader, market_snapshot
+from nfi_backtest_engine.commands import (
+    certify as certify_commands,
+)
+from nfi_backtest_engine.commands import (
+    clean as clean_commands,
+)
+from nfi_backtest_engine.commands import (
+    fixture as fixture_commands,
+)
+from nfi_backtest_engine.commands import (
+    reference as reference_commands,
+)
+from nfi_backtest_engine.commands import (
+    release as release_commands,
+)
+from nfi_backtest_engine.commands import (
+    report as report_commands,
+)
+from nfi_backtest_engine.commands import (
+    run as run_commands,
+)
+from nfi_backtest_engine.commands import (
+    system as system_commands,
+)
+from nfi_backtest_engine.parity import ParityDifference, ParityMismatch
 
 
 def test_certification_help_renders_literal_spread_percentage(
@@ -124,6 +149,50 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
     assert runs.json is True
     assert saved_run.full_report is True
     assert shown.full_report is True
+
+
+def test_every_top_level_command_has_one_handler() -> None:
+    parser = cli.build_parser()
+    subparsers = next(
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+    )
+    handler_sets = [
+        fixture_commands.COMMAND_NAMES,
+        reference_commands.COMMAND_NAMES,
+        report_commands.COMMAND_NAMES,
+        run_commands.COMMAND_NAMES,
+        system_commands.COMMAND_NAMES,
+        clean_commands.COMMAND_NAMES,
+        certify_commands.COMMAND_NAMES,
+        release_commands.COMMAND_NAMES,
+    ]
+
+    assert set().union(*handler_sets) == set(subparsers.choices)
+    assert sum(len(command_names) for command_names in handler_sets) == len(subparsers.choices)
+
+
+def test_parity_mismatch_keeps_exit_one_after_dispatch_split(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    mismatch = ParityMismatch(
+        ParityDifference(
+            path="$.trades",
+            expected=1,
+            actual=2,
+            reason="value differs",
+        )
+    )
+
+    def fail_dispatch(*_args, **_kwargs):
+        raise mismatch
+
+    monkeypatch.setattr(cli, "_dispatch_command", fail_dispatch)
+
+    assert cli.main(["doctor"]) == 1
+    assert "parity mismatch at $.trades" in capsys.readouterr().err
 
 
 def test_futures_market_capture_loads_pinned_binance_tiers(
