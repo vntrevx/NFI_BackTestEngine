@@ -448,6 +448,7 @@ def verify_installed_wheel(
             else Path(__file__).resolve().parent
         )
         member_records: list[tuple[str, str]] = []
+        portable_member_records: list[tuple[str, str]] = []
         for name in package_members:
             relative = Path(name).relative_to("nfi_backtest_engine")
             installed = installed_root / relative
@@ -457,6 +458,8 @@ def verify_installed_wheel(
                     f"installed package file does not match the candidate wheel: {relative}"
                 )
             member_records.append((name, wheel_sha))
+            if name != candidates[0]:
+                portable_member_records.append((name, wheel_sha))
     installed_sha = build.get("binary_sha256")
     equal = member_sha == installed_sha
     if not equal:
@@ -464,6 +467,14 @@ def verify_installed_wheel(
     package_identity = hashlib.sha256(
         json.dumps(
             member_records,
+            ensure_ascii=False,
+            sort_keys=False,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    portable_package_identity = hashlib.sha256(
+        json.dumps(
+            portable_member_records,
             ensure_ascii=False,
             sort_keys=False,
             separators=(",", ":"),
@@ -479,6 +490,8 @@ def verify_installed_wheel(
         "installed_extension_equal": equal,
         "installed_package_files": len(member_records),
         "installed_package_sha256": package_identity,
+        "portable_package_files": len(portable_member_records),
+        "portable_package_sha256": portable_package_identity,
     }
 
 

@@ -310,7 +310,9 @@ def run_platform_fixture_benchmark(
             "installed_extension_equal": wheel["installed_extension_equal"],
             "installed_package_files": wheel["installed_package_files"],
             "installed_package_sha256": wheel["installed_package_sha256"],
-            "engine_source_fingerprint": build["source_fingerprint"],
+            "portable_package_files": wheel["portable_package_files"],
+            "portable_package_sha256": wheel["portable_package_sha256"],
+            "engine_build_fingerprint": build["source_fingerprint"],
         },
         "workload": {
             **workload,
@@ -379,8 +381,8 @@ def seal_platform_evidence(
         for hash_value in report["measurement"]["result_sha256"]
     }
     package_versions = {report["package"]["version"] for report in reports}
-    engine_source_fingerprints = {
-        report["package"].get("engine_source_fingerprint")
+    portable_package_hashes = {
+        report["package"].get("portable_package_sha256")
         for report in reports
         if report["lane"] == EXACT_FIXTURE_LANE
     }
@@ -392,7 +394,7 @@ def seal_platform_evidence(
         and len(package_versions) == 1
         and (
             next(iter(lanes)) != EXACT_FIXTURE_LANE
-            or len(engine_source_fingerprints) == 1
+            or len(portable_package_hashes) == 1
         )
         and all(report["complete"] for report in reports)
     )
@@ -410,6 +412,11 @@ def seal_platform_evidence(
         "workload": reports[0]["workload"],
         "result_sha256": next(iter(result_hashes)),
         "package_version": next(iter(package_versions)),
+        "portable_package_sha256": (
+            next(iter(portable_package_hashes))
+            if next(iter(lanes)) == EXACT_FIXTURE_LANE
+            else None
+        ),
         "platforms": [
             {
                 "system": report["platform"]["system"],
@@ -470,7 +477,9 @@ def _measure_fixture_run(
     peak = int(measured["peak_rss_bytes"])
     if isinstance(native_peak, int):
         peak = max(peak, native_peak)
-    result_sha = _fixture_result_sha256(report)
+    surface_path = output / "research" / "trade-surface.json"
+    surface = read_json(surface_path) if surface_path.is_file() else None
+    result_sha = _fixture_result_sha256(report, surface)
     complete = bool(
         measured["exit_code"] == 0
         and isinstance(report, dict)
@@ -617,7 +626,7 @@ def _validate_platform_report(report: Any) -> None:
             or not _is_sha256(workload.get("manifest_sha256"))
             or not _is_sha256(workload.get("strategy_sha256"))
             or not _is_sha256(
-                report.get("package", {}).get("engine_source_fingerprint")
+                report.get("package", {}).get("portable_package_sha256")
             )
         ):
             raise SpecValidationError("exact-fixture platform report is incomplete")
@@ -635,14 +644,16 @@ def _fixture_input(manifest: dict[str, Any], *, role: str) -> dict[str, Any]:
     return matches[0]
 
 
-def _fixture_result_sha256(report: Any) -> str | None:
-    if not isinstance(report, dict):
+def _fixture_result_sha256(
+    report: Any,
+    trade_surface: Any,
+) -> str | None:
+    if not isinstance(report, dict) or not isinstance(trade_surface, dict):
         return None
-    surface = report.get("artifacts", {}).get("trade_surface", {})
     state = report.get("parity", {}).get("state_trace", {}).get("actual", {})
     identity = {
         "fixture_id": report.get("fixture_id"),
-        "trade_surface_sha256": surface.get("sha256"),
+        "trade_surface_sha256": _document_sha256(trade_surface),
         "state_input_sha256": state.get("input_sha256"),
         "state_profile_sha256": state.get("profile_sha256"),
         "state_stream_hash": state.get("stream_hash"),

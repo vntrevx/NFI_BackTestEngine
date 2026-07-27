@@ -43,7 +43,7 @@ def _report(
                 "verification_level": "full",
             }
         )
-        package["engine_source_fingerprint"] = "c" * 64
+        package["portable_package_sha256"] = "c" * 64
     return {
         "schema_version": "1.2.0",
         "complete": True,
@@ -150,6 +150,15 @@ def test_fixture_result_identity_ignores_host_paths() -> None:
             },
         }
 
-    assert _fixture_result_sha256(report("C:/runner")) == _fixture_result_sha256(
-        report("/home/runner")
+    trade_surface = {
+        "schema_version": "1.0.0",
+        "strategy": "NostalgiaForInfinityX7",
+        "trades": [],
+    }
+    assert _fixture_result_sha256(
+        report("C:/runner"),
+        trade_surface,
+    ) == _fixture_result_sha256(
+        report("/home/runner"),
+        trade_surface,
     )

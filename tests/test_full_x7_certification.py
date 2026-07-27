@@ -40,8 +40,14 @@ def test_candidate_wheel_must_contain_the_imported_native_extension(
     package_root.mkdir(parents=True)
     installed_native = package_root / "_rust.test.pyd"
     installed_native.write_bytes(native)
+    installed_python = package_root / "runtime.py"
+    installed_python.write_bytes(b"portable-python-source")
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr("nfi_backtest_engine/_rust.test.pyd", native)
+        archive.writestr(
+            "nfi_backtest_engine/runtime.py",
+            b"portable-python-source",
+        )
     native_sha = hashlib.sha256(native).hexdigest()
 
     record = verify_installed_wheel(
@@ -55,6 +61,31 @@ def test_candidate_wheel_must_contain_the_imported_native_extension(
 
     assert record["installed_extension_equal"] is True
     assert record["native_member_sha256"] == native_sha
+    assert record["portable_package_files"] == 1
+    assert len(record["portable_package_sha256"]) == 64
+
+    unix_native = b"different-target-native-extension"
+    unix_wheel = tmp_path / "nfi_backtest_engine-1.0.0-unix.whl"
+    unix_root = tmp_path / "unix-installed" / "nfi_backtest_engine"
+    unix_root.mkdir(parents=True)
+    (unix_root / "_rust.test.so").write_bytes(unix_native)
+    (unix_root / "runtime.py").write_bytes(b"portable-python-source")
+    with zipfile.ZipFile(unix_wheel, "w") as archive:
+        archive.writestr("nfi_backtest_engine/_rust.test.so", unix_native)
+        archive.writestr(
+            "nfi_backtest_engine/runtime.py",
+            b"portable-python-source",
+        )
+    unix_record = verify_installed_wheel(
+        unix_wheel,
+        {
+            "kind": "pyo3-extension",
+            "binary_sha256": hashlib.sha256(unix_native).hexdigest(),
+        },
+        package_root=unix_root,
+    )
+
+    assert unix_record["portable_package_sha256"] == record["portable_package_sha256"]
 
     with pytest.raises(BenchmarkError, match="does not match"):
         verify_installed_wheel(
