@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import zipfile
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 from nfi_backtest_engine.canonical import write_json
@@ -417,4 +419,113 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert '.status == "release_certified"' in promote
     assert promote.index('.status == "release_certified"') < promote.index(
         "gh release create"
+    )
+
+
+def _ci_contract_module() -> ModuleType:
+    path = Path(__file__).parents[1] / ".github/scripts/ci_contract.py"
+    spec = importlib.util.spec_from_file_location("nfi_ci_contract", path)
+    if spec is None or spec.loader is None:
+        raise AssertionError("CI contract module is not loadable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_ci_contract_accepts_only_explicit_documentation_paths() -> None:
+    root = Path(__file__).parents[1]
+    module = _ci_contract_module()
+    contract = module.load_contract(root / ".github/ci-contract.json")
+
+    assert (
+        module.classify_paths(
+            ["README.md", "docs/release-gate.md"],
+            contract,
+        )
+        == module.DOCS_CLASSIFICATION
+    )
+    assert (
+        module.classify_paths(["planning/roadmap-state.json"], contract)
+        == module.CODE_CLASSIFICATION
+    )
+    assert (
+        module.classify_paths(["docs/ci-policy.md", "python/package.py"], contract)
+        == module.CODE_CLASSIFICATION
+    )
+    assert module.classify_paths([], contract) == module.CODE_CLASSIFICATION
+
+
+def test_ci_contract_requires_the_full_code_job_matrix() -> None:
+    root = Path(__file__).parents[1]
+    module = _ci_contract_module()
+    contract = module.load_contract(root / ".github/ci-contract.json")
+    success = {job: "success" for job in contract["code_job_ids"]}
+    skipped = {job: "skipped" for job in contract["code_job_ids"]}
+
+    assert module.required_results_pass(
+        "code",
+        changes_result="success",
+        documentation_result="success",
+        job_results=success,
+        contract=contract,
+    )
+    assert module.required_results_pass(
+        "docs-only",
+        changes_result="success",
+        documentation_result="success",
+        job_results=skipped,
+        contract=contract,
+    )
+    assert not module.required_results_pass(
+        "code",
+        changes_result="success",
+        documentation_result="success",
+        job_results={**success, "parity": "failure"},
+        contract=contract,
+    )
+    assert not module.required_results_pass(
+        "docs-only",
+        changes_result="success",
+        documentation_result="success",
+        job_results=success,
+        contract=contract,
+    )
+
+
+def test_ci_workflow_matches_machine_readable_policy() -> None:
+    root = Path(__file__).parents[1]
+    contract = json.loads(
+        (root / ".github/ci-contract.json").read_text(encoding="utf-8")
+    )
+    workflow = (root / contract["workflow"]).read_text(encoding="utf-8")
+
+    assert "pull_request_target:" not in workflow
+    assert "permissions:\n  contents: read" in workflow
+    assert (
+        f"  group: {contract['concurrency']['group']}"
+        in workflow
+    )
+    assert "  cancel-in-progress: true" in workflow
+    for job_id, job in contract["jobs"].items():
+        assert f"  {job_id}:" in workflow
+        assert f"    name: {job['name']}" in workflow
+        assert f"    timeout-minutes: {job['timeout_minutes']}" in workflow
+    for platform in contract["jobs"]["python"]["matrix"]:
+        assert platform in workflow
+    for job_id in contract["code_job_ids"]:
+        start = workflow.index(f"  {job_id}:")
+        following = [
+            position
+            for other_id in contract["jobs"]
+            if other_id != job_id
+            and (position := workflow.find(f"\n  {other_id}:", start + 1)) != -1
+        ]
+        end = min(following, default=len(workflow))
+        section = workflow[start:] if end == -1 else workflow[start:end]
+        assert "if: needs.changes.outputs.code_changes == 'true'" in section
+    assert "    name: Required CI" in workflow
+    assert "    if: always()" in workflow
+    assert (
+        contract["branch_protection"]["api"]["required_status_checks"]["contexts"]
+        == [contract["required_check"]["name"]]
     )

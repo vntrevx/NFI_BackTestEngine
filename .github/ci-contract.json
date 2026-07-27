@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0.0",
+  "workflow": ".github/workflows/ci.yml",
+  "required_check": {
+    "job_id": "required",
+    "name": "Required CI"
+  },
+  "docs_only": {
+    "prefixes": [
+      "docs/"
+    ],
+    "files": [
+      "CHANGELOG.md",
+      "CONTRIBUTING.md",
+      "LICENSE",
+      "README.md",
+      "SECURITY.md"
+    ]
+  },
+  "jobs": {
+    "changes": {
+      "name": "Classify changes",
+      "timeout_minutes": 5
+    },
+    "documentation": {
+      "name": "Documentation path",
+      "timeout_minutes": 5
+    },
+    "python": {
+      "name": "Python ${{ matrix.os }}",
+      "timeout_minutes": 30,
+      "matrix": [
+        "ubuntu-latest",
+        "windows-latest",
+        "macos-14"
+      ]
+    },
+    "quality": {
+      "name": "Static and Rust checks",
+      "timeout_minutes": 45
+    },
+    "parity": {
+      "name": "Native full-parity fixtures",
+      "timeout_minutes": 30
+    },
+    "required": {
+      "name": "Required CI",
+      "timeout_minutes": 5
+    }
+  },
+  "code_job_ids": [
+    "python",
+    "quality",
+    "parity"
+  ],
+  "coverage": {
+    "quality": "quality",
+    "python_linux": "python",
+    "rust_tests": "quality",
+    "platform_smoke": "python",
+    "contract_parity": "parity",
+    "evidence_integrity": "python"
+  },
+  "concurrency": {
+    "group": "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
+    "cancel_in_progress": true
+  },
+  "branch_protection": {
+    "repository": "vntrevx/NFI_BackTestEngine",
+    "branch": "main",
+    "api": {
+      "required_status_checks": {
+        "strict": true,
+        "contexts": [
+          "Required CI"
+        ]
+      },
+      "enforce_admins": true,
+      "required_pull_request_reviews": null,
+      "restrictions": null
+    }
+  }
+}

@@ -10,10 +10,71 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      classification: ${{ steps.paths.outputs.classification }}
+      code_changes: ${{ steps.paths.outputs.code_changes }}
+      changed_paths_json: ${{ steps.paths.outputs.changed_paths_json }}
+    steps:
+      - name: Check out source and comparison history
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify changed paths
+        id: paths
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/ci_contract.py classify \
+            --event-name "$EVENT_NAME" \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --github-output "$GITHUB_OUTPUT"
+
+  documentation:
+    name: Documentation path
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate text changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null \
+            && git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null; then
+            git diff --check "$BASE_SHA" "$HEAD_SHA"
+          else
+            git show --check --format= "$GITHUB_SHA"
+          fi
+
   python:
     name: Python ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.code_changes == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +99,10 @@ jobs:
 
   quality:
     name: Static and Rust checks
+    needs: changes
+    if: needs.changes.outputs.code_changes == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -68,7 +132,10 @@ jobs:
 
   parity:
     name: Native full-parity fixtures
+    needs: changes
+    if: needs.changes.outputs.code_changes == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -96,3 +163,33 @@ jobs:
           benchmarks/fixtures/captured/stops-only-spot-2025-01-01_04/manifest.json
           --output-dir .ci/stops-only
           --level full
+
+  required:
+    name: Required CI
+    if: always()
+    needs: [changes, documentation, python, quality, parity]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out CI contract
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Require the selected job matrix
+        env:
+          CLASSIFICATION: ${{ needs.changes.outputs.classification }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
+          PYTHON_RESULT: ${{ needs.python.result }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          PARITY_RESULT: ${{ needs.parity.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/ci_contract.py verify-results \
+            --classification "$CLASSIFICATION" \
+            --changes-result "$CHANGES_RESULT" \
+            --documentation-result "$DOCUMENTATION_RESULT" \
+            --job-result "python=$PYTHON_RESULT" \
+            --job-result "quality=$QUALITY_RESULT" \
+            --job-result "parity=$PARITY_RESULT"
