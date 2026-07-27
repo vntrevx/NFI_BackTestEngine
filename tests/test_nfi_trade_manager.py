@@ -7,6 +7,7 @@ from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.nfi_trade_manager import (
     _adjustment_literal_policy,
     _extract_rebuy_terminal_exit,
+    _legacy_futures_fallback_loss_threshold,
     _method_ast_sha256,
 )
 
@@ -71,6 +72,52 @@ def long_exit_rebuy(self, enter_tags, current_time, trade, profit_init_ratio):
     )
 
     assert _extract_rebuy_terminal_exit(method) == (None, None)
+
+
+def _legacy_grind_method(*, fallback_threshold: float = -0.65) -> ast.FunctionDef:
+    return _method(
+        f"""
+def long_grind_adjust_trade_position(self):
+    if (
+        is_futures
+        and has_order_tags
+        and not partial_sell
+        and slice_profit < ({fallback_threshold} / trade_leverage)
+        and (is_derisk or is_derisk_calc or is_grind_mode)
+        and grind_1_sub_grind_count < grind_1_max_sub_grinds
+    ):
+        order_tag = "gd1"
+        return buy_amount, order_tag
+"""
+    )
+
+
+def test_legacy_futures_fallback_threshold_is_compiled_from_source() -> None:
+    assert _legacy_futures_fallback_loss_threshold(_legacy_grind_method()) == -0.65
+    assert (
+        _legacy_futures_fallback_loss_threshold(_legacy_grind_method(fallback_threshold=-0.72))
+        == -0.72
+    )
+
+
+def test_legacy_futures_fallback_rejects_an_unscaled_threshold() -> None:
+    method = _legacy_grind_method()
+    branch = method.body[0]
+    assert isinstance(branch, ast.If)
+    comparison = next(
+        node
+        for node in ast.walk(branch.test)
+        if isinstance(node, ast.Compare)
+        and isinstance(node.left, ast.Name)
+        and node.left.id == "slice_profit"
+    )
+    comparison.comparators[0] = ast.Constant(value=-0.65)
+
+    with pytest.raises(
+        StrategyAnalysisError,
+        match="legacy futures drawdown fallback changed",
+    ):
+        _legacy_futures_fallback_loss_threshold(method)
 
 
 def _adjustment_method(*, late_entry_threshold: float = -0.06) -> ast.FunctionDef:

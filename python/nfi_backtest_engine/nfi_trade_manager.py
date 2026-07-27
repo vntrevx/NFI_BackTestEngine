@@ -22,7 +22,7 @@ from typing import Any, cast
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.15.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.16.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -299,14 +299,10 @@ _MANAGED_SHORT_METHOD_SHA256 = {
     "short_exit_pump": "27d5b3623a7871f88c5399056cf1077534779e3e5a1975a8cd3c07196dc59836",
     "short_exit_quick": "c63d94c80e44efdae5a12ad62e42f29caca3b134dedb508a8045a8022c5f6338",
     "short_exit_rebuy": "bce3263e3df13f9f2873949631b1813d573aeb7e1beb48302409e466d9cdad1a",
-    "short_exit_high_profit": (
-        "f498c2df79d8308f92a64eaad2904691b4f30129a918d01bc282bab47dc25816"
-    ),
+    "short_exit_high_profit": ("f498c2df79d8308f92a64eaad2904691b4f30129a918d01bc282bab47dc25816"),
     "short_exit_rapid": "039e1c91e45bd61b2c1a188f4fba2bdbdc4dbb1c6c623da7cd7a1aa24d8b5143",
     "short_exit_scalp": "d78e90d2e8b72f21e239025b076b2d7a1b2e1cc0db9c39120c4310a37261949f",
-    "short_exit_stoploss": (
-        "172808fcb8ebf05ed0c0689fc46672e78b76084cb5420f014fef4d169076e113"
-    ),
+    "short_exit_stoploss": ("172808fcb8ebf05ed0c0689fc46672e78b76084cb5420f014fef4d169076e113"),
 }
 
 _QUICK_RAPID_STATEFUL_FEATURES = {
@@ -443,6 +439,7 @@ _LONG_GRIND_IMPLEMENTED_STEPS = (
     "legacy order-history reconstruction",
     "legacy post-de-risk grind levels 1-2",
     "legacy grind levels 1-6",
+    "legacy futures drawdown entry fallback",
     "legacy grind profit exits and stops",
     "legacy de-risk level-1 re-entry",
 )
@@ -1173,10 +1170,7 @@ def _build_managed_short_routes(constants: dict[str, Any]) -> dict[str, dict[str
 
     expected_adjustment_tags = constants.get("short_adjust_mode_tags")
     actual_adjustment_tags = sorted(
-        tag
-        for key, route in routes.items()
-        if key != "short_rebuy"
-        for tag in route["entry_tags"]
+        tag for key, route in routes.items() if key != "short_rebuy" for tag in route["entry_tags"]
     )
     if (
         not isinstance(expected_adjustment_tags, list)
@@ -1401,6 +1395,9 @@ def _build_legacy_grind_route(
             "grind_mode_first_entry_profit_threshold_spot"
         ],
         "first_entry_stop_threshold_spot": constants["grind_mode_first_entry_stop_threshold_spot"],
+        "futures_fallback_loss_threshold": _legacy_futures_fallback_loss_threshold(
+            methods["long_grind_adjust_trade_position"]
+        ),
         "derisk_use_grind_stops": derisk,
         "stateful_input_contract": {
             "indexed_fields": {
@@ -1417,6 +1414,72 @@ def _build_legacy_grind_route(
         ),
     }
     return route, identity
+
+
+def _legacy_futures_fallback_loss_threshold(method: ast.FunctionDef) -> float:
+    """Extract the leverage-scaled futures-only ``gd1`` loss fallback.
+
+    Upstream keeps this threshold inside ``long_grind_adjust_trade_position``
+    rather than as a strategy class constant. The branch deliberately bypasses
+    the ordinary indicator and order-age gates after a sufficiently sharp
+    futures drawdown. Its literal therefore belongs in the source-bound IR,
+    not in the simulator implementation.
+    """
+
+    candidates: list[float] = []
+    for branch in method.body:
+        if not isinstance(branch, ast.If) or not isinstance(branch.test, ast.BoolOp):
+            continue
+        names = {node.id for node in ast.walk(branch.test) if isinstance(node, ast.Name)}
+        required_names = {
+            "is_futures",
+            "has_order_tags",
+            "partial_sell",
+            "slice_profit",
+            "trade_leverage",
+            "is_derisk",
+            "is_derisk_calc",
+            "is_grind_mode",
+            "grind_1_sub_grind_count",
+            "grind_1_max_sub_grinds",
+        }
+        if not required_names.issubset(names):
+            continue
+        if not any(
+            isinstance(node, ast.Constant) and node.value == "gd1"
+            for statement in branch.body
+            for node in ast.walk(statement)
+        ):
+            continue
+        comparisons = [
+            node
+            for node in ast.walk(branch.test)
+            if isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "slice_profit"
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.Lt)
+            and len(node.comparators) == 1
+        ]
+        if len(comparisons) != 1:
+            continue
+        threshold = comparisons[0].comparators[0]
+        if (
+            not isinstance(threshold, ast.BinOp)
+            or not isinstance(threshold.op, ast.Div)
+            or not isinstance(threshold.right, ast.Name)
+            or threshold.right.id != "trade_leverage"
+            or (value := _ast_number(threshold.left)) is None
+            or not math.isfinite(value)
+            or value >= 0.0
+        ):
+            continue
+        candidates.append(value)
+    if len(candidates) != 1:
+        raise StrategyAnalysisError(
+            "NFI legacy futures drawdown fallback changed; exact lowering requires review"
+        )
+    return candidates[0]
 
 
 def _build_legacy_grind_constants(
@@ -1554,17 +1617,12 @@ def _build_regular_adjustment_constants(
             thresholds = number_list(f"{prefix}_thresholds_{mode}")
             if len(stakes) != len(thresholds):
                 raise StrategyAnalysisError(
-                    f"NFI regular adjustment g{level} "
-                    f"stake/threshold lengths differ for {mode}"
+                    f"NFI regular adjustment g{level} stake/threshold lengths differ for {mode}"
                 )
             grind[f"stakes_{mode}"] = stakes
             grind[f"thresholds_{mode}"] = thresholds
-            grind[f"stop_threshold_{mode}"] = number(
-                f"{prefix}_stop_grinds_{mode}"
-            )
-            grind[f"profit_threshold_{mode}"] = number(
-                f"{prefix}_profit_threshold_{mode}"
-            )
+            grind[f"stop_threshold_{mode}"] = number(f"{prefix}_stop_grinds_{mode}")
+            grind[f"profit_threshold_{mode}"] = number(f"{prefix}_profit_threshold_{mode}")
         grinds.append(grind)
 
     return {
@@ -1576,9 +1634,7 @@ def _build_regular_adjustment_constants(
         "rebuy_thresholds_spot": rebuy["spot"][1],
         "derisk_threshold_futures": number("regular_mode_derisk_futures"),
         "derisk_threshold_spot": number("regular_mode_derisk_spot"),
-        "derisk_level_1_threshold_futures": number(
-            "regular_mode_derisk_1_futures"
-        ),
+        "derisk_level_1_threshold_futures": number("regular_mode_derisk_1_futures"),
         "derisk_level_1_threshold_spot": number("regular_mode_derisk_1_spot"),
         "grinds": grinds,
         "policy": _regular_adjustment_literal_policy(method),

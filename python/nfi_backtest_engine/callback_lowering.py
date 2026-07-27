@@ -18,7 +18,7 @@ from typing import Any
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-CALLBACK_LOWERING_VERSION = "1.8.0"
+CALLBACK_LOWERING_VERSION = "1.9.0"
 
 
 def lower_strategy_callbacks(
@@ -1498,6 +1498,16 @@ def _compile_confirm_expression(
         return {"op": "literal", "value": node.value}
     if isinstance(node, ast.Name):
         return {"op": "variable", "name": node.id}
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
+        and node.attr == "is_futures_mode"
+    ):
+        # NFI initializes this convenience flag before the backtest starts.
+        # The class-level analysis value is only the spot default; freezing it
+        # would make a futures run reject liquidation-risk stop exits.
+        return {"op": "config_value", "name": "is_futures"}
     if (
         isinstance(node, ast.Attribute)
         and isinstance(node.value, ast.Name)

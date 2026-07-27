@@ -91,6 +91,7 @@ struct LegacyContext<'a> {
     available_balance: f64,
     minimum_stake: f64,
     slice_amount: f64,
+    slice_profit: f64,
     current_stake_amount: f64,
     is_derisk: bool,
     is_long_grind_entry: bool,
@@ -243,6 +244,7 @@ pub(super) fn evaluate_nfi_legacy_grind_adjustment(
         available_balance,
         minimum_stake,
         slice_amount,
+        slice_profit,
         current_stake_amount: trade.amount * candle.open,
         is_derisk: trade.amount < state.first_entry.amount * 0.95,
         is_long_grind_entry,
@@ -547,6 +549,22 @@ fn evaluate_cluster(
         }));
     }
 
+    // X7 places this futures-only gd1 branch immediately after the ordinary
+    // grind-1 entry and before its exit/stop checks. It is intentionally a
+    // drawdown fallback: indicator, distance, age, and maximum-position gates
+    // are bypassed, while the wallet maximum still returns None from the
+    // callback. The threshold is extracted from the strategy source into IR.
+    if let Some(outcome) = evaluate_futures_drawdown_fallback(
+        context,
+        definition,
+        cluster,
+        &scaled_stakes,
+        stake_leverage,
+        index,
+    ) {
+        return Some(outcome);
+    }
+
     if cluster.count > 0
         && cluster.profit_rate
             > profit_threshold + fee_open(context.config) + fee_close(context.config)
@@ -589,6 +607,34 @@ fn evaluate_cluster(
         }
     }
     Some(LegacyClusterOutcome::Continue)
+}
+
+fn evaluate_futures_drawdown_fallback(
+    context: &LegacyContext<'_>,
+    definition: &NfiLegacyGrindCluster,
+    cluster: &LegacyCluster,
+    scaled_stakes: &[f64],
+    stake_leverage: f64,
+    index: usize,
+) -> Option<LegacyClusterOutcome> {
+    let threshold = context.route.futures_fallback_loss_threshold?;
+    if index != 0
+        || !context.config.is_futures
+        || !(context.is_derisk || context.route.grind_mode)
+        || cluster.count >= scaled_stakes.len()
+        || context.slice_profit >= threshold / context.trade.leverage
+    {
+        return None;
+    }
+    let requested = (context.slice_amount * scaled_stakes[cluster.count] / stake_leverage)
+        .max(context.minimum_stake * 1.5);
+    if requested > context.available_balance {
+        return Some(LegacyClusterOutcome::ReturnNone);
+    }
+    Some(LegacyClusterOutcome::Signal(AdjustmentSignal {
+        stake_amount: requested,
+        tag: definition.entry_tag.clone(),
+    }))
 }
 
 #[allow(clippy::option_option)] // Preserve evaluator validity separately from callback no-op.

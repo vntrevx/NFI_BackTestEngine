@@ -567,12 +567,21 @@ def test_x7_futures_serializes_ordered_leverage_program(tmp_path: Path) -> None:
         analysis=_analysis(),
         hot_ir=_with_leverage(_hot_ir(), values=(4.0, 2.0, 3.0)),
         config={**_config(), "trading_mode": "futures"},
-        vector_report={"outputs": [{"pair": "BTC/USDT", "path": str(vector)}]},
+        vector_report={
+            "futures_execution": {
+                "schema_version": "1.0.0",
+                "funding_fee_timeframe": "1h",
+                "funding_fee_interval_ms": 3_600_000,
+                "mark_timeframe": "1h",
+            },
+            "outputs": [{"pair": "BTC/USDT", "path": str(vector)}],
+        },
         market_metadata_path=markets,
         destination=tmp_path / "simulation.json",
     )
 
     assert document["config"]["leverage"] == 4.0
+    assert document["config"]["funding_fee_interval_ms"] == 3_600_000
     assert document["config"]["nfi_leverage_program"] == {
         "default": 4.0,
         "ordered_tag_overrides": [
@@ -962,6 +971,7 @@ def test_x7_adapter_serializes_the_declared_long_grind_route(
         "decision_program": "long_grind_entry_v3",
         "first_entry_profit_threshold_spot": 0.018,
         "first_entry_stop_threshold_spot": -0.2,
+        "futures_fallback_loss_threshold": -0.65,
         "derisk_use_grind_stops": True,
         "stateful_input_contract": {"indexed_fields": {}},
         "constants": _legacy_grind_constants(),
@@ -1024,6 +1034,7 @@ def test_x7_adapter_serializes_the_source_bound_long_btc_adjustment_route(
         "regular_decision_program": "long_grind_entry",
         "first_entry_profit_threshold_spot": 0.018,
         "first_entry_stop_threshold_spot": -0.2,
+        "futures_fallback_loss_threshold": -0.65,
         "derisk_use_grind_stops": True,
         "stateful_input_contract": {"indexed_fields": {}},
         "constants": _legacy_grind_constants(),

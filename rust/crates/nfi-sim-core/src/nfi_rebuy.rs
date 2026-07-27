@@ -220,14 +220,20 @@ fn rebuy_entry_features_allow(
 fn rebuy_minimum_stake(
     pair: &PairSeries,
     candle: &Candle,
-    _trade: &OpenTrade,
+    trade: &OpenTrade,
     config: &PortfolioConfig,
 ) -> Option<f64> {
     let has_limit = pair.minimum_stake.is_some()
         || pair.minimum_amount.is_some()
         || pair.minimum_cost.is_some();
-    has_limit
-        .then(|| adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent))
+    has_limit.then(|| {
+        // Backtesting passes the exchange minimum to the callback with no
+        // leverage argument. Both X7 rebuy callbacks then divide that value
+        // before sizing entries and the level-3 residual. Omitting this
+        // second step leaves leverage-times too much position after de-risk.
+        adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent)
+            / trade.leverage
+    })
 }
 
 fn price_distance(rate: f64, reference: f64) -> Option<f64> {

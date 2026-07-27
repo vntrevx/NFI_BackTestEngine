@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import dataclass
 from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,8 @@ from typing import Any
 from .cache import ContentCache, cache_key
 from .canonical import read_json, write_json
 from .config_loader import config_sha256
-from .errors import StrategyAnalysisError
+from .data_seal import timeframe_milliseconds
+from .errors import SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
 from .hash_index import FileHashIndex
 from .runtime_versions import vector_dependency_versions
@@ -27,6 +29,39 @@ from .workload_calibration import (
 )
 
 VECTOR_PIPELINE_VERSION = "1.15.0"
+
+
+@dataclass(frozen=True)
+class PairFundingData:
+    """Sealed files and scheduling metadata used by Freqtrade funding.
+
+    The sparse funding rows describe charge events, while the filename
+    timeframe controls how often Freqtrade refreshes the running segment.
+    They are separate parts of the execution contract: retaining only the
+    event rows is insufficient when a partial fill occurs on an event
+    boundary.
+    """
+
+    funding_rate_path: Path
+    mark_path: Path
+    funding_fee_timeframe: str
+    mark_timeframe: str
+
+    @property
+    def paths(self) -> dict[str, Path]:
+        return {
+            "funding_rate": self.funding_rate_path,
+            "mark": self.mark_path,
+        }
+
+    @property
+    def execution_contract(self) -> dict[str, Any]:
+        return {
+            "schema_version": "1.0.0",
+            "funding_fee_timeframe": self.funding_fee_timeframe,
+            "funding_fee_interval_ms": timeframe_milliseconds(self.funding_fee_timeframe),
+            "mark_timeframe": self.mark_timeframe,
+        }
 
 
 def load_strategy_analysis(
@@ -111,6 +146,7 @@ def prepare_vector_signals(
     data_index: dict[str, list[Path]] = {}
     requests: list[dict[str, Any]] = []
     cache_hits: dict[str, dict[str, Any]] = {}
+    futures_execution: dict[str, Any] | None = None
     for pair in pairs:
         frame_paths = _resolve_pair_frames(
             data_root,
@@ -124,7 +160,7 @@ def prepare_vector_signals(
             key: hash_index.hash_file(path) if hash_index is not None else sha256_file(path)
             for key, path in frame_paths.items()
         }
-        funding_paths = (
+        funding_spec = (
             _resolve_pair_funding_data(
                 data_root,
                 pair=pair,
@@ -133,11 +169,18 @@ def prepare_vector_signals(
             if config.get("trading_mode") == "futures"
             else None
         )
+        funding_paths = funding_spec.paths if funding_spec is not None else None
+        if funding_spec is not None:
+            pair_execution = funding_spec.execution_contract
+            if futures_execution is None:
+                futures_execution = pair_execution
+            elif futures_execution != pair_execution:
+                raise StrategyAnalysisError(
+                    "selected futures pairs use different funding execution contracts"
+                )
         funding_hashes = (
             {
-                key: hash_index.hash_file(path)
-                if hash_index is not None
-                else sha256_file(path)
+                key: hash_index.hash_file(path) if hash_index is not None else sha256_file(path)
                 for key, path in funding_paths.items()
             }
             if funding_paths is not None
@@ -316,6 +359,7 @@ def prepare_vector_signals(
                 config_sha=effective_config_sha,
                 runtime_versions=runtime_versions,
                 calibration=calibration,
+                futures_execution=futures_execution,
             )
         with ProcessPoolExecutor(
             max_workers=min(selected_workers, len(public_requests)),
@@ -369,6 +413,7 @@ def prepare_vector_signals(
         config_sha=effective_config_sha,
         runtime_versions=runtime_versions,
         calibration=calibration,
+        futures_execution=futures_execution,
     )
 
 
@@ -382,8 +427,9 @@ def _vector_report(
     config_sha: str,
     runtime_versions: dict[str, str],
     calibration: dict[str, Any] | None,
+    futures_execution: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    return {
+    report = {
         "schema_version": "1.0.0",
         "pipeline_version": VECTOR_PIPELINE_VERSION,
         "strategy_sha256": strategy_sha,
@@ -395,6 +441,9 @@ def _vector_report(
         "calibration": calibration,
         "outputs": records,
     }
+    if futures_execution is not None:
+        report["futures_execution"] = futures_execution
+    return report
 
 
 def _cacheable_vector_record(record: dict[str, Any]) -> dict[str, Any]:
@@ -590,25 +639,71 @@ def _resolve_pair_funding_data(
     *,
     pair: str,
     data_index: dict[str, list[Path]],
-) -> dict[str, Path]:
-    """Resolve the two Binance 1h inputs used by Freqtrade funding math.
+) -> PairFundingData:
+    """Resolve Freqtrade futures inputs without assuming a fixed timeframe.
 
-    Freqtrade 2026.5.1 combines sparse funding-rate events with mark-price
-    opens at identical timestamps. Keeping these paths outside the strategy
-    timeframe map prevents them from being exposed to `populate_indicators`.
+    Freqtrade names these files ``PAIR-TIMEFRAME-CANDLE_TYPE``. Parsing that
+    sealed filename gives the same funding refresh interval that selected the
+    source file, and avoids embedding an exchange-specific one-hour literal in
+    the simulator.
     """
-    return {
-        "funding_rate": _find_named_data_file(
-            data_root,
-            f"{_pair_filename(pair)}-1h-funding_rate",
-            data_index=data_index,
-        ),
-        "mark": _find_named_data_file(
-            data_root,
-            f"{_pair_filename(pair)}-1h-mark",
-            data_index=data_index,
-        ),
-    }
+    pair_stem = _pair_filename(pair)
+    funding_rate_path, funding_fee_timeframe = _find_timeframed_data_file(
+        data_root,
+        pair_stem=pair_stem,
+        candle_type="funding_rate",
+        data_index=data_index,
+    )
+    mark_path, mark_timeframe = _find_timeframed_data_file(
+        data_root,
+        pair_stem=pair_stem,
+        candle_type="mark",
+        data_index=data_index,
+    )
+    return PairFundingData(
+        funding_rate_path=funding_rate_path,
+        mark_path=mark_path,
+        funding_fee_timeframe=funding_fee_timeframe,
+        mark_timeframe=mark_timeframe,
+    )
+
+
+def _find_timeframed_data_file(
+    data_root: Path,
+    *,
+    pair_stem: str,
+    candle_type: str,
+    data_index: dict[str, list[Path]],
+) -> tuple[Path, str]:
+    """Return one sealed futures file and its validated filename timeframe."""
+    marker = "__nfi_complete_data_index__"
+    if marker not in data_index:
+        data_index.update(_build_data_index(data_root))
+        data_index[marker] = []
+
+    prefix = f"{pair_stem}-"
+    candidates: list[tuple[Path, str]] = []
+    for filename, paths in data_index.items():
+        if filename == marker:
+            continue
+        for extension in (".feather", ".parquet"):
+            suffix = f"-{candle_type}{extension}"
+            if not filename.startswith(prefix) or not filename.endswith(suffix):
+                continue
+            timeframe = filename[len(prefix) : -len(suffix)]
+            try:
+                timeframe_milliseconds(timeframe)
+            except SpecValidationError as exc:
+                raise StrategyAnalysisError(
+                    f"invalid futures data timeframe in {filename}"
+                ) from exc
+            candidates.extend((path, timeframe) for path in paths)
+
+    if len(candidates) != 1:
+        raise StrategyAnalysisError(
+            f"expected one {candle_type} futures file for {pair_stem}, found {len(candidates)}"
+        )
+    return candidates[0]
 
 
 def _find_named_data_file(

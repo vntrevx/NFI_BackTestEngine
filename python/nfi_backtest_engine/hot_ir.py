@@ -15,7 +15,7 @@ from .trade_ir import (
     summarize_trade_dependency_ir,
 )
 
-HOT_IR_VERSION = "1.9.0"
+HOT_IR_VERSION = "1.10.0"
 
 _SIGNATURES: dict[str, dict[str, Any]] = {
     "adjust_entry_price": {

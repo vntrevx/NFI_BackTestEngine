@@ -110,7 +110,16 @@ pub(super) fn evaluate_nfi_position_adjustment(
     if !adjustment.enabled {
         return Some(None);
     }
-    if trade.side != expected_side || !nfi_adjustment_supports_trade(adjustment, trade) {
+    if trade.side != expected_side {
+        return None;
+    }
+    // Rebuy tags deliberately live outside the regular adjustment tag set.
+    // The route dispatcher validates the source's rebuy predicate before it
+    // sets `rebuy_mode`, and X7 then transfers that same trade into the shared
+    // grind callback after its first level-3 de-risk. Reapplying the regular
+    // tag predicate here would reject every valid rebuy-to-grind transfer.
+    // Non-rebuy calls still require the ordinary adjustment tag contract.
+    if !rebuy_mode && !nfi_adjustment_supports_trade(adjustment, trade) {
         return None;
     }
     if trade.custom_data.get("system_version")?.as_str()? != adjustment.system_version {
@@ -148,7 +157,20 @@ fn evaluate_nfi_position_adjustment_with_state(
     let pair = request.pair;
     let candle = request.candle;
     let config = request.config;
-    let minimum_stake = adjustment_minimum_stake(pair, candle, trade, config)?;
+    let exchange_minimum_stake = adjustment_minimum_stake(pair, candle, trade, config)?;
+    // The rebuy wrapper divides Freqtrade's callback minimum by leverage
+    // before it delegates to the shared grind callback. Ordinary grind routes
+    // enter that callback directly and retain the unleveraged exchange value.
+    // Keeping this wrapper boundary prevents an exact cluster exit from being
+    // mistaken for a reserve-violating near-full exit.
+    let minimum_stake =
+        grind_callback_minimum_stake(exchange_minimum_stake, trade.leverage, rebuy_mode);
+    // The rebuy wrapper applies the same leverage conversion to Freqtrade's
+    // callback maximum before transferring into this shared grind callback.
+    // This boundary matters when a large grind level is affordable from the
+    // raw wallet but not from the wrapper-adjusted maximum.
+    let available_balance =
+        grind_callback_maximum_stake(request.available_balance, trade.leverage, rebuy_mode);
     let snapshot = nfi_profit_snapshot(
         trade,
         candle.open,
@@ -223,7 +245,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         candle_index: request.candle_index,
         candle,
         config,
-        available_balance: request.available_balance,
+        available_balance,
         minimum_stake,
         snapshot,
         slice_amount,
@@ -804,10 +826,61 @@ fn partial_exit_stake(
     (exit_amount > context.minimum_stake && ft_stake > context.minimum_stake).then_some(ft_stake)
 }
 
+fn grind_callback_minimum_stake(
+    exchange_minimum_stake: f64,
+    leverage: f64,
+    rebuy_mode: bool,
+) -> f64 {
+    if rebuy_mode {
+        exchange_minimum_stake / leverage
+    } else {
+        exchange_minimum_stake
+    }
+}
+
+fn grind_callback_maximum_stake(
+    exchange_maximum_stake: f64,
+    leverage: f64,
+    rebuy_mode: bool,
+) -> f64 {
+    if rebuy_mode {
+        exchange_maximum_stake / leverage
+    } else {
+        exchange_maximum_stake
+    }
+}
+
 fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
     ids.iter().fold(prefix.to_owned(), |mut tag, id| {
         tag.push(' ');
         tag.push_str(&id.to_string());
         tag
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{grind_callback_maximum_stake, grind_callback_minimum_stake};
+
+    #[test]
+    fn rebuy_transfer_keeps_the_wrappers_leverage_adjusted_minimum() {
+        let exchange_minimum = 11.025_21;
+
+        let transferred = grind_callback_minimum_stake(exchange_minimum, 2.0, true);
+        let direct = grind_callback_minimum_stake(exchange_minimum, 2.0, false);
+
+        assert!((transferred - 5.512_605).abs() < f64::EPSILON);
+        assert!((direct - exchange_minimum).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn rebuy_transfer_keeps_the_wrappers_leverage_adjusted_maximum() {
+        let exchange_maximum = 65_859.0;
+
+        let transferred = grind_callback_maximum_stake(exchange_maximum, 2.0, true);
+        let direct = grind_callback_maximum_stake(exchange_maximum, 2.0, false);
+
+        assert!((transferred - 32_929.5).abs() < f64::EPSILON);
+        assert!((direct - exchange_maximum).abs() < f64::EPSILON);
+    }
 }

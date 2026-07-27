@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 import pytest
+from nfi_backtest_engine.callback_lowering import _compile_confirm_expression
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.hot_ir import build_hot_callback_ir
 from nfi_backtest_engine.strategy_ir import analyze_strategy
+
+
+def test_confirm_lowering_reads_futures_mode_from_the_runtime_config() -> None:
+    expression = ast.parse("self.is_futures_mode", mode="eval").body
+
+    assert _compile_confirm_expression(
+        expression,
+        constants={"is_futures_mode": False},
+    ) == {"op": "config_value", "name": "is_futures"}
 
 
 def test_pure_custom_exit_lowers_to_a_transitive_rust_bundle(tmp_path: Path) -> None:
@@ -125,9 +136,7 @@ def test_incomplete_x7_router_fails_closed_instead_of_widening_scope(
     )
     # Force a Windows-checkout byte layout so the NFI-specific identity check
     # is exercised on Linux and macOS runners too.
-    source.write_bytes(
-        source.read_text(encoding="utf-8").replace("\n", "\r\n").encode("utf-8")
-    )
+    source.write_bytes(source.read_text(encoding="utf-8").replace("\n", "\r\n").encode("utf-8"))
 
     with pytest.raises(
         StrategyAnalysisError,
@@ -345,9 +354,9 @@ def test_x7_open_order_timeouts_are_bound_to_immediate_fill_backtests(
     callbacks = {item["name"]: item for item in result["callbacks"]}
     assert result["hot_loop_ready"]
     assert result["blockers"] == []
-    assert {
-        callback["backend"] for callback in callbacks.values()
-    } == {"rust-immediate-fill-open-order-proof"}
+    assert {callback["backend"] for callback in callbacks.values()} == {
+        "rust-immediate-fill-open-order-proof"
+    }
     assert callbacks["check_entry_timeout"]["lowering"]["operation"] == {
         "opcode": "open-order-timeout-policy-v1",
         "execution_scope": "unreachable-immediate-fill-backtest-v1",

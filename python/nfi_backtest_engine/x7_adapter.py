@@ -25,7 +25,7 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-X7_ADAPTER_VERSION = "0.19.0"
+X7_ADAPTER_VERSION = "0.21.0"
 
 _SERIALIZED_CALLBACK_BACKENDS = frozenset(
     {
@@ -281,6 +281,7 @@ def build_x7_simulation_input(
     required_features = _required_trade_features(hot_ir)
     nfi_manager = _nfi_trade_manager_config(hot_ir)
     can_short = config.get("trading_mode", "spot") == "futures"
+    funding_fee_interval_ms = _x7_funding_fee_interval_ms(config, vector_report)
     pairs = []
     fee_rates = []
     maximum_leverage_by_pair: dict[str, float] = {}
@@ -353,6 +354,7 @@ def build_x7_simulation_input(
         price_step=pairs[0]["price_step"],
         pair_count=len(pairs),
         maximum_leverage_by_pair=maximum_leverage_by_pair,
+        funding_fee_interval_ms=funding_fee_interval_ms,
         liquidation_model=_x7_liquidation_contract(
             config,
             market_snapshot,
@@ -400,6 +402,7 @@ def build_x7_vector_manifest(
     required_features = _required_trade_features(hot_ir)
     nfi_manager = _nfi_trade_manager_config(hot_ir)
     can_short = config.get("trading_mode", "spot") == "futures"
+    funding_fee_interval_ms = _x7_funding_fee_interval_ms(config, vector_report)
     pairs: list[dict[str, Any]] = []
     fee_rates: list[float] = []
     maximum_leverage_by_pair: dict[str, float] = {}
@@ -530,6 +533,7 @@ def build_x7_vector_manifest(
             price_step=pairs[0]["price_step"],
             pair_count=len(pairs),
             maximum_leverage_by_pair=maximum_leverage_by_pair,
+            funding_fee_interval_ms=funding_fee_interval_ms,
             liquidation_model=_x7_liquidation_contract(
                 config,
                 market_snapshot,
@@ -553,6 +557,7 @@ def _x7_portfolio_config(
     price_step: float,
     pair_count: int,
     maximum_leverage_by_pair: dict[str, float],
+    funding_fee_interval_ms: int | None,
     liquidation_model: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Serialize callbacks once for both JSON and Feather transports."""
@@ -675,7 +680,48 @@ def _x7_portfolio_config(
         "nfi_x7_trade_manager": nfi_manager,
         "max_entry_position_adjustment": int(constants.get("max_entry_position_adjustment", -1)),
         "is_futures": config.get("trading_mode", "spot") == "futures",
+        **(
+            {"funding_fee_interval_ms": funding_fee_interval_ms}
+            if funding_fee_interval_ms is not None
+            else {}
+        ),
     }
+
+
+def _x7_funding_fee_interval_ms(
+    config: dict[str, Any],
+    vector_report: dict[str, Any],
+) -> int | None:
+    """Validate the futures refresh cadence sealed by vector preparation."""
+    if config.get("trading_mode", "spot") != "futures":
+        return None
+
+    contract = vector_report.get("futures_execution")
+    if not isinstance(contract, dict) or contract.get("schema_version") != "1.0.0":
+        raise StrategyAnalysisError(
+            "futures vector report is missing its funding execution contract"
+        )
+    timeframe = contract.get("funding_fee_timeframe")
+    interval_ms = contract.get("funding_fee_interval_ms")
+    mark_timeframe = contract.get("mark_timeframe")
+    if (
+        not isinstance(timeframe, str)
+        or not isinstance(mark_timeframe, str)
+        or not isinstance(interval_ms, int)
+        or isinstance(interval_ms, bool)
+        or interval_ms <= 0
+    ):
+        raise StrategyAnalysisError("futures funding execution contract is invalid")
+    try:
+        expected_interval_ms = timeframe_milliseconds(timeframe)
+        timeframe_milliseconds(mark_timeframe)
+    except SpecValidationError as exc:
+        raise StrategyAnalysisError(
+            "futures funding execution contract contains an invalid timeframe"
+        ) from exc
+    if interval_ms != expected_interval_ms:
+        raise StrategyAnalysisError("futures funding interval does not match its sealed timeframe")
+    return interval_ms
 
 
 def _x7_leverage_contract(
@@ -1210,6 +1256,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
             "decision_program",
             "first_entry_profit_threshold_spot",
             "first_entry_stop_threshold_spot",
+            "futures_fallback_loss_threshold",
             "derisk_use_grind_stops",
             "stateful_input_contract",
             "constants",

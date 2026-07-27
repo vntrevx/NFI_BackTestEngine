@@ -43,3 +43,27 @@ def test_calibration_identity_contains_content_not_host_paths(tmp_path: Path) ->
         "mark_sha256": "3" * 64,
     }
     assert identity["pairs"][0]["input_bytes"] == 16
+
+
+def test_funding_contract_is_derived_from_sealed_filenames(tmp_path: Path) -> None:
+    futures = tmp_path / "futures"
+    futures.mkdir()
+    funding = futures / "AAVE_USDT_USDT-4h-funding_rate.feather"
+    mark = futures / "AAVE_USDT_USDT-2h-mark.parquet"
+    funding.write_bytes(b"funding")
+    mark.write_bytes(b"mark")
+
+    resolved = vector_runtime._resolve_pair_funding_data(
+        tmp_path,
+        pair="AAVE/USDT:USDT",
+        data_index={},
+    )
+
+    assert resolved.funding_rate_path == funding
+    assert resolved.mark_path == mark
+    assert resolved.execution_contract == {
+        "schema_version": "1.0.0",
+        "funding_fee_timeframe": "4h",
+        "funding_fee_interval_ms": 14_400_000,
+        "mark_timeframe": "2h",
+    }
