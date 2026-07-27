@@ -10,6 +10,7 @@ from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 from nfi_backtest_engine.x7_adapter import (
+    _nfi_trade_manager_config,
     _optional_text,
     build_x7_simulation_input,
     build_x7_vector_manifest,
@@ -817,6 +818,28 @@ def test_x7_adapter_serializes_scope_limited_nfi_trade_manager(
         "65",
     ]
     assert document["config"]["custom_exit_program"] is None
+
+
+def test_x7_adapter_preserves_routes_without_local_stop_thresholds() -> None:
+    hot_ir = _nfi_manager_hot_ir()
+    operation = hot_ir["nfi_trade_manager"]["operation"]
+    operation["short_route_order"].insert(0, "short_normal")
+    operation["supported_short_routes"]["short_normal"] = {
+        "profile": "normal",
+        "mode_name": "short_normal",
+        "entry_tags": ["501", "502"],
+    }
+
+    manager = _nfi_trade_manager_config(hot_ir)
+
+    assert manager is not None
+    short_normal = manager["managed_short_routes"][0]
+    assert short_normal == {
+        "key": "short_normal",
+        "profile": "normal",
+        "mode_name": "short_normal",
+        "entry_tags": ["501", "502"],
+    }
 
 
 def test_x7_adapter_accepts_a_source_compiled_cross_side_compound_tag(

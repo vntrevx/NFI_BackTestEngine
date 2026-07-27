@@ -156,3 +156,38 @@ def test_engine_profile_requires_vector_manifest(tmp_path: Path) -> None:
             tmp_path / "result.json",
             engine_profile_path=tmp_path / "engine-profile.json",
         )
+
+
+def test_failed_cli_attempt_cleans_private_resource_capture(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "simulation.json"
+    output = tmp_path / "result.json"
+    binary = tmp_path / "nfi-sim"
+    stale_legacy_capture = tmp_path / ".result.json.resources"
+    write_json(source, {"schema_version": "fixture"})
+    binary.write_bytes(b"fixture")
+    stale_legacy_capture.write_bytes(b"")
+    monkeypatch.setattr(
+        engine_runtime,
+        "build_engine",
+        lambda: {"kind": "standalone-cli", "binary_path": str(binary)},
+    )
+    monkeypatch.setattr(
+        engine_runtime.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=2,
+            stdout="",
+            stderr="fixture failure",
+        ),
+    )
+
+    with pytest.raises(BenchmarkError, match="fixture failure"):
+        engine_runtime.run_engine(source, output)
+
+    # A failed attempt owns and removes only its unique capture. An abandoned
+    # legacy filename cannot block resume and is not silently overwritten.
+    assert stale_legacy_capture.is_file()
+    assert sorted(tmp_path.glob(".result.json.*.resources")) == []

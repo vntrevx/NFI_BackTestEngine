@@ -52,10 +52,15 @@ pub(super) fn evaluate_nfi_short_rebuy_adjustment(
     config: &PortfolioConfig,
     available_balance: f64,
 ) -> Option<Option<AdjustmentSignal>> {
-    if adjustment.execution_scope != "pre-derisk-only-v1"
-        || adjustment.post_derisk_action != "fail-simulation"
-        || trade.orders.iter().any(|order| !order.is_entry)
-    {
+    let supported_contract = matches!(
+        (
+            adjustment.execution_scope.as_str(),
+            adjustment.post_derisk_action.as_str(),
+        ),
+        ("pre-derisk-only-v1", "fail-simulation")
+            | ("rebuy-and-grind-v2", "short-position-adjustment")
+    );
+    if !supported_contract || trade.orders.iter().any(|order| !order.is_entry) {
         return None;
     }
     evaluate_rebuy_ladder(

@@ -98,6 +98,7 @@ class ReleaseModeContract:
     pair_pattern: re.Pattern[str]
     required_data_roles: tuple[str, ...]
     side_channel_intervals_ms: tuple[tuple[str, int], ...]
+    maximum_listing_activation_delay_ms: int
     probe_evidence: tuple[ProbeEvidenceContract, ...]
     required_protection_methods: frozenset[str]
     require_rejected_locked_entry: bool
@@ -138,6 +139,7 @@ SPOT_RELEASE_CONTRACT = ReleaseModeContract(
     pair_pattern=re.compile(r"^[^/:\s]+/USDT$"),
     required_data_roles=("candles",),
     side_channel_intervals_ms=(),
+    maximum_listing_activation_delay_ms=0,
     probe_evidence=(
         ProbeEvidenceContract(
             probe_kind="tag-121",
@@ -165,6 +167,10 @@ FUTURES_RELEASE_CONTRACT = ReleaseModeContract(
         ("funding_rate", 8 * 60 * 60 * 1000),
         ("mark", 60 * 60 * 1000),
     ),
+    # Binance's onboardDate is a product-onboarding timestamp, not guaranteed
+    # to be the first tradable kline. A bounded two-day activation window
+    # accepts normal next-day launches while still rejecting month-long holes.
+    maximum_listing_activation_delay_ms=2 * 24 * 60 * 60 * 1000,
     probe_evidence=(
         ProbeEvidenceContract(
             probe_kind="tag-121",

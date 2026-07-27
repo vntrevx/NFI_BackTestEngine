@@ -12,7 +12,7 @@ import ccxt
 from .canonical import write_json
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
-from .release_contract import ReleaseModeContract
+from .release_contract import ReleaseModeContract, release_contract_for_config
 
 MARKET_SNAPSHOT_VERSION = "1.3.0"
 
@@ -69,32 +69,7 @@ def capture_market_snapshot(
     leverage_tiers: dict[str, Any] | None = None,
     leverage_tier_source: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    exchange_config = config.get("exchange")
-    if not isinstance(exchange_config, dict):
-        raise SpecValidationError("market capture requires config.exchange")
-    exchange_name = exchange_config.get("name")
-    if not isinstance(exchange_name, str) or not exchange_name:
-        raise SpecValidationError("market capture requires config.exchange.name")
-    constructor = getattr(ccxt, exchange_name, None)
-    if not isinstance(constructor, type):
-        raise BenchmarkError(f"CCXT does not provide exchange: {exchange_name}")
-    ccxt_config = exchange_config.get("ccxt_config", {})
-    if not isinstance(ccxt_config, dict):
-        raise SpecValidationError("config.exchange.ccxt_config must be an object")
-    client = constructor(
-        {
-            **ccxt_config,
-            "enableRateLimit": True,
-            "apiKey": "",
-            "secret": "",
-            "password": "",
-            "uid": "",
-        }
-    )
-    try:
-        loaded = client.load_markets()
-    except Exception as exc:
-        raise BenchmarkError(f"CCXT market capture failed for {exchange_name}: {exc}") from exc
+    client, loaded, exchange_name = _load_ccxt_markets(config)
     records: dict[str, Any] = {}
     for pair in pairs:
         market = loaded.get(pair)
@@ -211,6 +186,96 @@ def capture_market_snapshot(
         "path": str(Path(destination).resolve()),
         "sha256": sha256_file(destination),
     }
+
+
+def capture_market_catalog(
+    config: dict[str, Any],
+    destination: str | Path,
+) -> dict[str, Any]:
+    """Freeze every CCXT market matching the configured release mode.
+
+    This lightweight catalog intentionally omits precision, fee, and leverage
+    tiers. It exists only to choose a pair universe and bind listing dates.
+    The selected pairs receive a full simulator snapshot afterwards.
+    """
+    contract = release_contract_for_config(config)
+    _client, loaded, exchange_name = _load_ccxt_markets(config)
+    pairs = sorted(
+        pair
+        for pair in loaded
+        if isinstance(pair, str) and contract.pair_pattern.fullmatch(pair)
+    )
+    records: dict[str, Any] = {}
+    for pair in pairs:
+        market = loaded[pair]
+        if not isinstance(market, dict):
+            continue
+        info = market.get("info")
+        onboarding = info.get("onboardDate") if isinstance(info, dict) else None
+        records[pair] = {
+            "symbol": market.get("symbol", pair),
+            "quote": market.get("quote"),
+            "settle": market.get("settle"),
+            "active": market.get("active"),
+            "spot": market.get("spot"),
+            "swap": market.get("swap"),
+            "contract": market.get("contract"),
+            "linear": market.get("linear"),
+            "inverse": market.get("inverse"),
+            "created": market.get("created"),
+            "marginModes": market.get("marginModes"),
+            "info": {"onboardDate": onboarding},
+        }
+    document = {
+        "schema_version": "1.0.0",
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "ccxt_version": ccxt.__version__,
+        "exchange": exchange_name,
+        "trading_mode": contract.trading_mode,
+        "mode_contract": contract.contract_id,
+        "pairs": [pair for pair in pairs if pair in records],
+        "markets": records,
+    }
+    write_json(destination, document)
+    return {
+        **document,
+        "path": str(Path(destination).resolve()),
+        "sha256": sha256_file(destination),
+    }
+
+
+def _load_ccxt_markets(
+    config: dict[str, Any],
+) -> tuple[Any, dict[str, Any], str]:
+    exchange_config = config.get("exchange")
+    if not isinstance(exchange_config, dict):
+        raise SpecValidationError("market capture requires config.exchange")
+    exchange_name = exchange_config.get("name")
+    if not isinstance(exchange_name, str) or not exchange_name:
+        raise SpecValidationError("market capture requires config.exchange.name")
+    constructor = getattr(ccxt, exchange_name, None)
+    if not isinstance(constructor, type):
+        raise BenchmarkError(f"CCXT does not provide exchange: {exchange_name}")
+    ccxt_config = exchange_config.get("ccxt_config", {})
+    if not isinstance(ccxt_config, dict):
+        raise SpecValidationError("config.exchange.ccxt_config must be an object")
+    client = constructor(
+        {
+            **ccxt_config,
+            "enableRateLimit": True,
+            "apiKey": "",
+            "secret": "",
+            "password": "",
+            "uid": "",
+        }
+    )
+    try:
+        loaded = client.load_markets()
+    except Exception as exc:
+        raise BenchmarkError(f"CCXT market capture failed for {exchange_name}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise BenchmarkError(f"CCXT market capture returned invalid data for {exchange_name}")
+    return client, loaded, exchange_name
 
 
 def _precision_step(value: Any, *, precision_mode: int, field: str) -> float:

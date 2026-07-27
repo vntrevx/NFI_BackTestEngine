@@ -345,6 +345,12 @@ pub struct NfiX7TradeManager {
     pub short_rebuy_adjustment: NfiX7ShortRebuyAdjustment,
     #[serde(default)]
     pub position_adjustment: Option<NfiX7PositionAdjustment>,
+    /// System-v3.2 grind route used by ordinary short families.
+    ///
+    /// This is separate from the long descriptor because its source-compiled
+    /// entry predicate and direction-sensitive wrapper policy are different.
+    #[serde(default)]
+    pub short_position_adjustment: Option<NfiX7PositionAdjustment>,
     pub constants: NfiManagedLongConstants,
     pub programs: BTreeMap<String, ScalarDecisionProgram>,
     /// Lazily derived from the source-bound scalar arenas.
@@ -1486,8 +1492,6 @@ pub enum SimError {
     InvalidFeatureColumn { pair: String, column: String },
     #[error("adjustment stake must be finite, non-zero, and smaller than the position when negative at {pair:?} {timestamp_ms}")]
     InvalidAdjustment { pair: String, timestamp_ms: i64 },
-    #[error("pair {pair:?} candle {index} enters long and short simultaneously")]
-    ConflictingEntrySignals { pair: String, index: usize },
     #[error("entry leverage must be finite and positive at {pair:?} {timestamp_ms}")]
     InvalidLeverage { pair: String, timestamp_ms: i64 },
     #[error("liquidation price must be finite and positive at {pair:?} {timestamp_ms}")]
@@ -1803,18 +1807,7 @@ fn simulate_internal(
             // never opens.
             let can_enter = cursor + 1 < pair.candles.len();
             let entry_request = can_enter
-                .then(|| {
-                    candle
-                        .enter_long
-                        .as_ref()
-                        .map(|signal| (TradeSide::Long, signal))
-                        .or_else(|| {
-                            candle
-                                .enter_short
-                                .as_ref()
-                                .map(|signal| (TradeSide::Short, signal))
-                        })
-                })
+                .then(|| freqtrade_entry_signal(candle, config.is_futures))
                 .flatten();
             let opened_now = if let (Some((side, signal)), None) =
                 (entry_request, existing_trade_index)
@@ -2383,6 +2376,7 @@ fn validate_input(input: &SimulationInput) -> Result<ValidationSummary, SimError
             pair_index,
             pair,
             config.nfi_x7_trade_manager.as_ref(),
+            config.is_futures,
             &mut logical_timestamps,
         )?;
     }
@@ -2546,6 +2540,7 @@ fn validate_nfi_trade_manager(
     let long_grind = manager.long_grind.as_ref();
     let long_btc = manager.long_btc.as_ref();
     let adjustment = manager.position_adjustment.as_ref();
+    let short_adjustment = manager.short_position_adjustment.as_ref();
     let constants = &manager.constants;
     let managed_keys = manager
         .managed_long_routes
@@ -2591,7 +2586,7 @@ fn validate_nfi_trade_manager(
         .sum::<usize>();
     let valid_identity = matches!(
         manager.schema_version.as_str(),
-        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0"
+        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -2606,20 +2601,42 @@ fn validate_nfi_trade_manager(
             .all(valid_nfi_managed_long_route);
     let valid_terminal_exit_version = matches!(
         manager.schema_version.as_str(),
-        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0"
+        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0"
     ) || manager
         .managed_long_routes
         .iter()
         .all(|route| route.terminal_exit.is_none());
-    let valid_short_routes = manager.managed_short_routes.len() == 1
-        && short_keys == BTreeSet::from(["short_rebuy"])
+    let expected_short_order = if manager.schema_version == "0.15.0" {
+        vec![
+            "short_normal",
+            "short_pump",
+            "short_quick",
+            "short_rebuy",
+            "short_high_profit",
+            "short_rapid",
+            "short_scalp",
+            "short_top_coins_fallback",
+        ]
+    } else {
+        vec!["short_rebuy"]
+    };
+    let expected_short_keys = expected_short_order
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let valid_short_routes = manager.managed_short_routes.len() == expected_short_keys.len()
+        && short_keys == expected_short_keys
         && short_tags.len() == total_short_tag_count
         && short_tags.iter().all(|tag| !managed_tags.contains(*tag))
         && manager
             .managed_short_routes
             .iter()
             .all(valid_nfi_managed_short_route)
-        && manager.short_route_order == ["short_rebuy"];
+        && manager.short_route_order
+            == expected_short_order
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
     let expected_route_order = [
         "long_normal",
         "long_pump",
@@ -2654,7 +2671,9 @@ fn validate_nfi_trade_manager(
             && match route.adjustment_scope.as_str() {
                 // Preserve the narrower replay contract of older evidence.
                 "spot-grind-backtest-v1" => true,
-                "grind-backtest-v2" => manager.schema_version == "0.14.0",
+                "grind-backtest-v2" => {
+                    matches!(manager.schema_version.as_str(), "0.14.0" | "0.15.0")
+                }
                 _ => false,
             }
             && route.grind_mode
@@ -2703,6 +2722,7 @@ fn validate_nfi_trade_manager(
         == PROGRAM_ORDER.len()
             + SHORT_PROGRAM_ORDER.len()
             + usize::from(adjustment.is_some())
+            + usize::from(short_adjustment.is_some())
             + usize::from(long_btc.is_some())
         && PROGRAM_ORDER.iter().all(|name| {
             manager
@@ -2727,6 +2747,12 @@ fn validate_nfi_trade_manager(
                 .programs
                 .get(&adjustment.decision_program)
                 .is_some_and(valid_scalar_program)
+        })
+        && short_adjustment.is_none_or(|adjustment| {
+            manager
+                .programs
+                .get(&adjustment.decision_program)
+                .is_some_and(valid_scalar_program)
         });
     let valid_adjustment_route = adjustment.is_none_or(|adjustment| {
         let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
@@ -2742,7 +2768,7 @@ fn validate_nfi_trade_manager(
                     .is_some_and(|value| value.is_finite() && value > 0.0)
                     && adjustment.constants.policy.is_none()
             }
-            "0.12.0" | "0.13.0" | "0.14.0" => {
+            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -2768,6 +2794,45 @@ fn validate_nfi_trade_manager(
             && versioned_rebuy_multiplier
             && valid_nfi_adjustment_constants(&adjustment.constants)
     });
+    let short_rebuy_tags = manager
+        .managed_short_routes
+        .iter()
+        .find(|route| route.key == "short_rebuy")
+        .into_iter()
+        .flat_map(|route| &route.entry_tags)
+        .collect::<BTreeSet<_>>();
+    let regular_short_tags = short_tags
+        .difference(&short_rebuy_tags)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let valid_short_adjustment_route = if manager.schema_version == "0.15.0" {
+        short_adjustment.is_some_and(|adjustment| {
+            let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
+            adjustment.enabled
+                && adjustment_tags == regular_short_tags
+                && adjustment_tags.len() == adjustment.entry_tags.len()
+                && adjustment.system_version == constants.system_v3_2_name
+                && adjustment.decision_program == "short_grind_entry_v3"
+                && adjustment.program_order
+                    == ADJUSTMENT_ORDER
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                && adjustment.stateful_input_contract.is_object()
+                && adjustment
+                    .constants
+                    .rebuy_stake_multiplier
+                    .is_some_and(|value| value.is_finite() && value > 0.0)
+                && adjustment
+                    .constants
+                    .policy
+                    .as_ref()
+                    .is_some_and(valid_nfi_adjustment_policy)
+                && valid_nfi_adjustment_constants(&adjustment.constants)
+        })
+    } else {
+        short_adjustment.is_none()
+    };
     let rebuy_route = manager
         .managed_long_routes
         .iter()
@@ -2794,12 +2859,18 @@ fn validate_nfi_trade_manager(
             .iter()
             .collect::<BTreeSet<_>>();
         let route_tags = route.entry_tags.iter().collect::<BTreeSet<_>>();
+        let valid_scope = if manager.schema_version == "0.15.0" {
+            short_rebuy_adjustment.execution_scope == "rebuy-and-grind-v2"
+                && short_rebuy_adjustment.post_derisk_action == "short-position-adjustment"
+        } else {
+            short_rebuy_adjustment.execution_scope == "pre-derisk-only-v1"
+                && short_rebuy_adjustment.post_derisk_action == "fail-simulation"
+        };
         short_rebuy_adjustment.enabled
             && adjustment_tags == route_tags
             && adjustment_tags.len() == short_rebuy_adjustment.entry_tags.len()
             && short_rebuy_adjustment.system_version == constants.system_v3_2_name
-            && short_rebuy_adjustment.execution_scope == "pre-derisk-only-v1"
-            && short_rebuy_adjustment.post_derisk_action == "fail-simulation"
+            && valid_scope
             && short_rebuy_adjustment.stateful_input_contract.is_object()
             && valid_nfi_rebuy_constants(&short_rebuy_adjustment.constants)
     });
@@ -2833,6 +2904,7 @@ fn validate_nfi_trade_manager(
         || !valid_long_btc
         || !valid_programs
         || !valid_adjustment_route
+        || !valid_short_adjustment_route
         || !valid_rebuy_adjustment
         || !valid_short_rebuy_adjustment
         || !valid_constants
@@ -2845,19 +2917,38 @@ fn validate_nfi_trade_manager(
 }
 
 fn valid_nfi_managed_short_route(route: &NfiManagedLongRoute) -> bool {
+    let profile_matches_key = matches!(
+        (route.key.as_str(), route.profile),
+        (
+            "short_normal" | "short_top_coins_fallback",
+            NfiManagedLongProfile::Normal
+        ) | ("short_pump", NfiManagedLongProfile::Pump)
+            | ("short_quick", NfiManagedLongProfile::Quick)
+            | ("short_rebuy", NfiManagedLongProfile::Rebuy)
+            | ("short_high_profit", NfiManagedLongProfile::HighProfit)
+            | ("short_rapid", NfiManagedLongProfile::Rapid)
+            | ("short_scalp", NfiManagedLongProfile::Scalp)
+    );
     let route_tags = route.entry_tags.iter().collect::<BTreeSet<_>>();
-    route.key == "short_rebuy"
-        && route.profile == NfiManagedLongProfile::Rebuy
-        && route.mode_name == "short_rebuy"
+    let stop_thresholds_are_valid = match route.profile {
+        NfiManagedLongProfile::Rebuy
+        | NfiManagedLongProfile::Rapid
+        | NfiManagedLongProfile::Scalp => {
+            route
+                .stop_threshold_futures
+                .is_some_and(|value| value.is_finite() && value >= 0.0)
+                && route
+                    .stop_threshold_spot
+                    .is_some_and(|value| value.is_finite() && value >= 0.0)
+        }
+        _ => route.stop_threshold_futures.is_none() && route.stop_threshold_spot.is_none(),
+    };
+    profile_matches_key
+        && !route.mode_name.is_empty()
         && !route.entry_tags.is_empty()
         && route_tags.len() == route.entry_tags.len()
         && route.entry_tags.iter().all(|tag| !tag.is_empty())
-        && route
-            .stop_threshold_futures
-            .is_some_and(|value| value.is_finite() && value >= 0.0)
-        && route
-            .stop_threshold_spot
-            .is_some_and(|value| value.is_finite() && value >= 0.0)
+        && stop_thresholds_are_valid
         && route.terminal_exit.is_none()
 }
 
@@ -3257,6 +3348,8 @@ fn evaluate_nfi_position_adjustment(
     }
     evaluate_nfi_system_v3_adjustment(
         manager,
+        manager.position_adjustment.as_ref()?,
+        TradeSide::Long,
         trade,
         request,
         initial_stake_multiplier,
@@ -3276,28 +3369,67 @@ fn evaluate_nfi_short_position_adjustment(
         .unwrap_or("")
         .split_whitespace()
         .collect::<Vec<_>>();
-    let route = manager
+    let rebuy_route = manager
         .managed_short_routes
         .iter()
-        .find(|route| nfi_short_route_supports_tags(route, &words));
-    if let Some(route) = route {
-        if route.profile != NfiManagedLongProfile::Rebuy {
-            return None;
+        .find(|route| route.key == "short_rebuy")?;
+    if nfi_managed_short_route_supports_tags(manager, rebuy_route, &words) {
+        let first_exit_is_level_three = trade
+            .orders
+            .iter()
+            .find(|order| !order.is_entry)
+            .and_then(|order| order.tag.as_deref())
+            == Some("derisk_level_3");
+        if !first_exit_is_level_three {
+            return evaluate_nfi_short_rebuy_adjustment(
+                &manager.short_rebuy_adjustment,
+                trade,
+                request.pair,
+                request.candle_index,
+                request.candle,
+                request.config,
+                request.available_balance,
+            );
         }
-        return evaluate_nfi_short_rebuy_adjustment(
-            &manager.short_rebuy_adjustment,
+        let adjustment = manager.short_position_adjustment.as_ref()?;
+        let initial_stake_multiplier = adjustment.constants.rebuy_stake_multiplier?;
+        return evaluate_nfi_system_v3_adjustment(
+            manager,
+            adjustment,
+            TradeSide::Short,
             trade,
-            request.pair,
-            request.candle_index,
-            request.candle,
-            request.config,
-            request.available_balance,
+            request,
+            initial_stake_multiplier,
+            true,
         );
     }
-    // A simultaneous long signal can append a long word to X7's shared
-    // entry-tag column. That makes short rebuy's all-tags predicate false,
-    // and the reviewed source then performs no short adjustment.
-    Some(None)
+    let Some(adjustment) = manager.short_position_adjustment.as_ref() else {
+        // Older descriptors only compile short-rebuy. If its all-tags
+        // predicate did not match, upstream has no reachable short adjustment
+        // branch for the remaining compiled cross-side compound.
+        return Some(None);
+    };
+    let uses_regular_adjustment = words.iter().any(|word| {
+        adjustment
+            .entry_tags
+            .iter()
+            .any(|supported| supported == word)
+    });
+    if !uses_regular_adjustment {
+        // A simultaneous long signal can append a long word to X7's shared
+        // entry-tag column. Compounds containing only short-rebuy and long
+        // words match neither source adjustment branch and are a valid no-op.
+        return Some(None);
+    }
+    evaluate_nfi_system_v3_adjustment(
+        manager,
+        adjustment,
+        TradeSide::Short,
+        trade,
+        request,
+        1.0,
+        false,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3356,8 +3488,12 @@ fn unsupported_nfi_pair_signal(
     pair: &PairSeries,
     candle: &Candle,
     manager: &NfiX7TradeManager,
+    can_short: bool,
 ) -> Option<SimError> {
-    let signal = candle.enter_short.as_ref()?;
+    let (side, signal) = freqtrade_entry_signal(candle, can_short)?;
+    if side != TradeSide::Short {
+        return None;
+    }
     (!nfi_entry_signal_is_supported(manager, TradeSide::Short, signal)).then(|| {
         SimError::UnsupportedNfiEntryTag {
             pair: pair.pair.clone(),
@@ -3418,11 +3554,56 @@ fn nfi_short_tag_is_in_compiled_scope(manager: &NfiX7TradeManager, tag: &str) ->
         .any(|route| route.entry_tags.iter().any(|supported| supported == tag))
 }
 
-fn nfi_short_route_supports_tags(route: &NfiManagedLongRoute, words: &[&str]) -> bool {
-    !words.is_empty()
-        && words
+fn nfi_managed_short_route_supports_tags(
+    manager: &NfiX7TradeManager,
+    route: &NfiManagedLongRoute,
+    words: &[&str],
+) -> bool {
+    if words.is_empty() {
+        return false;
+    }
+    let contains_primary = words
+        .iter()
+        .any(|word| route.entry_tags.iter().any(|supported| supported == word));
+    if !contains_primary {
+        return false;
+    }
+    match route.key.as_str() {
+        // Upstream uses `any(...)` for these explicit custom-exit blocks.
+        "short_normal" | "short_pump" | "short_quick" | "short_high_profit" | "short_rapid" => true,
+        // Rebuy is the one strict all-tags route.
+        "short_rebuy" => words
             .iter()
-            .all(|word| route.entry_tags.iter().any(|supported| supported == word))
+            .all(|word| route.entry_tags.iter().any(|supported| supported == word)),
+        // Scalp accepts pure scalp or a scalp/rebuy compound. Tag 620 is not
+        // executable yet and is rejected by the entry-scope gate before this
+        // helper can run.
+        "short_scalp" => {
+            let rebuy = manager
+                .managed_short_routes
+                .iter()
+                .find(|candidate| candidate.key == "short_rebuy");
+            words.iter().all(|word| {
+                route.entry_tags.iter().any(|supported| supported == word)
+                    || rebuy.is_some_and(|rebuy| {
+                        rebuy.entry_tags.iter().any(|supported| supported == word)
+                    })
+            })
+        }
+        // Upstream omits top-coins from `short_exit_known_mode_tags`, so these
+        // labels reach the final short-normal fallback only when no explicit
+        // short-exit family word is present.
+        "short_top_coins_fallback" => words.iter().all(|word| {
+            manager.managed_short_routes.iter().all(|candidate| {
+                candidate.key == "short_top_coins_fallback"
+                    || candidate
+                        .entry_tags
+                        .iter()
+                        .all(|supported| supported != word)
+            })
+        }),
+        _ => false,
+    }
 }
 
 fn nfi_managed_route_supports_tags(
@@ -3503,10 +3684,32 @@ fn invalid_custom_write(write: &CustomDataWrite) -> bool {
         )
 }
 
+/// Apply Freqtrade's `check_for_trade_entry()` signal arbitration.
+///
+/// A same-side exit suppresses its entry. In futures mode, simultaneous long
+/// and short entries suppress both instead of assigning priority to either
+/// side. Spot ignores short columns before performing the long-side check.
+fn freqtrade_entry_signal(candle: &Candle, can_short: bool) -> Option<(TradeSide, &EntrySignal)> {
+    let enter_long = candle.enter_long.as_ref();
+    let enter_short = can_short.then_some(candle.enter_short.as_ref()).flatten();
+    if candle.exit_long.is_none() && enter_short.is_none() {
+        if let Some(signal) = enter_long {
+            return Some((TradeSide::Long, signal));
+        }
+    }
+    if candle.exit_short.is_none() && enter_long.is_none() {
+        if let Some(signal) = enter_short {
+            return Some((TradeSide::Short, signal));
+        }
+    }
+    None
+}
+
 fn validate_pair_series(
     pair_index: usize,
     pair: &PairSeries,
     nfi_manager: Option<&NfiX7TradeManager>,
+    can_short: bool,
     logical_timestamps: &mut BTreeSet<i64>,
 ) -> Result<(), SimError> {
     if pair.pair.is_empty() {
@@ -3564,7 +3767,7 @@ fn validate_pair_series(
         if index >= pair.execution_start_index {
             logical_timestamps.insert(candle.timestamp_ms);
         }
-        if candle.enter_long.is_some() || candle.enter_short.is_some() {
+        if freqtrade_entry_signal(&candle, can_short).is_some() {
             entry_indices.push(index);
         }
         // The old validator made a second full pass over every pair solely for
@@ -3572,8 +3775,8 @@ fn validate_pair_series(
         // general validation pass continues, preserving the prior error
         // precedence without reading a multi-year spool twice.
         if unsupported_nfi_signal.is_none() {
-            unsupported_nfi_signal =
-                nfi_manager.and_then(|manager| unsupported_nfi_pair_signal(pair, &candle, manager));
+            unsupported_nfi_signal = nfi_manager
+                .and_then(|manager| unsupported_nfi_pair_signal(pair, &candle, manager, can_short));
         }
     }
     if let Some(error) = unsupported_nfi_signal {
@@ -3606,12 +3809,6 @@ fn validate_candle(pair: &PairSeries, index: usize, candle: &Candle) -> Result<(
         || candle.funding_rate.is_some() != candle.funding_mark_price.is_some()
     {
         return Err(SimError::InvalidCandle {
-            pair: pair.pair.clone(),
-            index,
-        });
-    }
-    if candle.enter_long.is_some() && candle.enter_short.is_some() {
-        return Err(SimError::ConflictingEntrySignals {
             pair: pair.pair.clone(),
             index,
         });
@@ -6250,7 +6447,7 @@ fn evaluate_nfi_short_exit(
             .managed_short_routes
             .iter()
             .find(|route| &route.key == key)?;
-        if !nfi_short_route_supports_tags(route, &words) {
+        if !nfi_managed_short_route_supports_tags(manager, route, &words) {
             continue;
         }
         matched = true;
@@ -6322,7 +6519,8 @@ fn evaluate_nfi_managed_long_exit(
     // distinction matters when both predicates are true because the returned
     // reason changes.
     if !sell && route.profile == NfiManagedLongProfile::Rapid {
-        (sell, signal_name) = nfi_inline_profile_exit(route, pair, candle_index, snapshot)?;
+        (sell, signal_name) =
+            nfi_inline_profile_exit(route, pair, candle_index, snapshot, trade.side)?;
     }
     if !sell {
         (sell, signal_name) = nfi_managed_long_stoploss(
@@ -6336,7 +6534,8 @@ fn evaluate_nfi_managed_long_exit(
         )?;
     }
     if !sell && route.profile == NfiManagedLongProfile::Quick {
-        (sell, signal_name) = nfi_inline_profile_exit(route, pair, candle_index, snapshot)?;
+        (sell, signal_name) =
+            nfi_inline_profile_exit(route, pair, candle_index, snapshot, trade.side)?;
     }
 
     let previous_target = profit_targets.get(&trade.pair).cloned();
@@ -6483,6 +6682,7 @@ fn nfi_inline_profile_exit(
     pair: &PairSeries,
     candle_index: usize,
     snapshot: NfiProfitSnapshot,
+    side: TradeSide,
 ) -> Option<(bool, Option<String>)> {
     let suffix_prefix = match route.profile {
         NfiManagedLongProfile::Quick
@@ -6502,18 +6702,39 @@ fn nfi_inline_profile_exit(
     let willr_14 = feature_number_at(pair, candle_index, "WILLR_14")?;
     let rsi_3 = feature_number_at(pair, candle_index, "RSI_3")?;
     let rsi_3_15m = feature_number_at(pair, candle_index, "RSI_3_15m")?;
-    let conditions = [
-        rsi_14 > 78.0,
-        mfi_14 > 84.0,
-        willr_14 >= -0.1,
-        rsi_14 >= 72.0 && rsi_3 > 90.0 && rsi_3_15m > 90.0,
-        rsi_3_15m > 96.0,
-        rsi_3 > 85.0 && rsi_3_15m > 85.0,
-        rsi_3 > 90.0 && rsi_3_15m > 80.0,
-        rsi_3 > 92.0 && rsi_3_15m > 75.0,
-        rsi_3 > 94.0 && rsi_3_15m > 70.0,
-        rsi_3 > 99.0,
-    ];
+    let conditions = match side {
+        TradeSide::Long => [
+            rsi_14 > 78.0,
+            mfi_14 > 84.0,
+            willr_14 >= -0.1,
+            rsi_14 >= 72.0 && rsi_3 > 90.0 && rsi_3_15m > 90.0,
+            rsi_3_15m > 96.0,
+            rsi_3 > 85.0 && rsi_3_15m > 85.0,
+            rsi_3 > 90.0 && rsi_3_15m > 80.0,
+            rsi_3 > 92.0 && rsi_3_15m > 75.0,
+            rsi_3 > 94.0 && rsi_3_15m > 70.0,
+            rsi_3 > 99.0,
+        ],
+        TradeSide::Short => {
+            let fourth_rsi_limit = if route.profile == NfiManagedLongProfile::Quick {
+                18.0
+            } else {
+                28.0
+            };
+            [
+                rsi_14 < 22.0,
+                mfi_14 < 16.0,
+                willr_14 <= -99.9,
+                rsi_14 <= fourth_rsi_limit && rsi_3 < 10.0 && rsi_3_15m < 10.0,
+                rsi_3_15m < 4.0,
+                rsi_3 < 15.0 && rsi_3_15m < 15.0,
+                rsi_3 < 10.0 && rsi_3_15m < 20.0,
+                rsi_3 < 8.0 && rsi_3_15m < 25.0,
+                rsi_3 < 6.0 && rsi_3_15m < 30.0,
+                rsi_3 < 1.0,
+            ]
+        }
+    };
     let reason = conditions
         .iter()
         .position(|condition| *condition)
@@ -6678,11 +6899,61 @@ struct NfiTargetDecision {
     remove: bool,
 }
 
-/// Evaluate the branches reachable from the compiled managed-long profiles.
+#[derive(Debug, Clone, Copy)]
+struct NfiTargetIndicators {
+    rsi: f64,
+    previous_rsi: f64,
+    cmf: f64,
+    cmf_1h: f64,
+    cmf_4h: f64,
+    roc_4h: f64,
+}
+
+/// Return the first ordinary trailing branch selected by the source helper.
 ///
-/// Short routes remain outside the adapter. The scalp branch is selected only
-/// when every entry-tag word is a scalp tag, matching X7's ``all(...)`` test;
-/// a supported scalp+grind combination uses the ordinary long trailing logic.
+/// Keeping the mirrored long/short predicates together makes direction
+/// changes reviewable without obscuring the surrounding target lifecycle.
+fn nfi_profit_target_trailing_suffix(
+    side: TradeSide,
+    initial_stake_ratio: f64,
+    previous_profit: f64,
+    indicators: NfiTargetIndicators,
+) -> Option<usize> {
+    let dropped_by = |delta| initial_stake_ratio < previous_profit - delta;
+    let branches = match side {
+        TradeSide::Long => [
+            dropped_by(0.03)
+                && indicators.rsi < 50.0
+                && indicators.rsi < indicators.previous_rsi
+                && indicators.cmf < -0.0,
+            dropped_by(0.03)
+                && indicators.cmf < -0.0
+                && indicators.cmf_1h < -0.0
+                && indicators.cmf_4h < -0.0,
+            dropped_by(0.05) && indicators.roc_4h > 40.0,
+        ],
+        TradeSide::Short => [
+            dropped_by(0.03)
+                && indicators.rsi > 50.0
+                && indicators.rsi > indicators.previous_rsi
+                && indicators.cmf > 0.0,
+            dropped_by(0.03)
+                && indicators.cmf > 0.0
+                && indicators.cmf_1h > 0.0
+                && indicators.cmf_4h > 0.0,
+            dropped_by(0.05) && indicators.roc_4h < -40.0,
+        ],
+    };
+    branches
+        .iter()
+        .position(|selected| *selected)
+        .map(|index| index + 1)
+}
+
+/// Evaluate the shared profit-target helper for either source side.
+///
+/// The scalp bucket thresholds are common, while ordinary trailing indicators
+/// are mirrored inside upstream's `trade.is_short` branch.
 #[allow(clippy::too_many_arguments)]
 fn nfi_managed_long_profit_target_exit(
     route: &NfiManagedLongRoute,
@@ -6731,12 +7002,14 @@ fn nfi_managed_long_profit_target_exit(
     }
 
     let previous_index = candle_index.checked_sub(1)?;
-    let last_rsi = feature_number_at(pair, candle_index, "RSI_14")?;
-    let previous_rsi = feature_number_at(pair, previous_index, "RSI_14")?;
-    let cmf = feature_number_at(pair, candle_index, "CMF_20")?;
-    let cmf_1h = feature_number_at(pair, candle_index, "CMF_20_1h")?;
-    let cmf_4h = feature_number_at(pair, candle_index, "CMF_20_4h")?;
-    let roc_4h = feature_number_at(pair, candle_index, "ROC_9_4h")?;
+    let indicators = NfiTargetIndicators {
+        rsi: feature_number_at(pair, candle_index, "RSI_14")?,
+        previous_rsi: feature_number_at(pair, previous_index, "RSI_14")?,
+        cmf: feature_number_at(pair, candle_index, "CMF_20")?,
+        cmf_1h: feature_number_at(pair, candle_index, "CMF_20_1h")?,
+        cmf_4h: feature_number_at(pair, candle_index, "CMF_20_4h")?,
+        roc_4h: feature_number_at(pair, candle_index, "ROC_9_4h")?,
+    };
     let Some(bucket) = nfi_profit_bucket(snapshot.initial_stake_ratio) else {
         return Some(NfiTargetDecision::default());
     };
@@ -6763,24 +7036,12 @@ fn nfi_managed_long_profit_target_exit(
             remove: false,
         });
     }
-    let trail_1 = snapshot.initial_stake_ratio < previous.profit - 0.03
-        && last_rsi < 50.0
-        && last_rsi < previous_rsi
-        && cmf < -0.0;
-    let trail_2 = snapshot.initial_stake_ratio < previous.profit - 0.03
-        && cmf < -0.0
-        && cmf_1h < -0.0
-        && cmf_4h < -0.0;
-    let trail_3 = snapshot.initial_stake_ratio < previous.profit - 0.05 && roc_4h > 40.0;
-    let suffix = if trail_1 {
-        Some(1)
-    } else if trail_2 {
-        Some(2)
-    } else if trail_3 {
-        Some(3)
-    } else {
-        None
-    };
+    let suffix = nfi_profit_target_trailing_suffix(
+        trade.side,
+        snapshot.initial_stake_ratio,
+        previous.profit,
+        indicators,
+    );
     Some(NfiTargetDecision {
         exit_reason: suffix.map(|suffix| format!("exit_profit_{mode}_t_{bucket}_{suffix}")),
         remove: false,
@@ -6854,12 +7115,23 @@ fn nfi_managed_long_stoploss(
     } else {
         constants.stop_threshold_spot
     };
-    let should_stop = snapshot.stake < -(entry_cost * threshold)
-        && close < ema_200
-        && cmf < -0.0
-        && (ema_200 - close) / close < 0.010
-        && rsi > previous_rsi
-        && rsi > rsi_1h + 24.0;
+    let directional_guard = match trade.side {
+        TradeSide::Long => {
+            close < ema_200
+                && cmf < -0.0
+                && (ema_200 - close) / close < 0.010
+                && rsi > previous_rsi
+                && rsi > rsi_1h + 24.0
+        }
+        TradeSide::Short => {
+            close > ema_200
+                && cmf > 0.0
+                && (close - ema_200) / ema_200 < 0.010
+                && rsi < previous_rsi
+                && rsi < rsi_1h - 24.0
+        }
+    };
+    let should_stop = snapshot.stake < -(entry_cost * threshold) && directional_guard;
     Some((
         should_stop,
         should_stop.then(|| format!("exit_{}_stoploss_u_e", route.mode_name)),
@@ -8409,6 +8681,7 @@ mod tests {
                     policy: Some(nfi_adjustment_policy()),
                 },
             }),
+            short_position_adjustment: None,
             constants: NfiManagedLongConstants {
                 stops_enable: true,
                 stop_threshold_futures: 0.1,
@@ -8437,6 +8710,87 @@ mod tests {
             feature_projections: OnceLock::new(),
             feature_projection_unions: OnceLock::new(),
         }
+    }
+
+    fn enable_test_full_short_manager(manager: &mut NfiX7TradeManager) {
+        let routes = vec![
+            nfi_managed_route(
+                "short_normal",
+                NfiManagedLongProfile::Normal,
+                "short_normal",
+                &["501", "502"],
+            ),
+            nfi_managed_route(
+                "short_pump",
+                NfiManagedLongProfile::Pump,
+                "short_pump",
+                &["521"],
+            ),
+            nfi_managed_route(
+                "short_quick",
+                NfiManagedLongProfile::Quick,
+                "short_quick",
+                &["542"],
+            ),
+            {
+                let mut route = nfi_managed_route(
+                    "short_rebuy",
+                    NfiManagedLongProfile::Rebuy,
+                    "short_rebuy",
+                    &["561", "562", "563"],
+                );
+                route.stop_threshold_futures = Some(1.4);
+                route.stop_threshold_spot = Some(0.48);
+                route
+            },
+            nfi_managed_route(
+                "short_high_profit",
+                NfiManagedLongProfile::HighProfit,
+                "short_hp",
+                &["581"],
+            ),
+            nfi_managed_route(
+                "short_rapid",
+                NfiManagedLongProfile::Rapid,
+                "short_rapid",
+                &["601"],
+            ),
+            nfi_managed_route(
+                "short_scalp",
+                NfiManagedLongProfile::Scalp,
+                "short_scalp",
+                &["661"],
+            ),
+            nfi_managed_route(
+                "short_top_coins_fallback",
+                NfiManagedLongProfile::Normal,
+                "short_normal",
+                &["641"],
+            ),
+        ];
+        let regular_tags = routes
+            .iter()
+            .filter(|route| route.key != "short_rebuy")
+            .flat_map(|route| route.entry_tags.clone())
+            .collect();
+        let mut short_adjustment = manager
+            .position_adjustment
+            .clone()
+            .expect("test manager has source adjustment constants");
+        short_adjustment.enabled = true;
+        short_adjustment.entry_tags = regular_tags;
+        short_adjustment.decision_program = "short_grind_entry_v3".to_owned();
+
+        manager.schema_version = "0.15.0".to_owned();
+        manager.short_route_order = routes.iter().map(|route| route.key.clone()).collect();
+        manager.managed_short_routes = routes;
+        manager.short_rebuy_adjustment.execution_scope = "rebuy-and-grind-v2".to_owned();
+        manager.short_rebuy_adjustment.post_derisk_action = "short-position-adjustment".to_owned();
+        manager.short_position_adjustment = Some(short_adjustment);
+        manager.programs.insert(
+            "short_grind_entry_v3".to_owned(),
+            nfi_boolean_false_program(),
+        );
     }
 
     fn nfi_adjustment_policy() -> NfiX7AdjustmentPolicy {
@@ -8557,6 +8911,58 @@ mod tests {
                 .collect(),
             candles: candles.into(),
         }
+    }
+
+    #[test]
+    fn futures_ignores_simultaneous_long_and_short_entries() {
+        let signal = EntrySignal {
+            tag: Some("conflict".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        };
+        let mut conflict = candle(1, 100.0, 100.0);
+        conflict.enter_long = Some(signal.clone());
+        conflict.enter_short = Some(signal);
+        let mut futures_config = config(1);
+        futures_config.is_futures = true;
+        futures_config.leverage = Some(3.0);
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: futures_config,
+            pairs: vec![nfi_pair(
+                vec![conflict, candle(2, 101.0, 101.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        let result = simulate(&input).expect("Freqtrade suppresses a conflicting entry candle");
+
+        assert!(result.trades.is_empty());
+    }
+
+    #[test]
+    fn same_side_exit_signal_suppresses_entry() {
+        let mut conflict = candle(1, 100.0, 100.0);
+        conflict.enter_long = Some(EntrySignal {
+            tag: Some("entry".to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        conflict.exit_long = Some(ExitSignal {
+            reason: "exit_signal".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: config(1),
+            pairs: vec![nfi_pair(
+                vec![conflict, candle(2, 101.0, 101.0)],
+                BTreeMap::new(),
+            )],
+        };
+
+        let result = simulate(&input).expect("Freqtrade suppresses entry beside a same-side exit");
+
+        assert!(result.trades.is_empty());
     }
 
     #[test]
@@ -9085,6 +9491,7 @@ mod tests {
             liquidation_price: None,
         });
         let mut manager = nfi_top_coins_manager(nfi_false_program());
+        enable_test_full_short_manager(&mut manager);
         manager.programs.insert(
             "short_exit_dec".to_owned(),
             nfi_profit_program(0.01, "exit_short_rebuy_d_3_100"),
@@ -9111,6 +9518,111 @@ mod tests {
             "exit_short_rebuy_d_3_100 ( 562 )"
         );
         assert_eq!(result.trades[0].close_timestamp_ms, 2);
+    }
+
+    #[test]
+    fn nfi_short_route_matching_preserves_each_upstream_tag_predicate() {
+        let mut manager = nfi_top_coins_manager(nfi_false_program());
+        manager.managed_short_routes.extend([
+            nfi_managed_route(
+                "short_quick",
+                NfiManagedLongProfile::Quick,
+                "short_quick",
+                &["541", "542"],
+            ),
+            nfi_managed_route(
+                "short_scalp",
+                NfiManagedLongProfile::Scalp,
+                "short_scalp",
+                &["661"],
+            ),
+            nfi_managed_route(
+                "short_top_coins_fallback",
+                NfiManagedLongProfile::Normal,
+                "short_normal",
+                &["641", "642"],
+            ),
+        ]);
+        let rebuy = manager
+            .managed_short_routes
+            .iter()
+            .find(|route| route.key == "short_rebuy")
+            .expect("test manager has short rebuy");
+        let quick = manager
+            .managed_short_routes
+            .iter()
+            .find(|route| route.key == "short_quick")
+            .expect("test manager has short quick");
+        let scalp = manager
+            .managed_short_routes
+            .iter()
+            .find(|route| route.key == "short_scalp")
+            .expect("test manager has short scalp");
+        let top_coins = manager
+            .managed_short_routes
+            .iter()
+            .find(|route| route.key == "short_top_coins_fallback")
+            .expect("test manager has short top-coins fallback");
+
+        // Quick uses any(...), rebuy uses all(...), scalp permits its explicit
+        // rebuy compound, and top-coins reaches normal fallback only when no
+        // earlier explicit short family is present.
+        assert!(nfi_managed_short_route_supports_tags(
+            &manager,
+            quick,
+            &["542", "141"],
+        ));
+        assert!(!nfi_managed_short_route_supports_tags(
+            &manager,
+            rebuy,
+            &["562", "141"],
+        ));
+        assert!(nfi_managed_short_route_supports_tags(
+            &manager,
+            scalp,
+            &["661", "562"],
+        ));
+        assert!(nfi_managed_short_route_supports_tags(
+            &manager,
+            top_coins,
+            &["641"],
+        ));
+        assert!(!nfi_managed_short_route_supports_tags(
+            &manager,
+            top_coins,
+            &["641", "542"],
+        ));
+    }
+
+    #[test]
+    fn nfi_short_quick_inline_exit_uses_mirrored_thresholds() {
+        let route = nfi_managed_route(
+            "short_quick",
+            NfiManagedLongProfile::Quick,
+            "short_quick",
+            &["542"],
+        );
+        let pair = nfi_pair(
+            vec![candle(1, 97.0, 97.0)],
+            BTreeMap::from([
+                ("RSI_14".to_owned(), vec![serde_json::json!(21.0)]),
+                ("MFI_14".to_owned(), vec![serde_json::json!(50.0)]),
+                ("WILLR_14".to_owned(), vec![serde_json::json!(-50.0)]),
+                ("RSI_3".to_owned(), vec![serde_json::json!(50.0)]),
+                ("RSI_3_15m".to_owned(), vec![serde_json::json!(50.0)]),
+            ]),
+        );
+        let snapshot = NfiProfitSnapshot {
+            stake: 1.0,
+            ratio: 0.03,
+            current_stake_ratio: 0.03,
+            initial_stake_ratio: 0.03,
+        };
+
+        let decision = nfi_inline_profile_exit(&route, &pair, 0, snapshot, TradeSide::Short)
+            .expect("short quick inputs are complete");
+
+        assert_eq!(decision, (true, Some("exit_short_quick_q_1".to_owned())));
     }
 
     #[test]
@@ -9506,6 +10018,7 @@ mod tests {
             liquidation_price: None,
         });
         let mut manager_config = config(1);
+        manager_config.is_futures = true;
         enable_nfi_manager(
             &mut manager_config,
             nfi_top_coins_manager(nfi_profit_program(0.01, "exit_long_normal_test")),
@@ -9566,6 +10079,7 @@ mod tests {
             liquidation_price: None,
         });
         let mut manager_config = config(1);
+        manager_config.is_futures = true;
         enable_nfi_manager(
             &mut manager_config,
             nfi_top_coins_manager(nfi_false_program()),
@@ -9595,6 +10109,7 @@ mod tests {
             liquidation_price: None,
         });
         let mut manager_config = config(1);
+        manager_config.is_futures = true;
         enable_nfi_manager(
             &mut manager_config,
             nfi_top_coins_manager(nfi_false_program()),
@@ -11061,9 +11576,11 @@ mod tests {
         exit.exit_short = Some(ExitSignal {
             reason: "signal_exit".to_owned(),
         });
+        let mut futures_config = config(1);
+        futures_config.is_futures = true;
         let input = SimulationInput {
             schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
-            config: config(1),
+            config: futures_config,
             pairs: vec![PairSeries {
                 pair: "AAA/USDT:USDT".to_owned(),
                 execution_start_index: 0,
@@ -11548,6 +12065,7 @@ mod tests {
     #[test]
     fn rejected_stop_loss_collision_does_not_fall_through_to_liquidation() {
         let mut portfolio = config(1);
+        portfolio.is_futures = true;
         portfolio.exit_confirmation_program = Some(
             serde_json::from_value(serde_json::json!({
                 "statements": [{

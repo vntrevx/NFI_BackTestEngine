@@ -84,6 +84,7 @@ def prepare_data(
             gaps,
             startup_shortfalls,
             require_startup_coverage=require_startup_coverage,
+            history_coverage_policy=history_coverage_policy,
         )
         append_downloads, gaps = _append_until_end_covered(
             config_file=config_file,
@@ -211,11 +212,17 @@ def _needs_prepend(
     startup_shortfalls: list[dict[str, Any]],
     *,
     require_startup_coverage: bool,
+    history_coverage_policy: str,
 ) -> bool:
-    return any(
-        gap["start_missing"] and gap["available_start_timestamp_ms"] is not None
-        for gap in gaps
-    ) or (
+    history_requires_prepend = (
+        history_coverage_policy == "strict"
+        and any(
+            gap["start_missing"]
+            and gap["available_start_timestamp_ms"] is not None
+            for gap in gaps
+        )
+    )
+    return history_requires_prepend or (
         require_startup_coverage
         and any(
             item["available_start_timestamp_ms"] is not None

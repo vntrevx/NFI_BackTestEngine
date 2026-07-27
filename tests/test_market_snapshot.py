@@ -4,7 +4,10 @@ from pathlib import Path
 
 import ccxt
 from nfi_backtest_engine import market_snapshot
-from nfi_backtest_engine.market_snapshot import capture_market_snapshot
+from nfi_backtest_engine.market_snapshot import (
+    capture_market_catalog,
+    capture_market_snapshot,
+)
 
 
 def test_market_capture_converts_tick_size_precision(monkeypatch, tmp_path: Path) -> None:
@@ -88,3 +91,48 @@ def test_market_capture_converts_tick_size_precision(monkeypatch, tmp_path: Path
     assert result["markets"]["BTC/USDT"]["taker"] == 0.001
     assert result["leverage_tier_source"] == {"kind": "test-fixture"}
     assert len(result["sha256"]) == 64
+
+
+def test_market_catalog_captures_mode_pairs_without_liquidation_tiers(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    class FakeExchange:
+        precisionMode = ccxt.TICK_SIZE
+
+        def __init__(self, config):
+            self.config = config
+
+        def load_markets(self):
+            return {
+                "BTC/USDT": {"active": True, "spot": True},
+                "BTC/USDT:USDT": {
+                    "symbol": "BTC/USDT:USDT",
+                    "quote": "USDT",
+                    "settle": "USDT",
+                    "active": True,
+                    "spot": False,
+                    "swap": True,
+                    "contract": True,
+                    "linear": True,
+                    "inverse": False,
+                    "created": 1_600_000_000_000,
+                    "marginModes": {"isolated": True},
+                    "info": {"onboardDate": 1_600_000_000_000},
+                },
+            }
+
+    monkeypatch.setattr(market_snapshot.ccxt, "binance", FakeExchange)
+    result = capture_market_catalog(
+        {
+            "exchange": {"name": "binance", "pair_whitelist": []},
+            "stake_currency": "USDT",
+            "trading_mode": "futures",
+            "margin_mode": "isolated",
+        },
+        tmp_path / "catalog.json",
+    )
+
+    assert result["pairs"] == ["BTC/USDT:USDT"]
+    assert result["markets"]["BTC/USDT:USDT"]["created"] == 1_600_000_000_000
+    assert "leverage_tiers" not in result["markets"]["BTC/USDT:USDT"]

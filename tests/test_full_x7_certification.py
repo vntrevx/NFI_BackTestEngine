@@ -632,6 +632,35 @@ def test_cold_strict_engine_gate_rejects_checkpoint_or_coverage_shortfall() -> N
     assert _engine_complete(measurement, lock, require_cold=False) is True
 
 
+def test_listing_aware_engine_gate_requires_the_locked_shortfall_count() -> None:
+    lock = {
+        "schema_version": "1.3.0",
+        "scope": {"history_coverage_policy": "listing-aware"},
+        "data": {
+            "aggregate_sha256": "d" * 64,
+            "coverage_shortfall_count": 7,
+        },
+    }
+    measurement = {
+        "exit_code": 0,
+        "result_sha256": "a" * 64,
+        "report": {
+            "complete": True,
+            "pipeline_evidence": {"cold": True},
+            "data": {
+                "history_coverage_policy": "available",
+                "coverage_shortfall_count": 7,
+                "aggregate_sha256": "d" * 64,
+            },
+            "capability": {"blockers": []},
+        },
+    }
+
+    assert _engine_complete(measurement, lock) is True
+    measurement["report"]["data"]["coverage_shortfall_count"] = 6
+    assert _engine_complete(measurement, lock) is False
+
+
 def test_full_x7_probe_matrix_cannot_be_empty() -> None:
     with pytest.raises(SpecValidationError, match="probe matrix is incomplete"):
         _validate_probe_matrix([], contract=SPOT_RELEASE_CONTRACT)

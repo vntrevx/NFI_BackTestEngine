@@ -25,7 +25,7 @@ from .vector_manifest import (
     verified_vector_sha256,
 )
 
-X7_ADAPTER_VERSION = "0.18.0"
+X7_ADAPTER_VERSION = "0.19.0"
 
 _SERIALIZED_CALLBACK_BACKENDS = frozenset(
     {
@@ -1122,6 +1122,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
     long_grind = routes.get("long_grind") if isinstance(routes, dict) else None
     long_btc = routes.get("long_btc") if isinstance(routes, dict) else None
     adjustment = operation.get("position_adjustment")
+    short_adjustment = operation.get("short_position_adjustment")
     rebuy_adjustment = operation.get("rebuy_adjustment")
     short_rebuy_adjustment = operation.get("short_rebuy_adjustment")
     programs = operation.get("programs")
@@ -1168,21 +1169,21 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         route = short_routes.get(key)
         if not isinstance(route, dict):
             raise StrategyAnalysisError(f"NFI short route order references missing route {key}")
-        required = (
-            "profile",
-            "mode_name",
-            "entry_tags",
-            "stop_threshold_futures",
-            "stop_threshold_spot",
-        )
+        required = ("profile", "mode_name", "entry_tags")
         if any(name not in route for name in required):
             raise StrategyAnalysisError(f"NFI short route {key} is incomplete")
-        managed_short_routes.append(
-            {
-                "key": key,
-                **{name: route[name] for name in required},
-            }
-        )
+        record = {
+            "key": key,
+            **{name: route[name] for name in required},
+        }
+        # Normal, pump, quick and high-profit delegate their stop handling to
+        # the shared source-pinned callback and therefore have no route-local
+        # thresholds. Rebuy, rapid and scalp carry explicit values. Preserve
+        # that distinction instead of inventing placeholder thresholds.
+        for name in ("stop_threshold_futures", "stop_threshold_spot"):
+            if name in route:
+                record[name] = route[name]
+        managed_short_routes.append(record)
     constant_names = (
         "stops_enable",
         "stop_threshold_futures",
@@ -1231,6 +1232,9 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "long_grind": legacy_route_config(long_grind),
         "long_btc": legacy_route_config(long_btc),
         "position_adjustment": adjustment if isinstance(adjustment, dict) else None,
+        "short_position_adjustment": (
+            short_adjustment if isinstance(short_adjustment, dict) else None
+        ),
         "rebuy_adjustment": (rebuy_adjustment if isinstance(rebuy_adjustment, dict) else None),
         "short_rebuy_adjustment": (
             short_rebuy_adjustment if isinstance(short_rebuy_adjustment, dict) else None

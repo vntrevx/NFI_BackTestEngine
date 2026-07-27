@@ -78,11 +78,19 @@ def test_new_files_do_not_schedule_a_redundant_prepend_download() -> None:
         [missing_file],
         [],
         require_startup_coverage=False,
+        history_coverage_policy="strict",
     )
     assert _needs_prepend(
         [existing_partial_file],
         [],
         require_startup_coverage=False,
+        history_coverage_policy="strict",
+    )
+    assert not _needs_prepend(
+        [existing_partial_file],
+        [],
+        require_startup_coverage=False,
+        history_coverage_policy="available",
     )
 
 

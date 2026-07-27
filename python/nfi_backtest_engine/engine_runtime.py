@@ -8,6 +8,7 @@ import platform
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -169,9 +170,17 @@ def run_engine(
             engine_profile_destination=engine_profile_destination,
         )
     binary = Path(build["binary_path"])
-    resource_path = destination.parent / f".{destination.name}.resources"
-    if resource_path.exists():
-        raise BenchmarkError(f"engine resource output already exists: {resource_path}")
+    # `/usr/bin/time` writes process metrics outside the simulation result.
+    # Give every attempt a private file: a killed/failed attempt must never
+    # block `--resume`, and concurrent independent outputs must not share it.
+    # The handle reserves the name atomically; GNU time truncates it via `-o`.
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{destination.name}.",
+        suffix=".resources",
+        dir=destination.parent,
+        delete=False,
+    ) as resource_file:
+        resource_path = Path(resource_file.name)
     environment = os.environ.copy()
     profile = None
     if profile_path is not None:
@@ -238,26 +247,28 @@ def run_engine(
 
     started_ns = time.perf_counter_ns()
     try:
-        completed = subprocess.run(
-            command,
-            env=environment,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
-            check=False,
-            timeout=timeout_seconds,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise BenchmarkError("Rust engine execution timed out") from exc
-    wall_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
-    if completed.returncode != 0 or not destination.is_file():
-        raise BenchmarkError(
-            "Rust engine execution failed: "
-            f"{completed.stderr[-4000:].strip() or completed.stdout[-4000:].strip()}"
-        )
-    resources = _read_resource_record(resource_path)
-    resource_path.unlink(missing_ok=True)
+        try:
+            completed = subprocess.run(
+                command,
+                env=environment,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                capture_output=True,
+                check=False,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise BenchmarkError("Rust engine execution timed out") from exc
+        wall_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
+        if completed.returncode != 0 or not destination.is_file():
+            raise BenchmarkError(
+                "Rust engine execution failed: "
+                f"{completed.stderr[-4000:].strip() or completed.stdout[-4000:].strip()}"
+            )
+        resources = _read_resource_record(resource_path)
+    finally:
+        resource_path.unlink(missing_ok=True)
     result = read_json(destination)
     return {
         "schema_version": "1.0.0",

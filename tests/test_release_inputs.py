@@ -10,6 +10,7 @@ from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.release_contract import SPOT_RELEASE_CONTRACT
 from nfi_backtest_engine.release_inputs import (
     discover_release_universe,
+    materialize_release_candidate_config,
     select_release_universe,
     validate_release_data_roles,
     validate_release_input_lock,
@@ -180,6 +181,125 @@ def test_release_discovery_rejects_late_listings_without_fallback(
             "reason": "LISTED_AFTER_TIMERANGE_START",
         }
     ]
+
+
+def test_listing_aware_futures_selection_seals_only_onboarding_shortfalls(
+    tmp_path: Path,
+) -> None:
+    pair = "ALGO/USDT:USDT"
+    onboarding_ms = 1_612_321_200_000
+    markets = read_json(
+        FUTURES_FIXTURE
+        / "inputs"
+        / "reference_market_metadata"
+        / "reference-markets.json"
+    )
+    market = markets["markets"][pair]
+    market["created"] = onboarding_ms
+    market["info"]["onboardDate"] = str(onboarding_ms)
+    markets["pairs"] = [pair]
+    markets["markets"] = {pair: market}
+    markets_path = tmp_path / "markets.json"
+    write_json(markets_path, markets)
+
+    candidates = tmp_path / "candidates.json"
+    discovery = discover_release_universe(
+        config_path=FUTURES_FIXTURE / "inputs" / "config.json",
+        market_snapshot_path=markets_path,
+        timerange="20210203-20210209",
+        destination=candidates,
+        history_coverage_policy="listing-aware",
+    )
+    assert discovery["pairs"] == [pair]
+    assert discovery["market_onboarding_ms"] == {pair: onboarding_ms}
+    configured = materialize_release_candidate_config(
+        candidates_path=candidates,
+        config_path=FUTURES_FIXTURE / "inputs" / "config.json",
+        timerange="20210203-20210209",
+        destination=tmp_path / "download-config.json",
+        pair_count=1,
+        history_coverage_policy="listing-aware",
+    )
+    assert configured["pairs"] == [pair]
+
+    data = tmp_path / "data" / "futures"
+    data.mkdir(parents=True)
+    source_data = FUTURES_FIXTURE / "inputs" / "data" / "futures"
+    onboarding = pd.Timestamp("2021-02-04T00:00:00Z")
+    for source in sorted(source_data.glob("ALGO_*.feather")):
+        frame = pd.read_feather(source)
+        frame.loc[frame["date"] >= onboarding].reset_index(drop=True).to_feather(
+            data / source.name
+        )
+
+    lock = select_release_universe(
+        candidates_path=candidates,
+        strategy_path=FUTURES_FIXTURE / "inputs" / "strategy.py",
+        class_name="NostalgiaForInfinityX7",
+        config_path=FUTURES_FIXTURE / "inputs" / "config.json",
+        data_directory=tmp_path / "data",
+        timerange="20210203-20210209",
+        output_directory=tmp_path / "release-inputs",
+        pair_count=1,
+        upstream_repository="https://github.com/iterativv/NostalgiaForInfinity",
+        upstream_commit="a" * 40,
+        history_coverage_policy="listing-aware",
+    )
+
+    assert lock["scope"]["history_coverage_policy"] == "listing-aware"
+    assert lock["data"]["seal_history_coverage_policy"] == "available"
+    assert lock["data"]["coverage_shortfall_count"] == 5
+    assert lock["data"]["market_onboarding_ms"] == {pair: onboarding_ms}
+    assert lock["selection"]["market_snapshot_sha256"]
+    validate_release_input_lock(lock, required_pair_count=1)
+
+    changed = read_json(tmp_path / "release-inputs" / "release-input-lock.json")
+    changed["data"]["coverage_shortfalls"][0][
+        "available_start_timestamp_ms"
+    ] += 3 * 86_400_000
+    with pytest.raises(SpecValidationError, match="too long after market onboarding"):
+        validate_release_input_lock(changed, required_pair_count=1)
+
+
+def test_listing_aware_selection_rejects_missing_history_after_existing_listing(
+    tmp_path: Path,
+) -> None:
+    pair = "ALGO/USDT:USDT"
+    markets = read_json(
+        FUTURES_FIXTURE
+        / "inputs"
+        / "reference_market_metadata"
+        / "reference-markets.json"
+    )
+    markets["pairs"] = [pair]
+    markets["markets"] = {pair: markets["markets"][pair]}
+    markets_path = tmp_path / "markets.json"
+    write_json(markets_path, markets)
+    candidates = tmp_path / "candidates.json"
+    discover_release_universe(
+        config_path=FUTURES_FIXTURE / "inputs" / "config.json",
+        market_snapshot_path=markets_path,
+        timerange="20210203-20210209",
+        destination=candidates,
+        history_coverage_policy="listing-aware",
+    )
+
+    with pytest.raises(BenchmarkError, match="only 0 candidates"):
+        select_release_universe(
+            candidates_path=candidates,
+            strategy_path=FUTURES_FIXTURE / "inputs" / "strategy.py",
+            class_name="NostalgiaForInfinityX7",
+            config_path=FUTURES_FIXTURE / "inputs" / "config.json",
+            data_directory=tmp_path / "missing-data",
+            timerange="20210203-20210209",
+            output_directory=tmp_path / "release-inputs",
+            pair_count=1,
+            upstream_repository=(
+                "https://github.com/iterativv/NostalgiaForInfinity"
+            ),
+            upstream_commit="a" * 40,
+            history_coverage_policy="listing-aware",
+        )
 
 
 def test_release_selector_rejects_duplicate_candle_timestamps(tmp_path: Path) -> None:

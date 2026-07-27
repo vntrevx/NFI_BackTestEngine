@@ -53,6 +53,10 @@ from .release_contract import (
 )
 from .release_inputs import (
     LEGACY_RELEASE_INPUT_LOCK_VERSION,
+    RELEASE_INPUT_LOCK_VERSION,
+    release_data_history_coverage_policy,
+    release_history_coverage_policy,
+    validate_listing_aware_market_snapshot,
     validate_release_data_roles,
     validate_release_input_lock,
 )
@@ -259,7 +263,11 @@ def run_full_x7_certification(
         },
         "native_pipeline": {
             "met": engine_complete,
-            "rule": "every measured run is cold, complete, strict, and callback-blocker free",
+            "rule": (
+                "every measured run is cold, complete, "
+                f"{release_history_coverage_policy(inputs['lock'])}, "
+                "and callback-blocker free"
+            ),
         },
         "official_parity": {
             "met": reference_complete,
@@ -300,6 +308,9 @@ def run_full_x7_certification(
             "pair_count": inputs["lock"]["scope"]["pair_count"],
             "timeframes": inputs["lock"]["scope"]["timeframes"],
             "continuous_timerange": True,
+            "history_coverage_policy": release_history_coverage_policy(
+                inputs["lock"]
+            ),
             "evidence": "continuous-oracle-plus-official-full-state-probes",
         },
         "inputs": inputs["public"],
@@ -474,11 +485,13 @@ def _resolve_full_x7_inputs(
         data_directory=data_root,
         contract=contract,
     )
+    engine_market_document = read_json(engine_markets)
     validate_release_market_snapshot(
-        read_json(engine_markets),
+        engine_market_document,
         contract=contract,
         pairs=lock["pairlist"]["pairs"],
     )
+    validate_listing_aware_market_snapshot(lock, engine_market_document)
     if reference_markets is not None:
         validate_reference_market_snapshot(
             read_json(reference_markets),
@@ -542,14 +555,27 @@ def _validate_release_data_seal(
     ):
         raise SpecValidationError("data seal differs from the release input lock")
     if (
+        lock.get("schema_version") == RELEASE_INPUT_LOCK_VERSION
+        and seal["coverage_shortfalls"] != data["coverage_shortfalls"]
+    ):
+        raise SpecValidationError(
+            "data seal coverage shortfalls differ from the release input lock"
+        )
+    if (
         request["pairs"] != lock["pairlist"]["pairs"]
         or request["timerange"] != scope["timerange"]
         or request["timeframes"] != scope["timeframes"]
-        or request["history_coverage_policy"] != "strict"
+        or request["history_coverage_policy"]
+        != release_data_history_coverage_policy(lock)
         or request["startup_coverage_policy"] != data["startup_coverage_policy"]
     ):
         raise SpecValidationError("data seal request differs from the release input lock")
-    role_counts = validate_release_data_roles(seal, contract=contract)
+    role_counts = validate_release_data_roles(
+        seal,
+        contract=contract,
+        history_coverage_policy=release_history_coverage_policy(lock),
+        market_onboarding_ms=data.get("market_onboarding_ms"),
+    )
     locked_role_counts = data.get("role_counts")
     if (
         lock.get("schema_version") != LEGACY_RELEASE_INPUT_LOCK_VERSION
@@ -708,7 +734,7 @@ def _measure_engine(
         str(profile_path),
         "--no-download",
         "--history-coverage",
-        "strict",
+        release_data_history_coverage_policy(inputs["lock"]),
     ]
     for pair in pairs:
         arguments.extend(["--pair", pair])
@@ -831,7 +857,8 @@ def _require_complete_baseline(
 ) -> None:
     if not _engine_complete(measurement, lock, require_cold=False):
         raise BenchmarkError(
-            "Full X7 warmup/baseline did not complete a strict native run; "
+            "Full X7 warmup/baseline did not complete its locked native history "
+            "contract; "
             "inspect warmups/engine/run.json"
         )
 
@@ -848,8 +875,10 @@ def _engine_complete(
         and isinstance(report, dict)
         and report.get("complete") is True
         and (not require_cold or report.get("pipeline_evidence", {}).get("cold") is True)
-        and report.get("data", {}).get("history_coverage_policy") == "strict"
-        and report.get("data", {}).get("coverage_shortfall_count") == 0
+        and report.get("data", {}).get("history_coverage_policy")
+        == release_data_history_coverage_policy(lock)
+        and report.get("data", {}).get("coverage_shortfall_count")
+        == lock["data"].get("coverage_shortfall_count", 0)
         and report.get("data", {}).get("aggregate_sha256") == lock["data"]["aggregate_sha256"]
         and not report.get("capability", {}).get("blockers")
         and isinstance(measurement.get("result_sha256"), str)

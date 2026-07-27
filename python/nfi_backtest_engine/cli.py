@@ -146,6 +146,12 @@ def build_parser() -> argparse.ArgumentParser:
     universe_discover.add_argument("--markets", type=Path, required=True)
     universe_discover.add_argument("--timerange", required=True)
     universe_discover.add_argument("--output", type=Path, required=True)
+    universe_discover.add_argument(
+        "--history-coverage",
+        choices=("strict", "listing-aware"),
+        default="strict",
+        help="release history contract (listing-aware is Futures-only)",
+    )
     universe_select = universe_commands.add_parser(
         "select",
         help="select the first fully covered pairs in frozen candidate order",
@@ -160,6 +166,26 @@ def build_parser() -> argparse.ArgumentParser:
     universe_select.add_argument("--pair-count", type=int, default=80)
     universe_select.add_argument("--upstream-repository", required=True)
     universe_select.add_argument("--upstream-commit", required=True)
+    universe_select.add_argument(
+        "--history-coverage",
+        choices=("strict", "listing-aware"),
+        default="strict",
+        help="must match the frozen candidate discovery contract",
+    )
+    universe_configure = universe_commands.add_parser(
+        "configure",
+        help="write a download config from the first frozen candidates",
+    )
+    universe_configure.add_argument("--candidates", type=Path, required=True)
+    universe_configure.add_argument("--config", type=Path, required=True)
+    universe_configure.add_argument("--timerange", required=True)
+    universe_configure.add_argument("--output", type=Path, required=True)
+    universe_configure.add_argument("--pair-count", type=int, default=80)
+    universe_configure.add_argument(
+        "--history-coverage",
+        choices=("strict", "listing-aware"),
+        default="strict",
+    )
     universe_validate = universe_commands.add_parser(
         "validate",
         help="validate a sealed release input lock",
@@ -466,6 +492,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional Freqtrade exchange leverage-tier JSON for exact futures liquidation",
     )
     markets_capture.add_argument("--output", "-o", type=Path, required=True)
+    markets_catalog = markets_commands.add_parser(
+        "catalog",
+        help="freeze all current markets matching the configured release mode",
+    )
+    markets_catalog.add_argument("--config", type=Path, required=True)
+    markets_catalog.add_argument("--output", "-o", type=Path, required=True)
 
     strategy = subcommands.add_parser("strategy", help="inspect and prepare strategy sources")
     strategy_commands = strategy.add_subparsers(dest="strategy_command", required=True)
@@ -1279,6 +1311,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _execute_universe(args: argparse.Namespace) -> int:
     from .release_inputs import (
         discover_release_universe,
+        materialize_release_candidate_config,
         select_release_universe,
         validate_release_input_lock,
     )
@@ -1289,11 +1322,27 @@ def _execute_universe(args: argparse.Namespace) -> int:
             market_snapshot_path=args.markets,
             timerange=args.timerange,
             destination=args.output,
+            history_coverage_policy=args.history_coverage,
         )
         print(
             "release candidates discovered: "
             f"mode={report['mode_contract']}, pairs={len(report['pairs'])}, "
             f"rejected={len(report['rejected'])} -> {args.output}"
+        )
+        return 0
+    if args.universe_command == "configure":
+        report = materialize_release_candidate_config(
+            candidates_path=args.candidates,
+            config_path=args.config,
+            timerange=args.timerange,
+            destination=args.output,
+            pair_count=args.pair_count,
+            history_coverage_policy=args.history_coverage,
+        )
+        print(
+            "release candidate config written: "
+            f"mode={report['mode_contract']}, pairs={report['pair_count']}, "
+            f"config={report['config_sha256']} -> {args.output}"
         )
         return 0
     if args.universe_command == "validate":
@@ -1320,6 +1369,7 @@ def _execute_universe(args: argparse.Namespace) -> int:
         pair_count=args.pair_count,
         upstream_repository=args.upstream_repository,
         upstream_commit=args.upstream_commit,
+        history_coverage_policy=args.history_coverage,
     )
     print(
         "release universe sealed: "
@@ -1456,13 +1506,25 @@ def _execute_platform(args: argparse.Namespace) -> int:
 def _execute_market_capture(args: argparse.Namespace) -> int:
     """Capture one sealed market snapshot, including pinned futures tiers."""
     from .config_loader import freeze_pairlist, sanitize_config
-    from .market_snapshot import capture_market_snapshot
+    from .market_snapshot import capture_market_catalog, capture_market_snapshot
 
     loaded = load_effective_config(args.config)
-    pairlist = freeze_pairlist(loaded["config"], resolved_pairs=args.pair)
     config = sanitize_config(loaded["config"])
     if not isinstance(config, dict):
         raise NfiBacktestError("effective config must be an object")
+    # Direct library callers from the original capture-only CLI do not carry
+    # the newer subcommand discriminator. Treat that shape as `capture`;
+    # argparse still supplies an explicit value for every command-line call.
+    if getattr(args, "markets_command", "capture") == "catalog":
+        report = capture_market_catalog(config, args.output)
+        print(
+            f"market catalog captured: exchange={report['exchange']}, "
+            f"pairs={len(report['pairs'])}, sha256={report['sha256']} -> "
+            f"{args.output}"
+        )
+        return 0
+
+    pairlist = freeze_pairlist(loaded["config"], resolved_pairs=args.pair)
 
     leverage_tier_source = None
     if args.leverage_tiers:

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from .data_seal import (
     find_coverage_gaps,
     inspect_candle_quality,
     prepare_data,
+    timeframe_milliseconds,
 )
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
@@ -38,9 +40,24 @@ from .release_contract import (
 from .strategy_ir import analyze_strategy
 from .timerange import parse_timerange_milliseconds
 
-RELEASE_INPUT_LOCK_VERSION = "1.2.0"
+RELEASE_INPUT_LOCK_VERSION = "1.3.0"
+PREVIOUS_RELEASE_INPUT_LOCK_VERSION = "1.2.0"
 LEGACY_RELEASE_INPUT_LOCK_VERSION = "1.1.0"
 DEFAULT_RELEASE_PAIR_COUNT = 80
+STRICT_RELEASE_HISTORY = "strict"
+LISTING_AWARE_RELEASE_HISTORY = "listing-aware"
+RELEASE_HISTORY_POLICIES = frozenset(
+    {STRICT_RELEASE_HISTORY, LISTING_AWARE_RELEASE_HISTORY}
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ReleaseCandidateSource:
+    """Pair order plus the frozen market facts needed by its history contract."""
+
+    pairs: tuple[str, ...]
+    market_onboarding_ms: dict[str, int]
+    market_snapshot_sha256: str | None
 
 
 def discover_release_universe(
@@ -49,6 +66,7 @@ def discover_release_universe(
     market_snapshot_path: str | Path,
     timerange: str,
     destination: str | Path,
+    history_coverage_policy: str = STRICT_RELEASE_HISTORY,
 ) -> dict[str, Any]:
     """Select historically eligible release candidates from one frozen market view."""
     config_file = Path(config_path).resolve()
@@ -61,6 +79,7 @@ def discover_release_universe(
     if not isinstance(effective, dict):
         raise SpecValidationError("effective release config must be an object")
     contract = release_contract_for_config(effective)
+    _validate_release_history_policy(history_coverage_policy, contract=contract)
     snapshot = read_json(snapshot_file)
     if not isinstance(snapshot, dict):
         raise SpecValidationError("release market snapshot must be an object")
@@ -72,7 +91,7 @@ def discover_release_universe(
         raise SpecValidationError(
             "release market snapshot differs from the selected mode contract"
         )
-    start_ms, _ = parse_timerange_milliseconds(timerange)
+    start_ms, end_ms = parse_timerange_milliseconds(timerange)
     markets = snapshot["markets"]
     declared_pairs = snapshot.get("pairs")
     candidates = (
@@ -86,6 +105,7 @@ def discover_release_universe(
     blacklist = _compile_blacklist(exchange.get("pair_blacklist", []))
     selected: list[str] = []
     rejected: list[dict[str, str]] = []
+    market_onboarding_ms: dict[str, int] = {}
     for pair in candidates:
         market = markets.get(pair)
         reason = _market_candidate_rejection(
@@ -93,27 +113,91 @@ def discover_release_universe(
             market,
             contract=contract,
             timerange_start_ms=start_ms,
+            timerange_end_ms=end_ms,
+            history_coverage_policy=history_coverage_policy,
             blacklist=blacklist,
         )
         if reason is None:
             selected.append(pair)
+            created = _market_created_ms(market)
+            assert created is not None
+            market_onboarding_ms[pair] = created
         else:
             rejected.append({"pair": pair, "reason": reason})
+    candidate_order = "snapshot"
+    if history_coverage_policy == LISTING_AWARE_RELEASE_HISTORY:
+        # Oldest markets maximize the amount of real five-year history while
+        # still allowing the final slots to join exactly at their listing date.
+        selected.sort(key=lambda pair: (market_onboarding_ms[pair], pair))
+        candidate_order = "onboarding-ascending-then-pair"
     document = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "mode_contract": contract.contract_id,
         "timerange": timerange,
+        "history_coverage_policy": history_coverage_policy,
+        "candidate_order": candidate_order,
         "market_snapshot": {
             "path": str(snapshot_file),
             "sha256": sha256_file(snapshot_file),
         },
+        "market_onboarding_ms": market_onboarding_ms,
         "config_sha256": loaded["sha256"],
         "pairs": selected,
         "rejected": rejected,
     }
     write_json(target, document)
     return document
+
+
+def materialize_release_candidate_config(
+    *,
+    candidates_path: str | Path,
+    config_path: str | Path,
+    timerange: str,
+    destination: str | Path,
+    pair_count: int = DEFAULT_RELEASE_PAIR_COUNT,
+    history_coverage_policy: str = STRICT_RELEASE_HISTORY,
+) -> dict[str, Any]:
+    """Write a download config for the first frozen release candidates."""
+    if pair_count < 1:
+        raise SpecValidationError("release pair count must be positive")
+    candidates_file = Path(candidates_path).resolve()
+    config_file = Path(config_path).resolve()
+    target = Path(destination).resolve()
+    if target.exists():
+        raise BenchmarkError(f"release candidate config already exists: {target}")
+    loaded = load_effective_config(config_file)
+    effective = sanitize_config(loaded["config"])
+    if not isinstance(effective, dict):
+        raise SpecValidationError("effective release config must be an object")
+    contract = release_contract_for_config(effective)
+    _validate_release_history_policy(history_coverage_policy, contract=contract)
+    source = _load_candidate_source(
+        candidates_file,
+        contract=contract,
+        timerange=timerange,
+        history_coverage_policy=history_coverage_policy,
+    )
+    if len(source.pairs) < pair_count:
+        raise BenchmarkError(
+            f"candidate source has {len(source.pairs)} pairs; {pair_count} are required"
+        )
+    selected = list(source.pairs[:pair_count])
+    exchange = effective.get("exchange")
+    if not isinstance(exchange, dict):
+        raise SpecValidationError("effective release config exchange must be an object")
+    exchange["pair_whitelist"] = selected
+    write_json(target, effective)
+    return {
+        "mode_contract": contract.contract_id,
+        "history_coverage_policy": history_coverage_policy,
+        "timerange": timerange,
+        "pair_count": len(selected),
+        "pairs": selected,
+        "config_sha256": config_sha256(effective),
+        "path": str(target),
+    }
 
 
 def select_release_universe(
@@ -128,6 +212,7 @@ def select_release_universe(
     pair_count: int = DEFAULT_RELEASE_PAIR_COUNT,
     upstream_repository: str,
     upstream_commit: str,
+    history_coverage_policy: str = STRICT_RELEASE_HISTORY,
 ) -> dict[str, Any]:
     """Select the first fully covered candidates and seal the exact release inputs."""
     if pair_count < 1:
@@ -163,8 +248,15 @@ def select_release_universe(
     if not isinstance(exchange, dict):
         raise SpecValidationError("effective release config exchange must be an object")
     contract = release_contract_for_config(effective)
+    _validate_release_history_policy(history_coverage_policy, contract=contract)
 
-    candidates = _load_candidates(candidates_file, contract=contract)
+    candidate_source = _load_candidate_source(
+        candidates_file,
+        contract=contract,
+        timerange=timerange,
+        history_coverage_policy=history_coverage_policy,
+    )
+    candidates = list(candidate_source.pairs)
     blacklist = _compile_blacklist(exchange.get("pair_blacklist", []))
     accepted_candidates = [
         pair for pair in candidates if not any(pattern.fullmatch(pair) for pattern in blacklist)
@@ -179,7 +271,7 @@ def select_release_universe(
         timeframes,
         startup_candles=startup_candles,
         require_startup_coverage=True,
-        history_coverage_policy="strict",
+        history_coverage_policy=_data_history_policy(history_coverage_policy),
     )
     coverage_by_pair = _coverage_by_pair(
         data_root,
@@ -191,7 +283,16 @@ def select_release_universe(
     rejected: list[dict[str, Any]] = []
     quality: dict[str, list[dict[str, Any]]] = {}
     for pair in accepted_candidates:
-        reasons = coverage_by_pair[pair]
+        reasons = _release_coverage_rejections(
+            pair,
+            coverage_by_pair[pair],
+            request=request,
+            history_coverage_policy=history_coverage_policy,
+            market_onboarding_ms=candidate_source.market_onboarding_ms,
+            maximum_activation_delay_ms=(
+                contract.maximum_listing_activation_delay_ms
+            ),
+        )
         pair_quality: list[dict[str, Any]] = []
         for timeframe in timeframes:
             matches = candle_files_for(
@@ -252,10 +353,11 @@ def select_release_universe(
                 quality,
                 pair_count,
                 contract,
+                history_coverage_policy,
             ),
         )
         raise BenchmarkError(
-            f"only {len(selected)} candidates have strict complete coverage; "
+            f"only {len(selected)} candidates satisfy {history_coverage_policy} coverage; "
             f"{pair_count} are required"
         )
 
@@ -279,11 +381,21 @@ def select_release_universe(
         # the full count on a one-day frame can make a broad release universe
         # impossible for market-history reasons unrelated to the tested interval.
         require_startup_coverage=False,
-        history_coverage_policy="strict",
+        history_coverage_policy=_data_history_policy(history_coverage_policy),
     )
     pairlist = freeze_pairlist(selected_config)
     write_json(output / "pairlist.json", pairlist)
-    role_counts = validate_release_data_roles(data_seal, contract=contract)
+    selected_onboarding = {
+        pair: candidate_source.market_onboarding_ms[pair]
+        for pair in selected
+        if pair in candidate_source.market_onboarding_ms
+    }
+    role_counts = validate_release_data_roles(
+        data_seal,
+        contract=contract,
+        history_coverage_policy=history_coverage_policy,
+        market_onboarding_ms=selected_onboarding,
+    )
     report = _selection_report(
         candidates_file,
         candidates,
@@ -293,6 +405,7 @@ def select_release_universe(
         quality,
         pair_count,
         contract,
+        history_coverage_policy,
     )
     write_json(output / "selection-report.json", report)
 
@@ -324,6 +437,7 @@ def select_release_universe(
             "pair_count": len(selected),
             "timeframes": timeframes,
             "startup_candles": startup_candles,
+            "history_coverage_policy": history_coverage_policy,
         },
         "pairlist": {
             "sha256": pairlist["sha256"],
@@ -334,13 +448,19 @@ def select_release_universe(
             "aggregate_sha256": data_seal["aggregate_sha256"],
             "file_count": len(data_seal["files"]),
             "coverage_shortfall_count": len(data_seal["coverage_shortfalls"]),
+            "coverage_shortfalls": data_seal["coverage_shortfalls"],
+            "seal_history_coverage_policy": _data_history_policy(
+                history_coverage_policy
+            ),
             "startup_shortfall_count": len(data_seal["startup_shortfalls"]),
             "startup_coverage_policy": "record",
             "role_counts": role_counts,
+            "market_onboarding_ms": selected_onboarding,
         },
         "selection": {
             "candidate_sha256": sha256_file(candidates_file),
             "report_sha256": sha256_file(output / "selection-report.json"),
+            "market_snapshot_sha256": candidate_source.market_snapshot_sha256,
         },
     }
     lock["identity_sha256"] = _identity_sha256(lock)
@@ -357,6 +477,7 @@ def validate_release_input_lock(
     """Validate the release-critical invariants without machine-specific paths."""
     if not isinstance(document, dict) or document.get("schema_version") not in {
         RELEASE_INPUT_LOCK_VERSION,
+        PREVIOUS_RELEASE_INPUT_LOCK_VERSION,
         LEGACY_RELEASE_INPUT_LOCK_VERSION,
     }:
         raise SpecValidationError("unsupported release input lock")
@@ -385,7 +506,66 @@ def validate_release_input_lock(
     if not all(isinstance(pair, str) for pair in pairs):
         raise SpecValidationError("release input lock pairs must be strings")
     contract.validate_pairs(pairs)
-    if data.get("coverage_shortfall_count") != 0:
+    history_policy = release_history_coverage_policy(document)
+    _validate_release_history_policy(history_policy, contract=contract)
+    coverage_shortfall_count = data.get("coverage_shortfall_count")
+    if (
+        not isinstance(coverage_shortfall_count, int)
+        or isinstance(coverage_shortfall_count, bool)
+        or coverage_shortfall_count < 0
+    ):
+        raise SpecValidationError(
+            "release input lock coverage shortfall count is invalid"
+        )
+    if version == RELEASE_INPUT_LOCK_VERSION:
+        if data.get("seal_history_coverage_policy") != _data_history_policy(
+            history_policy
+        ):
+            raise SpecValidationError(
+                "release input lock data history contract is invalid"
+            )
+        coverage_shortfalls = data.get("coverage_shortfalls")
+        if (
+            not isinstance(coverage_shortfalls, list)
+            or len(coverage_shortfalls) != coverage_shortfall_count
+        ):
+            raise SpecValidationError(
+                "release input lock coverage shortfalls differ from their count"
+            )
+        onboarding = data.get("market_onboarding_ms")
+        if not isinstance(onboarding, dict):
+            raise SpecValidationError(
+                "release input lock market onboarding map is invalid"
+            )
+        if history_policy == LISTING_AWARE_RELEASE_HISTORY:
+            selection = document.get("selection")
+            snapshot_sha = (
+                selection.get("market_snapshot_sha256")
+                if isinstance(selection, dict)
+                else None
+            )
+            if (
+                not isinstance(snapshot_sha, str)
+                or re.fullmatch(r"[0-9a-f]{64}", snapshot_sha) is None
+            ):
+                raise SpecValidationError(
+                    "listing-aware release input lock lacks a market snapshot digest"
+                )
+            _validate_listing_aware_shortfalls(
+                pairs=pairs,
+                timeframes=scope.get("timeframes"),
+                timerange=scope.get("timerange"),
+                shortfalls=coverage_shortfalls,
+                market_onboarding_ms=onboarding,
+                maximum_activation_delay_ms=(
+                    contract.maximum_listing_activation_delay_ms
+                ),
+            )
+        elif coverage_shortfalls or onboarding:
+            raise SpecValidationError(
+                "strict release input lock contains listing-aware history data"
+            )
+    elif coverage_shortfall_count != 0:
         raise SpecValidationError("release input lock has history coverage shortfalls")
     startup_shortfalls = data.get("startup_shortfall_count")
     if (
@@ -397,7 +577,7 @@ def validate_release_input_lock(
         raise SpecValidationError(
             "release input lock startup coverage contract is invalid"
         )
-    if version == RELEASE_INPUT_LOCK_VERSION:
+    if version != LEGACY_RELEASE_INPUT_LOCK_VERSION:
         timeframes = scope.get("timeframes")
         if not isinstance(timeframes, list) or not all(
             isinstance(timeframe, str) for timeframe in timeframes
@@ -417,10 +597,49 @@ def validate_release_input_lock(
         raise SpecValidationError("release input lock identity is corrupt")
 
 
+def release_history_coverage_policy(lock: dict[str, Any]) -> str:
+    """Return the public history contract, including legacy strict locks."""
+    if lock.get("schema_version") == RELEASE_INPUT_LOCK_VERSION:
+        scope = lock.get("scope")
+        if isinstance(scope, dict) and isinstance(
+            scope.get("history_coverage_policy"), str
+        ):
+            return scope["history_coverage_policy"]
+    return STRICT_RELEASE_HISTORY
+
+
+def release_data_history_coverage_policy(lock: dict[str, Any]) -> str:
+    """Map the public release contract to the research runner data policy."""
+    return _data_history_policy(release_history_coverage_policy(lock))
+
+
+def validate_listing_aware_market_snapshot(
+    lock: dict[str, Any],
+    snapshot: Any,
+) -> None:
+    """Cross-check portable onboarding facts against the runtime market view."""
+    if release_history_coverage_policy(lock) != LISTING_AWARE_RELEASE_HISTORY:
+        return
+    markets = snapshot.get("markets") if isinstance(snapshot, dict) else None
+    onboarding = lock.get("data", {}).get("market_onboarding_ms")
+    if not isinstance(markets, dict) or not isinstance(onboarding, dict):
+        raise SpecValidationError(
+            "listing-aware runtime market snapshot is malformed"
+        )
+    for pair in lock["pairlist"]["pairs"]:
+        created = _market_created_ms(markets.get(pair))
+        if created != onboarding.get(pair):
+            raise SpecValidationError(
+                f"listing-aware runtime market onboarding differs for {pair}"
+            )
+
+
 def validate_release_data_roles(
     seal: dict[str, Any],
     *,
     contract: ReleaseModeContract,
+    history_coverage_policy: str = STRICT_RELEASE_HISTORY,
+    market_onboarding_ms: dict[str, int] | None = None,
 ) -> dict[str, int]:
     """Require one complete set of mode-specific files for every sealed pair."""
     request = seal.get("request")
@@ -446,6 +665,8 @@ def validate_release_data_roles(
     ):
         raise SpecValidationError("release data seal mode differs from its contract")
     contract.validate_pairs(pairs)
+    _validate_release_history_policy(history_coverage_policy, contract=contract)
+    onboarding = market_onboarding_ms or {}
 
     per_pair = {
         pair: {role: [] for role in contract.required_data_roles}
@@ -500,12 +721,28 @@ def validate_release_data_roles(
                 not isinstance(coverage, dict)
                 or not isinstance(coverage.get("start_timestamp_ms"), int)
                 or not isinstance(coverage.get("end_timestamp_ms"), int)
-                or coverage["start_timestamp_ms"] > start_ms
                 or coverage["end_timestamp_ms"] + interval_ms < end_ms
             ):
                 raise SpecValidationError(
                     f"release {role} coverage is incomplete for {pair}"
                 )
+            if coverage["start_timestamp_ms"] > start_ms:
+                created = onboarding.get(pair)
+                if (
+                    history_coverage_policy != LISTING_AWARE_RELEASE_HISTORY
+                    or not isinstance(created, int)
+                    or created <= start_ms
+                    or coverage["start_timestamp_ms"]
+                    > _latest_listing_data_start(
+                        created,
+                        interval_ms,
+                        contract.maximum_listing_activation_delay_ms,
+                    )
+                ):
+                    raise SpecValidationError(
+                        f"release {role} leading coverage is not justified "
+                        f"by market onboarding for {pair}"
+                    )
 
     return _expected_role_counts(
         contract,
@@ -549,11 +786,13 @@ def _coverage_by_pair(
     return result
 
 
-def _load_candidates(
+def _load_candidate_source(
     path: Path,
     *,
     contract: ReleaseModeContract,
-) -> list[str]:
+    timerange: str,
+    history_coverage_policy: str,
+) -> ReleaseCandidateSource:
     document = read_json(path)
     if isinstance(document, list):
         raw = document
@@ -570,6 +809,15 @@ def _load_candidates(
             "candidate file must be a pair list, a {pairs: [...]} document, "
             "or a Freqtrade config"
         )
+    declared_policy = (
+        document.get("history_coverage_policy", STRICT_RELEASE_HISTORY)
+        if isinstance(document, dict)
+        else STRICT_RELEASE_HISTORY
+    )
+    if declared_policy != history_coverage_policy:
+        raise SpecValidationError(
+            "candidate history coverage contract differs from selection"
+        )
     pairs: list[str] = []
     seen: set[str] = set()
     for index, pair in enumerate(raw):
@@ -582,7 +830,79 @@ def _load_candidates(
         pairs.append(pair)
     if not pairs:
         raise SpecValidationError("candidate list must not be empty")
-    return pairs
+    if history_coverage_policy == STRICT_RELEASE_HISTORY:
+        return ReleaseCandidateSource(tuple(pairs), {}, None)
+    if not isinstance(document, dict):
+        raise SpecValidationError(
+            "listing-aware selection requires a frozen discovery document"
+        )
+    if (
+        document.get("timerange") != timerange
+        or document.get("mode_contract") != contract.contract_id
+        or document.get("candidate_order")
+        != "onboarding-ascending-then-pair"
+    ):
+        raise SpecValidationError(
+            "candidate discovery scope differs from listing-aware selection"
+        )
+    snapshot_record = document.get("market_snapshot")
+    declared_onboarding = document.get("market_onboarding_ms")
+    if (
+        not isinstance(snapshot_record, dict)
+        or not isinstance(snapshot_record.get("path"), str)
+        or not isinstance(snapshot_record.get("sha256"), str)
+        or not isinstance(declared_onboarding, dict)
+    ):
+        raise SpecValidationError(
+            "listing-aware candidates lack frozen market onboarding evidence"
+        )
+    snapshot_path = Path(snapshot_record["path"]).expanduser()
+    if not snapshot_path.is_absolute():
+        snapshot_path = path.parent / snapshot_path
+    snapshot_path = snapshot_path.resolve()
+    if (
+        not snapshot_path.is_file()
+        or sha256_file(snapshot_path) != snapshot_record["sha256"]
+    ):
+        raise SpecValidationError(
+            "listing-aware candidate market snapshot is missing or changed"
+        )
+    snapshot = read_json(snapshot_path)
+    markets = snapshot.get("markets") if isinstance(snapshot, dict) else None
+    if (
+        not isinstance(markets, dict)
+        or snapshot.get("exchange") != contract.exchange
+        or snapshot.get("trading_mode") not in {None, contract.trading_mode}
+    ):
+        raise SpecValidationError(
+            "listing-aware candidate market snapshot has the wrong mode"
+        )
+    onboarding: dict[str, int] = {}
+    for pair in pairs:
+        created = _market_created_ms(markets.get(pair))
+        if created is None:
+            raise SpecValidationError(
+                f"listing-aware market onboarding is missing for {pair}"
+            )
+        if declared_onboarding.get(pair) != created:
+            raise SpecValidationError(
+                f"listing-aware candidate onboarding differs for {pair}"
+            )
+        onboarding[pair] = created
+    if set(declared_onboarding) != set(pairs):
+        raise SpecValidationError(
+            "listing-aware candidate onboarding pair set differs"
+        )
+    expected_order = sorted(pairs, key=lambda pair: (onboarding[pair], pair))
+    if pairs != expected_order:
+        raise SpecValidationError(
+            "listing-aware candidate order differs from its onboarding contract"
+        )
+    return ReleaseCandidateSource(
+        tuple(pairs),
+        onboarding,
+        snapshot_record["sha256"],
+    )
 
 
 def _market_candidate_rejection(
@@ -591,6 +911,8 @@ def _market_candidate_rejection(
     *,
     contract: ReleaseModeContract,
     timerange_start_ms: int,
+    timerange_end_ms: int,
+    history_coverage_policy: str,
     blacklist: list[re.Pattern[str]],
 ) -> str | None:
     try:
@@ -603,16 +925,16 @@ def _market_candidate_rejection(
         return "MARKET_MISSING"
     if market.get("active") is not True:
         return "INACTIVE"
-    created = market.get("created")
-    if not isinstance(created, int):
-        info = market.get("info")
-        created = info.get("onboardDate") if isinstance(info, dict) else None
-        if isinstance(created, str) and created.isdecimal():
-            created = int(created)
-    if not isinstance(created, int):
+    created = _market_created_ms(market)
+    if created is None:
         return "ONBOARD_DATE_MISSING"
-    if created > timerange_start_ms:
+    if (
+        history_coverage_policy == STRICT_RELEASE_HISTORY
+        and created > timerange_start_ms
+    ):
         return "LISTED_AFTER_TIMERANGE_START"
+    if created >= timerange_end_ms:
+        return "LISTED_AFTER_TIMERANGE_END"
     if contract.trading_mode == "spot":
         return None if market.get("spot") is True else "NOT_SPOT"
     margin_modes = market.get("marginModes")
@@ -649,10 +971,12 @@ def _selection_report(
     quality: dict[str, list[dict[str, Any]]],
     required: int,
     contract: ReleaseModeContract,
+    history_coverage_policy: str,
 ) -> dict[str, Any]:
     return {
         "schema_version": "1.1.0",
         "mode_contract": contract.contract_id,
+        "history_coverage_policy": history_coverage_policy,
         "candidate_source": {
             "path": str(candidates_file),
             "sha256": sha256_file(candidates_file),
@@ -676,3 +1000,196 @@ def _identity_sha256(document: dict[str, Any]) -> str:
             separators=(",", ":"),
         ).encode()
     ).hexdigest()
+
+
+def _validate_release_history_policy(
+    policy: str,
+    *,
+    contract: ReleaseModeContract,
+) -> None:
+    if policy not in RELEASE_HISTORY_POLICIES:
+        raise SpecValidationError(
+            f"unsupported release history coverage policy: {policy!r}"
+        )
+    if (
+        policy == LISTING_AWARE_RELEASE_HISTORY
+        and contract.trading_mode != "futures"
+    ):
+        raise SpecValidationError(
+            "listing-aware release history is supported only for Futures"
+        )
+
+
+def _data_history_policy(release_policy: str) -> str:
+    if release_policy == STRICT_RELEASE_HISTORY:
+        return "strict"
+    if release_policy == LISTING_AWARE_RELEASE_HISTORY:
+        return "available"
+    raise SpecValidationError(
+        f"unsupported release history coverage policy: {release_policy!r}"
+    )
+
+
+def _market_created_ms(market: Any) -> int | None:
+    if not isinstance(market, dict):
+        return None
+    created = market.get("created")
+    if not isinstance(created, int) or isinstance(created, bool):
+        info = market.get("info")
+        created = info.get("onboardDate") if isinstance(info, dict) else None
+        if isinstance(created, str) and created.isdecimal():
+            created = int(created)
+    return (
+        created
+        if isinstance(created, int) and not isinstance(created, bool) and created >= 0
+        else None
+    )
+
+
+def _release_coverage_rejections(
+    pair: str,
+    reasons: list[dict[str, Any]],
+    *,
+    request: dict[str, Any],
+    history_coverage_policy: str,
+    market_onboarding_ms: dict[str, int],
+    maximum_activation_delay_ms: int,
+) -> list[dict[str, Any]]:
+    if history_coverage_policy == STRICT_RELEASE_HISTORY:
+        return list(reasons)
+    rejected: list[dict[str, Any]] = []
+    created = market_onboarding_ms.get(pair)
+    for reason in reasons:
+        problem = _listing_shortfall_problem(
+            reason,
+            pair=pair,
+            created=created,
+            start_ms=request["start_timestamp_ms"],
+            end_ms=request["end_timestamp_ms"],
+            maximum_activation_delay_ms=maximum_activation_delay_ms,
+        )
+        if problem is not None:
+            rejected.append({**reason, "listing_aware_rejection": problem})
+    return rejected
+
+
+def _validate_listing_aware_shortfalls(
+    *,
+    pairs: list[str],
+    timeframes: Any,
+    timerange: Any,
+    shortfalls: list[Any],
+    market_onboarding_ms: dict[str, Any],
+    maximum_activation_delay_ms: int,
+) -> None:
+    if not isinstance(timeframes, list) or not all(
+        isinstance(timeframe, str) for timeframe in timeframes
+    ):
+        raise SpecValidationError(
+            "listing-aware release input lock timeframes are invalid"
+        )
+    if not isinstance(timerange, str):
+        raise SpecValidationError(
+            "listing-aware release input lock timerange is invalid"
+        )
+    start_ms, end_ms = parse_timerange_milliseconds(timerange)
+    if set(market_onboarding_ms) != set(pairs):
+        raise SpecValidationError(
+            "listing-aware market onboarding pair set differs"
+        )
+    for pair, created in market_onboarding_ms.items():
+        if (
+            not isinstance(created, int)
+            or isinstance(created, bool)
+            or created < 0
+        ):
+            raise SpecValidationError(
+                f"listing-aware market onboarding is invalid for {pair}"
+            )
+    seen: set[tuple[str, str]] = set()
+    for shortfall in shortfalls:
+        if not isinstance(shortfall, dict):
+            raise SpecValidationError(
+                "listing-aware coverage shortfall is malformed"
+            )
+        pair = shortfall.get("pair")
+        timeframe = shortfall.get("timeframe")
+        if (
+            not isinstance(pair, str)
+            or not isinstance(timeframe, str)
+            or pair not in market_onboarding_ms
+            or timeframe not in timeframes
+        ):
+            raise SpecValidationError(
+                "listing-aware coverage shortfall is outside the locked scope"
+            )
+        identity = (pair, timeframe)
+        if identity in seen:
+            raise SpecValidationError(
+                "listing-aware coverage shortfall is duplicated"
+            )
+        seen.add(identity)
+        problem = _listing_shortfall_problem(
+            shortfall,
+            pair=pair,
+            created=market_onboarding_ms[pair],
+            start_ms=start_ms,
+            end_ms=end_ms,
+            maximum_activation_delay_ms=maximum_activation_delay_ms,
+        )
+        if problem is not None:
+            raise SpecValidationError(
+                f"listing-aware coverage shortfall is invalid for "
+                f"{pair} {timeframe}: {problem}"
+            )
+
+
+def _listing_shortfall_problem(
+    shortfall: dict[str, Any],
+    *,
+    pair: str,
+    created: int | None,
+    start_ms: int,
+    end_ms: int,
+    maximum_activation_delay_ms: int,
+) -> str | None:
+    timeframe = shortfall.get("timeframe")
+    if (
+        shortfall.get("code", "EDGE_COVERAGE") != "EDGE_COVERAGE"
+        or not isinstance(timeframe, str)
+    ):
+        return "unexpected coverage reason"
+    if (
+        shortfall.get("start_missing") is not True
+        or shortfall.get("end_missing") is not False
+    ):
+        return "only a leading edge shortfall is permitted"
+    available_start = shortfall.get("available_start_timestamp_ms")
+    available_end = shortfall.get("available_end_timestamp_ms")
+    if not isinstance(available_start, int) or not isinstance(available_end, int):
+        return "real candle boundaries are required"
+    if not isinstance(created, int) or created <= start_ms:
+        return "market was already listed at the requested start"
+    candle_ms = timeframe_milliseconds(timeframe)
+    if available_start > _latest_listing_data_start(
+        created,
+        candle_ms,
+        maximum_activation_delay_ms,
+    ):
+        return "first candle begins too long after market onboarding"
+    if available_end + candle_ms < end_ms:
+        return "candle history does not reach the requested end"
+    return None
+
+
+def _latest_listing_data_start(
+    created_ms: int,
+    interval_ms: int,
+    maximum_activation_delay_ms: int,
+) -> int:
+    """Bound exchange onboarding delay, then allow one complete data interval."""
+    activation_deadline = created_ms + maximum_activation_delay_ms
+    first_boundary = (
+        (activation_deadline + interval_ms - 1) // interval_ms
+    ) * interval_ms
+    return first_boundary + interval_ms

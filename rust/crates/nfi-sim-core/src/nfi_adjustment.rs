@@ -26,8 +26,12 @@ struct GrindCluster {
 }
 
 impl GrindCluster {
-    fn profit_stake(&self, rate: f64, close_fee: f64) -> f64 {
-        self.total_amount * rate * (1.0 - close_fee) - self.total_cost
+    fn profit_stake(&self, rate: f64, close_fee: f64, side: TradeSide) -> f64 {
+        let current_stake = self.total_amount * rate * (1.0 - close_fee);
+        match side {
+            TradeSide::Long => current_stake - self.total_cost,
+            TradeSide::Short => self.total_cost - current_stake,
+        }
     }
 
     fn profit_rate(&self, rate: f64) -> f64 {
@@ -38,9 +42,9 @@ impl GrindCluster {
         (rate - open_rate) / open_rate
     }
 
-    fn distance(&self, rate: f64) -> f64 {
+    fn directional_distance(&self, rate: f64, side: TradeSide) -> f64 {
         self.latest_entry_price
-            .map_or(0.0, |price| (rate - price) / price)
+            .map_or(0.0, |price| directional_rate((rate - price) / price, side))
     }
 }
 
@@ -72,7 +76,7 @@ struct AdjustmentContext<'a> {
     slice_profit_entry: f64,
     current_stake_amount: f64,
     rebuy_mode: bool,
-    is_long_grind_entry: bool,
+    is_grind_entry: bool,
     extra_entry_checks: bool,
 }
 
@@ -96,17 +100,17 @@ enum GrindLevelOutcome {
 #[allow(clippy::option_option)] // Outer None is invalid IR; inner None is callback no-op.
 pub(super) fn evaluate_nfi_position_adjustment(
     manager: &NfiX7TradeManager,
+    adjustment: &NfiX7PositionAdjustment,
+    expected_side: TradeSide,
     trade: &mut OpenTrade,
     request: &PositionAdjustmentRequest<'_>,
     initial_stake_multiplier: f64,
     rebuy_mode: bool,
 ) -> Option<Option<AdjustmentSignal>> {
-    let adjustment = manager.position_adjustment.as_ref();
-    if adjustment.is_none_or(|adjustment| !adjustment.enabled) {
+    if !adjustment.enabled {
         return Some(None);
     }
-    let adjustment = adjustment?;
-    if trade.side != TradeSide::Long || !nfi_adjustment_supports_trade(adjustment, trade) {
+    if trade.side != expected_side || !nfi_adjustment_supports_trade(adjustment, trade) {
         return None;
     }
     if trade.custom_data.get("system_version")?.as_str()? != adjustment.system_version {
@@ -165,7 +169,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         .latest_exit_price
         .and_then(|price| price_distance(candle.open, price))
         .unwrap_or(0.0);
-    let is_long_grind_entry = evaluate_grind_entry_program(
+    let is_grind_entry = evaluate_grind_entry_program(
         manager,
         &adjustment.decision_program,
         trade,
@@ -227,7 +231,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         slice_profit_entry,
         current_stake_amount: trade.amount * candle.open,
         rebuy_mode,
-        is_long_grind_entry,
+        is_grind_entry,
         extra_entry_checks,
     };
 
@@ -346,6 +350,13 @@ fn price_distance(rate: f64, reference: f64) -> Option<f64> {
     (reference > 0.0).then_some((rate - reference) / reference)
 }
 
+fn directional_rate(rate: f64, side: TradeSide) -> f64 {
+    match side {
+        TradeSide::Long => rate,
+        TradeSide::Short => -rate,
+    }
+}
+
 /// Execute X7's source-compiled `long_grind_entry_v3` predicate.
 ///
 /// Both the system-v3.2 and legacy tag-120 callbacks call this same Python
@@ -409,14 +420,20 @@ fn read_and_update_cluster_maxima(
         let rate_key = format!("grind_{level}_cluster_max_profit_rate");
         let previous_stake = custom_number(trade, &stake_key);
         let previous_rate = custom_number(trade, &rate_key);
-        let profit_stake = clusters[index].profit_stake(rate, close_fee);
+        let profit_stake = clusters[index].profit_stake(rate, close_fee, trade.side);
         let profit_rate = clusters[index].profit_rate(rate);
         if profit_stake > previous_stake {
             trade
                 .custom_data
                 .insert(stake_key, number_value(profit_stake).unwrap_or(Value::Null));
         }
-        if profit_rate > previous_rate {
+        let rate_improved = match trade.side {
+            TradeSide::Long => profit_rate > previous_rate,
+            // Upstream stores the raw price distance for shorts, so a more
+            // profitable cluster is a more negative value.
+            TradeSide::Short => profit_rate < previous_rate,
+        };
+        if rate_improved {
             trade
                 .custom_data
                 .insert(rate_key, number_value(profit_rate).unwrap_or(Value::Null));
@@ -512,7 +529,8 @@ fn evaluate_grind_level(
     let distance_allows_entry = if cluster.count == 0 {
         true
     } else if cluster.count < scaled_stakes.len() {
-        cluster.distance(context.candle.open) < *thresholds.get(cluster.count)?
+        cluster.directional_distance(context.candle.open, trade.side)
+            < *thresholds.get(cluster.count)?
     } else {
         false
     };
@@ -536,7 +554,8 @@ fn evaluate_grind_level(
         }));
     }
 
-    if cluster.count > 0 && grind_exit_signal(context, cluster, constants, previous_maxima[index])?
+    if cluster.count > 0
+        && grind_exit_signal(context, trade, cluster, constants, previous_maxima[index])?
     {
         let raw_exit = cluster.total_amount * context.candle.open / trade.leverage;
         if let Some(stake_amount) = partial_exit_stake(context, trade, raw_exit) {
@@ -554,7 +573,7 @@ fn evaluate_grind_level(
     };
     if constants.use_derisk
         && cluster.count > 0
-        && cluster.profit_rate(context.candle.open) < derisk_threshold
+        && directional_rate(cluster.profit_rate(context.candle.open), trade.side) < derisk_threshold
     {
         let raw_exit = cluster.total_amount * context.candle.open / trade.leverage;
         if let Some(stake_amount) = partial_exit_stake(context, trade, raw_exit) {
@@ -620,7 +639,7 @@ fn grind_entry_signal(
                     num_open_grinds,
                 )
             })?;
-    Some(context.is_long_grind_entry || fallback)
+    Some(context.is_grind_entry || fallback)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -722,6 +741,7 @@ fn adjustment_operand_value(
 
 fn grind_exit_signal(
     context: &AdjustmentContext<'_>,
+    trade: &OpenTrade,
     cluster: &GrindCluster,
     constants: &NfiX7GrindLevel,
     _previous_maximum: (f64, f64),
@@ -731,23 +751,40 @@ fn grind_exit_signal(
     } else {
         constants.profit_threshold_spot
     };
-    if cluster.profit_rate(context.candle.open)
+    if directional_rate(cluster.profit_rate(context.candle.open), trade.side)
         < profit_threshold + fee_open(context.config) + fee_close(context.config)
     {
         return Some(false);
     }
     let field = |name| feature_number_at(context.pair, context.candle_index, name);
-    let normal_exit = field("RSI_3")? > 99.0
-        || field("RSI_14")? > 70.0
-        || field("WILLR_14")? > -0.1
-        || field("STOCHRSIk_14_14_3_3")? > 95.0
-        || field("close")? > field("BBU_20_2.0")? * 1.01
-        || (field("RSI_3")? > 90.0 && field("RSI_14")? < 50.0)
-        || (field("RSI_3")? > 80.0
-            && field("RSI_3_1h")? < 20.0
-            && field("RSI_3_4h")? < 20.0
-            && field("ROC_9_1d")? > -10.0
-            && field("BTC_RSI_14_4h")? < 35.0);
+    let normal_exit = match trade.side {
+        TradeSide::Long => {
+            field("RSI_3")? > 99.0
+                || field("RSI_14")? > 70.0
+                || field("WILLR_14")? > -0.1
+                || field("STOCHRSIk_14_14_3_3")? > 95.0
+                || field("close")? > field("BBU_20_2.0")? * 1.01
+                || (field("RSI_3")? > 90.0 && field("RSI_14")? < 50.0)
+                || (field("RSI_3")? > 80.0
+                    && field("RSI_3_1h")? < 20.0
+                    && field("RSI_3_4h")? < 20.0
+                    && field("ROC_9_1d")? > -10.0
+                    && field("BTC_RSI_14_4h")? < 35.0)
+        }
+        TradeSide::Short => {
+            field("RSI_3")? < 1.0
+                || field("RSI_14")? < 30.0
+                || field("WILLR_14")? < -99.9
+                || field("STOCHRSIk_14_14_3_3")? < 5.0
+                || field("close")? < field("BBL_20_2.0")? * 0.99
+                || (field("RSI_3")? < 10.0 && field("RSI_14")? > 50.0)
+                || (field("RSI_3")? < 20.0
+                    && field("RSI_3_1h")? > 80.0
+                    && field("RSI_3_4h")? > 80.0
+                    && field("ROC_9_1d")? < 10.0
+                    && field("BTC_RSI_14_4h")? > 65.0)
+        }
+    };
     Some(normal_exit)
 }
 

@@ -22,7 +22,7 @@ from typing import Any, cast
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.14.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.15.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -37,7 +37,23 @@ _MANAGED_SHORT_PROGRAM_ORDER = (
     "short_exit_dec",
 )
 _MANAGED_LONG_ADJUSTMENT_PROGRAM = "long_grind_entry_v3"
+_MANAGED_SHORT_ADJUSTMENT_PROGRAM = "short_grind_entry_v3"
 _LONG_REGULAR_ADJUSTMENT_PROGRAM = "long_grind_entry"
+_GRIND_ADJUSTMENT_PROGRAM_ORDER = tuple(
+    step
+    for level in range(1, 6)
+    for step in (
+        f"grind_{level}_entry",
+        f"grind_{level}_exit",
+        f"grind_{level}_derisk",
+    )
+)
+_MANAGED_ADJUSTMENT_PROGRAM_ORDER = (
+    "derisk_level_1",
+    "derisk_level_2",
+    "derisk_level_3",
+    *_GRIND_ADJUSTMENT_PROGRAM_ORDER,
+)
 _MANAGED_LONG_STATEFUL_STEPS = (
     "long_exit_stoploss",
     "exit_profit_target",
@@ -157,9 +173,80 @@ _MANAGED_LONG_ROUTE_SPECS = (
     ),
 )
 
-# This order is copied from ``custom_exit`` after removing unsupported short
-# routes. Rebuy remains a separate adjustment payload even though its exit
-# policy belongs in the same ordered long-side router.
+# Short top-coins tags intentionally use the normal fallback at the end of
+# ``custom_exit``: upstream excludes those tags from
+# ``short_exit_known_mode_tags`` and has no explicit top-coins dispatch block.
+# Describing that fallback as a route keeps the source behavior visible and
+# avoids pretending the otherwise-unused ``short_exit_top_coins`` method ran.
+_MANAGED_SHORT_ROUTE_SPECS = (
+    _ManagedLongRouteSpec(
+        "short_normal",
+        "normal",
+        "short_normal_mode_name",
+        "short_normal_mode_tags",
+        "short_exit_normal",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+    _ManagedLongRouteSpec(
+        "short_pump",
+        "pump",
+        "short_pump_mode_name",
+        "short_pump_mode_tags",
+        "short_exit_pump",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+    _ManagedLongRouteSpec(
+        "short_quick",
+        "quick",
+        "short_quick_mode_name",
+        "short_quick_mode_tags",
+        "short_exit_quick",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+    _ManagedLongRouteSpec(
+        "short_rebuy",
+        "rebuy",
+        "short_rebuy_mode_name",
+        "short_rebuy_mode_tags",
+        "short_exit_rebuy",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+    _ManagedLongRouteSpec(
+        "short_high_profit",
+        "high-profit",
+        "short_high_profit_mode_name",
+        "short_high_profit_mode_tags",
+        "short_exit_high_profit",
+        _MANAGED_SHORT_PROGRAM_ORDER[:3],
+    ),
+    _ManagedLongRouteSpec(
+        "short_rapid",
+        "rapid",
+        "short_rapid_mode_name",
+        "short_rapid_mode_tags",
+        "short_exit_rapid",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+    _ManagedLongRouteSpec(
+        "short_scalp",
+        "scalp",
+        "short_scalp_mode_name",
+        "short_scalp_mode_tags",
+        "short_exit_scalp",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+    _ManagedLongRouteSpec(
+        "short_top_coins_fallback",
+        "normal",
+        "short_normal_mode_name",
+        "short_top_coins_mode_tags",
+        "short_exit_normal",
+        _MANAGED_SHORT_PROGRAM_ORDER,
+    ),
+)
+
+# These orders are copied from ``custom_exit``. Rebuy remains a separate
+# adjustment payload even though its exit policy belongs in the same router.
 _MANAGED_LONG_ROUTE_ORDER = (
     "long_normal",
     "long_pump",
@@ -172,6 +259,7 @@ _MANAGED_LONG_ROUTE_ORDER = (
     "long_top_coins",
     "long_scalp",
 )
+_MANAGED_SHORT_ROUTE_ORDER = tuple(spec.key for spec in _MANAGED_SHORT_ROUTE_SPECS)
 
 # Stateful callback bodies are handwritten in Rust and therefore require a
 # stronger boundary than the whole strategy SHA. A same-file update can change
@@ -204,14 +292,25 @@ _LONG_EXIT_REBUY_BASE_AST_SHA256 = (
     "8a90732274e5f1f3e8c72694279e29f5ae36a5fa88d1d4dc56e192ef701db2dc"
 )
 _MANAGED_SHORT_METHOD_SHA256 = {
-    # The pure predicates below are source-compiled. The wrapper is pinned
-    # because its call order, stop boundary, and target-cache mutations are
-    # executed by the handwritten Rust route.
-    "short_exit_rebuy": ("bce3263e3df13f9f2873949631b1813d573aeb7e1beb48302409e466d9cdad1a"),
+    # Pure predicates are source-compiled. These wrappers are pinned because
+    # their call order, stop boundaries, inline quick/rapid conditions, and
+    # target-cache mutations are executed by the direction-aware Rust router.
+    "short_exit_normal": "e0ded57e824da65300eed780d215f1fba7e039cfbc0d78950e43dbc4e16ad24b",
+    "short_exit_pump": "27d5b3623a7871f88c5399056cf1077534779e3e5a1975a8cd3c07196dc59836",
+    "short_exit_quick": "c63d94c80e44efdae5a12ad62e42f29caca3b134dedb508a8045a8022c5f6338",
+    "short_exit_rebuy": "bce3263e3df13f9f2873949631b1813d573aeb7e1beb48302409e466d9cdad1a",
+    "short_exit_high_profit": (
+        "f498c2df79d8308f92a64eaad2904691b4f30129a918d01bc282bab47dc25816"
+    ),
+    "short_exit_rapid": "039e1c91e45bd61b2c1a188f4fba2bdbdc4dbb1c6c623da7cd7a1aa24d8b5143",
+    "short_exit_scalp": "d78e90d2e8b72f21e239025b076b2d7a1b2e1cc0db9c39120c4310a37261949f",
+    "short_exit_stoploss": (
+        "172808fcb8ebf05ed0c0689fc46672e78b76084cb5420f014fef4d169076e113"
+    ),
 }
 
 _QUICK_RAPID_STATEFUL_FEATURES = {
-    "last_candle": ["MFI_14", "RSI_3", "RSI_3_15m"],
+    "last_candle": ["MFI_14", "RSI_3", "RSI_3_15m", "WILLR_14"],
     "previous_candle_1": [],
 }
 
@@ -270,6 +369,27 @@ _MANAGED_LONG_ADJUSTMENT_FEATURES = {
     "last_candle": [
         "AROONU_14",
         "BBU_20_2.0",
+        "BTC_RSI_14_4h",
+        "EMA_20",
+        "ROC_9_1d",
+        "RSI_3",
+        "RSI_3_15m",
+        "RSI_3_1h",
+        "RSI_3_4h",
+        "RSI_14",
+        "STOCHRSIk_14_14_3_3",
+        "WILLR_14",
+        "close",
+    ],
+    "previous_candle_1": [],
+}
+_MANAGED_SHORT_ADJUSTMENT_FEATURES = {
+    # ``short_grind_entry_v3`` is source-compiled and contributes its larger
+    # projection automatically. These fields belong to the handwritten
+    # wrapper's retry, fallback, exit, and de-risk branches.
+    "last_candle": [
+        "AROOND_14",
+        "BBL_20_2.0",
         "BTC_RSI_14_4h",
         "EMA_20",
         "ROC_9_1d",
@@ -360,6 +480,12 @@ _ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
     ),
     "short_rebuy_adjust_trade_position_v3": frozenset(
         {"539eb5c23f52650df0fc40474d0890aafe87df6830157197935f723e360fe801"}
+    ),
+    "short_grind_adjust_trade_position_v3": frozenset(
+        {"8cd3b5f7808f7d00c27185f74069184820e74efe948845c64b76c54cb454ec24"}
+    ),
+    "short_grind_exit_v3": frozenset(
+        {"95070109723cf8f339d6efa46a629b1302899e0704720bbb8d562a295a8a6f1e"}
     ),
     # ``long_grind_entry_v3`` is intentionally absent. Its boolean behavior is
     # compiled from the supplied source, and its only write is proven
@@ -521,6 +647,14 @@ def build_nfi_trade_manager_ir(
     managed_entry_tags = sorted(
         {tag for route in managed_routes.values() for tag in route["entry_tags"]}
     )
+    managed_short_adjustment_tags = sorted(
+        {
+            tag
+            for key, route in managed_short_routes.items()
+            if key != "short_rebuy"
+            for tag in route["entry_tags"]
+        }
+    )
     frozen_constants = {name: constants.get(name) for name in _MANAGED_LONG_FROZEN_CONSTANTS}
     if not all(
         isinstance(frozen_constants[name], bool)
@@ -556,12 +690,19 @@ def build_nfi_trade_manager_ir(
         and constants.get("position_adjustment_enable") is True
     )
     adjustment_constants: dict[str, Any] | None = None
+    short_adjustment_constants: dict[str, Any] | None = None
     rebuy_adjustment_constants: dict[str, Any] | None = None
     if has_position_adjustment:
         _validate_adjustment_method_identity(method_records)
         adjustment_constants = _build_adjustment_constants(
             constants,
             methods["long_grind_adjust_trade_position_v3"],
+            side="long",
+        )
+        short_adjustment_constants = _build_adjustment_constants(
+            constants,
+            methods["short_grind_adjust_trade_position_v3"],
+            side="short",
         )
         rebuy_adjustment_constants = _build_rebuy_adjustment_constants(constants)
 
@@ -572,6 +713,7 @@ def build_nfi_trade_manager_ir(
         *_MANAGED_LONG_PROGRAM_ORDER,
         *_MANAGED_SHORT_PROGRAM_ORDER,
         *((_MANAGED_LONG_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
+        *((_MANAGED_SHORT_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
         *((_LONG_REGULAR_ADJUSTMENT_PROGRAM,) if long_btc_route is not None else ()),
     )
     decision_report = build_trade_dependency_ir(analysis, roots=decision_roots)
@@ -623,7 +765,7 @@ def build_nfi_trade_manager_ir(
         "supported_routes": supported_routes,
         "route_order": route_order,
         "supported_short_routes": managed_short_routes,
-        "short_route_order": ["short_rebuy"],
+        "short_route_order": list(_MANAGED_SHORT_ROUTE_ORDER),
         "constants": frozen_constants,
         "programs": {name: programs[name] for name in decision_roots},
     }
@@ -636,30 +778,26 @@ def build_nfi_trade_manager_ir(
             "entry_tags": managed_entry_tags,
             "system_version": frozen_constants["system_v3_2_name"],
             "decision_program": _MANAGED_LONG_ADJUSTMENT_PROGRAM,
-            "program_order": [
-                "derisk_level_1",
-                "derisk_level_2",
-                "derisk_level_3",
-                "grind_1_entry",
-                "grind_1_exit",
-                "grind_1_derisk",
-                "grind_2_entry",
-                "grind_2_exit",
-                "grind_2_derisk",
-                "grind_3_entry",
-                "grind_3_exit",
-                "grind_3_derisk",
-                "grind_4_entry",
-                "grind_4_exit",
-                "grind_4_derisk",
-                "grind_5_entry",
-                "grind_5_exit",
-                "grind_5_derisk",
-            ],
+            "program_order": list(_MANAGED_ADJUSTMENT_PROGRAM_ORDER),
             "stateful_input_contract": {
                 "indexed_fields": _MANAGED_LONG_ADJUSTMENT_FEATURES,
             },
             "constants": adjustment_constants,
+        }
+    if short_adjustment_constants is not None:
+        operation["short_position_adjustment"] = {
+            "enabled": constants["position_adjustment_enable"],
+            # Exact upstream ``short_adjust_mode_tags``. Rebuy uses its
+            # dedicated ladder first; tag 620 remains fail-closed because it
+            # routes into the independent legacy short-grind callback.
+            "entry_tags": managed_short_adjustment_tags,
+            "system_version": frozen_constants["system_v3_2_name"],
+            "decision_program": _MANAGED_SHORT_ADJUSTMENT_PROGRAM,
+            "program_order": list(_MANAGED_ADJUSTMENT_PROGRAM_ORDER),
+            "stateful_input_contract": {
+                "indexed_fields": _MANAGED_SHORT_ADJUSTMENT_FEATURES,
+            },
+            "constants": short_adjustment_constants,
         }
     if rebuy_adjustment_constants is not None:
         rebuy_route = managed_routes["long_rebuy"]
@@ -677,11 +815,10 @@ def build_nfi_trade_manager_ir(
             "enabled": constants["position_adjustment_enable"],
             "entry_tags": short_rebuy_route["entry_tags"],
             "system_version": frozen_constants["system_v3_2_name"],
-            "execution_scope": "pre-derisk-only-v1",
-            # After the first level-3 de-risk, X7 delegates to the independent
-            # short-grind state machine. The simulator must reject that
-            # transition until the whole downstream method is lowered.
-            "post_derisk_action": "fail-simulation",
+            "execution_scope": "rebuy-and-grind-v2",
+            # After the first level-3 de-risk, X7 delegates to the same
+            # source-bound short grind-v3 descriptor used by ordinary shorts.
+            "post_derisk_action": "short-position-adjustment",
             "stateful_input_contract": {
                 "indexed_fields": _SHORT_REBUY_ADJUSTMENT_FEATURES,
             },
@@ -705,7 +842,7 @@ def build_nfi_trade_manager_ir(
         },
         "operation": operation,
         "proof": {
-            "matcher": "nfi-x7-managed-long-short-rebuy-router-v1",
+            "matcher": "nfi-x7-managed-long-short-router-v2",
             "source_sha256": source_sha256,
             "trade_ir_fingerprint": trade_dependency_ir["fingerprint"],
             "decision_ir_fingerprint": decision_report["fingerprint"],
@@ -716,16 +853,17 @@ def build_nfi_trade_manager_ir(
         "implemented_steps": [
             "ordered managed-long route dispatch",
             *_MANAGED_LONG_STATEFUL_STEPS,
-            "ordered short-rebuy pure exit dispatch",
-            "short-rebuy stop and target state",
-            "short-rebuy pre-derisk position adjustment",
+            "ordered managed-short route dispatch",
+            "managed-short stop and target state",
+            "short system-v3.2 grind position adjustment",
+            "short-rebuy ladder and post-derisk grind transfer",
             *(_LONG_GRIND_IMPLEMENTED_STEPS if long_grind_route is not None else ()),
             *(_LONG_BTC_IMPLEMENTED_STEPS if long_btc_route is not None else ()),
         ],
         "remaining_steps": (
-            [*_LONG_GRIND_REMAINING_STEPS, "short-rebuy post-derisk grind adjustment"]
+            [*_LONG_GRIND_REMAINING_STEPS, "legacy short-grind tag 620"]
             if long_grind_route is not None or long_btc_route is not None
-            else ["short-rebuy post-derisk grind adjustment"]
+            else ["legacy short-grind tag 620"]
         ),
     }
 
@@ -967,41 +1105,85 @@ def _validate_managed_short_method_identity(
 
 
 def _build_managed_short_routes(constants: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Freeze only X7's short-rebuy route.
+    """Freeze every reviewed short exit route in upstream source order.
 
-    Other short families remain outside the executable scope. Keeping a single
-    explicit descriptor makes tag 562 support auditable and prevents a shared
-    "short profile" abstraction from accidentally enabling unreviewed routes.
+    The profiles reuse the typed exit/target policy shape, but they remain
+    separate descriptors with disjoint source tags. In particular,
+    ``short_top_coins_fallback`` deliberately names ``short_normal`` because
+    that is the fallback callback upstream actually executes.
     """
-    mode_name = constants.get("short_rebuy_mode_name")
-    entry_tags = constants.get("short_rebuy_mode_tags")
-    if not isinstance(mode_name, str) or not mode_name:
-        raise StrategyAnalysisError("NFI short_rebuy mode name must be frozen")
-    if (
-        not isinstance(entry_tags, list)
-        or not entry_tags
-        or not all(isinstance(tag, str) and tag for tag in entry_tags)
-    ):
-        raise StrategyAnalysisError("NFI short_rebuy entry tags must be frozen strings")
-    stop_names = _ROUTE_STOP_CONSTANTS["rebuy"]
-    stop_values = [constants.get(name) for name in stop_names]
-    if any(isinstance(value, bool) or not isinstance(value, int | float) for value in stop_values):
-        raise StrategyAnalysisError("NFI short_rebuy stop thresholds must be numeric")
-    return {
-        "short_rebuy": {
-            "profile": "rebuy",
-            "mode_name": mode_name,
-            "entry_tags": list(dict.fromkeys(entry_tags)),
-            "stop_threshold_futures": stop_values[0],
-            "stop_threshold_spot": stop_values[1],
-            "program_order": list(_MANAGED_SHORT_PROGRAM_ORDER),
-            "stateful_input_contract": {
-                "indexed_fields": {
-                    name: list(fields) for name, fields in _MANAGED_LONG_STATEFUL_FEATURES.items()
-                }
-            },
+    routes: dict[str, dict[str, Any]] = {}
+    claimed_tags: set[str] = set()
+    for spec in _MANAGED_SHORT_ROUTE_SPECS:
+        mode_name = constants.get(spec.mode_constant)
+        entry_tags = constants.get(spec.tags_constant)
+        if not isinstance(mode_name, str) or not mode_name:
+            raise StrategyAnalysisError(f"NFI {spec.key} mode name must be frozen")
+        if (
+            not isinstance(entry_tags, list)
+            or not entry_tags
+            or not all(isinstance(tag, str) and tag for tag in entry_tags)
+        ):
+            raise StrategyAnalysisError(f"NFI {spec.key} entry tags must be frozen strings")
+        unique_tags = sorted(set(entry_tags))
+        overlap = claimed_tags.intersection(unique_tags)
+        if overlap:
+            raise StrategyAnalysisError(
+                f"NFI managed-short entry tags overlap at {', '.join(sorted(overlap))}"
+            )
+        claimed_tags.update(unique_tags)
+
+        indexed_fields = {
+            name: list(fields) for name, fields in _MANAGED_LONG_STATEFUL_FEATURES.items()
         }
-    }
+        if spec.profile in {"quick", "rapid"}:
+            for name, fields in _QUICK_RAPID_STATEFUL_FEATURES.items():
+                indexed_fields.setdefault(name, []).extend(fields)
+                indexed_fields[name] = sorted(set(indexed_fields[name]))
+        route: dict[str, Any] = {
+            "profile": spec.profile,
+            "mode_name": mode_name,
+            "entry_tags": unique_tags,
+            "decision_program_order": list(spec.program_order),
+            "stateful_order": [
+                "decision_programs",
+                "profile_inline_exit",
+                "profile_stoploss",
+                "exit_profit_target",
+                "profit_target_update",
+                "ignored_signal_filter",
+            ],
+            "stateful_input_contract": {"indexed_fields": indexed_fields},
+        }
+        stop_constants = _ROUTE_STOP_CONSTANTS.get(spec.profile)
+        if stop_constants is not None:
+            futures_name, spot_name = stop_constants
+            futures = constants.get(futures_name)
+            spot = constants.get(spot_name)
+            if any(
+                isinstance(value, bool) or not isinstance(value, int | float)
+                for value in (futures, spot)
+            ):
+                raise StrategyAnalysisError(
+                    f"NFI {spec.key} system-v3.2 stop thresholds must be numeric"
+                )
+            route["stop_threshold_futures"] = futures
+            route["stop_threshold_spot"] = spot
+        routes[spec.key] = route
+
+    expected_adjustment_tags = constants.get("short_adjust_mode_tags")
+    actual_adjustment_tags = sorted(
+        tag
+        for key, route in routes.items()
+        if key != "short_rebuy"
+        for tag in route["entry_tags"]
+    )
+    if (
+        not isinstance(expected_adjustment_tags, list)
+        or sorted(set(expected_adjustment_tags)) != actual_adjustment_tags
+    ):
+        raise StrategyAnalysisError("NFI short adjustment tag routing changed")
+    return routes
 
 
 def _build_managed_long_routes(constants: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -1514,13 +1696,17 @@ def _validate_adjustment_method_identity(
 def _build_adjustment_constants(
     constants: dict[str, Any],
     method: ast.FunctionDef,
+    *,
+    side: str,
 ) -> dict[str, Any]:
-    """Freeze the reachable system-v3.2 adjustment constants.
+    """Freeze one side's reachable system-v3.2 adjustment constants.
 
     Buyback and level-4 de-risk branches are deliberately required to be
     disabled. Supporting a disabled branch by omission is exact; accepting it
     after a strategy change would not be.
     """
+    if side not in {"long", "short"}:
+        raise StrategyAnalysisError(f"NFI adjustment side is invalid: {side}")
     for name in _ADJUSTMENT_BOOL_CONSTANTS:
         if not isinstance(constants.get(name), bool):
             raise StrategyAnalysisError(f"NFI adjustment constant {name} must be boolean")
@@ -1594,11 +1780,15 @@ def _build_adjustment_constants(
             for level in range(1, 4)
         ],
         "grinds": grinds,
-        "policy": _adjustment_literal_policy(method),
+        "policy": _adjustment_literal_policy(method, side=side),
     }
 
 
-def _adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, Any]:
+def _adjustment_literal_policy(
+    method: ast.FunctionDef,
+    *,
+    side: str = "long",
+) -> dict[str, Any]:
     """Extract non-constant entry gates from the reviewed stateful callback.
 
     The grind stake tables are class constants, but X7 keeps retry windows and
@@ -1610,7 +1800,7 @@ def _adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, Any]:
 
     retry = _named_assignment(method, "grind_entry_retry_time")
     retry_ms = _duration_subtraction_ms(retry, unit="minutes")
-    extra = _named_assignment(method, "is_long_extra_checks_entry")
+    extra = _named_assignment(method, f"is_{side}_extra_checks_entry")
     stale_durations = _timedelta_values_ms(extra, unit="hours")
     extra_profit_conditions = [
         descriptor
@@ -1638,7 +1828,9 @@ def _adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, Any]:
             "NFI adjustment extra-entry policy changed; exact lowering requires review"
         )
 
-    fallback_records = [_grind_entry_fallbacks(method, level=level) for level in range(1, 6)]
+    fallback_records = [
+        _grind_entry_fallbacks(method, level=level, side=side) for level in range(1, 6)
+    ]
     return {
         "entry_retry_ms": retry_ms,
         "stale_order_ms": stale_durations[0],
@@ -1652,6 +1844,7 @@ def _grind_entry_fallbacks(
     method: ast.FunctionDef,
     *,
     level: int,
+    side: str,
 ) -> dict[str, Any]:
     tag = f"grind_{level}_entry"
     candidates = [
@@ -1673,20 +1866,21 @@ def _grind_entry_fallbacks(
         value
         for value in candidates[0].test.values
         if any(
-            isinstance(node, ast.Name) and node.id == "is_long_grind_entry"
+            isinstance(node, ast.Name) and node.id == f"is_{side}_grind_entry"
             for node in ast.walk(value)
         )
     ]
     if len(signal_terms) != 1:
         raise StrategyAnalysisError(f"NFI adjustment grind {level} signal gate changed")
     signal = signal_terms[0]
-    if isinstance(signal, ast.Name) and signal.id == "is_long_grind_entry":
+    signal_name = f"is_{side}_grind_entry"
+    if isinstance(signal, ast.Name) and signal.id == signal_name:
         predicates: list[dict[str, Any]] = []
     elif isinstance(signal, ast.BoolOp) and isinstance(signal.op, ast.Or):
         if (
             not signal.values
             or not isinstance(signal.values[0], ast.Name)
-            or signal.values[0].id != "is_long_grind_entry"
+            or signal.values[0].id != signal_name
         ):
             raise StrategyAnalysisError(f"NFI adjustment grind {level} primary signal changed")
         predicates = [_adjustment_predicate(value, level=level) for value in signal.values[1:]]

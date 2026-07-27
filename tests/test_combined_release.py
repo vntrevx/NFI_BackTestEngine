@@ -39,6 +39,7 @@ def _certificate(tmp_path: Path, mode: str) -> Path:
             "timerange": "20210101-20260101",
             "pair_count": 80,
             "timeframes": ["5m", "15m", "1h", "4h", "1d"],
+            "history_coverage_policy": "strict",
             "continuous_timerange": True,
             "evidence": "continuous-oracle-plus-official-full-state-probes",
         },
