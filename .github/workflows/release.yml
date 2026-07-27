@@ -18,7 +18,7 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             manylinux: "2_17"
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             manylinux: "2_17"
           - os: windows-latest
@@ -44,6 +44,34 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release --locked --compatibility pypi --out dist
+      - name: Verify wheel on Unix target
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv .wheel-venv
+          .wheel-venv/bin/python -m pip install dist/*.whl
+          .wheel-venv/bin/nfi-bte --version
+          .wheel-venv/bin/nfi-bte engine fixture \
+            benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json \
+            --output-dir .wheel-check \
+            --level full
+      - name: Verify wheel on Windows target
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m venv .wheel-venv
+          $wheel = (Get-ChildItem -Path dist -Filter *.whl -File -Recurse).FullName
+          if ($wheel.Count -ne 1) {
+            throw "Expected exactly one wheel, found $($wheel.Count)"
+          }
+          .\.wheel-venv\Scripts\python.exe -m pip install $wheel
+          .\.wheel-venv\Scripts\nfi-bte.exe --version
+          .\.wheel-venv\Scripts\nfi-bte.exe engine fixture `
+            benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
+            --output-dir .wheel-check `
+            --level full
       - name: Upload wheel
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
