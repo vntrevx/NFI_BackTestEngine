@@ -9,6 +9,12 @@ from typing import Any
 from .callback_lowering import CALLBACK_LOWERING_VERSION, lower_strategy_callbacks
 from .errors import StrategyAnalysisError
 from .nfi_trade_manager import build_nfi_trade_manager_ir
+from .strategy.inventory import (
+    CALLBACK_KINDS as _CALLBACK_KIND,
+)
+from .strategy.inventory import (
+    CALLBACK_SIGNATURES as _SIGNATURES,
+)
 from .trade_ir import (
     TRADE_IR_VERSION,
     build_trade_dependency_ir,
@@ -16,149 +22,6 @@ from .trade_ir import (
 )
 
 HOT_IR_VERSION = "1.10.0"
-
-_SIGNATURES: dict[str, dict[str, Any]] = {
-    "adjust_entry_price": {
-        "inputs": [
-            "trade",
-            "order|null",
-            "pair",
-            "timestamp",
-            "proposed_rate",
-            "current_order_rate",
-            "entry_tag|null",
-            "side",
-        ],
-        "returns": "price|null",
-    },
-    "adjust_exit_price": {
-        "inputs": [
-            "trade",
-            "order|null",
-            "pair",
-            "timestamp",
-            "proposed_rate",
-            "current_order_rate",
-            "entry_tag|null",
-            "side",
-        ],
-        "returns": "price|null",
-    },
-    "adjust_order_price": {
-        "inputs": [
-            "trade",
-            "order|null",
-            "pair",
-            "timestamp",
-            "proposed_rate",
-            "current_order_rate",
-            "entry_tag|null",
-            "side",
-            "is_entry",
-        ],
-        "returns": "price|null",
-    },
-    "adjust_trade_position": {
-        "inputs": ["trade", "timestamp", "rate", "profit", "wallet", "orders"],
-        "returns": "position_adjustment|null",
-    },
-    "bot_start": {
-        "inputs": [],
-        "returns": "none",
-    },
-    "bot_loop_start": {
-        "inputs": ["timestamp"],
-        "returns": "none",
-    },
-    "check_entry_timeout": {
-        "inputs": ["pair", "trade", "order", "timestamp"],
-        "returns": "bool",
-    },
-    "check_exit_timeout": {
-        "inputs": ["pair", "trade", "order", "timestamp"],
-        "returns": "bool",
-    },
-    "confirm_trade_entry": {
-        "inputs": ["pair", "order_type", "amount", "rate", "timestamp", "side"],
-        "returns": "bool",
-    },
-    "confirm_trade_exit": {
-        "inputs": ["pair", "trade", "order_type", "amount", "rate", "reason", "timestamp"],
-        "returns": "bool",
-    },
-    "custom_entry_price": {
-        "inputs": ["pair", "trade|null", "timestamp", "proposed_rate", "entry_tag", "side"],
-        "returns": "price",
-    },
-    "custom_exit": {
-        "inputs": ["pair", "trade", "timestamp", "rate", "profit"],
-        "returns": "exit_reason|null",
-    },
-    "custom_exit_price": {
-        "inputs": ["pair", "trade", "timestamp", "proposed_rate", "profit", "exit_tag"],
-        "returns": "price",
-    },
-    "custom_roi": {
-        "inputs": [
-            "pair",
-            "trade",
-            "timestamp",
-            "duration_minutes",
-            "entry_tag|null",
-            "side",
-        ],
-        "returns": "roi_ratio",
-    },
-    "custom_stake_amount": {
-        "inputs": [
-            "pair",
-            "timestamp",
-            "rate",
-            "proposed_stake",
-            "minimum_stake|null",
-            "maximum_stake",
-            "leverage",
-            "entry_tag|null",
-            "side",
-        ],
-        "returns": "stake",
-    },
-    "custom_stoploss": {
-        "inputs": ["pair", "trade", "timestamp", "rate", "profit", "after_fill"],
-        "returns": "stoploss_ratio",
-    },
-    "leverage": {
-        "inputs": [
-            "pair",
-            "timestamp",
-            "rate",
-            "proposed_leverage",
-            "maximum_leverage",
-            "entry_tag|null",
-            "side",
-        ],
-        "returns": "leverage",
-    },
-    "order_filled": {
-        "inputs": ["pair", "trade", "order", "timestamp"],
-        "returns": "none",
-    },
-}
-
-_CALLBACK_KIND = {
-    "bot_start": "lifecycle",
-    "bot_loop_start": "per-candle",
-    "order_filled": "order-event",
-    "check_entry_timeout": "open-order",
-    "check_exit_timeout": "open-order",
-    "adjust_entry_price": "open-order",
-    "adjust_exit_price": "open-order",
-    "adjust_order_price": "open-order",
-    "adjust_trade_position": "per-trade-per-candle",
-    "custom_exit": "per-trade-per-candle",
-    "custom_stoploss": "per-trade-per-candle",
-    "custom_roi": "per-trade-per-candle",
-}
 
 
 def build_hot_callback_ir(
