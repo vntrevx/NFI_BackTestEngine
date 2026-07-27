@@ -67,6 +67,21 @@ def _fake_prepare_data(**kwargs) -> dict:
     return seal
 
 
+def _fake_market_snapshot(
+    _config: dict,
+    pairs: list[str],
+    destination: str | Path,
+    **_kwargs,
+) -> dict:
+    """Keep research-runner tests independent of exchange network availability."""
+    snapshot = {
+        "exchange": "binance",
+        "pairs": {pair: {} for pair in pairs},
+    }
+    write_json(destination, snapshot)
+    return snapshot
+
+
 def _resume_workspace(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -232,6 +247,11 @@ def test_research_prepare_is_checkpointed_and_resumable(
     monkeypatch.setattr(research_runner, "prepare_vector_signals", fake_vectors)
     monkeypatch.setattr(research_runner, "prepare_data", _fake_prepare_data)
     monkeypatch.setattr(research_runner, "validate_data_seal", read_json)
+    monkeypatch.setattr(
+        research_runner,
+        "capture_market_snapshot",
+        _fake_market_snapshot,
+    )
     output = tmp_path / "run"
     arguments = {
         "strategy_path": source,
