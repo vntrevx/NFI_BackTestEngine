@@ -285,8 +285,17 @@ differential certificate.
 The newer v17.4.435 bounded Futures portfolio differential covers ten pairs and six
 months. It proves byte-identical final surfaces for 63 trades and 296 orders, including
 53 long trades, 10 short trades, 24 funded trades, compound tags, and two tag-120
-trades. Its cache-warm timing is diagnostic only; it does not widen the continuous
-release or cross-platform performance boundary.
+trades. Its cache-warm timing remains diagnostic and does not replace the representative
+certificate.
+
+The representative v17.4.435 isolated-Futures certificate covers 80 pairs over
+`20210726-20260726`. One continuous Freqtrade 2026.5.1 oracle and three native
+preserved-vector processes produce the same 174-trade surface SHA-256
+`99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
+The official process took 6,430.90 seconds; the native median was 584.63 seconds.
+One separate cold seed binds raw inputs, source compilation, vectors, and simulation,
+while nine compact official probes provide every-candle full-state coverage for the
+release-critical Futures branches.
 
 ## Explicitly unsupported
 
@@ -303,8 +312,8 @@ The engine fails before simulation instead of approximating:
 - negative shifts or centered rolling windows that can introduce lookahead.
 
 X7 AST preflight and constrained spot/futures callback compilation are implemented.
-The annual APE certificate proves one combined futures event sequence; it does not
-mean arbitrary X7 execution parity is complete.
+The representative certificate proves its sealed v17.4.435 Futures scope; it does not
+grant exactness to arbitrary future X7 revisions or unsupported exchange contracts.
 
 ## Performance claims
 

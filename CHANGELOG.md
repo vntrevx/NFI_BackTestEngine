@@ -2,7 +2,21 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
-## Unreleased
+## 1.1.0
+
+- Certified the continuous X7 v17.4.435 Binance USDT-M isolated-Futures workload
+  over 80 listing-aware pairs and `20210726-20260726`. The one official
+  Freqtrade 2026.5.1 oracle and all native runs produce the same 174-trade,
+  795-order surface at SHA-256
+  `99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
+- Added a content-addressed preserved-vector certification lane: one cold seed
+  proves the complete strategy-to-vector pipeline, while three to five fresh
+  simulation processes provide release timing. The certified native median is
+  584.63 seconds versus 6,430.90 seconds official, an observed 11.000x speedup.
+- Added final-wheel `exact-fixture` measurements for Windows x86_64, Linux x86_64,
+  and macOS arm64. Each platform excludes one warmup, repeats three times and
+  extends to five above 5% spread, records median wall time and peak RSS, and
+  must produce one identical full-state Futures result before evidence is sealed.
 
 - Added centralized release-mode contracts for Binance spot and Binance USDT-M
   isolated futures. Cross margin, other exchanges, malformed pairs, incomplete

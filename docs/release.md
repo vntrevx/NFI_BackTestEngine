@@ -2,12 +2,13 @@
 
 ## Product boundary
 
-Version 1.0.0 is supported by its published continuous five-year spot certificate.
-The next Full X7 contract does not extend that spot certificate to futures by
-inference. It creates independent `binance-spot` and
-`binance-usdtm-isolated` certificates, then produces a combined release only when
-both set `release_certified=true` and both have sealed Windows, Linux, and macOS
-native evidence. A missing mode or platform set produces `preview`.
+Version 1.0.0 is supported by its published continuous five-year Spot certificate.
+Version 1.1.0 adds an independent continuous five-year
+`binance-usdtm-isolated` Futures certificate. It does not extend either certificate
+to the other mode by inference. A combined latest-revision Full X7 release still
+requires both mode certificates to use the same strategy and candidate wheel and
+requires sealed Windows, Linux, and macOS native evidence. A missing or mismatched
+mode produces `preview`.
 
 Each mode certificate binds the benchmark, exact parity, native package,
 hardware/data preparation, X7 vectors, checkpointed research pipeline, strategy
@@ -20,13 +21,13 @@ previous five complete calendar years, and official Freqtrade verifies the final
 The versioned evidence below describes reproducible regressions, not a permanent input
 allowlist.
 
-The current release executes the source-compiled managed long routes, short-rebuy tags
+The v1.1.0 Futures release executes the source-compiled managed long routes, short-rebuy tags
 561-563, tag-dependent futures leverage, Binance isolated-liquidation accounting,
 tag-120 spot/futures grind, tag-121 regular adjustment, and four static Freqtrade
-protection methods with deterministic pair-lock state. The X7 v17.4.421 branch matrix pins
-upstream commit `5e168431991e05a889514eb1e16fdbebc6a09811` and reaches tag 121,
+protection methods with deterministic pair-lock state. Its X7 v17.4.435 branch matrix pins
+upstream commit `2bc3058ed4f8480ed7498efca49b5195c7b47e9b` and reaches tag 121,
 all four protection methods with real locks, a compound tag, variable leverage, and an
-actual liquidation exit in seven official full-state fixtures. It does not certify an
+actual liquidation exit in nine official full-state fixtures. It does not certify an
 arbitrary future X7 revision or replace the continuous representative run.
 
 The v17.4.413 APE top-coins, tag-62 rebuy exit, ZEC tag-120, and APE/AAVE
@@ -35,11 +36,21 @@ v17.4.418, tag 121 has a compiled entry branch whose source switch is disabled; 
 regular-mode path therefore has focused native proof but no branch-reaching official
 trade.
 
-The latest v17.4.435 bounded Futures portfolio proof covers ten pairs and six months.
-Its 63 trades and 296 orders, including long, short, funded, compound-tag, and tag-120
-routes, match the immutable Freqtrade 2026.5.1 export exactly. It is a wider
-differential regression, not the pending 80-pair continuous five-year Futures
-certificate or three-platform performance evidence.
+The v17.4.435 bounded Futures portfolio proof covers ten pairs and six months. Its
+63 trades and 296 orders, including long, short, funded, compound-tag, and tag-120
+routes, match the immutable Freqtrade 2026.5.1 export exactly. It remains a useful
+wide differential regression but is no longer the release performance boundary.
+
+The continuous Futures proof covers 80 listing-aware Binance USDT-M pairs,
+`20210726-20260726`, all five required timeframes, funding-rate data, and mark data.
+Pinned Freqtrade 2026.5.1 completed once in 6,430.90 seconds. Three fresh native
+processes using the content-addressed vectors produced the identical 174-trade,
+795-order surface in a 584.63-second median, an observed 11.000x speedup. The cold
+strategy-to-vector seed completed in 874.22 seconds. All native, official, and probe
+surfaces share SHA-256
+`99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
+The cold process-tree peak was 21,790,826,496 bytes; the measured reuse peak was
+814,669,824 bytes.
 
 The continuous representative proof covers 80 configured spot pairs,
 `20210101-20260101`, and all five required timeframes. Pinned Freqtrade 2026.5.1
@@ -60,8 +71,8 @@ current X7 v17.4.421,
 native/Freqtrade surface parity, used zero swap, and reduced the official
 container peak from 7,236,866,048 bytes before pairwise indicator spooling to
 3,637,440,512 bytes. Wall time increased from 570.19 to 658.06 seconds. This
-bounded proof validates the representation but does not replace the pending
-continuous five-year oracle.
+bounded proof validates the representation but does not replace the published
+continuous five-year Spot oracle.
 
 The older bounded result remains a regression but does not replace the representative
 five-year release gate. Independent timerange chunks reset wallet, open positions, and
@@ -120,10 +131,14 @@ Before tagging:
     5%; never repeat the multi-year official oracle merely to calculate native timing
     variance.
 
-The CI workflow runs the tests on Linux, Windows, and macOS and repeats native full
-parity on Linux. Docker-free CI validates the portable resource and command contracts;
-the release gate additionally exercises the managed container path on a real Docker
-Desktop or Docker Engine host.
+The CI workflow runs tests on Linux, Windows, and macOS and repeats native full parity
+on Linux. Release-candidate wheels additionally run one sealed Futures full-state
+fixture on Windows x86_64, Linux x86_64, and macOS arm64 with one excluded warmup and
+three measured fresh processes, extending to five above 5% spread. This
+`exact-fixture` lane records each OS median and peak RSS and proves wheel portability;
+it is not presented as the representative five-year speed claim. Docker-free CI
+validates portable resource and command contracts, while the release gate additionally
+exercises the managed container path on a real Docker Desktop or Docker Engine host.
 
 ## Publishing
 

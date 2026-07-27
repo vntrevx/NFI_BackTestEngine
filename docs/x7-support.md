@@ -91,12 +91,13 @@ official export, normalized surface, observer trace, and coverage report.
 
 The spot and futures branch contracts now pass independently. These compact fixtures
 are not continuous release certificates: the mode-aware release gate separately
-requires each 80-pair, five-year oracle and three-OS measurements. As of 2026-07-25,
-only 58 currently active Binance USDT-M perpetuals have uninterrupted history back to
-2021-01-01. The 80th eligible active market, C98/USDT:USDT, was onboarded on
-2021-08-23, so the strict futures interval cannot close before 2026-08-23. The gate
-remains fail-closed and the combined spot/futures release status remains `preview`;
-the contract is not weakened to manufacture an earlier certificate.
+requires an 80-pair, five-year oracle and three-OS wheel evidence for each claimed
+mode. The v1.1.0 Futures certificate closes this gate for the listing-aware
+`20210726-20260726` universe. Pre-listing history is never synthesized: every pair's
+sealed market onboarding and first available candle determine activation, while the
+remaining continuous portfolio state is processed without timerange chunking.
+The combined latest-revision Spot/Futures status remains `preview` because the
+v1.0.0 Spot certificate uses an earlier X7 source and candidate wheel.
 
 The broadest current isolated-futures portfolio differential uses the same v17.4.435
 source over ten pairs and `20220101-20220701`. Native and pinned Freqtrade 2026.5.1
@@ -107,6 +108,15 @@ The engine core completed in 10.89 seconds and the full cache-warm native pipeli
 diagnostic, not a repeated or release-grade speed claim. The sealed hashes and explicit
 limitations are in
 [`benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json`](../benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json).
+
+The representative v17.4.435 Futures certificate covers 80 pairs and five years.
+Pinned Freqtrade completed once in 6,430.90 seconds. Three deterministic native
+preserved-vector runs completed in a 584.63-second median, producing an 11.000x
+observed speedup and the same normalized surface SHA-256
+`99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
+One cold seed proves the complete strategy-to-vector pipeline, while nine official
+full-state probes reach tag 121, all four protections, locks, compound tags, variable
+leverage, liquidation, and both long and short funded lifecycles.
 
 The latest annual single-pair certificate is X7 v17.4.418 on APE/USDT:USDT isolated futures from
 2022-04-01 through 2023-01-01. The engine and offline Freqtrade 2026.5.1 produce

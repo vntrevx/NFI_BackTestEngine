@@ -17,45 +17,50 @@ It does not silently approximate unknown behavior. If an NFI update introduces
 semantics that cannot be lowered exactly, the run stops with a clear compatibility
 result before consuming days of compute.
 
-> **v1.0.0 certifies the continuous five-year spot workload.** The current
-> unreleased release contract certifies spot and Binance USDT-M isolated futures
-> independently, then requires both certificates plus three-OS evidence before a
-> combined Full X7 release can leave `PREVIEW`. Official Freqtrade remains the
-> final oracle for deployment-sensitive validation.
+> **v1.1.0 certifies the continuous five-year Binance USDT-M isolated Futures
+> workload.** The earlier v1.0.0 Spot certificate remains valid for its sealed X7
+> revision. The two mode certificates are intentionally independent; a combined
+> latest-revision Spot + Futures claim remains `PREVIEW` until Spot is recertified
+> against the same candidate. Official Freqtrade remains the final oracle.
 
-## The result
+## Full Futures result
 
-The v1.0.0 certificate uses X7 v17.4.421 at upstream commit
-`5e168431991e05a889514eb1e16fdbebc6a09811`.
+The v1.1.0 Futures certificate uses X7 v17.4.435 at upstream commit
+`2bc3058ed4f8480ed7498efca49b5195c7b47e9b`.
 
 | Evidence | Certified result |
 | --- | ---: |
-| Scope | 80 spot pairs · 5 timeframes · `20210101-20260101` |
-| Official Freqtrade 2026.5.1 | 61 h 34 m · one continuous run |
-| NFI Backtest Engine | 26 m 24 s median · 5 measured runs |
-| Observed speedup | **139.927×** |
-| Time reduction | **99.285%** |
-| Native peak RSS | 13.41 GiB |
-| Exact surface | 927 trades · 11,783 orders · zero tolerance |
-| Branch-reaching proof | 7/7 full-state fixtures passed |
+| Scope | 80 Futures pairs · 5 timeframes · `20210726-20260726` |
+| Official Freqtrade 2026.5.1 | 1 h 47 m 11 s · one continuous run |
+| NFI Backtest Engine | 9 m 44.6 s median · 3 measured reuse runs |
+| Cold native seed | 14 m 34.2 s |
+| Observed speedup | **11.000×** |
+| Time reduction | **90.909%** |
+| Native peak RSS | 20.29 GiB cold · 777 MiB reuse |
+| Exact surface | 174 trades · 795 orders · zero tolerance |
+| Direction and funding | 75 long · 99 short · 116 funded trades |
+| Branch-reaching proof | 9/9 full-state fixtures passed |
 
-These numbers were measured on the same Windows release host with 6 physical / 12
-logical CPU cores and 32 GiB RAM. Performance varies by hardware and workload; parity
-does not.
+All timing comparisons use the same Linux release host with 12 physical / 16 logical
+CPU cores and 46.75 GiB RAM. The speed gate uses content-addressed preserved vectors
+after one cold strategy-to-vector seed; both lanes match the same official surface.
+Performance varies by hardware and workload; parity does not.
 
 Release evidence:
 
-- [v1.0.0 release](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.0.0)
-- [Full X7 certificate](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/full-x7-certification-windows-x86_64.json)
-- [Certification evidence bundle](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/full-x7-certification-evidence.zip)
-- [SHA-256 checksums](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/SHA256SUMS.txt)
+- [v1.1.0 release](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.1.0)
+- [Full Futures certificate](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-certification.json)
+- [Certification evidence bundle](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-certification-evidence.zip)
+- [Three-OS wheel evidence](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-platform-evidence.json)
+- [SHA-256 checksums](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/SHA256SUMS.txt)
 
-Unreleased Futures progress is tracked separately from the certified v1.0.0 spot
-claim. The latest bounded v17.4.435 differential matches Freqtrade exactly across ten
-isolated-futures pairs, six months, 63 trades, and 296 orders, including long, short,
-funding, compound tags, and tag 120. Its
-[sealed evidence](benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json)
-does not replace the pending continuous 80-pair, five-year, three-platform gate.
+### Prior Spot certificate
+
+The v1.0.0 certificate remains the release-grade proof for X7 v17.4.421 Spot:
+80 pairs over `20210101-20260101`, exact parity across 927 trades and 11,783
+orders, a 26 m 24 s native median, and a 139.927× observed speedup against the
+61 h 34 m official run. See the
+[v1.0.0 release](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.0.0).
 
 ## How it works
 
@@ -399,7 +404,7 @@ nfi-bte strategy check `
 A structurally supported update passes immediately. A new stateful contract returns
 `EXACT_LOWERING_REVIEW_REQUIRED`.
 
-The v1.0.0 branch-reaching matrix proves:
+The v1.1.0 Futures branch-reaching matrix proves:
 
 - a real tag-121 adjustment and legacy-grind path;
 - `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`;
@@ -408,7 +413,7 @@ The v1.0.0 branch-reaching matrix proves:
 - tag-dependent leverage values 2 and 3;
 - an actual isolated-futures liquidation exit.
 
-This evidence is bound to the sealed v17.4.421 source and inputs. A changed strategy
+This evidence is bound to the sealed v17.4.435 source and inputs. A changed strategy
 must pass compatibility again and requires a new official confirmation before its
 results inherit an exactness claim.
 
@@ -473,6 +478,8 @@ nfi-bte release combine \
 | `nfi-bte performance ...` | Repeat a same-fixture parity and resource gate |
 | `nfi-bte certify ...` | Create a release-grade evidence bundle |
 | `nfi-bte universe discover/select ...` | Freeze an exact 80-pair spot or futures universe |
+| `nfi-bte platform fixture-benchmark ...` | Repeat exact full-state parity with one release wheel |
+| `nfi-bte platform seal ...` | Seal Windows, Linux, and macOS wheel evidence |
 | `nfi-bte release combine ...` | Bind spot, futures, and platform certificates |
 
 Add `--json` to `nfi-bte runs list` or `nfi-bte runs show` for automation.
