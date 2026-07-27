@@ -8,6 +8,10 @@ on:
         description: Successful Build release candidate workflow run ID
         required: true
         type: string
+      certificate_run_id:
+        description: Successful same-commit Certify release candidate workflow run ID
+        required: true
+        type: string
       release_tag:
         description: Prerelease tag, for example v1.0.0-rc.1
         required: true
@@ -32,6 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.candidate_run_id }}
+          CERTIFICATE_RUN_ID: ${{ inputs.certificate_run_id }}
           RELEASE_TAG: ${{ inputs.release_tag }}
         shell: bash
         run: |
@@ -44,6 +49,15 @@ jobs:
           [[ "$(jq -r .event <<<"$run_json")" == "workflow_dispatch" ]]
           [[ "$(jq -r .conclusion <<<"$run_json")" == "success" ]]
           candidate_sha="$(jq -r .head_sha <<<"$run_json")"
+
+          certificate_run_json="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CERTIFICATE_RUN_ID}"
+          )"
+          [[ "$(jq -r .name <<<"$certificate_run_json")" == "Certify release candidate" ]]
+          [[ "$(jq -r .event <<<"$certificate_run_json")" == "workflow_dispatch" ]]
+          [[ "$(jq -r .conclusion <<<"$certificate_run_json")" == "success" ]]
+          [[ "$(jq -r .head_sha <<<"$certificate_run_json")" == "$candidate_sha" ]] \
+            || { echo "candidate and host certificate commits differ" >&2; exit 1; }
 
           git fetch --no-tags origin "$candidate_sha"
           git show "$candidate_sha:pyproject.toml" > candidate-pyproject.toml
@@ -63,17 +77,58 @@ jobs:
       - name: Download sealed candidate
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          pattern: release-bundle-*
-          path: dist
-          merge-multiple: true
+          name: release-bundle-${{ steps.candidate.outputs.sha }}
+          path: candidate
           run-id: ${{ inputs.candidate_run_id }}
           github-token: ${{ github.token }}
-      - name: Verify candidate hashes
+      - name: Download same-commit host certificate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: host-certificate-${{ steps.candidate.outputs.sha }}
+          path: certificate
+          run-id: ${{ inputs.certificate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Install candidate release gate
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Verify certificates and seal complete release hashes
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          cd dist
-          sha256sum --check SHA256SUMS.txt
+          mapfile -t wheels < <(find candidate -maxdepth 1 -type f -name '*manylinux*x86_64.whl')
+          mapfile -t certificates < <(find certificate -type f -name '*certification.json')
+          mapfile -t certificate_archives < <(
+            find certificate -type f \
+              \( -name '*certification-evidence.zip' -o -name '*certification-bundle.zip' \)
+          )
+          mapfile -t platform_reports < <(
+            find candidate -maxdepth 1 -type f -name '*platform-evidence.json'
+          )
+          test "${#wheels[@]}" -eq 1
+          test "${#certificates[@]}" -eq 1
+          test "${#certificate_archives[@]}" -eq 1
+          test "${#platform_reports[@]}" -eq 1
+
+          uv venv --python 3.12 .gate-venv
+          uv pip install --python .gate-venv/bin/python "${wheels[0]}"
+          .gate-venv/bin/nfi-bte release gate \
+            --candidate-dir candidate \
+            --certificate "${certificates[0]}" \
+            --certificate-evidence "${certificate_archives[0]}" \
+            --platform-evidence "${platform_reports[0]}" \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --output-dir release
+          (cd release && sha256sum --check SHA256SUMS.txt)
+          (cd release && sha256sum --check RELEASE-SHA256SUMS.txt)
+          jq -e \
+            --arg commit "$CANDIDATE_SHA" \
+            '.release_certified == true
+             and .status == "release_certified"
+             and .candidate_commit == $commit' \
+            release/release-gate.json
       - name: Create prerelease from sealed files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -82,7 +137,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$RELEASE_TAG" dist/* \
+          gh release create "$RELEASE_TAG" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$CANDIDATE_SHA" \
             --title "$RELEASE_TAG" \
@@ -99,5 +154,8 @@ jobs:
           gh release download "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --dir published
-          diff -qr dist published
+          diff -qr release published
           (cd published && sha256sum --check SHA256SUMS.txt)
+          (cd published && sha256sum --check RELEASE-SHA256SUMS.txt)
+          jq -e '.release_certified == true and .status == "release_certified"' \
+            published/release-gate.json

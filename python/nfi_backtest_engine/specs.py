@@ -24,6 +24,7 @@ FULL_X7_COMBINED_RELEASE_SCHEMA = "full-x7-combined-release-v1.schema.json"
 REGRESSION_CONTRACT_SCHEMA = "regression-contract-v1.schema.json"
 VERIFICATION_LEDGER_RECORD_SCHEMA = "verification-ledger-record-v1.schema.json"
 CLEAN_AUDIT_SCHEMA = "clean-audit-v1.schema.json"
+RELEASE_GATE_SCHEMA = "release-gate-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -170,6 +171,11 @@ def validate_verification_ledger_record(document: Any) -> None:
 def validate_clean_audit(document: Any) -> None:
     """Validate the evidence-aware clean dry-run report."""
     validate_schema(document, CLEAN_AUDIT_SCHEMA)
+
+
+def validate_release_gate(document: Any) -> None:
+    """Validate a candidate/certificate identity gate."""
+    validate_schema(document, RELEASE_GATE_SCHEMA)
 
 
 def _check_decimal_fields(record: dict[str, Any], field_names: Iterable[str], path: str) -> None:

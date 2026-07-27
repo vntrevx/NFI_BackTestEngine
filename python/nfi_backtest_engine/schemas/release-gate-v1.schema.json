@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/release-gate-v1.schema.json",
+  "title": "NFI Backtest Engine release candidate gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "status",
+    "release_certified",
+    "candidate_commit",
+    "package_version",
+    "candidate_manifest",
+    "certificate",
+    "platform_evidence",
+    "gates",
+    "sealed_assets"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "const": "release_certified"
+    },
+    "release_certified": {
+      "const": true
+    },
+    "candidate_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "package_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_manifest": {
+      "$ref": "#/$defs/artifact"
+    },
+    "certificate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "bytes",
+        "sha256",
+        "evidence",
+        "mode_contract",
+        "wheel_sha256",
+        "portable_package_sha256"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence": {
+          "$ref": "#/$defs/artifact"
+        },
+        "mode_contract": {
+          "enum": [
+            "binance-spot",
+            "binance-usdtm-isolated"
+          ]
+        },
+        "wheel_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "portable_package_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "platform_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "bytes",
+        "sha256",
+        "systems",
+        "portable_package_sha256"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "systems": {
+          "const": [
+            "darwin",
+            "linux",
+            "windows"
+          ]
+        },
+        "portable_package_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_manifest",
+        "candidate_commit",
+        "host_certificate",
+        "candidate_wheel",
+        "portable_package",
+        "three_os_evidence",
+        "preview_rejected"
+      ],
+      "properties": {
+        "candidate_manifest": {
+          "const": true
+        },
+        "candidate_commit": {
+          "const": true
+        },
+        "host_certificate": {
+          "const": true
+        },
+        "candidate_wheel": {
+          "const": true
+        },
+        "portable_package": {
+          "const": true
+        },
+        "three_os_evidence": {
+          "const": true
+        },
+        "preview_rejected": {
+          "const": true
+        }
+      }
+    },
+    "sealed_assets": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    }
+  },
+  "$defs": {
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

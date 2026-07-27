@@ -865,6 +865,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="sealed three-OS evidence for one mode; repeat for spot and futures",
     )
     release_combine.add_argument("--output-dir", type=Path, required=True)
+    release_gate = release_commands.add_parser(
+        "gate",
+        help="bind a build-once candidate to host and three-OS certificates",
+    )
+    release_gate.add_argument("--candidate-dir", type=Path, required=True)
+    release_gate.add_argument("--certificate", type=Path, required=True)
+    release_gate.add_argument("--certificate-evidence", type=Path, required=True)
+    release_gate.add_argument("--platform-evidence", type=Path, required=True)
+    release_gate.add_argument("--candidate-commit", required=True)
+    release_gate.add_argument("--output-dir", type=Path, required=True)
 
     contract = subcommands.add_parser(
         "contract",
@@ -1591,23 +1601,41 @@ def _execute_certification(args: argparse.Namespace) -> int:
 
 
 def _execute_release(args: argparse.Namespace) -> int:
-    from .combined_release import combine_full_x7_release
+    if args.release_command == "combine":
+        from .combined_release import combine_full_x7_release
 
-    if args.release_command != "combine":
-        raise AssertionError(f"unhandled release command: {args.release_command}")
-    report = combine_full_x7_release(
-        spot_certificate_path=args.spot_certificate,
-        futures_certificate_path=args.futures_certificate,
-        platform_evidence_paths=args.platform_evidence,
-        output_directory=args.output_dir,
-    )
-    print(
-        f"Full X7 release: status={report['status']}, "
-        f"platform_modes={len(report['platform_evidence'])}/2, "
-        f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
-        f"{args.output_dir / 'full-x7-release.json'}"
-    )
-    return 0 if report["release_certified"] else 1
+        report = combine_full_x7_release(
+            spot_certificate_path=args.spot_certificate,
+            futures_certificate_path=args.futures_certificate,
+            platform_evidence_paths=args.platform_evidence,
+            output_directory=args.output_dir,
+        )
+        print(
+            f"Full X7 release: status={report['status']}, "
+            f"platform_modes={len(report['platform_evidence'])}/2, "
+            f"bundle_sha256={report['bundle']['archive']['sha256']} -> "
+            f"{args.output_dir / 'full-x7-release.json'}"
+        )
+        return 0 if report["release_certified"] else 1
+    if args.release_command == "gate":
+        from .release_gate import seal_release_gate
+
+        report = seal_release_gate(
+            candidate_directory=args.candidate_dir,
+            certificate_path=args.certificate,
+            certificate_evidence_path=args.certificate_evidence,
+            platform_evidence_path=args.platform_evidence,
+            candidate_commit=args.candidate_commit,
+            output_directory=args.output_dir,
+        )
+        print(
+            f"release gate: status={report['status']}, "
+            f"commit={report['candidate_commit']}, "
+            f"assets={len(report['sealed_assets'])} -> "
+            f"{args.output_dir / 'RELEASE-SHA256SUMS.txt'}"
+        )
+        return 0
+    raise AssertionError(f"unhandled release command: {args.release_command}")
 
 
 def _execute_regression_contract(args: argparse.Namespace) -> int:

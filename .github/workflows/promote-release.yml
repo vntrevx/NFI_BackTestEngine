@@ -59,6 +59,13 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --dir candidate
           (cd candidate && sha256sum --check SHA256SUMS.txt)
+          (cd candidate && sha256sum --check RELEASE-SHA256SUMS.txt)
+          jq -e \
+            --arg commit "${{ steps.identity.outputs.sha }}" \
+            '.release_certified == true
+             and .status == "release_certified"
+             and .candidate_commit == $commit' \
+            candidate/release-gate.json
       - name: Create stable release from candidate files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -85,3 +92,6 @@ jobs:
             --dir stable
           diff -qr candidate stable
           (cd stable && sha256sum --check SHA256SUMS.txt)
+          (cd stable && sha256sum --check RELEASE-SHA256SUMS.txt)
+          jq -e '.release_certified == true and .status == "release_certified"' \
+            stable/release-gate.json

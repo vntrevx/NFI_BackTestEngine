@@ -1,0 +1,165 @@
+# yamllint disable rule:line-length
+name: Certify release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful same-commit Build release candidate workflow run ID
+        required: true
+        type: string
+      certification_config:
+        description: Host path to the protected certification input-path JSON
+        required: true
+        type: string
+      output_directory:
+        description: Persistent host path for certification checkpoints and evidence
+        required: true
+        type: string
+      resume:
+        description: Resume only identity-matching checkpoints in output_directory
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  certify:
+    name: Certify frozen candidate on protected host
+    runs-on: [self-hosted, linux, x64, nfi-certification]
+    timeout-minutes: 4320
+    steps:
+      - name: Check out candidate source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Validate candidate run identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          WORKFLOW_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CANDIDATE_RUN_ID}"
+          )"
+          [[ "$(jq -r .name <<<"$run_json")" == "Build release candidate" ]]
+          [[ "$(jq -r .event <<<"$run_json")" == "workflow_dispatch" ]]
+          [[ "$(jq -r .conclusion <<<"$run_json")" == "success" ]]
+          [[ "$(jq -r .head_sha <<<"$run_json")" == "$WORKFLOW_COMMIT" ]] \
+            || { echo "candidate and certification commits differ" >&2; exit 1; }
+      - name: Download exact candidate bundle
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-bundle-${{ github.sha }}
+          path: candidate
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Install frozen candidate
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Run host certification from approved Oracle
+        env:
+          CERTIFICATION_CONFIG: ${{ inputs.certification_config }}
+          OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
+          RESUME: ${{ inputs.resume }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(
+            find candidate -maxdepth 1 -type f -name '*manylinux*x86_64.whl'
+          )
+          test "${#wheels[@]}" -eq 1
+          (cd candidate && sha256sum --check SHA256SUMS.txt)
+
+          jq -e '
+            type == "object"
+            and (.release_lock | type == "string" and length > 0)
+            and (.execution_profile | type == "string" and length > 0)
+            and (.strategy | type == "string" and length > 0)
+            and (.strategy_class | type == "string" and length > 0)
+            and (.config | type == "string" and length > 0)
+            and (.data_directory | type == "string" and length > 0)
+            and (.engine_markets | type == "string" and length > 0)
+            and (
+              .reference_markets == null
+              or (.reference_markets | type == "string" and length > 0)
+            )
+            and (.official_oracle | type == "string" and length > 0)
+            and (
+              .state_probes
+              | type == "array"
+                and length > 0
+                and all(.[]; type == "string" and length > 0)
+            )
+          ' "$CERTIFICATION_CONFIG"
+          release_lock="$(jq -r .release_lock "$CERTIFICATION_CONFIG")"
+          execution_profile="$(jq -r .execution_profile "$CERTIFICATION_CONFIG")"
+          strategy="$(jq -r .strategy "$CERTIFICATION_CONFIG")"
+          strategy_class="$(jq -r .strategy_class "$CERTIFICATION_CONFIG")"
+          config="$(jq -r .config "$CERTIFICATION_CONFIG")"
+          data_directory="$(jq -r .data_directory "$CERTIFICATION_CONFIG")"
+          engine_markets="$(jq -r .engine_markets "$CERTIFICATION_CONFIG")"
+          reference_markets="$(jq -r '.reference_markets // empty' "$CERTIFICATION_CONFIG")"
+          official_oracle="$(jq -r .official_oracle "$CERTIFICATION_CONFIG")"
+          mapfile -t state_probes < <(jq -r '.state_probes[]' "$CERTIFICATION_CONFIG")
+
+          uv venv --python 3.12 .certificate-venv
+          uv pip install --python .certificate-venv/bin/python "${wheels[0]}"
+          arguments=(
+            certify "$release_lock"
+            --certification-profile full-x7
+            --output-dir "$OUTPUT_DIRECTORY"
+            --profile "$execution_profile"
+            --strategy "$strategy"
+            --class-name "$strategy_class"
+            --config "$config"
+            --data-dir "$data_directory"
+            --engine-markets "$engine_markets"
+            --official-oracle "$official_oracle"
+            --wheel "${wheels[0]}"
+          )
+          if [[ -n "$reference_markets" ]]; then
+            arguments+=(--reference-markets "$reference_markets")
+          fi
+          for probe in "${state_probes[@]}"; do
+            arguments+=(--state-probe "$probe")
+          done
+          if [[ "$RESUME" == "true" ]]; then
+            arguments+=(--resume)
+          fi
+          .certificate-venv/bin/nfi-bte "${arguments[@]}"
+      - name: Bind certificate to candidate and platform evidence
+        env:
+          CANDIDATE_COMMIT: ${{ github.sha }}
+          OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t platform_reports < <(
+            find candidate -maxdepth 1 -type f -name '*platform-evidence.json'
+          )
+          test "${#platform_reports[@]}" -eq 1
+          .certificate-venv/bin/nfi-bte release gate \
+            --candidate-dir candidate \
+            --certificate "$OUTPUT_DIRECTORY/full-x7-certification.json" \
+            --certificate-evidence "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" \
+            --platform-evidence "${platform_reports[0]}" \
+            --candidate-commit "$CANDIDATE_COMMIT" \
+            --output-dir .host-gate-check
+
+          mkdir host-certificate
+          cp "$OUTPUT_DIRECTORY/full-x7-certification.json" host-certificate/
+          cp "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" host-certificate/
+      - name: Upload same-commit host certificate
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: host-certificate-${{ github.sha }}
+          path: host-certificate/*
+          if-no-files-found: error
+          retention-days: 30
