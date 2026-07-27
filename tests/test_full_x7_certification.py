@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -590,13 +591,17 @@ def test_imported_oracle_reconciles_a_completed_official_export(
         },
     }
 
-    imported = full_x7_resume.import_reference_oracle(
-        source,
-        destination,
-        baseline=baseline,
-        inputs=inputs,
-        validator=full_x7_certification._reference_complete,
-    )
+    source.chmod(0o555)
+    try:
+        imported = full_x7_resume.import_reference_oracle(
+            source,
+            destination,
+            baseline=baseline,
+            inputs=inputs,
+            validator=full_x7_certification._reference_complete,
+        )
+    finally:
+        source.chmod(0o755)
 
     report = imported["report"]
     assert report["complete"] is True
@@ -607,6 +612,32 @@ def test_imported_oracle_reconciles_a_completed_official_export(
     assert Path(report["inputs"]["data_seal"]["path"]).is_relative_to(destination)
     assert (destination / "inputs" / "data-seal.json").is_file()
     assert (destination / result_zip.name).read_bytes() == result_zip.read_bytes()
+
+
+def test_oracle_import_resumes_only_an_exact_source_copy(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source_inputs = source / "inputs"
+    source_inputs.mkdir(parents=True)
+    (source / "run.json").write_bytes(b"sealed-report")
+    (source_inputs / "strategy.py").write_bytes(b"sealed-strategy")
+    source_inputs.chmod(0o555)
+    source.chmod(0o555)
+
+    exact = tmp_path / "exact"
+    changed = tmp_path / "changed"
+    try:
+        shutil.copytree(source, exact)
+        full_x7_resume._prepare_reference_oracle_copy(source, exact)
+        (exact / "inputs" / "local-record.json").write_bytes(b"local")
+
+        shutil.copytree(source, changed)
+        changed.chmod(0o755)
+        (changed / "extra.json").write_bytes(b"unexpected")
+        with pytest.raises(BenchmarkError, match="differs from the immutable source"):
+            full_x7_resume._prepare_reference_oracle_copy(source, changed)
+    finally:
+        source.chmod(0o755)
+        source_inputs.chmod(0o755)
 
 
 def test_cold_strict_engine_gate_rejects_checkpoint_or_coverage_shortfall() -> None:

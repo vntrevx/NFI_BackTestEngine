@@ -28,6 +28,7 @@ from .full_x7_resume import (
     load_engine_measurement,
     load_reference_measurement,
     require_stage_available,
+    validate_reference_oracle,
     write_measurement_checkpoint,
 )
 from .hardware import (
@@ -154,22 +155,39 @@ def run_full_x7_certification(
             resume=resume,
         )
     _require_complete_baseline(baseline, inputs["lock"])
-    reference_warmup = load_reference_measurement(warmup_root / "reference") if resume else None
-    if reference_warmup is None:
-        require_stage_available(warmup_root / "reference", stage="official oracle")
-        if official_oracle_directory is not None:
-            reference_warmup = import_reference_oracle(
-                official_oracle_directory,
-                warmup_root / "reference",
+    reference_output = warmup_root / "reference"
+    reference_warmup = load_reference_measurement(reference_output) if resume else None
+    if reference_warmup is not None:
+        if _reference_complete(reference_warmup):
+            validate_reference_oracle(
+                reference_warmup,
                 baseline=baseline,
                 inputs=inputs,
                 validator=_reference_complete,
             )
         else:
+            # A copy can be interrupted after all immutable oracle bytes land
+            # but before local parity metadata is reconciled. The importer
+            # below resumes only a byte-identical copy and rejects every other
+            # non-empty state.
+            reference_warmup = None
+    if reference_warmup is None:
+        if official_oracle_directory is not None:
+            if not resume:
+                require_stage_available(reference_output, stage="official oracle")
+            reference_warmup = import_reference_oracle(
+                official_oracle_directory,
+                reference_output,
+                baseline=baseline,
+                inputs=inputs,
+                validator=_reference_complete,
+            )
+        else:
+            require_stage_available(reference_output, stage="official oracle")
             reference_warmup = _measure_reference(
                 baseline["output_directory"],
                 inputs["reference_market_snapshot"],
-                warmup_root / "reference",
+                reference_output,
                 timeout_seconds=timeout_seconds,
                 swap_cap_bytes=swap_cap_bytes,
             )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import stat
 import zipfile
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -150,7 +151,7 @@ def import_reference_oracle(
         inputs=inputs,
     )
     source_report_sha = sha256_file(source / "run.json")
-    shutil.copytree(source, output)
+    _prepare_reference_oracle_copy(source, output)
     _materialize_external_identity_artifacts(
         output,
         source_report_sha=source_report_sha,
@@ -174,6 +175,40 @@ def import_reference_oracle(
         validator=validator,
     )
     return imported
+
+
+def _prepare_reference_oracle_copy(source: Path, output: Path) -> None:
+    """Create or safely resume a byte-identical local oracle copy.
+
+    Release seals intentionally make the source tree read-only. ``copytree``
+    preserves those directory modes, but the imported copy must add a local
+    data-seal record and parity reconciliation metadata. Only destination
+    directories become owner-writable; source modes and all copied artifact
+    bytes remain unchanged.
+
+    A failed import may leave the complete source tree at ``output`` before
+    those local records are written. Resume accepts that state only when every
+    file is still byte-identical and no extra file exists.
+    """
+    if output.exists():
+        if not output.is_dir() or _tree_file_records(output) != _tree_file_records(source):
+            raise BenchmarkError("partial official oracle import differs from the immutable source")
+    else:
+        shutil.copytree(source, output)
+
+    directories = [output, *(path for path in output.rglob("*") if path.is_dir())]
+    for directory in directories:
+        mode = stat.S_IMODE(directory.stat().st_mode)
+        directory.chmod(mode | stat.S_IWUSR | stat.S_IXUSR)
+
+
+def _tree_file_records(root: Path) -> dict[str, tuple[int, str]]:
+    """Return the complete relative file identity of one oracle tree."""
+    return {
+        path.relative_to(root).as_posix(): (path.stat().st_size, sha256_file(path))
+        for path in root.rglob("*")
+        if path.is_file()
+    }
 
 
 def validate_reconcilable_reference_oracle(
