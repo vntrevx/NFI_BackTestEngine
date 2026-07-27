@@ -15,7 +15,7 @@ from .canonical import read_json, write_json
 from .engine_runtime import build_engine
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import public_hardware_record, write_evidence_bundle
-from .fixture import sha256_file
+from .fixture import sha256_file, validate_fixture
 from .full_x7_certification import (
     validate_full_x7_inputs,
     verify_installed_wheel,
@@ -27,9 +27,12 @@ from .product_contract import (
     MAX_CERTIFICATION_REPETITIONS,
     MIN_CERTIFICATION_REPETITIONS,
 )
+from .release_contract import release_contract_for_config
 from .timerange import parse_timerange_milliseconds
 
-PLATFORM_BENCHMARK_VERSION = "1.1.0"
+PLATFORM_BENCHMARK_VERSION = "1.2.0"
+RAW_INPUT_LANE = "portable-raw-input"
+EXACT_FIXTURE_LANE = "exact-fixture"
 PORTABLE_PAIR_COUNT = 20
 REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
 REQUIRED_PLATFORM_MACHINES = {
@@ -146,6 +149,7 @@ def run_platform_benchmark(
         "schema_version": PLATFORM_BENCHMARK_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "complete": deterministic,
+        "lane": RAW_INPUT_LANE,
         "platform": {
             "system": system,
             "machine": platform.machine().lower(),
@@ -158,6 +162,155 @@ def run_platform_benchmark(
             "wheel_sha256": wheel["sha256"],
             "native_extension_sha256": wheel["native_member_sha256"],
             "installed_extension_equal": wheel["installed_extension_equal"],
+        },
+        "workload": {
+            **workload,
+            "identity_sha256": workload_sha,
+        },
+        "measurement": {
+            "warmups_excluded": 1,
+            "initial_repetitions": repetitions,
+            "measured_repetitions": len(runs),
+            "spread_threshold": CERTIFICATION_SPREAD_THRESHOLD,
+            "relative_spread": _relative_spread(runs),
+            "wall_time_seconds": {
+                "minimum": min(wall),
+                "median": statistics.median(wall),
+                "maximum": max(wall),
+            },
+            "peak_rss_bytes": {
+                "minimum": min(peaks),
+                "maximum": max(peaks),
+            },
+            "result_sha256": result_hashes,
+            "runs": runs,
+        },
+    }
+    write_json(output / "platform-benchmark.json", report)
+    bundle = write_evidence_bundle(
+        output,
+        evidence_id=f"{workload_sha}-{system}-{platform.machine().lower()}",
+        release_certified=False,
+        archive_name="platform-benchmark-bundle.zip",
+        include_paths=[output / "platform-benchmark.json"],
+    )
+    result = {**report, "bundle": bundle}
+    write_json(output / "platform-result.json", result)
+    return result
+
+
+def run_platform_fixture_benchmark(
+    manifest_path: str | Path,
+    output_directory: str | Path,
+    *,
+    wheel_path: str | Path,
+    repetitions: int = MIN_CERTIFICATION_REPETITIONS,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    """Measure one sealed exact-parity fixture using the installed candidate wheel.
+
+    This lane proves that each release wheel executes the same portable Futures
+    state transition stream.  It deliberately does not replace the representative
+    80-pair, five-year performance certificate.
+    """
+    if repetitions < MIN_CERTIFICATION_REPETITIONS:
+        raise BenchmarkError(
+            f"platform benchmark requires at least {MIN_CERTIFICATION_REPETITIONS} runs"
+        )
+    if repetitions > MAX_CERTIFICATION_REPETITIONS:
+        raise BenchmarkError(
+            f"platform benchmark permits at most {MAX_CERTIFICATION_REPETITIONS} runs"
+        )
+    output = Path(output_directory).resolve()
+    if output.exists() and any(output.iterdir()):
+        raise BenchmarkError(f"platform benchmark output must be empty: {output}")
+
+    manifest_file = Path(manifest_path).resolve()
+    manifest = validate_fixture(manifest_file)
+    config_reference = _fixture_input(manifest, role="config")
+    strategy_reference = _fixture_input(manifest, role="strategy")
+    config = read_json((manifest_file.parent / config_reference["path"]).resolve())
+    if not isinstance(config, dict):
+        raise SpecValidationError("fixture config must be an object")
+    contract = release_contract_for_config(config)
+    if manifest["freqtrade"]["trading_mode"] != contract.trading_mode:
+        raise SpecValidationError(
+            "fixture trading mode contradicts its release-mode config"
+        )
+
+    output.mkdir(parents=True, exist_ok=True)
+    build = build_engine()
+    wheel = verify_installed_wheel(wheel_path, build)
+    workload = {
+        "lane": EXACT_FIXTURE_LANE,
+        "mode_contract": contract.contract_id,
+        "fixture_id": manifest["fixture_id"],
+        "manifest_sha256": sha256_file(manifest_file),
+        "strategy_sha256": strategy_reference["sha256"],
+        "verification_level": "full",
+    }
+    workload_sha = _document_sha256(workload)
+
+    warmup = _measure_fixture_run(
+        manifest_file,
+        output / "warmup",
+        timeout_seconds=timeout_seconds,
+    )
+    if not warmup["complete"]:
+        raise BenchmarkError(
+            "platform fixture warmup did not complete exact full-state parity"
+        )
+    runs: list[dict[str, Any]] = []
+    target = repetitions
+    while len(runs) < target:
+        run = _measure_fixture_run(
+            manifest_file,
+            output / "measurements" / f"run-{len(runs) + 1:02d}",
+            timeout_seconds=timeout_seconds,
+        )
+        runs.append(run)
+        if (
+            len(runs) == repetitions
+            and repetitions < MAX_CERTIFICATION_REPETITIONS
+            and _relative_spread(runs) > CERTIFICATION_SPREAD_THRESHOLD
+        ):
+            target = MAX_CERTIFICATION_REPETITIONS
+
+    result_hashes = sorted(
+        {
+            value
+            for value in [warmup["result_sha256"], *(run["result_sha256"] for run in runs)]
+            if isinstance(value, str)
+        }
+    )
+    deterministic = (
+        warmup["result_sha256"] is not None
+        and all(run["complete"] for run in runs)
+        and len(result_hashes) == 1
+    )
+    wall = [float(run["wall_time_seconds"]) for run in runs]
+    peaks = [int(run["peak_rss_bytes"]) for run in runs]
+    system = platform.system().lower()
+    report = {
+        "schema_version": PLATFORM_BENCHMARK_VERSION,
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "complete": deterministic,
+        "lane": EXACT_FIXTURE_LANE,
+        "platform": {
+            "system": system,
+            "machine": platform.machine().lower(),
+            "python": platform.python_version(),
+            "wsl": system == "linux" and "microsoft" in platform.release().lower(),
+        },
+        "hardware": public_hardware_record(inspect_hardware()),
+        "package": {
+            "version": __version__,
+            "wheel_sha256": wheel["sha256"],
+            "native_extension_sha256": wheel["native_member_sha256"],
+            "installed_extension_equal": wheel["installed_extension_equal"],
+            "installed_package_files": wheel["installed_package_files"],
+            "installed_package_sha256": wheel["installed_package_sha256"],
+            "engine_source_fingerprint": build["source_fingerprint"],
         },
         "workload": {
             **workload,
@@ -219,17 +372,28 @@ def seal_platform_evidence(
         raise SpecValidationError("platform evidence must contain exactly one report per system")
     workload_hashes = {report["workload"]["identity_sha256"] for report in reports}
     mode_contracts = {report["workload"]["mode_contract"] for report in reports}
+    lanes = {report["lane"] for report in reports}
     result_hashes = {
         hash_value
         for report in reports
         for hash_value in report["measurement"]["result_sha256"]
     }
     package_versions = {report["package"]["version"] for report in reports}
+    engine_source_fingerprints = {
+        report["package"].get("engine_source_fingerprint")
+        for report in reports
+        if report["lane"] == EXACT_FIXTURE_LANE
+    }
     complete = (
         len(workload_hashes) == 1
         and len(mode_contracts) == 1
+        and len(lanes) == 1
         and len(result_hashes) == 1
         and len(package_versions) == 1
+        and (
+            next(iter(lanes)) != EXACT_FIXTURE_LANE
+            or len(engine_source_fingerprints) == 1
+        )
         and all(report["complete"] for report in reports)
     )
     if not complete:
@@ -240,6 +404,7 @@ def seal_platform_evidence(
         "schema_version": "1.0.0",
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "release_certified": True,
+        "lane": next(iter(lanes)),
         "mode_contract": next(iter(mode_contracts)),
         "workload_identity_sha256": next(iter(workload_hashes)),
         "workload": reports[0]["workload"],
@@ -250,6 +415,9 @@ def seal_platform_evidence(
                 "system": report["platform"]["system"],
                 "machine": report["platform"]["machine"],
                 "wheel_sha256": report["package"]["wheel_sha256"],
+                "native_extension_sha256": report["package"].get(
+                    "native_extension_sha256"
+                ),
                 "wall_time_median_seconds": report["measurement"]["wall_time_seconds"][
                     "median"
                 ],
@@ -272,6 +440,56 @@ def seal_platform_evidence(
         include_paths=[output / "platform-evidence.json"],
     )
     return {**evidence, "bundle": bundle}
+
+
+def _measure_fixture_run(
+    manifest_path: Path,
+    output: Path,
+    *,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    measured = measure_cli_process(
+        [
+            "engine",
+            "fixture",
+            str(manifest_path),
+            "--output-dir",
+            str(output),
+            "--level",
+            "full",
+        ],
+        output.parent / f"{output.name}.stdout.log",
+        output.parent / f"{output.name}.stderr.log",
+        timeout_seconds=timeout_seconds,
+    )
+    report_path = output / "run.json"
+    report = read_json(report_path) if report_path.is_file() else None
+    execution = report.get("execution") if isinstance(report, dict) else None
+    native_peak = execution.get("peak_rss_bytes") if isinstance(execution, dict) else None
+    peak = int(measured["peak_rss_bytes"])
+    if isinstance(native_peak, int):
+        peak = max(peak, native_peak)
+    result_sha = _fixture_result_sha256(report)
+    complete = bool(
+        measured["exit_code"] == 0
+        and isinstance(report, dict)
+        and report.get("complete") is True
+        and report.get("verification_level") == "full"
+        and report.get("parity", {}).get("trade_surface", {}).get("equal") is True
+        and report.get("parity", {}).get("state_trace", {}).get("checked") is True
+        and report.get("parity", {}).get("state_trace", {}).get("equal") is True
+        and report.get("branch_coverage", {}).get("met") is True
+        and isinstance(result_sha, str)
+    )
+    return {
+        "wall_time_seconds": measured["wall_time_seconds"],
+        "peak_rss_bytes": peak,
+        "exit_code": measured["exit_code"],
+        "timed_out": measured["timed_out"],
+        "complete": complete,
+        "result_sha256": result_sha,
+    }
 
 
 def _measure_portable_run(
@@ -383,14 +601,74 @@ def _validate_platform_report(report: Any) -> None:
     mode_contract = report.get("workload", {}).get("mode_contract")
     if mode_contract not in {"binance-spot", "binance-usdtm-isolated"}:
         raise SpecValidationError("platform report has an unsupported mode contract")
-    pairs = report.get("workload", {}).get("pairs")
-    if not isinstance(pairs, list) or len(pairs) != PORTABLE_PAIR_COUNT:
-        raise SpecValidationError(
-            f"sealed platform evidence must use exactly {PORTABLE_PAIR_COUNT} pairs"
-        )
+    lane = report.get("lane")
+    if lane == RAW_INPUT_LANE:
+        pairs = report.get("workload", {}).get("pairs")
+        if not isinstance(pairs, list) or len(pairs) != PORTABLE_PAIR_COUNT:
+            raise SpecValidationError(
+                f"sealed platform evidence must use exactly {PORTABLE_PAIR_COUNT} pairs"
+            )
+    elif lane == EXACT_FIXTURE_LANE:
+        workload = report.get("workload", {})
+        if (
+            workload.get("lane") != EXACT_FIXTURE_LANE
+            or workload.get("verification_level") != "full"
+            or not isinstance(workload.get("fixture_id"), str)
+            or not _is_sha256(workload.get("manifest_sha256"))
+            or not _is_sha256(workload.get("strategy_sha256"))
+            or not _is_sha256(
+                report.get("package", {}).get("engine_source_fingerprint")
+            )
+        ):
+            raise SpecValidationError("exact-fixture platform report is incomplete")
+    else:
+        raise SpecValidationError(f"unsupported platform benchmark lane: {lane!r}")
     hashes = report.get("measurement", {}).get("result_sha256")
     if not isinstance(hashes, list) or len(hashes) != 1:
         raise SpecValidationError("platform report is not result-deterministic")
+
+
+def _fixture_input(manifest: dict[str, Any], *, role: str) -> dict[str, Any]:
+    matches = [item for item in manifest["inputs"] if item["role"] == role]
+    if len(matches) != 1:
+        raise SpecValidationError(f"fixture requires exactly one {role!r} input")
+    return matches[0]
+
+
+def _fixture_result_sha256(report: Any) -> str | None:
+    if not isinstance(report, dict):
+        return None
+    surface = report.get("artifacts", {}).get("trade_surface", {})
+    state = report.get("parity", {}).get("state_trace", {}).get("actual", {})
+    identity = {
+        "fixture_id": report.get("fixture_id"),
+        "trade_surface_sha256": surface.get("sha256"),
+        "state_input_sha256": state.get("input_sha256"),
+        "state_profile_sha256": state.get("profile_sha256"),
+        "state_stream_hash": state.get("stream_hash"),
+    }
+    if (
+        not isinstance(identity["fixture_id"], str)
+        or not all(
+            _is_sha256(identity[key])
+            for key in (
+                "trade_surface_sha256",
+                "state_input_sha256",
+                "state_profile_sha256",
+                "state_stream_hash",
+            )
+        )
+    ):
+        return None
+    return _document_sha256(identity)
+
+
+def _is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
 
 
 def _document_sha256(document: dict[str, Any]) -> str:

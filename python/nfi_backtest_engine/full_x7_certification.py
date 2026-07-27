@@ -1032,8 +1032,12 @@ def _seal_preserved_vector_cache(
     """Bind the reusable cache to the cold baseline's exact 80 vector artifacts."""
     report = baseline.get("report")
     output = baseline.get("output_directory")
-    vectors = report.get("vectors") if isinstance(report, dict) else None
-    records = vectors.get("outputs") if isinstance(vectors, dict) else None
+    if not isinstance(report, dict):
+        raise BenchmarkError("cold seed has no complete run report")
+    vectors = report.get("vectors")
+    if not isinstance(vectors, dict):
+        raise BenchmarkError("cold seed has no vector report")
+    records = vectors.get("outputs")
     if (
         not isinstance(output, Path)
         or not isinstance(records, list)

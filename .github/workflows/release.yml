@@ -18,15 +18,19 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             manylinux: "2_17"
+            portable_evidence: true
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             manylinux: "2_17"
+            portable_evidence: false
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             manylinux: "off"
+            portable_evidence: true
           - os: macos-14
             target: aarch64-apple-darwin
             manylinux: "off"
+            portable_evidence: true
     steps:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -72,6 +76,41 @@ jobs:
             benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
             --output-dir .wheel-check `
             --level full
+      - name: Measure exact Futures fixture on Unix target
+        if: matrix.portable_evidence && runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheels=(dist/*.whl)
+          test "${#wheels[@]}" -eq 1
+          .wheel-venv/bin/nfi-bte platform fixture-benchmark \
+            benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json \
+            --wheel "${wheels[0]}" \
+            --output-dir .platform-evidence \
+            --runs 3 \
+            --timeout 900
+      - name: Measure exact Futures fixture on Windows target
+        if: matrix.portable_evidence && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wheel = (Get-ChildItem -Path dist -Filter *.whl -File -Recurse).FullName
+          if ($wheel.Count -ne 1) {
+            throw "Expected exactly one wheel, found $($wheel.Count)"
+          }
+          .\.wheel-venv\Scripts\nfi-bte.exe platform fixture-benchmark `
+            benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json `
+            --wheel $wheel `
+            --output-dir .platform-evidence `
+            --runs 3 `
+            --timeout 900
+      - name: Upload platform benchmark
+        if: matrix.portable_evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: platform-report-${{ matrix.target }}
+          path: .platform-evidence/platform-benchmark.json
+          if-no-files-found: error
       - name: Upload wheel
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -133,17 +172,73 @@ jobs:
             --output-dir .release-check \
             --level full
 
-  bundle:
-    name: Seal candidate bundle
-    needs: [wheels, sdist, verify]
+  platform-evidence:
+    name: Seal three-OS Futures evidence
+    needs: [wheels]
     runs-on: ubuntu-latest
     steps:
-      - name: Download all distributions
+      - name: Download platform reports
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          pattern: "*"
+          pattern: platform-report-*
+          path: reports
+      - name: Download Linux release wheel
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: wheel-x86_64-unknown-linux-gnu
+          path: wheel
+      - name: Install release wheel
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Seal reports and prepare release evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 .seal-venv
+          uv pip install --python .seal-venv/bin/python wheel/*.whl
+          mapfile -t reports < <(find reports -type f -name platform-benchmark.json | LC_ALL=C sort)
+          test "${#reports[@]}" -eq 3
+          arguments=()
+          for report in "${reports[@]}"; do
+            arguments+=(--report "$report")
+          done
+          .seal-venv/bin/nfi-bte platform seal \
+            "${arguments[@]}" \
+            --output-dir sealed
+          mkdir release-evidence
+          cp sealed/platform-evidence.json \
+            release-evidence/full-x7-futures-platform-evidence.json
+          cp sealed/platform-evidence-bundle.zip \
+            release-evidence/full-x7-futures-platform-evidence.zip
+      - name: Upload sealed platform evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: release-evidence/*
+          if-no-files-found: error
+
+  bundle:
+    name: Seal candidate bundle
+    needs: [wheels, sdist, verify, platform-evidence]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release wheels
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: "wheel-*"
           path: dist
           merge-multiple: true
+      - name: Download source distribution
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: sdist
+          path: dist
+      - name: Download sealed platform evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: dist
       - name: Seal distribution hashes
         shell: bash
         run: |

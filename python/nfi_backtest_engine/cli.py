@@ -225,6 +225,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
     )
     platform_benchmark.add_argument("--pair-count", type=int, default=20)
+    platform_fixture_benchmark = platform_commands.add_parser(
+        "fixture-benchmark",
+        help="repeat one sealed exact fixture with the installed release wheel",
+    )
+    platform_fixture_benchmark.add_argument("manifest", type=Path)
+    platform_fixture_benchmark.add_argument("--output-dir", type=Path, required=True)
+    platform_fixture_benchmark.add_argument("--wheel", type=Path, required=True)
+    platform_fixture_benchmark.add_argument(
+        "--runs",
+        type=int,
+        default=DEFAULT_CERTIFICATION_REPETITIONS,
+    )
+    platform_fixture_benchmark.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
+    )
     platform_seal = platform_commands.add_parser(
         "seal",
         help="combine Windows, Linux, and macOS benchmark reports",
@@ -1467,6 +1484,7 @@ def _execute_release(args: argparse.Namespace) -> int:
 def _execute_platform(args: argparse.Namespace) -> int:
     from .platform_benchmark import (
         run_platform_benchmark,
+        run_platform_fixture_benchmark,
         seal_platform_evidence,
     )
 
@@ -1479,6 +1497,22 @@ def _execute_platform(args: argparse.Namespace) -> int:
             f"{args.output_dir / 'platform-evidence.json'}"
         )
         return 0
+    if args.platform_command == "fixture-benchmark":
+        report = run_platform_fixture_benchmark(
+            args.manifest,
+            args.output_dir,
+            wheel_path=args.wheel,
+            repetitions=args.runs,
+            timeout_seconds=args.timeout,
+        )
+        print(
+            "platform exact fixture: "
+            f"complete={report['complete']}, "
+            f"median={report['measurement']['wall_time_seconds']['median']:.3f}s, "
+            f"peak_rss={report['measurement']['peak_rss_bytes']['maximum']} -> "
+            f"{args.output_dir / 'platform-benchmark.json'}"
+        )
+        return 0 if report["complete"] else 1
     report = run_platform_benchmark(
         args.release_lock,
         args.output_dir,
