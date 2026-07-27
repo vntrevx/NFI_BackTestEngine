@@ -481,6 +481,7 @@ nfi-bte release combine \
 | `nfi-bte platform fixture-benchmark ...` | Repeat exact full-state parity with one release wheel |
 | `nfi-bte platform seal ...` | Seal Windows, Linux, and macOS wheel evidence |
 | `nfi-bte release combine ...` | Bind spot, futures, and platform certificates |
+| `nfi-bte contract verify` | Verify the sealed v1.1 regression contract and release assets |
 
 Add `--json` to `nfi-bte runs list` or `nfi-bte runs show` for automation.
 

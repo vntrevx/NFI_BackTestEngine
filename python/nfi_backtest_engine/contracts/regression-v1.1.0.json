@@ -1,0 +1,906 @@
+{
+  "schema_version": "1.0.0",
+  "contract_version": "1.1.0",
+  "sealed_at": "2026-07-28",
+  "baseline": {
+    "release_commit": "151cb3f8a38912463538fed04cc2135eb48977d0",
+    "spot_release_commit": "fc6162ac7ccae3c6d3788e09e23628b033d9da94",
+    "strategy_upstream_commit": "2bc3058ed4f8480ed7498efca49b5195c7b47e9b",
+    "strategy_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a",
+    "spot_surface_sha256": "8ae4fe84eaf869904cc8a26056f08218548546b316f620441e57417c24cac38c",
+    "futures_surface_sha256": "99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5"
+  },
+  "repository_files": [
+    {
+      "kind": "document",
+      "path": "README.md",
+      "bytes": 22122,
+      "sha256": "7eb78884dc4fd71bb38f3ecda3be86a32dd5a4ca36f46b0f7fb9fe6edc652149"
+    },
+    {
+      "kind": "document",
+      "path": "docs/architecture.md",
+      "bytes": 20174,
+      "sha256": "a4e47ff59a0fa276c0d180833df226f37e0b45b73f50454289f6c348c87ba50d"
+    },
+    {
+      "kind": "document",
+      "path": "docs/release.md",
+      "bytes": 12053,
+      "sha256": "f2a26acd18c2af5534ef834525447a4d6c4173bea9ef6bbb82c9c3277e6a3ba7"
+    },
+    {
+      "kind": "document",
+      "path": "docs/result-report.md",
+      "bytes": 5148,
+      "sha256": "dce1f9eccbdeeaa84dca41ef855048b2d717b4901e9d215ba14c52f42ecbca41"
+    },
+    {
+      "kind": "document",
+      "path": "docs/x7-support.md",
+      "bytes": 12421,
+      "sha256": "adab31041a14ef83ef46902522528b0037fba7f8d02b323007160e8e6454ac60"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/benchmark-fixture.schema.json",
+      "bytes": 4767,
+      "sha256": "123d891b3904990d6f3fe4c3f1e19c96155f39c24e4fe2dbf730fa52346e3f48"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/benchmark-fixture-v2.schema.json",
+      "bytes": 5839,
+      "sha256": "609f932a3d1d0b3b3907f4d7d545b7b64a4ad835117be0bc65ed071eab67f80a"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/benchmark-fixture-v3.schema.json",
+      "bytes": 8945,
+      "sha256": "7ecc77993f0b82dea2d7af014a2564be4c69403ef5ad654fbd310c420b2804b0"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/certification-report-v1.schema.json",
+      "bytes": 3656,
+      "sha256": "52139d8995d619e92d62ee86702e7abd8b2de38d975a6dcd559472bb7a5937f4"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/full-x7-certification-v1.schema.json",
+      "bytes": 7582,
+      "sha256": "78ca56b14769e009393a1e6e88c4f6d4ab17d7cb9d01902f6bbe2e12e2f88815"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/full-x7-certification-v2.schema.json",
+      "bytes": 6606,
+      "sha256": "1bbbb69b60cf566e826420389769e2604a0cab65156f518bd7a6e53bb39c3187"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/full-x7-combined-release-v1.schema.json",
+      "bytes": 2886,
+      "sha256": "d602858b39fc87b89938e5053d8ce24a0cbc349f25b6f93dcdb9c45279b0d15e"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/trade-surface.schema.json",
+      "bytes": 4933,
+      "sha256": "0647e555dca32723ed0fa4ca0db3c7ebf093d8cbbbc2b80bdb54f25382296bdf"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/trade-surface-v2.schema.json",
+      "bytes": 9354,
+      "sha256": "f213b5264839925df3c8cdcd477b5f43a11a1abe510885c2b9d34bac1ebe39e4"
+    },
+    {
+      "kind": "schema",
+      "path": "python/nfi_backtest_engine/schemas/regression-contract-v1.schema.json",
+      "bytes": 9702,
+      "sha256": "4ed225e1b7aa69ef1cd6f87131c221c71600e3568817e21ef3d11108f1f1da9c"
+    },
+    {
+      "kind": "evidence",
+      "path": "benchmarks/evidence/x7-v17.4.435-small-parity-2026-07-25.json",
+      "bytes": 6783,
+      "sha256": "c875fb89029220d35e5aef33b7177a8d80551b00a57b134f48e27f3980a1fbb1",
+      "assertions": [
+        {
+          "path": [
+            "status"
+          ],
+          "equals": "captured-small-final-surface-exact"
+        },
+        {
+          "path": [
+            "upstream",
+            "source_sha256"
+          ],
+          "equals": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a"
+        },
+        {
+          "path": [
+            "lanes",
+            "spot",
+            "native",
+            "trade_surface_sha256"
+          ],
+          "equals": "b6c04a437566a7a43da6dc99cf9c3b469cae0530995d02a9f887d79f7a18ac29"
+        },
+        {
+          "path": [
+            "lanes",
+            "spot",
+            "exact_comparison",
+            "equal"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "lanes",
+            "futures",
+            "native",
+            "trade_surface_sha256"
+          ],
+          "equals": "e2bfd39756bbe0c7142208e5f4abbbacd6c5f73d7c0fcd1a85ef968b3989b423"
+        },
+        {
+          "path": [
+            "lanes",
+            "futures",
+            "exact_comparison",
+            "equal"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "kind": "evidence",
+      "path": "benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json",
+      "bytes": 6825,
+      "sha256": "1b99b4c81d12b3104a76a5eff4b5bd2a87f505f67846b06993a4335f6b4ae8bf",
+      "assertions": [
+        {
+          "path": [
+            "status"
+          ],
+          "equals": "captured-bounded-final-surface-exact"
+        },
+        {
+          "path": [
+            "upstream",
+            "source_sha256"
+          ],
+          "equals": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a"
+        },
+        {
+          "path": [
+            "exact_comparison",
+            "equal"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "exact_comparison",
+            "official_surface_sha256"
+          ],
+          "equals": "5d86a81bdc38ca398a11507aa5327a9abce8f9ae68663ce71335f26c52487de2"
+        },
+        {
+          "path": [
+            "exact_comparison",
+            "engine_surface_sha256"
+          ],
+          "equals": "5d86a81bdc38ca398a11507aa5327a9abce8f9ae68663ce71335f26c52487de2"
+        }
+      ]
+    }
+  ],
+  "cli": {
+    "command_paths": [
+      "fixture",
+      "fixture validate",
+      "fixture seal",
+      "fixture upload",
+      "fixture download",
+      "probe",
+      "probe capture",
+      "universe",
+      "universe discover",
+      "universe select",
+      "universe configure",
+      "universe validate",
+      "platform",
+      "platform benchmark",
+      "platform fixture-benchmark",
+      "platform seal",
+      "normalize",
+      "parity",
+      "trace",
+      "trace inspect",
+      "trace compare",
+      "profile",
+      "benchmark",
+      "reference",
+      "reference run",
+      "reference research",
+      "reference capture-markets",
+      "doctor",
+      "init",
+      "run",
+      "system",
+      "system inspect",
+      "system docker",
+      "system tune",
+      "system show",
+      "data",
+      "data prepare",
+      "data validate",
+      "markets",
+      "markets capture",
+      "markets catalog",
+      "strategy",
+      "strategy inspect",
+      "strategy check",
+      "strategy prepare",
+      "strategy validate",
+      "strategy vectors",
+      "backtest",
+      "confirm",
+      "report",
+      "runs",
+      "runs list",
+      "runs show",
+      "batch",
+      "engine",
+      "engine build",
+      "engine run",
+      "engine fixture",
+      "performance",
+      "certify",
+      "release",
+      "release combine",
+      "contract",
+      "contract verify"
+    ],
+    "exit_codes": [
+      {
+        "code": 0,
+        "meaning": "command completed its declared contract"
+      },
+      {
+        "code": 1,
+        "meaning": "valid execution completed without the requested parity or completion verdict"
+      },
+      {
+        "code": 2,
+        "meaning": "input, schema, environment, or fail-closed validation error"
+      }
+    ],
+    "run_statuses": [
+      "prepared",
+      "complete",
+      "blocked_unsupported_semantics"
+    ],
+    "error_codes": [
+      {
+        "code": "PYTHON_SYNTAX",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "STRATEGY_CLASS_NOT_FOUND",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "STRATEGY_CLASS_AMBIGUOUS",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "DYNAMIC_IMPORT",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "STAR_IMPORT",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "DYNAMIC_EXECUTION",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "LOOKAHEAD_NEGATIVE_SHIFT",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "LOOKAHEAD_CENTERED_WINDOW",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "DYNAMIC_ATTRIBUTE",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "source": "python/nfi_backtest_engine/strategy_ir.py"
+      },
+      {
+        "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+        "source": "python/nfi_backtest_engine/strategy_compatibility.py"
+      },
+      {
+        "code": "STRATEGY_CALLBACK_NOT_COMPILED",
+        "source": "python/nfi_backtest_engine/hot_ir.py"
+      },
+      {
+        "code": "STRATEGY_CALLBACK_ADAPTER_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "GENERIC_FUTURES_ADAPTER_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "GENERIC_SHORT_ADAPTER_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "PROTECTIONS_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "TRAILING_STOP_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "POSITION_ADJUSTMENT_IR_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "EXIT_PROFIT_ONLY_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "AVAILABLE_CAPITAL_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "STATIC_STOPLOSS_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "NUMERIC_CONFIG_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "POSITIVE_WALLET_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "POSITIVE_FIXED_STAKE_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "POSITIVE_INTEGER_SLOTS_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "TRADABLE_BALANCE_RATIO_INVALID",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "STAKE_CAPACITY_UNPROVEN",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "MARKET_METADATA_REQUIRED",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "MARKET_METADATA_MISSING",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "ROI_TABLE_INVALID",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "ROI_BOUND_INVALID",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "ROI_TABLE_REACHABLE",
+        "source": "python/nfi_backtest_engine/generic_adapter.py"
+      },
+      {
+        "code": "X7_CALLBACK_IR_INCOMPLETE",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_ADAPTER_BACKEND_UNSUPPORTED",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_PROTECTION_CONTRACT_INVALID",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_STOPLOSS_CONFIG_INVALID",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_POSITION_CALLBACK_REQUIRED",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "MARKET_METADATA_INVALID",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "MARKET_LIMITS_REQUIRED",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_LIQUIDATION_CONTRACT_INVALID",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_NUMERIC_CONFIG_REQUIRED",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_STAKE_CONFIG_INVALID",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_FUTURES_LEVERAGE_REQUIRED",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "X7_FUTURES_LEVERAGE_INVALID",
+        "source": "python/nfi_backtest_engine/x7_adapter.py"
+      },
+      {
+        "code": "AMBIGUOUS_CANDLE_FILE",
+        "source": "python/nfi_backtest_engine/release_inputs.py"
+      },
+      {
+        "code": "DUPLICATE_TIMESTAMPS",
+        "source": "python/nfi_backtest_engine/release_inputs.py"
+      },
+      {
+        "code": "OUT_OF_ORDER_TIMESTAMPS",
+        "source": "python/nfi_backtest_engine/release_inputs.py"
+      },
+      {
+        "code": "EDGE_COVERAGE",
+        "source": "python/nfi_backtest_engine/release_inputs.py"
+      }
+    ]
+  },
+  "full_state_fixtures": [
+    {
+      "probe_id": "tag-121",
+      "fixture_id": "x7-v17.4.435-tag-121-btc-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-tag-121-futures-v17.4.435-2023-01-01_02/manifest.json",
+      "manifest_bytes": 5930,
+      "manifest_sha256": "7e1864003a11c390e93a8a026de19b240a0f56553be11875ae69623709083b5a",
+      "trade_surface_sha256": "b4f04eb54e3c2bbb6c3682c79f325e35cedd0fa6f0633be42b6c38febfd1f9ab",
+      "state_projection_sha256": "e668a62dfa0f2f4eeae78caf00cd8d0066328638dabe84259aee080d1f0cc89d"
+    },
+    {
+      "probe_id": "cooldown",
+      "fixture_id": "x7-v17.4.435-cooldown-lock-btc-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-cooldown-futures-v17.4.435-2023-01-01_16/manifest.json",
+      "manifest_bytes": 6171,
+      "manifest_sha256": "93548266120c155416cb294e98ac5cbefc52211d5d4b8588b794ce58117e55ac",
+      "trade_surface_sha256": "aba2053df98a839c48af98d138eeb9eef32d65e7b2e7f7df1466cce2e2748263",
+      "state_projection_sha256": "b57108212b1a25f966c8e52e1eaaa44d354e90a49fe07b5b7cf5800748225e37"
+    },
+    {
+      "probe_id": "low-profit",
+      "fixture_id": "x7-v17.4.435-low-profit-lock-btc-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-low-profit-futures-v17.4.435-2023-01-01_16/manifest.json",
+      "manifest_bytes": 6173,
+      "manifest_sha256": "3cf0697b703607bb3cd0a3d4cb66f9890818c470f5df3b0cbf6481d0f8c678fe",
+      "trade_surface_sha256": "95fc39d4f86ea79485128e00c9eafed199b735ac9d87cdbc288b708961538621",
+      "state_projection_sha256": "df1f7fbff8c9e49c44dc03476faf8a0e89d83a3c952856fdeae0183bbf10585c"
+    },
+    {
+      "probe_id": "max-drawdown-stoploss-guard",
+      "fixture_id": "x7-v17.4.435-max-drawdown-lock-btc-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-max-drawdown-futures-v17.4.435-2023-01-01_16/manifest.json",
+      "manifest_bytes": 6167,
+      "manifest_sha256": "9bba88c883d7c1eccec211d6247b38ea15bb144c9badb63c1327bd43f2f0494f",
+      "trade_surface_sha256": "496f51e6e1d71d444020bed025477ff0c52feb1a2128fb2566a52883cb576c97",
+      "state_projection_sha256": "36eba252ae7c80952eacf263a6de245acab627563687f2be4a44b5cd3fbc6db0"
+    },
+    {
+      "probe_id": "compound-tag",
+      "fixture_id": "x7-v17.4.435-compound-tag-ape-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-compound-tag-futures-v17.4.435-2022-04-29_05-02/manifest.json",
+      "manifest_bytes": 7394,
+      "manifest_sha256": "370b9f4e956c00f86155fa81018c9d7598992b22cb58d7e8765c8e379b58550a",
+      "trade_surface_sha256": "3f6f9b512386683e9c09ffc43d397fd281a6f5beff5591758a350be28b309263",
+      "state_projection_sha256": "9984b5203019a5c109d01a07bda37a45d04d3c08f960b9c2c41ef7c28e3273c0"
+    },
+    {
+      "probe_id": "variable-leverage",
+      "fixture_id": "x7-v17.4.435-variable-leverage-algo-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-variable-leverage-futures-v17.4.435-2021-02-04_09/manifest.json",
+      "manifest_bytes": 7432,
+      "manifest_sha256": "cbbd9d424da436e51b07345e8ee67942f711c1ff49fc53a5294129fb07a5e4be",
+      "trade_surface_sha256": "cce1aff6b32b2088276736b242e20c30b333ebe47db4a44e1e9202428a19cd36",
+      "state_projection_sha256": "ddeab81dba8c4303eb4379f7d14d594195ead9e60de737294716300c3ff8da2a"
+    },
+    {
+      "probe_id": "liquidation",
+      "fixture_id": "x7-v17.4.435-liquidation-stoploss-guard-ape-futures",
+      "manifest_path": "benchmarks/fixtures/captured/x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02/manifest.json",
+      "manifest_bytes": 8025,
+      "manifest_sha256": "3ada67a1f9b432ed36c217431fccf0fc4fb25c4f0ee3ecf3620e867481c5af1c",
+      "trade_surface_sha256": "e2516092dfb7a9c69a6a99a1de3ca1e2ce560e90273e09040c3a05a5b47f4934",
+      "state_projection_sha256": "305c06b1db7be53a7dd823eaa5cd3b88478cf840bc9b84a014a3f499d8ee2fd9"
+    },
+    {
+      "probe_id": "funded-long-lifecycle",
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-ape-long",
+      "manifest_path": "benchmarks/fixtures/captured/x7-futures-lifecycle-long-v17.4.435-2022-04-10_04-20/manifest.json",
+      "manifest_bytes": 7346,
+      "manifest_sha256": "e8385f2ce281d3af38a7a8934b88efb22704ef29d63b3f15786e4b5e347994b4",
+      "trade_surface_sha256": "f472f82eb970142d0d10b1b59171a8b9e80c001b9698f47ff1d53caf1f800eb7",
+      "state_projection_sha256": "f3bcbc746aabff643fc18df8ba01b2238d213686c60b2e06ffd07cbf9ab44159"
+    },
+    {
+      "probe_id": "funded-short-lifecycle",
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "manifest_path": "benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json",
+      "manifest_bytes": 5863,
+      "manifest_sha256": "93eae91b5a5b4370411684d4c10743a475ef95139b7319c017025d7284cf8400",
+      "trade_surface_sha256": "157727c799122950bed1da01f2d2a7f18e4bd4100e42092e57e7d12357846ea4",
+      "state_projection_sha256": "2f3d2d5333eb3a58d17bdf93667088f0b5852496e3e19690bb3062cec50b6ad0"
+    }
+  ],
+  "behavior_contracts": [
+    {
+      "scenario": "prepared checkpoint is resumable",
+      "expected": "a prepared run records hash-bound data and vector checkpoints",
+      "test_nodeid": "tests/test_research_runner.py::test_research_prepare_is_checkpointed_and_resumable"
+    },
+    {
+      "scenario": "completed resume",
+      "expected": "a complete run returns only after all result identities validate",
+      "test_nodeid": "tests/test_research_runner.py::test_completed_resume_returns_verified_result_without_running_engine"
+    },
+    {
+      "scenario": "completed evidence mutation",
+      "expected": "tampered result bytes are rejected without rewriting evidence",
+      "test_nodeid": "tests/test_research_runner.py::test_completed_resume_rejects_tampered_result_without_rewriting_it"
+    },
+    {
+      "scenario": "missing completion checkpoint",
+      "expected": "a result without its ordered checkpoint is rejected",
+      "test_nodeid": "tests/test_research_runner.py::test_completed_resume_rejects_missing_simulation_checkpoint"
+    },
+    {
+      "scenario": "surface-stage interruption",
+      "expected": "a hash-valid simulation result is reused after presentation interruption",
+      "test_nodeid": "tests/test_research_runner.py::test_surface_interruption_reuses_checkpointed_simulation_result"
+    },
+    {
+      "scenario": "vector-stage interruption",
+      "expected": "only the latest complete ordered checkpoint is reused",
+      "test_nodeid": "tests/test_research_runner.py::test_vector_interruption_reuses_only_completed_checkpoint"
+    },
+    {
+      "scenario": "unsupported semantics",
+      "expected": "uncertified semantics stop before simulation with stable blocker codes",
+      "test_nodeid": "tests/test_generic_adapter.py::test_generic_adapter_fails_closed_for_uncertified_spot_semantics"
+    }
+  ],
+  "result_artifacts": [
+    {
+      "name": "run.json",
+      "media_type": "application/json",
+      "schema_version": "1.5.0",
+      "required_when": [
+        "prepared",
+        "complete",
+        "blocked_unsupported_semantics"
+      ]
+    },
+    {
+      "name": "trade-surface.json",
+      "media_type": "application/json",
+      "schema_version": "2.0.0",
+      "required_when": [
+        "complete"
+      ]
+    },
+    {
+      "name": "summary.json",
+      "media_type": "application/json",
+      "schema_version": "1.1.0",
+      "required_when": [
+        "prepared",
+        "complete",
+        "blocked_unsupported_semantics"
+      ]
+    },
+    {
+      "name": "trades.csv",
+      "media_type": "text/csv",
+      "schema_version": null,
+      "required_when": [
+        "prepared",
+        "complete",
+        "blocked_unsupported_semantics"
+      ]
+    },
+    {
+      "name": "report.html",
+      "media_type": "text/html",
+      "schema_version": null,
+      "required_when": [
+        "prepared",
+        "complete",
+        "blocked_unsupported_semantics"
+      ]
+    }
+  ],
+  "releases": [
+    {
+      "tag": "v1.0.0",
+      "mode_contract": "binance-spot",
+      "target_commit": "fc6162ac7ccae3c6d3788e09e23628b033d9da94",
+      "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.0.0",
+      "certificate": {
+        "asset": "full-x7-certification-windows-x86_64.json",
+        "assertions": [
+          {
+            "path": [
+              "schema_version"
+            ],
+            "equals": "1.1.0"
+          },
+          {
+            "path": [
+              "status"
+            ],
+            "equals": "certified"
+          },
+          {
+            "path": [
+              "release_certified"
+            ],
+            "equals": true
+          },
+          {
+            "path": [
+              "inputs",
+              "release_lock",
+              "identity_sha256"
+            ],
+            "equals": "38e957d6c54569a3f1ebef4b7d8f11c93c07144a1e5e1a23857fe19164308512"
+          },
+          {
+            "path": [
+              "inputs",
+              "strategy_sha256"
+            ],
+            "equals": "f11214df8747709a29088e6bd34be5a42559b521c54974663bbcd1f58f6088b9"
+          },
+          {
+            "path": [
+              "gates",
+              "determinism",
+              "result_sha256",
+              0
+            ],
+            "equals": "8ae4fe84eaf869904cc8a26056f08218548546b316f620441e57417c24cac38c"
+          },
+          {
+            "path": [
+              "gates",
+              "installed_wheel",
+              "sha256"
+            ],
+            "equals": "c95ac2114a150c120edf5e70c1abf0cf41101f2b6d68ee04cd286b33a2cc7175"
+          }
+        ]
+      },
+      "assets": [
+        {
+          "name": "SHA256SUMS.txt",
+          "bytes": 653,
+          "sha256": "f2daed1e084cafe2c677baca16e9e909b4a78f5820f6c6bb07756d9d2b24f015",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/SHA256SUMS.txt"
+        },
+        {
+          "name": "full-x7-certification-evidence.zip",
+          "bytes": 15120,
+          "sha256": "e21ea42ed4b30a9992ce190868e5df15ea261fb9aaa8d773e5a5246e6199d329",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/full-x7-certification-evidence.zip"
+        },
+        {
+          "name": "full-x7-certification-windows-x86_64.json",
+          "bytes": 14547,
+          "sha256": "417b8407ee616d6aa3ac755f39c9ec84d02534eb6e3e9d298652ed1334d89946",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/full-x7-certification-windows-x86_64.json"
+        },
+        {
+          "name": "nfi_backtest_engine-1.0.0-cp312-abi3-macosx_11_0_arm64.whl",
+          "bytes": 1767313,
+          "sha256": "25d461d69fa431328a2158b22b978b417e23be77da023157d949902324e2e6cf",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/nfi_backtest_engine-1.0.0-cp312-abi3-macosx_11_0_arm64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.0.0-cp312-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+          "bytes": 1899689,
+          "sha256": "b2f0dabdcd725fe662555168c991173d8dffcb51b22f57a9298ca3326468fdab",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/nfi_backtest_engine-1.0.0-cp312-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.0.0-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+          "bytes": 2037650,
+          "sha256": "771c320b5c4d12426a956eccde3aab8d80a7bb0335c144ef5fabf8ad0c4feaf9",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/nfi_backtest_engine-1.0.0-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.0.0-cp312-abi3-win_amd64.whl",
+          "bytes": 1791258,
+          "sha256": "c95ac2114a150c120edf5e70c1abf0cf41101f2b6d68ee04cd286b33a2cc7175",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/nfi_backtest_engine-1.0.0-cp312-abi3-win_amd64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.0.0.tar.gz",
+          "bytes": 358570,
+          "sha256": "c185fb2a08958452313afcf571c3d66d6e5039f2e32fad75639a298d370d9c5e",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.0.0/nfi_backtest_engine-1.0.0.tar.gz"
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.0",
+      "mode_contract": "binance-usdtm-isolated",
+      "target_commit": "151cb3f8a38912463538fed04cc2135eb48977d0",
+      "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.1.0",
+      "certificate": {
+        "asset": "full-x7-futures-certification.json",
+        "assertions": [
+          {
+            "path": [
+              "schema_version"
+            ],
+            "equals": "2.0.0"
+          },
+          {
+            "path": [
+              "status"
+            ],
+            "equals": "certified"
+          },
+          {
+            "path": [
+              "release_certified"
+            ],
+            "equals": true
+          },
+          {
+            "path": [
+              "inputs",
+              "mode_contract"
+            ],
+            "equals": "binance-usdtm-isolated"
+          },
+          {
+            "path": [
+              "inputs",
+              "release_lock",
+              "identity_sha256"
+            ],
+            "equals": "994f7dc76a3aa51c551056d227455da7af85b71d0fc46a701133bf005be8782f"
+          },
+          {
+            "path": [
+              "inputs",
+              "strategy_sha256"
+            ],
+            "equals": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a"
+          },
+          {
+            "path": [
+              "gates",
+              "determinism",
+              "result_sha256",
+              0
+            ],
+            "equals": "99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5"
+          },
+          {
+            "path": [
+              "gates",
+              "installed_wheel",
+              "sha256"
+            ],
+            "equals": "6669d1917452021d9ab68a89be5a4f28e38046632c5e389e74cebfaae3f449a8"
+          },
+          {
+            "path": [
+              "gates",
+              "installed_wheel",
+              "portable_package_sha256"
+            ],
+            "equals": "b0ecd8d08a2cb04b8054e38d1d5798ddde9562bad371b29d373d9116fa3d5f57"
+          }
+        ]
+      },
+      "assets": [
+        {
+          "name": "SHA256SUMS.txt",
+          "bytes": 1080,
+          "sha256": "5fc435fa65df13fb004c9a99f59c41001ec26d05bf88c06dd3aaca0f98effb03",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/SHA256SUMS.txt"
+        },
+        {
+          "name": "full-x7-futures-certification-evidence.zip",
+          "bytes": 56471,
+          "sha256": "06fe49fd2bfaa0c635cf36b90d7c4dfefdddb3e893ae797ad512e85367dfb93e",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-certification-evidence.zip"
+        },
+        {
+          "name": "full-x7-futures-certification.json",
+          "bytes": 16309,
+          "sha256": "5947e5b7c3b1d4d74b2f5d4d5000bcc88207dc5f870726d6b1b9ac75e4af6e54",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-certification.json"
+        },
+        {
+          "name": "full-x7-futures-platform-evidence.json",
+          "bytes": 2364,
+          "sha256": "4cb0a7320915f1bd7f8ccdc6685b72ffef3b6597528813b766f8b2d5ad067b18",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-platform-evidence.json"
+        },
+        {
+          "name": "full-x7-futures-platform-evidence.zip",
+          "bytes": 2913,
+          "sha256": "891f6d62cfa4cc0f3710f1e671db0a1de941462a9f1c170be4fe788fee5f5f30",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-platform-evidence.zip"
+        },
+        {
+          "name": "nfi_backtest_engine-1.1.0-cp312-abi3-macosx_11_0_arm64.whl",
+          "bytes": 1886517,
+          "sha256": "cb8421ab7e7ed27a60465c78a7404ddd3c66c6539726f2de9242a438c278e164",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/nfi_backtest_engine-1.1.0-cp312-abi3-macosx_11_0_arm64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.1.0-cp312-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+          "bytes": 2065855,
+          "sha256": "f1ecf48d084db5b68bf872a2e5d002060e456b27f7cd0398cd6a37536e1a9262",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/nfi_backtest_engine-1.1.0-cp312-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.1.0-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+          "bytes": 2167533,
+          "sha256": "6669d1917452021d9ab68a89be5a4f28e38046632c5e389e74cebfaae3f449a8",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/nfi_backtest_engine-1.1.0-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.1.0-cp312-abi3-win_amd64.whl",
+          "bytes": 1918196,
+          "sha256": "7fb42e9e3fa44ad8cc9d664c08d0060806f2046649ebec6bf38a487306393c96",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/nfi_backtest_engine-1.1.0-cp312-abi3-win_amd64.whl"
+        },
+        {
+          "name": "nfi_backtest_engine-1.1.0.tar.gz",
+          "bytes": 421302,
+          "sha256": "1af8995ccce883357095f5a7b85541b077e52403cd5d118f79fab760e385160a",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/nfi_backtest_engine-1.1.0.tar.gz"
+        }
+      ]
+    }
+  ]
+}

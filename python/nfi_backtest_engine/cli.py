@@ -803,6 +803,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="sealed three-OS evidence for one mode; repeat for spot and futures",
     )
     release_combine.add_argument("--output-dir", type=Path, required=True)
+
+    contract = subcommands.add_parser(
+        "contract",
+        help="verify versioned, read-only regression contracts",
+    )
+    contract_commands = contract.add_subparsers(
+        dest="contract_command",
+        required=True,
+    )
+    contract_verify = contract_commands.add_parser(
+        "verify",
+        help="verify repository evidence and published release assets",
+    )
+    contract_verify.add_argument("--manifest", type=Path)
+    contract_verify.add_argument(
+        "--root",
+        type=Path,
+        default=Path("."),
+        help="repository root containing the referenced evidence (default: current directory)",
+    )
+    contract_verify.add_argument(
+        "--release-assets",
+        action="append",
+        default=[],
+        metavar="TAG=DIR",
+        help="verify one release from an existing asset directory instead of downloading it",
+    )
+    contract_verify.add_argument(
+        "--offline",
+        action="store_true",
+        help="verify repository evidence and pin release identities without downloading assets",
+    )
+    contract_verify.add_argument("--output", type=Path)
     return parser
 
 
@@ -1313,6 +1346,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command_name == "release":
             return _execute_release(args)
 
+        if args.command_name == "contract":
+            return _execute_regression_contract(args)
+
         raise AssertionError(f"unhandled command: {args.command_name}")
     except ParityMismatch as exc:
         print(str(exc), file=sys.stderr)
@@ -1479,6 +1515,33 @@ def _execute_release(args: argparse.Namespace) -> int:
         f"{args.output_dir / 'full-x7-release.json'}"
     )
     return 0 if report["release_certified"] else 1
+
+
+def _execute_regression_contract(args: argparse.Namespace) -> int:
+    from .regression_contract import (
+        parse_release_asset_roots,
+        verify_regression_contract,
+    )
+
+    if args.contract_command != "verify":
+        raise AssertionError(f"unhandled contract command: {args.contract_command}")
+    report = verify_regression_contract(
+        args.manifest,
+        repository_root=args.root,
+        release_asset_roots=parse_release_asset_roots(args.release_assets),
+        fetch_release_assets=not args.offline,
+    )
+    if args.output:
+        write_json(args.output, report)
+    checks = report["checks"]
+    print(
+        "regression contract valid: "
+        f"version={report['contract_version']}, "
+        f"files={checks['repository_files']}, "
+        f"fixtures={checks['full_state_fixtures']}, "
+        f"release={checks['release_mode']}"
+    )
+    return 0
 
 
 def _execute_platform(args: argparse.Namespace) -> int:

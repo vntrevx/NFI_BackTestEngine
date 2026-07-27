@@ -99,6 +99,36 @@ confirmation lane.
 Unknown tags, unsupported mixed tags, new dynamic leverage/protection programs, or
 unsupported callbacks must still produce `blocked_unsupported_semantics`.
 
+## Versioned regression contract
+
+The v1.1 contract is a read-only manifest bundled with the package. It pins the public
+command tree and exit-code meanings, stable fail-closed diagnostics, representative
+documents and schemas, bounded Spot/Futures surfaces, nine Futures full-state
+projections, resume and mutation scenarios, result artifacts, both release
+certificates, and every v1.0.0/v1.1.0 release asset.
+
+From a source checkout, run:
+
+```bash
+uv run nfi-bte contract verify
+```
+
+The default command verifies repository evidence and downloads the public release
+assets to hash their bytes without retaining or rewriting them. For a disconnected
+repository audit, use `--offline`; this still verifies all local evidence and reports
+the release records as `identity-pinned`. Existing downloaded assets can be supplied
+without network access:
+
+```bash
+uv run nfi-bte contract verify \
+  --release-assets v1.0.0=/path/to/v1.0.0 \
+  --release-assets v1.1.0=/path/to/v1.1.0
+```
+
+An intentional public contract change requires a new contract version. Golden hashes
+are consumed only by this verifier and tests; simulation and strategy routing never
+read them.
+
 ## Required checks
 
 Before tagging:

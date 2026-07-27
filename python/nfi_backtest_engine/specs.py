@@ -21,6 +21,7 @@ CERTIFICATION_REPORT_SCHEMA = "certification-report-v1.schema.json"
 FULL_X7_CERTIFICATION_SCHEMA = "full-x7-certification-v1.schema.json"
 FULL_X7_CERTIFICATION_V2_SCHEMA = "full-x7-certification-v2.schema.json"
 FULL_X7_COMBINED_RELEASE_SCHEMA = "full-x7-combined-release-v1.schema.json"
+REGRESSION_CONTRACT_SCHEMA = "regression-contract-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -44,7 +45,7 @@ _SUMMARY_DECIMAL_FIELDS = (
 )
 
 
-@lru_cache(maxsize=6)
+@lru_cache(maxsize=10)
 def _validator(schema_name: str) -> Draft202012Validator:
     schema_resource = files("nfi_backtest_engine.schemas").joinpath(schema_name)
     schema = __import__("json").loads(schema_resource.read_text(encoding="utf-8"))
@@ -152,6 +153,11 @@ def validate_fixture_manifest(document: Any) -> None:
                 "$.strategy_provenance.effective_source_sha256: "
                 "must match the sealed strategy input"
             )
+
+
+def validate_regression_contract(document: Any) -> None:
+    """Validate the immutable regression manifest before touching referenced files."""
+    validate_schema(document, REGRESSION_CONTRACT_SCHEMA)
 
 
 def _check_decimal_fields(record: dict[str, Any], field_names: Iterable[str], path: str) -> None:
