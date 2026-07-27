@@ -110,8 +110,8 @@ limitations are in
 [`benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json`](../benchmarks/evidence/x7-10pair-futures-2022h1-parity-2026-07-27.json).
 
 The representative v17.4.435 Futures certificate covers 80 pairs and five years.
-Pinned Freqtrade completed once in 6,430.90 seconds. Three deterministic native
-preserved-vector runs completed in a 584.63-second median, producing an 11.000x
+Pinned Freqtrade completed once in 6,430.90 seconds. Three deterministic final-wheel
+preserved-vector runs completed in a 529.38-second median, producing a 12.148x
 observed speedup and the same normalized surface SHA-256
 `99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
 One cold seed proves the complete strategy-to-vector pipeline, while nine official

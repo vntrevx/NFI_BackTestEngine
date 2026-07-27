@@ -32,11 +32,11 @@ The v1.1.0 Futures certificate uses X7 v17.4.435 at upstream commit
 | --- | ---: |
 | Scope | 80 Futures pairs · 5 timeframes · `20210726-20260726` |
 | Official Freqtrade 2026.5.1 | 1 h 47 m 11 s · one continuous run |
-| NFI Backtest Engine | 9 m 44.6 s median · 3 measured reuse runs |
-| Cold native seed | 14 m 34.2 s |
-| Observed speedup | **11.000×** |
-| Time reduction | **90.909%** |
-| Native peak RSS | 20.29 GiB cold · 777 MiB reuse |
+| NFI Backtest Engine | 8 m 49.4 s median · 3 measured reuse runs |
+| Cold native seed | 13 m 27.0 s |
+| Observed speedup | **12.148×** |
+| Time reduction | **91.768%** |
+| Native peak RSS | 23.74 GiB cold · 886 MiB reuse |
 | Exact surface | 174 trades · 795 orders · zero tolerance |
 | Direction and funding | 75 long · 99 short · 116 funded trades |
 | Branch-reaching proof | 9/9 full-state fixtures passed |

@@ -43,14 +43,14 @@ wide differential regression but is no longer the release performance boundary.
 
 The continuous Futures proof covers 80 listing-aware Binance USDT-M pairs,
 `20210726-20260726`, all five required timeframes, funding-rate data, and mark data.
-Pinned Freqtrade 2026.5.1 completed once in 6,430.90 seconds. Three fresh native
+Pinned Freqtrade 2026.5.1 completed once in 6,430.90 seconds. Three fresh final-wheel
 processes using the content-addressed vectors produced the identical 174-trade,
-795-order surface in a 584.63-second median, an observed 11.000x speedup. The cold
-strategy-to-vector seed completed in 874.22 seconds. All native, official, and probe
+795-order surface in a 529.38-second median, an observed 12.148x speedup. The cold
+strategy-to-vector seed completed in 807.01 seconds. All native, official, and probe
 surfaces share SHA-256
 `99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
-The cold process-tree peak was 21,790,826,496 bytes; the measured reuse peak was
-814,669,824 bytes.
+The cold process-tree peak was 25,485,381,632 bytes; the measured reuse peak was
+929,001,472 bytes.
 
 The continuous representative proof covers 80 configured spot pairs,
 `20210101-20260101`, and all five required timeframes. Pinned Freqtrade 2026.5.1

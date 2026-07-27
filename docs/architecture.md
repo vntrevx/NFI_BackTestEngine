@@ -292,7 +292,8 @@ The representative v17.4.435 isolated-Futures certificate covers 80 pairs over
 `20210726-20260726`. One continuous Freqtrade 2026.5.1 oracle and three native
 preserved-vector processes produce the same 174-trade surface SHA-256
 `99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5`.
-The official process took 6,430.90 seconds; the native median was 584.63 seconds.
+The official process took 6,430.90 seconds; the final installed-wheel native median
+was 529.38 seconds.
 One separate cold seed binds raw inputs, source compilation, vectors, and simulation,
 while nine compact official probes provide every-candle full-state coverage for the
 release-critical Futures branches.
