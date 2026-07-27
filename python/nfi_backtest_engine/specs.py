@@ -23,6 +23,7 @@ FULL_X7_CERTIFICATION_V2_SCHEMA = "full-x7-certification-v2.schema.json"
 FULL_X7_COMBINED_RELEASE_SCHEMA = "full-x7-combined-release-v1.schema.json"
 REGRESSION_CONTRACT_SCHEMA = "regression-contract-v1.schema.json"
 VERIFICATION_LEDGER_RECORD_SCHEMA = "verification-ledger-record-v1.schema.json"
+CLEAN_AUDIT_SCHEMA = "clean-audit-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -164,6 +165,11 @@ def validate_regression_contract(document: Any) -> None:
 def validate_verification_ledger_record(document: Any) -> None:
     """Validate one append-only verification event."""
     validate_schema(document, VERIFICATION_LEDGER_RECORD_SCHEMA)
+
+
+def validate_clean_audit(document: Any) -> None:
+    """Validate the evidence-aware clean dry-run report."""
+    validate_schema(document, CLEAN_AUDIT_SCHEMA)
 
 
 def _check_decimal_fields(record: dict[str, Any], field_names: Iterable[str], path: str) -> None:

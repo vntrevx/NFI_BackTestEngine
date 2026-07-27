@@ -367,6 +367,41 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--profile", type=Path)
     doctor.add_argument("--output", "-o", type=Path)
 
+    clean = subcommands.add_parser(
+        "clean",
+        help="classify managed .nfi disk use without deleting files",
+    )
+    clean.add_argument(
+        "--dry-run",
+        action="store_true",
+        required=True,
+        help="required safety mode; no deletion implementation exists",
+    )
+    clean.add_argument(
+        "--root",
+        type=Path,
+        default=Path(".nfi"),
+        help="managed directory named .nfi (default: .nfi)",
+    )
+    clean.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        help="audit JSON path inside --root (default: ROOT/clean-audit.json)",
+    )
+    clean.add_argument(
+        "--preserve",
+        action="append",
+        type=Path,
+        default=[],
+        help="entry inside --root to protect explicitly; may be repeated",
+    )
+    clean.add_argument(
+        "--no-runtime-probes",
+        action="store_true",
+        help="skip user-service and managed-Docker probes; PID and lock checks still run",
+    )
+
     init = subcommands.add_parser(
         "init",
         help="create a reusable NFI project with a small setup wizard",
@@ -1014,6 +1049,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 + ", ".join(f"{check['name']}={check['status']}" for check in report["checks"])
             )
             return 0 if report["healthy"] else 1
+
+        if args.command_name == "clean":
+            from .clean import create_clean_audit, format_clean_audit
+
+            audit = create_clean_audit(
+                args.root,
+                output_path=args.output,
+                preserve=args.preserve,
+                inspect_runtime=not args.no_runtime_probes,
+            )
+            print(format_clean_audit(audit))
+            return 0
 
         if args.command_name == "init":
             from .project_setup import initialize_project

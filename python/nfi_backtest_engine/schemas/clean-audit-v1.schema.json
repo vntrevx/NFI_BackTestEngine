@@ -1,0 +1,484 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/clean-audit-v1.schema.json",
+  "title": "NFI Backtest Engine clean dry-run audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "mode",
+    "root",
+    "audit_path",
+    "activity",
+    "summary",
+    "safety",
+    "categories",
+    "entries",
+    "issues"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mode": {
+      "const": "dry-run"
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "device",
+        "inode"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "device": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inode": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "audit_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pid_files",
+        "locks",
+        "services",
+        "containers"
+      ],
+      "properties": {
+        "pid_files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pid"
+          }
+        },
+        "locks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lock"
+          }
+        },
+        "services": {
+          "$ref": "#/$defs/runtime_probe"
+        },
+        "containers": {
+          "$ref": "#/$defs/runtime_probe"
+        }
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/totals"
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deletion_performed",
+        "active_pid_count",
+        "active_lock_count",
+        "active_service_count",
+        "active_container_count",
+        "fail_closed"
+      ],
+      "properties": {
+        "deletion_performed": {
+          "const": false
+        },
+        "active_pid_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_lock_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_service_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_container_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fail_closed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "$ref": "#/$defs/category"
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    }
+  },
+  "$defs": {
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "pid",
+        "status"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "stale",
+            "invalid"
+          ]
+        }
+      }
+    },
+    "lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "status"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "active",
+            "stale",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "runtime_probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "active",
+        "detail"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "unavailable",
+            "not_requested"
+          ]
+        },
+        "active": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "identity"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "service",
+                  "container"
+                ]
+              },
+              "identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "detail": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit_count",
+        "file_count",
+        "logical_bytes",
+        "allocated_bytes",
+        "reclaimable_logical_bytes",
+        "reclaimable_allocated_bytes",
+        "protected_logical_bytes",
+        "protected_allocated_bytes"
+      ],
+      "properties": {
+        "unit_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "reclaimable_logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "reclaimable_allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "protected_logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "protected_allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        }
+      }
+    },
+    "category_name": {
+      "enum": [
+        "active_run_checkpoint",
+        "release_certificate_bundle",
+        "official_oracle_freqtrade_zip",
+        "user_preserved_run",
+        "regenerable_vector_cache",
+        "interrupted_failed_run",
+        "temporary_arrow_docker_spool",
+        "old_build_calibration",
+        "unclassified_protected"
+      ]
+    },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "unit_count",
+        "file_count",
+        "logical_bytes",
+        "allocated_bytes",
+        "reclaimable_logical_bytes",
+        "reclaimable_allocated_bytes"
+      ],
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/category_name"
+        },
+        "unit_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "reclaimable_logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "reclaimable_allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "category",
+        "deletable",
+        "protection_reason",
+        "file_count",
+        "logical_bytes",
+        "allocated_bytes",
+        "reclaimable_logical_bytes",
+        "reclaimable_allocated_bytes",
+        "identity_complete",
+        "evidence_identity",
+        "active_pids",
+        "active_locks",
+        "internal_symlinks",
+        "special_files"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "$ref": "#/$defs/category_name"
+        },
+        "deletable": {
+          "type": "boolean"
+        },
+        "protection_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "reclaimable_logical_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "reclaimable_allocated_bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "identity_complete": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "evidence_identity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identity"
+          }
+        },
+        "active_pids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pid"
+          }
+        },
+        "active_locks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lock"
+          }
+        },
+        "internal_symlinks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "special_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

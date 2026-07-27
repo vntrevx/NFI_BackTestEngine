@@ -144,6 +144,22 @@ def test_contract_schema_rejects_unknown_fields() -> None:
         validate_regression_contract(changed)
 
 
+def test_contract_allows_additive_commands_but_rejects_a_missing_frozen_command(
+    tmp_path: Path,
+) -> None:
+    manifest, _ = load_regression_contract()
+    assert "clean" not in manifest["cli"]["command_paths"]
+    assert verify_regression_contract(repository_root=ROOT)["complete"] is True
+
+    changed = deepcopy(manifest)
+    changed["cli"]["command_paths"].append("removed frozen command")
+    contract_path = tmp_path / "contract.json"
+    write_json(contract_path, changed)
+
+    with pytest.raises(SpecValidationError, match="frozen public commands are missing"):
+        verify_regression_contract(contract_path, repository_root=ROOT)
+
+
 def test_release_asset_root_parser_is_explicit_and_unique() -> None:
     assert parse_release_asset_roots(["v1.0.0=one", "v1.1.0=two"]) == {
         "v1.0.0": Path("one"),

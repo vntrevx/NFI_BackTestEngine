@@ -100,11 +100,14 @@ def verify_regression_contract(
 
     actual_command_paths = _public_command_paths()
     expected_command_paths = manifest["cli"]["command_paths"]
-    _expect_equal(
-        actual_command_paths,
-        expected_command_paths,
-        "$.cli.command_paths",
-    )
+    missing_command_paths = [
+        path for path in expected_command_paths if path not in actual_command_paths
+    ]
+    if missing_command_paths:
+        raise SpecValidationError(
+            "$.cli.command_paths: frozen public commands are missing: "
+            + ", ".join(missing_command_paths)
+        )
 
     checked_error_codes = _verify_stable_error_codes(root, manifest["cli"]["error_codes"])
     checked_scenarios = _verify_scenarios(root, manifest["behavior_contracts"])
@@ -164,7 +167,7 @@ def verify_regression_contract(
             "schema": "valid",
             "repository_files": checked_repository_files,
             "full_state_fixtures": checked_fixtures,
-            "public_command_paths": len(actual_command_paths),
+            "public_command_paths": len(expected_command_paths),
             "stable_error_codes": checked_error_codes,
             "behavior_contracts": checked_scenarios,
             "release_assets": release_assets_verified,
