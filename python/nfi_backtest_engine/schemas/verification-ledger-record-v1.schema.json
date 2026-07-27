@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/verification-ledger-record-v1.schema.json",
+  "title": "NFI Backtest Engine verification ledger record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "recorded_at",
+    "subject",
+    "state",
+    "outcome",
+    "fingerprint",
+    "fingerprint_sha256",
+    "evidence",
+    "failure"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "event_id": {
+      "$ref": "#/$defs/sha256"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "strategy_revision",
+            "run"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "latest_checked",
+        "prepared",
+        "native_complete",
+        "quick_verified",
+        "release_certified",
+        "blocked_unsupported_semantics",
+        "failed"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "success",
+        "failure"
+      ]
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/fingerprint"
+    },
+    "fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "failure": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/failure"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha1_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sha256_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "string_or_null": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstream_repository",
+        "upstream_commit",
+        "strategy_version",
+        "strategy_source_sha256",
+        "strategy_ir_sha256",
+        "hot_callback_ir_sha256",
+        "config_sha256",
+        "pairlist_sha256",
+        "data_seal_sha256",
+        "market_snapshot_sha256",
+        "timerange",
+        "mode_contract",
+        "reference_version",
+        "reference_image_index_digest",
+        "reference_image_platform_digest",
+        "reference_platform",
+        "package_sha256",
+        "wheel_sha256",
+        "native_binary_sha256"
+      ],
+      "properties": {
+        "upstream_repository": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "upstream_commit": {
+          "$ref": "#/$defs/sha1_or_null"
+        },
+        "strategy_version": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "strategy_source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "strategy_ir_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "hot_callback_ir_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "config_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "pairlist_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "data_seal_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "market_snapshot_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "timerange": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "mode_contract": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "reference_version": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "reference_image_index_digest": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "reference_image_platform_digest": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "reference_platform": {
+          "$ref": "#/$defs/string_or_null"
+        },
+        "package_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "wheel_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "native_binary_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "location",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

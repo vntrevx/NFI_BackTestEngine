@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from functools import lru_cache
+from functools import cache
 from importlib.resources import files
 from typing import Any
 
@@ -22,6 +22,7 @@ FULL_X7_CERTIFICATION_SCHEMA = "full-x7-certification-v1.schema.json"
 FULL_X7_CERTIFICATION_V2_SCHEMA = "full-x7-certification-v2.schema.json"
 FULL_X7_COMBINED_RELEASE_SCHEMA = "full-x7-combined-release-v1.schema.json"
 REGRESSION_CONTRACT_SCHEMA = "regression-contract-v1.schema.json"
+VERIFICATION_LEDGER_RECORD_SCHEMA = "verification-ledger-record-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -45,7 +46,7 @@ _SUMMARY_DECIMAL_FIELDS = (
 )
 
 
-@lru_cache(maxsize=10)
+@cache
 def _validator(schema_name: str) -> Draft202012Validator:
     schema_resource = files("nfi_backtest_engine.schemas").joinpath(schema_name)
     schema = __import__("json").loads(schema_resource.read_text(encoding="utf-8"))
@@ -158,6 +159,11 @@ def validate_fixture_manifest(document: Any) -> None:
 def validate_regression_contract(document: Any) -> None:
     """Validate the immutable regression manifest before touching referenced files."""
     validate_schema(document, REGRESSION_CONTRACT_SCHEMA)
+
+
+def validate_verification_ledger_record(document: Any) -> None:
+    """Validate one append-only verification event."""
+    validate_schema(document, VERIFICATION_LEDGER_RECORD_SCHEMA)
 
 
 def _check_decimal_fields(record: dict[str, Any], field_names: Iterable[str], path: str) -> None:

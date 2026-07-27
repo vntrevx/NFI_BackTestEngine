@@ -533,6 +533,23 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_check.add_argument("--config", type=Path)
     strategy_check.add_argument("--trading-mode", choices=("spot", "futures", "margin"))
     strategy_check.add_argument("--output", "-o", type=Path)
+    strategy_check.add_argument(
+        "--verification-ledger",
+        type=Path,
+        help="append the compatibility result to this verification ledger",
+    )
+    strategy_check.add_argument(
+        "--upstream-repository",
+        help="upstream repository identity recorded with the checked source",
+    )
+    strategy_check.add_argument(
+        "--upstream-commit",
+        help="40-character upstream commit recorded with the checked source",
+    )
+    strategy_check.add_argument(
+        "--strategy-version",
+        help="upstream strategy version recorded with the checked source",
+    )
     strategy_prepare = strategy_commands.add_parser(
         "prepare", help="create a hash-bound, static-safe strategy bundle"
     )
@@ -639,6 +656,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="optional confirmation.json or official reference run.json",
     )
+    report.add_argument(
+        "--verification-ledger",
+        type=Path,
+        help="append a derived verification-status.html from an existing ledger",
+    )
     _add_full_report_argument(report)
 
     runs = subcommands.add_parser("runs", help="inspect the durable research-run index")
@@ -650,6 +672,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="emit the machine-readable registry records",
+    )
+    runs_list.add_argument(
+        "--verification-ledger",
+        type=Path,
+        help="include latest checked, quick, and release verification states",
     )
     runs_show = runs_commands.add_parser("show", help="show one run and its report")
     runs_show.add_argument("run_id")
@@ -1173,6 +1200,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0 if analysis["static_safe"] else 1
             if args.strategy_command == "check":
                 from .strategy_compatibility import check_strategy_compatibility
+                from .verification_ledger import (
+                    VerificationLedger,
+                    record_strategy_compatibility,
+                )
 
                 report = check_strategy_compatibility(
                     args.source,
@@ -1191,6 +1222,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                     print(
                         f"blocked: {blocker['code']} - {blocker['message']}",
                         file=sys.stderr,
+                    )
+                if args.verification_ledger is not None:
+                    with VerificationLedger(args.verification_ledger) as ledger:
+                        sequence = record_strategy_compatibility(
+                            ledger,
+                            report,
+                            upstream_repository=args.upstream_repository,
+                            upstream_commit=args.upstream_commit,
+                            strategy_version=args.strategy_version,
+                            report_path=args.output,
+                        )
+                    print(
+                        "verification ledger: "
+                        f"sequence={sequence}, state=latest_checked, "
+                        f"outcome={'success' if report['native_compatible'] else 'failure'}"
                     )
                 return 0 if report["native_compatible"] else 1
             if args.strategy_command == "prepare":
@@ -1745,6 +1791,11 @@ def _execute_confirmation(args: argparse.Namespace) -> int:
 
 def _execute_result_report(args: argparse.Namespace) -> int:
     from .result_report import format_terminal_summary, write_result_presentation
+    from .verification_ledger import (
+        VerificationLedger,
+        format_verification_projection,
+        write_verification_projection,
+    )
 
     verification = read_json(args.confirmation) if args.confirmation else None
     if verification is not None and not isinstance(verification, dict):
@@ -1761,21 +1812,43 @@ def _execute_result_report(args: argparse.Namespace) -> int:
             include_breakdowns=args.full_report,
         )
     )
+    if args.verification_ledger is not None:
+        with VerificationLedger(args.verification_ledger, create=False) as ledger:
+            projection = ledger.project()
+        output = Path(args.run_directory).resolve() / "verification-status.html"
+        write_verification_projection(projection, html_path=output)
+        print(format_verification_projection(projection))
+        print(f"Verification status  {output}")
     return 0
 
 
 def _execute_run_registry(args: argparse.Namespace) -> int:
     from .result_report import format_run_list, format_run_record
     from .run_registry import RunRegistry
+    from .verification_ledger import (
+        VerificationLedger,
+        format_verification_projection,
+    )
 
     with RunRegistry(args.registry) as registry:
         if args.runs_command == "list":
             records = registry.list(limit=args.limit)
-            print(
-                json.dumps(records, ensure_ascii=False, indent=2)
-                if args.json
-                else format_run_list(records)
-            )
+            projection = None
+            if args.verification_ledger is not None:
+                with VerificationLedger(args.verification_ledger, create=False) as ledger:
+                    projection = ledger.project()
+            if args.json:
+                payload: Any = (
+                    {"runs": records, "verification": projection}
+                    if projection is not None
+                    else records
+                )
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+            else:
+                print(format_run_list(records))
+                if projection is not None:
+                    print()
+                    print(format_verification_projection(projection))
         else:
             record = registry.show(args.run_id)
             print(
