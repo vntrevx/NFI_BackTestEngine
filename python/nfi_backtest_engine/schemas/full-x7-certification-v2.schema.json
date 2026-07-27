@@ -152,6 +152,7 @@
       ],
       "properties": {
         "native_warmups_excluded": {"const": 1},
+        "native_lane": {"const": "preserved-vector-reuse"},
         "native_initial_repetitions": {
           "type": "integer",
           "minimum": 3,
@@ -165,6 +166,17 @@
         "native_maximum_repetitions": {"const": 5},
         "native_spread_threshold": {"const": 0.05},
         "engine_relative_spread": {"type": "number", "minimum": 0},
+        "cold_seed_repetitions": {"const": 1},
+        "preserved_vector_cache": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "bytes", "sha256"],
+          "properties": {
+            "path": {"const": "preserved-vector-cache.json"},
+            "bytes": {"type": "integer", "minimum": 1},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
         "official_reference_repetitions": {"const": 1},
         "official_reference_role": {
           "const": "single-continuous-exact-parity-oracle"
@@ -187,8 +199,10 @@
           "maxItems": 5,
           "items": {"type": "object"}
         },
+        "cold_seed": {"type": "object"},
         "official_reference": {"type": "object"},
         "engine_summary": {"type": "object"},
+        "cold_seed_summary": {"type": "object"},
         "official_reference_summary": {"type": "object"}
       }
     },

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import statistics
 import zipfile
 from datetime import UTC, datetime
@@ -11,6 +12,7 @@ from typing import Any
 
 from . import __version__
 from .branch_coverage import validate_fixture_coverage
+from .cache import cache_key
 from .canonical import read_json, write_json
 from .config_loader import config_sha256, load_effective_config
 from .data_seal import validate_data_seal
@@ -68,6 +70,7 @@ from .research_reference import (
 from .result_report import write_result_presentation
 from .specs import FULL_X7_CERTIFICATION_V2_SCHEMA, validate_schema
 from .timerange import parse_timerange_milliseconds
+from .vector_runtime import VECTOR_PIPELINE_VERSION
 
 FULL_X7_CERTIFICATION_VERSION = "2.0.0"
 
@@ -91,12 +94,13 @@ def run_full_x7_certification(
     official_oracle_directory: str | Path | None = None,
     resume: bool = False,
 ) -> dict[str, Any]:
-    """Run one continuous official oracle and repeat only the native candidate.
+    """Certify one cold seed, one official oracle, and repeated vector reuse.
 
-    The official five-year run proves exactness. Repeating that memory-heavy
-    oracle does not improve the native timing distribution, so release timing
-    repeats apply only to fresh candidate-wheel executions. Small full-state
-    probes still execute both lanes once.
+    The cold seed proves the complete strategy-to-vector pipeline and publishes
+    a content-addressed cache. Candidate timing repeats start fresh processes
+    and simulations while reusing only those hash-verified vectors. Repeating
+    the memory-heavy five-year Oracle adds no accuracy evidence, so it runs once;
+    small full-state probes still execute both lanes once.
     """
     if repetitions < MIN_CERTIFICATION_REPETITIONS:
         raise BenchmarkError(
@@ -136,7 +140,6 @@ def run_full_x7_certification(
             validator=lambda measurement: _engine_complete(
                 measurement,
                 inputs["lock"],
-                require_cold=False,
             ),
             allow_report_fallback=True,
             allow_incomplete=True,
@@ -207,6 +210,11 @@ def run_full_x7_certification(
             "inspect warmups/reference/run.json"
         )
 
+    preserved_cache = _seal_preserved_vector_cache(
+        baseline,
+        pairs=inputs["lock"]["pairlist"]["pairs"],
+        destination=output / "preserved-vector-cache.json",
+    )
     engine_runs: list[dict[str, Any]] = []
     target_repetitions = repetitions
     while len(engine_runs) < target_repetitions:
@@ -215,25 +223,30 @@ def run_full_x7_certification(
         measured = (
             load_engine_measurement(
                 run_output,
-                validator=lambda measurement: _engine_complete(
+                validator=lambda measurement: _engine_reuse_complete(
                     measurement,
                     inputs["lock"],
                 ),
                 allow_report_fallback=False,
+                allow_incomplete=True,
             )
             if resume
             else None
         )
         if measured is None:
-            require_stage_available(
-                run_output,
-                stage=f"native measurement {run_number}",
-            )
+            if not resume:
+                require_stage_available(
+                    run_output,
+                    stage=f"native measurement {run_number}",
+                )
             measured = _measure_engine(
                 inputs,
                 run_output,
                 profile_path=Path(execution_profile_path).resolve(),
                 timeout_seconds=timeout_seconds,
+                resume=resume,
+                vector_cache=preserved_cache["root"],
+                recalibrate=False,
             )
         engine_runs.append(measured)
         if (
@@ -251,6 +264,7 @@ def run_full_x7_certification(
         resume=resume,
     )
     engine_summary = _run_summary(engine_runs, lane="engine")
+    cold_summary = _run_summary([baseline], lane="engine")
     reference_summary = _run_summary([reference_warmup], lane="reference")
     speedup = (
         reference_summary["wall_time_seconds"]["median"]
@@ -262,10 +276,17 @@ def run_full_x7_certification(
         engine_runs,
         [reference_warmup],
     )
-    engine_complete = all(_engine_complete(run, inputs["lock"]) for run in engine_runs)
+    cold_complete = _engine_complete(baseline, inputs["lock"])
+    engine_complete = all(
+        _engine_reuse_complete(run, inputs["lock"]) for run in engine_runs
+    )
     reference_complete = _reference_complete(reference_warmup)
     profile_memory = current_resource_limits(profile)["working_memory_bytes"]
-    memory_met = engine_summary["peak_rss_bytes"]["maximum"] <= profile_memory
+    observed_peak = max(
+        cold_summary["peak_rss_bytes"]["maximum"],
+        engine_summary["peak_rss_bytes"]["maximum"],
+    )
+    memory_met = observed_peak <= profile_memory
     probe_met = all(
         item["complete"]
         and item["trade_surface_equal"]
@@ -280,11 +301,13 @@ def run_full_x7_certification(
             **{key: value for key, value in wheel.items() if key != "path"},
         },
         "native_pipeline": {
-            "met": engine_complete,
+            "met": cold_complete and engine_complete,
+            "cold_seed_met": cold_complete,
+            "preserved_vector_reuse_met": engine_complete,
             "rule": (
-                "every measured run is cold, complete, "
+                "one cold seed and every measured preserved-vector reuse run are complete, "
                 f"{release_history_coverage_policy(inputs['lock'])}, "
-                "and callback-blocker free"
+                "callback-blocker free, and fully content-addressed"
             ),
         },
         "official_parity": {
@@ -296,11 +319,18 @@ def run_full_x7_certification(
             "met": speedup >= TARGET_SCREENING_SPEEDUP,
             "target_speedup": TARGET_SCREENING_SPEEDUP,
             "observed_speedup": speedup,
+            "lane": "preserved-vector-reuse",
+            "cold_seed_speedup": (
+                reference_summary["wall_time_seconds"]["median"]
+                / cold_summary["wall_time_seconds"]["median"]
+            ),
         },
         "memory": {
             "met": memory_met,
             "limit_bytes": profile_memory,
-            "observed_peak_bytes": engine_summary["peak_rss_bytes"]["maximum"],
+            "observed_peak_bytes": observed_peak,
+            "cold_seed_peak_bytes": cold_summary["peak_rss_bytes"]["maximum"],
+            "reuse_peak_bytes": engine_summary["peak_rss_bytes"]["maximum"],
         },
         "state_probes": {
             "met": probe_met,
@@ -343,19 +373,24 @@ def run_full_x7_certification(
         },
         "measurement": {
             "native_warmups_excluded": 1,
+            "native_lane": "preserved-vector-reuse",
             "native_initial_repetitions": repetitions,
             "native_measured_repetitions": len(engine_runs),
             "native_maximum_repetitions": MAX_CERTIFICATION_REPETITIONS,
             "native_spread_threshold": CERTIFICATION_SPREAD_THRESHOLD,
             "engine_relative_spread": _relative_spread(engine_runs),
+            "cold_seed_repetitions": 1,
+            "preserved_vector_cache": preserved_cache["record"],
             "official_reference_repetitions": 1,
             "official_reference_role": "single-continuous-exact-parity-oracle",
             "resumed": resume,
         },
         "runs": {
             "engine": [_public_run_record(run, root=output) for run in engine_runs],
+            "cold_seed": _public_run_record(baseline, root=output),
             "official_reference": _public_run_record(reference_warmup, root=output),
             "engine_summary": engine_summary,
+            "cold_seed_summary": cold_summary,
             "official_reference_summary": reference_summary,
         },
         "state_probes": probe_reports,
@@ -369,7 +404,7 @@ def run_full_x7_certification(
         evidence_id=inputs["lock"]["identity_sha256"],
         release_certified=release_certified,
         archive_name="full-x7-certification-bundle.zip",
-        include_paths=[report_path],
+        include_paths=[report_path, preserved_cache["manifest"]],
     )
     result = {**report, "bundle": bundle}
     write_json(output / "full-x7-result.json", result)
@@ -379,8 +414,10 @@ def run_full_x7_certification(
 def verify_installed_wheel(
     wheel_path: str | Path,
     build: dict[str, Any],
+    *,
+    package_root: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Bind the imported native extension to the exact candidate wheel bytes."""
+    """Bind every installed package member to the exact candidate wheel bytes."""
     wheel = Path(wheel_path).resolve()
     if not wheel.is_file() or wheel.suffix != ".whl":
         raise BenchmarkError(f"release wheel does not exist: {wheel}")
@@ -388,9 +425,16 @@ def verify_installed_wheel(
         raise BenchmarkError("Full X7 certification must run an installed native wheel")
     suffixes = (".pyd", ".so", ".dylib")
     with zipfile.ZipFile(wheel) as archive:
-        candidates = sorted(
+        package_members = sorted(
             name
             for name in archive.namelist()
+            if name.startswith("nfi_backtest_engine/") and not name.endswith("/")
+        )
+        if not package_members:
+            raise BenchmarkError("release wheel has no nfi_backtest_engine package files")
+        candidates = sorted(
+            name
+            for name in package_members
             if name.startswith("nfi_backtest_engine/_rust") and name.endswith(suffixes)
         )
         if len(candidates) != 1:
@@ -398,10 +442,33 @@ def verify_installed_wheel(
                 f"release wheel must contain exactly one native extension; found {len(candidates)}"
             )
         member_sha = hashlib.sha256(archive.read(candidates[0])).hexdigest()
+        installed_root = (
+            Path(package_root).resolve()
+            if package_root is not None
+            else Path(__file__).resolve().parent
+        )
+        member_records: list[tuple[str, str]] = []
+        for name in package_members:
+            relative = Path(name).relative_to("nfi_backtest_engine")
+            installed = installed_root / relative
+            wheel_sha = hashlib.sha256(archive.read(name)).hexdigest()
+            if not installed.is_file() or sha256_file(installed) != wheel_sha:
+                raise BenchmarkError(
+                    f"installed package file does not match the candidate wheel: {relative}"
+                )
+            member_records.append((name, wheel_sha))
     installed_sha = build.get("binary_sha256")
     equal = member_sha == installed_sha
     if not equal:
         raise BenchmarkError("imported native extension does not match the candidate wheel")
+    package_identity = hashlib.sha256(
+        json.dumps(
+            member_records,
+            ensure_ascii=False,
+            sort_keys=False,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
     return {
         "path": str(wheel),
         "sha256": sha256_file(wheel),
@@ -410,6 +477,8 @@ def verify_installed_wheel(
         "native_member_sha256": member_sha,
         "installed_extension_sha256": installed_sha,
         "installed_extension_equal": equal,
+        "installed_package_files": len(member_records),
+        "installed_package_sha256": package_identity,
     }
 
 
@@ -724,9 +793,16 @@ def _measure_engine(
     profile_path: Path,
     timeout_seconds: int,
     resume: bool = False,
+    vector_cache: Path | None = None,
+    recalibrate: bool = True,
 ) -> dict[str, Any]:
     output.parent.mkdir(parents=True, exist_ok=True)
     pairs = inputs["lock"]["pairlist"]["pairs"]
+    cache_directory = (
+        vector_cache.resolve()
+        if vector_cache is not None
+        else (output / "cold-vector-cache").resolve()
+    )
     arguments = [
         "backtest",
         str(inputs["strategy_path"]),
@@ -740,9 +816,8 @@ def _measure_engine(
         inputs["lock"]["scope"]["timerange"],
         "--output-dir",
         str(output),
-        "--recalibrate",
         "--cache-dir",
-        str(output / "cold-vector-cache"),
+        str(cache_directory),
         "--markets",
         str(inputs["engine_market_snapshot"]),
         "--no-market-download",
@@ -754,6 +829,8 @@ def _measure_engine(
         "--history-coverage",
         release_data_history_coverage_policy(inputs["lock"]),
     ]
+    if recalibrate:
+        arguments.append("--recalibrate")
     for pair in pairs:
         arguments.extend(["--pair", pair])
     if resume:
@@ -873,7 +950,7 @@ def _require_complete_baseline(
     measurement: dict[str, Any],
     lock: dict[str, Any],
 ) -> None:
-    if not _engine_complete(measurement, lock, require_cold=False):
+    if not _engine_complete(measurement, lock):
         raise BenchmarkError(
             "Full X7 warmup/baseline did not complete its locked native history "
             "contract; "
@@ -901,6 +978,195 @@ def _engine_complete(
         and not report.get("capability", {}).get("blockers")
         and isinstance(measurement.get("result_sha256"), str)
     )
+
+
+def _engine_reuse_complete(
+    measurement: dict[str, Any],
+    lock: dict[str, Any],
+) -> bool:
+    """Require a fresh simulation over every content-addressed vector cache hit."""
+    if not _engine_complete(measurement, lock, require_cold=False):
+        return False
+    report = measurement["report"]
+    evidence = report.get("pipeline_evidence")
+    vectors = report.get("vectors")
+    pairs = lock["pairlist"]["pairs"]
+    outputs = vectors.get("outputs") if isinstance(vectors, dict) else None
+    if (
+        not isinstance(evidence, dict)
+        or evidence.get("cold") is not False
+        or evidence.get("vector_cache_hits") != len(pairs)
+        or any(
+            evidence.get(field) is not False
+            for field in (
+                "data_checkpoint_reused",
+                "vector_checkpoint_reused",
+                "manifest_checkpoint_reused",
+                "engine_checkpoint_reused",
+                "surface_checkpoint_reused",
+            )
+        )
+        or report.get("resumed_stages") != []
+        or not isinstance(vectors, dict)
+        or vectors.get("pair_count") != len(pairs)
+        or vectors.get("cache_hits") != len(pairs)
+        or not isinstance(outputs, list)
+        or [item.get("pair") for item in outputs if isinstance(item, dict)] != pairs
+    ):
+        return False
+    return all(
+        isinstance(item, dict)
+        and item.get("cache_hit") is True
+        and isinstance(item.get("cache_key"), str)
+        and isinstance(item.get("sha256"), str)
+        for item in outputs
+    )
+
+
+def _seal_preserved_vector_cache(
+    baseline: dict[str, Any],
+    *,
+    pairs: list[str],
+    destination: Path,
+) -> dict[str, Any]:
+    """Bind the reusable cache to the cold baseline's exact 80 vector artifacts."""
+    report = baseline.get("report")
+    output = baseline.get("output_directory")
+    vectors = report.get("vectors") if isinstance(report, dict) else None
+    records = vectors.get("outputs") if isinstance(vectors, dict) else None
+    if (
+        not isinstance(output, Path)
+        or not isinstance(records, list)
+        or [item.get("pair") for item in records if isinstance(item, dict)] != pairs
+    ):
+        raise BenchmarkError("cold seed has no complete ordered vector cache records")
+    cache_root = (output / "cold-vector-cache").resolve()
+    if not cache_root.is_dir():
+        raise BenchmarkError("cold seed vector cache does not exist")
+
+    entries: list[dict[str, Any]] = []
+    for pair, record in zip(pairs, records, strict=True):
+        if not isinstance(record, dict):
+            raise BenchmarkError(f"cold seed vector record is invalid: {pair}")
+        vector_key = record.get("cache_key")
+        vector_sha = record.get("sha256")
+        vector_bytes = record.get("bytes")
+        if (
+            not isinstance(vector_key, str)
+            or not vector_key.startswith("vectors-")
+            or not isinstance(vector_sha, str)
+            or not isinstance(vector_bytes, int)
+        ):
+            raise BenchmarkError(f"cold seed vector identity is invalid: {pair}")
+        _validate_preserved_cache_entry(
+            cache_root,
+            vector_key,
+            expected_bytes=vector_bytes,
+            expected_sha256=vector_sha,
+        )
+        record_key = cache_key(
+            "vector-records",
+            {
+                "vector_cache_key": vector_key,
+                "vector_pipeline_version": VECTOR_PIPELINE_VERSION,
+            },
+        )
+        record_payload = _validate_preserved_cache_entry(cache_root, record_key)
+        try:
+            cached_record = json.loads(record_payload.read_bytes())
+        except (OSError, ValueError) as exc:
+            raise BenchmarkError(f"cold seed cached vector metadata is invalid: {pair}") from exc
+        if not isinstance(cached_record, dict) or any(
+            cached_record.get(field) != record.get(field)
+            for field in (
+                "pair",
+                "base_timeframe",
+                "bytes",
+                "sha256",
+                "input_sha256",
+                "strategy_sha256",
+                "config_sha256",
+            )
+        ):
+            raise BenchmarkError(f"cold seed cached vector metadata differs: {pair}")
+        entries.append(
+            {
+                "pair": pair,
+                "vector_key": vector_key,
+                "vector_bytes": vector_bytes,
+                "vector_sha256": vector_sha,
+                "record_key": record_key,
+                "record_bytes": record_payload.stat().st_size,
+                "record_sha256": sha256_file(record_payload),
+            }
+        )
+
+    encoded_entries = json.dumps(
+        entries,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    manifest = {
+        "schema_version": "1.0.0",
+        "source_run_id": report.get("run_id"),
+        "vector_pipeline_version": vectors.get("pipeline_version"),
+        "strategy_sha256": vectors.get("strategy_sha256"),
+        "config_sha256": vectors.get("config_sha256"),
+        "pair_count": len(pairs),
+        "entries_sha256": hashlib.sha256(encoded_entries).hexdigest(),
+        "entries": entries,
+    }
+    if destination.is_file():
+        if read_json(destination) != manifest:
+            raise BenchmarkError("preserved vector cache seal differs from the cold seed")
+    else:
+        if destination.exists():
+            raise BenchmarkError("preserved vector cache seal path is not a file")
+        write_json(destination, manifest)
+    return {
+        "root": cache_root,
+        "manifest": destination,
+        "record": artifact_record(destination, relative_to=destination.parent),
+    }
+
+
+def _validate_preserved_cache_entry(
+    cache_root: Path,
+    key: str,
+    *,
+    expected_bytes: int | None = None,
+    expected_sha256: str | None = None,
+) -> Path:
+    entry = (cache_root / key).resolve()
+    if not entry.is_relative_to(cache_root):
+        raise BenchmarkError("preserved vector cache key escapes its root")
+    payload = entry / "payload"
+    metadata_path = entry / "metadata.json"
+    if not payload.is_file() or not metadata_path.is_file():
+        raise BenchmarkError(f"preserved vector cache entry is incomplete: {key}")
+    try:
+        metadata = read_json(metadata_path)
+    except (OSError, ValueError) as exc:
+        raise BenchmarkError(
+            f"preserved vector cache metadata is invalid: {key}"
+        ) from exc
+    if (
+        not isinstance(metadata, dict)
+        or metadata.get("key") != key
+        or metadata.get("bytes") != payload.stat().st_size
+        or metadata.get("sha256") != sha256_file(payload)
+    ):
+        raise BenchmarkError(f"preserved vector cache entry failed its metadata seal: {key}")
+    if (
+        expected_bytes is not None
+        and metadata["bytes"] != expected_bytes
+        or expected_sha256 is not None
+        and metadata["sha256"] != expected_sha256
+    ):
+        raise BenchmarkError(f"preserved vector cache entry differs from the cold seed: {key}")
+    return payload
 
 
 def _reference_complete(measurement: dict[str, Any]) -> bool:

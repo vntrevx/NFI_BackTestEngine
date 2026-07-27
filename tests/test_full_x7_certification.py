@@ -36,6 +36,10 @@ def test_candidate_wheel_must_contain_the_imported_native_extension(
 ) -> None:
     native = b"native-extension-bytes"
     wheel = tmp_path / "nfi_backtest_engine-1.0.0-test.whl"
+    package_root = tmp_path / "installed" / "nfi_backtest_engine"
+    package_root.mkdir(parents=True)
+    installed_native = package_root / "_rust.test.pyd"
+    installed_native.write_bytes(native)
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr("nfi_backtest_engine/_rust.test.pyd", native)
     native_sha = hashlib.sha256(native).hexdigest()
@@ -46,6 +50,7 @@ def test_candidate_wheel_must_contain_the_imported_native_extension(
             "kind": "pyo3-extension",
             "binary_sha256": native_sha,
         },
+        package_root=package_root,
     )
 
     assert record["installed_extension_equal"] is True
@@ -58,6 +63,18 @@ def test_candidate_wheel_must_contain_the_imported_native_extension(
                 "kind": "pyo3-extension",
                 "binary_sha256": "0" * 64,
             },
+            package_root=package_root,
+        )
+
+    installed_native.write_bytes(b"changed")
+    with pytest.raises(BenchmarkError, match="installed package file"):
+        verify_installed_wheel(
+            wheel,
+            {
+                "kind": "pyo3-extension",
+                "binary_sha256": native_sha,
+            },
+            package_root=package_root,
         )
 
 
@@ -68,6 +85,132 @@ def test_full_x7_determinism_includes_warmup_native_and_official_hashes() -> Non
 
     reference[1]["result_sha256"] = "b" * 64
     assert _determinism("a" * 64, engine, reference)["met"] is False
+
+
+def test_full_x7_reuse_lane_requires_every_content_addressed_cache_hit() -> None:
+    pairs = ["BTC/USDT:USDT", "ETH/USDT:USDT"]
+    lock = {
+        "pairlist": {"pairs": pairs},
+        "data": {"aggregate_sha256": "a" * 64, "coverage_shortfall_count": 0},
+    }
+    outputs = [
+        {
+            "pair": pair,
+            "cache_hit": True,
+            "cache_key": f"vectors-{index:064x}",
+            "sha256": f"{index + 1:064x}",
+        }
+        for index, pair in enumerate(pairs)
+    ]
+    measurement = {
+        "exit_code": 0,
+        "result_sha256": "b" * 64,
+        "report": {
+            "complete": True,
+            "data": {
+                "history_coverage_policy": "strict",
+                "coverage_shortfall_count": 0,
+                "aggregate_sha256": lock["data"]["aggregate_sha256"],
+            },
+            "capability": {"blockers": []},
+            "pipeline_evidence": {
+                "cold": False,
+                "data_checkpoint_reused": False,
+                "vector_checkpoint_reused": False,
+                "manifest_checkpoint_reused": False,
+                "engine_checkpoint_reused": False,
+                "surface_checkpoint_reused": False,
+                "vector_cache_hits": len(pairs),
+            },
+            "resumed_stages": [],
+            "vectors": {
+                "pair_count": len(pairs),
+                "cache_hits": len(pairs),
+                "outputs": outputs,
+            },
+        },
+    }
+
+    assert full_x7_certification._engine_reuse_complete(measurement, lock) is True
+    outputs[0]["cache_hit"] = False
+    assert full_x7_certification._engine_reuse_complete(measurement, lock) is False
+
+
+def test_preserved_vector_cache_seal_rejects_changed_payload(
+    tmp_path: Path,
+) -> None:
+    from nfi_backtest_engine.cache import ContentCache
+
+    pair = "BTC/USDT:USDT"
+    output = tmp_path / "cold"
+    cache_root = output / "cold-vector-cache"
+    vector = output / "BTC.feather"
+    output.mkdir()
+    vector.write_bytes(b"sealed-vector")
+    vector_sha = hashlib.sha256(vector.read_bytes()).hexdigest()
+    vector_key = "vectors-" + "1" * 64
+    cached_record = {
+        "pair": pair,
+        "base_timeframe": "5m",
+        "bytes": vector.stat().st_size,
+        "sha256": vector_sha,
+        "input_sha256": "2" * 64,
+        "strategy_sha256": "3" * 64,
+        "config_sha256": "4" * 64,
+    }
+    record_key = full_x7_certification.cache_key(
+        "vector-records",
+        {
+            "vector_cache_key": vector_key,
+            "vector_pipeline_version": full_x7_certification.VECTOR_PIPELINE_VERSION,
+        },
+    )
+    cache = ContentCache(cache_root)
+    cache.put_file(vector_key, vector, expected_sha256=vector_sha, prune=False)
+    cache.put_bytes(
+        record_key,
+        json.dumps(
+            cached_record,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode(),
+        prune=False,
+    )
+    baseline = {
+        "output_directory": output,
+        "report": {
+            "run_id": "5" * 64,
+            "vectors": {
+                "pipeline_version": full_x7_certification.VECTOR_PIPELINE_VERSION,
+                "strategy_sha256": cached_record["strategy_sha256"],
+                "config_sha256": cached_record["config_sha256"],
+                "outputs": [
+                    {
+                        **cached_record,
+                        "cache_key": vector_key,
+                        "cache_hit": False,
+                    }
+                ],
+            },
+        },
+    }
+
+    sealed = full_x7_certification._seal_preserved_vector_cache(
+        baseline,
+        pairs=[pair],
+        destination=tmp_path / "preserved-vector-cache.json",
+    )
+    assert sealed["record"]["path"] == "preserved-vector-cache.json"
+
+    vector.write_bytes(b"changed-vector")
+    with pytest.raises(BenchmarkError, match="metadata seal"):
+        full_x7_certification._seal_preserved_vector_cache(
+            baseline,
+            pairs=[pair],
+            destination=tmp_path / "changed-seal.json",
+        )
 
 
 def test_full_x7_native_measurement_forwards_resume_to_the_research_state_machine(
@@ -104,9 +247,15 @@ def test_full_x7_native_measurement_forwards_resume_to_the_research_state_machin
         profile_path=tmp_path / "profile.json",
         timeout_seconds=60,
         resume=True,
+        vector_cache=tmp_path / "preserved-cache",
+        recalibrate=False,
     )
 
     assert captured[-1] == "--resume"
+    assert "--recalibrate" not in captured
+    assert captured[captured.index("--cache-dir") + 1] == str(
+        (tmp_path / "preserved-cache").resolve()
+    )
 
 
 def test_full_x7_loader_delegates_only_incomplete_reports_to_resume(
@@ -155,6 +304,9 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
             "timerange": "20210101-20260101",
             "pair_count": 80,
             "timeframes": ["5m", "15m", "1h", "4h", "1d"],
+        },
+        "pairlist": {
+            "pairs": [f"PAIR{index}/USDT" for index in range(80)],
         },
         "strategy": {"upstream_commit": "d" * 40},
     }
@@ -242,6 +394,24 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     )
     monkeypatch.setattr(
         full_x7_certification,
+        "_engine_reuse_complete",
+        lambda *_args: True,
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_seal_preserved_vector_cache",
+        lambda *_args, **_kwargs: {
+            "root": tmp_path / "cache",
+            "manifest": tmp_path / "preserved-vector-cache.json",
+            "record": {
+                "path": "preserved-vector-cache.json",
+                "bytes": 1,
+                "sha256": "7" * 64,
+            },
+        },
+    )
+    monkeypatch.setattr(
+        full_x7_certification,
         "_reference_complete",
         lambda *_args: True,
     )
@@ -318,6 +488,7 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     )
 
     assert calls == {"engine": 4, "reference": 1}
+    assert report["measurement"]["native_lane"] == "preserved-vector-reuse"
     assert report["measurement"]["native_measured_repetitions"] == 3
     assert report["measurement"]["official_reference_repetitions"] == 1
     assert "reference" not in report["runs"]
