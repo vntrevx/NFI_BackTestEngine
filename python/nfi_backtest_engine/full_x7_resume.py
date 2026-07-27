@@ -232,7 +232,11 @@ def _validate_partial_reference_oracle_copy(source: Path, output: Path) -> None:
         actual = read_json(output / report_name)
     except (OSError, ValueError) as exc:
         raise BenchmarkError("partial official oracle import has an invalid run report") from exc
-    if actual != expected:
+    if actual != expected and not _materialized_report_matches_after_move(
+        actual,
+        expected,
+        output,
+    ):
         raise BenchmarkError("partial official oracle import has unexpected run metadata")
 
 
@@ -267,6 +271,33 @@ def _expected_materialized_oracle_report(source: Path, output: Path) -> dict[str
         "source_run_report_sha256": sha256_file(source / "run.json"),
     }
     return report
+
+
+def _materialized_report_matches_after_move(
+    actual: Any,
+    expected: dict[str, Any],
+    output: Path,
+) -> bool:
+    """Allow only the derived local data-seal path to follow a moved checkpoint."""
+    if not isinstance(actual, dict):
+        return False
+    normalized = copy.deepcopy(actual)
+    actual_inputs = normalized.get("inputs")
+    expected_inputs = expected.get("inputs")
+    if not isinstance(actual_inputs, dict) or not isinstance(expected_inputs, dict):
+        return False
+    actual_seal = actual_inputs.get("data_seal")
+    expected_seal = expected_inputs.get("data_seal")
+    if not isinstance(actual_seal, dict) or not isinstance(expected_seal, dict):
+        return False
+    if (
+        actual_seal.get("bytes") != expected_seal.get("bytes")
+        or actual_seal.get("sha256") != expected_seal.get("sha256")
+        or _verified_artifact_path(output, actual_seal) != output / "inputs" / "data-seal.json"
+    ):
+        return False
+    actual_inputs["data_seal"] = expected_seal
+    return normalized == expected
 
 
 def _tree_file_records(root: Path) -> dict[str, tuple[int, str]]:

@@ -649,6 +649,11 @@ def test_oracle_import_resumes_only_an_exact_source_copy(tmp_path: Path) -> None
         write_json(exact / "run.json", materialized_report)
         full_x7_resume._prepare_reference_oracle_copy(source, exact)
 
+        relocated = tmp_path / "relocated"
+        exact.rename(relocated)
+        exact = relocated
+        full_x7_resume._prepare_reference_oracle_copy(source, exact)
+
         shutil.copytree(source, changed)
         changed.chmod(0o755)
         (changed / "extra.json").write_bytes(b"unexpected")
