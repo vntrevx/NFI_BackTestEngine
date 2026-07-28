@@ -6,8 +6,9 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use nfi_sim_core::{
-    parse_simulation_input, simulate, simulate_profiled, simulate_with_observer,
-    simulate_with_observer_profiled, SimulationInput, SimulationProfile, SimulationResult,
+    parse_simulation_input, serialize_simulation_result, simulate, simulate_profiled,
+    simulate_with_observer, simulate_with_observer_profiled, SimulationInput, SimulationProfile,
+    SimulationResult,
 };
 use nfi_vector_io::{load_vector_manifest, load_vector_manifest_profiled, VectorLoadProfile};
 use pyo3::exceptions::PyValueError;
@@ -89,7 +90,7 @@ fn simulate_vector_file_profiled(
         })?;
     let (result, simulation_profile) = run_simulation_profiled(&document, events_path)?;
     let serialization_started = Instant::now();
-    let serialized = serde_json::to_vec(&result)
+    let serialized = serialize_simulation_result(&result)
         .map_err(|error| PyValueError::new_err(format!("cannot serialize result: {error}")))?;
     atomic_write(output_path.clone(), &serialized)
         .map_err(|error| PyValueError::new_err(format!("cannot write result: {error}")))?;
@@ -186,7 +187,7 @@ fn run_simulation_profiled(
 }
 
 fn write_result(output_path: PathBuf, result: &SimulationResult) -> PyResult<()> {
-    let serialized = serde_json::to_vec(&result)
+    let serialized = serialize_simulation_result(result)
         .map_err(|error| PyValueError::new_err(format!("cannot serialize result: {error}")))?;
     atomic_write(output_path, &serialized)
         .map_err(|error| PyValueError::new_err(format!("cannot write result: {error}")))
