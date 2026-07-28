@@ -1,0 +1,201 @@
+# yamllint disable rule:line-length
+name: Nightly validation
+
+on:
+  schedule:
+    - cron: "43 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    name: Build nightly fixture inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.inventory.outputs.matrix }}
+      inventory_sha256: ${{ steps.inventory.outputs.inventory_sha256 }}
+      fixture_count: ${{ steps.inventory.outputs.fixture_count }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Generate balanced, non-overlapping shards
+        id: inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .nightly
+          python .github/scripts/ci_contract.py nightly-matrix \
+            --root . \
+            --output .nightly/matrix.json \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Retain matrix inventory
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nightly-matrix-${{ github.sha }}
+          path: .nightly/matrix.json
+          if-no-files-found: error
+          retention-days: 14
+
+  fixtures:
+    name: Full-state fixture shard ${{ matrix.shard_index }}
+    needs: inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.inventory.outputs.matrix) }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Sync and build native extension
+        run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --locked
+      - name: Run assigned full-state fixtures
+        run: >-
+          uv run python .github/scripts/ci_contract.py run-nightly-shard
+          --root .
+          --shard-index ${{ matrix.shard_index }}
+          --artifact-root .nightly/artifacts/shard-${{ matrix.shard_index }}
+          --output .nightly/results/shard-${{ matrix.shard_index }}.json
+      - name: Retain immutable shard report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nightly-shard-${{ matrix.shard_index }}-${{ github.sha }}
+          path: .nightly/results/shard-${{ matrix.shard_index }}.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain shard diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nightly-diagnostics-${{ matrix.shard_index }}-${{ github.sha }}
+          path: .nightly/artifacts/shard-${{ matrix.shard_index }}/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  contracts:
+    name: Resume, mutation, clean, and report contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Build engine
+        run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --locked
+      - name: Exercise stateful and evidence boundaries
+        run: >-
+          uv run pytest -q
+          tests/test_research_runner.py
+          tests/test_clean.py
+          tests/test_result_artifacts_v2.py
+          tests/test_result_report.py
+          tests/test_strategy_compatibility.py
+          tests/test_verification_ledger.py
+
+  reference:
+    name: Managed Docker reference smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Build engine
+        run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --locked
+      - name: Run the pinned network-disabled reference
+        run: >-
+          uv run nfi-bte reference run
+          benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json
+          --output-dir .nightly/reference
+          --trace hash
+          --timeout 900
+      - name: Retain reference evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nightly-reference-${{ github.sha }}
+          path: .nightly/reference
+          if-no-files-found: warn
+          retention-days: 14
+
+  summary:
+    name: Deduplicated nightly result
+    if: always()
+    needs: [inventory, fixtures, contracts, reference]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Download shard reports
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: nightly-shard-*-${{ github.sha }}
+          path: .nightly/results
+          merge-multiple: true
+      - name: Verify coverage and group repeated failures
+        env:
+          INVENTORY_RESULT: ${{ needs.inventory.result }}
+          FIXTURES_RESULT: ${{ needs.fixtures.result }}
+          CONTRACTS_RESULT: ${{ needs.contracts.result }}
+          REFERENCE_RESULT: ${{ needs.reference.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/ci_contract.py summarize-nightly \
+            --root . \
+            --reports .nightly/results \
+            --job-result "inventory=$INVENTORY_RESULT" \
+            --job-result "fixtures=$FIXTURES_RESULT" \
+            --job-result "contracts=$CONTRACTS_RESULT" \
+            --job-result "reference=$REFERENCE_RESULT" \
+            --output .nightly/nightly-report.json
+      - name: Retain one nightly report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nightly-report-${{ github.sha }}
+          path: .nightly/nightly-report.json
+          if-no-files-found: error
+          retention-days: 14

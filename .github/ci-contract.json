@@ -61,9 +61,58 @@
     "contract_parity": "parity",
     "evidence_integrity": "python"
   },
+  "pull_request": {
+    "event": "pull_request",
+    "permissions": {
+      "contents": "read"
+    },
+    "allows_secrets": false,
+    "allows_privileged_fork_execution": false,
+    "allows_official_reference": false,
+    "required_capabilities": [
+      "quality",
+      "python_linux",
+      "rust_tests",
+      "platform_smoke",
+      "contract_parity",
+      "evidence_integrity"
+    ]
+  },
   "concurrency": {
     "group": "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
     "cancel_in_progress": true
+  },
+  "nightly": {
+    "workflow": ".github/workflows/nightly.yml",
+    "events": [
+      "schedule",
+      "workflow_dispatch"
+    ],
+    "permissions": {
+      "contents": "read"
+    },
+    "fixture_globs": [
+      "benchmarks/fixtures/captured/x7-*/manifest.json"
+    ],
+    "verification_level": "full",
+    "shard_count": 3,
+    "job_ids": [
+      "inventory",
+      "fixtures",
+      "contracts",
+      "reference"
+    ],
+    "failure_report": ".nightly/nightly-report.json",
+    "artifact_retention_days": 14,
+    "concurrency": {
+      "group": "nightly-${{ github.ref }}",
+      "cancel_in_progress": true
+    },
+    "official_reference_smoke": {
+      "manifest": "benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json",
+      "trace": "hash",
+      "network": "none"
+    }
   },
   "branch_protection": {
     "repository": "vntrevx/NFI_BackTestEngine",
