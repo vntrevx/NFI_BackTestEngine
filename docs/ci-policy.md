@@ -45,6 +45,25 @@ aggregate report without executing a fixture. This is the acceptance path for
 workflow and inventory changes; scheduled runs execute every assigned fixture at
 full parity.
 
+## Protected long certification
+
+`.github/workflows/certify-release-candidate.yml` is manual-only and targets the
+protected `nfi-certification` self-hosted runner. The selected mode is part of a
+non-cancelling concurrency key, while a host file lock guards the long command
+itself. A versioned contract and protected host configuration generate the command;
+strategy, pair, period, Oracle path, and expected result are not embedded in the
+workflow.
+
+The workflow can only reuse an exact, immutable Oracle-index match. It validates the
+sealed input fingerprint, full Oracle tree seal, and run-report hash and offers no
+new-Oracle fallback. Interrupted output requires explicit resume and remains subject
+to the certification state machine's hash checks.
+
+Certificate bundles use short-lived environment-scoped OIDC credentials and
+content-addressed object keys. Conditional creation plus metadata and byte-count
+verification prevents overwriting an existing immutable object. GitHub artifacts
+carry the same certificate, reuse plan, and storage receipt for the release gate.
+
 ## Main branch protection
 
 The policy targets `vntrevx/NFI_BackTestEngine` branch `main` with:

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "workflow": ".github/workflows/certify-release-candidate.yml",
+  "events": [
+    "workflow_dispatch"
+  ],
+  "permissions": {
+    "actions": "read",
+    "contents": "read",
+    "id-token": "write"
+  },
+  "environment": "full-x7-certification",
+  "runner_labels": [
+    "self-hosted",
+    "linux",
+    "x64",
+    "nfi-certification"
+  ],
+  "modes": [
+    "spot",
+    "futures"
+  ],
+  "concurrency": {
+    "group": "full-x7-certification-${{ inputs.mode }}",
+    "cancel_in_progress": false
+  },
+  "oracle": {
+    "allows_new_run": false,
+    "index_schema_version": "1.0.0",
+    "required_status": "exact_parity",
+    "requires_immutable_record": true
+  },
+  "storage": {
+    "provider": "aws-s3",
+    "environment_role_variable": "NFI_EVIDENCE_AWS_ROLE",
+    "environment_region_variable": "NFI_EVIDENCE_AWS_REGION",
+    "environment_bucket_variable": "NFI_EVIDENCE_BUCKET",
+    "object_prefix": "full-x7-certifications",
+    "content_addressed_key": true,
+    "conditional_create": true,
+    "server_side_encryption": "AES256"
+  }
+}
