@@ -982,6 +982,25 @@ def test_current_futures_probe_matrix_is_release_complete() -> None:
     assert len(probes) == len(manifests)
 
 
+def test_latest_release_candidate_probe_matrices_are_complete() -> None:
+    contract = read_json(ROOT / ".github/release-candidate-contract.json")
+    declared = contract["certification_probes"]
+    mode_contracts = {
+        "spot": SPOT_RELEASE_CONTRACT,
+        "futures": FUTURES_RELEASE_CONTRACT,
+    }
+
+    for mode in declared["modes"]:
+        manifests = [ROOT / value for value in mode["manifests"]]
+        probes = _validate_probe_matrix(
+            manifests,
+            contract=mode_contracts[mode["slug"]],
+            expected_upstream_commit=declared["upstream_commit"],
+        )
+
+        assert len(probes) == mode["required_manifests"]
+
+
 def test_futures_probe_matrix_requires_observed_lifecycle_and_all_protections(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

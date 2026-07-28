@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "platform_evidence": {
+    "runs": 3,
+    "timeout_seconds": 900,
+    "modes": [
+      {
+        "slug": "spot",
+        "mode_contract": "binance-spot",
+        "manifest": "benchmarks/fixtures/release-candidate/x7-tag121-spot-v17.4.473-2023-01-01_02/manifest.json"
+      },
+      {
+        "slug": "futures",
+        "mode_contract": "binance-usdtm-isolated",
+        "manifest": "benchmarks/fixtures/release-candidate/x7-tag-121-futures-v17.4.473-2023-01-01_02/manifest.json"
+      }
+    ]
+  },
+  "certification_probes": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "8da6038be51654bdaa36839f3f1e296d2fc290ff",
+    "base_source_sha256": "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db",
+    "modes": [
+      {
+        "slug": "spot",
+        "mode_contract": "binance-spot",
+        "required_manifests": 4,
+        "manifests": [
+          "benchmarks/fixtures/release-candidate/x7-tag121-spot-v17.4.473-2023-01-01_02/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-cooldown-lock-spot-v17.4.473-2023-01-01_16/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-low-profit-lock-spot-v17.4.473-2023-01-01_16/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-max-drawdown-lock-spot-v17.4.473-2023-01-01_16/manifest.json"
+        ]
+      },
+      {
+        "slug": "futures",
+        "mode_contract": "binance-usdtm-isolated",
+        "required_manifests": 9,
+        "manifests": [
+          "benchmarks/fixtures/release-candidate/x7-tag-121-futures-v17.4.473-2023-01-01_02/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-compound-tag-futures-v17.4.473-2022-04-29_05-02/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-cooldown-futures-v17.4.473-2023-01-01_16/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-futures-lifecycle-long-v17.4.473-2022-04-10_04-20/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-futures-lifecycle-short-v17.4.473-2022-04-01_04-20/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-liquidation-stoploss-guard-futures-v17.4.473-2022-04-29_05-02/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-low-profit-futures-v17.4.473-2023-01-01_16/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-max-drawdown-futures-v17.4.473-2023-01-01_16/manifest.json",
+          "benchmarks/fixtures/release-candidate/matrix/x7-variable-leverage-futures-v17.4.473-2021-02-04_09/manifest.json"
+        ]
+      }
+    ]
+  }
+}

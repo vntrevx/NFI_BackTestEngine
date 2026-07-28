@@ -469,10 +469,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--open-report",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help=(
-            "open report.html after completion; otherwise ask only on an "
-            "interactive terminal"
-        ),
+        help=("open report.html after completion; otherwise ask only on an interactive terminal"),
     )
     _add_full_report_argument(run)
 
@@ -899,6 +896,33 @@ def build_parser() -> argparse.ArgumentParser:
     release_gate.add_argument("--platform-evidence", type=Path, required=True)
     release_gate.add_argument("--candidate-commit", required=True)
     release_gate.add_argument("--output-dir", type=Path, required=True)
+    release_combined_gate = release_commands.add_parser(
+        "gate-combined",
+        help="seal a public candidate after both modes and three OSes certify it",
+    )
+    release_combined_gate.add_argument(
+        "--candidate-dir",
+        type=Path,
+        required=True,
+    )
+    release_combined_gate.add_argument(
+        "--combined-release",
+        type=Path,
+        required=True,
+        help="full-x7-release-result.json produced by release combine",
+    )
+    release_combined_gate.add_argument("--candidate-commit", required=True)
+    release_combined_gate.add_argument("--output-dir", type=Path, required=True)
+    release_combined_verify = release_commands.add_parser(
+        "verify-combined",
+        help="verify the exact public Spot+Futures release asset set",
+    )
+    release_combined_verify.add_argument(
+        "--release-dir",
+        type=Path,
+        required=True,
+    )
+    release_combined_verify.add_argument("--candidate-commit")
 
     contract = subcommands.add_parser(
         "contract",

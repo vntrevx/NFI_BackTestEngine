@@ -60,12 +60,26 @@ jobs:
             --dir candidate
           (cd candidate && sha256sum --check SHA256SUMS.txt)
           (cd candidate && sha256sum --check RELEASE-SHA256SUMS.txt)
-          jq -e \
-            --arg commit "${{ steps.identity.outputs.sha }}" \
-            '.release_certified == true
-             and .status == "release_certified"
-             and .candidate_commit == $commit' \
-            candidate/release-gate.json
+      - name: Install and verify combined release gate
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Prove candidate certification before promotion
+        env:
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(
+            find candidate -maxdepth 1 -type f \
+              -name '*manylinux*x86_64.whl'
+          )
+          test "${#wheels[@]}" -eq 1
+          uv venv --python 3.12 .promote-venv
+          uv pip install --python .promote-venv/bin/python "${wheels[0]}"
+          .promote-venv/bin/nfi-bte release verify-combined \
+            --release-dir candidate \
+            --candidate-commit "$CANDIDATE_SHA"
       - name: Create stable release from candidate files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -93,5 +107,5 @@ jobs:
           diff -qr candidate stable
           (cd stable && sha256sum --check SHA256SUMS.txt)
           (cd stable && sha256sum --check RELEASE-SHA256SUMS.txt)
-          jq -e '.release_certified == true and .status == "release_certified"' \
-            stable/release-gate.json
+          .promote-venv/bin/nfi-bte release verify-combined \
+            --release-dir stable

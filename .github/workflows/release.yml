@@ -40,6 +40,10 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
+      - name: Validate declarative release workloads
+        run: >-
+          python .github/scripts/release_candidate_contract.py
+          --output .release-candidate-plan.json
       - name: Build wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
@@ -76,20 +80,31 @@ jobs:
             benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
             --output-dir .wheel-check `
             --level full
-      - name: Measure exact Futures fixture on Unix target
+      - name: Measure exact Spot and Futures fixtures on Unix target
         if: matrix.portable_evidence && runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
           wheels=(dist/*.whl)
           test "${#wheels[@]}" -eq 1
-          .wheel-venv/bin/nfi-bte platform fixture-benchmark \
-            benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json \
-            --wheel "${wheels[0]}" \
-            --output-dir .platform-evidence \
-            --runs 3 \
-            --timeout 900
-      - name: Measure exact Futures fixture on Windows target
+          runs="$(jq -er .platform_evidence.runs .release-candidate-plan.json)"
+          timeout="$(
+            jq -er .platform_evidence.timeout_seconds \
+              .release-candidate-plan.json
+          )"
+          while IFS=$'\t' read -r slug manifest; do
+            .wheel-venv/bin/nfi-bte platform fixture-benchmark \
+              "$manifest" \
+              --wheel "${wheels[0]}" \
+              --output-dir ".platform-evidence/$slug" \
+              --runs "$runs" \
+              --timeout "$timeout"
+          done < <(
+            jq -er \
+              '.platform_evidence.modes[] | [.slug, .manifest] | @tsv' \
+              .release-candidate-plan.json
+          )
+      - name: Measure exact Spot and Futures fixtures on Windows target
         if: matrix.portable_evidence && runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -98,18 +113,21 @@ jobs:
           if ($wheel.Count -ne 1) {
             throw "Expected exactly one wheel, found $($wheel.Count)"
           }
-          .\.wheel-venv\Scripts\nfi-bte.exe platform fixture-benchmark `
-            benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json `
-            --wheel $wheel `
-            --output-dir .platform-evidence `
-            --runs 3 `
-            --timeout 900
+          $plan = Get-Content .release-candidate-plan.json -Raw | ConvertFrom-Json
+          foreach ($mode in $plan.platform_evidence.modes) {
+            .\.wheel-venv\Scripts\nfi-bte.exe platform fixture-benchmark `
+              $mode.manifest `
+              --wheel $wheel `
+              --output-dir (Join-Path .platform-evidence $mode.slug) `
+              --runs $plan.platform_evidence.runs `
+              --timeout $plan.platform_evidence.timeout_seconds
+          }
       - name: Upload platform benchmark
         if: matrix.portable_evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: platform-report-${{ matrix.target }}
-          path: .platform-evidence/platform-benchmark.json
+          path: .platform-evidence/*/platform-benchmark.json
           if-no-files-found: error
       - name: Upload wheel
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -173,10 +191,14 @@ jobs:
             --level full
 
   platform-evidence:
-    name: Seal three-OS Futures evidence
+    name: Seal three-OS Spot and Futures evidence
     needs: [wheels]
     runs-on: ubuntu-latest
     steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Download platform reports
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -197,25 +219,43 @@ jobs:
           set -euo pipefail
           uv venv --python 3.12 .seal-venv
           uv pip install --python .seal-venv/bin/python wheel/*.whl
-          mapfile -t reports < <(find reports -type f -name platform-benchmark.json | LC_ALL=C sort)
-          test "${#reports[@]}" -eq 3
-          arguments=()
-          for report in "${reports[@]}"; do
-            arguments+=(--report "$report")
-          done
-          .seal-venv/bin/nfi-bte platform seal \
-            "${arguments[@]}" \
-            --output-dir sealed
-          mkdir release-evidence
-          cp sealed/platform-evidence.json \
-            release-evidence/full-x7-futures-platform-evidence.json
-          cp sealed/platform-evidence-bundle.zip \
-            release-evidence/full-x7-futures-platform-evidence.zip
+          .seal-venv/bin/python \
+            .github/scripts/release_candidate_contract.py \
+            --output .release-candidate-plan.json
+          while IFS=$'\t' read -r slug mode_contract; do
+            mapfile -t mode_reports < <(
+              find reports -type f \
+                -path "*/$slug/platform-benchmark.json" \
+                | LC_ALL=C sort
+            )
+            test "${#mode_reports[@]}" -eq 3
+            arguments=()
+            for report in "${mode_reports[@]}"; do
+              jq -e \
+                --arg mode "$mode_contract" \
+                '.complete == true and .workload.mode_contract == $mode' \
+                "$report"
+              arguments+=(--report "$report")
+            done
+            sealed="sealed/$slug"
+            .seal-venv/bin/nfi-bte platform seal \
+              "${arguments[@]}" \
+              --output-dir "$sealed"
+            destination="release-evidence/platform/$slug"
+            mkdir -p "$destination"
+            cp -R "$sealed/." "$destination/"
+          done < <(
+            jq -er \
+              '.platform_evidence.modes[]
+               | [.slug, .mode_contract]
+               | @tsv' \
+              .release-candidate-plan.json
+          )
       - name: Upload sealed platform evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: release-evidence-${{ github.sha }}
-          path: release-evidence/*
+          path: release-evidence/
           if-no-files-found: error
 
   bundle:
@@ -223,6 +263,10 @@ jobs:
     needs: [wheels, sdist, verify, platform-evidence]
     runs-on: ubuntu-latest
     steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       - name: Download release wheels
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -243,8 +287,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python .github/scripts/release_candidate_contract.py \
+            --output dist/release-candidate-plan.json
           cd dist
-          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 \
+          find . -type f ! -name SHA256SUMS.txt -print0 \
             | LC_ALL=C sort -z \
             | xargs -0 sha256sum > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
@@ -252,6 +298,6 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: release-bundle-${{ github.sha }}
-          path: dist/*
+          path: dist/
           if-no-files-found: error
           retention-days: 30

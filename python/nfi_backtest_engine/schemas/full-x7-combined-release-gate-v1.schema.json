@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/full-x7-combined-release-gate-v1.json",
+  "title": "Combined Full X7 candidate release gate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "release_kind",
+    "status",
+    "release_certified",
+    "candidate_commit",
+    "package_version",
+    "candidate_manifest",
+    "combined_release",
+    "distributions",
+    "platform_evidence",
+    "gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "release_kind": {
+      "const": "combined-full-x7"
+    },
+    "status": {
+      "const": "release_certified"
+    },
+    "release_certified": {
+      "const": true
+    },
+    "candidate_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "package_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate_manifest": {
+      "$ref": "#/$defs/candidate-artifact"
+    },
+    "combined_release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report",
+        "bundle",
+        "mode_contracts",
+        "strategy_sha256",
+        "wheel_sha256",
+        "native_extension_sha256",
+        "portable_package_sha256"
+      ],
+      "properties": {
+        "report": {
+          "$ref": "#/$defs/artifact"
+        },
+        "bundle": {
+          "$ref": "#/$defs/artifact"
+        },
+        "mode_contracts": {
+          "const": [
+            "binance-spot",
+            "binance-usdtm-isolated"
+          ]
+        },
+        "strategy_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "wheel_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "native_extension_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "portable_package_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "distributions": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
+    "platform_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binance-spot",
+        "binance-usdtm-isolated"
+      ],
+      "properties": {
+        "binance-spot": {
+          "$ref": "#/$defs/candidate-artifact"
+        },
+        "binance-usdtm-isolated": {
+          "$ref": "#/$defs/candidate-artifact"
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_manifest",
+        "candidate_commit",
+        "distribution_set",
+        "combined_certificates",
+        "shared_candidate",
+        "portable_package",
+        "three_os_both_modes",
+        "preview_rejected",
+        "public_asset_set"
+      ],
+      "properties": {
+        "candidate_manifest": {
+          "const": true
+        },
+        "candidate_commit": {
+          "const": true
+        },
+        "distribution_set": {
+          "const": true
+        },
+        "combined_certificates": {
+          "const": true
+        },
+        "shared_candidate": {
+          "const": true
+        },
+        "portable_package": {
+          "const": true
+        },
+        "three_os_both_modes": {
+          "const": true
+        },
+        "preview_rejected": {
+          "const": true
+        },
+        "public_asset_set": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "candidate-artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_file",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "candidate_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "$ref": "#/$defs/bytes"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}
