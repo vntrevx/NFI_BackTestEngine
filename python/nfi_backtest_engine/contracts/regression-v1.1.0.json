@@ -80,8 +80,8 @@
     {
       "kind": "schema",
       "path": "python/nfi_backtest_engine/schemas/full-x7-combined-release-v1.schema.json",
-      "bytes": 2886,
-      "sha256": "d602858b39fc87b89938e5053d8ce24a0cbc349f25b6f93dcdb9c45279b0d15e"
+      "bytes": 5024,
+      "sha256": "4f171d28a5d86ada5f3a989d8c8d66e9ac0ed6e5a89f5610682dff09dfcb6c46"
     },
     {
       "kind": "schema",

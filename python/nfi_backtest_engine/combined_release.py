@@ -72,6 +72,10 @@ def combine_full_x7_release(
         ),
     }
     shared_identity = _shared_candidate_identity(certificates)
+    mode_scopes = {
+        mode: _certificate_mode_scope(item["report"])
+        for mode, item in sorted(certificates.items())
+    }
     platform_evidence = _load_platform_evidence(
         [Path(path).resolve() for path in platform_evidence_paths],
         certificates=certificates,
@@ -107,6 +111,7 @@ def combine_full_x7_release(
         "status": "certified" if release_certified else "preview",
         "release_certified": release_certified,
         "shared_candidate": shared_identity,
+        "mode_scopes": mode_scopes,
         "certificates": {mode: item["record"] for mode, item in sorted(certificates.items())},
         "platform_evidence": {
             mode: item["record"] for mode, item in sorted(platform_evidence.items())
@@ -754,7 +759,7 @@ def _shared_candidate_identity(
     if any(identity != values[0] for identity in values[1:]):
         raise SpecValidationError(
             "spot and futures certificates use different strategy, wheel, "
-            "reference, or release scope identities"
+            "reference, or candidate identities"
         )
     return values[0]
 
@@ -775,10 +780,33 @@ def _certificate_candidate_identity(report: dict[str, Any]) -> dict[str, Any]:
         "portable_package_sha256": installed_wheel["portable_package_sha256"],
         "engine_source_fingerprint": engine_build["source_fingerprint"],
         "reference": inputs["reference"],
+    }
+
+
+def _certificate_mode_scope(report: dict[str, Any]) -> dict[str, Any]:
+    claim = report["claim_scope"]
+    inputs = report["inputs"]
+    release_lock = inputs["release_lock"]
+    return {
+        "mode_contract": claim["mode_contract"],
+        "trading_mode": claim["trading_mode"],
+        "margin_mode": claim["margin_mode"],
+        "exchange": claim["exchange"],
+        "settlement_currency": claim["settlement_currency"],
+        "required_data_roles": claim["required_data_roles"],
         "timerange": claim["timerange"],
         "pair_count": claim["pair_count"],
         "timeframes": claim["timeframes"],
         "continuous_timerange": claim["continuous_timerange"],
+        "history_coverage_policy": claim["history_coverage_policy"],
+        "release_lock_sha256": release_lock["sha256"],
+        "release_lock_identity_sha256": release_lock["identity_sha256"],
+        "config_sha256": inputs["config_sha256"],
+        "data_aggregate_sha256": inputs["data_aggregate_sha256"],
+        "engine_market_snapshot_sha256": inputs["engine_market_snapshot_sha256"],
+        "reference_market_snapshot_sha256": inputs[
+            "reference_market_snapshot_sha256"
+        ],
     }
 
 
@@ -809,7 +837,11 @@ def _load_platform_evidence(
             or systems != REQUIRED_PLATFORM_SYSTEMS
             or not isinstance(workload, dict)
             or workload.get("mode_contract") != mode
-            or workload.get("strategy_sha256") != shared_identity["strategy_sha256"]
+            or workload.get(
+                "base_strategy_sha256",
+                workload.get("strategy_sha256"),
+            )
+            != shared_identity["strategy_sha256"]
             or document.get("package_version") != shared_identity["package_version"]
             or document.get("portable_package_sha256") != shared_identity["portable_package_sha256"]
         ):
