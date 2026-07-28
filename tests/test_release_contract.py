@@ -403,9 +403,15 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "permissions:\n  contents: read" in build
     assert "name: Certify release candidate" in certify
     assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in certify
+    assert "environment: full-x7-certification" in certify
+    assert "id-token: write" in certify
+    assert "group: full-x7-certification-${{ inputs.mode }}" in certify
+    assert "cancel-in-progress: false" in certify
     assert "certification_config:" in certify
-    assert ".official_oracle | type ==" in certify
-    assert "--official-oracle \"$official_oracle\"" in certify
+    assert "long_certification_contract.py plan" in certify
+    assert "flock --exclusive --nonblock" in certify
+    assert "--if-none-match '*'" in certify
+    assert "full-x7-certifications" not in certify
     assert "candidate and certification commits differ" in certify
     assert "nfi-bte release gate" in certify
     assert "contents: write" not in certify
@@ -420,6 +426,177 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert promote.index('.status == "release_certified"') < promote.index(
         "gh release create"
     )
+
+
+def _long_certification_module() -> ModuleType:
+    path = (
+        Path(__file__).parents[1]
+        / ".github/scripts/long_certification_contract.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "nfi_long_certification_contract",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise AssertionError("long-certification contract module is not loadable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _long_certification_plan_inputs(
+    tmp_path: Path,
+) -> tuple[ModuleType, dict, Path]:
+    root = Path(__file__).parents[1]
+    module = _long_certification_module()
+    contract = module.load_contract(root / ".github/long-certification-contract.json")
+    release_lock = tmp_path / "release-lock.json"
+    strategy = tmp_path / "strategy.py"
+    selected_config = tmp_path / "config.json"
+    execution_profile = tmp_path / "execution-profile.json"
+    engine_markets = tmp_path / "engine-markets.json"
+    reference_markets = tmp_path / "reference-markets.json"
+    state_probe = tmp_path / "state-probe.json"
+    data_directory = tmp_path / "data"
+    oracle_directory = tmp_path / "oracle"
+    oracle_index = tmp_path / "oracle-index.json"
+    wheel = tmp_path / "candidate.whl"
+    output = tmp_path / "output"
+    data_directory.mkdir()
+    oracle_directory.mkdir()
+    strategy.write_text("class Strategy: pass\n", encoding="utf-8")
+    wheel.write_bytes(b"sealed-wheel")
+    write_json(selected_config, {"trading_mode": "spot"})
+    write_json(execution_profile, {"hardware_fingerprint": "host"})
+    write_json(engine_markets, {"markets": {}})
+    write_json(reference_markets, {"markets": {}})
+    write_json(state_probe, {"fixture_id": "probe"})
+    write_json(
+        release_lock,
+        {
+            "identity_sha256": "a" * 64,
+            "data": {"aggregate_sha256": "b" * 64},
+            "reference": {
+                "image_platform_digest": "sha256:" + "c" * 64,
+            },
+        },
+    )
+    run_report = oracle_directory / "run.json"
+    write_json(run_report, {"complete": True, "result_sha256": "d" * 64})
+    config = {
+        "schema_version": "1.0.0",
+        "mode": "spot",
+        "release_lock": str(release_lock),
+        "execution_profile": str(execution_profile),
+        "strategy": str(strategy),
+        "strategy_class": "Strategy",
+        "config": str(selected_config),
+        "data_directory": str(data_directory),
+        "engine_markets": str(engine_markets),
+        "reference_markets": str(reference_markets),
+        "oracle_index": str(oracle_index),
+        "oracle_fingerprint": "0" * 64,
+        "host_lock": str(tmp_path / "locks/certification.lock"),
+        "state_probes": [str(state_probe)],
+    }
+    identity = module._input_identity(config)
+    fingerprint = module.canonical_sha256(identity)
+    config["oracle_fingerprint"] = fingerprint
+    write_json(
+        oracle_index,
+        {
+            "schema_version": "1.0.0",
+            "oracles": [
+                {
+                    "mode": "spot",
+                    "fingerprint": fingerprint,
+                    "identity": identity,
+                    "directory": str(oracle_directory),
+                    "run_json_sha256": sha256_file(run_report),
+                    "tree_sha256": module.directory_tree_sha256(
+                        oracle_directory
+                    ),
+                    "status": "exact_parity",
+                    "immutable": True,
+                }
+            ],
+        },
+    )
+    config_path = tmp_path / "certification-config.json"
+    write_json(config_path, config)
+    arguments = {
+        "contract": contract,
+        "config_path": config_path,
+        "mode": "spot",
+        "candidate_commit": "e" * 40,
+        "candidate_wheel": wheel,
+        "output_directory": output,
+        "executable": "/installed/nfi-bte",
+        "resume": False,
+    }
+    return module, arguments, config_path
+
+
+def test_long_certification_plan_reuses_only_the_indexed_oracle(
+    tmp_path: Path,
+) -> None:
+    module, arguments, _config_path = _long_certification_plan_inputs(tmp_path)
+
+    plan = module.build_plan(**arguments)
+
+    assert plan["oracle"]["reused"] is True
+    assert plan["oracle"]["new_run_allowed"] is False
+    assert plan["oracle"]["immutable"] is True
+    assert plan["candidate_commit"] == "e" * 40
+    assert plan["mode"] == "spot"
+    assert "--official-oracle" in plan["command"]
+    assert "--resume" not in plan["command"]
+    assert "reference" not in plan["command"]
+
+
+def test_long_certification_plan_rejects_fingerprint_or_tree_drift(
+    tmp_path: Path,
+) -> None:
+    module, arguments, config_path = _long_certification_plan_inputs(tmp_path)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["oracle_fingerprint"] = "f" * 64
+    write_json(config_path, config)
+
+    with pytest.raises(ValueError, match="fingerprint differs"):
+        module.build_plan(**arguments)
+
+    config["oracle_fingerprint"] = module.canonical_sha256(
+        module._input_identity(config)
+    )
+    write_json(config_path, config)
+    index_path = Path(config["oracle_index"])
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    oracle_run = Path(index["oracles"][0]["directory"]) / "run.json"
+    write_json(oracle_run, {"complete": False})
+
+    with pytest.raises(ValueError, match="tree seal"):
+        module.build_plan(**arguments)
+
+
+def test_long_certification_resume_requires_explicit_identity_checked_plan(
+    tmp_path: Path,
+) -> None:
+    module, arguments, _config_path = _long_certification_plan_inputs(tmp_path)
+    output = Path(arguments["output_directory"])
+    output.mkdir()
+    (output / "interrupted-checkpoint.json").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="requires explicit resume"):
+        module.build_plan(**arguments)
+
+    arguments["resume"] = True
+    plan = module.build_plan(**arguments)
+
+    assert plan["resume"] is True
+    assert plan["command"][-1] == "--resume"
 
 
 def _ci_contract_module() -> ModuleType:

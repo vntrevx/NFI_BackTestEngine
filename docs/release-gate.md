@@ -38,14 +38,27 @@ and the gate record.
 `Publish release candidate` requires both the build run ID and a certificate run ID.
 The certificate run is produced by the manually dispatched `Certify release
 candidate` workflow on a protected runner labelled `nfi-certification`. It accepts
-one protected host-side JSON file containing `release_lock`, `execution_profile`,
-`strategy`, `strategy_class`, `config`, `data_directory`, `engine_markets`, optional
-`reference_markets`, mandatory `official_oracle`, and a non-empty `state_probes`
-array. This keeps machine-specific data, Oracle, strategy, pair, date, and output
-locations out of the workflow. An approved completed Oracle is mandatory, so
-dispatching it cannot silently start a new official Oracle run. The separately
-selected output directory is persistent and may be resumed only through the
-certification command's existing identity checks.
+one protected host-side JSON file containing the selected mode, `release_lock`,
+`execution_profile`, `strategy`, `strategy_class`, `config`, `data_directory`,
+`engine_markets`, optional `reference_markets`, an Oracle index and fingerprint,
+a host lock path, and a non-empty `state_probes` array. This keeps machine-specific
+data, Oracle, strategy, pair, date, and output locations out of the workflow.
+
+The planner derives a fingerprint from the sealed lock, strategy, config file, data,
+market snapshots, and pinned reference image. Exactly one immutable Oracle-index
+record must match that fingerprint and mode. Its run report and complete directory
+tree are hash-checked before the generated command receives `--official-oracle`;
+there is no fallback that starts a new official run. The persistent output directory
+may be reused only with explicit `resume=true`, after which the certification
+command's existing checkpoint identity validation still applies.
+
+GitHub concurrency permits one job per mode with cancellation disabled. A
+self-hosted `flock` guards the actual certification command against another process
+on the host. The job uses the `full-x7-certification` environment and short-lived
+OIDC credentials. Its certificate bundle is stored under a
+mode/candidate/content-SHA key using a conditional create, so a conflicting object
+cannot be overwritten. GitHub retains the same certificate plus the Oracle-reuse
+plan and immutable-storage receipt for the publishing gate.
 
 Before upload, that workflow downloads the exact candidate-run artifact, installs its
 Linux wheel, runs Full X7 certification, and applies the same release gate against the

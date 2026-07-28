@@ -8,8 +8,15 @@ on:
         description: Successful same-commit Build release candidate workflow run ID
         required: true
         type: string
+      mode:
+        description: Full X7 release mode bound to the protected input configuration
+        required: true
+        type: choice
+        options:
+          - spot
+          - futures
       certification_config:
-        description: Host path to the protected certification input-path JSON
+        description: Host path to the protected certification and Oracle-index config
         required: true
         type: string
       output_directory:
@@ -25,12 +32,21 @@ on:
 permissions:
   actions: read
   contents: read
+  id-token: write
+
+concurrency:
+  group: full-x7-certification-${{ inputs.mode }}
+  cancel-in-progress: false
 
 jobs:
   certify:
     name: Certify frozen candidate on protected host
     runs-on: [self-hosted, linux, x64, nfi-certification]
+    environment: full-x7-certification
     timeout-minutes: 4320
+    env:
+      AWS_REGION: ${{ vars.NFI_EVIDENCE_AWS_REGION }}
+      EVIDENCE_BUCKET: ${{ vars.NFI_EVIDENCE_BUCKET }}
     steps:
       - name: Check out candidate source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -63,11 +79,13 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
-      - name: Run host certification from approved Oracle
+      - name: Plan exact immutable Oracle reuse
         env:
           CERTIFICATION_CONFIG: ${{ inputs.certification_config }}
+          MODE: ${{ inputs.mode }}
           OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
           RESUME: ${{ inputs.resume }}
+          CANDIDATE_COMMIT: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -77,63 +95,34 @@ jobs:
           test "${#wheels[@]}" -eq 1
           (cd candidate && sha256sum --check SHA256SUMS.txt)
 
-          jq -e '
-            type == "object"
-            and (.release_lock | type == "string" and length > 0)
-            and (.execution_profile | type == "string" and length > 0)
-            and (.strategy | type == "string" and length > 0)
-            and (.strategy_class | type == "string" and length > 0)
-            and (.config | type == "string" and length > 0)
-            and (.data_directory | type == "string" and length > 0)
-            and (.engine_markets | type == "string" and length > 0)
-            and (
-              .reference_markets == null
-              or (.reference_markets | type == "string" and length > 0)
-            )
-            and (.official_oracle | type == "string" and length > 0)
-            and (
-              .state_probes
-              | type == "array"
-                and length > 0
-                and all(.[]; type == "string" and length > 0)
-            )
-          ' "$CERTIFICATION_CONFIG"
-          release_lock="$(jq -r .release_lock "$CERTIFICATION_CONFIG")"
-          execution_profile="$(jq -r .execution_profile "$CERTIFICATION_CONFIG")"
-          strategy="$(jq -r .strategy "$CERTIFICATION_CONFIG")"
-          strategy_class="$(jq -r .strategy_class "$CERTIFICATION_CONFIG")"
-          config="$(jq -r .config "$CERTIFICATION_CONFIG")"
-          data_directory="$(jq -r .data_directory "$CERTIFICATION_CONFIG")"
-          engine_markets="$(jq -r .engine_markets "$CERTIFICATION_CONFIG")"
-          reference_markets="$(jq -r '.reference_markets // empty' "$CERTIFICATION_CONFIG")"
-          official_oracle="$(jq -r .official_oracle "$CERTIFICATION_CONFIG")"
-          mapfile -t state_probes < <(jq -r '.state_probes[]' "$CERTIFICATION_CONFIG")
-
           uv venv --python 3.12 .certificate-venv
           uv pip install --python .certificate-venv/bin/python "${wheels[0]}"
-          arguments=(
-            certify "$release_lock"
-            --certification-profile full-x7
-            --output-dir "$OUTPUT_DIRECTORY"
-            --profile "$execution_profile"
-            --strategy "$strategy"
-            --class-name "$strategy_class"
-            --config "$config"
-            --data-dir "$data_directory"
-            --engine-markets "$engine_markets"
-            --official-oracle "$official_oracle"
-            --wheel "${wheels[0]}"
+          plan_arguments=(
+            .github/scripts/long_certification_contract.py plan
+            --config "$CERTIFICATION_CONFIG"
+            --mode "$MODE"
+            --candidate-commit "$CANDIDATE_COMMIT"
+            --candidate-wheel "${wheels[0]}"
+            --output-directory "$OUTPUT_DIRECTORY"
+            --executable "$PWD/.certificate-venv/bin/nfi-bte"
+            --output .long-certification-plan.json
           )
-          if [[ -n "$reference_markets" ]]; then
-            arguments+=(--reference-markets "$reference_markets")
-          fi
-          for probe in "${state_probes[@]}"; do
-            arguments+=(--state-probe "$probe")
-          done
           if [[ "$RESUME" == "true" ]]; then
-            arguments+=(--resume)
+            plan_arguments+=(--resume)
           fi
-          .certificate-venv/bin/nfi-bte "${arguments[@]}"
+          .certificate-venv/bin/python "${plan_arguments[@]}"
+
+      - name: Run checkpointed certification under the host lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          host_lock="$(jq -r .host_lock .long-certification-plan.json)"
+          mapfile -t arguments < <(
+            jq -er '.command[] | strings' .long-certification-plan.json
+          )
+          test "${#arguments[@]}" -gt 0
+          mkdir -p "$(dirname "$host_lock")"
+          flock --exclusive --nonblock "$host_lock" "${arguments[@]}"
       - name: Bind certificate to candidate and platform evidence
         env:
           CANDIDATE_COMMIT: ${{ github.sha }}
@@ -156,6 +145,99 @@ jobs:
           mkdir host-certificate
           cp "$OUTPUT_DIRECTORY/full-x7-certification.json" host-certificate/
           cp "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" host-certificate/
+          cp .long-certification-plan.json host-certificate/
+
+      - name: Configure short-lived immutable-storage credentials
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ vars.NFI_EVIDENCE_AWS_ROLE }}
+          aws-region: ${{ vars.NFI_EVIDENCE_AWS_REGION }}
+          role-session-name: nfi-full-x7-${{ github.run_id }}
+
+      - name: Upload certificate bundle without overwrite
+        env:
+          CANDIDATE_COMMIT: ${{ github.sha }}
+          MODE: ${{ inputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AWS_REGION"
+          test -n "$EVIDENCE_BUCKET"
+          mapfile -t bundles < <(
+            find host-certificate -maxdepth 1 -type f \
+              -name '*certification-bundle.zip'
+          )
+          test "${#bundles[@]}" -eq 1
+          bundle="${bundles[0]}"
+          bundle_sha256="$(sha256sum "$bundle" | cut -d ' ' -f 1)"
+          bundle_bytes="$(stat -c '%s' "$bundle")"
+          prefix="$(jq -er .storage.object_prefix .github/long-certification-contract.json)"
+          encryption="$(
+            jq -er .storage.server_side_encryption \
+              .github/long-certification-contract.json
+          )"
+          object_key="$prefix/$MODE/$CANDIDATE_COMMIT/$bundle_sha256.zip"
+
+          if aws s3api head-object \
+            --bucket "$EVIDENCE_BUCKET" \
+            --key "$object_key" \
+            > .immutable-head.json 2>/dev/null; then
+            jq -e \
+              --arg sha "$bundle_sha256" \
+              --argjson bytes "$bundle_bytes" \
+              '.Metadata.sha256 == $sha and .ContentLength == $bytes' \
+              .immutable-head.json
+            upload_status="reused"
+          else
+            if aws s3api put-object \
+              --bucket "$EVIDENCE_BUCKET" \
+              --key "$object_key" \
+              --body "$bundle" \
+              --metadata "sha256=$bundle_sha256" \
+              --server-side-encryption "$encryption" \
+              --if-none-match '*' \
+              > .immutable-put.json; then
+              upload_status="created"
+            else
+              aws s3api head-object \
+                --bucket "$EVIDENCE_BUCKET" \
+                --key "$object_key" \
+                > .immutable-head.json
+              jq -e \
+                --arg sha "$bundle_sha256" \
+                --argjson bytes "$bundle_bytes" \
+                '.Metadata.sha256 == $sha and .ContentLength == $bytes' \
+                .immutable-head.json
+              upload_status="reused-after-race"
+            fi
+          fi
+
+          aws s3api head-object \
+            --bucket "$EVIDENCE_BUCKET" \
+            --key "$object_key" \
+            > .immutable-final-head.json
+          jq -e \
+            --arg sha "$bundle_sha256" \
+            --argjson bytes "$bundle_bytes" \
+            '.Metadata.sha256 == $sha and .ContentLength == $bytes' \
+            .immutable-final-head.json
+          jq -n \
+            --arg provider aws-s3 \
+            --arg bucket "$EVIDENCE_BUCKET" \
+            --arg key "$object_key" \
+            --arg sha256 "$bundle_sha256" \
+            --argjson bytes "$bundle_bytes" \
+            --arg status "$upload_status" \
+            '{
+              schema_version: "1.0.0",
+              provider: $provider,
+              bucket: $bucket,
+              object_key: $key,
+              sha256: $sha256,
+              bytes: $bytes,
+              conditional_create: true,
+              status: $status
+            }' > host-certificate/immutable-upload.json
       - name: Upload same-commit host certificate
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
