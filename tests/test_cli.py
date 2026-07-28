@@ -137,7 +137,17 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
         ]
     )
     runs = parser.parse_args(["runs", "list", "--limit", "5", "--json"])
-    saved_run = parser.parse_args(["run", "--full-report"])
+    saved_run = parser.parse_args(
+        [
+            "run",
+            "--full-report",
+            "--verify",
+            "--verification-timeout",
+            "45",
+            "--open-report",
+        ]
+    )
+    unattended_run = parser.parse_args(["run", "--yes"])
     shown = parser.parse_args(["runs", "show", "1234567890ab", "--full-report"])
 
     assert report.command_name == "report"
@@ -148,7 +158,25 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
     assert runs.limit == 5
     assert runs.json is True
     assert saved_run.full_report is True
+    assert saved_run.verify is True
+    assert saved_run.verification_timeout == 45
+    assert saved_run.open_report is True
+    assert unattended_run.verify is None
+    assert unattended_run.open_report is None
     assert shown.full_report is True
+
+
+def test_run_rejects_contradictory_or_nonpositive_verification_options(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert cli.main(["run", "--no-verify", "--verification-timeout", "45"]) == 2
+    assert "--verification-timeout cannot be combined" in capsys.readouterr().err
+
+    assert cli.main(["run", "--verification-timeout", "0"]) == 2
+    assert "--verification-timeout must be positive" in capsys.readouterr().err
+
+    assert cli.main(["run", "--prepare-only", "--verify"]) == 2
+    assert "--verify requires a completed Native run" in capsys.readouterr().err
 
 
 def test_every_top_level_command_has_one_handler() -> None:
