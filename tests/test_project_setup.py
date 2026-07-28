@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
-from nfi_backtest_engine import cli, research_runner
+from nfi_backtest_engine import cli, research_runner, user_flow
 from nfi_backtest_engine.canonical import read_json, write_json
-from nfi_backtest_engine.errors import SpecValidationError
+from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
+from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.project_setup import (
     initialize_project,
     load_project,
     project_run_arguments,
 )
+from nfi_backtest_engine.verification_ledger import VerificationLedger
 
 
 def _standard_layout(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -33,6 +38,58 @@ def _standard_layout(tmp_path: Path) -> tuple[Path, Path, Path]:
     data = user_data / "data" / "binance"
     data.mkdir(parents=True)
     return source, config, data
+
+
+def _completed_run_evidence(root: Path) -> tuple[dict, Path]:
+    root.mkdir(parents=True, exist_ok=True)
+    surface = root / "trade-surface.json"
+    surface.write_text("{}\n", encoding="utf-8")
+    (root / "data-seal.json").write_text("{}\n", encoding="utf-8")
+    write_json(
+        root / "effective-config.redacted.json",
+        {"config": {"trading_mode": "spot"}},
+    )
+    digest = "a" * 64
+    inputs = {
+        "strategy": {
+            "file_sha256": digest,
+            "capability_fingerprint": "c" * 64,
+        },
+        "config": {"run_effective_sha256": "d" * 64},
+        "pairlist_sha256": "e" * 64,
+        "market_metadata": {"sha256": "f" * 64},
+        "timerange": "20210101-20260101",
+    }
+    run_id = hashlib.sha256(
+        json.dumps(
+            inputs,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    run = {
+        "run_id": run_id,
+        "status": "complete",
+        "complete": True,
+        "created_at": "2026-07-29T00:00:00Z",
+        "inputs": inputs,
+        "capability": {"hot_ir_fingerprint": "1" * 64},
+        "result": {
+            "execution": {
+                "build": {"binary_sha256": "2" * 64},
+            },
+            "trade_surface": {
+                "path": str(surface),
+                "bytes": surface.stat().st_size,
+                "sha256": sha256_file(surface),
+            },
+        },
+    }
+    write_json(root / "identity.json", {"run_id": run_id, "identity": inputs})
+    write_json(root / "run.json", run)
+    return run, surface
 
 
 def test_standard_layout_initializes_without_prompts(tmp_path: Path) -> None:
@@ -203,6 +260,9 @@ def test_first_run_initializes_project_and_forwards_existing_runner_contract(
     assert calls[0]["prepare_only"] is True
     assert calls[0]["resume"] is False
     assert calls[0]["profile_path"] == tmp_path / ".nfi/execution-profile.json"
+    preflight = read_json(tmp_path / ".nfi/run-preflight.json")
+    assert preflight["passed"] is True
+    assert preflight["disk"]["download_growth_bounded"] is False
 
 
 def test_saved_run_automatically_resumes_nonempty_output(
@@ -275,3 +335,438 @@ def test_project_arguments_do_not_embed_config_secrets(tmp_path: Path) -> None:
 
     assert "secret-key" not in document
     assert arguments["config_path"] == config
+
+
+def test_disk_preflight_derives_work_and_margin_from_local_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source, _, data = _standard_layout(tmp_path)
+    (data / "one.feather").write_bytes(b"a" * 100)
+    (data / "two.feather").write_bytes(b"b" * 300)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "inspect_hardware",
+        lambda _workspace: {
+            "system": "test",
+            "machine": "portable",
+            "affinity_cpu_count": 4,
+            "memory": {"available_bytes": 10_000},
+        },
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "_inspect_optional_docker",
+        lambda: {"status": "unavailable", "detail": "test"},
+    )
+    monkeypatch.setattr(
+        user_flow.psutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(free=1_000_000),
+    )
+
+    fresh = user_flow.inspect_run_preflight(
+        settings,
+        resume=False,
+        download_missing=False,
+    )
+    known = fresh["disk"]["known_input_bytes"]
+
+    assert fresh["passed"] is True
+    assert fresh["disk"]["known_data_logical_bytes"] == 400
+    assert fresh["disk"]["estimated_remaining_work_bytes"] == known
+    assert fresh["disk"]["safety_margin_bytes"] == known
+    assert fresh["disk"]["required_free_bytes"] == known * 2
+    assert fresh["disk"]["download_growth_bounded"] is True
+
+    settings.output_directory.mkdir(parents=True)
+    (settings.output_directory / "checkpoint.bin").write_bytes(b"x" * (known // 2))
+    resumed = user_flow.inspect_run_preflight(
+        settings,
+        resume=True,
+        download_missing=False,
+    )
+
+    assert resumed["disk"]["estimated_remaining_work_bytes"] < known
+    assert resumed["disk"]["required_free_bytes"] < fresh["disk"]["required_free_bytes"]
+
+
+def test_disk_preflight_fails_before_native_when_measured_space_is_insufficient(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source, _, data = _standard_layout(tmp_path)
+    (data / "candles.feather").write_bytes(b"x" * 100)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "inspect_hardware",
+        lambda _workspace: {
+            "system": "test",
+            "machine": "portable",
+            "affinity_cpu_count": 2,
+            "memory": {"available_bytes": 1_000},
+        },
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "_inspect_optional_docker",
+        lambda: {"status": "unavailable", "detail": "test"},
+    )
+    monkeypatch.setattr(
+        user_flow.psutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(free=1),
+    )
+
+    with pytest.raises(SpecValidationError, match="disk preflight failed"):
+        user_flow.write_run_preflight(
+            settings,
+            resume=False,
+            download_missing=False,
+        )
+
+    audit = read_json(tmp_path / ".nfi/run-preflight.json")
+    assert audit["passed"] is False
+    assert audit["disk"]["available_bytes"] == 1
+    assert audit["disk"]["required_free_bytes"] > 1
+
+
+def test_consent_defaults_to_no_and_never_prompts_noninteractively() -> None:
+    def unexpected_prompt(_question: str) -> str:
+        pytest.fail("noninteractive consent must not prompt")
+
+    assert (
+        user_flow.resolve_consent(
+            None,
+            interactive=False,
+            question="verify",
+            prompt=unexpected_prompt,
+        )
+        is False
+    )
+    assert (
+        user_flow.resolve_consent(
+            True,
+            interactive=False,
+            question="verify",
+            prompt=unexpected_prompt,
+        )
+        is True
+    )
+    assert (
+        user_flow.resolve_consent(
+            None,
+            interactive=True,
+            question="verify",
+            prompt=lambda _question: "yes",
+        )
+        is True
+    )
+    assert (
+        user_flow.resolve_consent(
+            None,
+            interactive=True,
+            question="verify",
+            prompt=lambda _question: "",
+        )
+        is False
+    )
+
+
+def test_report_opening_uses_platform_file_uri_and_explicit_opener(
+    tmp_path: Path,
+) -> None:
+    report = tmp_path / "결과 보고서" / "report.html"
+    report.parent.mkdir()
+    report.write_text("<html></html>", encoding="utf-8")
+    opened: list[str] = []
+
+    uri = user_flow.open_html_report(
+        report,
+        opener=lambda value: opened.append(value) is None,
+    )
+
+    assert opened == [uri]
+    assert uri.startswith("file:")
+    assert "%20" in uri
+    assert "결과 보고서" not in uri
+
+
+def test_quick_verification_reuses_only_a_surface_bound_exact_attempt(
+    tmp_path: Path,
+) -> None:
+    run, surface = _completed_run_evidence(tmp_path / "run")
+    attempt = tmp_path / "run/official-verification/attempt-0001"
+    attempt.mkdir(parents=True)
+    (attempt / "official-trade-surface.json").write_bytes(surface.read_bytes())
+    proof = {
+        "run_id": run["run_id"],
+        "complete": True,
+        "exact_parity": True,
+        "ended_at": "2026-07-29T00:01:00Z",
+        "reference": {
+            "version": "test",
+            "image_index_digest": "sha256:index",
+            "image_platform_digest": "sha256:platform",
+            "platform": "linux/amd64",
+        },
+        "inputs": {
+            "engine_trade_surface": {
+                "path": str(surface),
+                "bytes": surface.stat().st_size,
+                "sha256": sha256_file(surface),
+            },
+        },
+        "official_trade_surface": {
+            "path": str(attempt / "official-trade-surface.json"),
+            "bytes": surface.stat().st_size,
+            "sha256": sha256_file(surface),
+        },
+    }
+    write_json(attempt / "run.json", proof)
+
+    reused, proof_path, was_reused = user_flow.run_quick_official_verification(
+        tmp_path / "run"
+    )
+
+    assert was_reused is True
+    assert reused == proof
+    assert proof_path == attempt / "run.json"
+
+    proof["inputs"]["engine_trade_surface"]["sha256"] = "0" * 64
+    write_json(attempt / "run.json", proof)
+    with pytest.raises(BenchmarkError, match="different trade surface"):
+        user_flow.run_quick_official_verification(tmp_path / "run")
+
+
+def test_native_and_quick_states_append_to_the_verification_ledger(
+    tmp_path: Path,
+) -> None:
+    run, surface = _completed_run_evidence(tmp_path / "run")
+    attempt = tmp_path / "run/official-verification/attempt-0001"
+    attempt.mkdir(parents=True)
+    official_surface = attempt / "official-trade-surface.json"
+    official_surface.write_bytes(surface.read_bytes())
+    proof = {
+        "run_id": run["run_id"],
+        "complete": True,
+        "exact_parity": True,
+        "ended_at": "2026-07-29T00:01:00Z",
+        "reference": {
+            "version": "2026.5.1",
+            "image_index_digest": "sha256:index",
+            "image_platform_digest": "sha256:platform",
+            "platform": "linux/amd64",
+        },
+        "inputs": {
+            "engine_trade_surface": {
+                "path": str(surface),
+                "bytes": surface.stat().st_size,
+                "sha256": sha256_file(surface),
+            },
+        },
+        "official_trade_surface": {
+            "path": str(official_surface),
+            "bytes": official_surface.stat().st_size,
+            "sha256": sha256_file(official_surface),
+        },
+    }
+    proof_path = attempt / "run.json"
+    write_json(proof_path, proof)
+    ledger_path = tmp_path / ".nfi/verification-ledger.sqlite"
+
+    first = user_flow.record_native_completion(ledger_path, tmp_path / "run")
+    repeated = user_flow.record_native_completion(ledger_path, tmp_path / "run")
+    strategy_sequence, run_sequence = user_flow.record_quick_verification(
+        ledger_path,
+        tmp_path / "run",
+        proof,
+        proof_path,
+    )
+
+    assert first == repeated == 1
+    assert strategy_sequence == 2
+    assert run_sequence == 3
+    with VerificationLedger(ledger_path, create=False) as ledger:
+        projection = ledger.project()
+    assert projection["strategy"]["quick_verified"]["subject"]["id"] == "a" * 64
+    assert projection["runs"][0]["run_id"] == run["run_id"]
+    assert projection["runs"][0]["highest_success"]["state"] == "quick_verified"
+
+
+def test_failed_quick_attempt_preserves_the_native_success(
+    tmp_path: Path,
+) -> None:
+    run, surface = _completed_run_evidence(tmp_path / "run")
+    attempt = tmp_path / "run/official-verification/attempt-0001"
+    attempt.mkdir(parents=True)
+    proof = {
+        "run_id": run["run_id"],
+        "complete": False,
+        "exact_parity": False,
+        "timed_out": True,
+        "ended_at": "2026-07-29T00:01:00Z",
+        "reference": {
+            "version": "2026.5.1",
+            "image_index_digest": "sha256:index",
+            "image_platform_digest": "sha256:platform",
+            "platform": "linux/amd64",
+        },
+        "inputs": {
+            "engine_trade_surface": {
+                "path": str(surface),
+                "bytes": surface.stat().st_size,
+                "sha256": sha256_file(surface),
+            },
+        },
+        "official_trade_surface": None,
+    }
+    proof_path = attempt / "run.json"
+    write_json(proof_path, proof)
+    ledger_path = tmp_path / ".nfi/verification-ledger.sqlite"
+
+    native_sequence = user_flow.record_native_completion(
+        ledger_path,
+        tmp_path / "run",
+    )
+    failure_sequence = user_flow.record_quick_failure(
+        ledger_path,
+        tmp_path / "run",
+        proof,
+        proof_path,
+    )
+
+    assert native_sequence == 1
+    assert failure_sequence == 2
+    with VerificationLedger(ledger_path, create=False) as ledger:
+        projection = ledger.project()
+    run_status = projection["runs"][0]
+    assert run_status["highest_success"]["state"] == "native_complete"
+    assert run_status["latest"]["state"] == "failed"
+    assert run_status["latest_failure"]["failure"]["code"] == (
+        "OFFICIAL_VERIFICATION_TIMEOUT"
+    )
+
+
+def test_finished_one_line_flow_runs_only_explicit_post_actions(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    run, _ = _completed_run_evidence(settings.output_directory)
+    (settings.output_directory / "report.html").write_text("<html></html>", encoding="utf-8")
+    proof_path = settings.output_directory / "proof.json"
+    proof = {
+        "run_id": run["run_id"],
+        "complete": True,
+        "exact_parity": True,
+    }
+    write_json(proof_path, proof)
+    calls: list[str] = []
+    monkeypatch.setattr(
+        user_flow,
+        "record_native_completion",
+        lambda _ledger, _run: calls.append("native") or 1,
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "run_quick_official_verification",
+        lambda _run, timeout_seconds: (
+            calls.append(f"verify:{timeout_seconds}") or proof,
+            proof_path,
+            False,
+        ),
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "record_quick_verification",
+        lambda _ledger, _run, _proof, _path: (
+            calls.append("ledger-quick") or 2,
+            3,
+        ),
+    )
+    monkeypatch.setattr(
+        "nfi_backtest_engine.result_report.write_result_presentation",
+        lambda *_args, **_kwargs: {},
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "open_html_report",
+        lambda _path: calls.append("open") or "file:///report.html",
+    )
+    messages: list[str] = []
+
+    status = user_flow.finish_one_line_run(
+        settings,
+        native_status=0,
+        verification=True,
+        verification_timeout_seconds=45,
+        open_report=True,
+        interactive=False,
+        include_breakdowns=False,
+        emit=messages.append,
+    )
+
+    assert status == 0
+    assert calls == ["native", "verify:45", "ledger-quick", "open"]
+    assert any("exact parity" in message for message in messages)
+
+
+def test_finished_noninteractive_flow_executes_neither_optional_action(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    _completed_run_evidence(settings.output_directory)
+    (settings.output_directory / "report.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setattr(user_flow, "record_native_completion", lambda _ledger, _run: 1)
+    monkeypatch.setattr(
+        user_flow,
+        "run_quick_official_verification",
+        lambda *_args, **_kwargs: pytest.fail("verification requires consent"),
+    )
+    monkeypatch.setattr(
+        user_flow,
+        "open_html_report",
+        lambda *_args, **_kwargs: pytest.fail("report opening requires consent"),
+    )
+    messages: list[str] = []
+
+    status = user_flow.finish_one_line_run(
+        settings,
+        native_status=0,
+        verification=None,
+        verification_timeout_seconds=None,
+        open_report=None,
+        interactive=False,
+        include_breakdowns=False,
+        emit=messages.append,
+    )
+
+    assert status == 0
+    assert "official quick verification: skipped (no explicit consent)" in messages
+    assert "HTML report opening: skipped (no explicit consent)" in messages

@@ -45,6 +45,15 @@ def execute(args: argparse.Namespace) -> int:
             project_run_arguments,
         )
 
+        if args.verification_timeout is not None and args.verification_timeout <= 0:
+            raise NfiBacktestError("--verification-timeout must be positive")
+        if args.verify is False and args.verification_timeout is not None:
+            raise NfiBacktestError(
+                "--verification-timeout cannot be combined with --no-verify"
+            )
+        if args.prepare_only and args.verify is True:
+            raise NfiBacktestError("--verify requires a completed Native run")
+
         project_path = args.project.resolve()
         if project_path.is_file():
             supplied = {
@@ -79,7 +88,19 @@ def execute(args: argparse.Namespace) -> int:
         resume = output.is_dir() and any(output.iterdir())
         if resume:
             print(f"existing run found; resuming hash-valid stages from {output}")
-        return execute_research_backtest(
+        from ..user_flow import (
+            finish_one_line_run,
+            format_run_preflight,
+            write_run_preflight,
+        )
+
+        preflight, preflight_path = write_run_preflight(
+            settings,
+            resume=resume,
+            download_missing=not args.no_download,
+        )
+        print(format_run_preflight(preflight, preflight_path))
+        native_status = execute_research_backtest(
             project_run_arguments(settings),
             workers=args.workers,
             resume=resume,
@@ -90,6 +111,16 @@ def execute(args: argparse.Namespace) -> int:
             recalibrate=args.recalibrate,
             history_coverage_policy=args.history_coverage,
             full_report=args.full_report,
+            print_summary=False,
+        )
+        return finish_one_line_run(
+            settings,
+            native_status=native_status,
+            verification=args.verify,
+            verification_timeout_seconds=args.verification_timeout,
+            open_report=args.open_report,
+            interactive=not args.yes and sys.stdin.isatty(),
+            include_breakdowns=args.full_report,
         )
 
     if args.command_name == "data":
@@ -278,6 +309,7 @@ def execute_research_backtest(
     recalibrate: bool,
     history_coverage_policy: str,
     full_report: bool,
+    print_summary: bool = True,
 ) -> int:
     """Run the existing research contract for advanced and wizard-backed commands."""
     from ..research_runner import run_research_backtest
@@ -296,14 +328,15 @@ def execute_research_backtest(
     )
     output = Path(arguments["output_directory"])
     if (output / "summary.json").is_file():
-        summary = load_result_summary(output)
-        print(
-            format_terminal_summary(
-                summary,
-                output,
-                include_breakdowns=full_report,
+        if print_summary:
+            summary = load_result_summary(output)
+            print(
+                format_terminal_summary(
+                    summary,
+                    output,
+                    include_breakdowns=full_report,
+                )
             )
-        )
     else:
         # Third-party wrappers may substitute the research runner and return only
         # its historical dictionary contract. Keep that integration usable while

@@ -451,6 +451,29 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="require --markets instead of capturing public market metadata",
     )
+    run.add_argument(
+        "--verify",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "run pinned quick-level official verification after Native completion; "
+            "otherwise ask only on an interactive terminal"
+        ),
+    )
+    run.add_argument(
+        "--verification-timeout",
+        type=int,
+        help="optional timeout for the consented official verification in seconds",
+    )
+    run.add_argument(
+        "--open-report",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "open report.html after completion; otherwise ask only on an "
+            "interactive terminal"
+        ),
+    )
     _add_full_report_argument(run)
 
     system = subcommands.add_parser("system", help="inspect and tune this computer")
@@ -1024,6 +1047,7 @@ def _execute_research_backtest(
     recalibrate: bool,
     history_coverage_policy: str,
     full_report: bool,
+    print_summary: bool = True,
 ) -> int:
     return run_commands.execute_research_backtest(
         arguments,
@@ -1036,6 +1060,7 @@ def _execute_research_backtest(
         recalibrate=recalibrate,
         history_coverage_policy=history_coverage_policy,
         full_report=full_report,
+        print_summary=print_summary,
     )
 
 
