@@ -30,6 +30,14 @@ pub use io::{
 mod portfolio;
 mod validation;
 use portfolio::{wallet_free, OpenTrade, TradeSide};
+mod futures;
+#[cfg(test)]
+use futures::evaluate_nfi_leverage;
+use futures::{
+    apply_funding, entry_leverage, preserve_partial_exit_funding_refresh,
+    reapply_inclusive_funding_after_entry_fill, recalculate_order_funding_total,
+    take_running_funding, update_isolated_liquidation_price,
+};
 mod execution;
 use domain::FeatureProjection;
 pub use domain::*;
@@ -55,41 +63,16 @@ mod nfi_regular_adjustment;
 use nfi_regular_adjustment::{evaluate_nfi_regular_adjustment, RegularAdjustmentOutcome};
 mod nfi_rebuy;
 use nfi_rebuy::{evaluate_nfi_rebuy_adjustment, evaluate_nfi_short_rebuy_adjustment};
+mod nfi_state;
+use nfi_state::{
+    nfi_profit_bucket, nfi_profit_snapshot, nfi_trade_is_derisked, set_profit_target,
+    NfiProfitSnapshot, PositionAdjustmentRequest, ProfitTarget,
+};
 mod protections;
 use protections::{PairLockState, ProtectionState};
 
 /// Version of the simulator input/result contract.
 pub const SIMULATOR_SCHEMA_VERSION: &str = "1.0.0";
-/// Immutable inputs shared by every NFI position-adjustment route.
-///
-/// Keeping the callback boundary in one value makes route dispatch readable
-/// and prevents future callback fields from expanding every function
-/// signature independently.
-#[derive(Clone, Copy)]
-struct PositionAdjustmentRequest<'a> {
-    pair: &'a PairSeries,
-    candle_index: usize,
-    candle: &'a Candle,
-    config: &'a PortfolioConfig,
-    available_balance: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct NfiProfitSnapshot {
-    stake: f64,
-    ratio: f64,
-    current_stake_ratio: f64,
-    initial_stake_ratio: f64,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct ProfitTarget {
-    rate: f64,
-    profit: f64,
-    sell_reason: String,
-    time_profit_reached_ms: i64,
-}
-
 /// Reports whether the compiled chronological simulator is present.
 #[must_use]
 pub const fn simulator_available() -> bool {
@@ -892,151 +875,6 @@ fn nfi_long_grind_supports_trade(route: &NfiLongGrindRoute, trade: &OpenTrade) -
         && words
             .iter()
             .all(|word| route.entry_tags.iter().any(|supported| supported == word))
-}
-
-fn entry_leverage(
-    signal: &EntrySignal,
-    config: &PortfolioConfig,
-    pair: &PairSeries,
-    candle: &Candle,
-    proposed_stake: f64,
-) -> Result<f64, SimError> {
-    let proposed = signal
-        .leverage
-        .or_else(|| {
-            config
-                .nfi_leverage_program
-                .as_ref()
-                .map(|program| evaluate_nfi_leverage(program, signal.tag.as_deref()))
-        })
-        .or(config.leverage)
-        .unwrap_or(1.0);
-    let tier_limits = config
-        .liquidation_model
-        .as_ref()
-        .and_then(|model| model.tiers_by_pair.get(&pair.pair));
-    let maximum = if let Some(tiers) = tier_limits {
-        Some(
-            maximum_leverage_for_stake(tiers, proposed_stake).ok_or_else(|| {
-                SimError::InvalidLeverage {
-                    pair: pair.pair.clone(),
-                    timestamp_ms: candle.timestamp_ms,
-                }
-            })?,
-        )
-    } else {
-        config.maximum_leverage_by_pair.get(&pair.pair).copied()
-    };
-    let leverage = maximum
-        .map_or(proposed, |value| proposed.min(value))
-        .max(1.0);
-    if leverage.is_finite() && leverage > 0.0 {
-        Ok(leverage)
-    } else {
-        Err(SimError::InvalidLeverage {
-            pair: pair.pair.clone(),
-            timestamp_ms: candle.timestamp_ms,
-        })
-    }
-}
-
-fn maximum_leverage_for_stake(tiers: &[LeverageTier], stake_amount: f64) -> Option<f64> {
-    if stake_amount == 0.0 {
-        return tiers.first().map(|tier| tier.maximum_leverage);
-    }
-    let mut prior_maximum = None;
-    for tier in tiers {
-        let minimum_stake = tier.min_notional / prior_maximum.unwrap_or(tier.maximum_leverage);
-        let maximum_stake = tier
-            .max_notional
-            .map_or(f64::INFINITY, |value| value / tier.maximum_leverage);
-        prior_maximum = Some(tier.maximum_leverage);
-        if minimum_stake <= stake_amount && stake_amount <= maximum_stake {
-            return Some(tier.maximum_leverage);
-        }
-        if stake_amount < minimum_stake && stake_amount <= maximum_stake {
-            // Freqtrade intentionally selects this tier when the stake falls
-            // below its nominal floor but still fits under the tier ceiling.
-            return Some(tier.maximum_leverage);
-        }
-    }
-    None
-}
-
-fn update_isolated_liquidation_price(
-    trade: &mut OpenTrade,
-    config: &PortfolioConfig,
-    timestamp_ms: i64,
-) -> Result<(), SimError> {
-    if !config.is_futures || trade.liquidation_price_is_explicit {
-        return Ok(());
-    }
-    let Some(model) = &config.liquidation_model else {
-        // Generic simulator inputs may still omit a model and provide no
-        // liquidation price. The X7 adapter has a stricter futures preflight.
-        return Ok(());
-    };
-    let tiers =
-        model
-            .tiers_by_pair
-            .get(&trade.pair)
-            .ok_or_else(|| SimError::InvalidLiquidationPrice {
-                pair: trade.pair.clone(),
-                timestamp_ms,
-            })?;
-    // Freqtrade selects the last Binance tier whose minimum notional is not
-    // greater than the current isolated stake amount.
-    let tier = tiers
-        .iter()
-        .rev()
-        .find(|tier| trade.stake_amount >= tier.min_notional)
-        .ok_or_else(|| SimError::InvalidLiquidationPrice {
-            pair: trade.pair.clone(),
-            timestamp_ms,
-        })?;
-    let maintenance_amount =
-        tier.maintenance_amount
-            .ok_or_else(|| SimError::InvalidLiquidationPrice {
-                pair: trade.pair.clone(),
-                timestamp_ms,
-            })?;
-    let direction = if trade.side == TradeSide::Short {
-        -1.0
-    } else {
-        1.0
-    };
-    let numerator =
-        trade.stake_amount + maintenance_amount - direction * trade.amount * trade.open_rate;
-    let denominator = trade.amount * tier.maintenance_margin_rate - direction * trade.amount;
-    let raw_price = numerator / denominator;
-    let buffer_amount = (trade.open_rate - raw_price).abs() * model.buffer;
-    let buffered = if trade.side == TradeSide::Short {
-        raw_price - buffer_amount
-    } else {
-        raw_price + buffer_amount
-    }
-    .max(0.0);
-    if !buffered.is_finite() || buffered <= 0.0 {
-        return Err(SimError::InvalidLiquidationPrice {
-            pair: trade.pair.clone(),
-            timestamp_ms,
-        });
-    }
-    trade.liquidation_price = Some(buffered);
-    Ok(())
-}
-
-fn evaluate_nfi_leverage(program: &NfiLeverageProgram, entry_tag: Option<&str>) -> f64 {
-    let words = entry_tag.unwrap_or_default().split_whitespace();
-    for rule in &program.ordered_tag_overrides {
-        if words
-            .clone()
-            .all(|word| rule.entry_tags.iter().any(|tag| tag == word))
-        {
-            return rule.leverage;
-        }
-    }
-    program.default
 }
 
 fn valid_vm_value(value: &Value) -> bool {
@@ -2551,61 +2389,6 @@ fn nfi_managed_long_stoploss(
     ))
 }
 
-fn nfi_trade_is_derisked(trade: &OpenTrade) -> Option<bool> {
-    let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
-    let tagged_exit = trade
-        .orders
-        .iter()
-        .filter(|order| !order.is_entry)
-        .any(|order| {
-            order
-                .tag
-                .as_deref()
-                .and_then(|tag| tag.split_whitespace().next())
-                .is_some_and(|tag| {
-                    matches!(
-                        tag,
-                        "d" | "d1" | "derisk_level_1" | "derisk_level_2" | "derisk_level_3"
-                    )
-                })
-        });
-    Some(tagged_exit || trade.amount < first_entry.amount * 0.95)
-}
-
-fn set_profit_target(
-    profit_targets: &mut BTreeMap<String, ProfitTarget>,
-    trade: &OpenTrade,
-    candle: &Candle,
-    sell_reason: String,
-    profit: f64,
-) {
-    profit_targets.insert(
-        trade.pair.clone(),
-        ProfitTarget {
-            rate: candle.open,
-            profit,
-            sell_reason,
-            time_profit_reached_ms: candle.timestamp_ms,
-        },
-    );
-}
-
-fn nfi_profit_bucket(profit: f64) -> Option<u8> {
-    if profit < 0.001 {
-        return None;
-    }
-    if profit >= 0.12 {
-        return Some(12);
-    }
-    let mut bucket = 0_u8;
-    for candidate in 1_u8..=11 {
-        if profit >= f64::from(candidate) / 100.0 {
-            bucket = candidate;
-        }
-    }
-    Some(bucket)
-}
-
 fn nfi_exit_reason(reason: &str, entry_tag: &str) -> String {
     format!("{reason} ( {entry_tag})")
 }
@@ -3015,221 +2798,6 @@ fn scalar_adjustment_number(value: &Value) -> Option<f64> {
         Value::Bool(value) => Some(f64::from(u8::from(*value))),
         value => scalar_number(value),
     }
-}
-
-fn apply_funding(trade: &mut OpenTrade, candle: &Candle, funding_fee_interval_ms: Option<i64>) {
-    let scheduled_refresh =
-        funding_fee_interval_ms.is_some_and(|interval| candle.timestamp_ms % interval == 0);
-    let mut changed = false;
-    if scheduled_refresh {
-        if let Some(seed) = trade.funding_rebase_seed.take() {
-            reset_running_funding(trade, seed);
-            changed = true;
-        }
-    }
-
-    if let Some(signed) = funding_fee_at_candle(trade.side, trade.amount, candle) {
-        // Inputs created before the refresh cadence became explicit still
-        // rebase on the next sparse event. Exact X7 manifests always carry the
-        // cadence and take the scheduled branch above.
-        if funding_fee_interval_ms.is_none() {
-            if let Some(seed) = trade.funding_rebase_seed.take() {
-                reset_running_funding(trade, seed);
-            }
-        }
-        add_running_funding(trade, signed);
-        changed = true;
-    }
-
-    if changed {
-        // `Trade.set_funding_fees()` separately performs Python `sum()` over
-        // the already-filled orders, then adds the current running segment.
-        let prior_funding = python_float_sum(trade.orders.iter().map(|order| order.funding_fee));
-        trade.funding_fees_total = prior_funding + trade.funding_fees;
-    }
-}
-
-fn funding_fee_at_candle(side: TradeSide, amount: f64, candle: &Candle) -> Option<f64> {
-    let (Some(rate), Some(mark_price)) = (candle.funding_rate, candle.funding_mark_price) else {
-        return None;
-    };
-    // Pandas evaluates Freqtrade's expression left-to-right as
-    // `(open_fund * open_mark) * amount`. Multiplying amount first is
-    // mathematically equivalent but changes exported float tokens.
-    let fee = rate * mark_price * amount;
-    // Freqtrade's persisted convention is positive when the trade receives
-    // funding and negative when it pays. A positive market funding rate is
-    // therefore income for shorts and a cost for longs.
-    Some(match side {
-        TradeSide::Long => -fee,
-        TradeSide::Short => fee,
-    })
-}
-
-fn add_running_funding(trade: &mut OpenTrade, signed: f64) {
-    // `Exchange.calculate_funding_fees()` uses Python `sum()` over all
-    // funding rows since the most recent filled order. CPython 3.14 uses a
-    // Neumaier correction for float iterables, so a plain `+=` can differ by
-    // an exported ulp on long-running adjustment trades.
-    let next = trade.funding_sum_high + signed;
-    if trade.funding_sum_high.abs() >= signed.abs() {
-        trade.funding_sum_low += (trade.funding_sum_high - next) + signed;
-    } else {
-        trade.funding_sum_low += (signed - next) + trade.funding_sum_high;
-    }
-    trade.funding_sum_high = next;
-    trade.funding_fees = compensated_sum_result(trade.funding_sum_high, trade.funding_sum_low);
-}
-
-fn reset_running_funding(trade: &mut OpenTrade, value: f64) {
-    trade.funding_sum_high = value;
-    trade.funding_sum_low = 0.0;
-    trade.funding_fees = value;
-}
-
-/// Reproduce Freqtrade's forced funding refresh after an additional entry.
-///
-/// Backtesting first calculates funding before `adjust_trade_position`, moves
-/// that running segment onto the newly filled order, and then calls
-/// `_run_funding_fees(..., force=True)`. The exchange filter is inclusive at
-/// both ends, so a fill exactly on a funding timestamp sees that row again
-/// using the post-entry amount. A later exit attaches this refreshed running
-/// segment to its order. Candles without funding data remain a no-op.
-fn reapply_inclusive_funding_after_entry_fill(
-    trade: &mut OpenTrade,
-    candle: &Candle,
-    funding_fee_interval_ms: Option<i64>,
-) {
-    apply_funding(trade, candle, funding_fee_interval_ms);
-}
-
-/// Preserve Freqtrade's two-stage funding state after a partial exit.
-///
-/// The fill first attaches the pre-exit running segment to the exit order.
-/// Freqtrade then force-refreshes the inclusive range while the trade still
-/// exposes its pre-exit amount. After order replay reduces the position,
-/// `funding_fee_running` keeps that temporary value but the callback-visible
-/// total contains filled-order funding only. The next scheduled funding tick
-/// recalculates from the fill timestamp with the reduced amount. Retaining the
-/// post-exit seed lets `apply_funding` replace the temporary segment exactly.
-fn preserve_partial_exit_funding_refresh(
-    trade: &mut OpenTrade,
-    candle: &Candle,
-    amount_before_fill: f64,
-) {
-    let Some(pre_exit_fee) = funding_fee_at_candle(trade.side, amount_before_fill, candle) else {
-        return;
-    };
-    let post_exit_fee = funding_fee_at_candle(trade.side, trade.amount, candle)
-        .expect("the same validated funding candle remains available");
-    reset_running_funding(trade, pre_exit_fee);
-    trade.funding_rebase_seed = Some(post_exit_fee);
-    // `recalc_trade_from_orders()` runs after the forced refresh and resets
-    // `funding_fees` to filled-order funding without clearing the separate
-    // running value.
-    recalculate_order_funding_total(trade);
-}
-
-fn compensated_sum_result(high: f64, low: f64) -> f64 {
-    if low != 0.0 && low.is_finite() {
-        high + low
-    } else {
-        high
-    }
-}
-
-/// Move the current funding segment to a newly filled order.
-///
-/// Freqtrade resets `funding_fee_running` after every non-stoploss fill. The
-/// compensated state must be reset at the same boundary or later segments
-/// would retain an invisible correction from an earlier order.
-fn take_running_funding(trade: &mut OpenTrade) -> f64 {
-    trade.funding_sum_high = 0.0;
-    trade.funding_sum_low = 0.0;
-    trade.funding_rebase_seed = None;
-    std::mem::take(&mut trade.funding_fees)
-}
-
-/// Mirror the ordinary left-to-right accumulation in
-/// `LocalTrade.recalc_trade_from_orders()`.
-///
-/// This intentionally does not use `python_float_sum`: Freqtrade's order
-/// replay is an explicit `+=` loop, which has different rounding behavior.
-fn recalculate_order_funding_total(trade: &mut OpenTrade) {
-    trade.funding_fees_total = trade
-        .orders
-        .iter()
-        .fold(0.0, |total, order| total + order.funding_fee);
-}
-
-fn nfi_profit_snapshot(
-    trade: &OpenTrade,
-    exit_rate: f64,
-    open_fee_rate: f64,
-    close_fee_rate: f64,
-    is_futures: bool,
-) -> Option<NfiProfitSnapshot> {
-    if !exit_rate.is_finite()
-        || !open_fee_rate.is_finite()
-        || !close_fee_rate.is_finite()
-        || trade.orders.is_empty()
-    {
-        return None;
-    }
-    let mut total_amount = 0.0;
-    let mut total_stake = 0.0;
-    let mut total_profit = 0.0;
-    let (open_multiplier, close_multiplier) = if trade.side == TradeSide::Short {
-        (1.0 - open_fee_rate, 1.0 + close_fee_rate)
-    } else {
-        (1.0 + open_fee_rate, 1.0 - close_fee_rate)
-    };
-    let mut first_entry_cost = None;
-    for order in &trade.orders {
-        let stake = order.amount * order.price;
-        if order.is_entry {
-            first_entry_cost.get_or_insert(stake);
-            let entry_stake = stake * open_multiplier;
-            total_amount += order.amount;
-            total_stake += entry_stake;
-            if trade.side == TradeSide::Short {
-                total_profit += entry_stake;
-            } else {
-                total_profit -= entry_stake;
-            }
-        } else {
-            let exit_stake = stake * close_multiplier;
-            total_amount -= order.amount;
-            if trade.side == TradeSide::Short {
-                total_profit -= exit_stake;
-            } else {
-                total_profit += exit_stake;
-            }
-        }
-    }
-    let current_stake = total_amount * exit_rate * close_multiplier;
-    if trade.side == TradeSide::Short {
-        total_profit -= current_stake;
-    } else {
-        total_profit += current_stake;
-    }
-    if is_futures {
-        // NFI reads `trade.funding_fees`, which Freqtrade keeps as the
-        // cumulative fee across filled orders plus the current running
-        // interval. A partial exit realizes part of the position but does not
-        // reduce this callback-visible cumulative value.
-        total_profit += trade.funding_fees_total;
-    }
-    let first_entry_cost = first_entry_cost?;
-    if total_stake == 0.0 || current_stake == 0.0 || first_entry_cost == 0.0 {
-        return None;
-    }
-    Some(NfiProfitSnapshot {
-        stake: total_profit,
-        ratio: total_profit / total_stake,
-        current_stake_ratio: total_profit / current_stake,
-        initial_stake_ratio: total_profit / first_entry_cost,
-    })
 }
 
 #[cfg(test)]
