@@ -107,6 +107,13 @@ const fn default_enabled() -> ManifestFlag {
     ManifestFlag(true)
 }
 
+#[derive(Debug)]
+struct FeatureLayout {
+    name: String,
+    kind: FileBackedFeatureKind,
+    source_index: usize,
+}
+
 #[derive(Debug, Error)]
 pub enum VectorInputError {
     #[error("cannot read vector manifest {path}: {source}")]
@@ -461,7 +468,8 @@ fn read_feather(
     let source_indices = projected_source_indices(&metadata.schema, pair)?;
     let reader = FileReader::new(file, metadata, Some(source_indices), None);
     let projected_positions = column_positions(reader.schema());
-    let (feature_kinds, row_stride) = feature_layout(reader.schema(), &projected_positions, pair)?;
+    let (feature_layouts, row_stride) =
+        feature_layout(reader.schema(), &projected_positions, pair)?;
     let spool_file = pair_spool(&pair.pair)?;
     let mut spool = BufWriter::with_capacity(SPOOL_WRITE_BUFFER_BYTES, spool_file);
     let mut row_buffer = vec![0_u8; row_stride];
@@ -482,7 +490,7 @@ fn read_feather(
             pair,
             row_offset,
             &mut previous_close,
-            &feature_kinds,
+            &feature_layouts,
             &mut spool,
             &mut row_buffer,
             &mut tag_ids,
@@ -513,19 +521,19 @@ fn read_feather(
             source: error.into_error(),
         })?;
     let rows =
-        FileBackedRows::new(spool, row_offset, feature_kinds.len(), tags).map_err(|source| {
+        FileBackedRows::new(spool, row_offset, feature_layouts.len(), tags).map_err(|source| {
             VectorInputError::FileBacking {
                 pair: pair.pair.clone(),
                 source,
             }
         })?;
-    let features = feature_kinds
+    let features = feature_layouts
         .into_iter()
         .enumerate()
-        .map(|(feature_index, (name, kind))| {
+        .map(|(feature_index, layout)| {
             (
-                name,
-                FeatureColumn::file_backed(rows.clone(), feature_index, kind),
+                layout.name,
+                FeatureColumn::file_backed(rows.clone(), feature_index, layout.kind),
             )
         })
         .collect();
@@ -558,12 +566,13 @@ fn feature_layout(
     schema: &Schema,
     projected_positions: &BTreeMap<String, usize>,
     pair: &VectorPair,
-) -> Result<(Vec<(String, FileBackedFeatureKind)>, usize), VectorInputError> {
-    let feature_kinds = pair
+) -> Result<(Vec<FeatureLayout>, usize), VectorInputError> {
+    let feature_layouts = pair
         .feature_columns
         .iter()
         .map(|name| {
-            let data_type = &schema.fields[projected_positions[name]].data_type;
+            let source_index = projected_positions[name];
+            let data_type = &schema.fields[source_index].data_type;
             let kind = match data_type {
                 DataType::Boolean => FileBackedFeatureKind::Boolean,
                 data_type if is_numeric_type(data_type) => FileBackedFeatureKind::Number,
@@ -576,17 +585,21 @@ fn feature_layout(
                     });
                 }
             };
-            Ok((name.clone(), kind))
+            Ok(FeatureLayout {
+                name: name.clone(),
+                kind,
+                source_index,
+            })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let feature_bytes = feature_kinds
+    let feature_bytes = feature_layouts
         .len()
         .checked_mul(FILE_BACKED_FEATURE_BYTES)
         .ok_or_else(|| file_backing_error(&pair.pair, "feature row is too wide"))?;
     let row_stride = FILE_BACKED_ROW_HEADER_BYTES
         .checked_add(feature_bytes)
         .ok_or_else(|| file_backing_error(&pair.pair, "pair row is too wide"))?;
-    Ok((feature_kinds, row_stride))
+    Ok((feature_layouts, row_stride))
 }
 
 fn file_backing_error(pair: &str, message: &'static str) -> VectorInputError {
@@ -628,103 +641,85 @@ fn append_batch_to_spool(
     pair: &VectorPair,
     row_offset: usize,
     previous_close: &mut Option<f64>,
-    feature_kinds: &[(String, FileBackedFeatureKind)],
+    feature_layouts: &[FeatureLayout],
     spool: &mut BufWriter<File>,
     row_buffer: &mut [u8],
     tag_ids: &mut BTreeMap<String, u32>,
     tags: &mut Vec<String>,
 ) -> Result<(), VectorInputError> {
+    let date = column(batch, positions, "date");
+    let open_column = column(batch, positions, "open");
+    let high_column = column(batch, positions, "high");
+    let low_column = column(batch, positions, "low");
+    let close_column = column(batch, positions, "close");
+    let volume_column = column(batch, positions, "volume");
+    let entry_tag_column = optional_column(batch, positions, "nfi_exec_enter_tag");
+    let exit_tag_column = optional_column(batch, positions, "nfi_exec_exit_tag");
+    let enter_long_column = column(batch, positions, "nfi_exec_enter_long");
+    let exit_long_column = pair
+        .use_exit_signal
+        .enabled()
+        .then(|| column(batch, positions, "nfi_exec_exit_long"));
+    let enter_short_column = pair
+        .can_short
+        .enabled()
+        .then(|| column(batch, positions, "nfi_exec_enter_short"));
+    let exit_short_column = (pair.can_short.enabled() && pair.use_exit_signal.enabled())
+        .then(|| column(batch, positions, "nfi_exec_exit_short"));
+    let funding_rate_column = pair
+        .include_funding
+        .enabled()
+        .then(|| column(batch, positions, "nfi_exec_funding_rate"));
+    let funding_mark_price_column = pair
+        .include_funding
+        .enabled()
+        .then(|| column(batch, positions, "nfi_exec_funding_mark_price"));
+    let feature_arrays = feature_layouts
+        .iter()
+        .map(|layout| batch.arrays()[layout.source_index].as_ref())
+        .collect::<Vec<_>>();
+
     for row in 0..batch.len() {
-        row_buffer.fill(0);
+        // Every header and feature byte is assigned below. Clearing the whole
+        // fixed-width row first would duplicate tens of gigabytes of writes.
         let absolute_row = row_offset + row;
-        let timestamp_ms = required_timestamp_ms(
-            column(batch, positions, "date"),
-            row,
-            &pair.pair,
-            "date",
-            absolute_row,
-        )?;
-        let open = required_number(
-            column(batch, positions, "open"),
-            row,
-            &pair.pair,
-            "open",
-            absolute_row,
-        )?;
-        let high = required_number(
-            column(batch, positions, "high"),
-            row,
-            &pair.pair,
-            "high",
-            absolute_row,
-        )?;
-        let low = required_number(
-            column(batch, positions, "low"),
-            row,
-            &pair.pair,
-            "low",
-            absolute_row,
-        )?;
-        let close = required_number(
-            column(batch, positions, "close"),
-            row,
-            &pair.pair,
-            "close",
-            absolute_row,
-        )?;
-        let volume = required_number(
-            column(batch, positions, "volume"),
-            row,
-            &pair.pair,
-            "volume",
-            absolute_row,
-        )?;
-        let entry_tag = optional_column(batch, positions, "nfi_exec_enter_tag")
+        let timestamp_ms = required_timestamp_ms(date, row, &pair.pair, "date", absolute_row)?;
+        let open = required_number(open_column, row, &pair.pair, "open", absolute_row)?;
+        let high = required_number(high_column, row, &pair.pair, "high", absolute_row)?;
+        let low = required_number(low_column, row, &pair.pair, "low", absolute_row)?;
+        let close = required_number(close_column, row, &pair.pair, "close", absolute_row)?;
+        let volume = required_number(volume_column, row, &pair.pair, "volume", absolute_row)?;
+        let entry_tag = entry_tag_column
             .map(|array| optional_text(array, row, &pair.pair, "nfi_exec_enter_tag"))
             .transpose()?
             .flatten();
-        let exit_tag = optional_column(batch, positions, "nfi_exec_exit_tag")
+        let exit_tag = exit_tag_column
             .map(|array| optional_text(array, row, &pair.pair, "nfi_exec_exit_tag"))
             .transpose()?
             .flatten();
         let enter_long = enabled(
-            column(batch, positions, "nfi_exec_enter_long"),
+            enter_long_column,
             row,
             &pair.pair,
             "nfi_exec_enter_long",
             absolute_row,
         )?;
-        let exit_long = pair.use_exit_signal.enabled()
-            && enabled(
-                column(batch, positions, "nfi_exec_exit_long"),
-                row,
-                &pair.pair,
-                "nfi_exec_exit_long",
-                absolute_row,
-            )?;
-        let enter_short = pair.can_short.enabled()
-            && enabled(
-                column(batch, positions, "nfi_exec_enter_short"),
-                row,
-                &pair.pair,
-                "nfi_exec_enter_short",
-                absolute_row,
-            )?;
-        let exit_short = pair.can_short.enabled()
-            && pair.use_exit_signal.enabled()
-            && enabled(
-                column(batch, positions, "nfi_exec_exit_short"),
-                row,
-                &pair.pair,
-                "nfi_exec_exit_short",
-                absolute_row,
-            )?;
-        let funding_rate = pair
-            .include_funding
-            .enabled()
-            .then(|| {
+        let exit_long = exit_long_column
+            .map(|array| enabled(array, row, &pair.pair, "nfi_exec_exit_long", absolute_row))
+            .transpose()?
+            .unwrap_or(false);
+        let enter_short = enter_short_column
+            .map(|array| enabled(array, row, &pair.pair, "nfi_exec_enter_short", absolute_row))
+            .transpose()?
+            .unwrap_or(false);
+        let exit_short = exit_short_column
+            .map(|array| enabled(array, row, &pair.pair, "nfi_exec_exit_short", absolute_row))
+            .transpose()?
+            .unwrap_or(false);
+        let funding_rate = funding_rate_column
+            .map(|array| {
                 optional_number(
-                    column(batch, positions, "nfi_exec_funding_rate"),
+                    array,
                     row,
                     &pair.pair,
                     "nfi_exec_funding_rate",
@@ -733,12 +728,10 @@ fn append_batch_to_spool(
             })
             .transpose()?
             .flatten();
-        let funding_mark_price = pair
-            .include_funding
-            .enabled()
-            .then(|| {
+        let funding_mark_price = funding_mark_price_column
+            .map(|array| {
                 optional_number(
-                    column(batch, positions, "nfi_exec_funding_mark_price"),
+                    array,
                     row,
                     &pair.pair,
                     "nfi_exec_funding_mark_price",
@@ -782,23 +775,26 @@ fn append_batch_to_spool(
         );
         *previous_close = Some(close);
 
-        for (feature_index, (name, kind)) in feature_kinds.iter().enumerate() {
-            let array = column(batch, positions, name);
-            let value = match kind {
+        for (feature_index, (layout, array)) in feature_layouts
+            .iter()
+            .zip(feature_arrays.iter().copied())
+            .enumerate()
+        {
+            let value = match layout.kind {
                 FileBackedFeatureKind::Number => {
                     // Pandas materializes nullable numeric Arrow values as
                     // NaN. Preserve that exact callback-visible warm-up value.
                     if array.is_null(row) {
                         f64::NAN
                     } else {
-                        required_number(array, row, &pair.pair, name, absolute_row)?
+                        required_number(array, row, &pair.pair, &layout.name, absolute_row)?
                     }
                 }
                 FileBackedFeatureKind::Boolean => {
                     if array.is_null(row) {
                         return Err(VectorInputError::NullValue {
                             pair: pair.pair.clone(),
-                            column: name.clone(),
+                            column: layout.name.clone(),
                             row: absolute_row,
                         });
                     }
