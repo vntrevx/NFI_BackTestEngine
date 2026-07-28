@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
-import os
 import shutil
 import subprocess
-import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,86 +12,107 @@ from typing import Any
 from .canonical import read_json, write_json
 from .docker_runtime import managed_docker_run, run_managed_container
 from .errors import BenchmarkError
-from .fixture import fixture_input_sha256, validate_fixture
+from .fixture import validate_fixture
 from .normalize import normalize_file
 from .parity import first_difference
 from .profiling import aggregate_profile_events
-from .reference_assets import reference_package_root, reference_tracer_root
-from .specs import validate_trade_surface
-from .state_trace import first_trace_difference, trace_summary
-
-REFERENCE_VERSION = "2026.5.1"
-REFERENCE_IMAGE = "freqtradeorg/freqtrade"
-REFERENCE_INDEX_DIGEST = "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a"
-REFERENCE_PLATFORM_DIGEST = (
-    "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b"
-)
-REFERENCE_PLATFORM = "linux/amd64"
-REFERENCE_IMAGE_REF = f"{REFERENCE_IMAGE}@{REFERENCE_PLATFORM_DIGEST}"
-REFERENCE_CCXT_VERSION = "4.5.55"
-REFERENCE_BLAKE3_VERSION = "1.0.9"
-REFERENCE_TRACER_VERSION = "1.1.0"
-SUPPORTED_REFERENCE_TRACER_VERSIONS = frozenset({"1.0.0", REFERENCE_TRACER_VERSION})
-REFERENCE_REPORT_VERSION = "1.1.0"
+from .reference import execution as _reference_execution
 
 # Binance intentionally serves leverage brackets from an authenticated endpoint.
 # Freqtrade dry-run/backtest therefore uses the versioned table bundled in its
 # distribution. Reading that table from the digest-pinned reference image keeps the
 # engine's liquidation contract tied to the same oracle without adding Freqtrade as a
 # host-side dependency.
-_BINANCE_TIER_EXPORT = """\
-import json
-import sys
-from pathlib import Path
-
-import freqtrade.exchange.binance as binance
-
-source = Path(binance.__file__).with_name("binance_leverage_tiers.json")
-with source.open(encoding="utf-8") as handle:
-    available = json.load(handle)
-pairs = sys.argv[1:]
-missing = [pair for pair in pairs if pair not in available]
-if missing:
-    raise SystemExit("missing leverage tiers: " + ", ".join(missing))
-print(
-    json.dumps(
-        {pair: available[pair] for pair in pairs},
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    )
+from .reference.contracts import (
+    REFERENCE_BLAKE3_VERSION,
+    REFERENCE_CCXT_VERSION,
+    REFERENCE_IMAGE,
+    REFERENCE_IMAGE_REF,
+    REFERENCE_INDEX_DIGEST,
+    REFERENCE_PLATFORM,
+    REFERENCE_PLATFORM_DIGEST,
+    REFERENCE_REPORT_VERSION,
+    REFERENCE_TRACER_VERSION,
+    REFERENCE_VERSION,
+    SUPPORTED_REFERENCE_TRACER_VERSIONS,
 )
-"""
+from .reference.execution import (
+    _project_root,
+    _validate_reference_pin,
+    ensure_docker_config,
+    ensure_reference_dependencies,
+    ensure_reference_image,
+)
+from .reference.storage import (
+    _container_memory_assessment,
+    _file_record,
+    _find_result_zip,
+    _initialize_output_directory,
+    _read_cpu_stat,
+    _read_integer_record,
+    _read_io_stat,
+    _read_nonnegative_integer,
+    _reference_market_input,
+)
+from .reference.trace import (
+    _parity_difference_record,
+    _trace_difference_record,
+    _utc_string,
+)
+from .specs import validate_trade_surface
+from .state_trace import first_trace_difference, trace_summary
 
-_CGROUP_CAPTURE_SCRIPT = """\
-freqtrade "$@"
-status=$?
-if [ -r /sys/fs/cgroup/memory.peak ]; then
-  cat /sys/fs/cgroup/memory.peak > /output/container-memory-peak.txt
-elif [ -r /sys/fs/cgroup/memory/memory.max_usage_in_bytes ]; then
-  cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes > /output/container-memory-peak.txt
-fi
-if [ -r /sys/fs/cgroup/memory.events ]; then
-  cat /sys/fs/cgroup/memory.events > /output/container-memory.events
-fi
-if [ -r /sys/fs/cgroup/memory.swap.current ]; then
-  cat /sys/fs/cgroup/memory.swap.current > /output/container-memory-swap-current.txt
-fi
-if [ -r /sys/fs/cgroup/memory.swap.peak ]; then
-  cat /sys/fs/cgroup/memory.swap.peak > /output/container-memory-swap-peak.txt
-fi
-if [ -r /sys/fs/cgroup/memory.swap.events ]; then
-  cat /sys/fs/cgroup/memory.swap.events > /output/container-memory.swap.events
-fi
-if [ -r /sys/fs/cgroup/cpu.stat ]; then
-  cat /sys/fs/cgroup/cpu.stat > /output/container-cpu.stat
-fi
-if [ -r /sys/fs/cgroup/io.stat ]; then
-  cat /sys/fs/cgroup/io.stat > /output/container-io.stat
-fi
-exit "$status"
-"""
+__all__ = [
+    "REFERENCE_BLAKE3_VERSION",
+    "REFERENCE_CCXT_VERSION",
+    "REFERENCE_IMAGE",
+    "REFERENCE_IMAGE_REF",
+    "REFERENCE_INDEX_DIGEST",
+    "REFERENCE_PLATFORM",
+    "REFERENCE_PLATFORM_DIGEST",
+    "REFERENCE_REPORT_VERSION",
+    "REFERENCE_TRACER_VERSION",
+    "REFERENCE_VERSION",
+    "SUPPORTED_REFERENCE_TRACER_VERSIONS",
+    "build_reference_docker_command",
+    "capture_reference_markets",
+    "ensure_docker_config",
+    "ensure_reference_dependencies",
+    "ensure_reference_image",
+    "load_reference_leverage_tiers",
+    "run_reference_fixture",
+]
+
+
+def build_reference_docker_command(*args: Any, **kwargs: Any) -> list[str]:
+    """Compatibility entry point retaining the patchable Docker lookup surface."""
+    _reference_execution.shutil = shutil  # pyright: ignore[reportPrivateImportUsage]
+    return _reference_execution.build_reference_docker_command(*args, **kwargs)
+
+
+def capture_reference_markets(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Compatibility entry point for pinned reference market capture."""
+    _reference_execution.ensure_docker_config = (  # pyright: ignore[reportPrivateImportUsage]
+        ensure_docker_config
+    )
+    _reference_execution.ensure_reference_image = (  # pyright: ignore[reportPrivateImportUsage]
+        ensure_reference_image
+    )
+    return _reference_execution.capture_reference_markets(*args, **kwargs)
+
+
+def load_reference_leverage_tiers(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Compatibility entry point retaining the patchable container runner."""
+    _reference_execution.ensure_docker_config = (  # pyright: ignore[reportPrivateImportUsage]
+        ensure_docker_config
+    )
+    _reference_execution.ensure_reference_image = (  # pyright: ignore[reportPrivateImportUsage]
+        ensure_reference_image
+    )
+    _reference_execution.run_managed_container = (  # pyright: ignore[reportPrivateImportUsage]
+        run_managed_container
+    )
+    return _reference_execution.load_reference_leverage_tiers(*args, **kwargs)
 
 
 def run_reference_fixture(
@@ -174,15 +192,9 @@ def run_reference_fixture(
     ended_at = datetime.now(UTC)
     container_peak_memory = _read_nonnegative_integer(output / "container-memory-peak.txt")
     container_memory_events = _read_integer_record(output / "container-memory.events")
-    container_swap_current = _read_nonnegative_integer(
-        output / "container-memory-swap-current.txt"
-    )
-    container_swap_peak = _read_nonnegative_integer(
-        output / "container-memory-swap-peak.txt"
-    )
-    container_swap_events = _read_integer_record(
-        output / "container-memory.swap.events"
-    )
+    container_swap_current = _read_nonnegative_integer(output / "container-memory-swap-current.txt")
+    container_swap_peak = _read_nonnegative_integer(output / "container-memory-swap-peak.txt")
+    container_swap_events = _read_integer_record(output / "container-memory.swap.events")
     container_memory = _container_memory_assessment(
         exit_code=exit_code,
         peak_bytes=container_peak_memory,
@@ -291,555 +303,3 @@ def run_reference_fixture(
 
     write_json(output / "run.json", report)
     return report
-
-
-def build_reference_docker_command(
-    manifest: dict[str, Any],
-    *,
-    fixture_root: Path,
-    output_directory: Path,
-    dependency_directory: Path | None,
-    trace_mode: str,
-    profile: bool,
-    docker_config: Path,
-    market_snapshot: dict[str, Any],
-    run_prefix: list[str] | None = None,
-) -> list[str]:
-    """Build argv without shell interpolation so fixture values cannot become commands."""
-    freqtrade_args = _reference_freqtrade_args(manifest["freqtrade"]["command"])
-    tracer_root = reference_tracer_root()
-    package_root = reference_package_root()
-    command = list(run_prefix) if run_prefix is not None else [
-        _docker_executable(),
-        "--config",
-        str(docker_config),
-        "run",
-        "--rm",
-    ]
-    command.extend(
-        [
-            "--platform",
-            REFERENCE_PLATFORM,
-            "--network",
-            "none",
-            "--workdir",
-            "/fixture",
-            "--volume",
-            f"{fixture_root}:/fixture:ro",
-            "--volume",
-            f"{output_directory}:/output",
-            "--volume",
-            f"{tracer_root}:/nfi-reference-tracer:ro",
-            "--volume",
-            f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
-            "--env",
-            "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
-            + (":/reference-deps" if dependency_directory is not None else ""),
-            "--env",
-            f"NFI_MARKET_SNAPSHOT_PATH=/fixture/{market_snapshot['path']}",
-        ]
-    )
-    if dependency_directory is not None:
-        command.extend(["--volume", f"{dependency_directory}:/reference-deps:ro"])
-    if profile:
-        command.extend(["--env", "NFI_BTE_PROFILE_EVENTS=/output/profile.jsonl"])
-    if trace_mode != "off":
-        strategy = _one_input(manifest["inputs"], "strategy")
-        config = _one_input(manifest["inputs"], "config")
-        command.extend(
-            [
-                "--env",
-                "NFI_TRACE_PATH=/output/state-trace.nfitrace",
-                "--env",
-                f"NFI_TRACE_RUN_ID={manifest['fixture_id']}",
-                "--env",
-                f"NFI_TRACE_INPUT_SHA256={fixture_input_sha256(manifest['inputs'])}",
-                "--env",
-                f"NFI_TRACE_STRATEGY_SHA256={strategy['sha256']}",
-                "--env",
-                f"NFI_TRACE_PROFILE_SHA256={config['sha256']}",
-                "--env",
-                f"NFI_TRACE_INCLUDE_STATE={'1' if trace_mode == 'full' else '0'}",
-            ]
-        )
-    command.extend(
-        [
-            "--entrypoint",
-            "/bin/sh",
-            REFERENCE_IMAGE_REF,
-            "-c",
-            _CGROUP_CAPTURE_SCRIPT,
-            "nfi-reference",
-            *freqtrade_args,
-        ]
-    )
-    return command
-
-
-def capture_reference_markets(
-    manifest_path: str | Path,
-    destination: str | Path,
-    *,
-    timeout_seconds: int = 180,
-) -> dict[str, Any]:
-    """Capture the exact CCXT market state used by the pinned online reference."""
-    manifest_file = Path(manifest_path).resolve()
-    manifest = validate_fixture(manifest_file)
-    _validate_reference_pin(manifest)
-    target = Path(destination).resolve()
-    if target.exists():
-        raise BenchmarkError(f"market snapshot destination already exists: {target}")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    project_root = _project_root()
-    tracer_root = reference_tracer_root()
-    package_root = reference_package_root()
-    docker_config = ensure_docker_config()
-    ensure_reference_image(docker_config=docker_config)
-
-    with tempfile.TemporaryDirectory(prefix="nfi-market-", dir=target.parent) as temporary:
-        output = Path(temporary)
-        (output / "user_data").mkdir()
-        try:
-            with managed_docker_run(
-                docker_config=docker_config,
-                role="market-capture",
-            ) as lease:
-                command = [
-                    *lease["command_prefix"],
-                    "--platform",
-                    REFERENCE_PLATFORM,
-                    "--workdir",
-                    "/fixture",
-                    "--volume",
-                    f"{manifest_file.parent}:/fixture:ro",
-                    "--volume",
-                    f"{output}:/output",
-                    "--volume",
-                    f"{tracer_root}:/nfi-reference-tracer:ro",
-                    "--volume",
-                    f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
-                    "--env",
-                    "PYTHONPATH=/nfi-reference-tracer:/nfi-python",
-                    "--env",
-                    "NFI_MARKET_CAPTURE_PATH=/output/market-snapshot.json",
-                    "--entrypoint",
-                    "/bin/sh",
-                    REFERENCE_IMAGE_REF,
-                    "-c",
-                    _CGROUP_CAPTURE_SCRIPT,
-                    "nfi-market-capture",
-                    *_reference_freqtrade_args(manifest["freqtrade"]["command"]),
-                ]
-                completed = subprocess.run(
-                    command,
-                    cwd=project_root,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    capture_output=True,
-                    check=False,
-                    timeout=timeout_seconds,
-                )
-        except subprocess.TimeoutExpired as exc:
-            raise BenchmarkError("timed out while capturing reference markets") from exc
-        except OSError as exc:
-            raise BenchmarkError(f"cannot execute Docker: {exc}") from exc
-        captured = output / "market-snapshot.json"
-        if completed.returncode != 0 or not captured.is_file():
-            raise BenchmarkError(
-                "failed to capture reference markets: "
-                f"{completed.stderr[-2000:].strip() or completed.stdout[-2000:].strip()}"
-            )
-        document = read_json(captured)
-        if (
-            document.get("schema_version") != "1.0.0"
-            or document.get("freqtrade_version") != REFERENCE_VERSION
-        ):
-            raise BenchmarkError("captured market snapshot has an invalid identity")
-        captured.replace(target)
-    return _file_record(target)
-
-
-def load_reference_leverage_tiers(
-    pairs: list[str],
-    *,
-    timeout_seconds: int = 180,
-) -> dict[str, Any]:
-    """Load exact dry-run leverage tiers from the pinned Freqtrade image.
-
-    This is deliberately a Docker oracle operation instead of a CCXT network call.
-    Binance's leverage-bracket API requires credentials, while official Freqtrade
-    backtesting reads its bundled snapshot. The returned source identity is stored
-    beside the normalized tiers so a later run can prove which table it used.
-    """
-    normalized_pairs = list(dict.fromkeys(pairs))
-    if not normalized_pairs:
-        raise BenchmarkError("at least one futures pair is required for leverage tiers")
-    if any(
-        not isinstance(pair, str) or not pair or ":" not in pair
-        for pair in normalized_pairs
-    ):
-        raise BenchmarkError(
-            "reference leverage tiers require canonical futures pairs such as BTC/USDT:USDT"
-        )
-
-    docker_config = ensure_docker_config()
-    ensure_reference_image(docker_config=docker_config)
-    completed, resources = run_managed_container(
-        [
-            "--platform",
-            REFERENCE_PLATFORM,
-            "--network",
-            "none",
-            "--entrypoint",
-            "python",
-            REFERENCE_IMAGE_REF,
-            "-c",
-            _BINANCE_TIER_EXPORT,
-            *normalized_pairs,
-        ],
-        docker_config=docker_config,
-        role="leverage-tier-capture",
-        capture_output=True,
-        timeout=timeout_seconds,
-    )
-    if completed.returncode != 0:
-        detail = completed.stderr[-2000:].strip() or completed.stdout[-2000:].strip()
-        raise BenchmarkError(f"failed to load pinned Freqtrade leverage tiers: {detail}")
-    try:
-        tiers = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise BenchmarkError("pinned Freqtrade returned invalid leverage-tier JSON") from exc
-    if not isinstance(tiers, dict) or set(tiers) != set(normalized_pairs):
-        raise BenchmarkError("pinned Freqtrade returned an incomplete leverage-tier table")
-    return {
-        "tiers": tiers,
-        "source": {
-            "kind": "freqtrade-bundled-binance-leverage-tiers",
-            "freqtrade_version": REFERENCE_VERSION,
-            "image": REFERENCE_IMAGE,
-            "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
-            "platform": REFERENCE_PLATFORM,
-            "docker_policy": resources["policy"],
-        },
-    }
-
-
-def ensure_docker_config() -> Path:
-    """Use an isolated credential-free Docker config for public reference images."""
-    configured = os.environ.get("NFI_BTE_DOCKER_CONFIG")
-    directory = (
-        Path(configured).expanduser().resolve()
-        if configured
-        else Path(tempfile.gettempdir()) / "nfi-bte-docker-anonymous"
-    )
-    directory.mkdir(parents=True, exist_ok=True)
-    config_path = directory / "config.json"
-    expected = {"auths": {"https://index.docker.io/v1/": {}}, "credsStore": ""}
-    if not config_path.is_file() or read_json(config_path) != expected:
-        config_path.write_text(
-            json.dumps(expected, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-    return directory
-
-
-def ensure_reference_image(*, docker_config: Path) -> None:
-    """Verify or pull the exact platform manifest, then check its content ID."""
-    inspect = _run_docker(
-        docker_config,
-        ["image", "inspect", REFERENCE_IMAGE_REF, "--format", "{{.Id}}"],
-    )
-    if inspect.returncode != 0:
-        pull = _run_docker(
-            docker_config,
-            ["pull", "--platform", REFERENCE_PLATFORM, REFERENCE_IMAGE_REF],
-        )
-        if pull.returncode != 0:
-            raise BenchmarkError(
-                "failed to pull pinned Freqtrade image: "
-                f"{pull.stderr.strip() or pull.stdout.strip()}"
-            )
-        inspect = _run_docker(
-            docker_config,
-            ["image", "inspect", REFERENCE_IMAGE_REF, "--format", "{{.Id}}"],
-        )
-    image_id = inspect.stdout.strip()
-    if inspect.returncode != 0 or image_id != REFERENCE_PLATFORM_DIGEST:
-        raise BenchmarkError(
-            "pinned Freqtrade image identity mismatch: "
-            f"expected {REFERENCE_PLATFORM_DIGEST}, found {image_id or '<missing>'}"
-        )
-
-
-def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) -> Path:
-    """Build an ignored Linux wheel target used only by the reference tracer."""
-    dependency_directory = project_root / "artifacts" / "docker" / "reference-deps"
-    marker = dependency_directory / "blake3" / "blake3.cpython-314-x86_64-linux-gnu.so"
-    if marker.is_file():
-        return dependency_directory
-    dependency_directory.mkdir(parents=True, exist_ok=True)
-    arguments = [
-        "--platform",
-        REFERENCE_PLATFORM,
-        "--volume",
-        f"{dependency_directory}:/reference-deps",
-        "--entrypoint",
-        "python",
-        REFERENCE_IMAGE_REF,
-        "-m",
-        "pip",
-        "install",
-        "--disable-pip-version-check",
-        "--no-deps",
-        "--target",
-        "/reference-deps",
-        f"blake3=={REFERENCE_BLAKE3_VERSION}",
-    ]
-    completed, _resources = run_managed_container(
-        arguments,
-        docker_config=docker_config,
-        role="reference-dependencies",
-        capture_output=True,
-    )
-    if completed.returncode != 0 or not marker.is_file():
-        raise BenchmarkError(
-            "failed to prepare pinned reference tracer dependency: "
-            f"{completed.stderr.strip() or completed.stdout.strip()}"
-        )
-    return dependency_directory
-
-
-def _reference_freqtrade_args(command: list[str]) -> list[str]:
-    args = list(command)
-    if args[:1] == ["freqtrade"]:
-        args = args[1:]
-    if not args:
-        raise BenchmarkError("fixture Freqtrade command is empty")
-    args = _remove_option(args, "--export-filename")
-    args = _remove_option(args, "--backtest-directory")
-    args = _remove_option(args, "--userdir")
-    args.extend(
-        [
-            "--userdir",
-            "/output/user_data",
-            "--backtest-directory",
-            "/output",
-        ]
-    )
-    return args
-
-
-def _remove_option(args: list[str], option: str) -> list[str]:
-    result: list[str] = []
-    index = 0
-    while index < len(args):
-        item = args[index]
-        if item == option:
-            if index + 1 >= len(args):
-                raise BenchmarkError(f"fixture command option {option} has no value")
-            index += 2
-            continue
-        if item.startswith(f"{option}="):
-            index += 1
-            continue
-        result.append(item)
-        index += 1
-    return result
-
-
-def _validate_reference_pin(manifest: dict[str, Any]) -> None:
-    actual = manifest["freqtrade"]
-    expected = {
-        "version": REFERENCE_VERSION,
-        "image": REFERENCE_IMAGE,
-        "image_index_digest": REFERENCE_INDEX_DIGEST,
-        "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
-        "platform": REFERENCE_PLATFORM,
-    }
-    for key, expected_value in expected.items():
-        if actual.get(key) != expected_value:
-            raise BenchmarkError(
-                f"fixture reference pin {key} differs: "
-                f"expected {expected_value!r}, actual {actual.get(key)!r}"
-            )
-    tracer_version = actual.get("tracer_version")
-    if tracer_version not in SUPPORTED_REFERENCE_TRACER_VERSIONS:
-        raise BenchmarkError(
-            "fixture reference pin tracer_version differs: "
-            f"supported {sorted(SUPPORTED_REFERENCE_TRACER_VERSIONS)!r}, "
-            f"actual {tracer_version!r}"
-        )
-
-
-def _initialize_output_directory(output: Path) -> None:
-    if output.exists() and any(output.iterdir()):
-        raise BenchmarkError(f"reference output directory must be empty: {output}")
-    output.mkdir(parents=True, exist_ok=True)
-    (output / "user_data").mkdir()
-
-
-def _find_result_zip(output: Path) -> Path:
-    candidates = sorted(output.glob("backtest-result-*.zip"))
-    if len(candidates) != 1:
-        names = ", ".join(path.name for path in candidates) or "none"
-        raise BenchmarkError(f"expected exactly one official result ZIP in {output}; found {names}")
-    return candidates[0]
-
-
-def _one_input(inputs: list[dict[str, Any]], role: str) -> dict[str, Any]:
-    matches = [item for item in inputs if item["role"] == role]
-    if len(matches) != 1:
-        raise BenchmarkError(f"fixture requires exactly one {role!r} input")
-    return matches[0]
-
-
-def _reference_market_input(manifest: dict[str, Any]) -> dict[str, Any]:
-    preferred = [
-        item
-        for item in manifest["inputs"]
-        if item["role"] == "reference_market_metadata"
-    ]
-    if preferred:
-        if len(preferred) != 1:
-            raise BenchmarkError(
-                "fixture requires exactly one reference market metadata input"
-            )
-        return preferred[0]
-    return _one_input(manifest["inputs"], "market_metadata")
-
-
-def _file_record(path: Path) -> dict[str, Any]:
-    from .fixture import sha256_file
-
-    return {
-        "path": str(path),
-        "bytes": path.stat().st_size,
-        "sha256": sha256_file(path),
-    }
-
-
-def _read_nonnegative_integer(path: Path) -> int | None:
-    if not path.is_file():
-        return None
-    raw = path.read_text(encoding="utf-8").strip()
-    if not raw.isdigit():
-        return None
-    return int(raw)
-
-
-def _read_cpu_stat(path: Path) -> dict[str, int] | None:
-    return _read_integer_record(path)
-
-
-def _read_integer_record(path: Path) -> dict[str, int] | None:
-    if not path.is_file():
-        return None
-    result: dict[str, int] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        parts = line.split()
-        if len(parts) == 2 and parts[1].isdigit():
-            result[parts[0]] = int(parts[1])
-    return result or None
-
-
-def _read_io_stat(path: Path) -> list[dict[str, Any]] | None:
-    """Parse cgroup-v2 IO counters without depending on host device names."""
-    if not path.is_file():
-        return None
-    records: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        parts = line.split()
-        if not parts:
-            continue
-        counters: dict[str, int] = {}
-        for token in parts[1:]:
-            name, separator, raw_value = token.partition("=")
-            if separator and raw_value.isdigit():
-                counters[name] = int(raw_value)
-        records.append({"device": parts[0], "counters": counters})
-    return records or None
-
-
-def _container_memory_assessment(
-    *,
-    exit_code: int,
-    peak_bytes: int | None,
-    events: dict[str, int] | None,
-    resources: dict[str, Any] | None,
-) -> dict[str, Any]:
-    policy = resources.get("policy") if isinstance(resources, dict) else None
-    raw_limit = policy.get("container_memory_limit_bytes") if isinstance(policy, dict) else None
-    limit = raw_limit if isinstance(raw_limit, int) and raw_limit > 0 else None
-    peak_ratio = peak_bytes / limit if peak_bytes is not None and limit is not None else None
-    oom_kills = events.get("oom_kill", 0) if events is not None else 0
-    if oom_kills > 0:
-        verdict = "oom_killed"
-    elif exit_code in {137, -9}:
-        verdict = "possible_oom"
-    elif peak_ratio is not None and peak_ratio >= 0.9:
-        verdict = "near_limit"
-    elif peak_bytes is not None:
-        verdict = "within_limit"
-    else:
-        verdict = "unmeasured"
-    return {
-        "verdict": verdict,
-        "limit_bytes": limit,
-        "peak_bytes": peak_bytes,
-        "peak_ratio": peak_ratio,
-        "oom_kill_count": oom_kills,
-    }
-
-
-def _parity_difference_record(difference: Any) -> dict[str, Any] | None:
-    if difference is None:
-        return None
-    return {
-        "path": difference.path,
-        "expected": difference.expected,
-        "actual": difference.actual,
-        "reason": difference.reason,
-    }
-
-
-def _trace_difference_record(difference: Any) -> dict[str, Any] | None:
-    if difference is None:
-        return None
-    return {
-        "sequence": difference.sequence,
-        "path": difference.path,
-        "expected": difference.expected,
-        "actual": difference.actual,
-        "reason": difference.reason,
-        "event_key": difference.event_key,
-    }
-
-
-def _run_docker(docker_config: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
-    try:
-        return subprocess.run(
-            [_docker_executable(), "--config", str(docker_config), *args],
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            capture_output=True,
-            check=False,
-        )
-    except OSError as exc:
-        raise BenchmarkError(f"cannot execute Docker: {exc}") from exc
-
-
-def _docker_executable() -> str:
-    # Command construction is intentionally testable on machines without
-    # Docker (for example, macOS CI). Real execution still reports a clear
-    # OSError through the guarded subprocess boundary.
-    return shutil.which("docker") or "docker"
-
-
-def _project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def _utc_string(value: datetime) -> str:
-    return value.isoformat().replace("+00:00", "Z")
