@@ -427,23 +427,31 @@ enum ScalarControl {
 /// fresh Python local scope each method receives.
 struct ScalarScope<'a> {
     base: &'a BTreeMap<String, Value>,
-    local: BTreeMap<String, Value>,
+    local: Vec<(String, Value)>,
 }
 
 impl<'a> ScalarScope<'a> {
     fn new(base: &'a BTreeMap<String, Value>) -> Self {
         Self {
             base,
-            local: BTreeMap::new(),
+            local: Vec::new(),
         }
     }
 
     fn get(&self, name: &str) -> Option<&Value> {
-        self.local.get(name).or_else(|| self.base.get(name))
+        self.local
+            .iter()
+            .rev()
+            .find_map(|(key, value)| (key == name).then_some(value))
+            .or_else(|| self.base.get(name))
     }
 
     fn insert(&mut self, name: String, value: Value) {
-        self.local.insert(name, value);
+        if let Some((_, current)) = self.local.iter_mut().find(|(key, _)| key == &name) {
+            *current = value;
+        } else {
+            self.local.push((name, value));
+        }
     }
 }
 
