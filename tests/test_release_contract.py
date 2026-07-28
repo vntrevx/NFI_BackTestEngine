@@ -501,6 +501,13 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
 
     assert "pull_request_target:" not in workflow
     assert "permissions:\n  contents: read" in workflow
+    assert contract["pull_request"]["permissions"] == {"contents": "read"}
+    assert contract["pull_request"]["allows_secrets"] is False
+    assert contract["pull_request"]["allows_privileged_fork_execution"] is False
+    assert contract["pull_request"]["allows_official_reference"] is False
+    assert set(contract["pull_request"]["required_capabilities"]) == set(
+        contract["coverage"]
+    )
     assert (
         f"  group: {contract['concurrency']['group']}"
         in workflow
@@ -529,3 +536,174 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
         contract["branch_protection"]["api"]["required_status_checks"]["contexts"]
         == [contract["required_check"]["name"]]
     )
+
+
+def test_nightly_matrix_covers_each_discovered_x7_fixture_once(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).parents[1]
+    module = _ci_contract_module()
+    contract = module.load_contract(root / ".github/ci-contract.json")
+
+    first = module.build_nightly_matrix(root, contract)
+    second = module.build_nightly_matrix(root, contract)
+    expected = sorted(
+        path.relative_to(root).as_posix()
+        for pattern in contract["nightly"]["fixture_globs"]
+        for path in root.glob(pattern)
+    )
+    observed = [
+        fixture["manifest"]
+        for shard in first["shards"]
+        for fixture in shard["fixtures"]
+    ]
+    shard_sizes = [shard["logical_bytes"] for shard in first["shards"]]
+    largest_fixture = max(
+        fixture["logical_bytes"] for fixture in first["inventory"]
+    )
+
+    assert first == second
+    assert sorted(observed) == expected
+    assert len(observed) == len(set(observed)) == first["fixture_count"]
+    assert first["shard_count"] == contract["nightly"]["shard_count"]
+    assert max(shard_sizes) - min(shard_sizes) <= largest_fixture
+
+    reports = []
+    for shard_index in range(first["shard_count"]):
+        report, passed = module.run_nightly_shard(
+            root,
+            contract,
+            shard_index=shard_index,
+            artifact_root=tmp_path / f"shard-{shard_index}",
+            dry_run=True,
+        )
+        assert passed is True
+        assert report["dry_run"] is True
+        reports.append(report)
+    summary = module.summarize_nightly_reports(
+        first,
+        reports,
+        job_results={
+            job: "success" for job in contract["nightly"]["job_ids"]
+        },
+        contract=contract,
+    )
+
+    assert summary["passed"] is True
+    assert summary["dry_run"] is True
+    assert summary["expected_fixture_count"] == len(expected)
+    assert summary["unique_observed_fixture_count"] == len(expected)
+    assert summary["duplicates"] == []
+    assert summary["missing"] == []
+
+
+def test_nightly_summary_deduplicates_repeated_root_cause_failures(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).parents[1]
+    module = _ci_contract_module()
+    contract = module.load_contract(root / ".github/ci-contract.json")
+    matrix = module.build_nightly_matrix(root, contract)
+    reports = [
+        module.run_nightly_shard(
+            root,
+            contract,
+            shard_index=shard_index,
+            artifact_root=tmp_path / f"shard-{shard_index}",
+            dry_run=True,
+        )[0]
+        for shard_index in range(matrix["shard_count"])
+    ]
+    fingerprint = "a" * 64
+    for report in reports[:2]:
+        fixture = report["results"][0]
+        report["failures"] = [
+            {
+                "fingerprint": fingerprint,
+                "stage": "fixture-full-parity",
+                "fixture_id": fixture["fixture_id"],
+                "manifest": fixture["manifest"],
+                "exit_code": 1,
+                "message": "shared failure",
+            }
+        ]
+        report["passed"] = False
+    job_results = {
+        job: "success" for job in contract["nightly"]["job_ids"]
+    }
+    job_results["fixtures"] = "failure"
+
+    summary = module.summarize_nightly_reports(
+        matrix,
+        reports,
+        job_results=job_results,
+        contract=contract,
+    )
+
+    assert summary["passed"] is False
+    assert summary["unique_failure_count"] == 1
+    assert summary["failure_occurrence_count"] == 2
+    assert summary["failures"][0]["fingerprint"] == fingerprint
+    assert len(summary["failures"][0]["fixture_ids"]) == 2
+
+
+def test_nightly_summary_rejects_duplicate_fixture_assignment(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).parents[1]
+    module = _ci_contract_module()
+    contract = module.load_contract(root / ".github/ci-contract.json")
+    matrix = module.build_nightly_matrix(root, contract)
+    reports = [
+        module.run_nightly_shard(
+            root,
+            contract,
+            shard_index=shard_index,
+            artifact_root=tmp_path / f"shard-{shard_index}",
+            dry_run=True,
+        )[0]
+        for shard_index in range(matrix["shard_count"])
+    ]
+    duplicated = reports[0]["assignments"][0]
+    reports[1]["assignments"].append(duplicated)
+
+    summary = module.summarize_nightly_reports(
+        matrix,
+        reports,
+        job_results={
+            job: "success" for job in contract["nightly"]["job_ids"]
+        },
+        contract=contract,
+    )
+
+    assert summary["passed"] is False
+    assert summary["duplicates"] == [duplicated]
+
+
+def test_nightly_workflow_matches_read_only_trust_boundary() -> None:
+    root = Path(__file__).parents[1]
+    contract = json.loads(
+        (root / ".github/ci-contract.json").read_text(encoding="utf-8")
+    )
+    nightly = contract["nightly"]
+    workflow = (root / nightly["workflow"]).read_text(encoding="utf-8")
+
+    assert "pull_request_target:" not in workflow
+    assert "pull_request:" not in workflow
+    assert "permissions:\n  contents: read" in workflow
+    assert "secrets:" not in workflow
+    assert "runs-on: [self-hosted" not in workflow
+    assert f"  group: {nightly['concurrency']['group']}" in workflow
+    assert (
+        f"  cancel-in-progress: "
+        f"{str(nightly['concurrency']['cancel_in_progress']).lower()}"
+        in workflow
+    )
+    assert "nightly-matrix" in workflow
+    assert "run-nightly-shard" in workflow
+    assert "summarize-nightly" in workflow
+    assert "if: always()" in workflow
+    assert "merge-multiple: true" in workflow
+    assert "reference run" in workflow
+    assert nightly["official_reference_smoke"]["manifest"] in workflow
+    assert f"--trace {nightly['official_reference_smoke']['trace']}" in workflow
