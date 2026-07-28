@@ -8,8 +8,9 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use nfi_sim_core::{
-    parse_simulation_input, simulate, simulate_profiled, simulate_with_observer,
-    simulate_with_observer_profiled, SimulationInput, SimulationProfile, SimulationResult,
+    parse_simulation_input, serialize_simulation_result, simulate, simulate_profiled,
+    simulate_with_observer, simulate_with_observer_profiled, SimulationInput, SimulationProfile,
+    SimulationResult,
 };
 use nfi_vector_io::{load_vector_manifest, load_vector_manifest_profiled, VectorLoadProfile};
 
@@ -84,7 +85,7 @@ fn run() -> Result<(), String> {
         (run_simulation(&document, trace)?, None)
     };
     let serialization_started = Instant::now();
-    let serialized = serde_json::to_vec(&result)
+    let serialized = serialize_simulation_result(&result)
         .map_err(|error| format!("cannot serialize simulation result: {error}"))?;
 
     let temporary = output.with_extension("tmp");

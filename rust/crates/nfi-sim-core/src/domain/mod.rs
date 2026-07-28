@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+use super::io::{CandleSeries, FeatureColumn};
 use super::protections::{PairLockState, ProtectionProgram};
-use super::{CandleSeries, FeatureColumn};
 
 pub(crate) type FeatureProjection = BTreeMap<String, BTreeSet<String>>;
 
