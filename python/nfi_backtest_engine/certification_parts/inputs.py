@@ -74,7 +74,7 @@ def verify_installed_wheel(
         installed_root = (
             Path(package_root).resolve()
             if package_root is not None
-            else Path(__file__).resolve().parent
+            else Path(__file__).resolve().parents[1]
         )
         member_records: list[tuple[str, str]] = []
         portable_member_records: list[tuple[str, str]] = []
