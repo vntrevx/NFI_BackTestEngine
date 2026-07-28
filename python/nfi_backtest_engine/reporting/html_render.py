@@ -35,6 +35,7 @@ from .values import (
 def _render_html(
     summary: Mapping[str, Any],
     surface: Mapping[str, Any] | None,
+    evidence_index: Mapping[str, Any],
 ) -> str:
     run = _mapping(summary, "run")
     performance = _mapping(summary, "performance")
@@ -96,10 +97,22 @@ def _render_html(
             if performance
             else "Not available",
         )
+        + _metric_card(
+            "Sharpe",
+            _decimal_text(risk.get("closed_trade_sharpe")) if risk else "—",
+            "Closed-trade event returns · not annualized",
+        )
+        + _metric_card(
+            "Sortino",
+            _decimal_text(risk.get("closed_trade_sortino")) if risk else "—",
+            "Zero target · closed-trade downside deviation",
+        )
     )
     verification_markup = _verification_panel(verification)
+    verification_details = _verification_details(verification)
     blockers_markup = _blockers_panel(summary.get("blockers"))
     futures_markup = _futures_panel(futures, currency)
+    orders_markup = _orders_panel(surface, currency)
     equity_markup = _equity_chart(_mapping(summary, "equity_curve"))
     monthly_markup = _monthly_chart(breakdowns.get("by_month"))
     details = _detail_grid(summary, currency)
@@ -128,7 +141,7 @@ def _render_html(
         currency=currency,
     )
     recent_trades = _recent_trades_table(surface, currency)
-    evidence = _evidence_panel(summary)
+    evidence = _evidence_panel(summary, evidence_index)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -231,6 +244,8 @@ def _render_html(
     .seal.good {{ color: var(--accent); }} .seal.warn {{ color: var(--warning); }} .seal.bad {{ color: var(--negative); }}
     .verification strong {{ display: block; margin-bottom: 2px; font-size: 16px; letter-spacing: .01em; }}
     .verification span {{ color: var(--muted); font-size: 12px; }}
+    .verification-details {{ margin-top: 14px; }}
+    .verification-details code {{ display: inline-block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }}
     dl {{ display: grid; grid-template-columns: 1fr auto; gap: 0 16px; margin: 0; }}
     dt, dd {{ padding: 7px 0; border-bottom: 1px solid var(--line); }}
     dt {{ color: var(--muted); }} dd {{ margin: 0; font-weight: 620; text-align: right; }}
@@ -303,10 +318,12 @@ def _render_html(
     <div class="panel">
       <div class="panel-head"><div><h2>Official verification</h2><h3>Zero-tolerance parity status</h3></div></div>
       {verification_markup}
+      {verification_details}
     </div>
   </section>
   {blockers_markup}
   {futures_markup}
+  {orders_markup}
   <section class="grid-2">
     <div class="panel">
       <div class="panel-head"><div><h2>Monthly returns</h2><h3>Profit divided by opening monthly equity</h3></div></div>
@@ -319,11 +336,12 @@ def _render_html(
   </section>
   <section class="grid-3">{pair_table}{tag_table}{exit_table}</section>
   <section class="grid-2">{yearly_table}{recent_trades}</section>
+  {_risk_definition_panel(risk)}
   <section class="panel" style="margin-top:10px">
     <div class="panel-head"><div><h2>Evidence and exports</h2><h3>Portable files beside this report</h3></div></div>
     {evidence}
   </section>
-  <footer>Drawdown is reconstructed from closed-trade equity and is labeled accordingly. Use the exact trade surface and official confirmation for parity claims.</footer>
+  <footer>Drawdown, Sharpe, and Sortino use closed-trade events only; no candle-level equity is invented. Use the exact trade surface and official confirmation for parity claims.</footer>
 </main>
 </body>
 </html>
@@ -375,6 +393,59 @@ def _verification_panel(verification: Mapping[str, Any]) -> str:
         f'<div class="seal {css}">{seal}</div>'
         f"<div><strong>{title}</strong><span>{_escape(detail)}</span>{source_markup}</div>"
         "</div>"
+    )
+
+
+def _verification_details(verification: Mapping[str, Any]) -> str:
+    stages = verification.get("stages")
+    stage_rows = (
+        [stage for stage in stages if isinstance(stage, Mapping)]
+        if isinstance(stages, list)
+        else []
+    )
+    identities = _mapping(verification, "identities")
+    boundaries = _mapping(verification, "boundaries")
+    rows = [
+        (
+            str(stage.get("id", "unknown")).replace("_", " ").title(),
+            str(stage.get("status", "unknown")).upper(),
+        )
+        for stage in stage_rows
+    ]
+    for label, key in (
+        ("Strategy SHA", "strategy_sha256"),
+        ("Certified strategy SHA", "certified_strategy_sha256"),
+        ("Package SHA", "package_sha256"),
+        ("Certified package SHA", "certified_package_sha256"),
+        ("Native binary SHA", "native_binary_sha256"),
+    ):
+        value = identities.get(key)
+        rows.append(
+            (
+                label,
+                f"<code>{_escape(value)}</code>"
+                if isinstance(value, str)
+                else "not captured",
+            )
+        )
+    rows.extend(
+        [
+            (
+                "Native timing",
+                str(boundaries.get("native_performance_cache_state", "unknown")),
+            ),
+            ("Official timing", "not included in native performance"),
+        ]
+    )
+    if not rows:
+        return ""
+    return (
+        '<dl class="verification-details">'
+        + "".join(
+            f"<dt>{_escape(label)}</dt><dd>{value if value.startswith('<code>') else _escape(value)}</dd>"
+            for label, value in rows
+        )
+        + "</dl>"
     )
 
 
@@ -450,6 +521,98 @@ def _leverage_range(futures: Mapping[str, Any]) -> str:
     if minimum == "—" or maximum == "—":
         return "—"
     return f"{minimum}x–{maximum}x ({count} distinct)"
+
+
+def _orders_panel(
+    surface: Mapping[str, Any] | None,
+    currency: str | None,
+) -> str:
+    raw_trades = surface.get("trades") if surface is not None else None
+    trades = (
+        [trade for trade in raw_trades if isinstance(trade, Mapping)]
+        if isinstance(raw_trades, list)
+        else []
+    )
+    rows: list[tuple[Mapping[str, Any], Mapping[str, Any], str]] = []
+    entry_count = 0
+    partial_exit_count = 0
+    exit_count = 0
+    for trade in trades:
+        raw_orders = trade.get("orders")
+        orders = (
+            [order for order in raw_orders if isinstance(order, Mapping)]
+            if isinstance(raw_orders, list)
+            else []
+        )
+        exit_indexes = [
+            index for index, order in enumerate(orders) if order.get("is_entry") is False
+        ]
+        final_exit_index = (
+            exit_indexes[-1]
+            if exit_indexes and not bool(trade.get("is_open"))
+            else None
+        )
+        for index, order in enumerate(orders):
+            action = (
+                "entry"
+                if order.get("is_entry") is True
+                else "partial exit"
+                if index != final_exit_index
+                else "exit"
+            )
+            entry_count += action == "entry"
+            partial_exit_count += action == "partial exit"
+            exit_count += action == "exit"
+            rows.append((trade, order, action))
+    recent = sorted(
+        rows,
+        key=lambda item: (
+            int(item[1].get("filled_timestamp_ms", 0)),
+            int(item[0].get("sequence", 0)),
+            int(item[1].get("sequence", 0)),
+        ),
+        reverse=True,
+    )[:20]
+    body = "".join(
+        "<tr>"
+        f"<td>{_escape(trade.get('pair'))}</td>"
+        f"<td>{_escape(_date_label(int(order.get('filled_timestamp_ms', 0))))}</td>"
+        f"<td>{_escape(action)}</td>"
+        f"<td>{_escape(order.get('side'))}</td>"
+        f"<td>{_escape(order.get('amount'))}</td>"
+        f"<td>{_money(order.get('cost'), currency)}</td>"
+        f"<td>{_escape(order.get('tag'))}</td>"
+        "</tr>"
+        for trade, order, action in recent
+    )
+    if not body:
+        body = '<tr><td colspan="7">No filled orders</td></tr>'
+    return f"""
+<section class="panel" style="margin-top:10px">
+  <div class="panel-head"><div><h2>Orders and position changes</h2><h3>{len(rows)} filled orders · {entry_count} entries · {partial_exit_count} partial exits · {exit_count} final exits · full export in orders.csv</h3></div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Pair</th><th>Filled</th><th>Action</th><th>Side</th><th>Amount</th><th>Cost</th><th>Tag</th></tr></thead>
+    <tbody>{body}</tbody>
+  </table></div>
+</section>
+"""
+
+
+def _risk_definition_panel(risk: Mapping[str, Any]) -> str:
+    observations = _integer_text(risk.get("closed_trade_return_observations"))
+    return f"""
+<section class="panel" style="margin-top:10px">
+  <div class="panel-head"><div><h2>Risk metric definitions</h2><h3>Presentation-only calculations; exact surface remains authoritative</h3></div></div>
+  <dl>
+    <dt>Equity source</dt><dd>Starting balance plus realized profit at each trade close</dd>
+    <dt>Final reconciliation</dt><dd>equity.csv records any decimal delta to the sealed source final balance</dd>
+    <dt>Candle-level equity</dt><dd>Not available and not interpolated</dd>
+    <dt>Return observations</dt><dd>{observations} closed-trade events</dd>
+    <dt>Sharpe</dt><dd>Mean event return / sample standard deviation; risk-free rate 0; not annualized</dd>
+    <dt>Sortino</dt><dd>Mean event return / RMS downside deviation below target 0; not annualized</dd>
+  </dl>
+</section>
+"""
 
 
 def _detail_grid(summary: Mapping[str, Any], currency: str | None) -> str:
@@ -673,17 +836,34 @@ def _recent_trades_table(
 """
 
 
-def _evidence_panel(summary: Mapping[str, Any]) -> str:
+def _evidence_panel(
+    summary: Mapping[str, Any],
+    evidence_index: Mapping[str, Any],
+) -> str:
     artifacts = _mapping(summary, "artifacts")
-    links = (
-        ("Run report", artifacts.get("run")),
-        ("Exact trade surface", artifacts.get("source_surface")),
-        ("Machine summary", artifacts.get("summary")),
-        ("Trades CSV", artifacts.get("trades_csv")),
+    labels = {
+        "run": "Run report",
+        "trade_surface": "Exact trade surface",
+        "summary": "Machine summary",
+        "trades_csv": "Trades CSV",
+        "orders_csv": "Orders CSV",
+        "equity_csv": "Equity CSV",
+        "verification": "Verification JSON",
+    }
+    raw_entries = evidence_index.get("entries")
+    entries = (
+        [entry for entry in raw_entries if isinstance(entry, Mapping)]
+        if isinstance(raw_entries, list)
+        else []
     )
     body = "".join(
-        f'<a href="{_escape(path)}">{_escape(label)} ↗</a>'
-        for label, path in links
-        if isinstance(path, str)
+        f'<a href="{_escape(entry.get("path"))}" '
+        f'title="SHA-256 {_escape(entry.get("sha256"))}">'
+        f'{_escape(labels.get(str(entry.get("role")), str(entry.get("role"))))} · '
+        f'{_escape(str(entry.get("sha256") or "")[:12])} ↗</a>'
+        for entry in entries
     )
+    index_path = artifacts.get("evidence_index")
+    if isinstance(index_path, str):
+        body += f'<a href="{_escape(index_path)}">Evidence index ↗</a>'
     return f'<div class="evidence">{body}</div>'

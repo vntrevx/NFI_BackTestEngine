@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/result-verification-v1.schema.json",
+  "title": "NFI Backtest Engine result verification projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run",
+    "verification"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "complete"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "exact",
+        "source",
+        "source_sha256",
+        "difference",
+        "stages",
+        "identities",
+        "boundaries"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_run",
+            "exact_match",
+            "confirmed_exact",
+            "mismatch",
+            "reference_incomplete"
+          ]
+        },
+        "exact": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/nullable_sha256"
+        },
+        "difference": {},
+        "stages": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/native_stage"
+            },
+            {
+              "$ref": "#/$defs/integrity_stage"
+            },
+            {
+              "$ref": "#/$defs/official_stage"
+            },
+            {
+              "$ref": "#/$defs/release_stage"
+            }
+          ],
+          "items": false
+        },
+        "identities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "strategy_sha256",
+            "certified_strategy_sha256",
+            "package_version",
+            "package_sha256",
+            "certified_package_sha256",
+            "native_binary_sha256",
+            "native_target",
+            "trade_surface_sha256",
+            "simulation_result_sha256"
+          ],
+          "properties": {
+            "strategy_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            },
+            "certified_strategy_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            },
+            "package_version": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "package_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            },
+            "certified_package_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            },
+            "native_binary_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            },
+            "native_target": {
+              "$ref": "#/$defs/nullable_string"
+            },
+            "trade_surface_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            },
+            "simulation_result_sha256": {
+              "$ref": "#/$defs/nullable_sha256"
+            }
+          }
+        },
+        "boundaries": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "equity_source",
+            "candle_level_equity_available",
+            "native_performance_cache_state",
+            "vector_cache_hits",
+            "official_performance_included",
+            "performance_note"
+          ],
+          "properties": {
+            "equity_source": {
+              "const": "closed_trade_profit"
+            },
+            "candle_level_equity_available": {
+              "const": false
+            },
+            "native_performance_cache_state": {
+              "enum": [
+                "cold",
+                "warm",
+                "unknown"
+              ]
+            },
+            "vector_cache_hits": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "official_performance_included": {
+              "const": false
+            },
+            "performance_note": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nullable_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_string": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "blocked",
+            "not_run"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "native_stage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "id": {
+              "const": "native_execution"
+            }
+          }
+        }
+      ]
+    },
+    "integrity_stage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "id": {
+              "const": "artifact_integrity"
+            }
+          }
+        }
+      ]
+    },
+    "official_stage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "id": {
+              "const": "official_verification"
+            }
+          }
+        }
+      ]
+    },
+    "release_stage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "id": {
+              "const": "release_certification"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

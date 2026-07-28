@@ -14,6 +14,8 @@ from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from .canonical import canonical_decimal
+
 RESULT_SUMMARY_VERSION = "1.1.0"
 MAX_EQUITY_POINTS = 1_000
 
@@ -126,6 +128,10 @@ def build_result_summary(
             "source_surface": "trade-surface.json" if trade_surface else None,
             "summary": "summary.json",
             "trades_csv": "trades.csv",
+            "orders_csv": "orders.csv",
+            "equity_csv": "equity.csv",
+            "verification": "verification.json",
+            "evidence_index": "evidence/index.json",
             "html_report": "report.html",
         },
         "blockers": _blocker_summary(run_report),
@@ -186,7 +192,13 @@ def build_result_summary(
             _integer(trade.get("sequence")),
         ),
     )
-    equity = _equity_curve(starting_balance, ordered, str(context.get("timerange") or ""))
+    equity = _equity_curve(
+        starting_balance,
+        final_balance,
+        ordered,
+        str(context.get("timerange") or ""),
+    )
+    closed_trade_risk = _closed_trade_risk_metrics(equity["rows"])
     consecutive_wins, consecutive_losses = _consecutive_outcomes(ordered)
 
     summary["performance"] = {
@@ -211,6 +223,14 @@ def build_result_summary(
         "max_drawdown_trough_timestamp_ms": equity["trough_timestamp_ms"],
         "maximum_consecutive_wins": consecutive_wins,
         "maximum_consecutive_losses": consecutive_losses,
+        "closed_trade_sharpe": closed_trade_risk["sharpe"],
+        "closed_trade_sortino": closed_trade_risk["sortino"],
+        "closed_trade_return_observations": closed_trade_risk["observations"],
+        "closed_trade_risk_free_rate": 0.0,
+        "closed_trade_annualized": False,
+        "closed_trade_return_definition": (
+            "profit_abs divided by equity immediately before each trade-close event"
+        ),
     }
     if context.get("trading_mode") == "futures":
         summary["futures"] = _futures_summary(
@@ -286,6 +306,8 @@ def build_result_summary(
         "raw_point_count": len(points),
         "sampled": len(sampled_points) != len(points),
         "points": sampled_points,
+        "source_final_balance": equity["source_final_balance"],
+        "reconciliation_delta": equity["reconciliation_delta"],
     }
     return summary
 
@@ -404,58 +426,198 @@ def _peak_rss_bytes(run_report: Mapping[str, Any]) -> int | None:
 
 def _equity_curve(
     starting_balance: Decimal,
+    final_balance: Decimal,
     trades: Sequence[Mapping[str, Any]],
     timerange: str,
 ) -> dict[str, Any]:
-    start_timestamp = _timerange_start_ms(timerange)
-    if start_timestamp is None and trades:
-        start_timestamp = _integer(trades[0].get("open_timestamp_ms"))
-    equity = starting_balance
-    peak = starting_balance
-    peak_timestamp = start_timestamp
-    maximum_drawdown = Decimal(0)
-    maximum_drawdown_ratio = Decimal(0)
-    maximum_peak_timestamp = start_timestamp
-    maximum_trough_timestamp = start_timestamp
+    rows = _closed_trade_equity_rows(
+        starting_balance,
+        final_balance,
+        trades,
+        timerange,
+    )
+    points = [
+        {
+            "timestamp_ms": row["timestamp_ms"],
+            "equity": _number(_decimal(row["equity"])),
+            "drawdown_ratio": _number(_decimal(row["drawdown_ratio"])),
+        }
+        for row in rows
+    ]
     maximum_index = 0
-    points: list[dict[str, Any]] = []
-    if start_timestamp is not None:
-        points.append(
-            {
-                "timestamp_ms": start_timestamp,
-                "equity": _number(equity),
-                "drawdown_ratio": 0.0,
-            }
+    if rows:
+        maximum_index = max(
+            range(len(rows)),
+            key=lambda index: _decimal(rows[index]["drawdown_ratio"]),
         )
-    for trade in trades:
-        timestamp = _integer(trade.get("close_timestamp_ms"))
-        equity += _trade_profit(trade)
-        if equity > peak:
-            peak = equity
-            peak_timestamp = timestamp
-        drawdown = peak - equity
-        drawdown_ratio = drawdown / peak if peak > 0 else Decimal(0)
-        points.append(
-            {
-                "timestamp_ms": timestamp,
-                "equity": _number(equity),
-                "drawdown_ratio": _number(drawdown_ratio),
-            }
-        )
-        if drawdown_ratio > maximum_drawdown_ratio:
-            maximum_drawdown = drawdown
-            maximum_drawdown_ratio = drawdown_ratio
-            maximum_peak_timestamp = peak_timestamp
-            maximum_trough_timestamp = timestamp
-            maximum_index = len(points) - 1
+        maximum = rows[maximum_index]
+        maximum_drawdown = _decimal(maximum["drawdown_abs"])
+        maximum_drawdown_ratio = _decimal(maximum["drawdown_ratio"])
+        maximum_peak_timestamp = _optional_integer(maximum.get("peak_timestamp_ms"))
+        maximum_trough_timestamp = _optional_integer(maximum.get("timestamp_ms"))
+    else:
+        maximum_drawdown = Decimal(0)
+        maximum_drawdown_ratio = Decimal(0)
+        maximum_peak_timestamp = None
+        maximum_trough_timestamp = None
     return {
+        "rows": rows,
         "points": points,
         "max_drawdown_abs": _number(maximum_drawdown),
         "max_drawdown_ratio": _number(maximum_drawdown_ratio),
         "peak_timestamp_ms": maximum_peak_timestamp,
         "trough_timestamp_ms": maximum_trough_timestamp,
         "max_drawdown_index": maximum_index,
+        "source_final_balance": _number(final_balance),
+        "reconciliation_delta": (
+            _number(_decimal(rows[-1]["reconciliation_delta"])) if rows else 0.0
+        ),
     }
+
+
+def build_closed_trade_equity_rows(
+    trade_surface: Mapping[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Return unsampled equity events derived only from sealed closed trades.
+
+    This intentionally does not interpolate candle-level equity. The first row is
+    the starting balance, followed by exactly one row per closed trade in stable
+    close-time/sequence order.
+    """
+
+    if trade_surface is None:
+        return []
+    surface_summary = _mapping(trade_surface, "summary")
+    context = _mapping(trade_surface, "context")
+    starting_balance = _decimal(surface_summary.get("starting_balance"))
+    final_balance = _decimal(surface_summary.get("final_balance"))
+    trades = sorted(
+        _sequence(trade_surface, "trades"),
+        key=lambda trade: (
+            _integer(trade.get("close_timestamp_ms")),
+            _integer(trade.get("sequence")),
+        ),
+    )
+    return _closed_trade_equity_rows(
+        starting_balance,
+        final_balance,
+        trades,
+        str(context.get("timerange") or ""),
+    )
+
+
+def _closed_trade_equity_rows(
+    starting_balance: Decimal,
+    final_balance: Decimal,
+    trades: Sequence[Mapping[str, Any]],
+    timerange: str,
+) -> list[dict[str, Any]]:
+    start_timestamp = _timerange_start_ms(timerange)
+    if start_timestamp is None and trades:
+        start_timestamp = _integer(trades[0].get("open_timestamp_ms"))
+    equity = starting_balance
+    peak = starting_balance
+    peak_timestamp = start_timestamp
+    rows: list[dict[str, Any]] = []
+    if start_timestamp is not None:
+        rows.append(
+            {
+                "event_sequence": 0,
+                "event": "start",
+                "timestamp_ms": start_timestamp,
+                "trade_sequence": None,
+                "pair": None,
+                "direction": None,
+                "profit_abs": "0",
+                "equity": _canonical_decimal(equity),
+                "peak_equity": _canonical_decimal(peak),
+                "peak_timestamp_ms": peak_timestamp,
+                "drawdown_abs": "0",
+                "drawdown_ratio": "0",
+                "source_final_balance": None,
+                "reconciliation_delta": None,
+            }
+        )
+    for event_sequence, trade in enumerate(trades, start=1):
+        timestamp = _integer(trade.get("close_timestamp_ms"))
+        profit = _trade_profit(trade)
+        equity += profit
+        if equity > peak:
+            peak = equity
+            peak_timestamp = timestamp
+        drawdown = peak - equity
+        drawdown_ratio = drawdown / peak if peak > 0 else Decimal(0)
+        rows.append(
+            {
+                "event_sequence": event_sequence,
+                "event": "trade_close",
+                "timestamp_ms": timestamp,
+                "trade_sequence": _integer(trade.get("sequence")),
+                "pair": trade.get("pair"),
+                "direction": trade.get("direction"),
+                "profit_abs": _canonical_decimal(profit),
+                "equity": _canonical_decimal(equity),
+                "peak_equity": _canonical_decimal(peak),
+                "peak_timestamp_ms": peak_timestamp,
+                "drawdown_abs": _canonical_decimal(drawdown),
+                "drawdown_ratio": _canonical_decimal(drawdown_ratio),
+                "source_final_balance": None,
+                "reconciliation_delta": None,
+            }
+        )
+    if rows:
+        rows[-1]["source_final_balance"] = _canonical_decimal(final_balance)
+        rows[-1]["reconciliation_delta"] = _canonical_decimal(
+            final_balance - equity
+        )
+    return rows
+
+
+def _closed_trade_risk_metrics(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    returns: list[Decimal] = []
+    previous_equity: Decimal | None = None
+    for row in rows:
+        equity = _decimal(row.get("equity"))
+        if (
+            row.get("event") == "trade_close"
+            and previous_equity is not None
+            and previous_equity != 0
+        ):
+            returns.append(_decimal(row.get("profit_abs")) / previous_equity)
+        previous_equity = equity
+    if not returns:
+        return {"sharpe": None, "sortino": None, "observations": 0}
+
+    mean = sum(returns, Decimal(0)) / len(returns)
+    sharpe = None
+    if len(returns) >= 2:
+        variance = sum(((value - mean) ** 2 for value in returns), Decimal(0)) / (
+            len(returns) - 1
+        )
+        if variance > 0:
+            sharpe = _rounded(float(mean / variance.sqrt()))
+
+    downside_variance = sum(
+        (min(value, Decimal(0)) ** 2 for value in returns),
+        Decimal(0),
+    ) / len(returns)
+    sortino = (
+        _rounded(float(mean / downside_variance.sqrt()))
+        if downside_variance > 0
+        else None
+    )
+    return {
+        "sharpe": sharpe,
+        "sortino": sortino,
+        "observations": len(returns),
+    }
+
+
+def _canonical_decimal(value: Decimal) -> str:
+    result = canonical_decimal(value, path="$")
+    if result is None:  # pragma: no cover - non-null Decimal contract
+        raise AssertionError("canonical decimal unexpectedly returned null")
+    return result
 
 
 def _sample_equity_points(

@@ -7,7 +7,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from .contracts import _CSV_FIELDS
+from .contracts import (
+    _EQUITY_CSV_FIELDS,
+    _ORDERS_CSV_FIELDS,
+    _TRADES_CSV_FIELDS,
+    EQUITY_CSV_SCHEMA_VERSION,
+    ORDERS_CSV_SCHEMA_VERSION,
+)
 from .values import _float, _iso_timestamp, _mapping
 
 
@@ -18,7 +24,11 @@ def _write_trades_csv(
     destination.parent.mkdir(parents=True, exist_ok=True)
     trades = surface.get("trades", []) if surface is not None else []
     with destination.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=_CSV_FIELDS, extrasaction="ignore")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=_TRADES_CSV_FIELDS,
+            extrasaction="ignore",
+        )
         writer.writeheader()
         if not isinstance(trades, list):
             return
@@ -59,5 +69,108 @@ def _write_trades_csv(
                     if isinstance(trade.get("orders"), list)
                     else 0,
                     "is_open": trade.get("is_open"),
+                }
+            )
+
+
+def _write_orders_csv(
+    destination: Path,
+    surface: Mapping[str, Any] | None,
+) -> None:
+    """Flatten sealed filled orders without modifying or estimating order values."""
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    trades = surface.get("trades", []) if surface is not None else []
+    with destination.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=_ORDERS_CSV_FIELDS,
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        if not isinstance(trades, list):
+            return
+        for trade in trades:
+            if not isinstance(trade, Mapping):
+                continue
+            orders = trade.get("orders")
+            if not isinstance(orders, list):
+                continue
+            exit_indexes = [
+                index
+                for index, order in enumerate(orders)
+                if isinstance(order, Mapping) and order.get("is_entry") is False
+            ]
+            final_exit_index = (
+                exit_indexes[-1]
+                if exit_indexes and not bool(trade.get("is_open"))
+                else None
+            )
+            for index, order in enumerate(orders):
+                if not isinstance(order, Mapping):
+                    continue
+                is_entry = order.get("is_entry") is True
+                is_partial_exit = not is_entry and index != final_exit_index
+                position_action = (
+                    "entry"
+                    if is_entry
+                    else "partial_exit"
+                    if is_partial_exit
+                    else "exit"
+                )
+                writer.writerow(
+                    {
+                        "schema_version": ORDERS_CSV_SCHEMA_VERSION,
+                        "trade_sequence": trade.get("sequence"),
+                        "order_sequence": order.get("sequence"),
+                        "pair": trade.get("pair"),
+                        "direction": trade.get("direction"),
+                        "position_action": position_action,
+                        "side": order.get("side"),
+                        "is_entry": is_entry,
+                        "is_partial_exit": is_partial_exit,
+                        "filled_time_utc": _iso_timestamp(
+                            order.get("filled_timestamp_ms")
+                        ),
+                        "filled_timestamp_ms": order.get("filled_timestamp_ms"),
+                        "amount": order.get("amount"),
+                        "price": order.get("price"),
+                        "cost": order.get("cost"),
+                        "tag": order.get("tag"),
+                        "trade_open_time_utc": _iso_timestamp(
+                            trade.get("open_timestamp_ms")
+                        ),
+                        "trade_close_time_utc": _iso_timestamp(
+                            trade.get("close_timestamp_ms")
+                        ),
+                        "trade_exit_reason": trade.get("exit_reason"),
+                        "trade_profit_abs": _mapping(trade, "profit").get(
+                            "absolute"
+                        ),
+                        "leverage": trade.get("leverage"),
+                    }
+                )
+
+
+def _write_equity_csv(
+    destination: Path,
+    rows: list[dict[str, Any]],
+) -> None:
+    """Write the unsampled closed-trade equity event stream."""
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("w", encoding="utf-8", newline="") as handle:
+        writer: csv.DictWriter[str] = csv.DictWriter(
+            handle,
+            fieldnames=list(_EQUITY_CSV_FIELDS),
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "schema_version": EQUITY_CSV_SCHEMA_VERSION,
+                    **row,
+                    "timestamp_utc": _iso_timestamp(row.get("timestamp_ms")),
                 }
             )
