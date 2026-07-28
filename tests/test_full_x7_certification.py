@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from nfi_backtest_engine import full_x7_certification, full_x7_resume
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.certification_parts import inputs as certification_inputs
 from nfi_backtest_engine.config_loader import config_sha256
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.full_x7_certification import (
@@ -107,6 +108,40 @@ def test_candidate_wheel_must_contain_the_imported_native_extension(
             },
             package_root=package_root,
         )
+
+
+def test_candidate_wheel_default_root_is_the_installed_package(
+    tmp_path: Path,
+) -> None:
+    package_root = Path(certification_inputs.__file__).resolve().parents[1]
+    native_members = [
+        path
+        for path in package_root.glob("_rust*")
+        if path.suffix in {".pyd", ".so", ".dylib"}
+    ]
+    assert len(native_members) == 1
+    native = native_members[0]
+    wheel = tmp_path / "nfi_backtest_engine-1.0.0-installed.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.write(
+            package_root / "__init__.py",
+            "nfi_backtest_engine/__init__.py",
+        )
+        archive.write(
+            native,
+            f"nfi_backtest_engine/{native.name}",
+        )
+
+    record = verify_installed_wheel(
+        wheel,
+        {
+            "kind": "pyo3-extension",
+            "binary_sha256": hashlib.sha256(native.read_bytes()).hexdigest(),
+        },
+    )
+
+    assert record["installed_extension_equal"] is True
+    assert record["installed_package_files"] == 2
 
 
 def test_full_x7_determinism_includes_warmup_native_and_official_hashes() -> None:
