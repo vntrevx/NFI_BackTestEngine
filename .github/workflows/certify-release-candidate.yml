@@ -97,9 +97,15 @@ jobs:
 
           uv venv --python 3.12 .certificate-venv
           uv pip install --python .certificate-venv/bin/python "${wheels[0]}"
+          .certificate-venv/bin/python \
+            .github/scripts/release_candidate_contract.py \
+            --output .release-candidate-plan.json
+          cmp .release-candidate-plan.json \
+            candidate/release-candidate-plan.json
           plan_arguments=(
             .github/scripts/long_certification_contract.py plan
             --config "$CERTIFICATION_CONFIG"
+            --release-candidate-plan .release-candidate-plan.json
             --mode "$MODE"
             --candidate-commit "$CANDIDATE_COMMIT"
             --candidate-wheel "${wheels[0]}"
@@ -126,25 +132,45 @@ jobs:
       - name: Bind certificate to candidate and platform evidence
         env:
           CANDIDATE_COMMIT: ${{ github.sha }}
+          MODE: ${{ inputs.mode }}
           OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t platform_reports < <(
-            find candidate -maxdepth 1 -type f -name '*platform-evidence.json'
+          platform_relative="$(
+            jq -er \
+              --arg slug "$MODE" \
+              '.platform_evidence.modes[]
+               | select(.slug == $slug)
+               | .candidate_evidence' \
+              candidate/release-candidate-plan.json
           )
-          test "${#platform_reports[@]}" -eq 1
+          platform_report="candidate/$platform_relative"
+          test -f "$platform_report"
+          jq -e \
+            --arg mode "$(
+              jq -er \
+                --arg slug "$MODE" \
+                '.platform_evidence.modes[]
+                 | select(.slug == $slug)
+                 | .mode_contract' \
+                candidate/release-candidate-plan.json
+            )" \
+            '.release_certified == true and .mode_contract == $mode' \
+            "$platform_report"
           .certificate-venv/bin/nfi-bte release gate \
             --candidate-dir candidate \
             --certificate "$OUTPUT_DIRECTORY/full-x7-certification.json" \
             --certificate-evidence "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" \
-            --platform-evidence "${platform_reports[0]}" \
+            --platform-evidence "$platform_report" \
             --candidate-commit "$CANDIDATE_COMMIT" \
             --output-dir .host-gate-check
 
           mkdir host-certificate
           cp "$OUTPUT_DIRECTORY/full-x7-certification.json" host-certificate/
           cp "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" host-certificate/
+          cp "$OUTPUT_DIRECTORY/bundle.json" host-certificate/
+          cp "$OUTPUT_DIRECTORY/bundle-manifest.json" host-certificate/
           cp .long-certification-plan.json host-certificate/
 
       - name: Configure short-lived immutable-storage credentials
@@ -241,7 +267,7 @@ jobs:
       - name: Upload same-commit host certificate
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: host-certificate-${{ github.sha }}
+          name: host-certificate-${{ inputs.mode }}-${{ github.sha }}
           path: host-certificate/*
           if-no-files-found: error
           retention-days: 30

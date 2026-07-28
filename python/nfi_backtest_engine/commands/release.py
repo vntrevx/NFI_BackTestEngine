@@ -186,6 +186,34 @@ def execute_release(args: argparse.Namespace) -> int:
             f"{args.output_dir / 'RELEASE-SHA256SUMS.txt'}"
         )
         return 0
+    if args.release_command == "gate-combined":
+        from ..combined_release import seal_combined_release_candidate
+
+        report = seal_combined_release_candidate(
+            candidate_directory=args.candidate_dir,
+            combined_release_result_path=args.combined_release,
+            candidate_commit=args.candidate_commit,
+            output_directory=args.output_dir,
+        )
+        print(
+            f"combined release gate: status={report['status']}, "
+            f"commit={report['candidate_commit']}, "
+            f"distributions={len(report['distributions'])} -> "
+            f"{args.output_dir / 'RELEASE-SHA256SUMS.txt'}"
+        )
+        return 0
+    if args.release_command == "verify-combined":
+        from ..combined_release import verify_combined_release_candidate
+
+        report = verify_combined_release_candidate(
+            args.release_dir,
+            expected_commit=args.candidate_commit,
+        )
+        print(
+            f"combined release valid: commit={report['candidate_commit']}, "
+            f"assets=10, version={report['package_version']}"
+        )
+        return 0
     raise AssertionError(f"unhandled release command: {args.release_command}")
 
 

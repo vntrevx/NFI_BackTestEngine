@@ -110,12 +110,15 @@ def test_futures_release_contract_requires_real_lifecycle_evidence() -> None:
             "funded_trades": 0,
         }
     ) == ["sides:short", "funded_trades:0<1"]
-    assert lifecycle.missing_from(
-        {
-            "sides": ["long", "short"],
-            "funded_trades": 1,
-        }
-    ) == []
+    assert (
+        lifecycle.missing_from(
+            {
+                "sides": ["long", "short"],
+                "funded_trades": 1,
+            }
+        )
+        == []
+    )
 
 
 PORTABLE_PACKAGE_SHA = "b" * 64
@@ -222,13 +225,9 @@ def _write_certificate_evidence(
 def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
     candidate = tmp_path / "candidate"
     candidate.mkdir()
-    wheel = candidate / (
-        "nfi_backtest_engine-1.1.0-cp312-cp312-manylinux_2_17_x86_64.whl"
-    )
+    wheel = candidate / ("nfi_backtest_engine-1.1.0-cp312-cp312-manylinux_2_17_x86_64.whl")
     wheel.write_bytes(b"sealed candidate wheel")
-    (candidate / "nfi_backtest_engine-1.1.0.tar.gz").write_bytes(
-        b"sealed source distribution"
-    )
+    (candidate / "nfi_backtest_engine-1.1.0.tar.gz").write_bytes(b"sealed source distribution")
     wheel_sha256 = sha256_file(wheel)
     platform = candidate / "full-x7-futures-platform-evidence.json"
     write_json(
@@ -247,9 +246,7 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
             "platforms": [
                 {
                     "system": system,
-                    "wheel_sha256": (
-                        wheel_sha256 if system == "linux" else digest * 64
-                    ),
+                    "wheel_sha256": (wheel_sha256 if system == "linux" else digest * 64),
                 }
                 for system, digest in (
                     ("windows", "a"),
@@ -261,9 +258,7 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
     )
     candidate_assets = sorted(candidate.iterdir(), key=lambda item: item.name)
     (candidate / "SHA256SUMS.txt").write_text(
-        "".join(
-            f"{sha256_file(asset)}  {asset.name}\n" for asset in candidate_assets
-        ),
+        "".join(f"{sha256_file(asset)}  {asset.name}\n" for asset in candidate_assets),
         encoding="utf-8",
     )
     certificate = tmp_path / "full-x7-certification.json"
@@ -282,15 +277,13 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
 
 def _reseal_candidate_manifest(candidate: Path) -> None:
     assets = sorted(
-        (
-            path
-            for path in candidate.iterdir()
-            if path.name != "SHA256SUMS.txt"
-        ),
-        key=lambda item: item.name,
+        (path for path in candidate.rglob("*") if path.is_file() and path.name != "SHA256SUMS.txt"),
+        key=lambda item: item.relative_to(candidate).as_posix(),
     )
     (candidate / "SHA256SUMS.txt").write_text(
-        "".join(f"{sha256_file(asset)}  {asset.name}\n" for asset in assets),
+        "".join(
+            f"{sha256_file(asset)}  {asset.relative_to(candidate).as_posix()}\n" for asset in assets
+        ),
         encoding="utf-8",
     )
 
@@ -307,20 +300,14 @@ def test_release_gate_binds_certificate_and_complete_asset_manifest(
     verified = verify_release_gate(release, expected_commit=RELEASE_COMMIT)
     checksums = {
         line.partition("  ")[2]
-        for line in (release / RELEASE_CHECKSUMS_NAME)
-        .read_text(encoding="utf-8")
-        .splitlines()
+        for line in (release / RELEASE_CHECKSUMS_NAME).read_text(encoding="utf-8").splitlines()
     }
 
     assert result == verified
-    assert result["certificate"]["wheel_sha256"] == sha256_file(
-        next(candidate.glob("*.whl"))
-    )
+    assert result["certificate"]["wheel_sha256"] == sha256_file(next(candidate.glob("*.whl")))
     assert sha256_file(release / "SHA256SUMS.txt") == candidate_manifest_sha
     assert checksums == {
-        path.name
-        for path in release.iterdir()
-        if path.name != RELEASE_CHECKSUMS_NAME
+        path.name for path in release.iterdir() if path.name != RELEASE_CHECKSUMS_NAME
     }
 
 
@@ -341,6 +328,38 @@ def test_release_gate_rejects_mismatched_candidate_wheel(
     assert not Path(inputs["output_directory"]).exists()
 
 
+def test_release_gate_preserves_nested_candidate_evidence(tmp_path: Path) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    candidate = Path(inputs["candidate_directory"])
+    platform = Path(inputs["platform_evidence_path"])
+    nested = candidate / "platform" / "futures" / platform.name
+    nested.parent.mkdir(parents=True)
+    platform.rename(nested)
+    inputs["platform_evidence_path"] = nested
+    _reseal_candidate_manifest(candidate)
+
+    result = seal_release_gate(**inputs)
+    release = Path(inputs["output_directory"])
+
+    assert result["platform_evidence"]["file"] == (
+        "platform/futures/full-x7-futures-platform-evidence.json"
+    )
+    assert (release / result["platform_evidence"]["file"]).is_file()
+
+
+def test_release_gate_rejects_checksum_path_traversal(tmp_path: Path) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    candidate = Path(inputs["candidate_directory"])
+    manifest = candidate / "SHA256SUMS.txt"
+    manifest.write_text(
+        f"{'0' * 64}  ../outside.whl\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SpecValidationError, match="invalid checksum manifest"):
+        seal_release_gate(**inputs)
+
+
 def test_release_gate_rejects_missing_host_certificate(tmp_path: Path) -> None:
     inputs = _release_gate_inputs(tmp_path)
     Path(inputs["certificate_path"]).unlink()
@@ -354,9 +373,7 @@ def test_release_gate_rejects_missing_host_certificate(tmp_path: Path) -> None:
 def test_release_gate_rejects_preview_certificate(tmp_path: Path) -> None:
     inputs = _release_gate_inputs(tmp_path)
     certificate = Path(inputs["certificate_path"])
-    wheel_sha256 = sha256_file(
-        next(Path(inputs["candidate_directory"]).glob("*.whl"))
-    )
+    wheel_sha256 = sha256_file(next(Path(inputs["candidate_directory"]).glob("*.whl")))
     _release_certificate(
         certificate,
         wheel_sha256=wheel_sha256,
@@ -390,17 +407,15 @@ def test_release_gate_rejects_portable_package_identity_drift(
 def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     root = Path(__file__).parents[1]
     build = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
-    publish = (
-        root / ".github/workflows/publish-release-candidate.yml"
-    ).read_text(encoding="utf-8")
-    certify = (
-        root / ".github/workflows/certify-release-candidate.yml"
-    ).read_text(encoding="utf-8")
-    promote = (root / ".github/workflows/promote-release.yml").read_text(
-        encoding="utf-8"
-    )
+    publish = (root / ".github/workflows/publish-release-candidate.yml").read_text(encoding="utf-8")
+    certify = (root / ".github/workflows/certify-release-candidate.yml").read_text(encoding="utf-8")
+    promote = (root / ".github/workflows/promote-release.yml").read_text(encoding="utf-8")
 
     assert "permissions:\n  contents: read" in build
+    assert "release_candidate_contract.py" in build
+    assert "Measure exact Spot and Futures fixtures" in build
+    assert "Seal three-OS Spot and Futures evidence" in build
+    assert "find . -type f ! -name SHA256SUMS.txt" in build
     assert "name: Certify release candidate" in certify
     assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in certify
     assert "environment: full-x7-certification" in certify
@@ -409,30 +424,34 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "cancel-in-progress: false" in certify
     assert "certification_config:" in certify
     assert "long_certification_contract.py plan" in certify
+    assert "--release-candidate-plan .release-candidate-plan.json" in certify
     assert "flock --exclusive --nonblock" in certify
     assert "--if-none-match '*'" in certify
     assert "full-x7-certifications" not in certify
     assert "candidate and certification commits differ" in certify
     assert "nfi-bte release gate" in certify
+    assert "candidate/release-candidate-plan.json" in certify
+    assert "host-certificate-${{ inputs.mode }}-${{ github.sha }}" in certify
+    assert 'cp "$OUTPUT_DIRECTORY/bundle.json" host-certificate/' in certify
     assert "contents: write" not in certify
-    assert "certificate_run_id:" in publish
-    assert "host-certificate-${{ steps.candidate.outputs.sha }}" in publish
+    assert "spot_certificate_run_id:" in publish
+    assert "futures_certificate_run_id:" in publish
+    assert "host-certificate-spot-${{ steps.candidate.outputs.sha }}" in publish
+    assert "host-certificate-futures-${{ steps.candidate.outputs.sha }}" in publish
     assert "candidate and host certificate commits differ" in publish
-    assert "nfi-bte release gate" in publish
+    assert "nfi-bte release combine" in publish
+    assert "nfi-bte release gate-combined" in publish
+    assert "nfi-bte release verify-combined" in publish
     assert "RELEASE-SHA256SUMS.txt" in publish
-    assert publish.index("nfi-bte release gate") < publish.index("gh release create")
+    assert publish.index("nfi-bte release combine") < publish.index("nfi-bte release gate-combined")
+    assert publish.index("nfi-bte release gate-combined") < publish.index("gh release create")
     assert "RELEASE-SHA256SUMS.txt" in promote
-    assert '.status == "release_certified"' in promote
-    assert promote.index('.status == "release_certified"') < promote.index(
-        "gh release create"
-    )
+    assert "nfi-bte release verify-combined" in promote
+    assert promote.index("nfi-bte release verify-combined") < promote.index("gh release create")
 
 
 def _long_certification_module() -> ModuleType:
-    path = (
-        Path(__file__).parents[1]
-        / ".github/scripts/long_certification_contract.py"
-    )
+    path = Path(__file__).parents[1] / ".github/scripts/long_certification_contract.py"
     spec = importlib.util.spec_from_file_location(
         "nfi_long_certification_contract",
         path,
@@ -442,6 +461,53 @@ def _long_certification_module() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _release_candidate_contract_module() -> ModuleType:
+    path = Path(__file__).parents[1] / ".github/scripts/release_candidate_contract.py"
+    spec = importlib.util.spec_from_file_location(
+        "nfi_release_candidate_contract",
+        path,
+    )
+    if spec is None or spec.loader is None:
+        raise AssertionError("release-candidate contract module is not loadable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_release_candidate_contract_declares_both_modes_without_identity_drift() -> None:
+    root = Path(__file__).parents[1]
+    module = _release_candidate_contract_module()
+
+    plan = module.load_release_candidate_contract(
+        root / ".github/release-candidate-contract.json",
+        repository_root=root,
+    )
+
+    platform = plan["platform_evidence"]
+    assert platform["runs"] in {3, 4, 5}
+    assert platform["timeout_seconds"] > 0
+    assert {item["mode_contract"] for item in platform["modes"]} == {
+        "binance-spot",
+        "binance-usdtm-isolated",
+    }
+    assert len({item["strategy_sha256"] for item in platform["modes"]}) == 1
+    assert all(item["manifest_sha256"] for item in platform["modes"])
+    probes = plan["certification_probes"]
+    assert probes["upstream_commit"] == "8da6038be51654bdaa36839f3f1e296d2fc290ff"
+    assert probes["base_source_sha256"] == (
+        "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db"
+    )
+    assert {
+        item["slug"]: len(item["manifests"])
+        for item in probes["modes"]
+    } == {"spot": 4, "futures": 9}
+    assert all(
+        record["manifest_sha256"]
+        for mode in probes["modes"]
+        for record in mode["manifests"]
+    )
 
 
 def _long_certification_plan_inputs(
@@ -457,6 +523,7 @@ def _long_certification_plan_inputs(
     engine_markets = tmp_path / "engine-markets.json"
     reference_markets = tmp_path / "reference-markets.json"
     state_probe = tmp_path / "state-probe.json"
+    release_candidate_plan = tmp_path / "release-candidate-plan.json"
     data_directory = tmp_path / "data"
     oracle_directory = tmp_path / "oracle"
     oracle_index = tmp_path / "oracle-index.json"
@@ -471,6 +538,26 @@ def _long_certification_plan_inputs(
     write_json(engine_markets, {"markets": {}})
     write_json(reference_markets, {"markets": {}})
     write_json(state_probe, {"fixture_id": "probe"})
+    write_json(
+        release_candidate_plan,
+        {
+            "schema_version": "1.0.0",
+            "certification_probes": {
+                "modes": [
+                    {
+                        "slug": "spot",
+                        "required_manifests": 1,
+                        "manifests": [
+                            {
+                                "manifest": state_probe.name,
+                                "manifest_sha256": sha256_file(state_probe),
+                            }
+                        ],
+                    }
+                ]
+            },
+        },
+    )
     write_json(
         release_lock,
         {
@@ -513,9 +600,7 @@ def _long_certification_plan_inputs(
                     "identity": identity,
                     "directory": str(oracle_directory),
                     "run_json_sha256": sha256_file(run_report),
-                    "tree_sha256": module.directory_tree_sha256(
-                        oracle_directory
-                    ),
+                    "tree_sha256": module.directory_tree_sha256(oracle_directory),
                     "status": "exact_parity",
                     "immutable": True,
                 }
@@ -527,6 +612,7 @@ def _long_certification_plan_inputs(
     arguments = {
         "contract": contract,
         "config_path": config_path,
+        "release_candidate_plan_path": release_candidate_plan,
         "mode": "spot",
         "candidate_commit": "e" * 40,
         "candidate_wheel": wheel,
@@ -552,6 +638,29 @@ def test_long_certification_plan_reuses_only_the_indexed_oracle(
     assert "--official-oracle" in plan["command"]
     assert "--resume" not in plan["command"]
     assert "reference" not in plan["command"]
+    assert plan["state_probes"] == [
+        {
+            "path": str(Path(arguments["release_candidate_plan_path"]).parent / "state-probe.json"),
+            "sha256": sha256_file(
+                Path(arguments["release_candidate_plan_path"]).parent
+                / "state-probe.json"
+            ),
+        }
+    ]
+
+
+def test_long_certification_plan_rejects_probe_drift_from_candidate(
+    tmp_path: Path,
+) -> None:
+    module, arguments, config_path = _long_certification_plan_inputs(tmp_path)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    replacement = tmp_path / "replacement-probe.json"
+    write_json(replacement, {"fixture_id": "different"})
+    config["state_probes"] = [str(replacement)]
+    write_json(config_path, config)
+
+    with pytest.raises(ValueError, match="differ from the sealed"):
+        module.build_plan(**arguments)
 
 
 def test_long_certification_plan_rejects_fingerprint_or_tree_drift(
@@ -565,9 +674,7 @@ def test_long_certification_plan_rejects_fingerprint_or_tree_drift(
     with pytest.raises(ValueError, match="fingerprint differs"):
         module.build_plan(**arguments)
 
-    config["oracle_fingerprint"] = module.canonical_sha256(
-        module._input_identity(config)
-    )
+    config["oracle_fingerprint"] = module.canonical_sha256(module._input_identity(config))
     write_json(config_path, config)
     index_path = Path(config["oracle_index"])
     index = json.loads(index_path.read_text(encoding="utf-8"))
@@ -671,9 +778,7 @@ def test_ci_contract_requires_the_full_code_job_matrix() -> None:
 
 def test_ci_workflow_matches_machine_readable_policy() -> None:
     root = Path(__file__).parents[1]
-    contract = json.loads(
-        (root / ".github/ci-contract.json").read_text(encoding="utf-8")
-    )
+    contract = json.loads((root / ".github/ci-contract.json").read_text(encoding="utf-8"))
     workflow = (root / contract["workflow"]).read_text(encoding="utf-8")
 
     assert "pull_request_target:" not in workflow
@@ -682,13 +787,8 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
     assert contract["pull_request"]["allows_secrets"] is False
     assert contract["pull_request"]["allows_privileged_fork_execution"] is False
     assert contract["pull_request"]["allows_official_reference"] is False
-    assert set(contract["pull_request"]["required_capabilities"]) == set(
-        contract["coverage"]
-    )
-    assert (
-        f"  group: {contract['concurrency']['group']}"
-        in workflow
-    )
+    assert set(contract["pull_request"]["required_capabilities"]) == set(contract["coverage"])
+    assert f"  group: {contract['concurrency']['group']}" in workflow
     assert "  cancel-in-progress: true" in workflow
     for job_id, job in contract["jobs"].items():
         assert f"  {job_id}:" in workflow
@@ -709,10 +809,9 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
         assert "if: needs.changes.outputs.code_changes == 'true'" in section
     assert "    name: Required CI" in workflow
     assert "    if: always()" in workflow
-    assert (
-        contract["branch_protection"]["api"]["required_status_checks"]["contexts"]
-        == [contract["required_check"]["name"]]
-    )
+    assert contract["branch_protection"]["api"]["required_status_checks"]["contexts"] == [
+        contract["required_check"]["name"]
+    ]
 
 
 def test_nightly_matrix_covers_each_discovered_x7_fixture_once(
@@ -729,15 +828,9 @@ def test_nightly_matrix_covers_each_discovered_x7_fixture_once(
         for pattern in contract["nightly"]["fixture_globs"]
         for path in root.glob(pattern)
     )
-    observed = [
-        fixture["manifest"]
-        for shard in first["shards"]
-        for fixture in shard["fixtures"]
-    ]
+    observed = [fixture["manifest"] for shard in first["shards"] for fixture in shard["fixtures"]]
     shard_sizes = [shard["logical_bytes"] for shard in first["shards"]]
-    largest_fixture = max(
-        fixture["logical_bytes"] for fixture in first["inventory"]
-    )
+    largest_fixture = max(fixture["logical_bytes"] for fixture in first["inventory"])
 
     assert first == second
     assert sorted(observed) == expected
@@ -760,9 +853,7 @@ def test_nightly_matrix_covers_each_discovered_x7_fixture_once(
     summary = module.summarize_nightly_reports(
         first,
         reports,
-        job_results={
-            job: "success" for job in contract["nightly"]["job_ids"]
-        },
+        job_results={job: "success" for job in contract["nightly"]["job_ids"]},
         contract=contract,
     )
 
@@ -805,9 +896,7 @@ def test_nightly_summary_deduplicates_repeated_root_cause_failures(
             }
         ]
         report["passed"] = False
-    job_results = {
-        job: "success" for job in contract["nightly"]["job_ids"]
-    }
+    job_results = {job: "success" for job in contract["nightly"]["job_ids"]}
     job_results["fixtures"] = "failure"
 
     summary = module.summarize_nightly_reports(
@@ -847,9 +936,7 @@ def test_nightly_summary_rejects_duplicate_fixture_assignment(
     summary = module.summarize_nightly_reports(
         matrix,
         reports,
-        job_results={
-            job: "success" for job in contract["nightly"]["job_ids"]
-        },
+        job_results={job: "success" for job in contract["nightly"]["job_ids"]},
         contract=contract,
     )
 
@@ -859,9 +946,7 @@ def test_nightly_summary_rejects_duplicate_fixture_assignment(
 
 def test_nightly_workflow_matches_read_only_trust_boundary() -> None:
     root = Path(__file__).parents[1]
-    contract = json.loads(
-        (root / ".github/ci-contract.json").read_text(encoding="utf-8")
-    )
+    contract = json.loads((root / ".github/ci-contract.json").read_text(encoding="utf-8"))
     nightly = contract["nightly"]
     workflow = (root / nightly["workflow"]).read_text(encoding="utf-8")
 
@@ -873,8 +958,7 @@ def test_nightly_workflow_matches_read_only_trust_boundary() -> None:
     assert f"  group: {nightly['concurrency']['group']}" in workflow
     assert (
         f"  cancel-in-progress: "
-        f"{str(nightly['concurrency']['cancel_in_progress']).lower()}"
-        in workflow
+        f"{str(nightly['concurrency']['cancel_in_progress']).lower()}" in workflow
     )
     assert "nightly-matrix" in workflow
     assert "run-nightly-shard" in workflow

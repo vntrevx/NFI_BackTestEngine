@@ -21,6 +21,7 @@ CERTIFICATION_REPORT_SCHEMA = "certification-report-v1.schema.json"
 FULL_X7_CERTIFICATION_SCHEMA = "full-x7-certification-v1.schema.json"
 FULL_X7_CERTIFICATION_V2_SCHEMA = "full-x7-certification-v2.schema.json"
 FULL_X7_COMBINED_RELEASE_SCHEMA = "full-x7-combined-release-v1.schema.json"
+FULL_X7_COMBINED_RELEASE_GATE_SCHEMA = "full-x7-combined-release-gate-v1.schema.json"
 REGRESSION_CONTRACT_SCHEMA = "regression-contract-v1.schema.json"
 VERIFICATION_LEDGER_RECORD_SCHEMA = "verification-ledger-record-v1.schema.json"
 CLEAN_AUDIT_SCHEMA = "clean-audit-v1.schema.json"
@@ -147,13 +148,8 @@ def validate_fixture_manifest(document: Any) -> None:
                 f"$.inputs: captured fixture is missing required roles: {joined}"
             )
     if version == "3.0.0":
-        strategy = next(
-            item for item in document["inputs"] if item["role"] == "strategy"
-        )
-        if (
-            document["strategy_provenance"]["effective_source_sha256"]
-            != strategy["sha256"]
-        ):
+        strategy = next(item for item in document["inputs"] if item["role"] == "strategy")
+        if document["strategy_provenance"]["effective_source_sha256"] != strategy["sha256"]:
             raise SpecValidationError(
                 "$.strategy_provenance.effective_source_sha256: "
                 "must match the sealed strategy input"
@@ -178,6 +174,11 @@ def validate_clean_audit(document: Any) -> None:
 def validate_release_gate(document: Any) -> None:
     """Validate a candidate/certificate identity gate."""
     validate_schema(document, RELEASE_GATE_SCHEMA)
+
+
+def validate_combined_release_gate(document: Any) -> None:
+    """Validate the final Spot+Futures build-once release gate."""
+    validate_schema(document, FULL_X7_COMBINED_RELEASE_GATE_SCHEMA)
 
 
 def _check_decimal_fields(record: dict[str, Any], field_names: Iterable[str], path: str) -> None:

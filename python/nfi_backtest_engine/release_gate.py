@@ -8,7 +8,7 @@ import shutil
 import zipfile
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .canonical import read_json, write_json
@@ -56,14 +56,18 @@ def seal_release_gate(
         certificate_evidence_path,
         label="host certificate evidence",
     )
-    candidate_names = {path.name for path in candidate["paths"]}
+    candidate_names = {
+        path.relative_to(candidate_root).as_posix()
+        for path in candidate["paths"]
+    }
     certificate_names = {certificate_file.name, certificate_evidence.name}
     if len(certificate_names) != 2 or candidate_names & certificate_names:
         raise SpecValidationError("release assets have a filename collision")
     platform_file = _plain_file(platform_evidence_path, label="platform evidence")
-    if platform_file.parent != candidate_root:
+    if not platform_file.is_relative_to(candidate_root):
         raise SpecValidationError("platform evidence must come from the sealed candidate bundle")
-    platform_record = candidate["files"].get(platform_file.name)
+    platform_relative = platform_file.relative_to(candidate_root).as_posix()
+    platform_record = candidate["files"].get(platform_relative)
     if (
         platform_record is None
         or platform_record["sha256"] != sha256_file(platform_file)
@@ -81,14 +85,19 @@ def seal_release_gate(
 
     output.mkdir(parents=True, exist_ok=True)
     for source in candidate["paths"]:
-        _copy_new_file(source, output / source.name)
+        relative = source.relative_to(candidate_root)
+        _copy_new_file(source, output / relative)
     _copy_new_file(certificate_file, output / certificate_file.name)
     _copy_new_file(certificate_evidence, output / certificate_evidence.name)
 
     source_assets = _asset_records(
-        path
-        for path in output.iterdir()
-        if path.name not in {RELEASE_GATE_NAME, RELEASE_CHECKSUMS_NAME}
+        (
+            path
+            for path in output.rglob("*")
+            if path.is_file()
+            and path.name not in {RELEASE_GATE_NAME, RELEASE_CHECKSUMS_NAME}
+        ),
+        relative_to=output,
     )
     gate = {
         "schema_version": RELEASE_GATE_VERSION,
@@ -107,7 +116,7 @@ def seal_release_gate(
             "portable_package_sha256": identities["portable_package_sha256"],
         },
         "platform_evidence": {
-            **_artifact_record(output / platform_file.name),
+            **_artifact_record(output / platform_relative, relative_to=output),
             "systems": sorted(_REQUIRED_SYSTEMS),
             "portable_package_sha256": identities["portable_package_sha256"],
         },
@@ -141,15 +150,15 @@ def verify_release_gate(
         raise SpecValidationError("release gate has no complete checksum manifest")
     records = _parse_checksum_manifest(manifest)
     actual_names = {
-        path.name
-        for path in root.iterdir()
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
         if path.is_file() and path.name != RELEASE_CHECKSUMS_NAME
     }
     if set(records) != actual_names:
         raise SpecValidationError("release checksum manifest does not cover every asset")
     for name, expected in records.items():
         target = root / name
-        if target.is_symlink() or sha256_file(target) != expected:
+        if not target.is_file() or target.is_symlink() or sha256_file(target) != expected:
             raise SpecValidationError(f"release asset failed checksum validation: {name}")
 
     document = read_json(root / RELEASE_GATE_NAME)
@@ -166,27 +175,47 @@ def verify_release_gate(
 
 
 def _validate_candidate_manifest(root: Path) -> dict[str, Any]:
-    paths = sorted(root.iterdir(), key=lambda path: path.name)
-    if any(path.is_symlink() or not path.is_file() for path in paths):
-        raise SpecValidationError("candidate bundle must contain only regular top-level files")
+    entries = sorted(
+        root.rglob("*"),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
+    if any(
+        path.is_symlink() or (not path.is_file() and not path.is_dir())
+        for path in entries
+    ):
+        raise SpecValidationError("candidate bundle must contain only regular files")
+    paths = [path for path in entries if path.is_file()]
     manifest = root / CANDIDATE_CHECKSUMS_NAME
     if not manifest.is_file():
         raise SpecValidationError("candidate bundle is missing SHA256SUMS.txt")
     records = _parse_checksum_manifest(manifest)
-    actual = {path.name for path in paths if path.name != CANDIDATE_CHECKSUMS_NAME}
+    actual = {
+        path.relative_to(root).as_posix()
+        for path in paths
+        if path != manifest
+    }
     if set(records) != actual:
         raise SpecValidationError("candidate SHA256SUMS.txt does not cover every candidate asset")
     for name, expected in records.items():
-        if sha256_file(root / name) != expected:
+        target = (root / name).resolve()
+        if (
+            not target.is_relative_to(root)
+            or not target.is_file()
+            or target.is_symlink()
+            or sha256_file(target) != expected
+        ):
             raise SpecValidationError(f"candidate asset failed checksum validation: {name}")
-    if RELEASE_CHECKSUMS_NAME in actual or RELEASE_GATE_NAME in actual:
+    if any(
+        PurePosixPath(name).name in {RELEASE_CHECKSUMS_NAME, RELEASE_GATE_NAME}
+        for name in actual
+    ):
         raise SpecValidationError("candidate bundle already contains release-gate output")
     return {
         "root": root,
         "paths": paths,
         "files": {
             name: {
-                "path": root / name,
+                "path": (root / name).resolve(),
                 "sha256": digest,
             }
             for name, digest in records.items()
@@ -324,12 +353,15 @@ def _parse_checksum_manifest(path: Path) -> dict[str, str]:
     ):
         digest, separator, raw_name = line.partition("  ")
         name = raw_name.removeprefix("./")
+        relative = PurePosixPath(name)
         if (
             not separator
             or _SHA256_PATTERN.fullmatch(digest) is None
             or not name
-            or "/" in name
             or "\\" in name
+            or relative.is_absolute()
+            or relative.as_posix() != name
+            or any(part in {"", ".", ".."} for part in relative.parts)
             or name in records
         ):
             raise SpecValidationError(
@@ -343,24 +375,52 @@ def _parse_checksum_manifest(path: Path) -> dict[str, str]:
 
 def _write_complete_checksums(root: Path) -> None:
     assets = sorted(
-        path
-        for path in root.iterdir()
-        if path.is_file() and path.name != RELEASE_CHECKSUMS_NAME
+        (
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.name != RELEASE_CHECKSUMS_NAME
+        ),
+        key=lambda path: path.relative_to(root).as_posix(),
     )
-    lines = [f"{sha256_file(path)}  {path.name}" for path in assets]
+    lines = [
+        f"{sha256_file(path)}  {path.relative_to(root).as_posix()}"
+        for path in assets
+    ]
     (root / RELEASE_CHECKSUMS_NAME).write_text(
         "\n".join(lines) + "\n",
         encoding="utf-8",
     )
 
 
-def _asset_records(paths: Iterable[Path]) -> list[dict[str, Any]]:
-    return [_artifact_record(path) for path in sorted(paths, key=lambda item: item.name)]
+def _asset_records(
+    paths: Iterable[Path],
+    *,
+    relative_to: Path | None = None,
+) -> list[dict[str, Any]]:
+    return [
+        _artifact_record(path, relative_to=relative_to)
+        for path in sorted(
+            paths,
+            key=lambda item: (
+                item.relative_to(relative_to).as_posix()
+                if relative_to is not None
+                else item.name
+            ),
+        )
+    ]
 
 
-def _artifact_record(path: Path) -> dict[str, Any]:
+def _artifact_record(
+    path: Path,
+    *,
+    relative_to: Path | None = None,
+) -> dict[str, Any]:
     return {
-        "file": path.name,
+        "file": (
+            path.relative_to(relative_to).as_posix()
+            if relative_to is not None
+            else path.name
+        ),
         "bytes": path.stat().st_size,
         "sha256": sha256_file(path),
     }
@@ -368,7 +428,8 @@ def _artifact_record(path: Path) -> dict[str, Any]:
 
 def _copy_new_file(source: Path, destination: Path) -> None:
     if destination.exists():
-        raise SpecValidationError(f"release asset name collision: {destination.name}")
+        raise SpecValidationError(f"release asset name collision: {destination}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
 
 

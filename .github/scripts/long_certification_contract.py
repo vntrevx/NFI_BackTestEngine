@@ -91,6 +91,7 @@ def build_plan(
     *,
     contract: Mapping[str, Any],
     config_path: str | Path,
+    release_candidate_plan_path: str | Path,
     mode: str,
     candidate_commit: str,
     candidate_wheel: str | Path,
@@ -146,6 +147,22 @@ def build_plan(
         raise ValueError("certification data directory does not exist")
     if any(not probe.is_file() for probe in state_probes):
         raise ValueError("one or more state probe manifests do not exist")
+    declared_state_probes = _load_release_candidate_probes(
+        release_candidate_plan_path,
+        mode=mode,
+    )
+    configured_probe_hashes = [sha256_file(path) for path in state_probes]
+    declared_probe_hashes = [
+        record["sha256"] for record in declared_state_probes
+    ]
+    if (
+        len(configured_probe_hashes) != len(declared_probe_hashes)
+        or set(configured_probe_hashes) != set(declared_probe_hashes)
+    ):
+        raise ValueError(
+            "protected state probes differ from the sealed release-candidate plan"
+        )
+    state_probes = [record["path"] for record in declared_state_probes]
     if Path(config["host_lock"]).resolve().is_dir():
         raise ValueError("host lock path must not be a directory")
 
@@ -223,8 +240,93 @@ def build_plan(
             "reused": True,
             "new_run_allowed": False,
         },
+        "state_probes": [
+            {
+                "path": str(record["path"]),
+                "sha256": record["sha256"],
+            }
+            for record in declared_state_probes
+        ],
         "command": command,
     }
+
+
+def _load_release_candidate_probes(
+    plan_path: str | Path,
+    *,
+    mode: str,
+) -> list[dict[str, Any]]:
+    path = Path(plan_path).resolve()
+    plan = read_object(path, label="release-candidate plan")
+    probes = plan.get("certification_probes")
+    modes = probes.get("modes") if isinstance(probes, dict) else None
+    if (
+        plan.get("schema_version") != "1.0.0"
+        or not isinstance(modes, list)
+    ):
+        raise ValueError("release-candidate plan has no certification probes")
+    matches = [
+        item
+        for item in modes
+        if isinstance(item, dict) and item.get("slug") == mode
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            "release-candidate plan must contain exactly one selected mode"
+        )
+    selected = matches[0]
+    manifests = selected.get("manifests")
+    required = selected.get("required_manifests")
+    if (
+        not isinstance(manifests, list)
+        or not isinstance(required, int)
+        or isinstance(required, bool)
+        or required < 1
+        or len(manifests) != required
+    ):
+        raise ValueError(
+            "release-candidate certification probe count is invalid"
+        )
+    result: list[dict[str, Any]] = []
+    seen_paths: set[Path] = set()
+    for record in manifests:
+        if (
+            not isinstance(record, dict)
+            or not _nonempty_string(record.get("manifest"))
+            or not SHA256_PATTERN.fullmatch(
+                str(record.get("manifest_sha256", ""))
+            )
+        ):
+            raise ValueError(
+                "release-candidate certification probe record is invalid"
+            )
+        relative = Path(record["manifest"])
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or relative.as_posix() != record["manifest"]
+        ):
+            raise ValueError(
+                "release-candidate certification probe path is unsafe"
+            )
+        manifest = (path.parent / relative).resolve()
+        if (
+            not manifest.is_relative_to(path.parent)
+            or manifest in seen_paths
+            or not manifest.is_file()
+            or sha256_file(manifest) != record["manifest_sha256"]
+        ):
+            raise ValueError(
+                "release-candidate certification probe failed hash validation"
+            )
+        seen_paths.add(manifest)
+        result.append(
+            {
+                "path": manifest,
+                "sha256": record["manifest_sha256"],
+            }
+        )
+    return result
 
 
 def _input_identity(config: Mapping[str, Any]) -> dict[str, Any]:
@@ -360,6 +462,11 @@ def parser() -> argparse.ArgumentParser:
     commands = command.add_subparsers(dest="command", required=True)
     plan = commands.add_parser("plan")
     plan.add_argument("--config", type=Path, required=True)
+    plan.add_argument(
+        "--release-candidate-plan",
+        type=Path,
+        required=True,
+    )
     plan.add_argument("--mode", required=True)
     plan.add_argument("--candidate-commit", required=True)
     plan.add_argument("--candidate-wheel", type=Path, required=True)
@@ -377,6 +484,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         plan = build_plan(
             contract=contract,
             config_path=args.config,
+            release_candidate_plan_path=args.release_candidate_plan,
             mode=args.mode,
             candidate_commit=args.candidate_commit,
             candidate_wheel=args.candidate_wheel,
