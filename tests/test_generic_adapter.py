@@ -206,6 +206,14 @@ def test_feather_manifest_matches_the_legacy_json_transport(tmp_path: Path) -> N
         tmp_path / "legacy-result.json"
     )
 
+    vector.write_bytes(vector.read_bytes() + b"tampered")
+    with pytest.raises(BenchmarkError, match="SHA-256 mismatch"):
+        run_engine(
+            manifest_input,
+            tmp_path / "tampered-result.json",
+            vector_manifest=True,
+        )
+
 
 def test_public_generic_runner_matches_captured_freqtrade_surface(tmp_path: Path) -> None:
     arguments = {

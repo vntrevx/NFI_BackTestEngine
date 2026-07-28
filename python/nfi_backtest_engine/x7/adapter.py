@@ -14,9 +14,9 @@ from ..vector_manifest import (
     VECTOR_MANIFEST_VERSION,
     artifact_execution_start_index,
     contained_vector_path,
+    declared_vector_sha256,
     feather_column_names,
     require_columns,
-    verified_vector_sha256,
 )
 from .contracts import (
     _market_maximum_leverage,
@@ -192,7 +192,7 @@ def build_x7_vector_manifest(
     for artifact in vector_report["outputs"]:
         pair = artifact["pair"]
         source = Path(artifact["path"]).resolve()
-        vector_sha256 = verified_vector_sha256(source, artifact, pair)
+        vector_sha256 = declared_vector_sha256(source, artifact, pair)
         columns = feather_column_names(source, pair)
         required_columns = {
             "date",

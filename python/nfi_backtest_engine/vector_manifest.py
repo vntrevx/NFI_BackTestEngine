@@ -8,7 +8,6 @@ from typing import Any
 import pyarrow.ipc as pa_ipc
 
 from .errors import StrategyAnalysisError
-from .fixture import sha256_file
 
 VECTOR_MANIFEST_VERSION = "1.2.0"
 EMPTY_TAG_TRANSPORT_SENTINEL = "__nfi_bte_empty_tag_column__"
@@ -31,23 +30,28 @@ def require_columns(columns: set[str], required: set[str], pair: str) -> None:
         )
 
 
-def verified_vector_sha256(
+def declared_vector_sha256(
     path: Path,
     artifact: dict[str, Any],
     pair: str,
 ) -> str:
-    """Bind the manifest to the bytes reported by the completed vector stage."""
+    """Return the vector-stage digest that Rust verifies before Feather decode.
+
+    The completed vector stage already hashed and sealed the artifact. The
+    manifest carries that digest across the Python/Rust boundary, and Rust
+    hashes the current file bytes immediately before decoding them. Repeating
+    the same full-file traversal here would not strengthen that final check.
+    """
     if not path.is_file():
         raise StrategyAnalysisError(f"vector artifact does not exist for {pair}: {path}")
     expected = artifact.get("sha256")
-    if not isinstance(expected, str) or len(expected) != 64:
+    if (
+        not isinstance(expected, str)
+        or len(expected) != 64
+        or not all(character in "0123456789abcdef" for character in expected)
+    ):
         raise StrategyAnalysisError(f"vector report lacks a canonical SHA-256 for {pair}")
-    actual = sha256_file(path)
-    if actual != expected:
-        raise StrategyAnalysisError(
-            f"vector artifact changed after analysis for {pair}: expected {expected}, got {actual}"
-        )
-    return actual
+    return expected
 
 
 def artifact_execution_start_index(
