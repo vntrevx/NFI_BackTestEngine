@@ -1,0 +1,1 @@
+"""Derived result presentation responsibilities."""

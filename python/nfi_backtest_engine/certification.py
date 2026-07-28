@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-import shutil
-import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .canonical import write_json
+from .certification_parts.gates import _full_state_equal
+from .certification_parts.packaging import (
+    _artifact_record,
+    _bundle_files,
+    _write_reproducible_zip,
+)
 from .errors import BenchmarkError
 from .fixture import sha256_file
 from .performance_gate import PerformanceLevel, run_performance_gate
@@ -168,60 +172,4 @@ def run_certification(
     return {
         **report,
         "bundle": bundle_record,
-    }
-
-
-def _full_state_equal(performance: dict[str, Any]) -> bool:
-    reports: list[Any] = []
-    for lane in ("engine", "reference"):
-        lane_record = performance.get(lane)
-        runs = lane_record.get("runs") if isinstance(lane_record, dict) else None
-        if not isinstance(runs, list) or not runs:
-            return False
-        reports.extend(
-            run.get("report") if isinstance(run, dict) else None
-            for run in runs
-        )
-    return all(
-        isinstance(report, dict)
-        and report.get("verification_level", report.get("trace_mode")) == "full"
-        and isinstance(report.get("parity"), dict)
-        and isinstance(report["parity"].get("state_trace"), dict)
-        and report["parity"]["state_trace"].get("equal") is True
-        for report in reports
-    )
-
-
-def _bundle_files(root: Path) -> list[Path]:
-    excluded = {
-        root / "bundle-manifest.json",
-        root / "bundle.json",
-        root / "certification-bundle.zip",
-    }
-    return sorted(
-        (
-            path
-            for path in root.rglob("*")
-            if path.is_file() and path not in excluded
-        ),
-        key=lambda path: path.relative_to(root).as_posix(),
-    )
-
-
-def _write_reproducible_zip(destination: Path, root: Path, sources: list[Path]) -> None:
-    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_STORED) as archive:
-        for source in sorted(sources, key=lambda path: path.relative_to(root).as_posix()):
-            relative = source.relative_to(root).as_posix()
-            info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_STORED
-            info.external_attr = 0o100644 << 16
-            with source.open("rb") as input_file, archive.open(info, "w") as output_file:
-                shutil.copyfileobj(input_file, output_file, length=1024 * 1024)
-
-
-def _artifact_record(path: Path, *, relative_to: Path) -> dict[str, Any]:
-    return {
-        "path": path.relative_to(relative_to).as_posix(),
-        "bytes": path.stat().st_size,
-        "sha256": sha256_file(path),
     }
