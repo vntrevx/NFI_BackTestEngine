@@ -40,6 +40,7 @@ def _report(
                 "fixture_id": "x7-futures-short",
                 "manifest_sha256": "e" * 64,
                 "strategy_sha256": "f" * 64,
+                "base_strategy_sha256": "b" * 64,
                 "verification_level": "full",
             }
         )
@@ -122,6 +123,7 @@ def test_platform_seal_accepts_exact_fixture_lane(tmp_path: Path) -> None:
 
     assert evidence["release_certified"] is True
     assert evidence["lane"] == EXACT_FIXTURE_LANE
+    assert evidence["workload"]["base_strategy_sha256"] == "b" * 64
     assert all(
         item["native_extension_sha256"] is None
         for item in evidence["platforms"]

@@ -237,6 +237,17 @@ def run_platform_fixture_benchmark(
         raise SpecValidationError(
             "fixture trading mode contradicts its release-mode config"
         )
+    strategy_provenance = manifest.get("strategy_provenance")
+    base_strategy_sha256 = strategy_reference["sha256"]
+    if strategy_provenance is not None:
+        if not isinstance(strategy_provenance, dict):
+            raise SpecValidationError("fixture strategy provenance must be an object")
+        declared_base = strategy_provenance.get("base_source_sha256")
+        if not _is_sha256(declared_base):
+            raise SpecValidationError(
+                "fixture strategy provenance has no valid base source SHA"
+            )
+        base_strategy_sha256 = declared_base
 
     output.mkdir(parents=True, exist_ok=True)
     build = build_engine()
@@ -247,6 +258,7 @@ def run_platform_fixture_benchmark(
         "fixture_id": manifest["fixture_id"],
         "manifest_sha256": sha256_file(manifest_file),
         "strategy_sha256": strategy_reference["sha256"],
+        "base_strategy_sha256": base_strategy_sha256,
         "verification_level": "full",
     }
     workload_sha = _document_sha256(workload)
@@ -625,6 +637,7 @@ def _validate_platform_report(report: Any) -> None:
             or not isinstance(workload.get("fixture_id"), str)
             or not _is_sha256(workload.get("manifest_sha256"))
             or not _is_sha256(workload.get("strategy_sha256"))
+            or not _is_sha256(workload.get("base_strategy_sha256"))
             or not _is_sha256(
                 report.get("package", {}).get("portable_package_sha256")
             )

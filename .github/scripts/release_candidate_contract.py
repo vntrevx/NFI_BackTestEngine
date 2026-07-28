@@ -59,17 +59,29 @@ def load_release_candidate_contract(
     slugs = {item["slug"] for item in normalized_modes}
     mode_contracts = {item["mode_contract"] for item in normalized_modes}
     strategy_hashes = {item["strategy_sha256"] for item in normalized_modes}
+    base_strategy_hashes = {
+        item["base_strategy_sha256"] for item in normalized_modes
+    }
     if len(slugs) != len(normalized_modes):
         raise ValueError("release candidate mode slugs must be unique")
     if mode_contracts != REQUIRED_MODE_CONTRACTS:
         raise ValueError("release candidate must contain exact Spot and Futures modes")
     if len(strategy_hashes) != 1:
         raise ValueError("Spot and Futures platform fixtures must share one strategy SHA")
+    if len(base_strategy_hashes) != 1:
+        raise ValueError(
+            "Spot and Futures platform fixtures must share one base strategy SHA"
+        )
     normalized_modes.sort(key=lambda item: item["slug"])
     certification_probes = _validate_certification_probes(
         document["certification_probes"],
         repository_root=root,
     )
+    base_strategy_sha256 = next(iter(base_strategy_hashes))
+    if certification_probes["base_source_sha256"] != base_strategy_sha256:
+        raise ValueError(
+            "platform fixtures and certification probes use different base strategies"
+        )
     return {
         "schema_version": SCHEMA_VERSION,
         "contract": {
@@ -80,6 +92,7 @@ def load_release_candidate_contract(
             "runs": platform["runs"],
             "timeout_seconds": platform["timeout_seconds"],
             "strategy_sha256": next(iter(strategy_hashes)),
+            "base_strategy_sha256": base_strategy_sha256,
             "modes": normalized_modes,
         },
         "certification_probes": certification_probes,
@@ -123,6 +136,7 @@ def _validate_mode(
     if len(strategy_records) != 1:
         raise ValueError(f"fixture must contain exactly one strategy input: {manifest_relative}")
     strategy = strategy_records[0]
+    provenance = manifest.get("strategy_provenance")
     strategy_relative = _safe_relative_path(
         strategy.get("path"),
         label="fixture strategy",
@@ -137,6 +151,18 @@ def _validate_mode(
         or _sha256_file(strategy_path) != expected_sha
     ):
         raise ValueError(f"fixture strategy input failed hash validation: {manifest_relative}")
+    base_strategy_sha256 = (
+        provenance.get("base_source_sha256")
+        if isinstance(provenance, dict)
+        else None
+    )
+    if (
+        not isinstance(base_strategy_sha256, str)
+        or _SHA256_PATTERN.fullmatch(base_strategy_sha256) is None
+    ):
+        raise ValueError(
+            f"fixture strategy provenance is incomplete: {manifest_relative}"
+        )
     return {
         "slug": value["slug"],
         "mode_contract": value["mode_contract"],
@@ -145,6 +171,7 @@ def _validate_mode(
         "fixture_id": manifest.get("fixture_id"),
         "manifest_sha256": _sha256_file(manifest_path),
         "strategy_sha256": expected_sha,
+        "base_strategy_sha256": base_strategy_sha256,
     }
 
 

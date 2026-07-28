@@ -498,6 +498,12 @@ def test_release_candidate_contract_declares_both_modes_without_identity_drift()
         "binance-usdtm-isolated",
     }
     assert len({item["strategy_sha256"] for item in platform["modes"]}) == 1
+    assert platform["base_strategy_sha256"] == (
+        "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db"
+    )
+    assert {
+        item["base_strategy_sha256"] for item in platform["modes"]
+    } == {platform["base_strategy_sha256"]}
     assert all(item["manifest_sha256"] for item in platform["modes"])
     probes = plan["certification_probes"]
     assert probes["upstream_commit"] == "8da6038be51654bdaa36839f3f1e296d2fc290ff"

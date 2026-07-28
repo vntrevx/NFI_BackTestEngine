@@ -32,6 +32,11 @@ def _certificate(
     root = tmp_path / mode
     root.mkdir()
     trading_mode = "spot" if mode == "binance-spot" else "futures"
+    timerange = (
+        "20210101-20260101"
+        if trading_mode == "spot"
+        else "20210726-20260726"
+    )
     report = {
         "schema_version": "2.0.0",
         "created_at": "2026-07-25T00:00:00Z",
@@ -48,15 +53,20 @@ def _certificate(
             "required_data_roles": (
                 ["candles"] if trading_mode == "spot" else ["candles", "funding_rate", "mark"]
             ),
-            "timerange": "20210101-20260101",
+            "timerange": timerange,
             "pair_count": 80,
             "timeframes": ["5m", "15m", "1h", "4h", "1d"],
-            "history_coverage_policy": "strict",
+            "history_coverage_policy": (
+                "strict" if trading_mode == "spot" else "listing-aware"
+            ),
             "continuous_timerange": True,
             "evidence": "continuous-oracle-plus-official-full-state-probes",
         },
         "inputs": {
-            "release_lock": {"sha256": "e" * 64},
+            "release_lock": {
+                "sha256": "e" * 64,
+                "identity_sha256": "6" * 64,
+            },
             "mode_contract": mode,
             "reference": {
                 "version": "2026.5.1",
@@ -131,6 +141,7 @@ def _platform_evidence(
     wheel_sha256: str = WHEEL_SHA,
     portable_package_sha256: str = "8" * 64,
     platform_wheel_sha256: dict[str, str] | None = None,
+    base_strategy_sha256: str = STRATEGY_SHA,
 ) -> Path:
     root = tmp_path / f"{mode}-platform"
     root.mkdir()
@@ -143,7 +154,8 @@ def _platform_evidence(
         "portable_package_sha256": portable_package_sha256,
         "workload": {
             "mode_contract": mode,
-            "strategy_sha256": STRATEGY_SHA,
+            "strategy_sha256": "7" * 64,
+            "base_strategy_sha256": base_strategy_sha256,
         },
         "platforms": [
             {
@@ -206,6 +218,14 @@ def test_combined_release_certifies_two_modes_and_three_os_evidence(
     assert result["status"] == "certified"
     assert result["release_certified"] is True
     assert result["gates"]["platform_evidence"]["met"] is True
+    assert (
+        result["mode_scopes"]["binance-spot"]["timerange"]
+        == "20210101-20260101"
+    )
+    assert (
+        result["mode_scopes"]["binance-usdtm-isolated"]["timerange"]
+        == "20210726-20260726"
+    )
     assert (tmp_path / "release" / result["certificates"]["binance-spot"]["file"]).is_file()
     assert (
         tmp_path / "release" / "evidence" / "binance-usdtm-isolated" / "platform-bundle.zip"
@@ -254,6 +274,32 @@ def test_combined_release_rejects_different_bundled_candidate_wheels(
             spot_certificate_path=spot,
             futures_certificate_path=futures,
             platform_evidence_paths=[],
+            output_directory=tmp_path / "release",
+        )
+
+
+def test_combined_release_rejects_platform_base_strategy_mismatch(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(SpecValidationError, match="incomplete"):
+        combine_full_x7_release(
+            spot_certificate_path=_certificate(tmp_path, "binance-spot"),
+            futures_certificate_path=_certificate(
+                tmp_path,
+                "binance-usdtm-isolated",
+            ),
+            platform_evidence_paths=[
+                _platform_evidence(
+                    tmp_path,
+                    "binance-spot",
+                    base_strategy_sha256="0" * 64,
+                ),
+                _platform_evidence(
+                    tmp_path,
+                    "binance-usdtm-isolated",
+                    base_strategy_sha256="0" * 64,
+                ),
+            ],
             output_directory=tmp_path / "release",
         )
 
