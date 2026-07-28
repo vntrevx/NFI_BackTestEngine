@@ -18,7 +18,7 @@ from typing import Any
 from .errors import StrategyAnalysisError
 from .trade_ir import build_trade_dependency_ir
 
-CALLBACK_LOWERING_VERSION = "1.9.0"
+CALLBACK_LOWERING_VERSION = "1.10.0"
 
 
 def lower_strategy_callbacks(
@@ -239,15 +239,23 @@ def _lower_immediate_fill_timeout(
     }
     if price_callbacks & method_nodes.keys():
         return None
-    if len(node.body) != 5:
+    body = node.body
+    skip_order_tags: list[str] = []
+    if len(body) == 6:
+        skip_order_tag = _timeout_skip_order_tag(body[0])
+        if node.name != "check_exit_timeout" or skip_order_tag is None:
+            return None
+        skip_order_tags.append(skip_order_tag)
+        body = body[1:]
+    if len(body) != 5:
         return None
-    if not _is_orderbook_assignment(node.body[0]):
+    if not _is_orderbook_assignment(body[0]):
         return None
-    if not _is_orderbook_price_assignment(node.body[1], target="bids", side="bids"):
+    if not _is_orderbook_price_assignment(body[1], target="bids", side="bids"):
         return None
-    if not _is_orderbook_price_assignment(node.body[2], target="asks", side="asks"):
+    if not _is_orderbook_price_assignment(body[2], target="asks", side="asks"):
         return None
-    branch = node.body[3]
+    branch = body[3]
     if (
         not isinstance(branch, ast.If)
         or not _is_trade_short_attribute(branch.test)
@@ -255,7 +263,7 @@ def _lower_immediate_fill_timeout(
         or len(branch.orelse) != 1
         or not isinstance(branch.body[0], ast.If)
         or not isinstance(branch.orelse[0], ast.If)
-        or not _is_boolean_return(node.body[4], value=False)
+        or not _is_boolean_return(body[4], value=False)
     ):
         return None
     expected = {
@@ -278,6 +286,7 @@ def _lower_immediate_fill_timeout(
         "opcode": "open-order-timeout-policy-v1",
         "execution_scope": "unreachable-immediate-fill-backtest-v1",
         "orderbook_depth": 1,
+        "skip_order_tags": skip_order_tags,
         "short": {
             "price": expected[0][0],
             "comparison": "less-than" if expected[0][1] is ast.Lt else "greater-than",
@@ -302,6 +311,69 @@ def _lower_immediate_fill_timeout(
             "excluded_price_callbacks": sorted(price_callbacks),
         },
     }
+
+
+def _timeout_skip_order_tag(statement: ast.stmt) -> str | None:
+    """Extract an exact order-tag bypass without binding a strategy-specific tag."""
+    if (
+        not isinstance(statement, ast.If)
+        or statement.orelse
+        or len(statement.body) != 1
+        or not _is_boolean_return(statement.body[0], value=False)
+        or not isinstance(statement.test, ast.BoolOp)
+        or not isinstance(statement.test.op, ast.And)
+        or len(statement.test.values) != 2
+    ):
+        return None
+    present = False
+    tag: str | None = None
+    for condition in statement.test.values:
+        if _is_order_tag_present(condition):
+            if present:
+                return None
+            present = True
+            continue
+        extracted = _order_tag_equality(condition)
+        if extracted is None or tag is not None:
+            return None
+        tag = extracted
+    return tag if present else None
+
+
+def _is_order_tag_present(expression: ast.expr) -> bool:
+    return (
+        isinstance(expression, ast.Compare)
+        and _is_order_tag_attribute(expression.left)
+        and len(expression.ops) == 1
+        and isinstance(expression.ops[0], ast.IsNot)
+        and len(expression.comparators) == 1
+        and isinstance(expression.comparators[0], ast.Constant)
+        and expression.comparators[0].value is None
+    )
+
+
+def _order_tag_equality(expression: ast.expr) -> str | None:
+    if (
+        not isinstance(expression, ast.Compare)
+        or not _is_order_tag_attribute(expression.left)
+        or len(expression.ops) != 1
+        or not isinstance(expression.ops[0], ast.Eq)
+        or len(expression.comparators) != 1
+        or not isinstance(expression.comparators[0], ast.Constant)
+        or not isinstance(expression.comparators[0].value, str)
+        or not expression.comparators[0].value
+    ):
+        return None
+    return expression.comparators[0].value
+
+
+def _is_order_tag_attribute(expression: ast.expr) -> bool:
+    return (
+        isinstance(expression, ast.Attribute)
+        and expression.attr == "ft_order_tag"
+        and isinstance(expression.value, ast.Name)
+        and expression.value.id == "order"
+    )
 
 
 def _is_orderbook_assignment(statement: ast.stmt) -> bool:

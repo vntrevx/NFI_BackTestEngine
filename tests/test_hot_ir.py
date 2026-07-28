@@ -361,6 +361,7 @@ def test_x7_open_order_timeouts_are_bound_to_immediate_fill_backtests(
         "opcode": "open-order-timeout-policy-v1",
         "execution_scope": "unreachable-immediate-fill-backtest-v1",
         "orderbook_depth": 1,
+        "skip_order_tags": [],
         "short": {
             "price": "asks",
             "comparison": "less-than",
@@ -372,6 +373,76 @@ def test_x7_open_order_timeouts_are_bound_to_immediate_fill_backtests(
             "order_price_multiplier": 1.03,
         },
     }
+
+
+def test_x7_exit_timeout_extracts_order_tag_bypass_from_source(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ExitTimeout.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class ExitTimeout(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def check_exit_timeout(self, pair, trade, order, current_time, **kwargs):\n"
+        "        if order.ft_order_tag is not None and order.ft_order_tag == 'operator_cancel':\n"
+        "            return False\n"
+        "        ob = self.dp.orderbook(pair, 1)\n"
+        "        bids = ob['bids'][0][0]\n"
+        "        asks = ob['asks'][0][0]\n"
+        "        if trade.is_short:\n"
+        "            if bids > order.price * 1.03:\n"
+        "                return True\n"
+        "        else:\n"
+        "            if asks < order.price * 0.97:\n"
+        "                return True\n"
+        "        return False\n",
+        encoding="utf-8",
+    )
+
+    result = build_hot_callback_ir(
+        analyze_strategy(source, class_name="ExitTimeout"),
+        run_mode="backtest",
+    )
+
+    callback = result["callbacks"][0]
+    assert result["hot_loop_ready"]
+    assert callback["backend"] == "rust-immediate-fill-open-order-proof"
+    assert callback["lowering"]["operation"]["skip_order_tags"] == [
+        "operator_cancel"
+    ]
+
+
+def test_x7_exit_timeout_order_tag_bypass_near_miss_fails_closed(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ExitTimeout.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class ExitTimeout(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def check_exit_timeout(self, pair, trade, order, current_time, **kwargs):\n"
+        "        if order.ft_order_tag is not None or order.ft_order_tag == 'force_exit':\n"
+        "            return False\n"
+        "        ob = self.dp.orderbook(pair, 1)\n"
+        "        bids = ob['bids'][0][0]\n"
+        "        asks = ob['asks'][0][0]\n"
+        "        if trade.is_short:\n"
+        "            if bids > order.price * 1.03:\n"
+        "                return True\n"
+        "        else:\n"
+        "            if asks < order.price * 0.97:\n"
+        "                return True\n"
+        "        return False\n",
+        encoding="utf-8",
+    )
+
+    result = build_hot_callback_ir(
+        analyze_strategy(source, class_name="ExitTimeout"),
+        run_mode="backtest",
+    )
+
+    assert not result["hot_loop_ready"]
+    assert result["callbacks"][0]["backend"] == "uncompiled-python-source"
 
 
 def test_open_order_timeout_near_miss_fails_closed(tmp_path: Path) -> None:
