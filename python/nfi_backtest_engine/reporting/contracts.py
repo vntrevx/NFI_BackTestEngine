@@ -6,11 +6,23 @@ SUMMARY_FILENAME = "summary.json"
 
 TRADES_FILENAME = "trades.csv"
 
+ORDERS_FILENAME = "orders.csv"
+
+EQUITY_FILENAME = "equity.csv"
+
+VERIFICATION_FILENAME = "verification.json"
+
+EVIDENCE_INDEX_FILENAME = "evidence/index.json"
+
 HTML_FILENAME = "report.html"
+
+ORDERS_CSV_SCHEMA_VERSION = "1.0.0"
+
+EQUITY_CSV_SCHEMA_VERSION = "1.0.0"
 
 _TERMINAL_BREAKDOWN_NAME_LIMIT = 48
 
-_CSV_FIELDS = (
+_TRADES_CSV_FIELDS = (
     "sequence",
     "pair",
     "direction",
@@ -38,4 +50,49 @@ _CSV_FIELDS = (
     "maximum_rate",
     "order_count",
     "is_open",
+)
+
+# Backward-compatible private alias retained for callers of the original trades
+# exporter. New artifact contracts use the explicit names below.
+_CSV_FIELDS = _TRADES_CSV_FIELDS
+
+_ORDERS_CSV_FIELDS = (
+    "schema_version",
+    "trade_sequence",
+    "order_sequence",
+    "pair",
+    "direction",
+    "position_action",
+    "side",
+    "is_entry",
+    "is_partial_exit",
+    "filled_time_utc",
+    "filled_timestamp_ms",
+    "amount",
+    "price",
+    "cost",
+    "tag",
+    "trade_open_time_utc",
+    "trade_close_time_utc",
+    "trade_exit_reason",
+    "trade_profit_abs",
+    "leverage",
+)
+
+_EQUITY_CSV_FIELDS = (
+    "schema_version",
+    "event_sequence",
+    "event",
+    "timestamp_utc",
+    "timestamp_ms",
+    "trade_sequence",
+    "pair",
+    "direction",
+    "profit_abs",
+    "equity",
+    "peak_equity",
+    "drawdown_abs",
+    "drawdown_ratio",
+    "source_final_balance",
+    "reconciliation_delta",
 )

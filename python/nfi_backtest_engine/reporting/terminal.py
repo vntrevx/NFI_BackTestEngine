@@ -9,9 +9,13 @@ from typing import Any
 from ..canonical import read_json
 from .contracts import (
     _TERMINAL_BREAKDOWN_NAME_LIMIT,
+    EQUITY_FILENAME,
+    EVIDENCE_INDEX_FILENAME,
     HTML_FILENAME,
+    ORDERS_FILENAME,
     SUMMARY_FILENAME,
     TRADES_FILENAME,
+    VERIFICATION_FILENAME,
 )
 from .html_render import _leverage_range
 from .values import (
@@ -153,6 +157,10 @@ def format_terminal_summary(
             _terminal_row("HTML report", output / HTML_FILENAME),
             _terminal_row("Machine summary", output / SUMMARY_FILENAME),
             _terminal_row("Trades CSV", output / TRADES_FILENAME),
+            _terminal_row("Orders CSV", output / ORDERS_FILENAME),
+            _terminal_row("Equity CSV", output / EQUITY_FILENAME),
+            _terminal_row("Verification JSON", output / VERIFICATION_FILENAME),
+            _terminal_row("Evidence index", output / EVIDENCE_INDEX_FILENAME),
         ]
     )
     return "\n".join(lines)

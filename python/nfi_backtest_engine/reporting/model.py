@@ -175,3 +175,22 @@ def _validate_verification_binding(
         confirmed_hash = record.get("sha256")
         if isinstance(confirmed_hash, str) and confirmed_hash != current_hash:
             raise BenchmarkError("confirmation report belongs to a different trade surface")
+
+    run_inputs = run_report.get("inputs")
+    run_strategy = (
+        run_inputs.get("strategy") if isinstance(run_inputs, Mapping) else None
+    )
+    run_strategy_sha256 = (
+        run_strategy.get("file_sha256")
+        if isinstance(run_strategy, Mapping)
+        else None
+    )
+    proof_strategy_sha256 = (
+        inputs.get("strategy_sha256") if isinstance(inputs, Mapping) else None
+    )
+    if (
+        isinstance(run_strategy_sha256, str)
+        and isinstance(proof_strategy_sha256, str)
+        and proof_strategy_sha256 != run_strategy_sha256
+    ):
+        raise BenchmarkError("confirmation report belongs to a different strategy")
