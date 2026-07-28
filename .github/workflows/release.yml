@@ -129,6 +129,7 @@ jobs:
           name: platform-report-${{ matrix.target }}
           path: .platform-evidence/*/platform-benchmark.json
           if-no-files-found: error
+          include-hidden-files: true
       - name: Upload wheel
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:

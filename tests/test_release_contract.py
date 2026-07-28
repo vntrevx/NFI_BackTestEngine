@@ -414,6 +414,11 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "permissions:\n  contents: read" in build
     assert "release_candidate_contract.py" in build
     assert "Measure exact Spot and Futures fixtures" in build
+    assert (
+        "path: .platform-evidence/*/platform-benchmark.json\n"
+        "          if-no-files-found: error\n"
+        "          include-hidden-files: true"
+    ) in build
     assert "Seal three-OS Spot and Futures evidence" in build
     assert "find . -type f ! -name SHA256SUMS.txt" in build
     assert "name: Certify release candidate" in certify
