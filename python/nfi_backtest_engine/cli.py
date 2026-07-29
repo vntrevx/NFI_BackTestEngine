@@ -689,6 +689,39 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
     )
+    strategy_discover_futures = strategy_commands.add_parser(
+        "discover-futures",
+        help="search bounded listing-aware Futures shards for missing behavior targets",
+    )
+    strategy_discover_futures.add_argument("source", type=Path)
+    strategy_discover_futures.add_argument("strategy_diff", type=Path)
+    strategy_discover_futures.add_argument("compatibility_report", type=Path)
+    strategy_discover_futures.add_argument("--class", dest="class_name", required=True)
+    strategy_discover_futures.add_argument(
+        "--fixtures-root",
+        type=Path,
+        default=Path("benchmarks/fixtures/captured"),
+    )
+    strategy_discover_futures.add_argument(
+        "--policy",
+        type=Path,
+        default=Path("planning/futures-discovery-policy.json"),
+    )
+    strategy_discover_futures.add_argument("--upstream-repository", required=True)
+    strategy_discover_futures.add_argument("--upstream-commit", required=True)
+    strategy_discover_futures.add_argument("--engine-commit", required=True)
+    strategy_discover_futures.add_argument("--profile", type=Path, required=True)
+    strategy_discover_futures.add_argument("--cursor", type=Path)
+    strategy_discover_futures.add_argument(
+        "--as-of",
+        help="UTC discovery date in YYYY-MM-DD form; default is today",
+    )
+    strategy_discover_futures.add_argument("--workers", type=int)
+    strategy_discover_futures.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+    )
     strategy_state_machine = strategy_commands.add_parser(
         "state-machine",
         help="compile bounded stateful callbacks into generic VM IR",
