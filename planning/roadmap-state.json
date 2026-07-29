@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 63,
-  "updated_at": "2026-07-29T17:59:45+09:00",
+  "revision": 64,
+  "updated_at": "2026-07-29T19:13:35+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M9-01",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2034,7 +2034,7 @@
       "order": 901,
       "milestone": "M9",
       "title": "Publish v1.2.0 as a non-combined product release",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M8-01"
       ],
@@ -2064,9 +2064,70 @@
         "stable byte comparison and installer audit"
       ],
       "started_at": "2026-07-29T17:59:45+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-29T19:13:35+09:00",
+      "commit_sha": "3d1475a38629b3ab0feb13cb9b35392b8ded8874",
+      "evidence": [
+        {
+          "kind": "release_preparation_ci",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30440492557",
+          "run_id": 30440492557,
+          "commit_sha": "3d1475a38629b3ab0feb13cb9b35392b8ded8874",
+          "conclusion": "success"
+        },
+        {
+          "kind": "sealed_product_candidate_bundle",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30440501148",
+          "run_id": 30440501148,
+          "artifact_name": "product-release-bundle-3d1475a38629b3ab0feb13cb9b35392b8ded8874",
+          "three_os_spot_and_futures_fixture_evidence": true,
+          "conclusion": "success"
+        },
+        {
+          "kind": "three_os_platform_evidence",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.2.0",
+          "assets": [
+            "full-x7-spot-platform-evidence.json",
+            "full-x7-spot-platform-evidence.zip",
+            "full-x7-futures-platform-evidence.json",
+            "full-x7-futures-platform-evidence.zip"
+          ],
+          "systems": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ]
+        },
+        {
+          "kind": "product_rc_publication",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30442422963",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.2.0-rc.1",
+          "tag": "v1.2.0-rc.1",
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        },
+        {
+          "kind": "stable_byte_identical_promotion",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30442542257",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.2.0",
+          "tag": "v1.2.0",
+          "latest": true,
+          "asset_count": 12,
+          "rc_stable_byte_identical": true,
+          "sha256_manifest_digest": "sha256:eb90129283fdb60784bda70ed3f83d0ebf91e1345ebfa40ef229b57a60fa1c17",
+          "product_contract_digest": "sha256:f5785838a1111ea8aaba373613ec9622d30506a73e1bffdb9b03cbacacc53657",
+          "combined_full_x7_certified": false,
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -3446,6 +3507,34 @@
         "combined_full_x7_certification_claimed": false,
         "prior_spot_certificate_tag": "v1.0.0",
         "prior_futures_certificate_tag": "v1.1.0"
+      }
+    },
+    {
+      "sequence": 76,
+      "timestamp": "2026-07-29T19:13:35+09:00",
+      "task_id": "M9-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "3d1475a38629b3ab0feb13cb9b35392b8ded8874",
+        "acceptance_profile": "product_release",
+        "required_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30440492557",
+        "candidate_build_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30440501148",
+        "rc_publication_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30442422963",
+        "stable_promotion_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30442542257",
+        "stable_release": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.2.0",
+        "stable_is_latest": true,
+        "asset_count": 12,
+        "rc_stable_byte_identical": true,
+        "public_linux_wheel_full_fixture": "pass",
+        "installer_audits": {
+          "Linux": "pass",
+          "Windows": "pass",
+          "macOS": "pass"
+        },
+        "combined_full_x7_certification_claimed": false,
+        "prior_spot_certificate_tag": "v1.0.0",
+        "prior_futures_certificate_tag": "v1.1.0",
+        "next_eligible_task": null
       }
     }
   ]

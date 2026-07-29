@@ -52,6 +52,7 @@ wheel_path="$(
         "$repository" "$version" "$wheel_suffix" "$temporary_directory" <<'PY'
 import hashlib
 import json
+import os
 import pathlib
 import sys
 import urllib.parse
@@ -68,6 +69,9 @@ headers = {
     "User-Agent": "nfi-backtest-engine-installer",
     "X-GitHub-Api-Version": "2022-11-28",
 }
+token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+if token:
+    headers["Authorization"] = f"Bearer {token}"
 request = urllib.request.Request(endpoint, headers=headers)
 with urllib.request.urlopen(request) as response:
     release = json.load(response)
