@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 66,
-  "updated_at": "2026-07-29T23:46:01+09:00",
+  "revision": 67,
+  "updated_at": "2026-07-29T23:58:56+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
@@ -2198,6 +2198,13 @@
           "path": ".nfi/roadmap-acceptance/M10-01/worktree-20260729T232447+0900/generic-state-machine/run.json",
           "bytes": 5652,
           "sha256": "5a1a95c435ccef54472c6060ce102a0d495edb0f123bd58d89978ff78f81b8ad"
+        },
+        {
+          "kind": "fallback_transition_notice_followup",
+          "commit_sha": "195b3d620e760be62aca29dbdd1c910a177b1d92",
+          "focused_tests": 20,
+          "ruff_warnings": 0,
+          "basedpyright_errors": 0
         }
       ],
       "blocker": null
@@ -3652,6 +3659,23 @@
         "release_published": false,
         "remote_push": false,
         "next_eligible_task": null
+      }
+    },
+    {
+      "sequence": 79,
+      "timestamp": "2026-07-29T23:58:56+09:00",
+      "task_id": "M10-01",
+      "event": "task_followup_completed",
+      "details": {
+        "commit_sha": "195b3d620e760be62aca29dbdd1c910a177b1d92",
+        "reason": "Make every Native-to-official transition explicit before execution.",
+        "native_blocker_notice": true,
+        "official_runtime_warning": true,
+        "native_evidence_immutability_notice": true,
+        "official_only_no_parity_notice": true,
+        "focused_tests": 20,
+        "runtime_hardcoding_added": false,
+        "remote_push": false
       }
     }
   ]
