@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "status": "unsupported_semantics",
+  "message": "Deep search cannot independently prove new output for target kinds tag; official Freqtrade fallback remains available.",
+  "complete": true,
+  "fingerprint": "c6e50efc694bfd74cd549f0b893743c0b17a576e8f801fb866f5fde71c8f23f9",
+  "upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+  "engine_commit": "226763e3c4c4f35f67f35a85ef8cdcd4e4eff4ba",
+  "strategy_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+  "policy_sha256": "b01242de69582926dafe2117be0af042fed4eb750e96c948c6c6ac63b53e657f",
+  "target_count": 4,
+  "searchable_target_count": 3,
+  "unsearchable_target_ids": [
+    "a29c9952b046e08fb5824f3a84d559ca79486595e7ba4b75d60d2b088fc55ec4"
+  ],
+  "searched_shard_count": 0,
+  "next_shard": 0,
+  "shard_count": 20,
+  "elapsed_seconds": 0.003549204000009354,
+  "attempts": [],
+  "candidate": null,
+  "official_fallback_available": true
+}
