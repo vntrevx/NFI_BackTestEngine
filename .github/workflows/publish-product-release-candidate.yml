@@ -9,7 +9,7 @@ on:
         required: true
         type: string
       release_tag:
-        description: Product prerelease tag, for example v1.2.0-rc.1
+        description: Product prerelease tag, for example vX.Y.Z-rc.N
         required: true
         type: string
 

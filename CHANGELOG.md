@@ -2,6 +2,27 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 1.3.0 - 2026-07-30
+
+- Added an explicit, user-visible transition from blocked Native execution to the
+  pinned official Freqtrade lane, without mutating or overstating Native evidence.
+- Lowered supported Signal, tag, Grind, protection, leverage, and trade-state
+  behavior into source-derived generic IR instead of version- or Signal-specific
+  runtime branches.
+- Added a four-hour latest-NFI compatibility lane with independent Spot and Futures
+  checks, AST/IR change classification, targeted official/Native full-state
+  verification, append-only evidence, and deduplicated semantic and health issues.
+- Added a separate bounded Futures branch-discovery lane. It searches listing-aware
+  quarterly shards under a two-hour, single-worker budget, resumes only an exact
+  identity cursor, and opens a size-limited Draft PR only after exact independent
+  trade-surface and full-state qualification.
+- Preserved the safe storage lifecycle: compact discovery records remain auditable,
+  while raw candles, caches, and traces are excluded from permanent automation
+  branches and completed discovery evidence remains protected by default.
+- Retained the independent v1.0.0 Spot and v1.1.0 Futures five-year certificate
+  boundaries. v1.3.0 is a product release and does not claim a new same-candidate
+  combined Full X7 certification.
+
 ## 1.2.0 - 2026-07-29
 
 - Froze the public v1.1 regression contract and added an append-only verification
