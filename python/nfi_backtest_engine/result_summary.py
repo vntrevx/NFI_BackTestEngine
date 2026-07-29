@@ -15,8 +15,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .canonical import canonical_decimal
+from .reporting.tags import signal_tag_tokens, summarize_grind_tags
 
-RESULT_SUMMARY_VERSION = "1.1.0"
+RESULT_SUMMARY_VERSION = "1.2.0"
 MAX_EQUITY_POINTS = 1_000
 
 
@@ -151,6 +152,14 @@ def build_result_summary(
             "by_year": [],
             "by_month": [],
         },
+        "tag_analysis": {
+            "signal": {
+                "source": "entry_tag",
+                "multi_label": True,
+                "rows": [],
+            },
+            "grind": summarize_grind_tags([]),
+        },
         "equity_curve": {
             "source": "closed_trade_profit",
             "raw_point_count": 0,
@@ -270,6 +279,7 @@ def build_result_summary(
     by_direction = _group(trades, "direction", "direction")
     by_year = _group_by_period(trades, "%Y", "year", starting_balance)
     by_month = _group_by_period(trades, "%Y-%m", "month", starting_balance)
+    by_signal_tag = _group_by_signal_tag(trades)
     summary["breakdowns"] = {
         "by_pair": sorted(
             by_pair,
@@ -296,6 +306,20 @@ def build_result_summary(
         "by_year": by_year,
         "by_month": by_month,
     }
+    summary["tag_analysis"] = {
+        "signal": {
+            "source": "entry_tag",
+            "multi_label": True,
+            "rows": sorted(
+                by_signal_tag,
+                key=lambda item: (
+                    -float(item["profit_abs"]),
+                    str(item["signal_tag"]),
+                ),
+            ),
+        },
+        "grind": summarize_grind_tags(trades),
+    }
     points = equity["points"]
     sampled_points = _sample_equity_points(
         points,
@@ -310,6 +334,21 @@ def build_result_summary(
         "reconciliation_delta": equity["reconciliation_delta"],
     }
     return summary
+
+
+def _group_by_signal_tag(
+    trades: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Group individual entry-tag tokens without treating groups as additive."""
+
+    groups: dict[str, _Aggregate] = {}
+    for trade in trades:
+        for signal_tag in signal_tag_tokens(trade.get("entry_tag")):
+            groups.setdefault(signal_tag, _Aggregate()).add(trade)
+    return [
+        aggregate.export("signal_tag", signal_tag)
+        for signal_tag, aggregate in groups.items()
+    ]
 
 
 def _futures_summary(

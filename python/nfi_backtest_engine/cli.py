@@ -76,7 +76,10 @@ def _add_full_report_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--full-report",
         action="store_true",
-        help="append complete pair, entry-tag, and exit-reason tables to terminal output",
+        help=(
+            "append complete pair, entry-tag, Signal-tag, Grind-level, "
+            "and exit-reason tables to terminal output"
+        ),
     )
 
 

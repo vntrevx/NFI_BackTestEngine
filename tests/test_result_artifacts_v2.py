@@ -9,6 +9,7 @@ import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.reporting.tags import parse_order_tag, signal_tag_tokens
 from nfi_backtest_engine.result_report import (
     format_terminal_summary,
     write_result_presentation,
@@ -35,6 +36,15 @@ FUTURES_SURFACE = (
     / "fixtures"
     / "captured"
     / "x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02"
+    / "artifacts"
+    / "trade-surface.json"
+)
+TAG_SURFACE = (
+    ROOT
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "x7-compound-tag-futures-v17.4.435-2022-04-29_05-02"
     / "artifacts"
     / "trade-surface.json"
 )
@@ -173,7 +183,7 @@ def test_orders_and_equity_exports_preserve_sealed_event_detail(
     html = (run / "report.html").read_text(encoding="utf-8")
 
     assert len(orders) == sum(len(trade["orders"]) for trade in surface["trades"])
-    assert {row["schema_version"] for row in orders} == {"1.0.0"}
+    assert {row["schema_version"] for row in orders} == {"1.1.0"}
     assert any(row["position_action"] == "partial_exit" for row in orders)
     assert any(row["position_action"] == "exit" for row in orders)
     first_partial = next(row for row in orders if row["position_action"] == "partial_exit")
@@ -203,6 +213,100 @@ def test_orders_and_equity_exports_preserve_sealed_event_detail(
     assert "not annualized" in html
     assert "orders.csv" in html
     assert "equity.csv" in html
+
+
+def test_signal_and_grind_tags_are_exposed_without_changing_raw_tags(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "tags"
+    _complete_run(run, TAG_SURFACE)
+
+    summary = write_result_presentation(run)
+    trades = _csv_rows(run / "trades.csv")
+    orders = _csv_rows(run / "orders.csv")
+    html = (run / "report.html").read_text(encoding="utf-8")
+    terminal = format_terminal_summary(summary, run, include_breakdowns=True)
+
+    signals = {
+        row["signal_tag"]: row["trades"]
+        for row in summary["tag_analysis"]["signal"]["rows"]
+    }
+    assert signals == {"141": 1, "142": 2, "144": 1}
+    assert summary["tag_analysis"]["signal"]["multi_label"] is True
+    grind = summary["tag_analysis"]["grind"]
+    assert grind["trades"] == 1
+    assert grind["orders"] == 2
+    assert grind["levels"] == [
+        {
+            "level": 4,
+            "trades": 1,
+            "orders": 1,
+            "entries": 1,
+            "exits": 0,
+            "derisks": 0,
+            "tag_forms": ["grind_4_entry"],
+        },
+        {
+            "level": 5,
+            "trades": 1,
+            "orders": 1,
+            "entries": 1,
+            "exits": 0,
+            "derisks": 0,
+            "tag_forms": ["grind_5_entry"],
+        },
+    ]
+
+    compound_trade = next(row for row in trades if row["entry_tag"] == "141 142 ")
+    assert compound_trade["signal_tags"] == "141 142"
+    assert compound_trade["signal_tag_count"] == "2"
+    assert compound_trade["grind_levels"] == "4 5"
+    grind_order = next(row for row in orders if row["tag"] == "grind_4_entry")
+    assert grind_order["tag_family"] == "grind"
+    assert grind_order["tag_level"] == "4"
+    assert grind_order["tag_action"] == "entry"
+    initial_order = next(
+        row
+        for row in orders
+        if row["trade_sequence"] == compound_trade["sequence"]
+        and row["order_sequence"] == "0"
+    )
+    assert initial_order["tag"] == "141 142 "
+    assert initial_order["tag_family"] == "signal"
+    assert initial_order["tag_reference_order_ids"] == ""
+    ordinary_exit = next(
+        row for row in orders if row["tag"] == "exit_long_tc_d_3_5 ( 144 )"
+    )
+    assert ordinary_exit["tag_family"] == "other"
+    assert ordinary_exit["tag_reference_order_ids"] == ""
+
+    assert "Signal tags" in html
+    assert "multi-tag trades overlap" in html
+    assert "Grind levels" in html
+    assert "SIGNAL TAG PERFORMANCE (OVERLAPPING)" in terminal
+    assert "GRIND LEVEL ACTIVITY · 2 levels" in terminal
+
+
+def test_tag_parser_supports_unbounded_levels_and_legacy_nfi_forms() -> None:
+    assert signal_tag_tokens("141 142 141 ") == ("141", "142")
+    modern = parse_order_tag(
+        "grind_12_derisk 99 101",
+        is_entry=False,
+        fallback_action="partial_exit",
+    )
+    assert modern.family == "grind"
+    assert modern.level == 12
+    assert modern.action == "derisk"
+    assert modern.reference_order_ids == (99, 101)
+
+    legacy = parse_order_tag(
+        "sg23",
+        is_entry=True,
+        fallback_action="entry",
+    )
+    assert legacy.family == "grind"
+    assert legacy.level == 23
+    assert legacy.action == "entry"
 
 
 def test_verification_binds_strategy_and_never_overwrites_confirmation(

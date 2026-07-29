@@ -45,6 +45,7 @@ def _render_html(
     verification = _mapping(summary, "verification")
     context = _mapping(run, "context")
     breakdowns = _mapping(summary, "breakdowns")
+    tag_analysis = _mapping(summary, "tag_analysis")
     currency = _summary_currency(summary)
     status = str(run.get("status", "unknown"))
     status_class = (
@@ -112,6 +113,7 @@ def _render_html(
     verification_details = _verification_details(verification)
     blockers_markup = _blockers_panel(summary.get("blockers"))
     futures_markup = _futures_panel(futures, currency)
+    tag_analysis_markup = _tag_analysis_panel(tag_analysis, currency)
     orders_markup = _orders_panel(surface, currency)
     equity_markup = _equity_chart(_mapping(summary, "equity_curve"))
     monthly_markup = _monthly_chart(breakdowns.get("by_month"))
@@ -323,6 +325,7 @@ def _render_html(
   </section>
   {blockers_markup}
   {futures_markup}
+  {tag_analysis_markup}
   {orders_markup}
   <section class="grid-2">
     <div class="panel">
@@ -598,6 +601,59 @@ def _orders_panel(
 """
 
 
+def _tag_analysis_panel(
+    tag_analysis: Mapping[str, Any],
+    currency: str | None,
+) -> str:
+    signal = _mapping(tag_analysis, "signal")
+    grind = _mapping(tag_analysis, "grind")
+    signal_rows = signal.get("rows")
+    grind_levels = grind.get("levels")
+    if not isinstance(signal_rows, list) and not isinstance(grind_levels, list):
+        return ""
+    signal_table = _breakdown_table(
+        signal_rows,
+        key="signal_tag",
+        heading="Signal tags",
+        currency=currency,
+        subtitle="Individual entry_tag tokens · multi-tag trades overlap",
+    )
+    grind_table = _grind_tag_table(grind)
+    return f'<section class="grid-2">{signal_table}{grind_table}</section>'
+
+
+def _grind_tag_table(grind: Mapping[str, Any]) -> str:
+    raw_levels = grind.get("levels")
+    levels = (
+        [level for level in raw_levels if isinstance(level, Mapping)]
+        if isinstance(raw_levels, list)
+        else []
+    )
+    body = "".join(
+        "<tr>"
+        f"<td>{_integer_text(row.get('level'))}</td>"
+        f"<td>{_integer_text(row.get('trades'))}</td>"
+        f"<td>{_integer_text(row.get('orders'))}</td>"
+        f"<td>{_integer_text(row.get('entries'))}</td>"
+        f"<td>{_integer_text(row.get('exits'))}</td>"
+        f"<td>{_integer_text(row.get('derisks'))}</td>"
+        f'<td class="name">{_escape(" · ".join(str(tag) for tag in row.get("tag_forms", [])))}</td>'
+        "</tr>"
+        for row in levels
+    )
+    if not body:
+        body = '<tr><td colspan="7">No Grind-tagged orders</td></tr>'
+    return f"""
+<div class="panel">
+  <div class="panel-head"><div><h2>Grind levels</h2><h3>{_integer_text(grind.get("orders"))} orders across {_integer_text(grind.get("trades"))} trades · parsed dynamically</h3></div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Level</th><th>Trades</th><th>Orders</th><th>Entry</th><th>Exit</th><th>Derisk</th><th>Tag forms</th></tr></thead>
+    <tbody>{body}</tbody>
+  </table></div>
+</div>
+"""
+
+
 def _risk_definition_panel(risk: Mapping[str, Any]) -> str:
     observations = _integer_text(risk.get("closed_trade_return_observations"))
     return f"""
@@ -741,6 +797,7 @@ def _breakdown_table(
     key: str,
     heading: str,
     currency: str | None,
+    subtitle: str = "Top 10 by absolute profit",
 ) -> str:
     rows = [row for row in value if isinstance(row, Mapping)] if isinstance(value, list) else []
     body = "".join(
@@ -757,7 +814,7 @@ def _breakdown_table(
         body = '<tr><td colspan="4">No data</td></tr>'
     return f"""
 <div class="panel">
-  <div class="panel-head"><div><h2>{_escape(heading)}</h2><h3>Top 10 by absolute profit</h3></div></div>
+  <div class="panel-head"><div><h2>{_escape(heading)}</h2><h3>{_escape(subtitle)}</h3></div></div>
   <div class="table-wrap"><table>
     <thead><tr><th>{_escape(heading[:-1] if heading.endswith("s") else heading)}</th><th>Trades</th><th>Win</th><th>Profit</th></tr></thead>
     <tbody>{body}</tbody>
