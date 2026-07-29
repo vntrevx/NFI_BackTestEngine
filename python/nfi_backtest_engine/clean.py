@@ -73,6 +73,8 @@ _FAILED_STATUSES = {
     "blocked_unsupported_semantics",
     "interrupted",
     "cancelled",
+    "budget_exhausted",
+    "infrastructure_failed",
 }
 
 

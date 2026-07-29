@@ -376,7 +376,7 @@ def run_research_backtest(
         label="execution profile",
     )
 
-    data_pairs = _required_data_pairs(pairlist, run_config)
+    data_pairs = required_data_pairs(pairlist, run_config)
     download_config = sanitize_config(run_config)
     if not isinstance(download_config, dict):
         raise SpecValidationError("download config must be an object")
@@ -1148,10 +1148,11 @@ def _relative_artifact_record(path: Path, *, root: Path) -> dict[str, Any]:
     return record
 
 
-def _required_data_pairs(
+def required_data_pairs(
     pairlist: dict[str, Any],
     run_config: dict[str, Any],
 ) -> list[str]:
+    """Return the current engine-required data universe for a traded pair list."""
     pairs = list(pairlist["pairs"])
     stake = str(run_config.get("stake_currency", "USDT"))
     futures = run_config.get("trading_mode") in {"futures", "margin"}

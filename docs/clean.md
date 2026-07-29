@@ -58,6 +58,12 @@ The default selection includes only:
 - temporary Arrow/Docker spool data
 - rebuildable build/calibration data
 
+Futures deep discovery writes the same `run.json` lifecycle marker. Raw shard data
+from budget-exhausted or infrastructure-failed searches is therefore reclaimable;
+completed reports and exact candidate evidence remain protected by default. The
+scheduled workflow keeps only compact request/report/cursor records in its ledger
+and gives candidate artifacts a bounded retention period.
+
 Completed runs are protected unless selected explicitly:
 
 ```bash

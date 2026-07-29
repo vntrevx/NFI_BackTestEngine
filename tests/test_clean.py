@@ -76,6 +76,35 @@ def test_dry_run_classifies_disk_usage_without_deleting_files(tmp_path: Path) ->
     assert len(audit["categories"]) == 9
 
 
+@pytest.mark.parametrize("status", ["budget_exhausted", "infrastructure_failed"])
+def test_incomplete_discovery_work_is_reclaimable(
+    tmp_path: Path,
+    status: str,
+) -> None:
+    root = tmp_path / ".nfi"
+    _write_json(
+        root / f"futures-discovery-{status}" / "run.json",
+        {"status": status, "complete": False},
+    )
+    _write_json(
+        root / "futures-discovery-complete" / "run.json",
+        {"status": "coverage_exhausted", "complete": True},
+    )
+
+    audit = create_clean_audit(
+        root,
+        activity_probe=_no_activity,
+        created_at="2026-07-30T00:00:00Z",
+    )
+
+    entries = _entries_by_path(audit)
+    interrupted = entries[f"futures-discovery-{status}"]
+    assert interrupted["category"] == "interrupted_failed_run"
+    assert interrupted["deletable"] is True
+    assert entries["futures-discovery-complete"]["category"] == "user_preserved_run"
+    assert entries["futures-discovery-complete"]["deletable"] is False
+
+
 def test_release_bundle_and_official_zip_are_identity_bound_and_protected(
     tmp_path: Path,
 ) -> None:

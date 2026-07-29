@@ -357,6 +357,43 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             f"{args.output_dir / 'run.json'}"
         )
         return 0 if report["complete"] else 1
+    if args.strategy_command == "discover-futures":
+        from datetime import date
+
+        from ..futures_discovery import discover_futures_targets
+
+        try:
+            as_of = date.fromisoformat(args.as_of) if args.as_of else None
+        except ValueError as exc:
+            raise NfiBacktestError("--as-of must be a valid YYYY-MM-DD date") from exc
+        report = discover_futures_targets(
+            args.source,
+            args.strategy_diff,
+            args.compatibility_report,
+            args.fixtures_root,
+            args.policy,
+            args.output_dir,
+            class_name=args.class_name,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            engine_commit=args.engine_commit,
+            profile_path=args.profile,
+            cursor_path=args.cursor,
+            as_of=as_of,
+            workers=args.workers,
+        )
+        print(
+            "Futures target discovery: "
+            f"status={report['status']}, "
+            f"searched={report['searched_shard_count']}/{report['shard_count']}, "
+            f"next={report['next_shard']} -> "
+            f"{args.output_dir / 'discovery-report.json'}"
+        )
+        print(
+            f"{report['message']} "
+            "Official Freqtrade fallback: available."
+        )
+        return 1 if report["status"] == "infrastructure_failed" else 0
     if args.strategy_command == "state-machine":
         from ..state_machine_ir import compile_state_machine_program
 

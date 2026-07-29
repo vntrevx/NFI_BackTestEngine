@@ -1,0 +1,396 @@
+# yamllint disable rule:line-length
+name: Futures branch discovery
+
+on:
+  workflow_run:
+    workflows: ["Latest NFI compatibility"]
+    types: [completed]
+  schedule:
+    - cron: "47 2 * * *"
+  workflow_dispatch:
+    inputs:
+      compatibility_run_id:
+        description: Optional successful compatibility run ID; blank uses the ledger
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: futures-branch-discovery
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve latest checked identity
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.identity.outputs.ready }}
+      source_run_id: ${{ steps.identity.outputs.source_run_id }}
+      upstream_sha: ${{ steps.identity.outputs.upstream_sha }}
+      engine_sha: ${{ steps.identity.outputs.engine_sha }}
+      cursor_path: ${{ steps.identity.outputs.cursor_path }}
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Resolve compatibility ledger and resumable cursor
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.compatibility_run_id || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ledger_dir="$(mktemp -d)"
+          git clone --quiet --single-branch --branch compatibility-ledger \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "${ledger_dir}"
+          metadata="${ledger_dir}/latest.json"
+          test -s "${metadata}"
+          upstream_sha="$(jq -er .upstream_sha "${metadata}")"
+          engine_sha="$(jq -er .engine_sha "${metadata}")"
+          source_run_id="${REQUESTED_RUN_ID}"
+          if [ -z "${source_run_id}" ]; then
+            source_run_id="$(jq -er '.run_url | split(\"/\")[-1]' "${metadata}")"
+          fi
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${source_run_id}")"
+          jq -e \
+            '.name == "Latest NFI compatibility" and .conclusion == "success"' \
+            <<<"${run_json}"
+          test "$(jq -r .head_sha <<<"${run_json}")" = "${engine_sha}"
+          main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          ready=false
+          if [ "${engine_sha}" = "${main_sha}" ]; then
+            ready=true
+          fi
+          cursor_path=""
+          discovery_latest="${ledger_dir}/discovery/latest.json"
+          if [ -s "${discovery_latest}" ] \
+            && [ "$(jq -r .upstream_sha "${discovery_latest}")" = "${upstream_sha}" ] \
+            && [ "$(jq -r .engine_sha "${discovery_latest}")" = "${engine_sha}" ]; then
+            cursor_path="$(jq -r '.cursor_path // ""' "${discovery_latest}")"
+          fi
+          {
+            echo "ready=${ready}"
+            echo "source_run_id=${source_run_id}"
+            echo "upstream_sha=${upstream_sha}"
+            echo "engine_sha=${engine_sha}"
+            echo "cursor_path=${cursor_path}"
+          } >> "${GITHUB_OUTPUT}"
+          {
+            echo "ready=${ready}"
+            echo "source_run_id=${source_run_id}"
+            echo "upstream_sha=${upstream_sha}"
+            echo "engine_sha=${engine_sha}"
+            echo "cursor_path=${cursor_path:-none}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  discover:
+    name: Search bounded Futures shards
+    needs: resolve
+    if: needs.resolve.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 125
+    outputs:
+      status: ${{ steps.result.outputs.status }}
+      fingerprint: ${{ steps.result.outputs.fingerprint }}
+    steps:
+      - name: Check out checked engine identity
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.engine_sha }}
+          persist-credentials: false
+      - name: Install uv, Python, and engine
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --release --locked
+      - name: Download checked strategy difference
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: latest-nfi-x7-strategy-diff
+          path: .discovery/input
+          run-id: ${{ needs.resolve.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Download checked Futures compatibility
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: latest-nfi-x7-futures-compatibility
+          path: .discovery/input
+          run-id: ${{ needs.resolve.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Restore matching discovery cursor
+        env:
+          CURSOR_PATH: ${{ needs.resolve.outputs.cursor_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${CURSOR_PATH}" ]; then
+            git fetch --quiet origin \
+              compatibility-ledger:refs/remotes/origin/compatibility-ledger
+            git show \
+              "refs/remotes/origin/compatibility-ledger:${CURSOR_PATH}" \
+              > .discovery/downloaded-cursor.json
+          fi
+      - name: Validate immutable compatibility identity
+        env:
+          ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
+          UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e \
+            --arg engine "${ENGINE_SHA}" \
+            --arg upstream "${UPSTREAM_SHA}" \
+            '.engine_sha == $engine and .upstream_sha == $upstream' \
+            .discovery/input/compatibility-identity.json
+          test "$(
+            sha256sum .discovery/input/new.py | awk '{print $1}'
+          )" = "$(
+            jq -r .source_sha256 .discovery/input/compatibility-identity.json
+          )"
+          if [ -s .discovery/downloaded-cursor.json ]; then
+            python scripts/select_discovery_cursor.py \
+              --strategy-diff .discovery/input/strategy-diff.json \
+              --compatibility .discovery/input/report-futures.json \
+              --fixtures-root benchmarks/fixtures/captured \
+              --policy planning/futures-discovery-policy.json \
+              --upstream-commit "${UPSTREAM_SHA}" \
+              --engine-commit "${ENGINE_SHA}" \
+              --candidate .discovery/downloaded-cursor.json \
+              --output .discovery/previous-cursor.json
+          fi
+      - name: Tune bounded runner
+        run: uv run nfi-bte system tune --output .discovery/profile.json
+      - name: Search or resume missing Futures targets
+        env:
+          ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
+          UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cursor=()
+          if [ -s .discovery/previous-cursor.json ]; then
+            cursor=(--cursor .discovery/previous-cursor.json)
+          fi
+          set +e
+          uv run nfi-bte strategy discover-futures \
+            .discovery/input/new.py \
+            .discovery/input/strategy-diff.json \
+            .discovery/input/report-futures.json \
+            --class NostalgiaForInfinityX7 \
+            --fixtures-root benchmarks/fixtures/captured \
+            --policy planning/futures-discovery-policy.json \
+            --upstream-repository iterativv/NostalgiaForInfinity \
+            --upstream-commit "${UPSTREAM_SHA}" \
+            --engine-commit "${ENGINE_SHA}" \
+            --profile .discovery/profile.json \
+            --workers 1 \
+            --output-dir .discovery/result \
+            "${cursor[@]}"
+          status=$?
+          set -e
+          test -s .discovery/result/discovery-report.json
+          report_status="$(
+            jq -er .status .discovery/result/discovery-report.json
+          )"
+          if [ "${report_status}" = "infrastructure_failed" ]; then
+            test "${status}" -ne 0
+          else
+            test "${status}" -eq 0
+          fi
+      - name: Export discovery state
+        id: result
+        shell: bash
+        run: |
+          {
+            echo "status=$(jq -er .status .discovery/result/discovery-report.json)"
+            echo "fingerprint=$(jq -er .fingerprint .discovery/result/discovery-report.json)"
+          } >> "${GITHUB_OUTPUT}"
+          jq '{
+            status,
+            message,
+            fingerprint,
+            target_count,
+            searchable_target_count,
+            unsearchable_target_ids,
+            searched_shard_count,
+            next_shard,
+            shard_count,
+            candidate
+          }' .discovery/result/discovery-report.json \
+            >> "${GITHUB_STEP_SUMMARY}"
+      - name: Retain compact report and optional size-bounded candidate
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: futures-branch-discovery-${{ steps.result.outputs.fingerprint }}
+          path: |
+            .discovery/result/discovery-request.json
+            .discovery/result/discovery-report.json
+            .discovery/result/cursor.json
+            .discovery/result/candidate-fixture
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Preserve cursor and reconcile discovery gap
+    needs:
+      - resolve
+      - discover
+    if: >-
+      needs.discover.result == 'success'
+      && needs.discover.outputs.status != 'infrastructure_failed'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+    steps:
+      - name: Check out engine
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.engine_sha }}
+          persist-credentials: false
+      - name: Download compact discovery result
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: futures-branch-discovery-${{ needs.discover.outputs.fingerprint }}
+          path: .discovery/result
+      - name: Reconcile terminal semantic gap
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create nfi-futures-discovery \
+            --description "Terminal Futures branch discovery gap" \
+            --color 8B0000 --force
+          python scripts/futures_discovery_issue.py \
+            --report .discovery/result/discovery-report.json \
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - name: Advance append-only discovery cursor
+        env:
+          ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
+          FINGERPRINT: ${{ needs.discover.outputs.fingerprint }}
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ledger_dir="$(mktemp -d)"
+          git clone --quiet --no-checkout \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "${ledger_dir}"
+          cd "${ledger_dir}"
+          git switch --quiet --create compatibility-ledger \
+            refs/remotes/origin/compatibility-ledger
+          run_path="discovery/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${FINGERPRINT}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e "${run_path}"
+          mkdir -p "${run_path}" discovery
+          for file in discovery-request.json discovery-report.json cursor.json; do
+            cp "${GITHUB_WORKSPACE}/.discovery/result/${file}" "${run_path}/${file}"
+          done
+          cursor_path="${run_path}/cursor.json"
+          jq -n \
+            --arg upstream_sha "${UPSTREAM_SHA}" \
+            --arg engine_sha "${ENGINE_SHA}" \
+            --arg fingerprint "${FINGERPRINT}" \
+            --arg run_path "${run_path}" \
+            --arg cursor_path "${cursor_path}" \
+            --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            '{
+              schema_version: "1.0.0",
+              upstream_sha: $upstream_sha,
+              engine_sha: $engine_sha,
+              fingerprint: $fingerprint,
+              run_path: $run_path,
+              cursor_path: $cursor_path,
+              run_url: $run_url
+            }' > "${run_path}/metadata.json"
+          cp "${run_path}/metadata.json" discovery/latest.json
+          git add discovery
+          git -c user.name=github-actions \
+            -c user.email=41898282+github-actions@users.noreply.github.com \
+            commit --quiet -m "discovery: record ${FINGERPRINT}"
+          git push --quiet origin HEAD:compatibility-ledger
+
+  candidate-pr:
+    name: Open size-bounded draft fixture PR
+    needs:
+      - resolve
+      - discover
+      - publish
+    if: needs.discover.outputs.status == 'candidate_found'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out protected main identity
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.engine_sha }}
+          persist-credentials: true
+      - name: Install locked Python environment
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --frozen
+      - name: Download exact candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: futures-branch-discovery-${{ needs.discover.outputs.fingerprint }}
+          path: .discovery/result
+      - name: Open draft PR and dispatch required CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          max_bytes="$(
+            jq -er .candidate.max_bytes planning/futures-discovery-policy.json
+          )"
+          python scripts/futures_candidate_pr.py \
+            --report .discovery/result/discovery-report.json \
+            --candidate-dir .discovery/result/candidate-fixture \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --repository "${GITHUB_REPOSITORY}" \
+            --base main \
+            --max-bytes "${max_bytes}"
+
+  health:
+    name: Reconcile Futures discovery health
+    needs:
+      - resolve
+      - discover
+      - publish
+      - candidate-pr
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Check out engine
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Reconcile deduplicated infrastructure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create nfi-futures-discovery-health \
+            --description "Futures discovery workflow infrastructure failure" \
+            --color D93F0B --force
+          python scripts/futures_discovery_health_issue.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --stage "resolve=${{ needs.resolve.result }}" \
+            --stage "discover=${{ needs.discover.result }}" \
+            --stage "publish=${{ needs.publish.result }}" \
+            --stage "candidate-pr=${{ needs.candidate-pr.result }}"

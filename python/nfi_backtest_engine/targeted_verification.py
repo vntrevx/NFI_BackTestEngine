@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -215,14 +215,14 @@ def plan_targeted_verification(
     if trading_mode not in {"spot", "futures"}:
         raise SpecValidationError("targeted verification mode must be spot or futures")
     difference = _document(strategy_diff, "strategy diff")
-    targets = _behavior_targets(difference)
+    targets = behavior_targets(difference)
     fixtures = _fixture_inventory(Path(fixtures_root).resolve(), trading_mode)
     remaining = {str(target["id"]) for target in targets}
     candidates = [
         {
             **fixture,
             "target_ids": sorted(
-                target["id"] for target in targets if _target_observed(target, fixture["features"])
+                target["id"] for target in targets if target_observed(target, fixture["features"])
             ),
         }
         for fixture in fixtures
@@ -273,7 +273,7 @@ def plan_targeted_verification(
 
 
 def assess_targeted_coverage(
-    targets: list[Mapping[str, Any]],
+    targets: Sequence[Mapping[str, Any]],
     *,
     baseline_manifest: str | Path,
     candidate_manifest: str | Path,
@@ -285,8 +285,8 @@ def assess_targeted_coverage(
     missing: list[str] = []
     for target in targets:
         target_id = str(target.get("id", ""))
-        baseline_observed = _target_observed(target, baseline)
-        candidate_observed = _target_observed(target, candidate)
+        baseline_observed = target_observed(target, baseline)
+        candidate_observed = target_observed(target, candidate)
         change = target.get("change")
         covered = (
             baseline_observed and not candidate_observed
@@ -795,10 +795,11 @@ def _fixture_features(
     }
 
 
-def _target_observed(
+def target_observed(
     target: Mapping[str, Any],
     features: Mapping[str, set[str] | set[int]],
 ) -> bool:
+    """Return whether independently derived runtime features reach one diff target."""
     if target.get("runtime_observable") is not True:
         return False
     kind = target.get("kind")
@@ -821,7 +822,8 @@ def _target_observed(
     )
 
 
-def _behavior_targets(difference: Mapping[str, Any]) -> list[dict[str, Any]]:
+def behavior_targets(difference: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Validate and return the generic runtime targets emitted by strategy diff."""
     raw = difference.get("behavior_targets")
     if not isinstance(raw, list):
         raise SpecValidationError("strategy diff has no behavior_targets array")
@@ -837,6 +839,12 @@ def _behavior_targets(difference: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise SpecValidationError("strategy diff behavior target is invalid")
         targets.append(dict(target))
     return targets
+
+
+# Private aliases preserve compatibility for tests and internal callers that predate
+# the discovery API.  New code should use the public names above.
+_target_observed = target_observed
+_behavior_targets = behavior_targets
 
 
 def _bound_artifact(

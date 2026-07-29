@@ -14,8 +14,8 @@
     {
       "kind": "document",
       "path": "README.md",
-      "bytes": 13913,
-      "sha256": "197403ed681bcb5b95f2629fe7f4c2f744bcbf68bc6c23b14fb9446fdcd51fe1"
+      "bytes": 14134,
+      "sha256": "413c7a9ce86cc0b2946ee8bbd40ae87fbaafbf69a4f59537259a8fd94bf1de20"
     },
     {
       "kind": "document",
@@ -38,8 +38,8 @@
     {
       "kind": "document",
       "path": "docs/x7-support.md",
-      "bytes": 12421,
-      "sha256": "adab31041a14ef83ef46902522528b0037fba7f8d02b323007160e8e6454ac60"
+      "bytes": 12632,
+      "sha256": "63978e2b2fb3e5cb9e84f6d8e92f7032f97e84fea711d6bd232bc888d3c8af8d"
     },
     {
       "kind": "schema",

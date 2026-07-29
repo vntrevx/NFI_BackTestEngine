@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-07-29",
+  "updated_at": "2026-07-30",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -16,7 +16,7 @@
   },
   "commands": {
     "planning_json": {
-      "command": "jq empty planning/roadmap-state.json && jq empty planning/acceptance-commands.json",
+      "command": "jq empty planning/roadmap-state.json planning/acceptance-commands.json planning/futures-discovery-policy.json planning/futures-discovery-config.json",
       "working_directory": ".",
       "platform": "linux",
       "timeout_seconds": 30,
@@ -98,6 +98,15 @@
     },
     "future_nfi_compatibility_tests": {
       "command": "uv run pytest -q tests/test_official_fallback.py tests/test_strategy_diff.py tests/test_targeted_verification.py tests/test_compatibility_identity.py tests/test_compatibility_issue.py tests/test_workflow_health_issue.py tests/test_nfi_compatibility_workflow.py tests/test_compatibility_qualification.py tests/test_state_machine_ir.py tests/test_state_machine_shadow.py tests/test_dynamic_grind_levels.py tests/test_strategy_compatibility.py tests/test_generic_adapter.py tests/test_probe_capture.py tests/test_research_reference.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "futures_discovery_tests": {
+      "command": "uv run pytest -q tests/test_futures_discovery.py tests/test_futures_candidate_pr.py tests/test_futures_discovery_issue.py tests/test_futures_discovery_health_issue.py tests/test_select_discovery_cursor.py tests/test_futures_discovery_workflow.py tests/test_clean.py",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 1200,
@@ -516,6 +525,7 @@
       "ruff",
       "basedpyright",
       "future_nfi_compatibility_tests",
+      "futures_discovery_tests",
       "python_all",
       "rust_fmt",
       "rust_test",
