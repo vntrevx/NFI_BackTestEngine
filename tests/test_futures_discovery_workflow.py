@@ -26,6 +26,8 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert "cancel-in-progress: false" in text
     assert "timeout-minutes: 125" in text
     assert "planning/futures-discovery-policy.json" in text
+    assert "uv run python scripts/select_discovery_cursor.py" in text
+    assert "\n            python scripts/select_discovery_cursor.py" not in text
     assert "--cursor .discovery/previous-cursor.json" in text
     assert "discovery/latest.json" in text
     assert "retention-days: 30" in text
@@ -39,7 +41,8 @@ def test_candidate_job_has_scoped_write_permissions_and_never_merges() -> None:
     assert "actions: write" in candidate
     assert "contents: write" in candidate
     assert "pull-requests: write" in candidate
-    assert "scripts/futures_candidate_pr.py" in candidate
+    assert "uv run python scripts/futures_candidate_pr.py" in candidate
+    assert "\n          python scripts/futures_candidate_pr.py" not in candidate
     assert "gh pr merge" not in candidate
     assert "gh pr review" not in candidate
     assert "auto-merge" not in candidate
