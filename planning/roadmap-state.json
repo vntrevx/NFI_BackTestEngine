@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 65,
-  "updated_at": "2026-07-29T23:24:47+09:00",
+  "revision": 66,
+  "updated_at": "2026-07-29T23:46:01+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M10-01",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2135,7 +2135,7 @@
       "order": 1001,
       "milestone": "M10",
       "title": "Implement future-NFI fallback and generic state-machine compatibility",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M9-01"
       ],
@@ -2168,9 +2168,38 @@
         "hardcoding audit"
       ],
       "started_at": "2026-07-29T23:24:47+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-29T23:46:01+09:00",
+      "commit_sha": "020e954238f3c413187265f2f7e116937f273a14",
+      "evidence": [
+        {
+          "kind": "implementation_commit",
+          "commit_sha": "020e954238f3c413187265f2f7e116937f273a14"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M10-01/worktree-20260729T232447+0900/acceptance-report.json",
+          "bytes": 2858,
+          "sha256": "ea1bf6727dbe527703d48b9a3622cb1338cbb8672559eaf0fd2f39c6eac51de8"
+        },
+        {
+          "kind": "official_generic_state_machine_fixture",
+          "path": "benchmarks/fixtures/captured/generic-state-machine-grind12-spot-2025-01-01_04/manifest.json",
+          "bytes": 3253,
+          "sha256": "df6fe26d2122d54a652ef1762afe62dd0d104c6b4a7c4cd6af69613f1ec0ae9e"
+        },
+        {
+          "kind": "official_reference_run",
+          "path": ".nfi/m11-generic-state-machine-fixture/reference-auxiliary-markets/run.json",
+          "bytes": 6853,
+          "sha256": "c2566dc64cf552674f7ac71849f63db59867ff74179479e4ea75980e86de0b87"
+        },
+        {
+          "kind": "generic_state_machine_full_parity",
+          "path": ".nfi/roadmap-acceptance/M10-01/worktree-20260729T232447+0900/generic-state-machine/run.json",
+          "bytes": 5652,
+          "sha256": "5a1a95c435ccef54472c6060ce102a0d495edb0f123bd58d89978ff78f81b8ad"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -3592,6 +3621,37 @@
         "official_fallback_required": true,
         "generic_state_machine_required": true,
         "official_full_state_fixture_required": true
+      }
+    },
+    {
+      "sequence": 78,
+      "timestamp": "2026-07-29T23:46:01+09:00",
+      "task_id": "M10-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "020e954238f3c413187265f2f7e116937f273a14",
+        "acceptance_profile": "future_nfi_compatibility",
+        "focused_python_tests": 43,
+        "python_tests": 477,
+        "rust_tests": 107,
+        "ruff_warnings": 0,
+        "basedpyright_errors": 0,
+        "clippy_warnings": 0,
+        "normal_routing_trade_surface_equal": true,
+        "normal_routing_state_trace_equal": true,
+        "stops_only_trade_surface_equal": true,
+        "stops_only_state_trace_equal": true,
+        "x7_spot_trade_surface_equal": true,
+        "x7_spot_state_trace_equal": true,
+        "x7_futures_trade_surface_equal": true,
+        "x7_futures_state_trace_equal": true,
+        "generic_state_machine_trade_surface_equal": true,
+        "generic_state_machine_state_trace_equal": true,
+        "official_fallback_parity_claimed": false,
+        "runtime_hardcoding_added": false,
+        "release_published": false,
+        "remote_push": false,
+        "next_eligible_task": null
       }
     }
   ]
