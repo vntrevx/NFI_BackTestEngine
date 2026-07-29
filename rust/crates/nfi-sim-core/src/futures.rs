@@ -1,8 +1,8 @@
 use crate::calculations::python_float_sum;
-use crate::portfolio::{OpenTrade, TradeSide};
-use crate::{
+use crate::domain::{
     Candle, EntrySignal, LeverageTier, NfiLeverageProgram, PairSeries, PortfolioConfig, SimError,
 };
+use crate::portfolio::{OpenTrade, TradeSide};
 
 pub(super) fn entry_leverage(
     signal: &EntrySignal,

@@ -1,0 +1,3234 @@
+{
+  "schema_version": "1.0.0",
+  "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
+  "revision": 59,
+  "updated_at": "2026-07-29",
+  "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
+  "acceptance_commands": "planning/acceptance-commands.json",
+  "active_task_id": "M7-01",
+  "execution_policy": {
+    "max_in_progress": 1,
+    "selection": "lowest order pending task whose dependencies are completed",
+    "resume_active_before_selecting": true,
+    "preserve_completed_evidence": true,
+    "fail_closed_on_identity_mismatch": true,
+    "manual_gate_requires_user_approval": true
+  },
+  "baseline": {
+    "stable_tag": "v1.1.0",
+    "release_commit": "151cb3f8a38912463538fed04cc2135eb48977d0",
+    "documentation_commit": "e20fb70751c855e9678ae10afdece6d3f2e84ca8",
+    "strategy_upstream_commit": "2bc3058ed4f8480ed7498efca49b5195c7b47e9b",
+    "strategy_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a",
+    "futures_surface_sha256": "99fc0bd3f7622ba7feb0d16f3f76d5053b16c15db80568c257d29d9ee3af4ed5",
+    "futures_certificate_bundle_sha256": "06fe49fd2bfaa0c635cf36b90d7c4dfefdddb3e893ae797ad512e85367dfb93e",
+    "linux_release_wheel_sha256": "6669d1917452021d9ab68a89be5a4f28e38046632c5e389e74cebfaae3f449a8",
+    "portable_package_sha256": "b0ecd8d08a2cb04b8054e38d1d5798ddde9562bad371b29d373d9116fa3d5f57"
+  },
+  "tasks": [
+    {
+      "id": "M1-01",
+      "order": 101,
+      "milestone": "M1",
+      "title": "Seal the v1.1 regression contract",
+      "status": "completed",
+      "depends_on": [],
+      "manual_gate": false,
+      "scope": [
+        "versioned regression manifest",
+        "schema and CLI contracts",
+        "golden surface and state identities",
+        "resume and mutation contracts"
+      ],
+      "forbidden_changes": [
+        "simulation semantics",
+        "official Oracle bytes",
+        "existing release evidence"
+      ],
+      "acceptance_profile": "regression_contract",
+      "expected_evidence": [
+        "versioned manifest",
+        "schema validation report",
+        "mutation rejection test",
+        "baseline acceptance report"
+      ],
+      "started_at": "2026-07-28T04:18:53+09:00",
+      "completed_at": "2026-07-28T04:45:33+09:00",
+      "commit_sha": "9203a929328f53fcf658a117d96b3cf351444e31",
+      "evidence": [
+        {
+          "kind": "versioned_manifest",
+          "path": "python/nfi_backtest_engine/contracts/regression-v1.1.0.json",
+          "bytes": 32205,
+          "sha256": "0160fcd54952a59c186dc3380f88fb72859b8da6b71ceeac0949d60fdca31427"
+        },
+        {
+          "kind": "schema_validation_report",
+          "path": ".nfi/roadmap-acceptance/M1-01/9203a929328f53fcf658a117d96b3cf351444e31/regression-contract.json",
+          "bytes": 576,
+          "sha256": "f0ae9bb2763892a21f6445fe160d6c3201ef3e6f46a7a74d696b147174c9a02d"
+        },
+        {
+          "kind": "mutation_rejection_test",
+          "path": ".nfi/roadmap-acceptance/M1-01/9203a929328f53fcf658a117d96b3cf351444e31/regression-contract-tests.log",
+          "bytes": 98,
+          "sha256": "68f91d007f9e55d5f1848b1c8bc90de5788ef77fadebb3ff5b1638e361b7fe3b"
+        },
+        {
+          "kind": "baseline_acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M1-01/9203a929328f53fcf658a117d96b3cf351444e31/acceptance-report.json",
+          "bytes": 3994,
+          "sha256": "b667bd1a871eb55734e423c3f87e62f224eca1f4cd8b2a451d7ee54baba9432f"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M1-02",
+      "order": 102,
+      "milestone": "M1",
+      "title": "Implement the verification state ledger",
+      "status": "completed",
+      "depends_on": [
+        "M1-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "strategy revision states",
+        "run verification states",
+        "append-only fingerprint records",
+        "CLI and report status projection"
+      ],
+      "forbidden_changes": [
+        "rewriting previous success records",
+        "treating latest checked as release certified",
+        "storing secrets"
+      ],
+      "acceptance_profile": "verification_ledger",
+      "expected_evidence": [
+        "ledger schema",
+        "state transition tests",
+        "failure-preserves-success test",
+        "CLI projection snapshot"
+      ],
+      "started_at": "2026-07-28T04:46:33+09:00",
+      "completed_at": "2026-07-28T05:08:38+09:00",
+      "commit_sha": "6829053bd08b9bd84caff8f32cb881fdcc3375ac",
+      "evidence": [
+        {
+          "kind": "ledger_schema",
+          "path": "python/nfi_backtest_engine/schemas/verification-ledger-record-v1.schema.json",
+          "bytes": 5511,
+          "sha256": "d36ba05ea02792f5564636fced0fbdfd5c5be8afe4f0ee58b7d6ff5ca73ebfaa"
+        },
+        {
+          "kind": "state_transition_tests",
+          "path": ".nfi/roadmap-acceptance/M1-02/6829053bd08b9bd84caff8f32cb881fdcc3375ac/03-verification-ledger-tests.log",
+          "bytes": 98,
+          "sha256": "31bf122c812d50de13828d3b593d44d2f2e09b962d9186d6e9e7bddef6bc4a60"
+        },
+        {
+          "kind": "failure_preserves_success_test",
+          "path": ".nfi/roadmap-acceptance/M1-02/6829053bd08b9bd84caff8f32cb881fdcc3375ac/08-failure-preserves-success.log",
+          "bytes": 98,
+          "sha256": "d907fec0e0445cfe67a7272e864304e81194b234052d6bdfcb6ec87c0b123e62"
+        },
+        {
+          "kind": "cli_projection_snapshot",
+          "path": ".nfi/roadmap-acceptance/M1-02/6829053bd08b9bd84caff8f32cb881fdcc3375ac/cli-projection.txt",
+          "bytes": 281,
+          "sha256": "a6a510b7db55a1f8831b3bb78b528094b02c5251e212ea70a1a543cea6778530"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M1-02/6829053bd08b9bd84caff8f32cb881fdcc3375ac/acceptance-report.json",
+          "bytes": 5098,
+          "sha256": "cc5de14ee741bf73ef518db3e69eadf1a5f9c1884eb6669b3f63cc51215863a2"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M1-03",
+      "order": 103,
+      "milestone": "M1",
+      "title": "Add evidence-aware clean dry-run",
+      "status": "completed",
+      "depends_on": [
+        "M1-01",
+        "M1-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "evidence classification",
+        "active process and lock detection",
+        "logical and allocated byte accounting",
+        "dry-run audit JSON"
+      ],
+      "forbidden_changes": [
+        "deleting files",
+        "following external symlinks",
+        "modifying release evidence"
+      ],
+      "acceptance_profile": "clean_dry_run",
+      "expected_evidence": [
+        "dry-run report",
+        "protected evidence test",
+        "active run rejection test",
+        "external path rejection test"
+      ],
+      "started_at": "2026-07-28T05:09:10+09:00",
+      "completed_at": "2026-07-28T05:28:55+09:00",
+      "commit_sha": "a3b599639d242fd33d0a967ccbed189f602f4a3e",
+      "evidence": [
+        {
+          "kind": "dry_run_report",
+          "path": ".nfi/roadmap-acceptance/M1-03/a3b599639d242fd33d0a967ccbed189f602f4a3e/sample/.nfi/audits/clean-audit.json",
+          "bytes": 7085,
+          "sha256": "62b0ecae6fda8cba9744a9d4283b0cb8dafc1962b0b067bce04ac8a445799b2b"
+        },
+        {
+          "kind": "protected_evidence_test",
+          "path": ".nfi/roadmap-acceptance/M1-03/a3b599639d242fd33d0a967ccbed189f602f4a3e/08-protected-evidence.log",
+          "bytes": 98,
+          "sha256": "09229b326b028651d725fa47cd1bae9fd8e0145ff8779bdb84ae2762c00ab737"
+        },
+        {
+          "kind": "active_run_rejection_test",
+          "path": ".nfi/roadmap-acceptance/M1-03/a3b599639d242fd33d0a967ccbed189f602f4a3e/09-active-run-rejection.log",
+          "bytes": 98,
+          "sha256": "76af71df60bb5f93ea635e8763126ecf98e837672c9980e80aefde989b203765"
+        },
+        {
+          "kind": "external_path_rejection_test",
+          "path": ".nfi/roadmap-acceptance/M1-03/a3b599639d242fd33d0a967ccbed189f602f4a3e/10-external-path-rejection.log",
+          "bytes": 98,
+          "sha256": "36ee6125777253800df314c891baf72e42248a17540db95c6bdb02de742e24de"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M1-03/a3b599639d242fd33d0a967ccbed189f602f4a3e/acceptance-report.json",
+          "bytes": 4892,
+          "sha256": "d79178505d8792f151524739ebaa9a641fe105a1fc68070cf2461219aa7e6046"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M1-04",
+      "order": 104,
+      "milestone": "M1",
+      "title": "Bind host certificates into the release workflow",
+      "status": "completed",
+      "depends_on": [
+        "M1-01",
+        "M1-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "candidate and certificate identity gate",
+        "three-OS evidence gate",
+        "complete release checksum manifest",
+        "preview promotion rejection"
+      ],
+      "forbidden_changes": [
+        "publishing a release",
+        "rebuilding RC assets",
+        "weakening contents permissions"
+      ],
+      "acceptance_profile": "release_workflow",
+      "expected_evidence": [
+        "workflow contract tests",
+        "mismatched wheel rejection test",
+        "missing certificate rejection test",
+        "preview promotion rejection test"
+      ],
+      "started_at": "2026-07-28T05:29:27+09:00",
+      "completed_at": "2026-07-28T05:52:55+09:00",
+      "commit_sha": "f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726",
+      "evidence": [
+        {
+          "kind": "workflow_contract_tests",
+          "path": ".nfi/roadmap-acceptance/M1-04/f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726/04-workflow-contract-tests.log",
+          "bytes": 99,
+          "sha256": "ff536cfe35447d0faa0742840914c09c3d53775df0a034f6db67d4493f8ee627"
+        },
+        {
+          "kind": "mismatched_wheel_rejection_test",
+          "path": ".nfi/roadmap-acceptance/M1-04/f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726/06-mismatched-wheel-rejection.log",
+          "bytes": 98,
+          "sha256": "3605abb09038ce24e90d81df8f7c0d87bb6f647a5e016bf461d8a8fcb408f6e9"
+        },
+        {
+          "kind": "missing_certificate_rejection_test",
+          "path": ".nfi/roadmap-acceptance/M1-04/f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726/07-missing-certificate-rejection.log",
+          "bytes": 98,
+          "sha256": "5b19689a97d618d5cdfce632de67285a8efa3c57100a80350a5bb7ca9e05ae34"
+        },
+        {
+          "kind": "preview_promotion_rejection_test",
+          "path": ".nfi/roadmap-acceptance/M1-04/f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726/08-preview-promotion-rejection.log",
+          "bytes": 98,
+          "sha256": "99a24796443a1d07f66a424f8116a06a2079063af758e7d3c87801c191ad2ecd"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M1-04/f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726/acceptance-report.json",
+          "bytes": 6919,
+          "sha256": "b4688ff558b0271a0593d4dc4c40a1872397249dfdf1d628565fe8d60485f098"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M1-05",
+      "order": 105,
+      "milestone": "M1",
+      "title": "Formalize required CI checks and branch protection",
+      "status": "completed",
+      "depends_on": [
+        "M1-01"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "path-aware CI contract",
+        "required check names",
+        "concurrency and timeout policy",
+        "branch protection configuration"
+      ],
+      "forbidden_changes": [
+        "pull_request_target for untrusted code",
+        "write permissions in normal CI",
+        "unapproved repository settings changes"
+      ],
+      "acceptance_profile": "ci_contract",
+      "expected_evidence": [
+        "workflow validation",
+        "docs-only path test",
+        "code-change full matrix test",
+        "branch protection API snapshot"
+      ],
+      "started_at": "2026-07-28T06:03:03+09:00",
+      "completed_at": "2026-07-28T06:34:12+09:00",
+      "commit_sha": "1a5ce133cfe42f96ca7b0f3884b2e5839dc33700",
+      "evidence": [
+        {
+          "kind": "workflow_validation",
+          "path": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/08-workflow-yaml-validation.log",
+          "bytes": 23,
+          "sha256": "b8a61b9fb0fbf1f1aa5f90e3ffc3ded1e5f1dfd98db6dfe7a0c2dadb50a416c0"
+        },
+        {
+          "kind": "docs_only_path_test",
+          "path": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/06-docs-only-path-test.log",
+          "bytes": 98,
+          "sha256": "5b19689a97d618d5cdfce632de67285a8efa3c57100a80350a5bb7ca9e05ae34"
+        },
+        {
+          "kind": "code_change_full_matrix_test",
+          "path": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/successful-code-ci-run.json",
+          "bytes": 7869,
+          "sha256": "cad1e2b92838782a95d0df9150d103732f5be9b4c3ca5c14f01498237aa2f930"
+        },
+        {
+          "kind": "branch_state_before_protection",
+          "path": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/branch-before.json",
+          "bytes": 3737,
+          "sha256": "ca652504440dea1f1c722b426fc530dcc16c77409e65fe072c265791e8c94dda"
+        },
+        {
+          "kind": "branch_protection_api_snapshot",
+          "path": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/branch-protection-after.json",
+          "bytes": 1018,
+          "sha256": "7d338502e7b79477ef11ba8e6508d0f9b09a5bdd784be197c4bf0856a9b89523"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/acceptance-report.json",
+          "bytes": 9208,
+          "sha256": "75e7c5275c7aba21414967cb1b227e1c9b70bdf29b5231a314b6c55c13ead968"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M2-01",
+      "order": 201,
+      "milestone": "M2",
+      "title": "Split CLI command orchestration",
+      "status": "completed",
+      "depends_on": [
+        "M1-01",
+        "M1-02",
+        "M1-03",
+        "M1-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "commands package",
+        "parser and dispatch separation",
+        "stable exit code handling"
+      ],
+      "forbidden_changes": [
+        "public CLI changes",
+        "schema changes",
+        "performance optimization"
+      ],
+      "acceptance_profile": "python_refactor",
+      "expected_evidence": [
+        "CLI snapshot parity",
+        "full Python tests",
+        "representative full fixtures"
+      ],
+      "started_at": "2026-07-28T06:35:33+09:00",
+      "completed_at": "2026-07-28T07:08:25+09:00",
+      "commit_sha": "0918ca986808e419d244746d2a68c8cf07cfe08b",
+      "evidence": [
+        {
+          "kind": "cli_snapshot_parity",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/cli-help-after.json",
+          "bytes": 42900,
+          "sha256": "7fc90f5ff3e4a115ea597ece198ff3182866521076a0c83e6008ea5ac2b90c64"
+        },
+        {
+          "kind": "full_python_tests",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/06-python-all.log",
+          "bytes": 512,
+          "sha256": "0dd8cc908f4390d775e88a340cf17797a998e3bbd4d6623fae15a1a0910cc680"
+        },
+        {
+          "kind": "normal_routing_full_fixture",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/normal-routing/run.json",
+          "bytes": 5308,
+          "sha256": "6b5203c8548fd88b8f8e80d1060254fe48d043a9b498b3bb5158da6e54401b0c"
+        },
+        {
+          "kind": "stops_only_full_fixture",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/stops-only/run.json",
+          "bytes": 5251,
+          "sha256": "021581d74ce29d1ac85045cd8dc3323ca945253d3da6ff6b33bc00bf81af5aba"
+        },
+        {
+          "kind": "x7_spot_full_fixture",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/x7-spot/run.json",
+          "bytes": 6268,
+          "sha256": "44eb544b33fa9b2e88ed48be8b50d3532880c6f78ae03403ae140b12eb877233"
+        },
+        {
+          "kind": "x7_futures_full_fixture",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/x7-futures/run.json",
+          "bytes": 6389,
+          "sha256": "d391b7b760b52e9be998b9c5940f62d94a1fcc6ec736a95d8ca05d484d1e41e7"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/ci-run.json",
+          "bytes": 8009,
+          "sha256": "555488855d7df5af102e0482640c5ff9f4fb70151306967bbe8d6e98e2705c8a"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/acceptance-report.json",
+          "bytes": 9849,
+          "sha256": "031b0b616e86cac3fa8ad64a245d3a5acaad2063c210774f99cfba9bb6ee5bef"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M2-02",
+      "order": 202,
+      "milestone": "M2",
+      "title": "Split strategy analysis and lowering",
+      "status": "completed",
+      "depends_on": [
+        "M2-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "strategy identity",
+        "callback inventory",
+        "typed lowering modules",
+        "unsupported diagnostics"
+      ],
+      "forbidden_changes": [
+        "new strategy behavior",
+        "strategy version hardcoding",
+        "performance optimization"
+      ],
+      "acceptance_profile": "python_refactor",
+      "expected_evidence": [
+        "strategy IR identity",
+        "callback inventory identity",
+        "full fixture parity"
+      ],
+      "started_at": "2026-07-28T07:09:22+09:00",
+      "completed_at": "2026-07-28T07:36:09+09:00",
+      "commit_sha": "0cbff9c789944818595c37aaf852c61ab4bdc5aa",
+      "evidence": [
+        {
+          "kind": "strategy_ir_identity",
+          "path": ".nfi/roadmap-acceptance/M2-02/0cbff9c789944818595c37aaf852c61ab4bdc5aa/post-x7-futures-analysis.json",
+          "bytes": 176773,
+          "sha256": "aeb575b86d6b0c8f9287fd7b82c23af2b86ff3ba5ac0914af37f71169ae8200e"
+        },
+        {
+          "kind": "callback_inventory_identity",
+          "path": ".nfi/roadmap-acceptance/M2-02/0cbff9c789944818595c37aaf852c61ab4bdc5aa/post-callback-inventory.json",
+          "bytes": 23147,
+          "sha256": "7f625fc9a2cf156d8b38ae614b819efbfc38667bc87cd09646f1b029fe5f3e6b"
+        },
+        {
+          "kind": "full_python_tests",
+          "path": ".nfi/roadmap-acceptance/M2-02/0cbff9c789944818595c37aaf852c61ab4bdc5aa/06-python-all.log",
+          "bytes": 512,
+          "sha256": "a2eaebe7b0c26c3a941233bbee313108ada26b0bb4dbf83bca95c6493e8e60e1"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M2-02/0cbff9c789944818595c37aaf852c61ab4bdc5aa/ci-run.json",
+          "bytes": 8009,
+          "sha256": "60c50e943ea544d892332e76e6d34d1f367250c9ff0d0cb66d6bd986980717b1"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M2-02/0cbff9c789944818595c37aaf852c61ab4bdc5aa/acceptance-report.json",
+          "bytes": 3877,
+          "sha256": "89045050c28b03d8ec5696bde3fce35fb79474801353e6ac7afc5243157d1c23"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M2-03",
+      "order": 203,
+      "milestone": "M2",
+      "title": "Split the X7 adapter and trade manager",
+      "status": "completed",
+      "depends_on": [
+        "M2-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "managed route inventory",
+        "rebuy and regular adjustment",
+        "legacy grind",
+        "futures and protection contracts"
+      ],
+      "forbidden_changes": [
+        "new route semantics",
+        "pair or date hardcoding",
+        "performance optimization"
+      ],
+      "acceptance_profile": "x7_refactor",
+      "expected_evidence": [
+        "nine-probe regression report",
+        "bounded Futures parity",
+        "adapter serialization identity"
+      ],
+      "started_at": "2026-07-28T14:27:47+09:00",
+      "completed_at": "2026-07-28T15:05:53+09:00",
+      "commit_sha": "e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62",
+      "evidence": [
+        {
+          "kind": "nine_probe_regression_report",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/nine-probe-report.json",
+          "bytes": 7203,
+          "sha256": "c29d51cd6238fc625d8733d4210b0045d2dcf193a3db4dd2dc59b863f6ef0521"
+        },
+        {
+          "kind": "bounded_futures_parity",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/x7-futures/run.json",
+          "bytes": 6391,
+          "sha256": "1d35e85221c36a967d3fcc98d736ca7197f0f62a12ebb63abee4a8dc15ef52eb"
+        },
+        {
+          "kind": "adapter_serialization_identity",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/adapter-serialization-identity.json",
+          "bytes": 4549,
+          "sha256": "304fd0c2214b3d41d704afe12e2c89c22c05fd17a5ae5c26b4f0202622923afb"
+        },
+        {
+          "kind": "source_ast_identity",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/ast-identity-report.json",
+          "bytes": 684,
+          "sha256": "00df6e75936758a67b7c0ee8c6cae429dab262bcaf47005cafa4330a1c3c3ed7"
+        },
+        {
+          "kind": "full_python_tests",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/07-python-all.log",
+          "bytes": 512,
+          "sha256": "3d80a53e884a32e652c5c17db97c0b8e1ee3882eff0a97d853daffa64ff13b1e"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/ci-run.json",
+          "bytes": 7933,
+          "sha256": "823650fc577f83d34ebe285ef6fd75dd29f7f934794a8f9dc9662c5c799c925f"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/acceptance-report.json",
+          "bytes": 4904,
+          "sha256": "b27c0114ba8e6c4c8e6f17d67ed9dd2136904aa6570e222ed79902e04243c170"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M2-04",
+      "order": 204,
+      "milestone": "M2",
+      "title": "Separate reference, certification, and reporting responsibilities",
+      "status": "completed",
+      "depends_on": [
+        "M2-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "reference execution and storage",
+        "certificate input and gates",
+        "evidence packaging",
+        "derived report rendering"
+      ],
+      "forbidden_changes": [
+        "modifying source evidence",
+        "schema changes without versioning",
+        "performance optimization"
+      ],
+      "acceptance_profile": "reference_certification_refactor",
+      "expected_evidence": [
+        "certificate schema parity",
+        "bundle SHA contract",
+        "report regeneration test",
+        "source evidence immutability test"
+      ],
+      "started_at": "2026-07-28T15:08:33+09:00",
+      "completed_at": "2026-07-28T15:53:33+09:00",
+      "commit_sha": "23bd02f39ba987308e7846a04deee6db4bbd38ea",
+      "evidence": [
+        {
+          "kind": "certificate_schema_and_definition_identity",
+          "path": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/ast-and-schema-identity.json",
+          "bytes": 2708,
+          "sha256": "e83eca7f7f76e8da287eee7b8ae6f2a38b386bc79f5b0dd0d97eb06ddd1b80a1"
+        },
+        {
+          "kind": "bundle_sha_contract",
+          "path": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/bundle-sha-contract.json",
+          "bytes": 898,
+          "sha256": "c4b18822b4a718c658e680483da38a82c9d8835340fc564b27350244606d871e"
+        },
+        {
+          "kind": "report_regeneration_and_source_immutability",
+          "path": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/report-regeneration-and-source-immutability.json",
+          "bytes": 2277,
+          "sha256": "e5a914830040bf66a1b806c6b97298582c5d988052013168dd1bd99022808725"
+        },
+        {
+          "kind": "pre_post_x7_identity",
+          "path": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/pre-post-x7-identity.json",
+          "bytes": 3573,
+          "sha256": "cb4d1b2f2af31ac4ff0ae7755c195bf1500db39dd5f33bee17ea167843aa1b3c"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/ci-run.json",
+          "bytes": 7974,
+          "sha256": "b8a73cf60ca3c7da291b7c23e70cbd0e4508c60961d2421e390cc6fe8b6f8ecc"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/acceptance-report.json",
+          "bytes": 6186,
+          "sha256": "b3f82ae1902caa73aeb76dbf8f23e3917540e43a509cc7de0cb854747c7522d3"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M3-01",
+      "order": 301,
+      "milestone": "M3",
+      "title": "Extract Rust domain types and pure calculations",
+      "status": "completed",
+      "depends_on": [
+        "M2-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "domain types",
+        "pure calculations",
+        "module visibility"
+      ],
+      "forbidden_changes": [
+        "event ordering changes",
+        "serialization changes",
+        "algorithm optimization"
+      ],
+      "acceptance_profile": "rust_refactor",
+      "expected_evidence": [
+        "Rust test report",
+        "serialization identity",
+        "full fixture parity"
+      ],
+      "started_at": "2026-07-28T15:55:32+09:00",
+      "completed_at": "2026-07-28T16:26:44+09:00",
+      "commit_sha": "cd928ac4847e9aebae274ecfd8a684269b340d15",
+      "evidence": [
+        {
+          "kind": "rust_source_relocation_identity",
+          "path": ".nfi/roadmap-acceptance/M3-01/cd928ac4847e9aebae274ecfd8a684269b340d15/source-relocation-identity.json",
+          "bytes": 17552,
+          "sha256": "8afce715a8fb1baeb041c203ec7c96bc152393664ad05adc8a9fa919196b6de5"
+        },
+        {
+          "kind": "serialization_surface_and_state_identity",
+          "path": ".nfi/roadmap-acceptance/M3-01/cd928ac4847e9aebae274ecfd8a684269b340d15/serialization-and-fixture-identity.json",
+          "bytes": 3446,
+          "sha256": "7a6bb9d501d80f46e402c836eba68ae81b576951e20ae78edc80e3298c37ce9b"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M3-01/cd928ac4847e9aebae274ecfd8a684269b340d15/ci-run.json",
+          "bytes": 7974,
+          "sha256": "1a3e202427ef5754e50eb8483eb6461a821c5f5a8b0b4524d0601f49853a1624"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M3-01/cd928ac4847e9aebae274ecfd8a684269b340d15/acceptance-report.json",
+          "bytes": 6522,
+          "sha256": "121da769a090f5696a972dccb0f73e3ac52370f7f6529a32ffd070401caaadd2"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M3-02",
+      "order": 302,
+      "milestone": "M3",
+      "title": "Extract Rust IO and validation",
+      "status": "completed",
+      "depends_on": [
+        "M3-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "input validation",
+        "vector and spool readers",
+        "surface serialization"
+      ],
+      "forbidden_changes": [
+        "input contract changes",
+        "result normalization changes",
+        "algorithm optimization"
+      ],
+      "acceptance_profile": "rust_refactor",
+      "expected_evidence": [
+        "input rejection parity",
+        "output surface identity",
+        "Rust and Python integration tests"
+      ],
+      "started_at": "2026-07-28T16:27:29+09:00",
+      "completed_at": "2026-07-28T17:05:34+09:00",
+      "commit_sha": "154abfaebdce441340acc9768d8bdf3df0c7cdd7",
+      "evidence": [
+        {
+          "kind": "rust_io_validation_source_identity",
+          "path": ".nfi/roadmap-acceptance/M3-02/154abfaebdce441340acc9768d8bdf3df0c7cdd7/source-relocation-identity.json",
+          "bytes": 20204,
+          "sha256": "1d224dfaaaee431fc67b9e6e273eeb5d2fa0ffa4465787158a6c0ae3a1a48029"
+        },
+        {
+          "kind": "input_rejection_parity",
+          "path": ".nfi/roadmap-acceptance/M3-02/154abfaebdce441340acc9768d8bdf3df0c7cdd7/input-rejection-parity.json",
+          "bytes": 4040,
+          "sha256": "ecc190f9a1e1d6ffaa11b93316d42c7bf05d40aeb579b36f0388151f7250531d"
+        },
+        {
+          "kind": "output_surface_and_state_identity",
+          "path": ".nfi/roadmap-acceptance/M3-02/154abfaebdce441340acc9768d8bdf3df0c7cdd7/output-surface-identity.json",
+          "bytes": 2804,
+          "sha256": "49eb014c4496f8d9fa41e82400e82b52941311f168c627c2d5aa114dd4b15ae8"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M3-02/154abfaebdce441340acc9768d8bdf3df0c7cdd7/ci-run.json",
+          "bytes": 7982,
+          "sha256": "2073fb20c02e023e02a1979addc1442c04538522c6ad117b9748d2abc09d2fbf"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M3-02/154abfaebdce441340acc9768d8bdf3df0c7cdd7/acceptance-report.json",
+          "bytes": 6897,
+          "sha256": "311a3817bdb78b17cc8d72441fb8c089a1563f0af078edf1939997b5916243d9"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M3-03",
+      "order": 303,
+      "milestone": "M3",
+      "title": "Extract Rust portfolio and execution modules",
+      "status": "completed",
+      "depends_on": [
+        "M3-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "wallet and slot state",
+        "entry, exit, and fill",
+        "partial exits and order history"
+      ],
+      "forbidden_changes": [
+        "global ordering changes",
+        "fill semantic changes",
+        "algorithm optimization"
+      ],
+      "acceptance_profile": "rust_refactor",
+      "expected_evidence": [
+        "equal-timestamp parity",
+        "wallet and slot fixture parity",
+        "surface and state identity"
+      ],
+      "started_at": "2026-07-28T17:08:27+09:00",
+      "completed_at": "2026-07-28T17:39:27+09:00",
+      "commit_sha": "a5761e8808b72f52f6a9075fd7e7341e5e61e42f",
+      "evidence": [
+        {
+          "kind": "rust_portfolio_execution_source_identity",
+          "path": ".nfi/roadmap-acceptance/M3-03/a5761e8808b72f52f6a9075fd7e7341e5e61e42f/source-relocation-identity.json",
+          "bytes": 11229,
+          "sha256": "1b45c225eb3e7638513a3e6a9dfa89dfac0f194201ce56275ebc6a49506246f3"
+        },
+        {
+          "kind": "equal_timestamp_wallet_slot_tests",
+          "path": ".nfi/roadmap-acceptance/M3-03/a5761e8808b72f52f6a9075fd7e7341e5e61e42f/equal-timestamp-wallet-slot-tests.log",
+          "bytes": 1807,
+          "sha256": "200a6fecd8b01bc8ea2df04c0bfe02c997a4e9a73ac21d66f3d64510bc515c9f"
+        },
+        {
+          "kind": "surface_and_state_identity",
+          "path": ".nfi/roadmap-acceptance/M3-03/a5761e8808b72f52f6a9075fd7e7341e5e61e42f/surface-and-state-identity.json",
+          "bytes": 2804,
+          "sha256": "49eb014c4496f8d9fa41e82400e82b52941311f168c627c2d5aa114dd4b15ae8"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M3-03/a5761e8808b72f52f6a9075fd7e7341e5e61e42f/ci-run.json",
+          "bytes": 7994,
+          "sha256": "8a4bd93d4f7d7c7fde510907846fc4b11162c4e1f27614fc442e9ca48715999b"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M3-03/a5761e8808b72f52f6a9075fd7e7341e5e61e42f/acceptance-report.json",
+          "bytes": 6921,
+          "sha256": "189c927bb415340069c2b91c5726e628fb4b20fad72ec50e6a4d86531e31a555"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M3-04",
+      "order": 304,
+      "milestone": "M3",
+      "title": "Extract Rust futures, protections, and NFI state",
+      "status": "completed",
+      "depends_on": [
+        "M3-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "funding and leverage",
+        "liquidation",
+        "protections and pair locks",
+        "NFI adjustment state"
+      ],
+      "forbidden_changes": [
+        "futures accounting changes",
+        "lock ordering changes",
+        "algorithm optimization"
+      ],
+      "acceptance_profile": "rust_x7_refactor",
+      "expected_evidence": [
+        "nine-probe parity",
+        "funding and liquidation state identity",
+        "protection lock identity"
+      ],
+      "started_at": "2026-07-28T17:41:26+09:00",
+      "completed_at": "2026-07-28T18:14:47+09:00",
+      "commit_sha": "d47893bc616c8fb38bb20b4554944fcd5f3f0e6d",
+      "evidence": [
+        {
+          "kind": "rust_futures_nfi_state_source_identity",
+          "path": ".nfi/roadmap-acceptance/M3-04/d47893bc616c8fb38bb20b4554944fcd5f3f0e6d/source-relocation-identity.json",
+          "bytes": 5965,
+          "sha256": "34a5f830efbc9a17a7d15555d71844948ad07db4ed5edfe67989160adc70d26a"
+        },
+        {
+          "kind": "nine_probe_parity",
+          "path": ".nfi/roadmap-acceptance/M3-04/d47893bc616c8fb38bb20b4554944fcd5f3f0e6d/nine-probe-report.json",
+          "bytes": 7203,
+          "sha256": "2864b66c4603d97a2238444aec08c3091bf6ea5bb61714a2618b97afdbfcce64"
+        },
+        {
+          "kind": "futures_protection_state_identity",
+          "path": ".nfi/roadmap-acceptance/M3-04/d47893bc616c8fb38bb20b4554944fcd5f3f0e6d/futures-protection-state-identity.json",
+          "bytes": 634,
+          "sha256": "f304f4cdae7f76c685d1c4506bf7aaf9cde98864efc2556f6c3e81cea71d4146"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M3-04/d47893bc616c8fb38bb20b4554944fcd5f3f0e6d/ci-run.json",
+          "bytes": 7994,
+          "sha256": "6a1ea1f2a1ec0e58fc6de3f0143518cc872e6faec9d90115672d5563b7bf6c0c"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M3-04/d47893bc616c8fb38bb20b4554944fcd5f3f0e6d/acceptance-report.json",
+          "bytes": 6686,
+          "sha256": "f01a5a2259ba5add9c3b7a5a68f3cfa14612579385ca074cb27ca71dc4fcf49c"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M3-05",
+      "order": 305,
+      "milestone": "M3",
+      "title": "Extract the global event loop and profiling",
+      "status": "completed",
+      "depends_on": [
+        "M3-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "global chronological scheduler",
+        "equal-timestamp ordering",
+        "phase profiling"
+      ],
+      "forbidden_changes": [
+        "pair-isolated simulation",
+        "event ordering changes",
+        "algorithm optimization"
+      ],
+      "acceptance_profile": "rust_event_loop_refactor",
+      "expected_evidence": [
+        "full state matrix",
+        "equal-timestamp projection identity",
+        "phase profile schema parity"
+      ],
+      "started_at": "2026-07-28T18:16:11+09:00",
+      "completed_at": "2026-07-28T18:40:35+09:00",
+      "commit_sha": "2543c486737e9b9a0b5d40ba2001b7ef34813a43",
+      "evidence": [
+        {
+          "kind": "rust_global_loop_source_identity",
+          "path": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/rust-global-loop-source-identity.json",
+          "bytes": 689,
+          "sha256": "d52caf7815b91c78cb0048f04ff17f558bcd6acce534932c02cb13ffb14a1a75"
+        },
+        {
+          "kind": "full_state_matrix",
+          "path": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/full-state-matrix.json",
+          "bytes": 12516,
+          "sha256": "11e913e761e8ab652f3806878aa3d02d7f17403283ad881472313d391c83f138"
+        },
+        {
+          "kind": "equal_timestamp_profile_tests",
+          "path": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/equal-timestamp-profile-tests.log",
+          "bytes": 2206,
+          "sha256": "83a046ce6bfbbb510ec6f9628a166413875a4ebad17a5befff2970151709aae1"
+        },
+        {
+          "kind": "phase_profile_schema_identity",
+          "path": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/phase-profile-schema-identity.json",
+          "bytes": 2399,
+          "sha256": "3f7bb8421d9f0bbdd4f98218f25b4c4fdd88443f5029c637be84755bf90a7b61"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/ci-run.json",
+          "bytes": 7994,
+          "sha256": "b5596fb76ff95cf9f33f55f5ab44bb9fcb7f10771e0dd0e0750ce8e9ccb1800d"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/acceptance-report.json",
+          "bytes": 7791,
+          "sha256": "98014626d527285cefb3ca957fd15f386f380831d1de995b95d1f9e426373a96"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M4-01",
+      "order": 401,
+      "milestone": "M4",
+      "title": "Measure the post-refactor performance baseline",
+      "status": "completed",
+      "depends_on": [
+        "M3-05"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "cold and preserved-vector workloads",
+        "phase timings",
+        "wall time, CPU, RSS, swap, and IO"
+      ],
+      "forbidden_changes": [
+        "code optimization",
+        "official Oracle rerun",
+        "changing measurement inputs"
+      ],
+      "acceptance_profile": "performance_measurement",
+      "expected_evidence": [
+        "three-to-five-run benchmark report",
+        "phase profile",
+        "hardware fingerprint",
+        "unchanged result SHA"
+      ],
+      "started_at": "2026-07-28T18:40:57+09:00",
+      "completed_at": "2026-07-28T20:03:39+09:00",
+      "commit_sha": "92071cf15773bf0c66fec314d6bc824f53745f8d",
+      "evidence": [
+        {
+          "kind": "three_to_five_run_benchmark_report",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/performance-baseline-report.json",
+          "bytes": 34515,
+          "sha256": "b63db63b7c83cd8669b9376addde92c60639c7a2a46c296573496b8f4ed64950"
+        },
+        {
+          "kind": "phase_profile",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/phase-profile-summary.json",
+          "bytes": 3755,
+          "sha256": "5f03f40eafe7040a493d14baa04712f3db5171336b4318306cf12b0166dba625"
+        },
+        {
+          "kind": "hardware_fingerprint",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/hardware-fingerprint.json",
+          "bytes": 326,
+          "sha256": "ad188357b5e1247312bd411ddb35e358f7d95fb5af8e452e470123caea771b21"
+        },
+        {
+          "kind": "hardware_record",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/hardware.json",
+          "bytes": 865,
+          "sha256": "36f46a89b1a33aa1f51a06ff7a508ba154c428aa3dd04fc142423f5d38e7662f"
+        },
+        {
+          "kind": "resource_usage",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/resource-usage-summary.json",
+          "bytes": 6534,
+          "sha256": "33dfc33374c7ec52327b31dcf8bbb10724bbb680ccd8cb6a063ff4dd2aa61701"
+        },
+        {
+          "kind": "unchanged_result_sha",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/result-sha-identity.json",
+          "bytes": 9068,
+          "sha256": "d454dfc6d29170a4bce916bb07cefdee4048089acdbf54cc71232d7544b9bfec"
+        },
+        {
+          "kind": "preserved_vector_cache_seal",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/preserved-vector-cache.json",
+          "bytes": 39307,
+          "sha256": "0113c1b629a5e8a8f85bef96c940618ec4a4aafb9efe76105a48b8299c57cceb"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/acceptance-report.json",
+          "bytes": 5602,
+          "sha256": "855e283e037ac0ae224b0afe7138cef2555c018ce1be3d14db1ef38a22e8dfcf"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M4-02",
+      "order": 402,
+      "milestone": "M4",
+      "title": "Optimize the vector and data pipeline",
+      "status": "completed",
+      "depends_on": [
+        "M4-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "measured decode, hash, copy, and cache bottlenecks"
+      ],
+      "forbidden_changes": [
+        "unmeasured optimization",
+        "warm-only claims",
+        "strategy-specific runtime branches"
+      ],
+      "acceptance_profile": "performance_change",
+      "expected_evidence": [
+        "before and after repetitions",
+        "phase improvement",
+        "memory comparison",
+        "unchanged result SHA"
+      ],
+      "started_at": "2026-07-28T20:03:51+09:00",
+      "completed_at": "2026-07-28T21:13:23+09:00",
+      "commit_sha": "f4bea130a0ec7a06217d31d6e89350056e5d129d",
+      "evidence": [
+        {
+          "kind": "before_after_repetitions",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/before-after-performance-report.json",
+          "bytes": 28117,
+          "sha256": "0bb1315bf07a10298b10c70e026e4878cafad78bbed33a594d66a13712377565"
+        },
+        {
+          "kind": "phase_improvement",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/phase-improvement.json",
+          "bytes": 1263,
+          "sha256": "02d509ac8e5cab9911c9e64a82bd69c3ce6abfaf51174c201f2b77eddfbc14af"
+        },
+        {
+          "kind": "memory_comparison",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/memory-comparison.json",
+          "bytes": 755,
+          "sha256": "1109f1e37f6caba44e4ccf77a66216c9364c9a61e4ec1005c2719a069e8d53d0"
+        },
+        {
+          "kind": "unchanged_result_sha",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/result-sha-identity.json",
+          "bytes": 1956,
+          "sha256": "c6c807c3ca264a8fe0138327884b20eb01b674bd1e43caf4f3247fa1b22feef0"
+        },
+        {
+          "kind": "cold_impact",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/cold-impact.json",
+          "bytes": 1182,
+          "sha256": "ffd383e0d3d91cf1b00a1dde828e4206de2c356cc0e36f335280d954f288f896"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/hardcoding-audit.json",
+          "bytes": 903,
+          "sha256": "9acf8806d994f775615e7891d9c0be6936a634d9d02066f5d27b7e1a0b4459e3"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/ci-run.json",
+          "bytes": 8054,
+          "sha256": "1271804b6dba954d9961af21d4befb96a68caf2e7e451338cdd5aad207f3cdff"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/acceptance-report.json",
+          "bytes": 9898,
+          "sha256": "06c077d8147bd58b4f116d947a15ad7107d1cd696ab145b605acda3c137912f1"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M4-03",
+      "order": 403,
+      "milestone": "M4",
+      "title": "Optimize the Rust event loop",
+      "status": "completed",
+      "depends_on": [
+        "M4-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "measured lookup, allocation, and scheduling bottlenecks"
+      ],
+      "forbidden_changes": [
+        "global ordering changes",
+        "pair-isolated simulation",
+        "unmeasured optimization"
+      ],
+      "acceptance_profile": "performance_change",
+      "expected_evidence": [
+        "before and after repetitions",
+        "event-loop profile",
+        "state projection identity",
+        "unchanged result SHA"
+      ],
+      "started_at": "2026-07-28T21:13:24+09:00",
+      "completed_at": "2026-07-28T23:09:51+09:00",
+      "commit_sha": "5c6b65896c8509573cef9f62df55a800c16e3333",
+      "evidence": [
+        {
+          "kind": "before_after_repetitions",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/before-after-performance-report.json",
+          "bytes": 36601,
+          "sha256": "cca43604c6a245570501f25b14896ae4d5654102fc85f28a126ae5cc8d6c8494"
+        },
+        {
+          "kind": "event_loop_profile",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/event-loop-profile.json",
+          "bytes": 4096,
+          "sha256": "21a6bc8384523cf9412d8dac35a4e15dd0aae72dce8d61d2f522dbefb07ab5b5"
+        },
+        {
+          "kind": "state_projection_identity",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/state-projection-identity.json",
+          "bytes": 2114,
+          "sha256": "e78be9581ad54353f2224410bd28363c9bdf1b351045c56d42feb00387b66976"
+        },
+        {
+          "kind": "unchanged_result_sha",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/result-sha-identity.json",
+          "bytes": 1953,
+          "sha256": "809812ca5102d8c5286dfe9387c55e2868de3db8cb41535d84681e83c49a650a"
+        },
+        {
+          "kind": "cold_impact",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/cold-impact.json",
+          "bytes": 1701,
+          "sha256": "1d0314182ee64ed8bba53bd78d4715e22708c373c37c260a49010df24d11dc47"
+        },
+        {
+          "kind": "memory_comparison",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/memory-comparison.json",
+          "bytes": 794,
+          "sha256": "c8e37967913db116794103c553041a115c8c86bdf400f8aab6248c175c24b1ee"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/hardcoding-audit.json",
+          "bytes": 953,
+          "sha256": "5f8ed7934d681fe2f1f0ef0215f4573a62aa2df46625955baf188cd9702aeb12"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/ci-run.json",
+          "bytes": 7971,
+          "sha256": "de496f74e633a47e2012516fded93a455546ad27be60ee4fe383c9b805848c78"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/acceptance-report.json",
+          "bytes": 4711,
+          "sha256": "4c296540aa619e60fb83b8c54c0f0621b8dfaf7de7d41ebc9b0be526f0403497"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M4-04",
+      "order": 404,
+      "milestone": "M4",
+      "title": "Optimize the Python and Rust boundary",
+      "status": "completed",
+      "depends_on": [
+        "M4-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "measured serialization and duplicate traversal bottlenecks"
+      ],
+      "forbidden_changes": [
+        "result schema changes",
+        "normalization changes",
+        "unmeasured optimization"
+      ],
+      "acceptance_profile": "performance_change",
+      "expected_evidence": [
+        "before and after repetitions",
+        "boundary profile",
+        "artifact schema identity",
+        "unchanged result SHA"
+      ],
+      "started_at": "2026-07-28T23:09:52+09:00",
+      "completed_at": "2026-07-29T00:19:45+09:00",
+      "commit_sha": "4e1f5a8613260a24c5707164eb7c3c1f4640e1a3",
+      "evidence": [
+        {
+          "kind": "before_after_repetitions",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/before-after-performance-report.json",
+          "bytes": 41144,
+          "sha256": "4714e405fca9fa0231e5198d09e8517d44b4ee659aed5f368c77a77e83fc2bfe"
+        },
+        {
+          "kind": "boundary_profile",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/boundary-profile.json",
+          "bytes": 4114,
+          "sha256": "d01f7c77edaf73b80fe80553edbcf8f2f6fd785910a67519ef5f3c2a30024edc"
+        },
+        {
+          "kind": "artifact_schema_identity",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/artifact-schema-identity.json",
+          "bytes": 4039,
+          "sha256": "fd0df1304aa85d8e62e4f2f11d24b5aa4c762d932b50756d124a541cb70b8ade"
+        },
+        {
+          "kind": "unchanged_result_sha",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/result-sha-identity.json",
+          "bytes": 1984,
+          "sha256": "fb381c5866f15d913907814a5e887508c31df9f288a9d57ce67419489b182a7c"
+        },
+        {
+          "kind": "cold_impact",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/cold-impact.json",
+          "bytes": 1686,
+          "sha256": "1a127fe18f4c882af67f81572e572e9524ef3c3850d741edae6f3b11ca5c91eb"
+        },
+        {
+          "kind": "memory_comparison",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/memory-comparison.json",
+          "bytes": 816,
+          "sha256": "bcc2bd46aeca20c90a1436703ca11938293f79d99c037ae0049612f0c0e1b1d3"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/hardcoding-audit.json",
+          "bytes": 1482,
+          "sha256": "1d11c231a6abd3bd0523274838b9c50664e325fef3e2bd7a256add64ab92b74d"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/ci-run.json",
+          "bytes": 7904,
+          "sha256": "2eac65e2f83dd8d02c36a6b0285ac996e073242df87706f39c67c3586f73cee8"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/acceptance-report.json",
+          "bytes": 5078,
+          "sha256": "e862edee1880d3497779142146ff05eb470718f3af299826978a8300cb3a238d"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M5-01",
+      "order": 501,
+      "milestone": "M5",
+      "title": "Complete result artifacts",
+      "status": "completed",
+      "depends_on": [
+        "M4-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "orders CSV",
+        "equity CSV",
+        "verification JSON",
+        "evidence index",
+        "HTML additions"
+      ],
+      "forbidden_changes": [
+        "modifying source evidence",
+        "inventing candle-level equity",
+        "changing exact surfaces"
+      ],
+      "acceptance_profile": "result_artifacts",
+      "expected_evidence": [
+        "artifact schemas",
+        "CSV snapshots",
+        "HTML rendering tests",
+        "source evidence immutability test"
+      ],
+      "started_at": "2026-07-29T00:19:46+09:00",
+      "completed_at": "2026-07-29T00:58:14+09:00",
+      "commit_sha": "10e51a3a292b025f0524e0019f037ab3499995cc",
+      "evidence": [
+        {
+          "kind": "artifact_schemas",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/artifact-schemas.json",
+          "bytes": 2429,
+          "sha256": "2a18a4f4b888fb3d262074011dd3e8daa1802040eb938c6fecb448b22a33506c"
+        },
+        {
+          "kind": "csv_snapshots",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/csv-snapshots.json",
+          "bytes": 7934,
+          "sha256": "85be75734b602208743a8e2583c1b752aa4d533687b58a8f322b538a6f596160"
+        },
+        {
+          "kind": "html_rendering_tests",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/html-rendering-report.json",
+          "bytes": 1383,
+          "sha256": "4a96b1f863e780bbaf949dbfa53ed243bf34902de0ec6b90252847606a3a5d3a"
+        },
+        {
+          "kind": "source_evidence_immutability",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/source-evidence-immutability.json",
+          "bytes": 1878,
+          "sha256": "a96593b339f3f32e1ac8f15aa4812785ef488bd0f4aa743927bb67cbfe715e05"
+        },
+        {
+          "kind": "exact_result_identity",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/result-identity.json",
+          "bytes": 620,
+          "sha256": "ae1694d2cd3908cfbae7fa284b9ee4451e151b6634aa67b310c72da019400401"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/hardcoding-audit.json",
+          "bytes": 1650,
+          "sha256": "6afc020c9f8b3a42ea291d72c1cf4e02e937fc133fd7a26a0dcc3797a3634c4a"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/ci-run.json",
+          "bytes": 7904,
+          "sha256": "f8fe1d27a20cd2c42f738d20cbef1deba1dee6a9c38b71ee205f42b532b8cf89"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/acceptance-report.json",
+          "bytes": 4463,
+          "sha256": "3027a7aa6aaf547f92b16e18b1633fd46bee99b3c01efaece6220eebbe471462"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M5-02",
+      "order": 502,
+      "milestone": "M5",
+      "title": "Finish the one-line user flow",
+      "status": "completed",
+      "depends_on": [
+        "M5-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "wizard discovery",
+        "disk preflight",
+        "quick verification consent",
+        "report opening consent"
+      ],
+      "forbidden_changes": [
+        "automatic long official runs",
+        "silent user choices",
+        "unsupported semantic approximation"
+      ],
+      "acceptance_profile": "user_flow",
+      "expected_evidence": [
+        "noninteractive wizard test",
+        "resume test",
+        "verification consent test",
+        "cross-platform path tests"
+      ],
+      "started_at": "2026-07-29T00:58:15+09:00",
+      "completed_at": "2026-07-29T01:58:56+09:00",
+      "commit_sha": "5fe51687a11542b7cd11bb0d097f0088da835eff",
+      "evidence": [
+        {
+          "kind": "noninteractive_wizard_test",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/noninteractive-wizard.json",
+          "bytes": 914,
+          "sha256": "e862a6454cc7b153266cbdbe920c972853f7de1b6dca3902294e79f30da6110d"
+        },
+        {
+          "kind": "resume_test",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/resume-test.json",
+          "bytes": 1505,
+          "sha256": "5fbf4cdaf4c1696a6867854df724327483f50020281a6fd50f2a6169ff7f0db4"
+        },
+        {
+          "kind": "verification_consent_test",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/verification-consent.json",
+          "bytes": 734,
+          "sha256": "acc118966eb9ab305633a5af0d982510a7923b5bb7b2b88fdfdc8f703820b709"
+        },
+        {
+          "kind": "cross_platform_path_tests",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/cross-platform-paths.json",
+          "bytes": 629,
+          "sha256": "35cbe05974b1b87fc52fbeb2fb7d956019d82433518557fad0b290b5dc4be375"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/hardcoding-audit.json",
+          "bytes": 675,
+          "sha256": "50ce2c013a7fe3b29f8db061ec59376ad41026d3d06b2da2a3504de2c24960d5"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/ci-run.json",
+          "bytes": 7974,
+          "sha256": "bb873022085b4b998dc7ff93ceb08eb44fb263ca4ba15bd8736f804d70eb76f5"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/acceptance-report.json",
+          "bytes": 4139,
+          "sha256": "b0e0db87c3b000ccaa7c6609244d0193c5e3ed09b8bf5ddd2bd8e6e8bf9c6c08"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M5-03",
+      "order": 503,
+      "milestone": "M5",
+      "title": "Split PR and nightly CI trust boundaries",
+      "status": "completed",
+      "depends_on": [
+        "M5-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "required PR jobs",
+        "path-aware execution",
+        "sharded nightly matrix",
+        "deduplicated failure reporting"
+      ],
+      "forbidden_changes": [
+        "privileged fork execution",
+        "shared-runner release performance claims",
+        "duplicate fixtures across shards"
+      ],
+      "acceptance_profile": "ci_contract",
+      "expected_evidence": [
+        "workflow validation",
+        "matrix inventory",
+        "path rule tests",
+        "nightly dry-run report"
+      ],
+      "started_at": "2026-07-29T01:58:57+09:00",
+      "completed_at": "2026-07-29T02:33:11+09:00",
+      "commit_sha": "2913063080f10ad35d707f376d5e3bbed6b8ac04",
+      "evidence": [
+        {
+          "kind": "workflow_validation",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/workflow-validation.json",
+          "bytes": 1192,
+          "sha256": "ba3d24ad056780317e2b1c3131a2ccb27ed7cb013412240cb31dfcc7a236ed12"
+        },
+        {
+          "kind": "matrix_inventory",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/matrix-inventory.json",
+          "bytes": 7109,
+          "sha256": "e71107e48d57e1674fa1041cb532fe88a02068087f9707713eb23748cd308daf"
+        },
+        {
+          "kind": "path_rule_tests",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/path-rule-tests.log",
+          "bytes": 98,
+          "sha256": "6affff3fa6ce0c6f95578cfcdc5fb8f6e18696d0b51309940bab380bda460a3e"
+        },
+        {
+          "kind": "nightly_dry_run_report",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/nightly-dry-run-report.json",
+          "bytes": 563,
+          "sha256": "7594f9bc71abba0da24918848a63f8b473a1a15c74b38e6ccf19d8aac0a4b95d"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/hardcoding-audit.json",
+          "bytes": 650,
+          "sha256": "8c7838747144bccdaf80b7a3471c1334e243f9c68f904ce84abbbf72ed638d5f"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/ci-run.json",
+          "bytes": 7974,
+          "sha256": "d4bbaea353b231d1a0514daf1286a90408ff0c4c5218209b4191aab20f87b873"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/acceptance-report.json",
+          "bytes": 5231,
+          "sha256": "ce990c85ea4167bb8c22d14d900f09709012ad01384c78a5e8aced5df76d7308"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M5-04",
+      "order": 504,
+      "milestone": "M5",
+      "title": "Add the protected long-certification workflow",
+      "status": "completed",
+      "depends_on": [
+        "M5-03"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "self-hosted lock",
+        "Oracle fingerprint lookup",
+        "checkpoint and resume",
+        "certificate and immutable evidence upload"
+      ],
+      "forbidden_changes": [
+        "running a new long Oracle without approval",
+        "cancel-in-progress for certification",
+        "overwriting existing evidence"
+      ],
+      "acceptance_profile": "long_certification_workflow",
+      "expected_evidence": [
+        "workflow contract tests",
+        "reuse path dry-run",
+        "interruption resume test",
+        "protected environment snapshot"
+      ],
+      "started_at": "2026-07-29T02:33:12+09:00",
+      "completed_at": "2026-07-29T03:04:09+09:00",
+      "commit_sha": "8d924b27f92b8fe460ad0da8f0670e0b961e8a5d",
+      "evidence": [
+        {
+          "kind": "workflow_contract_tests",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/workflow-contract-report.json",
+          "bytes": 1275,
+          "sha256": "4304b71a8684db68ebd1bdd96c703347d2d3ff8645015231bfe00c5910c5df69"
+        },
+        {
+          "kind": "reuse_path_dry_run",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/reuse-path-dry-run.json",
+          "bytes": 1649,
+          "sha256": "24a976b4b283c45a2004c27f09513233a30b2f48f9bdcf992d7ebf0210e6597e"
+        },
+        {
+          "kind": "interruption_resume_test",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/interruption-resume-tests.log",
+          "bytes": 98,
+          "sha256": "3fcb38e1fcfa38dc1085502533c71aa59ca438c8f584e3256efb4ba9c28a5474"
+        },
+        {
+          "kind": "protected_environment_snapshot",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/protected-environment-snapshot.json",
+          "bytes": 2487,
+          "sha256": "5636dccc549064eb174ecfe542370ec379375fbfd82dae19c0f9530920ca4c7e"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/hardcoding-audit.json",
+          "bytes": 472,
+          "sha256": "fd7ed88a148cb4e817700224f929338e3a8ea01df4f5568e6caadba0584fb0e9"
+        },
+        {
+          "kind": "successful_required_ci_run",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/ci-run.json",
+          "bytes": 7974,
+          "sha256": "37b1459075b7269a9f1b1e51a5c2291df2ef2d644ff1005843aa4416d0194cb7"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/acceptance-report.json",
+          "bytes": 5480,
+          "sha256": "68f7e5e0bf74df0deab9b266341540ac55126963ec52f96639ff37bb5d3fb235"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M6-01",
+      "order": 601,
+      "milestone": "M6",
+      "title": "Freeze the combined-release candidate",
+      "status": "completed",
+      "depends_on": [
+        "M5-04"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "final source commit",
+        "final candidate wheels",
+        "strategy and input identities"
+      ],
+      "forbidden_changes": [
+        "post-freeze code changes",
+        "mixed candidate identities",
+        "unsealed inputs"
+      ],
+      "acceptance_profile": "release_candidate",
+      "expected_evidence": [
+        "candidate bundle",
+        "four wheel hashes",
+        "three-OS evidence",
+        "source commit"
+      ],
+      "started_at": "2026-07-29T05:14:11+09:00",
+      "completed_at": "2026-07-29T07:47:29+09:00",
+      "commit_sha": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+      "evidence": [
+        {
+          "kind": "candidate_bundle",
+          "path": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/candidate",
+          "artifact_id": 8706421088,
+          "artifact_digest": "sha256:abafcec001bfb636c4861de0386bd90b28eac6ac9d4e07fc6b05a1c251811fbb",
+          "bytes": 8868433
+        },
+        {
+          "kind": "distribution_checksums",
+          "path": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/candidate/SHA256SUMS.txt",
+          "bytes": 1587,
+          "sha256": "3ad796334a25bcfe4788ea212a3e8374c781a02c9e65e582abbeae101d067e55"
+        },
+        {
+          "kind": "candidate_plan",
+          "path": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/candidate/release-candidate-plan.json",
+          "bytes": 8550,
+          "sha256": "0f215b0bdaa8fe451002c3c36ba3f748268fa7ca649d218974dcd0517bdc5a7e"
+        },
+        {
+          "kind": "spot_three_os_evidence",
+          "path": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/candidate/platform/spot/platform-evidence.json",
+          "bytes": 2429,
+          "sha256": "35d4dc5ea8c7886f22ef1aed150db65f7092668a5d86e29ad49326fe6729bb4d"
+        },
+        {
+          "kind": "futures_three_os_evidence",
+          "path": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/candidate/platform/futures/platform-evidence.json",
+          "bytes": 2452,
+          "sha256": "64ef1187f31ab84319e33b4389cb1742c21465200cad13751a1bbdc5527f6479"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/acceptance-report.json",
+          "bytes": 5281,
+          "sha256": "9821b0e74bae980f4e3d0e0f9bdbe42d778c8be163f562615aa5194e391747cc"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M6-02",
+      "order": 602,
+      "milestone": "M6",
+      "title": "Certify latest Spot with the frozen candidate",
+      "status": "superseded",
+      "depends_on": [
+        "M6-01"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "80-pair five-year Spot certificate",
+        "official Oracle or verified reuse",
+        "three-to-five Native runs",
+        "Spot branch matrix"
+      ],
+      "forbidden_changes": [
+        "Oracle rerun without fingerprint need",
+        "partial timerange certificate",
+        "mixed wheel identity"
+      ],
+      "acceptance_profile": "full_mode_certification",
+      "expected_evidence": [
+        "Spot certificate",
+        "Spot evidence bundle",
+        "official parity",
+        "performance report"
+      ],
+      "started_at": "2026-07-29T07:49:54+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [
+        {
+          "kind": "manual_gate_request",
+          "path": ".nfi/roadmap-acceptance/M6-02/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/manual-gate-request.json",
+          "bytes": 3264,
+          "sha256": "697a7baa3ef9089cebe1befefd9d32d1a3860e4dfa1853615610fbd9744a37f0"
+        },
+        {
+          "kind": "spot_release_input_lock",
+          "path": ".nfi/m6-v174473-spot-release-inputs/release-input-lock.json",
+          "bytes": 3812,
+          "sha256": "be627e558e3c4d0811105c5e02c49b60ad9128a48ddd1ad503a4a1204f50cf8a"
+        },
+        {
+          "kind": "combined_certification_preflight",
+          "path": ".nfi/m6-full-certification/preflight.json",
+          "bytes": 1981,
+          "sha256": "c556a7369d57d52ece0640dc00d8a5f7c85cb8b875ed9a6326fea4240cadaaf1"
+        },
+        {
+          "kind": "bootstrap_execution_plans",
+          "path": ".nfi/m6-full-certification/bootstrap-plans.json",
+          "bytes": 6087,
+          "sha256": "42b61618bc87c94e0644098ebab26f443509922384b75d83c4aad598f66e0cd5"
+        },
+        {
+          "kind": "self_hosted_runner_preflight",
+          "path": ".nfi/m6-full-certification/runner-preflight.json",
+          "bytes": 870,
+          "sha256": "b96b227db490bfa00bde690ff26b21307b520674d899ed0e735bc7c6c8551d3d"
+        },
+        {
+          "kind": "scope_decision",
+          "path": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+          "bytes": 3441,
+          "sha256": "b49d908eabbd4e6e2dd715cf8edbbfc693384933efe46716bf694b312f3d4666"
+        }
+      ],
+      "blocker": {
+        "type": "user_scope_decision",
+        "summary": "User declined latest-strategy same-candidate five-year recertification and the dependent combined certified release.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json"
+      }
+    },
+    {
+      "id": "M6-03",
+      "order": 603,
+      "milestone": "M6",
+      "title": "Certify Futures with the frozen candidate",
+      "status": "superseded",
+      "depends_on": [
+        "M6-01"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "80-pair five-year Futures certificate",
+        "verified Oracle reuse when identity matches",
+        "three-to-five Native runs",
+        "nine-probe matrix"
+      ],
+      "forbidden_changes": [
+        "unnecessary long Oracle rerun",
+        "mixed wheel identity",
+        "missing branch coverage"
+      ],
+      "acceptance_profile": "full_mode_certification",
+      "expected_evidence": [
+        "Futures certificate",
+        "Futures evidence bundle",
+        "official parity",
+        "performance report"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [
+        {
+          "kind": "scope_decision",
+          "path": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+          "bytes": 3441,
+          "sha256": "b49d908eabbd4e6e2dd715cf8edbbfc693384933efe46716bf694b312f3d4666"
+        }
+      ],
+      "blocker": {
+        "type": "user_scope_decision",
+        "summary": "User declined latest-strategy same-candidate five-year recertification and the dependent combined certified release.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json"
+      }
+    },
+    {
+      "id": "M6-04",
+      "order": 604,
+      "milestone": "M6",
+      "title": "Seal final three-OS evidence",
+      "status": "superseded",
+      "depends_on": [
+        "M6-02",
+        "M6-03"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "Linux, Windows, and macOS final wheel evidence",
+        "identical workload and result identities"
+      ],
+      "forbidden_changes": [
+        "cross-OS result mismatch acceptance",
+        "shared-runner long performance claims",
+        "rebuilding certified wheels"
+      ],
+      "acceptance_profile": "platform_release_evidence",
+      "expected_evidence": [
+        "three-OS evidence bundle",
+        "platform medians",
+        "peak RSS reports",
+        "portable package identity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [
+        {
+          "kind": "scope_decision",
+          "path": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+          "bytes": 3441,
+          "sha256": "b49d908eabbd4e6e2dd715cf8edbbfc693384933efe46716bf694b312f3d4666"
+        }
+      ],
+      "blocker": {
+        "type": "user_scope_decision",
+        "summary": "User declined the new full recertification chain, so its dependent final three-OS certification seal is out of scope.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json"
+      }
+    },
+    {
+      "id": "M6-05",
+      "order": 605,
+      "milestone": "M6",
+      "title": "Publish the combined Full X7 release",
+      "status": "superseded",
+      "depends_on": [
+        "M6-02",
+        "M6-03",
+        "M6-04"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "combined release gate",
+        "RC audit",
+        "byte-identical stable promotion",
+        "installer verification"
+      ],
+      "forbidden_changes": [
+        "preview stable release",
+        "asset rebuild during promotion",
+        "mismatched tags"
+      ],
+      "acceptance_profile": "combined_release",
+      "expected_evidence": [
+        "combined certificate",
+        "RC audit",
+        "stable byte comparison",
+        "installer dry-runs"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [
+        {
+          "kind": "scope_decision",
+          "path": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+          "bytes": 3441,
+          "sha256": "b49d908eabbd4e6e2dd715cf8edbbfc693384933efe46716bf694b312f3d4666"
+        }
+      ],
+      "blocker": {
+        "type": "user_scope_decision",
+        "summary": "A combined certified stable release will not be published without the declined latest-strategy same-candidate recertifications.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json"
+      }
+    },
+    {
+      "id": "M7-01",
+      "order": 701,
+      "milestone": "M7",
+      "title": "Finish Rust responsibility modularization",
+      "status": "in_progress",
+      "depends_on": [
+        "M6-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "thin nfi-sim-core public facade",
+        "scalar VM and callback projection modules",
+        "NFI dispatch, exit, adjustment, and state hierarchy",
+        "execution and validation responsibility modules",
+        "nfi-vector-io reader, schema, and row decoding modules",
+        "module-local Rust tests"
+      ],
+      "forbidden_changes": [
+        "simulation behavior changes",
+        "serialization or schema changes",
+        "event ordering changes",
+        "algorithm optimization",
+        "strategy, pair, timerange, or expected-result runtime branches"
+      ],
+      "acceptance_profile": "rust_x7_refactor",
+      "expected_evidence": [
+        "Rust module inventory",
+        "hardcoding audit",
+        "Rust format, test, and Clippy report",
+        "Python integration report",
+        "Spot and Futures full fixture identity"
+      ],
+      "started_at": "2026-07-29T13:46:09+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "timestamp": "2026-07-28",
+      "task_id": null,
+      "event": "roadmap_initialized",
+      "details": {
+        "next_eligible_task": "M1-01",
+        "baseline_tag": "v1.1.0"
+      }
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-07-28T04:18:53+09:00",
+      "task_id": "M1-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "regression_contract",
+        "worktree_head": "e20fb70751c855e9678ae10afdece6d3f2e84ca8"
+      }
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-07-28T04:45:33+09:00",
+      "task_id": "M1-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "9203a929328f53fcf658a117d96b3cf351444e31",
+        "acceptance_profile": "regression_contract",
+        "acceptance_report": ".nfi/roadmap-acceptance/M1-01/9203a929328f53fcf658a117d96b3cf351444e31/acceptance-report.json",
+        "next_eligible_task": "M1-02"
+      }
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-07-28T04:46:33+09:00",
+      "task_id": "M1-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "verification_ledger",
+        "worktree_head": "9203a929328f53fcf658a117d96b3cf351444e31"
+      }
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-07-28T05:08:38+09:00",
+      "task_id": "M1-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "6829053bd08b9bd84caff8f32cb881fdcc3375ac",
+        "acceptance_profile": "verification_ledger",
+        "acceptance_report": ".nfi/roadmap-acceptance/M1-02/6829053bd08b9bd84caff8f32cb881fdcc3375ac/acceptance-report.json",
+        "next_eligible_task": "M1-03"
+      }
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-07-28T05:09:10+09:00",
+      "task_id": "M1-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "clean_dry_run",
+        "worktree_head": "6829053bd08b9bd84caff8f32cb881fdcc3375ac"
+      }
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-07-28T05:28:55+09:00",
+      "task_id": "M1-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "a3b599639d242fd33d0a967ccbed189f602f4a3e",
+        "acceptance_profile": "clean_dry_run",
+        "acceptance_report": ".nfi/roadmap-acceptance/M1-03/a3b599639d242fd33d0a967ccbed189f602f4a3e/acceptance-report.json",
+        "next_eligible_task": "M1-04"
+      }
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-07-28T05:29:27+09:00",
+      "task_id": "M1-04",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "release_workflow",
+        "worktree_head": "a3b599639d242fd33d0a967ccbed189f602f4a3e"
+      }
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-07-28T05:52:55+09:00",
+      "task_id": "M1-04",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726",
+        "acceptance_profile": "release_workflow",
+        "acceptance_report": ".nfi/roadmap-acceptance/M1-04/f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726/acceptance-report.json",
+        "next_eligible_task": "M1-05",
+        "next_task_manual_gate": true
+      }
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-07-28T06:03:03+09:00",
+      "task_id": "M1-05",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "ci_contract",
+        "worktree_head": "f4c20d38ee4cdb8cef3b02fe93d34f7c0a1f2726",
+        "manual_gate_approved": true,
+        "approval_message": "네 승인합니다",
+        "branch_protection_before": "unprotected"
+      }
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-07-28T06:34:12+09:00",
+      "task_id": "M1-05",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "1a5ce133cfe42f96ca7b0f3884b2e5839dc33700",
+        "acceptance_profile": "ci_contract",
+        "acceptance_report": ".nfi/roadmap-acceptance/M1-05/1a5ce133cfe42f96ca7b0f3884b2e5839dc33700/acceptance-report.json",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30306342269",
+        "branch_protection": {
+          "branch": "main",
+          "required_check": "Required CI",
+          "strict": true,
+          "enforce_admins": true
+        },
+        "next_eligible_task": "M2-01"
+      }
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-07-28T06:35:33+09:00",
+      "task_id": "M2-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "python_refactor",
+        "worktree_head": "1a5ce133cfe42f96ca7b0f3884b2e5839dc33700",
+        "branch": "refactor/cli-command-orchestration",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-07-28T07:08:25+09:00",
+      "task_id": "M2-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "0918ca986808e419d244746d2a68c8cf07cfe08b",
+        "merge_commit_sha": "3f2314d3514db24ed29c55c91bb01a40326d18c4",
+        "acceptance_profile": "python_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M2-01/0918ca986808e419d244746d2a68c8cf07cfe08b/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/18",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30308685179",
+        "next_eligible_task": "M2-02"
+      }
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-07-28T07:09:22+09:00",
+      "task_id": "M2-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "python_refactor",
+        "worktree_head": "3f2314d3514db24ed29c55c91bb01a40326d18c4",
+        "branch": "refactor/strategy-analysis-lowering",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-07-28T07:36:09+09:00",
+      "task_id": "M2-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "0cbff9c789944818595c37aaf852c61ab4bdc5aa",
+        "merge_commit_sha": "cf57f6cfd93e33214ec6d7916df96045d18ddb86",
+        "acceptance_profile": "python_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M2-02/0cbff9c789944818595c37aaf852c61ab4bdc5aa/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/19",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30310572516",
+        "next_eligible_task": "M2-03"
+      }
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-07-28T14:27:47+09:00",
+      "task_id": "M2-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "x7_refactor",
+        "worktree_head": "cf57f6cfd93e33214ec6d7916df96045d18ddb86",
+        "branch": "refactor/x7-adapter-trade-manager",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-07-28T15:05:53+09:00",
+      "task_id": "M2-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62",
+        "merge_commit_sha": "f7c5bb076bca30a99f926e62ef640aef6ebd2f58",
+        "acceptance_profile": "x7_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M2-03/e3a5daa4bf0ce1b5fb505a33c857ad78d4842f62/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/20",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30333034533",
+        "next_eligible_task": "M2-04"
+      }
+    },
+    {
+      "sequence": 18,
+      "timestamp": "2026-07-28T15:08:33+09:00",
+      "task_id": "M2-04",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "reference_certification_refactor",
+        "worktree_head": "f7c5bb076bca30a99f926e62ef640aef6ebd2f58",
+        "branch": "refactor/reference-certification-reporting",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 19,
+      "timestamp": "2026-07-28T15:53:33+09:00",
+      "task_id": "M2-04",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "23bd02f39ba987308e7846a04deee6db4bbd38ea",
+        "merge_commit_sha": "e7250b7382be206718534bb1a9b505b9473b33b9",
+        "acceptance_profile": "reference_certification_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M2-04/23bd02f39ba987308e7846a04deee6db4bbd38ea/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/21",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30335625266",
+        "next_eligible_task": "M3-01"
+      }
+    },
+    {
+      "sequence": 20,
+      "timestamp": "2026-07-28T15:55:32+09:00",
+      "task_id": "M3-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "rust_refactor",
+        "worktree_head": "e7250b7382be206718534bb1a9b505b9473b33b9",
+        "branch": "refactor/rust-domain-calculations",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 21,
+      "timestamp": "2026-07-28T16:26:44+09:00",
+      "task_id": "M3-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "cd928ac4847e9aebae274ecfd8a684269b340d15",
+        "merge_commit_sha": "f870034411f08c6138704e44b696ec437c74be08",
+        "acceptance_profile": "rust_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M3-01/cd928ac4847e9aebae274ecfd8a684269b340d15/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/22",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30337698054",
+        "next_eligible_task": "M3-02"
+      }
+    },
+    {
+      "sequence": 22,
+      "timestamp": "2026-07-28T16:27:29+09:00",
+      "task_id": "M3-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "rust_refactor",
+        "worktree_head": "f870034411f08c6138704e44b696ec437c74be08",
+        "branch": "refactor/rust-io-validation",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 23,
+      "timestamp": "2026-07-28T17:05:34+09:00",
+      "task_id": "M3-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "154abfaebdce441340acc9768d8bdf3df0c7cdd7",
+        "merge_commit_sha": "c5f2578670b61da6a3864aef14c5786fff8d3d89",
+        "acceptance_profile": "rust_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M3-02/154abfaebdce441340acc9768d8bdf3df0c7cdd7/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/23",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30340181894",
+        "next_eligible_task": "M3-03"
+      }
+    },
+    {
+      "sequence": 24,
+      "timestamp": "2026-07-28T17:08:27+09:00",
+      "task_id": "M3-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "rust_refactor",
+        "worktree_head": "c5f2578670b61da6a3864aef14c5786fff8d3d89",
+        "branch": "refactor/rust-portfolio-execution",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 25,
+      "timestamp": "2026-07-28T17:39:27+09:00",
+      "task_id": "M3-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "a5761e8808b72f52f6a9075fd7e7341e5e61e42f",
+        "merge_commit_sha": "a2e37a2ab988ddbc738fa0557aada0c66595b367",
+        "acceptance_profile": "rust_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M3-03/a5761e8808b72f52f6a9075fd7e7341e5e61e42f/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/24",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30342498693",
+        "next_eligible_task": "M3-04"
+      }
+    },
+    {
+      "sequence": 26,
+      "timestamp": "2026-07-28T17:41:26+09:00",
+      "task_id": "M3-04",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "rust_x7_refactor",
+        "worktree_head": "a2e37a2ab988ddbc738fa0557aada0c66595b367",
+        "branch": "refactor/rust-futures-protections-nfi-state",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 27,
+      "timestamp": "2026-07-28T18:14:47+09:00",
+      "task_id": "M3-04",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "d47893bc616c8fb38bb20b4554944fcd5f3f0e6d",
+        "merge_commit_sha": "2f7b28b5ad9bedf82134eec5019d5388d8bf2911",
+        "acceptance_profile": "rust_x7_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M3-04/d47893bc616c8fb38bb20b4554944fcd5f3f0e6d/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/25",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30344946722",
+        "next_eligible_task": "M3-05"
+      }
+    },
+    {
+      "sequence": 28,
+      "timestamp": "2026-07-28T18:16:11+09:00",
+      "task_id": "M3-05",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "rust_event_loop_refactor",
+        "worktree_head": "2f7b28b5ad9bedf82134eec5019d5388d8bf2911",
+        "branch": "refactor/rust-global-event-loop-profiling",
+        "branch_protection_required_check": "Required CI"
+      }
+    },
+    {
+      "sequence": 29,
+      "timestamp": "2026-07-28T18:40:35+09:00",
+      "task_id": "M3-05",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "2543c486737e9b9a0b5d40ba2001b7ef34813a43",
+        "merge_commit_sha": "92071cf15773bf0c66fec314d6bc824f53745f8d",
+        "acceptance_profile": "rust_event_loop_refactor",
+        "acceptance_report": ".nfi/roadmap-acceptance/M3-05/2543c486737e9b9a0b5d40ba2001b7ef34813a43/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/26",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30346796699",
+        "next_eligible_task": "M4-01"
+      }
+    },
+    {
+      "sequence": 30,
+      "timestamp": "2026-07-28T18:40:57+09:00",
+      "task_id": "M4-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "performance_measurement",
+        "worktree_head": "92071cf15773bf0c66fec314d6bc824f53745f8d",
+        "branch": "measure/post-refactor-performance-baseline",
+        "branch_protection_required_check": "Required CI",
+        "manual_gate_approval": "user-approved in conversation"
+      }
+    },
+    {
+      "sequence": 31,
+      "timestamp": "2026-07-28T20:03:39+09:00",
+      "task_id": "M4-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "92071cf15773bf0c66fec314d6bc824f53745f8d",
+        "acceptance_profile": "performance_measurement",
+        "acceptance_report": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/acceptance-report.json",
+        "source_change": false,
+        "cold_full_process_wall_seconds": 937.92,
+        "preserved_vector_repetitions": 5,
+        "preserved_full_process_median_seconds": 608.34,
+        "preserved_engine_median_seconds": 486.181749684,
+        "preserved_peak_rss_median_bytes": 764289024,
+        "preserved_swap_count": 0,
+        "top_measured_bottleneck": "feather_decode",
+        "top_measured_bottleneck_median_seconds": 369.810479616,
+        "exact_surface_sha_unchanged": true,
+        "official_oracle_rerun": false,
+        "next_eligible_task": "M4-02"
+      }
+    },
+    {
+      "sequence": 32,
+      "timestamp": "2026-07-28T20:03:51+09:00",
+      "task_id": "M4-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "performance_change",
+        "worktree_head": "92071cf15773bf0c66fec314d6bc824f53745f8d",
+        "branch": "optimize/vector-data-pipeline",
+        "branch_protection_required_check": "Required CI",
+        "baseline_report": ".nfi/roadmap-acceptance/M4-01/92071cf15773bf0c66fec314d6bc824f53745f8d/performance-baseline-report.json",
+        "measured_bottlenecks": [
+          "feather_decode",
+          "vector_hash",
+          "rust_validation"
+        ],
+        "runtime_branch_policy": "No strategy SHA, pair, timerange, expected-result, or benchmark-specific runtime branch."
+      }
+    },
+    {
+      "sequence": 33,
+      "timestamp": "2026-07-28T21:13:23+09:00",
+      "task_id": "M4-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "f4bea130a0ec7a06217d31d6e89350056e5d129d",
+        "merge_commit_sha": "478fcd6b5fcb47eb0b7814dd9549371f0dbd9642",
+        "acceptance_profile": "performance_change",
+        "acceptance_report": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/27",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30356963020",
+        "warm_repetitions": 3,
+        "warm_pipeline_relative_spread": 0.02983639608658419,
+        "warm_full_process_median_seconds": 361.95,
+        "warm_pipeline_median_seconds": 359.64414036,
+        "warm_engine_median_seconds": 235.046395028,
+        "warm_feather_decode_median_seconds": 115.880380157,
+        "warm_engine_peak_rss_median_bytes": 841666560,
+        "cold_full_process_wall_seconds": 725.14,
+        "cold_pipeline_wall_seconds": 722.854867614,
+        "exact_surface_sha_unchanged": true,
+        "hardcoding_audit_passed": true,
+        "next_eligible_task": "M4-03"
+      }
+    },
+    {
+      "sequence": 34,
+      "timestamp": "2026-07-28T21:13:24+09:00",
+      "task_id": "M4-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "performance_change",
+        "worktree_head": "478fcd6b5fcb47eb0b7814dd9549371f0dbd9642",
+        "branch": "optimize/rust-event-loop",
+        "branch_protection_required_check": "Required CI",
+        "baseline_report": ".nfi/roadmap-acceptance/M4-02/f4bea130a0ec7a06217d31d6e89350056e5d129d/before-after-performance-report.json",
+        "measured_event_loop_median_seconds": 75.527237141,
+        "forbidden_changes": [
+          "global ordering changes",
+          "pair-isolated simulation",
+          "unmeasured optimization"
+        ],
+        "runtime_branch_policy": "No strategy SHA, pair, timerange, expected-result, or benchmark-specific runtime branch."
+      }
+    },
+    {
+      "sequence": 35,
+      "timestamp": "2026-07-28T23:09:51+09:00",
+      "task_id": "M4-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "5c6b65896c8509573cef9f62df55a800c16e3333",
+        "merge_commit_sha": "8d113bbfd0d8a5071ba416b95a6ef05af1947bd2",
+        "acceptance_profile": "performance_change",
+        "acceptance_report": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/28",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30365893851",
+        "warm_repetitions": 5,
+        "first_three_event_loop_relative_spread": 0.0564143803915438,
+        "warm_event_loop_median_seconds": 72.967260994,
+        "warm_event_loop_reduction_percent": 3.3894741074942836,
+        "warm_pipeline_median_seconds": 355.938635501,
+        "warm_pipeline_reduction_percent": 1.0303253808864543,
+        "warm_engine_peak_rss_median_bytes": 748949504,
+        "cold_pipeline_wall_seconds": 731.060778899,
+        "cold_pipeline_reduction_percent": -1.135208691626577,
+        "cold_peak_rss_bytes": 4160573440,
+        "exact_surface_sha_unchanged": true,
+        "exact_simulation_sha_unchanged": true,
+        "state_projection_identity_passed": true,
+        "hardcoding_audit_passed": true,
+        "global_ordering_unchanged": true,
+        "next_eligible_task": "M4-04"
+      }
+    },
+    {
+      "sequence": 36,
+      "timestamp": "2026-07-28T23:09:52+09:00",
+      "task_id": "M4-04",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "performance_change",
+        "worktree_head": "8d113bbfd0d8a5071ba416b95a6ef05af1947bd2",
+        "branch": "optimize/python-rust-boundary",
+        "branch_protection_required_check": "Required CI",
+        "baseline_report": ".nfi/roadmap-acceptance/M4-03/5c6b65896c8509573cef9f62df55a800c16e3333/before-after-performance-report.json",
+        "scope": [
+          "measured serialization bottlenecks",
+          "measured duplicate traversal bottlenecks"
+        ],
+        "forbidden_changes": [
+          "result schema changes",
+          "normalization changes",
+          "unmeasured optimization"
+        ],
+        "runtime_branch_policy": "No strategy SHA, pair, timerange, expected-result, or benchmark-specific runtime branch."
+      }
+    },
+    {
+      "sequence": 37,
+      "timestamp": "2026-07-29T00:19:45+09:00",
+      "task_id": "M4-04",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "4e1f5a8613260a24c5707164eb7c3c1f4640e1a3",
+        "merge_commit_sha": "e4fed2dfdbbc1fb8e42cdaf35e2ec1276494d62b",
+        "acceptance_profile": "performance_change",
+        "acceptance_report": ".nfi/roadmap-acceptance/M4-04/4e1f5a8613260a24c5707164eb7c3c1f4640e1a3/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/29",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30371753840",
+        "warm_repetitions": 3,
+        "first_three_manifest_relative_spread": 0.015336199239550093,
+        "warm_manifest_median_seconds": 40.966299354,
+        "warm_manifest_reduction_percent": 37.13881871450001,
+        "warm_pipeline_median_seconds": 273.310398013,
+        "warm_pipeline_reduction_percent": 23.214180548761444,
+        "cache_rekey_seed_excluded_from_warm_sample": true,
+        "cold_pipeline_wall_seconds": 599.994663333,
+        "cold_pipeline_reduction_percent": 17.928210533109112,
+        "cold_peak_rss_bytes": 4159303680,
+        "exact_surface_sha_unchanged": true,
+        "exact_simulation_sha_unchanged": true,
+        "artifact_schema_identity_passed": true,
+        "post_manifest_mutation_rejected": true,
+        "rust_content_hash_verification_retained": true,
+        "hardcoding_audit_passed": true,
+        "next_eligible_task": "M5-01"
+      }
+    },
+    {
+      "sequence": 38,
+      "timestamp": "2026-07-29T00:19:46+09:00",
+      "task_id": "M5-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "result_artifacts",
+        "worktree_head": "e4fed2dfdbbc1fb8e42cdaf35e2ec1276494d62b",
+        "branch": "feature/result-artifacts-v2",
+        "branch_protection_required_check": "Required CI",
+        "scope": [
+          "orders CSV",
+          "equity CSV",
+          "verification JSON",
+          "evidence index",
+          "HTML additions"
+        ],
+        "forbidden_changes": [
+          "modifying source evidence",
+          "inventing candle-level equity",
+          "changing exact surfaces"
+        ],
+        "runtime_branch_policy": "Artifacts are derived generically from sealed result data; no strategy, pair, timerange, or expected-result specialization."
+      }
+    },
+    {
+      "sequence": 39,
+      "timestamp": "2026-07-29T00:58:14+09:00",
+      "task_id": "M5-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "10e51a3a292b025f0524e0019f037ab3499995cc",
+        "merge_commit_sha": "7bdaf395c304de50ef35c845ae3a12a72f1d97b4",
+        "acceptance_profile": "result_artifacts",
+        "acceptance_report": ".nfi/roadmap-acceptance/M5-01/10e51a3a292b025f0524e0019f037ab3499995cc/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/30",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30374923344",
+        "trade_count": 174,
+        "order_count": 795,
+        "equity_rows": 175,
+        "exact_surface_sha_unchanged": true,
+        "derived_artifacts_byte_deterministic": true,
+        "source_evidence_unchanged": true,
+        "hardcoding_audit_passed": true,
+        "next_eligible_task": "M5-02"
+      }
+    },
+    {
+      "sequence": 40,
+      "timestamp": "2026-07-29T00:58:15+09:00",
+      "task_id": "M5-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "user_flow",
+        "worktree_head": "7bdaf395c304de50ef35c845ae3a12a72f1d97b4",
+        "branch": "feature/one-line-user-flow",
+        "branch_protection_required_check": "Required CI",
+        "scope": [
+          "wizard discovery",
+          "disk preflight",
+          "quick verification consent",
+          "report opening consent"
+        ],
+        "forbidden_changes": [
+          "automatic long official runs",
+          "silent user choices",
+          "unsupported semantic approximation"
+        ],
+        "runtime_branch_policy": "All decisions derive from discovered inputs, measured resources, sealed output identity, and explicit user consent; no strategy, pair, or timerange specialization."
+      }
+    },
+    {
+      "sequence": 41,
+      "timestamp": "2026-07-29T01:58:56+09:00",
+      "task_id": "M5-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "5fe51687a11542b7cd11bb0d097f0088da835eff",
+        "merge_commit_sha": "cda1be0bf15eeffbd55a6ade261adcb90a60890b",
+        "acceptance_profile": "user_flow",
+        "acceptance_report": ".nfi/roadmap-acceptance/M5-02/5fe51687a11542b7cd11bb0d097f0088da835eff/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/31",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30379824272",
+        "profile_test_count": 42,
+        "full_test_count": 421,
+        "real_completed_run_resume_passed": true,
+        "source_evidence_unchanged": true,
+        "noninteractive_optional_actions_skipped": true,
+        "hardcoding_audit_passed": true,
+        "next_eligible_task": "M5-03"
+      }
+    },
+    {
+      "sequence": 42,
+      "timestamp": "2026-07-29T01:58:57+09:00",
+      "task_id": "M5-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "ci_contract",
+        "worktree_head": "cda1be0bf15eeffbd55a6ade261adcb90a60890b",
+        "branch": "ci/pr-nightly-trust-boundaries",
+        "branch_protection_required_check": "Required CI",
+        "scope": [
+          "required PR jobs",
+          "path-aware execution",
+          "sharded nightly matrix",
+          "deduplicated failure reporting"
+        ],
+        "forbidden_changes": [
+          "privileged fork execution",
+          "shared-runner release performance claims",
+          "duplicate fixtures across shards"
+        ],
+        "runtime_branch_policy": "CI selection derives from changed paths and versioned fixture inventory; shard membership and failure grouping are generated, not workload-name special cases."
+      }
+    },
+    {
+      "sequence": 43,
+      "timestamp": "2026-07-29T02:33:11+09:00",
+      "task_id": "M5-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "2913063080f10ad35d707f376d5e3bbed6b8ac04",
+        "merge_commit_sha": "d9ac326b2d3433eb0e35f4812fd99e802eb997c6",
+        "acceptance_profile": "ci_contract",
+        "acceptance_report": ".nfi/roadmap-acceptance/M5-03/2913063080f10ad35d707f376d5e3bbed6b8ac04/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/32",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30382363278",
+        "profile_test_count": 25,
+        "full_test_count": 425,
+        "fixture_count": 13,
+        "shard_count": 3,
+        "duplicate_fixture_count": 0,
+        "missing_fixture_count": 0,
+        "hardcoding_audit_passed": true,
+        "next_eligible_task": "M5-04"
+      }
+    },
+    {
+      "sequence": 44,
+      "timestamp": "2026-07-29T02:33:12+09:00",
+      "task_id": "M5-04",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "long_certification_workflow",
+        "worktree_head": "d9ac326b2d3433eb0e35f4812fd99e802eb997c6",
+        "branch": "ci/protected-long-certification",
+        "manual_gate_approval": "User explicitly approved continuation before this task.",
+        "scope": [
+          "self-hosted lock",
+          "Oracle fingerprint lookup",
+          "checkpoint and resume",
+          "certificate and immutable evidence upload"
+        ],
+        "forbidden_changes": [
+          "running a new long Oracle without approval",
+          "cancel-in-progress for certification",
+          "overwriting existing evidence"
+        ],
+        "execution_boundary": "Implement and dry-run the protected workflow without launching a new long Oracle."
+      }
+    },
+    {
+      "sequence": 45,
+      "timestamp": "2026-07-29T03:04:09+09:00",
+      "task_id": "M5-04",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "8d924b27f92b8fe460ad0da8f0670e0b961e8a5d",
+        "merge_commit_sha": "1d8ad2aca2eba01fe3ff97129be79fc7a35cfd2b",
+        "acceptance_profile": "long_certification_workflow",
+        "acceptance_report": ".nfi/roadmap-acceptance/M5-04/8d924b27f92b8fe460ad0da8f0670e0b961e8a5d/acceptance-report.json",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/33",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30384710705",
+        "release_contract_test_count": 34,
+        "workflow_contract_test_count": 28,
+        "full_test_count": 428,
+        "protected_environment": "full-x7-certification",
+        "new_oracle_run_started": false,
+        "hardcoding_audit_passed": true,
+        "runtime_ready_for_long_dispatch": false,
+        "runtime_blockers": [
+          "No self-hosted runner is registered.",
+          "NFI_EVIDENCE_AWS_ROLE is not configured.",
+          "NFI_EVIDENCE_AWS_REGION is not configured.",
+          "NFI_EVIDENCE_BUCKET is not configured."
+        ],
+        "next_eligible_task": "M6-01",
+        "next_task_requires_manual_approval": true
+      }
+    },
+    {
+      "sequence": 46,
+      "timestamp": "2026-07-29T05:14:11+09:00",
+      "task_id": "M6-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "release_candidate",
+        "candidate_source_commit": "8ff9c66959e7a4d7c3b5264689bdf0ca7c80535a",
+        "implementation_commit": "3d8ac1822d489195c049514d7445e412000f96ec",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/35",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30394187760",
+        "manual_gate_approval": "User explicitly approved continuation and requested all remaining work.",
+        "package_version": "1.2.0",
+        "strategy_upstream_commit": "8da6038be51654bdaa36839f3f1e296d2fc290ff",
+        "strategy_sha256": "fcb8d93b3e77c7caa87bcb3dfb669a6279300a8a848244783c42186134f82170",
+        "scope": [
+          "final source commit",
+          "final candidate wheels",
+          "strategy and input identities"
+        ],
+        "execution_boundary": "Build and seal the four wheels, source distribution, declarative candidate plan, and both-mode three-OS evidence without starting a long Oracle or publishing a tag."
+      }
+    },
+    {
+      "sequence": 47,
+      "timestamp": "2026-07-29T05:14:49+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_dispatched",
+      "details": {
+        "workflow": "Build release candidate",
+        "run_id": 30395481257,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30395481257",
+        "candidate_source_commit": "8ff9c66959e7a4d7c3b5264689bdf0ca7c80535a",
+        "head_branch": "main",
+        "status": "queued",
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 48,
+      "timestamp": "2026-07-29T05:19:34+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_failed",
+      "details": {
+        "run_id": 30395481257,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30395481257",
+        "candidate_source_commit": "8ff9c66959e7a4d7c3b5264689bdf0ca7c80535a",
+        "failed_step": "Measure exact Spot and Futures fixtures",
+        "failure": "Installed package root resolved to certification_parts after the verifier was moved into a subpackage.",
+        "candidate_frozen": false,
+        "partial_artifacts_accepted": false,
+        "new_oracle_run_started": false,
+        "release_published": false,
+        "recovery_branch": "fix/release-installed-package-root"
+      }
+    },
+    {
+      "sequence": 49,
+      "timestamp": "2026-07-29T05:39:52+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_failure_recovered",
+      "details": {
+        "fix_commit": "88a4ab3f91bd400a90bd9a6f7737765800539d16",
+        "merge_commit": "848b60cb1c9bb629d28bc5288b2ea2d58229081c",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/36",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30396113112",
+        "fix": "Resolve the installed package root from the certification_parts module to its package parent.",
+        "focused_test_count": 34,
+        "full_test_count_per_os": 441,
+        "actual_isolated_wheel_verification": {
+          "package_version": "1.2.0",
+          "fixture_mode": "spot",
+          "complete": true,
+          "runs": 3,
+          "median_seconds": 30.52,
+          "peak_rss_bytes": 648871936
+        },
+        "candidate_frozen": false,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 50,
+      "timestamp": "2026-07-29T05:40:39+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_dispatched",
+      "details": {
+        "workflow": "Build release candidate",
+        "run_id": 30397375712,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30397375712",
+        "candidate_source_commit": "848b60cb1c9bb629d28bc5288b2ea2d58229081c",
+        "head_branch": "main",
+        "status": "queued",
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 51,
+      "timestamp": "2026-07-29T06:01:54+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_failed",
+      "details": {
+        "run_id": 30397375712,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30397375712",
+        "candidate_source_commit": "848b60cb1c9bb629d28bc5288b2ea2d58229081c",
+        "failed_step": "Upload platform benchmark",
+        "failure": "actions/upload-artifact excluded benchmark files below the hidden .platform-evidence directory.",
+        "completed_measurements": {
+          "linux": {
+            "futures_median_seconds": 33.468,
+            "futures_peak_rss_bytes": 703950848,
+            "spot_median_seconds": 32.73,
+            "spot_peak_rss_bytes": 693772288
+          },
+          "macos": {
+            "futures_median_seconds": 31.16,
+            "futures_peak_rss_bytes": 708935680,
+            "spot_median_seconds": 22.248,
+            "spot_peak_rss_bytes": 700710912
+          },
+          "windows_partial": {
+            "futures_median_seconds": 114.322,
+            "futures_peak_rss_bytes": 549924864
+          }
+        },
+        "candidate_frozen": false,
+        "partial_artifacts_accepted": false,
+        "remaining_windows_job_cancelled_after_terminal_failure": true,
+        "new_oracle_run_started": false,
+        "release_published": false,
+        "recovery_branch": "fix/release-hidden-platform-artifacts",
+        "recovery_commit": "2e5ff5c9c30b86cb0a3b5b3bb79ccc5b0d453a8c",
+        "recovery_pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/37"
+      }
+    },
+    {
+      "sequence": 52,
+      "timestamp": "2026-07-29T06:07:46+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_recovery_validation_dispatched",
+      "details": {
+        "workflow": "Build release candidate",
+        "run_id": 30399356821,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30399356821",
+        "branch": "fix/release-hidden-platform-artifacts",
+        "source_commit": "2e5ff5c9c30b86cb0a3b5b3bb79ccc5b0d453a8c",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/37",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30398148296",
+        "purpose": "Validate hidden platform evidence upload and sealed candidate bundle before merging.",
+        "candidate_frozen": false,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 53,
+      "timestamp": "2026-07-29T06:30:47+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_recovery_validation_completed",
+      "details": {
+        "run_id": 30399356821,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30399356821",
+        "source_commit": "2e5ff5c9c30b86cb0a3b5b3bb79ccc5b0d453a8c",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/37",
+        "conclusion": "success",
+        "four_wheels_built": true,
+        "three_os_dual_mode_reports_uploaded": true,
+        "linux_release_wheel_verified": true,
+        "three_os_evidence_sealed": true,
+        "candidate_bundle_artifact": {
+          "id": 8704671551,
+          "name": "release-bundle-2e5ff5c9c30b86cb0a3b5b3bb79ccc5b0d453a8c",
+          "artifact_digest": "sha256:014256293db996a46cfb35b203fdc073d6b23adc6f2fc2d46668985236954043",
+          "bytes": 8865047
+        },
+        "candidate_frozen": false,
+        "validation_only": true,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 54,
+      "timestamp": "2026-07-29T06:31:38+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_recovery_merged",
+      "details": {
+        "fix_commit": "2e5ff5c9c30b86cb0a3b5b3bb79ccc5b0d453a8c",
+        "merge_commit": "82bf566a2a6e08f8a6ca4d04bcb347bbc2f17ff7",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/37",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30398148296",
+        "successful_branch_release_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30399356821",
+        "candidate_frozen": false,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 55,
+      "timestamp": "2026-07-29T06:31:58+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_dispatched",
+      "details": {
+        "workflow": "Build release candidate",
+        "run_id": 30401050355,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30401050355",
+        "candidate_source_commit": "82bf566a2a6e08f8a6ca4d04bcb347bbc2f17ff7",
+        "head_branch": "main",
+        "status": "queued",
+        "premerge_release_validation_run": 30399356821,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 56,
+      "timestamp": "2026-07-29T06:59:00+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_identity_gate_recovery_dispatched",
+      "details": {
+        "candidate_source_commit": "82bf566a2a6e08f8a6ca4d04bcb347bbc2f17ff7",
+        "candidate_run_id": 30401050355,
+        "finding": "The combined gate treated mode-specific timeranges as shared candidate identity and did not distinguish a transformed platform probe strategy from its sealed base strategy.",
+        "recovery_branch": "fix/combined-release-mode-identities",
+        "recovery_commits": [
+          "c72cf016f9e733dc7ad61d4f010872a49df0e029",
+          "41d4ad5e0db7ad38c851c58ff918280e4f01fca6"
+        ],
+        "recovery_pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/38",
+        "recovery_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30402763356",
+        "recovery_release_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30402825527",
+        "local_full_test_count": 442,
+        "local_rust_test_count": 100,
+        "spot_and_futures_full_state_parity": true,
+        "hardcoding_audit_passed": true,
+        "candidate_frozen": false,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 57,
+      "timestamp": "2026-07-29T07:00:17+09:00",
+      "task_id": "M6-01",
+      "event": "pre_recovery_candidate_validation_completed",
+      "details": {
+        "run_id": 30401050355,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30401050355",
+        "source_commit": "82bf566a2a6e08f8a6ca4d04bcb347bbc2f17ff7",
+        "conclusion": "success",
+        "main_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30401029968",
+        "four_wheels_built": true,
+        "three_os_dual_mode_reports_uploaded": true,
+        "linux_release_wheel_verified": true,
+        "three_os_evidence_sealed": true,
+        "candidate_bundle_artifact": {
+          "id": 8705395575,
+          "name": "release-bundle-82bf566a2a6e08f8a6ca4d04bcb347bbc2f17ff7",
+          "artifact_digest": "sha256:43f919205c3e8f018c9c292da82ecfaff291a11e71d8b31ec3e85aa7fca3f5ab",
+          "bytes": 8865060
+        },
+        "platform_measurements": {
+          "linux": {
+            "futures_median_seconds": 32.507445959,
+            "futures_peak_rss_bytes": 700858368,
+            "spot_median_seconds": 32.614269961,
+            "spot_peak_rss_bytes": 705277952
+          },
+          "macos": {
+            "futures_median_seconds": 29.727313084,
+            "futures_peak_rss_bytes": 714047488,
+            "spot_median_seconds": 26.492814542,
+            "spot_peak_rss_bytes": 710115328
+          },
+          "windows": {
+            "futures_median_seconds": 112.9040408,
+            "futures_peak_rss_bytes": 549273600,
+            "spot_median_seconds": 118.07305,
+            "spot_peak_rss_bytes": 550236160
+          }
+        },
+        "candidate_frozen": false,
+        "superseded_by_identity_gate_recovery": true,
+        "partial_artifacts_accepted": false,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 58,
+      "timestamp": "2026-07-29T07:22:41+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_identity_gate_recovery_validated",
+      "details": {
+        "source_commit": "41d4ad5e0db7ad38c851c58ff918280e4f01fca6",
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/38",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30402763356",
+        "successful_release_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30402825527",
+        "candidate_bundle_artifact": {
+          "id": 8705910330,
+          "name": "release-bundle-41d4ad5e0db7ad38c851c58ff918280e4f01fca6",
+          "artifact_digest": "sha256:e94af8071449669c182088cbadfc9f8a8628c026c9f8e3fadfa347802d023c5c",
+          "bytes": 8868819
+        },
+        "candidate_plan_sha256": "0f215b0bdaa8fe451002c3c36ba3f748268fa7ca649d218974dcd0517bdc5a7e",
+        "base_strategy_sha256": "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db",
+        "effective_platform_strategy_sha256": "fcb8d93b3e77c7caa87bcb3dfb669a6279300a8a848244783c42186134f82170",
+        "four_wheels_built": true,
+        "three_os_dual_mode_reports_uploaded": true,
+        "linux_release_wheel_verified": true,
+        "three_os_evidence_sealed": true,
+        "candidate_frozen": false,
+        "validation_only": true,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 59,
+      "timestamp": "2026-07-29T07:23:44+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_identity_gate_recovery_merged",
+      "details": {
+        "pull_request": "https://github.com/vntrevx/NFI_BackTestEngine/pull/38",
+        "head_commit": "41d4ad5e0db7ad38c851c58ff918280e4f01fca6",
+        "merge_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "successful_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30402763356",
+        "successful_branch_release_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30402825527",
+        "candidate_frozen": false,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 60,
+      "timestamp": "2026-07-29T07:24:04+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_dispatched",
+      "details": {
+        "workflow": "Build release candidate",
+        "run_id": 30404401526,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30404401526",
+        "candidate_source_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "head_branch": "main",
+        "status": "queued",
+        "premerge_release_validation_run": 30402825527,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 61,
+      "timestamp": "2026-07-29T07:44:57+09:00",
+      "task_id": "M6-01",
+      "event": "candidate_workflow_completed",
+      "details": {
+        "run_id": 30404401526,
+        "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30404401526",
+        "source_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "main_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30404385694",
+        "conclusion": "success",
+        "candidate_bundle_artifact": {
+          "id": 8706421088,
+          "name": "release-bundle-d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+          "artifact_digest": "sha256:abafcec001bfb636c4861de0386bd90b28eac6ac9d4e07fc6b05a1c251811fbb",
+          "bytes": 8868433
+        },
+        "candidate_plan_sha256": "0f215b0bdaa8fe451002c3c36ba3f748268fa7ca649d218974dcd0517bdc5a7e",
+        "four_wheels_built": true,
+        "source_distribution_built": true,
+        "three_os_dual_mode_reports_uploaded": true,
+        "linux_release_wheel_verified": true,
+        "three_os_evidence_sealed": true,
+        "candidate_frozen": true,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 62,
+      "timestamp": "2026-07-29T07:47:29+09:00",
+      "task_id": "M6-01",
+      "event": "task_completed",
+      "details": {
+        "candidate_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "acceptance_profile": "release_candidate",
+        "acceptance_report": ".nfi/roadmap-acceptance/M6-01/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/acceptance-report.json",
+        "acceptance_report_sha256": "9821b0e74bae980f4e3d0e0f9bdbe42d778c8be163f562615aa5194e391747cc",
+        "hardcoding_audit_passed": true,
+        "candidate_frozen": true,
+        "new_oracle_run_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 63,
+      "timestamp": "2026-07-29T07:49:54+09:00",
+      "task_id": "M6-02",
+      "event": "manual_gate_approval_requested",
+      "details": {
+        "candidate_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "base_strategy_sha256": "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db",
+        "new_spot_oracle_required": true,
+        "new_futures_oracle_required": true,
+        "estimated_sequential_hours": {
+          "minimum": 67,
+          "maximum": 70
+        },
+        "self_hosted_runner_count": 0,
+        "aws_environment_variables_configured": false,
+        "manual_gate_request": ".nfi/roadmap-acceptance/M6-02/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/manual-gate-request.json",
+        "execution_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 64,
+      "timestamp": "2026-07-29T07:56:47+09:00",
+      "task_id": "M6-02",
+      "event": "certification_inputs_prepared",
+      "details": {
+        "candidate_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "spot": {
+          "release_lock_sha256": "be627e558e3c4d0811105c5e02c49b60ad9128a48ddd1ad503a4a1204f50cf8a",
+          "release_lock_identity_sha256": "232cf62ce42b0cb6fb6c892ffd9169fe80d9354b495e70c8fadded7a808fdaf3",
+          "oracle_fingerprint": "1c1254daa65631ebdc0fc775cce730f654924dfee90373fb473e6e4f48d50308",
+          "pair_count": 80,
+          "state_probe_count": 4
+        },
+        "futures": {
+          "release_lock_sha256": "9f7b56b784530c6bc3fbd6f4877cf635c0635fbff2415ef07faf0d142882149a",
+          "release_lock_identity_sha256": "3701d22059d98ac2b06b59b182bc70151a746bc1d6cf0500a0b51a56d520591b",
+          "oracle_fingerprint": "71d7818544bd79fd764c6eab70416331782a4108a9ffd67359b7ac9401fe7131",
+          "pair_count": 80,
+          "state_probe_count": 9
+        },
+        "pairlists_unchanged": true,
+        "data_aggregates_unchanged": true,
+        "selected_configs_unchanged": true,
+        "reference_snapshots_unchanged": true,
+        "scope_contracts_unchanged": true,
+        "candidate_wheel_verified": true,
+        "official_execution_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 65,
+      "timestamp": "2026-07-29T07:59:08+09:00",
+      "task_id": "M6-02",
+      "event": "self_hosted_runner_package_prepared",
+      "details": {
+        "runner_version": "2.336.0",
+        "official_asset_sha256": "04cf0be1aff4c3ec3554466c39124ca250e3effd8873bb7e8d68535aa9505d5d",
+        "official_asset_verified": true,
+        "runtime_dependencies_present": true,
+        "registration_token_requested": false,
+        "configured": false,
+        "service_installed": false,
+        "runner_started": false,
+        "official_execution_started": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 66,
+      "timestamp": "2026-07-29T12:51:29+09:00",
+      "task_id": "M6-02",
+      "event": "m6_scope_reduced_by_user",
+      "details": {
+        "user_decision": "Skip new latest-strategy same-candidate five-year Spot and Futures certification and the dependent combined certified release.",
+        "existing_spot_certificate_preserved": ".nfi/full-x7-v1-certified-summary-fc6162a/full-x7-certification.json",
+        "existing_futures_certificate_preserved": ".nfi/full-x7-futures-listing-aware/release-certification-v1.1.0-151cb3f/full-x7-certification.json",
+        "candidate_commit": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "candidate_fixture_and_distribution_evidence_preserved": true,
+        "latest_strategy_same_candidate_full_certified": false,
+        "combined_release_certified": false,
+        "combined_release_published": false,
+        "official_oracle_execution_started": false,
+        "aws_environment_changed": false,
+        "runner_registered": false,
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json"
+      }
+    },
+    {
+      "sequence": 67,
+      "timestamp": "2026-07-29T12:51:29+09:00",
+      "task_id": "M6-02",
+      "event": "task_superseded",
+      "details": {
+        "reason": "Latest Spot same-candidate five-year recertification was explicitly removed from the requested scope.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+        "completion_claimed": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 68,
+      "timestamp": "2026-07-29T12:51:29+09:00",
+      "task_id": "M6-03",
+      "event": "task_superseded",
+      "details": {
+        "reason": "Latest Futures same-candidate five-year recertification was explicitly removed from the requested scope.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+        "completion_claimed": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 69,
+      "timestamp": "2026-07-29T12:51:29+09:00",
+      "task_id": "M6-04",
+      "event": "task_superseded",
+      "details": {
+        "reason": "The dependent full-certification seal was removed with the recertification chain; the narrower M6-01 three-OS fixture evidence remains valid.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+        "completion_claimed": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 70,
+      "timestamp": "2026-07-29T12:51:29+09:00",
+      "task_id": "M6-05",
+      "event": "task_superseded",
+      "details": {
+        "reason": "No combined certified stable release will be claimed or published without the removed same-candidate recertifications.",
+        "scope_decision": ".nfi/roadmap-acceptance/M6-scope-decision/d920d95f19ae45f9a29bcbe3f1addf7be20f63c6/scope-decision.json",
+        "completion_claimed": false,
+        "release_published": false
+      }
+    },
+    {
+      "sequence": 71,
+      "timestamp": "2026-07-29T13:46:09+09:00",
+      "task_id": "M7-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "rust_x7_refactor",
+        "worktree_head": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
+        "user_instruction": "Finish the Rust modularization cleanly without hardcoded optimization branches."
+      }
+    }
+  ]
+}

@@ -5,12 +5,15 @@
 //! strict age comparisons, and stake conversion. Tag 120 starts here, while
 //! tag 121 enters only after its regular-mode evaluator reports a de-risk.
 
-use super::nfi_adjustment::evaluate_grind_entry_program;
-use super::{
-    adjustment_minimum_pair_stake, fee_close, fee_open, nfi_long_grind_supports_trade,
+use super::adjustment::evaluate_grind_entry_program;
+use super::dispatch::nfi_long_grind_supports_trade;
+use crate::calculations::{fee_close, fee_open};
+use crate::domain::{
     AdjustmentSignal, Candle, FilledOrder, NfiLegacyGrindCluster, NfiLongGrindRoute,
-    NfiX7TradeManager, OpenTrade, PairSeries, PortfolioConfig, TradeSide,
+    NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
+use crate::execution::adjustment_minimum_pair_stake;
+use crate::portfolio::{OpenTrade, TradeSide};
 
 const TEN_MINUTES_MS: i64 = 10 * 60 * 1_000;
 const SIX_HOURS_MS: i64 = 6 * 60 * 60 * 1_000;
@@ -166,7 +169,7 @@ enum LegacyClusterOutcome {
 /// callback no-op.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::option_option)] // Outer None is unsupported state; inner None is callback no-op.
-pub(super) fn evaluate_nfi_legacy_grind_adjustment(
+pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     manager: &NfiX7TradeManager,
     route: &NfiLongGrindRoute,
     trade: &OpenTrade,
@@ -653,8 +656,16 @@ fn evaluate_derisk_one_reentry(
         let exit = state.derisk_1_exit?;
         if price_distance(context.candle.open, exit.price)? < threshold
             && context.entry_age_allows
-            && super::feature_bool_at(pair, candle_index, "global_protections_long_pump")?
-            && super::feature_bool_at(pair, candle_index, "global_protections_long_dump")?
+            && crate::callbacks::feature_bool_at(
+                pair,
+                candle_index,
+                "global_protections_long_pump",
+            )?
+            && crate::callbacks::feature_bool_at(
+                pair,
+                candle_index,
+                "global_protections_long_dump",
+            )?
             && context.is_long_grind_entry
         {
             let stake_leverage = if context.config.is_futures {

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use super::nfi_adjustment::AdjustmentState;
+use super::nfi::AdjustmentState;
 use super::{ClosedTrade, FilledOrder};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,24 +1,27 @@
 use std::collections::BTreeMap;
 use std::time::Instant;
 
+mod event;
+mod output;
+
+use event::simulation_event;
+use output::finalize_simulation;
+
 use crate::calculations::{
-    available_stake_amount, duration_ns, logical_pair_event_count, pairwise_sum, python_float_sum,
-    scheduled_cursor,
+    available_stake_amount, duration_ns, logical_pair_event_count, scheduled_cursor,
 };
+use crate::callbacks::{callback_feature_index, evaluate_adjustment_bundle};
 use crate::execution::{
     apply_adjustment, close_trade, evaluate_exit_confirm_program, exit_decision, rule_adjustment,
     update_extrema, EntryExecution,
 };
 use crate::futures::apply_funding;
-use crate::nfi_state::{PositionAdjustmentRequest, ProfitTarget};
-use crate::portfolio::{wallet_free, OpenTrade, TradeSide};
-use crate::protections::{PairLockState, ProtectionState};
+use crate::nfi::{evaluate_nfi_position_adjustment, PositionAdjustmentRequest, ProfitTarget};
+use crate::portfolio::{wallet_free, OpenTrade};
+use crate::profiling::build_simulation_profile;
+use crate::protections::ProtectionState;
 use crate::validation::{freqtrade_entry_signal, validate_input};
-use crate::{
-    callback_feature_index, evaluate_adjustment_bundle, evaluate_nfi_position_adjustment,
-    AssetBalance, ClosedTrade, SimError, SimulationEvent, SimulationInput, SimulationProfile,
-    SimulationResult, SimulationState, SIMULATOR_SCHEMA_VERSION,
-};
+use crate::{SimError, SimulationEvent, SimulationInput, SimulationProfile, SimulationResult};
 
 #[allow(clippy::if_not_else, clippy::too_many_lines)]
 pub(super) fn simulate_internal(
@@ -370,142 +373,21 @@ pub(super) fn simulate_internal(
 
     let event_loop_ns = duration_ns(event_loop_started.elapsed());
     let finalization_started = Instant::now();
-    // Freqtrade's LocalTrade registry exposes still-open trades newest first
-    // when the backtest force-closes its remaining positions. Preserve that
-    // insertion-stack order here; otherwise the trades themselves are exact,
-    // but their final exported sequence numbers are reversed.
-    for trade in open_trades.into_iter().rev() {
-        let last = input.pairs[trade.pair_index]
-            .candles
-            .last()
-            .expect("validated non-empty candles");
-        let (closed, _) = close_trade(
-            trade,
-            last.timestamp_ms,
-            last.open,
-            "force_exit".to_owned(),
-            config,
-            closed_trades.len(),
-            next_order_id,
-        );
-        next_order_id += 1;
-        closed_trades.push(closed);
-        if let Some(program) = &config.protection_program {
-            let closed_trade = closed_trades
-                .last()
-                .expect("a force-closed trade was appended immediately above");
-            protection_state.after_trade_close(
-                program,
-                closed_trade,
-                &closed_trades,
-                config.starting_balance,
-            );
-        }
-    }
-    available_balance = wallet_free(config.starting_balance, &[], &closed_trades);
-    // LocalTrade appends a trade to its closed-trade collection when that
-    // trade closes. Freqtrade therefore exports closure order, including the
-    // processing order of trades that close on the same timestamp. Sorting by
-    // open time here looked deterministic but changed the public trade array
-    // whenever overlapping positions closed in a different order.
-    for (sequence, trade) in closed_trades.iter_mut().enumerate() {
-        trade.sequence = sequence;
-    }
-    // Freqtrade exports `profit_total_abs` from Pandas' reduction of the
-    // per-trade profit column. It is not derived from final wallet balance.
-    // Pairwise summation mirrors NumPy's stable reduction and avoids the ulp
-    // drift of a left-to-right iterator fold on long NFI result sets.
-    let profit_total_abs = pairwise_sum(
-        &closed_trades
-            .iter()
-            .map(|trade| trade.profit_abs)
-            .collect::<Vec<_>>(),
-    );
-    let per_trade_volumes = closed_trades
-        .iter()
-        // Freqtrade calls Python `sum()` once per trade. CPython 3.14 uses a
-        // compensated float accumulator, so Rust's ordinary Iterator::sum
-        // differs by a few ulps on adjustment-heavy trades.
-        .map(|trade| python_float_sum(trade.orders.iter().map(|order| order.cost)))
-        .collect::<Vec<_>>();
-    // Freqtrade then calls Python `sum()` over the per-trade subtotals. Keep
-    // that second reduction boundary: flattening all orders is observably
-    // different even when every order itself already matches.
-    let total_volume = python_float_sum(per_trade_volumes);
-    let result = SimulationResult {
-        schema_version: SIMULATOR_SCHEMA_VERSION,
-        starting_balance: config.starting_balance,
-        final_balance: available_balance,
-        profit_total_abs,
-        total_volume,
+    let result = finalize_simulation(
+        input,
+        open_trades,
+        closed_trades,
+        protection_state,
         rejected_signals,
         maximum_concurrent_trades,
-        locks: protection_state.locks().to_vec(),
-        trades: closed_trades,
-    };
-    let profile = SimulationProfile {
-        schema_version: "1.0.0",
+        next_order_id,
+    );
+    let profile = build_simulation_profile(
         validation_ns,
         event_loop_ns,
-        finalization_ns: duration_ns(finalization_started.elapsed()),
+        duration_ns(finalization_started.elapsed()),
         timestamp_batches,
         pair_events,
-    };
+    );
     Ok((result, profile))
-}
-
-fn simulation_event(
-    timestamp_ms: i64,
-    pair: &str,
-    quote_free: f64,
-    open_trades: &[OpenTrade],
-    closed_trades: &[ClosedTrade],
-    rejected_signals: u64,
-    locks: &[PairLockState],
-) -> SimulationEvent {
-    let mut base_balances: Vec<AssetBalance> = open_trades
-        .iter()
-        .map(|trade| AssetBalance {
-            currency: trade
-                .pair
-                .split_once('/')
-                .map_or_else(|| trade.pair.clone(), |(base, _)| base.to_owned()),
-            free: if trade.side == TradeSide::Short {
-                -trade.amount
-            } else {
-                trade.amount
-            },
-        })
-        .collect();
-    base_balances.sort_by(|left, right| left.currency.cmp(&right.currency));
-    let realized_profit = closed_trades.iter().map(|trade| trade.profit_abs).sum();
-    let trade_id_counter = open_trades
-        .iter()
-        .map(|trade| trade.id)
-        .chain(closed_trades.iter().map(|trade| trade.id))
-        .max()
-        .unwrap_or_default();
-    let order_id_counter = closed_trades
-        .iter()
-        .map(|trade| trade.orders.len())
-        .sum::<usize>()
-        + open_trades
-            .iter()
-            .map(|trade| trade.orders.len())
-            .sum::<usize>();
-    SimulationEvent {
-        timestamp_ms,
-        pair: pair.to_owned(),
-        state: SimulationState {
-            quote_free,
-            base_balances,
-            open_trade_count: open_trades.len(),
-            realized_profit,
-            closed_trade_count: closed_trades.len(),
-            rejected_signals,
-            trade_id_counter,
-            order_id_counter,
-            locks: locks.to_vec(),
-        },
-    }
 }

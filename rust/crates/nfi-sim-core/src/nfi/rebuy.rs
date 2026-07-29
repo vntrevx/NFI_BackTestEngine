@@ -6,19 +6,23 @@
 //! separate module makes that order model explicit and prevents accidental
 //! reuse of the more complex grind-cluster reconstruction.
 
-use super::{
-    adjustment_minimum_pair_stake, feature_bool_at, feature_number_at, fee_close, fee_open,
-    nfi_profit_snapshot, AdjustmentSignal, Candle, NfiX7RebuyAdjustment, NfiX7ShortRebuyAdjustment,
-    OpenTrade, PairSeries, PortfolioConfig, TradeSide,
+use crate::calculations::{fee_close, fee_open};
+use crate::callbacks::{feature_bool_at, feature_number_at};
+use crate::domain::{
+    AdjustmentSignal, Candle, NfiX7RebuyAdjustment, NfiX7RebuyConstants, NfiX7ShortRebuyAdjustment,
+    PairSeries, PortfolioConfig,
 };
+use crate::execution::adjustment_minimum_pair_stake;
+use crate::portfolio::{OpenTrade, TradeSide};
 
+use super::state::nfi_profit_snapshot;
 /// Evaluate `long_rebuy_adjust_trade_position_v3()` for one visible candle.
 ///
 /// The outer `Option` is the exactness boundary: `None` rejects malformed or
 /// out-of-scope state. The inner `Option` is the strategy callback's normal
 /// no-adjustment result.
 #[allow(clippy::option_option)] // Outer None is invalid state; inner None is callback no-op.
-pub(super) fn evaluate_nfi_rebuy_adjustment(
+pub(crate) fn evaluate_nfi_rebuy_adjustment(
     adjustment: &NfiX7RebuyAdjustment,
     trade: &OpenTrade,
     pair: &PairSeries,
@@ -43,7 +47,7 @@ pub(super) fn evaluate_nfi_rebuy_adjustment(
 
 /// Evaluate the pre-de-risk portion of `short_rebuy_adjust_trade_position_v3`.
 #[allow(clippy::option_option)] // Outer None is invalid state; inner None is callback no-op.
-pub(super) fn evaluate_nfi_short_rebuy_adjustment(
+pub(crate) fn evaluate_nfi_short_rebuy_adjustment(
     adjustment: &NfiX7ShortRebuyAdjustment,
     trade: &OpenTrade,
     pair: &PairSeries,
@@ -82,7 +86,7 @@ pub(super) fn evaluate_nfi_short_rebuy_adjustment(
 fn evaluate_rebuy_ladder(
     enabled: bool,
     system_version: &str,
-    constants: &super::NfiX7RebuyConstants,
+    constants: &NfiX7RebuyConstants,
     expected_side: TradeSide,
     trade: &OpenTrade,
     pair: &PairSeries,
