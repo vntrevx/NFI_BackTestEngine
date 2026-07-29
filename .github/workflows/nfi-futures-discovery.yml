@@ -56,7 +56,7 @@ jobs:
           engine_sha="$(jq -er .engine_sha "${metadata}")"
           source_run_id="${REQUESTED_RUN_ID}"
           if [ -z "${source_run_id}" ]; then
-            source_run_id="$(jq -er '.run_url | split(\"/\")[-1]' "${metadata}")"
+            source_run_id="$(jq -er '.run_url | split("/")[-1]' "${metadata}")"
           fi
           run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${source_run_id}")"
           jq -e \
