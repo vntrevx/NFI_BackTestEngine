@@ -51,14 +51,20 @@ coverage의 교집합으로 최소 fixture 집합을 결정론적으로 선택�
 무제한 반복, 모호한 stake 방향 또는 관찰할 수 없는 상태 전이는 정확한 소스
 위치와 `TARGETED_COVERAGE_GAP`을 남기고 fail-closed한다.
 
+소스 diff는 클래스 mapping의 boolean 변경도 값과 소스 span으로 기록한다. 이전
+branch가 꺼져 있었다면 discovery가 이 기록으로 이전 소스의 같은 key만 임시
+전환하여 old/new 동작을 비교한다. exit reason은 전체 문자열과 괄호 앞 canonical
+route를 함께 관찰하므로 새로 장식된 tag도 기존 route 의미론과 연결되지만, 원문
+tag는 증거에 그대로 보존된다.
+
 상태 머신 VM은 source order, step limit, typed custom state, wallet/trade/order read,
 추가 진입, 부분 청산과 exit를 실행한다. 실패한 실행은 custom state를 원자적으로
 rollback한다. Signal 번호와 Grind 단계 수는 opcode가 아니라 IR 데이터다.
 
 `quick_verified` 승격에는 최신 전략으로 다시 만든 임시 workload, 서로 독립된
-공식/Native 실행, 변경 branch 도달, trade surface exact, full-state exact가 모두
-필요하다. 원본 fixture는 수정하지 않고 같은 artifact를 양쪽 증거로 재사용할 수
-없다.
+이전 공식·최신 공식·최신 Native 실행, presence/absence/transition branch 증명,
+trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 수정하지
+않고 같은 artifact를 양쪽 증거로 재사용할 수 없다.
 
 ## Upstream 감시
 
@@ -87,20 +93,22 @@ queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 �
 Native가 아직 모르는 새 동작도 공식 fallback으로 사용할 수 있지만, 공식
 full-state parity를 통과하기 전에는 Native 지원으로 표시하지 않는다.
 
-## Futures branch discovery
+## Spot/Futures branch discovery
 
-4시간 감시의 Futures 표적검증에서 `TARGETED_COVERAGE_GAP`이 남으면 별도의
-저속 탐색 lane이 그 identity를 이어받는다. 이 lane은
-`planning/futures-discovery-policy.json`만으로 범위를 정하며, 현재 계약은 이전
-5개 완료 연도를 분기 단위로 최신순 검색하고, listing-aware universe에서 최대
-80 pairs를 worker 1개로 회당 2시간까지 실행하는 것이다. 특정 pair, 날짜,
+4시간 감시의 Spot 또는 Futures 표적검증에서 `TARGETED_COVERAGE_GAP`이 남으면
+별도의 저속 탐색 lane이 그 identity를 이어받는다. 각 lane은
+`planning/spot-discovery-policy.json` 또는
+`planning/futures-discovery-policy.json`만으로 범위를 정한다. 특정 pair, 날짜,
 Signal/Grind 번호, 전략 SHA 또는 예상 결과는 검색 분기가 아니다.
 
 ```bash
-nfi-bte strategy discover-futures new.py strategy-diff.json report-futures.json \
+nfi-bte strategy discover new.py strategy-diff.json report.json \
   --class NostalgiaForInfinityX7 \
+  --trading-mode futures \
   --fixtures-root benchmarks/fixtures/captured \
   --policy planning/futures-discovery-policy.json \
+  --baseline-source old.py \
+  --baseline-upstream-commit PREVIOUS_COMMIT \
   --upstream-commit UPSTREAM_COMMIT --engine-commit ENGINE_COMMIT \
   --profile execution-profile.json --output-dir .nfi/futures-discovery
 ```
@@ -112,11 +120,11 @@ fingerprint에서만 재개한다. 최신 identity가 바뀌면 이전 cursor는
 위치시킬 수 없는 새 callback은 새 결과만으로 증명할 수 없으므로 검색하지 않고
 공식 fallback 상태로 남긴다.
 
-검색 hit 자체는 증거가 아니다. pair와 시간을 최소화한 뒤 pinned Freqtrade와
-Native를 각각 다시 실행해 변경 branch 도달, trade surface exact,
-full-state exact를 모두 통과한 30 MiB 이하 fixture만 candidate가 된다. 자동화는
-allowlist된 fixture와 compact evidence만 새 branch에 넣어 Draft PR을 열고 CI를
-요청한다. 자동 승인과 자동 merge는 하지 않는다.
+검색 hit 자체는 증거가 아니다. pair와 시간을 최소화한 뒤 이전/최신 공식과 최신
+Native를 각각 다시 실행해 변경 branch 도달, trade surface exact, full-state
+exact를 모두 통과한 mode별 paired fixture가 30 MiB 이하일 때만 candidate가 된다.
+자동화는 allowlist된 fixture와 compact evidence만 새 branch에 넣어 Draft PR을
+열고 CI를 요청한다. 자동 승인과 자동 merge는 하지 않는다.
 
 심층 workflow는 nightly 또는 수동으로 실행되고 동시 실행은 하나뿐이다.
 request/report/cursor는 append-only ledger에 남기며 candidate artifact는 30일

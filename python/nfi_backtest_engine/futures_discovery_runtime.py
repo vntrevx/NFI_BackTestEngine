@@ -14,7 +14,11 @@ from .errors import BenchmarkError, BranchCoverageError, SpecValidationError
 from .fixture import sha256_file
 from .market_snapshot import capture_market_catalog
 from .release_inputs import discover_release_universe
-from .targeted_verification import assess_targeted_coverage, target_observed
+from .targeted_verification import (
+    assess_targeted_coverage,
+    observable_tag_forms,
+    target_observed,
+)
 
 if TYPE_CHECKING:
     from .futures_discovery import DiscoveryContext, SearchShard
@@ -363,6 +367,11 @@ def _capture_transition_baseline(
         "strategy": {
             "source": str(context.baseline_source),
             "class_name": context.class_name,
+            **(
+                {"boolean_toggles": toggles}
+                if (toggles := _baseline_boolean_toggles(context.strategy_diff))
+                else {}
+            ),
         },
     }
     baseline_spec_path = latest_spec_path.with_name(
@@ -379,6 +388,44 @@ def _capture_transition_baseline(
         workers=workers,
     )
     return output / "manifest.json"
+
+
+def _baseline_boolean_toggles(
+    strategy_diff: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    changes = strategy_diff.get("changes")
+    raw = changes.get("boolean_mappings") if isinstance(changes, Mapping) else None
+    if not isinstance(raw, list):
+        return []
+    toggles: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, Mapping):
+            continue
+        mapping = item.get("mapping")
+        key = item.get("key")
+        before = item.get("old")
+        after = item.get("new")
+        if (
+            isinstance(mapping, str)
+            and mapping
+            and isinstance(key, str)
+            and key
+            and isinstance(before, bool)
+            and isinstance(after, bool)
+            and before != after
+        ):
+            toggles.append(
+                {
+                    "mapping": mapping,
+                    "key": key,
+                    "expected": before,
+                    "replacement": after,
+                }
+            )
+    return sorted(
+        toggles,
+        key=lambda item: (str(item["mapping"]), str(item["key"])),
+    )
 
 
 def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
@@ -403,6 +450,7 @@ def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
                 tag = order.get("tag") if isinstance(order, Mapping) else None
                 if isinstance(tag, str) and tag.strip():
                     tags.add(tag.strip())
+    tags = {form for tag in tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
     grind_levels = {
         int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)
@@ -486,11 +534,11 @@ def _required_coverage(
             else []
         ),
         "protection_methods": [],
-        "exit_reasons": (
-            [exit_reason]
-            if (exit_reason := str(hit.get("exit_reason", "")).strip()) in requested
-            else []
-        ),
+        "exit_reasons": [
+            exit_reason
+            for exit_reason in [str(hit.get("exit_reason", "")).strip()]
+            if observable_tag_forms(exit_reason) & requested
+        ],
         "sides": [],
         "minimum_lock_count": 0,
         "minimum_distinct_leverages": 1,

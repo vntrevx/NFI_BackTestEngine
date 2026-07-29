@@ -67,6 +67,10 @@ def diff_strategies(
         "custom_state_keys": _set_change(old["state_keys"], new["state_keys"]),
         "grind_levels": _set_change(old["grind_levels"], new["grind_levels"]),
         "opcodes": _set_change(old["opcodes"], new["opcodes"]),
+        "boolean_mappings": _boolean_mapping_changes(
+            old["boolean_mappings"],
+            new["boolean_mappings"],
+        ),
     }
     diagnostics = {
         "old": old["diagnostics"],
@@ -197,9 +201,49 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
         "state_keys": state_keys,
         "grind_levels": grind_levels,
         "opcodes": opcodes,
+        "boolean_mappings": _boolean_mappings(strategy.get("constants")),
         "method_features": method_features,
         "diagnostics": analysis["diagnostics"],
     }
+
+
+def _boolean_mappings(constants: Any) -> dict[str, dict[str, bool]]:
+    if not isinstance(constants, Mapping):
+        return {}
+    return {
+        str(mapping): {
+            str(key): value
+            for key, value in values.items()
+            if isinstance(key, str) and isinstance(value, bool)
+        }
+        for mapping, values in constants.items()
+        if isinstance(mapping, str)
+        and isinstance(values, Mapping)
+        and any(isinstance(value, bool) for value in values.values())
+    }
+
+
+def _boolean_mapping_changes(
+    old: Mapping[str, Mapping[str, bool]],
+    new: Mapping[str, Mapping[str, bool]],
+) -> list[dict[str, Any]]:
+    changes: list[dict[str, Any]] = []
+    for mapping in sorted(set(old) & set(new)):
+        old_values = old[mapping]
+        new_values = new[mapping]
+        for key in sorted(set(old_values) & set(new_values)):
+            before = old_values[key]
+            after = new_values[key]
+            if before != after:
+                changes.append(
+                    {
+                        "mapping": mapping,
+                        "key": key,
+                        "old": before,
+                        "new": after,
+                    }
+                )
+    return changes
 
 
 def _behavior_targets(

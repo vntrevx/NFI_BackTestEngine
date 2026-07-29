@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import nfi_backtest_engine.futures_discovery_runtime as discovery_runtime
 import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import SpecValidationError
@@ -40,6 +41,58 @@ def _difference(*targets: dict[str, Any]) -> dict[str, Any]:
         "new": {"sha256": "1" * 64},
         "behavior_targets": list(targets),
     }
+
+
+def test_freqtrade_decorated_exit_route_is_searchable_and_sealed_exactly() -> None:
+    surface = {
+        "trades": [
+            {
+                "entry_tag": "65 ",
+                "exit_reason": "exit_long_rebuy_e_r ( 65 )",
+                "orders": [],
+            }
+        ]
+    }
+    features = discovery_runtime._surface_features(surface)
+    target = {
+        **_target(),
+        "value": "exit_long_rebuy_e_r",
+        "tags": ["exit_long_rebuy_e_r"],
+    }
+
+    assert discovery_runtime.target_observed(target, features) is True
+    required = discovery_runtime._required_coverage(
+        [target],
+        {
+            "entry_tag": "65",
+            "exit_reason": "exit_long_rebuy_e_r ( 65 )",
+        },
+    )
+    assert required["exit_reasons"] == ["exit_long_rebuy_e_r ( 65 )"]
+
+
+def test_previous_lane_replays_boolean_mapping_transition_from_diff() -> None:
+    assert discovery_runtime._baseline_boolean_toggles(
+        {
+            "changes": {
+                "boolean_mappings": [
+                    {
+                        "mapping": "long_entry_signal_params",
+                        "key": "route_enable",
+                        "old": False,
+                        "new": True,
+                    }
+                ]
+            }
+        }
+    ) == [
+        {
+            "mapping": "long_entry_signal_params",
+            "key": "route_enable",
+            "expected": False,
+            "replacement": True,
+        }
+    ]
 
 
 def _files(tmp_path: Path) -> tuple[Path, Path]:

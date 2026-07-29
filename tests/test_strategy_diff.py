@@ -160,3 +160,37 @@ class Demo(IStrategy):
     )
     assert "63" in helper["tags"]
     assert helper["runtime_observable"] is True
+
+
+def test_strategy_diff_records_source_driven_boolean_mapping_transitions(
+    tmp_path: Path,
+) -> None:
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    old.write_text(
+        "class Demo(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    long_entry_signal_params = {'route_enable': False}\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+    new.write_text(
+        "class Demo(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    long_entry_signal_params = {'route_enable': True}\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    report = diff_strategies(old, new, class_name="Demo")
+
+    assert report["changes"]["boolean_mappings"] == [
+        {
+            "mapping": "long_entry_signal_params",
+            "key": "route_enable",
+            "old": False,
+            "new": True,
+        }
+    ]

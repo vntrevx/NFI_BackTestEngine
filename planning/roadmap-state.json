@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 73,
-  "updated_at": "2026-07-30T06:53:55+09:00",
+  "revision": 74,
+  "updated_at": "2026-07-30T07:15:38+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-01",
+  "active_task_id": "M12-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2527,7 +2527,7 @@
       "order": 1201,
       "milestone": "M12",
       "title": "Prove added, removed, and renamed behavior across both modes",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M11-03"
       ],
@@ -2553,9 +2553,41 @@
         "existing full-state fixture parity"
       ],
       "started_at": "2026-07-30T06:53:55+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T07:15:38+09:00",
+      "commit_sha": "d97651bdcdc51d8e6001fe338399226f32095a0b",
+      "evidence": [
+        {
+          "kind": "spot_discovery_policy",
+          "path": "planning/spot-discovery-policy.json",
+          "bytes": 465,
+          "sha256": "3892672174a91a9c12aceb97ba2aef7a993a61131cf675226ce08a5d79f804f3"
+        },
+        {
+          "kind": "spot_discovery_config",
+          "path": "planning/spot-discovery-config.json",
+          "bytes": 763,
+          "sha256": "55f3addd223f643b9d45f55855ce997f218554b4161bba5594258fc5215b3e56"
+        },
+        {
+          "kind": "python_full_suite",
+          "path": ".nfi/roadmap-acceptance/M12-01/worktree/python-all.log",
+          "bytes": 672,
+          "sha256": "bd126ddada51760a0b993ded4aaa68130e40711e3c5cce91cb6e2d4ec408c8da"
+        },
+        {
+          "kind": "rust_workspace_suite",
+          "path": ".nfi/roadmap-acceptance/M12-01/worktree/rust-test.log",
+          "bytes": 10563,
+          "sha256": "13a3c648c7d66490885dc556375459e17a2629473a99295961a516db50356861"
+        },
+        {
+          "kind": "existing_exact_fixtures",
+          "path": ".nfi/roadmap-acceptance/M12-01/worktree/fixtures",
+          "fixture_count": 5,
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        }
+      ],
       "blocker": null
     },
     {
@@ -2563,7 +2595,7 @@
       "order": 1202,
       "milestone": "M12",
       "title": "Quick-verify the latest Signal 65 transition",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M12-01"
       ],
@@ -2588,7 +2620,7 @@
         "quick-verified qualification records",
         "compatibility issue reconciliation"
       ],
-      "started_at": null,
+      "started_at": "2026-07-30T07:15:38+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -4320,6 +4352,42 @@
           "futures"
         ],
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 89,
+      "timestamp": "2026-07-30T07:15:38+09:00",
+      "task_id": "M12-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "d97651bdcdc51d8e6001fe338399226f32095a0b",
+        "python_tests_passed": 528,
+        "rust_tests_passed": 107,
+        "full_state_exact_fixture_count": 5,
+        "shared_spot_futures_discovery": true,
+        "presence_absence_transition_proof": true,
+        "runtime_hardcoding_added": false,
+        "next_eligible_task": "M12-02"
+      }
+    },
+    {
+      "sequence": 90,
+      "timestamp": "2026-07-30T07:15:38+09:00",
+      "task_id": "M12-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "d97651bdcdc51d8e6001fe338399226f32095a0b",
+        "verification_tier": "changed-path quick_verified",
+        "trading_modes": [
+          "spot",
+          "futures"
+        ],
+        "three_lane_proof": [
+          "previous official",
+          "latest official",
+          "latest Native"
+        ]
       }
     }
   ]

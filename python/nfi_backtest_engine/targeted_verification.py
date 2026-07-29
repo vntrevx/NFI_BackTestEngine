@@ -16,6 +16,7 @@ _GRIND_LEVEL = re.compile(
     r"(?i)(?:grind|derisk|buyback|rebuy|(?:sg|gd|gm|gmd|dd|ddl|g|d))"
     r"(?:[_ -]*(?:level)?[_ -]*)?(\d+)"
 )
+_FREQTRADE_EXIT_TAG_SUFFIX = re.compile(r"\s+\(\s*[^()]*\s*\)\s*$")
 Service = Callable[..., dict[str, Any]]
 
 
@@ -521,7 +522,11 @@ def _targeted_required_coverage(
     required_callbacks = sorted(callbacks & (target_methods | target_callbacks))
     required_entry_tags = sorted(entry_tags & target_values)
     required_compound_tags = sorted(compound_tags & target_values)
-    required_exit_reasons = sorted(exit_reasons & target_values)
+    required_exit_reasons = sorted(
+        reason
+        for reason in exit_reasons
+        if observable_tag_forms(reason) & target_values
+    )
     required_sides = sorted(
         {
             str(direction)
@@ -588,7 +593,7 @@ def _trade_matches_targets(
     trade: Mapping[str, Any],
     target_values: set[str],
 ) -> bool:
-    tags = {
+    raw_tags = {
         tag.strip()
         for tag in (
             trade.get("entry_tag"),
@@ -596,12 +601,17 @@ def _trade_matches_targets(
         )
         if isinstance(tag, str) and tag.strip()
     }
-    tags.update(
+    raw_tags.update(
         tag.strip()
         for order in _orders(trade)
         if isinstance(order, Mapping) and isinstance((tag := order.get("tag")), str) and tag.strip()
     )
-    observed_values = {value for tag in tags for value in (tag, *tag.split())}
+    observed_values = {
+        value
+        for tag in raw_tags
+        for form in observable_tag_forms(tag)
+        for value in (form, *form.split())
+    }
     return bool(target_values & observed_values)
 
 
@@ -799,7 +809,8 @@ def _fixture_features(
         for order in _orders(trade)
         if isinstance(order, Mapping) and isinstance((tag := order.get("tag")), str) and tag.strip()
     }
-    tags = entry_tags | compound_tags | exit_reasons | order_tags
+    raw_tags = entry_tags | compound_tags | exit_reasons | order_tags
+    tags = {form for tag in raw_tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
     grind_levels = {int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)}
     return {
@@ -842,6 +853,15 @@ def target_observed(
     if _target_proof_mode(target) == "transition" and target_tags:
         return tag_observed
     return str(value) in callbacks or tag_observed
+
+
+def observable_tag_forms(value: str) -> set[str]:
+    """Return exact and Freqtrade-decorated forms of one observable route tag."""
+    exact = value.strip()
+    if not exact:
+        return set()
+    route = _FREQTRADE_EXIT_TAG_SUFFIX.sub("", exact).strip()
+    return {exact, route} if route and route != exact else {exact}
 
 
 def behavior_targets(difference: Mapping[str, Any]) -> list[dict[str, Any]]:

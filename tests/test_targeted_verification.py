@@ -7,6 +7,7 @@ from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.targeted_verification import (
     assess_targeted_coverage,
+    observable_tag_forms,
     plan_targeted_verification,
     verify_targeted_strategy,
 )
@@ -38,6 +39,14 @@ def _difference(*targets: dict) -> dict:
         "classification": "ir-compatible",
         "behavior_targets": list(targets),
     }
+
+
+def test_observable_tag_forms_preserve_exact_and_freqtrade_route() -> None:
+    assert observable_tag_forms("exit_long_rebuy_e_r ( 65 )") == {
+        "exit_long_rebuy_e_r ( 65 )",
+        "exit_long_rebuy_e_r",
+    }
+    assert observable_tag_forms("65 ") == {"65"}
 
 
 def _fixture(
