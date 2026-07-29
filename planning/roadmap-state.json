@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 71,
-  "updated_at": "2026-07-30T03:27:43+09:00",
+  "revision": 72,
+  "updated_at": "2026-07-30T05:49:00+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M11-02",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2364,7 +2364,7 @@
       "order": 1102,
       "milestone": "M11",
       "title": "Operate Futures discovery and candidate pull requests unattended",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M11-01"
       ],
@@ -2392,9 +2392,50 @@
         "append-only ledger evidence"
       ],
       "started_at": "2026-07-30T03:27:43+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T05:30:00+09:00",
+      "commit_sha": "cec3e451e1b77286c8f8fea7697bd89cbd8c33e6",
+      "evidence": [
+        {
+          "kind": "implementation_and_live_fix_pull_requests",
+          "urls": [
+            "https://github.com/vntrevx/NFI_BackTestEngine/pull/46",
+            "https://github.com/vntrevx/NFI_BackTestEngine/pull/49",
+            "https://github.com/vntrevx/NFI_BackTestEngine/pull/53"
+          ],
+          "final_commit_sha": "cec3e451e1b77286c8f8fea7697bd89cbd8c33e6"
+        },
+        {
+          "kind": "latest_nfi_fast_canary",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488091576",
+          "run_id": 30488091576,
+          "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+          "strategy_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+          "spot_static_native_compatible": true,
+          "futures_static_native_compatible": true,
+          "changed_target_count": 4,
+          "verification_state": "latest_checked",
+          "conclusion": "success"
+        },
+        {
+          "kind": "automatic_futures_deep_canary",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488372469",
+          "run_id": 30488372469,
+          "fingerprint": "a9bd9c8b27c603cf6c180b61686c1ac2446115e2614dd0201f582c38cedb0926",
+          "status": "unsupported_semantics",
+          "official_fallback_available": true,
+          "conclusion": "success"
+        },
+        {
+          "kind": "same_identity_resume_and_dedup_canary",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488556721",
+          "run_id": 30488556721,
+          "cursor_restored": true,
+          "duplicate_issue_created": false,
+          "draft_pull_request_created": false,
+          "health_issue_closed": 52,
+          "conclusion": "success"
+        }
+      ],
       "blocker": null
     },
     {
@@ -2402,7 +2443,7 @@
       "order": 1103,
       "milestone": "M11",
       "title": "Publish v1.3.0 Futures discovery product release",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "M11-02"
       ],
@@ -2429,10 +2470,56 @@
         "RC publication and installer audit",
         "stable byte comparison and installer audit"
       ],
-      "started_at": null,
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "started_at": "2026-07-30T05:30:00+09:00",
+      "completed_at": "2026-07-30T05:49:00+09:00",
+      "commit_sha": "cec3e451e1b77286c8f8fea7697bd89cbd8c33e6",
+      "evidence": [
+        {
+          "kind": "same_commit_required_ci",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488078470",
+          "run_id": 30488078470,
+          "commit_sha": "cec3e451e1b77286c8f8fea7697bd89cbd8c33e6",
+          "conclusion": "success"
+        },
+        {
+          "kind": "sealed_product_candidate_bundle",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488091382",
+          "run_id": 30488091382,
+          "artifact_name": "product-release-bundle-cec3e451e1b77286c8f8fea7697bd89cbd8c33e6",
+          "three_os_spot_and_futures_fixture_evidence": true,
+          "conclusion": "success"
+        },
+        {
+          "kind": "product_rc_publication",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30489724330",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.3.0-rc.1",
+          "tag": "v1.3.0-rc.1",
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        },
+        {
+          "kind": "stable_byte_identical_promotion",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30489820671",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.3.0",
+          "tag": "v1.3.0",
+          "latest": true,
+          "asset_count": 12,
+          "rc_stable_byte_identical": true,
+          "sha256_manifest_digest": "sha256:83e67ebb806ba7be6a560403899045f74111a64d70bc9f1b2f3fbb32433a98d3",
+          "product_contract_digest": "sha256:d00036f0081b83b1cbe295c5417ff4d10bcc024944d9321b2f1b33278787fd63",
+          "combined_full_x7_certified": false,
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -4010,6 +4097,67 @@
         "automatic_approval": false,
         "automatic_merge": false,
         "personal_access_token": false
+      }
+    },
+    {
+      "sequence": 85,
+      "timestamp": "2026-07-30T05:30:00+09:00",
+      "task_id": "M11-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "cec3e451e1b77286c8f8fea7697bd89cbd8c33e6",
+        "latest_upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+        "latest_strategy_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+        "latest_spot_static_native_compatible": true,
+        "latest_futures_static_native_compatible": true,
+        "latest_verification_state": "latest_checked",
+        "changed_target_count": 4,
+        "automatic_deep_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488372469",
+        "same_identity_resume_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488556721",
+        "deep_status": "unsupported_semantics",
+        "official_fallback_available": true,
+        "duplicate_issue_created": false,
+        "draft_pull_request_created": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 86,
+      "timestamp": "2026-07-30T05:30:00+09:00",
+      "task_id": "M11-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "product_release",
+        "manual_gate_approved": true,
+        "release_version": "1.3.0",
+        "release_kind": "product",
+        "combined_full_x7_certification_claimed": false
+      }
+    },
+    {
+      "sequence": 87,
+      "timestamp": "2026-07-30T05:49:00+09:00",
+      "task_id": "M11-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "cec3e451e1b77286c8f8fea7697bd89cbd8c33e6",
+        "required_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488078470",
+        "candidate_build_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30488091382",
+        "rc_publication_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30489724330",
+        "stable_promotion_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30489820671",
+        "stable_release": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.3.0",
+        "stable_is_latest": true,
+        "asset_count": 12,
+        "rc_stable_byte_identical": true,
+        "sha256_manifest_digest": "sha256:83e67ebb806ba7be6a560403899045f74111a64d70bc9f1b2f3fbb32433a98d3",
+        "product_contract_digest": "sha256:d00036f0081b83b1cbe295c5417ff4d10bcc024944d9321b2f1b33278787fd63",
+        "installer_audits": {
+          "Linux": "pass",
+          "Windows": "pass",
+          "macOS": "pass"
+        },
+        "combined_full_x7_certification_claimed": false,
+        "next_eligible_task": null
       }
     }
   ]
