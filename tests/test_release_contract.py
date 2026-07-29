@@ -506,6 +506,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "test ! -e candidate/full-x7-release-result.json" in publish
     assert "Audit Windows product installer" in publish
     assert "Audit macOS product installer" in publish
+    assert publish.count("GITHUB_TOKEN: ${{ github.token }}") >= 2
     assert publish.index("sha256sum --check SHA256SUMS.txt") < publish.index(
         "gh release create"
     )
@@ -518,9 +519,16 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "diff -qr candidate stable" in promote
     assert "Audit latest Windows installer" in promote
     assert "Audit latest macOS installer" in promote
+    assert promote.count("GITHUB_TOKEN: ${{ github.token }}") >= 2
     assert promote.index("sha256sum --check SHA256SUMS.txt") < promote.index(
         "gh release create"
     )
+    windows_installer = (root / "install.ps1").read_text(encoding="utf-8")
+    unix_installer = (root / "install.sh").read_text(encoding="utf-8")
+    assert 'GetEnvironmentVariable("GITHUB_TOKEN")' in windows_installer
+    assert 'GetEnvironmentVariable("GH_TOKEN")' in windows_installer
+    assert 'os.environ.get("GITHUB_TOKEN")' in unix_installer
+    assert 'os.environ.get("GH_TOKEN")' in unix_installer
 
 
 def _long_certification_module() -> ModuleType:

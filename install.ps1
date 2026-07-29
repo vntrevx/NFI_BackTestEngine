@@ -23,6 +23,13 @@ $Headers = @{
     "User-Agent" = "nfi-backtest-engine-installer"
     "X-GitHub-Api-Version" = "2022-11-28"
 }
+$GitHubToken = [Environment]::GetEnvironmentVariable("GITHUB_TOKEN")
+if ([string]::IsNullOrWhiteSpace($GitHubToken)) {
+    $GitHubToken = [Environment]::GetEnvironmentVariable("GH_TOKEN")
+}
+if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
+    $Headers.Authorization = "Bearer $GitHubToken"
+}
 
 if (-not [Environment]::Is64BitOperatingSystem) {
     throw "NFI Backtest Engine currently requires 64-bit Windows."

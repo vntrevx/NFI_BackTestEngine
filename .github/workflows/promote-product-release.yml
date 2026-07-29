@@ -187,6 +187,8 @@ jobs:
           ref: ${{ needs.promote.outputs.candidate_sha }}
           persist-credentials: false
       - name: Verify latest Windows release selection
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: pwsh
         run: .\install.ps1 -Version latest -DryRun
 
@@ -202,6 +204,7 @@ jobs:
           persist-credentials: false
       - name: Verify latest macOS release selection and bytes
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           NFI_BTE_VERSION: latest
           NFI_BTE_INSTALL_DRY_RUN: "1"
         shell: bash

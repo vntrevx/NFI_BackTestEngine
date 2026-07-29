@@ -216,6 +216,8 @@ jobs:
           ref: ${{ needs.publish.outputs.candidate_sha }}
           persist-credentials: false
       - name: Verify Windows release selection
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: pwsh
         run: >-
           .\install.ps1
@@ -234,6 +236,7 @@ jobs:
           persist-credentials: false
       - name: Verify macOS release selection and bytes
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           NFI_BTE_VERSION: ${{ needs.publish.outputs.release_tag }}
           NFI_BTE_INSTALL_DRY_RUN: "1"
         shell: bash
