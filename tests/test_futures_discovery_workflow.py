@@ -21,6 +21,8 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
 
     assert 'workflows: ["Latest NFI compatibility"]' in text
     assert 'cron: "47 2 * * *"' in text
+    assert "'.run_url | split(\"/\")[-1]'" in text
+    assert r"split(\"/\")" not in text
     assert "cancel-in-progress: false" in text
     assert "timeout-minutes: 125" in text
     assert "planning/futures-discovery-policy.json" in text
