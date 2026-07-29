@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "upstream_sha": "f188ec26fcb69619cea3843429bed08a294ade99",
+  "engine_sha": "1a528002b30ed574f2761cdf704a95f18148481b",
+  "check_path": "checks/f188ec26fcb69619cea3843429bed08a294ade99/1a528002b30ed574f2761cdf704a95f18148481b/runs/30472852054-1",
+  "trigger_reason": "manual-force",
+  "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30472852054"
+}
