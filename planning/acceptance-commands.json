@@ -138,7 +138,7 @@
       "platform": "any",
       "timeout_seconds": 600,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "verification_ledger_tests": {
@@ -296,6 +296,15 @@
       "planning_json",
       "diff_check",
       "clean_tests",
+      "python_all",
+      "ruff",
+      "basedpyright"
+    ],
+    "storage_lifecycle": [
+      "planning_json",
+      "diff_check",
+      "clean_tests",
+      "user_flow_tests",
       "python_all",
       "ruff",
       "basedpyright"
