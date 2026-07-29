@@ -281,14 +281,15 @@ def _write_receipt(destination: Path, receipt: Mapping[str, Any]) -> None:
     temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
     try:
         write_json(temporary, receipt)
-        with temporary.open("rb") as handle:
+        with temporary.open("r+b") as handle:
             os.fsync(handle.fileno())
         os.replace(temporary, destination)
-        directory_descriptor = os.open(destination.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
+        if os.name == "posix":
+            directory_descriptor = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_descriptor)
+            finally:
+                os.close(directory_descriptor)
     finally:
         temporary.unlink(missing_ok=True)
 

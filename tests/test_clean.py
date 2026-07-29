@@ -396,9 +396,12 @@ def test_hard_links_are_counted_once_as_physical_reclaimable_storage(
 
     audit = create_clean_audit(root, activity_probe=_no_activity)
     entry = _entries_by_path(audit)["cache"]
+    metadata = first.stat()
+    blocks = getattr(metadata, "st_blocks", None)
+    expected_allocated = blocks * 512 if isinstance(blocks, int) else metadata.st_size
 
     assert entry["logical_bytes"] == 16_384
-    assert entry["allocated_bytes"] == first.stat().st_blocks * 512
+    assert entry["allocated_bytes"] == expected_allocated
     assert entry["reclaimable_allocated_bytes"] == entry["allocated_bytes"]
     assert audit["summary"]["allocated_bytes"] == entry["allocated_bytes"]
 
