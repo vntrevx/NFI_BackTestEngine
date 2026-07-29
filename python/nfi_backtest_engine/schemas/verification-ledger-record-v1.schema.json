@@ -53,6 +53,7 @@
         "latest_checked",
         "prepared",
         "native_complete",
+        "official_complete",
         "quick_verified",
         "release_certified",
         "blocked_unsupported_semantics",

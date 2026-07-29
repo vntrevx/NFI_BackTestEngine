@@ -52,7 +52,7 @@ def _render_html(
         "good"
         if status == "complete"
         else "info"
-        if status == "prepared"
+        if status in {"prepared", "official_complete"}
         else "warn"
         if status == "blocked_unsupported_semantics"
         else "bad"
@@ -378,6 +378,16 @@ def _verification_panel(verification: Mapping[str, Any]) -> str:
         )
     elif status == "mismatch":
         seal, css, title, detail = "×", "bad", "MISMATCH", (_difference_text(difference))
+    elif status == "official_only":
+        seal, css, title, detail = (
+            "✓",
+            "info",
+            "OFFICIAL FREQTRADE RESULT",
+            (
+                "Native stopped on unsupported semantics. This result comes from "
+                "the pinned official lane and makes no Native parity claim."
+            ),
+        )
     else:
         seal, css, title, detail = (
             "!",
@@ -426,9 +436,7 @@ def _verification_details(verification: Mapping[str, Any]) -> str:
         rows.append(
             (
                 label,
-                f"<code>{_escape(value)}</code>"
-                if isinstance(value, str)
-                else "not captured",
+                f"<code>{_escape(value)}</code>" if isinstance(value, str) else "not captured",
             )
         )
     rows.extend(
@@ -551,9 +559,7 @@ def _orders_panel(
             index for index, order in enumerate(orders) if order.get("is_entry") is False
         ]
         final_exit_index = (
-            exit_indexes[-1]
-            if exit_indexes and not bool(trade.get("is_open"))
-            else None
+            exit_indexes[-1] if exit_indexes and not bool(trade.get("is_open")) else None
         )
         for index, order in enumerate(orders):
             action = (
@@ -916,8 +922,8 @@ def _evidence_panel(
     body = "".join(
         f'<a href="{_escape(entry.get("path"))}" '
         f'title="SHA-256 {_escape(entry.get("sha256"))}">'
-        f'{_escape(labels.get(str(entry.get("role")), str(entry.get("role"))))} · '
-        f'{_escape(str(entry.get("sha256") or "")[:12])} ↗</a>'
+        f"{_escape(labels.get(str(entry.get('role')), str(entry.get('role'))))} · "
+        f"{_escape(str(entry.get('sha256') or '')[:12])} ↗</a>"
         for entry in entries
     )
     index_path = artifacts.get("evidence_index")

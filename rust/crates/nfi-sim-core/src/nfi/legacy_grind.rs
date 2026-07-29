@@ -1,6 +1,6 @@
 //! Exact backtest state machine for NFI X7's legacy grind continuation.
 //!
-//! X7 reconstructs eight open grind clusters from filled orders on every
+//! X7 reconstructs its open grind clusters from filled orders on every
 //! candle. This module preserves that reversed walk, callback branch order,
 //! strict age comparisons, and stake conversion. Tag 120 starts here, while
 //! tag 121 enters only after its regular-mode evaluator reports a de-risk.
@@ -18,8 +18,6 @@ use crate::portfolio::{OpenTrade, TradeSide};
 const TEN_MINUTES_MS: i64 = 10 * 60 * 1_000;
 const SIX_HOURS_MS: i64 = 6 * 60 * 60 * 1_000;
 const TWENTY_FOUR_HOURS_MS: i64 = 24 * 60 * 60 * 1_000;
-const LEGACY_CLUSTER_COUNT: usize = 8;
-
 #[derive(Debug, Default)]
 struct LegacyCluster {
     count: usize,
@@ -74,7 +72,7 @@ impl From<&FilledOrder> for OrderSnapshot {
 
 #[derive(Debug)]
 struct LegacyState {
-    clusters: [LegacyCluster; LEGACY_CLUSTER_COUNT],
+    clusters: Vec<LegacyCluster>,
     is_derisk_1: bool,
     derisk_1_exit: Option<OrderSnapshot>,
     derisk_1_reentry: Option<OrderSnapshot>,
@@ -185,7 +183,7 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     let mode = legacy_mode_for_route(route, config)?;
 
     let minimum_stake = legacy_adjustment_minimum_stake(pair, candle, trade, config)?;
-    let state = rebuild_legacy_state(trade, candle.open, fee_close(config))?;
+    let state = rebuild_legacy_state(trade, candle.open, fee_close(config), route)?;
     let stake_multipliers = if config.is_futures {
         &route.constants.stake_multipliers_futures
     } else {
@@ -260,21 +258,19 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
         mode,
     };
 
-    // The two post-de-risk clusters execute before the six ordinary grind
-    // clusters in the source. A signal from an earlier cluster must prevent
-    // every later branch from observing this candle.
-    for index in [6_usize, 7] {
-        match evaluate_cluster(&context, &state, index, true)? {
-            LegacyClusterOutcome::Continue => {}
-            LegacyClusterOutcome::ReturnNone => return Some(None),
-            LegacyClusterOutcome::Signal(signal) => return Some(Some(signal)),
-        }
-    }
-    for index in 0..6 {
-        match evaluate_cluster(&context, &state, index, false)? {
-            LegacyClusterOutcome::Continue => {}
-            LegacyClusterOutcome::ReturnNone => return Some(None),
-            LegacyClusterOutcome::Signal(signal) => return Some(Some(signal)),
+    // Post-de-risk clusters execute before ordinary grind clusters. The
+    // extracted entry tags define membership, so adding levels does not
+    // require changing an array size or numeric match arm.
+    for post_derisk in [true, false] {
+        for (index, definition) in route.constants.clusters.iter().enumerate() {
+            if is_post_derisk_cluster(definition) != post_derisk {
+                continue;
+            }
+            match evaluate_cluster(&context, &state, index, post_derisk)? {
+                LegacyClusterOutcome::Continue => {}
+                LegacyClusterOutcome::ReturnNone => return Some(None),
+                LegacyClusterOutcome::Signal(signal) => return Some(Some(signal)),
+            }
         }
     }
     if let Some(signal) = evaluate_derisk_one_reentry(&context, &state, pair, candle_index)? {
@@ -283,14 +279,20 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     Some(None)
 }
 
-fn rebuild_legacy_state(trade: &OpenTrade, rate: f64, close_fee: f64) -> Option<LegacyState> {
+fn rebuild_legacy_state(
+    trade: &OpenTrade,
+    rate: f64,
+    close_fee: f64,
+    route: &NfiLongGrindRoute,
+) -> Option<LegacyState> {
     let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
     let latest_order = trade.orders.last()?;
     let latest_exit = trade.orders.iter().rev().find(|order| !order.is_entry);
-    let mut clusters: [LegacyCluster; LEGACY_CLUSTER_COUNT] =
-        std::array::from_fn(|_| LegacyCluster::default());
-    let mut closed = [false; LEGACY_CLUSTER_COUNT];
+    let mut clusters = (0..route.constants.clusters.len())
+        .map(|_| LegacyCluster::default())
+        .collect::<Vec<_>>();
+    let mut closed = vec![false; route.constants.clusters.len()];
     let mut is_derisk_1 = false;
     let mut derisk_1_exit = None;
     let mut derisk_1_reentry = None;
@@ -303,12 +305,14 @@ fn rebuild_legacy_state(trade: &OpenTrade, rate: f64, close_fee: f64) -> Option<
         if order.is_entry && order.id != first_entry.id {
             if tag == "d1" && !is_derisk_1 {
                 derisk_1_reentry.get_or_insert_with(|| order.into());
-            } else if let Some(index) = direct_entry_cluster(tag) {
-                if !closed[index] {
-                    clusters[index].add_entry(order);
+            } else if let Some(index) = direct_entry_cluster(tag, &route.constants.clusters) {
+                if !closed.get(index).copied()? {
+                    clusters.get_mut(index)?.add_entry(order);
                 }
-            } else if !closed[0] && !grind_one_entry_excluded(tag) {
-                clusters[0].add_entry(order);
+            } else if !closed.first().copied()?
+                && !grind_one_entry_excluded(tag, &route.constants.clusters)
+            {
+                clusters.first_mut()?.add_entry(order);
             }
             continue;
         }
@@ -317,8 +321,8 @@ fn rebuild_legacy_state(trade: &OpenTrade, rate: f64, close_fee: f64) -> Option<
         }
 
         let head = tag.split_whitespace().next().unwrap_or("");
-        if let Some(index) = direct_exit_cluster(head) {
-            closed[index] = true;
+        if let Some(index) = direct_exit_cluster(head, &route.constants.clusters) {
+            *closed.get_mut(index)? = true;
         } else if head == "d1" {
             if !is_derisk_1 {
                 is_derisk_1 = true;
@@ -326,8 +330,8 @@ fn rebuild_legacy_state(trade: &OpenTrade, rate: f64, close_fee: f64) -> Option<
             }
         } else if closes_all_grinds(head) {
             closed.fill(true);
-        } else if !grind_one_exit_excluded(head) {
-            closed[0] = true;
+        } else if !grind_one_exit_excluded(head, &route.constants.clusters) {
+            *closed.first_mut()? = true;
         }
     }
     for cluster in &mut clusters {
@@ -347,94 +351,45 @@ fn rebuild_legacy_state(trade: &OpenTrade, rate: f64, close_fee: f64) -> Option<
     })
 }
 
-fn direct_entry_cluster(tag: &str) -> Option<usize> {
-    match tag {
-        "gd2" => Some(1),
-        "gd3" => Some(2),
-        "gd4" => Some(3),
-        "gd5" => Some(4),
-        "gd6" => Some(5),
-        "dl1" => Some(6),
-        "dl2" => Some(7),
-        _ => None,
-    }
+fn direct_entry_cluster(tag: &str, clusters: &[NfiLegacyGrindCluster]) -> Option<usize> {
+    clusters.iter().position(|cluster| cluster.entry_tag == tag)
 }
 
-fn direct_exit_cluster(tag: &str) -> Option<usize> {
-    match tag {
-        "gd2" | "dd2" => Some(1),
-        "gd3" | "dd3" => Some(2),
-        "gd4" | "dd4" => Some(3),
-        "gd5" | "dd5" => Some(4),
-        "gd6" | "dd6" => Some(5),
-        "dl1" | "ddl1" => Some(6),
-        "dl2" | "ddl2" => Some(7),
-        _ => None,
-    }
+fn direct_exit_cluster(tag: &str, clusters: &[NfiLegacyGrindCluster]) -> Option<usize> {
+    clusters
+        .iter()
+        .position(|cluster| cluster.entry_tag == tag || cluster.stop_tag == tag)
 }
 
-fn grind_one_entry_excluded(tag: &str) -> bool {
-    matches!(
-        tag,
-        "r" | "d1"
-            | "dl1"
-            | "dl2"
-            | "g1"
-            | "g2"
-            | "g3"
-            | "g4"
-            | "g5"
-            | "g6"
-            | "sg1"
-            | "sg2"
-            | "sg3"
-            | "sg4"
-            | "sg5"
-            | "sg6"
-            | "gd2"
-            | "gd3"
-            | "gd4"
-            | "gd5"
-            | "gd6"
-            | "gm0"
-            | "gmd0"
-            | "gdr"
-    )
+fn grind_one_entry_excluded(tag: &str, clusters: &[NfiLegacyGrindCluster]) -> bool {
+    matches!(tag, "r" | "d1" | "gm0" | "gmd0" | "gdr")
+        || clusters
+            .iter()
+            .any(|cluster| cluster.entry_tag == tag || cluster.stop_tag == tag)
+        || ["g", "sg"]
+            .iter()
+            .any(|prefix| structured_level_tag(tag, prefix).is_some())
 }
 
-fn grind_one_exit_excluded(tag: &str) -> bool {
-    matches!(
-        tag,
-        "dl1"
-            | "ddl1"
-            | "dl2"
-            | "ddl2"
-            | "g1"
-            | "g2"
-            | "g3"
-            | "g4"
-            | "g5"
-            | "g6"
-            | "sg1"
-            | "sg2"
-            | "sg3"
-            | "sg4"
-            | "sg5"
-            | "sg6"
-            | "gd2"
-            | "gd3"
-            | "gd4"
-            | "gd5"
-            | "gd6"
-            | "dd2"
-            | "dd3"
-            | "dd4"
-            | "dd5"
-            | "dd6"
-            | "gm0"
-            | "gmd0"
-            | "gdr"
-    )
+fn grind_one_exit_excluded(tag: &str, clusters: &[NfiLegacyGrindCluster]) -> bool {
+    matches!(tag, "gm0" | "gmd0" | "gdr")
+        || clusters
+            .iter()
+            .any(|cluster| cluster.entry_tag == tag || cluster.stop_tag == tag)
+        || ["g", "sg"]
+            .iter()
+            .any(|prefix| structured_level_tag(tag, prefix).is_some())
+}
+
+fn is_post_derisk_cluster(cluster: &NfiLegacyGrindCluster) -> bool {
+    structured_level_tag(&cluster.entry_tag, "dl").is_some()
+}
+
+fn structured_level_tag(tag: &str, prefix: &str) -> Option<usize> {
+    let suffix = tag.strip_prefix(prefix)?;
+    (!suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit()))
+        .then(|| suffix.parse::<usize>().ok())
+        .flatten()
 }
 
 fn closes_all_grinds(tag: &str) -> bool {

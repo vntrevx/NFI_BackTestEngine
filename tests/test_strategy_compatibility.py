@@ -40,3 +40,43 @@ def test_invalid_revision_produces_a_durable_blocker(tmp_path: Path) -> None:
     assert report["native_compatible"] is False
     assert report["static_safe"] is False
     assert report["blockers"][0]["code"] == "PYTHON_SYNTAX"
+
+
+def test_bounded_state_machine_callback_is_native_compatible_without_version_patch(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "DynamicStrategy.py"
+    source.write_text(
+        """
+class DynamicStrategy(IStrategy):
+    timeframe = "5m"
+    stoploss = -0.1
+    position_adjustment_enable = True
+
+    def adjust_trade_position(self, trade, current_time, current_rate,
+                              current_profit, min_stake, max_stake, **kwargs):
+        level = trade.get_custom_data("grind_level", 0)
+        if current_profit < -0.1 and level < 12:
+            trade.set_custom_data("grind_level", level + 1)
+            return (max_stake, "grind_12_entry")
+        return None
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    report = check_strategy_compatibility(source, class_name="DynamicStrategy")
+
+    assert report["native_compatible"] is True
+    assert report["blockers"] == []
+    assert report["callback_ir"]["hot_loop_ready"] is False
+    assert report["state_machine_ir"]["entrypoints"] == [
+        "adjust_trade_position"
+    ]
+
+    futures = check_strategy_compatibility(
+        source,
+        class_name="DynamicStrategy",
+        trading_mode="futures",
+    )
+    assert futures["native_compatible"] is False
+    assert futures["state_machine_ir"] is None

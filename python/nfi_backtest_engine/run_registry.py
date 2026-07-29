@@ -33,6 +33,7 @@ class RunRegistry:
             )
             """
         )
+        self._ensure_selection_columns()
 
     def close(self) -> None:
         self.connection.close()
@@ -52,13 +53,18 @@ class RunRegistry:
                 """
                 INSERT INTO research_runs (
                     run_id, status, output_directory, strategy_class,
-                    strategy_sha256, config_sha256, pair_count, trade_count, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    strategy_sha256, config_sha256, pair_count, trade_count, updated_at,
+                    native_status, selected_status, selected_lane, official_trade_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     status = excluded.status,
                     output_directory = excluded.output_directory,
                     pair_count = excluded.pair_count,
                     trade_count = excluded.trade_count,
+                    native_status = excluded.native_status,
+                    selected_status = excluded.selected_status,
+                    selected_lane = excluded.selected_lane,
+                    official_trade_count = excluded.official_trade_count,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -71,7 +77,48 @@ class RunRegistry:
                     report["vectors"]["pair_count"],
                     trade_count,
                     report["created_at"],
+                    report.get("native_status", report["status"]),
+                    report.get("selected_status", report["status"]),
+                    report.get("selected_lane", "native"),
+                    (trade_count if report.get("selected_lane") == "official" else None),
                 ),
+            )
+
+    def record_selection(self, output_directory: str | Path) -> None:
+        """Project a hash-valid selected result without rewriting Native status."""
+
+        root = Path(output_directory).resolve()
+        run = read_json(root / "run.json")
+        if not isinstance(run, dict):
+            raise BenchmarkError(f"run report must be an object: {root / 'run.json'}")
+        from .selected_result import load_selected_run_view
+
+        selected, selection = load_selected_run_view(root, run)
+        if selection is None:
+            raise BenchmarkError(f"selected result does not exist: {root}")
+        result = selected.get("result")
+        trade_count = result.get("trade_count") if isinstance(result, dict) else None
+        with self.connection:
+            cursor = self.connection.execute(
+                """
+                UPDATE research_runs
+                SET status = ?, native_status = ?, selected_status = ?,
+                    selected_lane = ?, official_trade_count = ?, updated_at = ?
+                WHERE run_id = ?
+                """,
+                (
+                    selected["selected_status"],
+                    selected["native_status"],
+                    selected["selected_status"],
+                    selected["selected_lane"],
+                    trade_count,
+                    selection["selected_at"],
+                    selected["run_id"],
+                ),
+            )
+        if cursor.rowcount != 1:
+            raise BenchmarkError(
+                f"run registry does not contain selected run: {selected['run_id']}"
             )
 
     def list(self, *, limit: int = 50) -> list[dict[str, Any]]:
@@ -80,7 +127,8 @@ class RunRegistry:
         rows = self.connection.execute(
             """
             SELECT run_id, status, output_directory, strategy_class, strategy_sha256,
-                   config_sha256, pair_count, trade_count, updated_at
+                   config_sha256, pair_count, trade_count, updated_at,
+                   native_status, selected_status, selected_lane, official_trade_count
             FROM research_runs
             ORDER BY updated_at DESC, run_id
             LIMIT ?
@@ -96,7 +144,8 @@ class RunRegistry:
         row = self.connection.execute(
             """
             SELECT run_id, status, output_directory, strategy_class, strategy_sha256,
-                   config_sha256, pair_count, trade_count, updated_at
+                   config_sha256, pair_count, trade_count, updated_at,
+                   native_status, selected_status, selected_lane, official_trade_count
             FROM research_runs
             WHERE run_id = ?
             """,
@@ -108,7 +157,8 @@ class RunRegistry:
             prefix_rows = self.connection.execute(
                 """
                 SELECT run_id, status, output_directory, strategy_class, strategy_sha256,
-                       config_sha256, pair_count, trade_count, updated_at
+                       config_sha256, pair_count, trade_count, updated_at,
+                       native_status, selected_status, selected_lane, official_trade_count
                 FROM research_runs
                 WHERE substr(run_id, 1, length(?)) = ?
                 ORDER BY run_id
@@ -124,4 +174,24 @@ class RunRegistry:
         record = dict(row)
         run_path = Path(record["output_directory"]) / "run.json"
         record["report"] = read_json(run_path) if run_path.is_file() else None
+        selected_path = Path(record["output_directory"]) / "selected-result.json"
+        record["selected_result"] = read_json(selected_path) if selected_path.is_file() else None
         return record
+
+    def _ensure_selection_columns(self) -> None:
+        columns = {
+            str(row["name"])
+            for row in self.connection.execute("PRAGMA table_info(research_runs)").fetchall()
+        }
+        additions = {
+            "native_status": "TEXT",
+            "selected_status": "TEXT",
+            "selected_lane": "TEXT",
+            "official_trade_count": "INTEGER",
+        }
+        with self.connection:
+            for name, sql_type in additions.items():
+                if name not in columns:
+                    self.connection.execute(
+                        f"ALTER TABLE research_runs ADD COLUMN {name} {sql_type}"
+                    )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import math
+import re
 from typing import Any
 
 from ..errors import StrategyAnalysisError
@@ -259,9 +260,8 @@ def _build_legacy_grind_constants(
 ) -> dict[str, Any]:
     """Freeze the repeated constants read by the legacy grind callback.
 
-    The source names eight clusters separately. The IR stores them in source
-    execution order so Rust can use one reviewed evaluator without duplicating
-    the same entry/exit/stop arithmetic eight times.
+    The source names clusters separately. The IR discovers their numbered
+    constant families and stores them without imposing an engine-side ceiling.
     """
 
     def number(name: str) -> int | float:
@@ -283,16 +283,28 @@ def _build_legacy_grind_constants(
         return value
 
     clusters: list[dict[str, Any]] = []
-    cluster_specs = [
-        ("gd1", "dd1", "grind_1"),
-        ("gd2", "dd2", "grind_2"),
-        ("gd3", "dd3", "grind_3"),
-        ("gd4", "dd4", "grind_4"),
-        ("gd5", "dd5", "grind_5"),
-        ("gd6", "dd6", "grind_6"),
-        ("dl1", "ddl1", "grind_1_derisk_1"),
-        ("dl2", "ddl2", "grind_2_derisk_1"),
-    ]
+    discovered: list[tuple[int, int | None, str]] = []
+    pattern = re.compile(r"^(grind_(\d+)(?:_derisk_(\d+))?)_stakes_futures$")
+    for name in constants:
+        match = pattern.fullmatch(name)
+        if match is None:
+            continue
+        level = int(match.group(2))
+        derisk_level = int(match.group(3)) if match.group(3) is not None else None
+        discovered.append((level, derisk_level, match.group(1)))
+    discovered.sort(key=lambda item: (item[1] is not None, item[0], item[1] or 0))
+    if not discovered:
+        raise StrategyAnalysisError("NFI legacy grind constants contain no cluster families")
+    cluster_specs = []
+    for level, derisk_level, prefix in discovered:
+        if derisk_level is None:
+            cluster_specs.append((f"gd{level}", f"dd{level}", prefix))
+        elif derisk_level == 1:
+            cluster_specs.append((f"dl{level}", f"ddl{level}", prefix))
+        else:
+            raise StrategyAnalysisError(
+                "NFI legacy post-de-risk tag family changed; exact lowering requires review"
+            )
     for entry_tag, stop_tag, prefix in cluster_specs:
         record: dict[str, Any] = {
             "entry_tag": entry_tag,
@@ -335,7 +347,7 @@ def _build_regular_adjustment_constants(
 ) -> dict[str, Any]:
     """Freeze both market-mode branches before tag 121 reaches legacy grind.
 
-    The source spells out six nearly identical ``g1`` through ``g6`` branches.
+    The source spells out numbered ``gN`` branches.
     The IR stores them in callback order. Rust may then share arithmetic while
     preserving every strict comparison and early return from the Python body.
     Futures and spot values remain separate source-derived fields; the runtime
@@ -376,7 +388,22 @@ def _build_regular_adjustment_constants(
         rebuy[mode] = (stakes, thresholds)
 
     grinds: list[dict[str, Any]] = []
-    for level in range(1, 7):
+    levels = sorted(
+        {
+            int(match.group(1))
+            for name in constants
+            if (
+                match := re.fullmatch(
+                    r"regular_mode_grind_(\d+)_stakes_futures",
+                    name,
+                )
+            )
+            is not None
+        }
+    )
+    if not levels:
+        raise StrategyAnalysisError("NFI regular adjustment contains no grind levels")
+    for level in levels:
         prefix = f"regular_mode_grind_{level}"
         grind: dict[str, Any] = {
             "entry_tag": f"g{level}",

@@ -257,6 +257,58 @@ def test_public_generic_runner_matches_captured_freqtrade_surface(tmp_path: Path
     assert first_difference(expected, actual) is None
 
 
+def test_public_runner_executes_a_fully_compiled_generic_state_machine_lane(
+    tmp_path: Path,
+) -> None:
+    strategy = tmp_path / "DynamicStops.py"
+    source = (STOPS_FIXTURE / "inputs" / "strategy.py").read_text(encoding="utf-8")
+    source = source.replace(
+        "    process_only_new_candles = True\n",
+        "    process_only_new_candles = True\n"
+        "    position_adjustment_enable = True\n",
+    ).replace(
+        "    def populate_exit_trend",
+        """
+    def adjust_trade_position(self, trade, current_time, current_rate,
+                              current_profit, min_stake, max_stake, **kwargs):
+        level = trade.get_custom_data("grind_level", 0)
+        if current_profit < -0.001 and level < 12:
+            trade.set_custom_data("grind_level", level + 1)
+            return (max_stake, "grind_12_entry")
+        return None
+
+    def populate_exit_trend""",
+    )
+    strategy.write_text(source, encoding="utf-8")
+    output = tmp_path / "run"
+
+    report = run_research_backtest(
+        strategy_path=strategy,
+        class_name="ContractStopsOnly",
+        config_path=STOPS_FIXTURE / "inputs" / "config.json",
+        data_directory=STOPS_FIXTURE / "inputs" / "candles",
+        timerange="20250101-20250104",
+        output_directory=output,
+        cache_directory=tmp_path / "cache",
+        profile_path=tmp_path / "profile.json",
+        market_metadata_path=(
+            STOPS_FIXTURE / "inputs" / "market_metadata" / "markets.json"
+        ),
+        download_missing=False,
+    )
+
+    manifest = read_json(output / "simulation-input.manifest.json")
+    assert report["status"] == "complete"
+    assert report["capability"]["adapter_lane"] == "generic-state-machine"
+    assert (output / "state-machine-ir.json").is_file()
+    assert manifest["config"]["state_machine_program"]["entrypoints"][
+        "adjust_trade_position"
+    ]["max_steps"] > 0
+    assert "grind_level" in manifest["config"]["state_machine_program"][
+        "required_state_keys"
+    ]
+
+
 def test_public_generic_runner_rejects_tampered_completed_result(tmp_path: Path) -> None:
     arguments = {
         "strategy_path": STOPS_FIXTURE / "inputs" / "strategy.py",

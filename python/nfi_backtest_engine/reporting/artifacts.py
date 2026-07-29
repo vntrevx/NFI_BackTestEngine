@@ -40,13 +40,14 @@ def build_verification_artifact(
     pipeline_evidence = _mapping(run_report, "pipeline_evidence")
 
     run_status = str(run_report.get("status", "unknown"))
+    native_run_status = str(run_report.get("native_status", run_status))
     native_status = (
         "passed"
-        if run_report.get("complete") is True and run_status == "complete"
+        if native_run_status == "complete"
         else "not_run"
-        if run_status == "prepared"
+        if native_run_status == "prepared"
         else "blocked"
-        if run_status == "blocked_unsupported_semantics"
+        if native_run_status == "blocked_unsupported_semantics"
         else "failed"
     )
     integrity_status = "passed" if surface else "not_run"
@@ -70,9 +71,7 @@ def build_verification_artifact(
     )
 
     proof_inputs = (
-        _mapping(verification_document, "inputs")
-        if verification_document is not None
-        else {}
+        _mapping(verification_document, "inputs") if verification_document is not None else {}
     )
     package_sha256 = _first_string(
         pipeline.get("package_sha256"),
@@ -83,45 +82,55 @@ def build_verification_artifact(
         proof_inputs.get("package_sha256"),
         proof_inputs.get("wheel_sha256"),
     )
+    stages = [
+        {
+            "id": "native_execution",
+            "status": native_status,
+            "detail": f"Native research run status: {native_run_status}",
+        },
+        {
+            "id": "artifact_integrity",
+            "status": integrity_status,
+            "detail": (
+                "trade surface is hash-bound to run.json"
+                if surface
+                else "no trade surface exists for this run state"
+            ),
+        },
+        {
+            "id": "official_verification",
+            "status": official_status,
+            "detail": f"official parity status: {verification.get('status')}",
+        },
+        {
+            "id": "release_certification",
+            "status": release_status,
+            "detail": (
+                "release_certified=true"
+                if release_certified is True
+                else "release certification failed"
+                if release_certified is False
+                else "no release certificate is bound"
+            ),
+        },
+    ]
+    if run_report.get("selected_lane") == "official":
+        stages.append(
+            {
+                "id": "official_fallback_execution",
+                "status": "passed",
+                "detail": (
+                    "pinned official Freqtrade completed; Native remains blocked "
+                    "and exact_parity is not claimed"
+                ),
+            }
+        )
     verification.update(
         {
-            "stages": [
-                {
-                    "id": "native_execution",
-                    "status": native_status,
-                    "detail": f"research run status: {run_status}",
-                },
-                {
-                    "id": "artifact_integrity",
-                    "status": integrity_status,
-                    "detail": (
-                        "trade surface is hash-bound to run.json"
-                        if surface
-                        else "no trade surface exists for this run state"
-                    ),
-                },
-                {
-                    "id": "official_verification",
-                    "status": official_status,
-                    "detail": f"official parity status: {verification.get('status')}",
-                },
-                {
-                    "id": "release_certification",
-                    "status": release_status,
-                    "detail": (
-                        "release_certified=true"
-                        if release_certified is True
-                        else "release certification failed"
-                        if release_certified is False
-                        else "no release certificate is bound"
-                    ),
-                },
-            ],
+            "stages": stages,
             "identities": {
                 "strategy_sha256": _first_string(strategy.get("file_sha256")),
-                "certified_strategy_sha256": _first_string(
-                    proof_inputs.get("strategy_sha256")
-                ),
+                "certified_strategy_sha256": _first_string(proof_inputs.get("strategy_sha256")),
                 "package_version": _first_string(pipeline.get("package_version")),
                 "package_sha256": package_sha256,
                 "certified_package_sha256": certified_package_sha256,
@@ -140,9 +149,7 @@ def build_verification_artifact(
                     if pipeline_evidence.get("cold") is False
                     else "unknown"
                 ),
-                "vector_cache_hits": _optional_integer(
-                    pipeline_evidence.get("vector_cache_hits")
-                ),
+                "vector_cache_hits": _optional_integer(pipeline_evidence.get("vector_cache_hits")),
                 "official_performance_included": False,
                 "performance_note": (
                     "Native run timing and official parity are separate evidence lanes."
@@ -166,20 +173,34 @@ def build_evidence_index(
     *,
     run_id: Any,
     include_surface: bool,
+    selected_result: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Index local source and derived files with portable paths and hashes."""
 
     definitions = [
         ("run", "source", True, Path("run.json")),
         ("trade_surface", "source", True, Path("trade-surface.json"))
-        if include_surface
+        if include_surface and (root / "trade-surface.json").is_file()
         else None,
         ("summary", "derived", False, Path(SUMMARY_FILENAME)),
         ("trades_csv", "derived", False, Path(TRADES_FILENAME)),
         ("orders_csv", "derived", False, Path(ORDERS_FILENAME)),
         ("equity_csv", "derived", False, Path(EQUITY_FILENAME)),
         ("verification", "derived", False, Path(VERIFICATION_FILENAME)),
+        ("state_machine_ir", "source", True, Path("state-machine-ir.json"))
+        if (root / "state-machine-ir.json").is_file()
+        else None,
     ]
+    if selected_result is not None:
+        definitions.append(("selected_result", "source", True, Path("selected-result.json")))
+        official = selected_result.get("official")
+        if isinstance(official, Mapping):
+            for role, record in (
+                ("official_fallback_report", official.get("report")),
+                ("official_trade_surface", official.get("trade_surface")),
+            ):
+                if isinstance(record, Mapping) and isinstance(record.get("path"), str):
+                    definitions.append((role, "source", True, Path(record["path"])))
     entries = []
     for definition in definitions:
         if definition is None:

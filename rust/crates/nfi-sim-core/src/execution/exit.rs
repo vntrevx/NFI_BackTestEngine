@@ -16,6 +16,7 @@ use crate::portfolio::{OpenTrade, TradeSide};
 use super::position::{
     freqtrade_total_entry_value, is_unleveraged_spot, replay_leveraged_profit, replay_spot_profit,
 };
+use super::state_machine::evaluate_state_machine_exit;
 
 pub(crate) fn rule_adjustment(
     trade: &OpenTrade,
@@ -39,8 +40,9 @@ pub(crate) struct ExitDecision {
     pub(crate) requires_confirmation: bool,
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn exit_decision(
-    trade: &OpenTrade,
+    trade: &mut OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
     candle: &Candle,
@@ -60,6 +62,21 @@ pub(crate) fn exit_decision(
             reason: signal.reason.clone(),
             requires_confirmation: true,
         }));
+    }
+    if let Some(program) = &config.state_machine_program {
+        if program.entrypoints.contains_key("custom_exit") {
+            let feature_index =
+                callback_feature_index(candle_index).ok_or(SimError::InvalidStateMachineProgram)?;
+            if let Some(reason) =
+                evaluate_state_machine_exit(program, trade, pair, feature_index, candle, config)?
+            {
+                return Ok(Some(ExitDecision {
+                    rate: candle.open,
+                    reason,
+                    requires_confirmation: true,
+                }));
+            }
+        }
     }
     if let Some(manager) = &config.nfi_x7_trade_manager {
         let feature_index =

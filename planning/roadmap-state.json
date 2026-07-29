@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 64,
-  "updated_at": "2026-07-29T19:13:35+09:00",
+  "revision": 65,
+  "updated_at": "2026-07-29T23:24:47+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M10-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2129,6 +2129,49 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M10-01",
+      "order": 1001,
+      "milestone": "M10",
+      "title": "Implement future-NFI fallback and generic state-machine compatibility",
+      "status": "in_progress",
+      "depends_on": [
+        "M9-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "immutable official Freqtrade fallback for unsupported Native semantics",
+        "separate Native, official, and selected-result status contracts",
+        "upstream AST and IR difference classification with append-only evidence",
+        "deduplicated compatibility issue lifecycle",
+        "generic bounded state-machine compiler and Rust VM",
+        "source-extracted dynamic Grind levels and tags",
+        "independent shadow promotion and quick-verification qualification gate",
+        "official captured full-state generic callback fixture"
+      ],
+      "forbidden_changes": [
+        "NFI version or Signal-number runtime branches",
+        "strategy SHA as a runtime behavior selector",
+        "claiming parity for official-only fallback results",
+        "mutating a blocked Native run while creating an official result",
+        "promoting partial callback coverage to Native support",
+        "using the same execution artifact as both sides of a shadow proof",
+        "guessing an unsupported callback or Grind state transition"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "focused fallback, diff, qualification, compiler, VM, and workflow tests",
+        "full Python and Rust test suites",
+        "existing Spot and Futures full-state fixture parity",
+        "official generic state-machine Freqtrade fixture with exact trade and state parity",
+        "hardcoding audit"
+      ],
+      "started_at": "2026-07-29T23:24:47+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -3535,6 +3578,20 @@
         "prior_spot_certificate_tag": "v1.0.0",
         "prior_futures_certificate_tag": "v1.1.0",
         "next_eligible_task": null
+      }
+    },
+    {
+      "sequence": 77,
+      "timestamp": "2026-07-29T23:24:47+09:00",
+      "task_id": "M10-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "c8a5db1b54a3d86304511778e6b39d93b72cc4b8",
+        "user_instruction": "Implement the approved future-NFI compatibility plan without hardcoding.",
+        "official_fallback_required": true,
+        "generic_state_machine_required": true,
+        "official_full_state_fixture_required": true
       }
     }
   ]

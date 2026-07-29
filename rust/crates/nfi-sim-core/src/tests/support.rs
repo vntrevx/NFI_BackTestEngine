@@ -41,6 +41,7 @@ pub(super) fn config(max_open_trades: usize) -> PortfolioConfig {
         custom_exit_after_ms: None,
         adjustment_rule: None,
         callback_program: None,
+        state_machine_program: None,
         stake_program: None,
         amount_reserve_percent: 0.05,
         unlimited_stake: false,

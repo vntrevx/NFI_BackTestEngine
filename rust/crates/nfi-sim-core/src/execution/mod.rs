@@ -5,6 +5,7 @@ mod entry;
 mod exit;
 mod position;
 mod stake;
+mod state_machine;
 
 pub(crate) use confirmation::evaluate_exit_confirm_program;
 #[cfg(test)]
@@ -16,3 +17,6 @@ pub(crate) use exit::{close_trade, current_profit_ratio, exit_decision, rule_adj
 pub(crate) use position::{apply_adjustment, update_extrema};
 #[cfg(test)]
 pub(crate) use stake::{evaluate_stake_program, EntryRequest, EntryStake, StakeInputs};
+pub(crate) use state_machine::evaluate_state_machine_adjustment;
+#[cfg(test)]
+pub(crate) use state_machine::evaluate_state_machine_exit;

@@ -597,7 +597,7 @@ fn trailing_stop_uses_candle_open_after_a_gap_beyond_the_retained_stop() {
     let trigger_candle = pair.candles.get(1).expect("trigger candle");
 
     let exit = exit_decision(
-        &trade,
+        &mut trade,
         &pair,
         1,
         &trigger_candle,

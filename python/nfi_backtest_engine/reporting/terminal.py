@@ -66,6 +66,14 @@ def format_terminal_summary(
         _terminal_row("Period", _format_timerange(context.get("timerange"))),
         _terminal_row("Mode", _mode_label(context)),
         _terminal_row(
+            "Execution lane",
+            (
+                "Official Freqtrade fallback (Native blocked)"
+                if run.get("execution_lane") == "official"
+                else "Native Rust"
+            ),
+        ),
+        _terminal_row(
             "Pairs / trades",
             f"{_integer_text(run.get('pair_count'))} / {_integer_text(activity.get('trades'))}",
         ),
@@ -138,7 +146,7 @@ def format_terminal_summary(
         ]
     )
     blockers = summary.get("blockers")
-    if isinstance(blockers, list):
+    if isinstance(blockers, list) and run.get("execution_lane") != "official":
         for blocker in blockers[:3]:
             if isinstance(blocker, Mapping):
                 lines.append(
@@ -362,6 +370,7 @@ def format_run_list(records: Sequence[Mapping[str, Any]]) -> str:
     columns = (
         ("UPDATED", 20),
         ("STATUS", 13),
+        ("LANE", 9),
         ("STRATEGY", 24),
         ("PAIRS", 5),
         ("TRADES", 7),
@@ -375,9 +384,14 @@ def format_run_list(records: Sequence[Mapping[str, Any]]) -> str:
         values = (
             _short_timestamp(record.get("updated_at")),
             str(record.get("status", "unknown")),
+            str(record.get("selected_lane") or "native"),
             str(record.get("strategy_class", "unknown")),
             _integer_text(record.get("pair_count")),
-            _integer_text(record.get("trade_count")),
+            _integer_text(
+                record.get("official_trade_count")
+                if record.get("selected_lane") == "official"
+                else record.get("trade_count")
+            ),
             str(record.get("run_id", ""))[:12],
             _compact_path(record.get("output_directory")),
         )

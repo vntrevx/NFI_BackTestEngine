@@ -59,7 +59,8 @@
             "exact_match",
             "confirmed_exact",
             "mismatch",
-            "reference_incomplete"
+            "reference_incomplete",
+            "official_only"
           ]
         },
         "exact": {
@@ -81,7 +82,7 @@
         "stages": {
           "type": "array",
           "minItems": 4,
-          "maxItems": 4,
+          "maxItems": 5,
           "prefixItems": [
             {
               "$ref": "#/$defs/native_stage"
@@ -94,6 +95,9 @@
             },
             {
               "$ref": "#/$defs/release_stage"
+            },
+            {
+              "$ref": "#/$defs/official_fallback_stage"
             }
           ],
           "items": false
@@ -277,6 +281,20 @@
           "properties": {
             "id": {
               "const": "release_certification"
+            }
+          }
+        }
+      ]
+    },
+    "official_fallback_stage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "properties": {
+            "id": {
+              "const": "official_fallback_execution"
             }
           }
         }

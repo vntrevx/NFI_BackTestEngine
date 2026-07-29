@@ -6,6 +6,7 @@ use crate::domain::{
     NfiLongGrindRoute, PortfolioConfig, ScalarDecisionProgram, ScalarProgramBundle, SimError,
     SimulationInput,
 };
+use crate::validate_state_machine_program;
 use crate::SIMULATOR_SCHEMA_VERSION;
 
 use super::callback::validate_callback_program;
@@ -92,6 +93,23 @@ pub(crate) fn validate_input(input: &SimulationInput) -> Result<ValidationSummar
     }
     if let Some(program) = &config.callback_program {
         validate_callback_program(program)?;
+    }
+    if config.callback_program.is_some() && config.state_machine_program.is_some() {
+        return Err(SimError::InvalidStateMachineProgram);
+    }
+    if config.state_machine_program.is_some()
+        && (config.nfi_x7_trade_manager.is_some()
+            || config.adjust_trade_position_program.is_some()
+            || config.custom_exit_program.is_some())
+    {
+        return Err(SimError::InvalidStateMachineProgram);
+    }
+    if config
+        .state_machine_program
+        .as_ref()
+        .is_some_and(|program| !validate_state_machine_program(program))
+    {
+        return Err(SimError::InvalidStateMachineProgram);
     }
     if config
         .stake_program

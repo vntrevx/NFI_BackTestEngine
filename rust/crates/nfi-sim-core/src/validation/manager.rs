@@ -3,7 +3,8 @@
 use std::collections::BTreeSet;
 
 use crate::domain::{
-    NfiManagedLongProfile, NfiManagedLongRoute, NfiX7TradeManager, PortfolioConfig, SimError,
+    NfiManagedLongProfile, NfiManagedLongRoute, NfiX7AdjustmentConstants, NfiX7TradeManager,
+    PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -13,6 +14,19 @@ use super::adjustment::{
 use super::config::{
     uses_full_futures_manager_contract, valid_legacy_futures_fallback, valid_scalar_program,
 };
+
+fn adjustment_program_order(constants: &NfiX7AdjustmentConstants) -> Vec<String> {
+    constants
+        .derisk_levels
+        .iter()
+        .map(|level| format!("derisk_level_{}", level.level))
+        .chain(constants.grinds.iter().flat_map(|grind| {
+            ["entry", "exit", "derisk"]
+                .into_iter()
+                .map(move |action| format!("grind_{}_{action}", grind.level))
+        }))
+        .collect()
+}
 
 #[allow(clippy::too_many_lines)] // One fail-closed audit keeps all route invariants co-located.
 pub(crate) fn validate_nfi_trade_manager(
@@ -30,26 +44,6 @@ pub(crate) fn validate_nfi_trade_manager(
         "short_exit_main",
         "short_exit_williams_r",
         "short_exit_dec",
-    ];
-    const ADJUSTMENT_ORDER: [&str; 18] = [
-        "derisk_level_1",
-        "derisk_level_2",
-        "derisk_level_3",
-        "grind_1_entry",
-        "grind_1_exit",
-        "grind_1_derisk",
-        "grind_2_entry",
-        "grind_2_exit",
-        "grind_2_derisk",
-        "grind_3_entry",
-        "grind_3_exit",
-        "grind_3_derisk",
-        "grind_4_entry",
-        "grind_4_exit",
-        "grind_4_derisk",
-        "grind_5_entry",
-        "grind_5_exit",
-        "grind_5_derisk",
     ];
     let long_grind = manager.long_grind.as_ref();
     let long_btc = manager.long_btc.as_ref();
@@ -292,11 +286,13 @@ pub(crate) fn validate_nfi_trade_manager(
                     .constants
                     .rebuy_stake_multiplier
                     .is_some_and(|value| value.is_finite() && value > 0.0)
-                    && adjustment
-                        .constants
-                        .policy
-                        .as_ref()
-                        .is_some_and(valid_nfi_adjustment_policy)
+                    && adjustment.constants.policy.as_ref().is_some_and(|policy| {
+                        valid_nfi_adjustment_policy(
+                            policy,
+                            adjustment.constants.derisk_levels.len(),
+                            adjustment.constants.grinds.len(),
+                        )
+                    })
             }
             _ => false,
         };
@@ -304,11 +300,7 @@ pub(crate) fn validate_nfi_trade_manager(
             && adjustment_tags.len() == adjustment.entry_tags.len()
             && adjustment.system_version == constants.system_v3_2_name
             && adjustment.decision_program == "long_grind_entry_v3"
-            && adjustment.program_order
-                == ADJUSTMENT_ORDER
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
+            && adjustment.program_order == adjustment_program_order(&adjustment.constants)
             && adjustment.stateful_input_contract.is_object()
             && versioned_rebuy_multiplier
             && valid_nfi_adjustment_constants(&adjustment.constants)
@@ -333,21 +325,19 @@ pub(crate) fn validate_nfi_trade_manager(
                     && adjustment_tags.len() == adjustment.entry_tags.len()
                     && adjustment.system_version == constants.system_v3_2_name
                     && adjustment.decision_program == "short_grind_entry_v3"
-                    && adjustment.program_order
-                        == ADJUSTMENT_ORDER
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
+                    && adjustment.program_order == adjustment_program_order(&adjustment.constants)
                     && adjustment.stateful_input_contract.is_object()
                     && adjustment
                         .constants
                         .rebuy_stake_multiplier
                         .is_some_and(|value| value.is_finite() && value > 0.0)
-                    && adjustment
-                        .constants
-                        .policy
-                        .as_ref()
-                        .is_some_and(valid_nfi_adjustment_policy)
+                    && adjustment.constants.policy.as_ref().is_some_and(|policy| {
+                        valid_nfi_adjustment_policy(
+                            policy,
+                            adjustment.constants.derisk_levels.len(),
+                            adjustment.constants.grinds.len(),
+                        )
+                    })
                     && valid_nfi_adjustment_constants(&adjustment.constants)
             })
         } else {

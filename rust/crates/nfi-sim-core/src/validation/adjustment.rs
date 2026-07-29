@@ -1,5 +1,7 @@
 //! Validation for NFI adjustment constants and predicate IR.
 
+use std::collections::BTreeSet;
+
 use crate::domain::{
     NfiLegacyGrindConstants, NfiRegularAdjustmentConstants, NfiX7AdjustmentCondition,
     NfiX7AdjustmentConstants, NfiX7AdjustmentOperand, NfiX7AdjustmentPolicy, NfiX7RebuyConstants,
@@ -25,16 +27,6 @@ pub(crate) fn valid_nfi_rebuy_constants(constants: &NfiX7RebuyConstants) -> bool
 }
 
 pub(crate) fn valid_nfi_legacy_grind_constants(constants: &NfiLegacyGrindConstants) -> bool {
-    let expected_tags = [
-        ("gd1", "dd1"),
-        ("gd2", "dd2"),
-        ("gd3", "dd3"),
-        ("gd4", "dd4"),
-        ("gd5", "dd5"),
-        ("gd6", "dd6"),
-        ("dl1", "ddl1"),
-        ("dl2", "ddl2"),
-    ];
     let multipliers_are_valid = [
         &constants.stake_multipliers_futures,
         &constants.stake_multipliers_spot,
@@ -43,34 +35,34 @@ pub(crate) fn valid_nfi_legacy_grind_constants(constants: &NfiLegacyGrindConstan
     .all(|values| {
         !values.is_empty() && values.iter().all(|value| value.is_finite() && *value > 0.0)
     });
-    let clusters_are_valid = constants.clusters.len() == expected_tags.len()
-        && constants
-            .clusters
+    let clusters_are_valid = !constants.clusters.is_empty()
+        && unique_cluster_tags(
+            constants
+                .clusters
+                .iter()
+                .map(|cluster| (&cluster.entry_tag, &cluster.stop_tag)),
+        )
+        && constants.clusters.iter().all(|cluster| {
+            let vectors = [
+                &cluster.stakes_futures,
+                &cluster.stakes_spot,
+                &cluster.thresholds_futures,
+                &cluster.thresholds_spot,
+            ];
+            [
+                cluster.stop_threshold_futures,
+                cluster.stop_threshold_spot,
+                cluster.profit_threshold_futures,
+                cluster.profit_threshold_spot,
+            ]
             .iter()
-            .zip(expected_tags)
-            .all(|(cluster, expected)| {
-                let vectors = [
-                    &cluster.stakes_futures,
-                    &cluster.stakes_spot,
-                    &cluster.thresholds_futures,
-                    &cluster.thresholds_spot,
-                ];
-                cluster.entry_tag == expected.0
-                    && cluster.stop_tag == expected.1
-                    && [
-                        cluster.stop_threshold_futures,
-                        cluster.stop_threshold_spot,
-                        cluster.profit_threshold_futures,
-                        cluster.profit_threshold_spot,
-                    ]
-                    .iter()
-                    .all(|value| value.is_finite())
-                    && vectors.iter().all(|values| {
-                        !values.is_empty() && values.iter().all(|value| value.is_finite())
-                    })
-                    && cluster.stakes_futures.len() == cluster.thresholds_futures.len()
-                    && cluster.stakes_spot.len() == cluster.thresholds_spot.len()
-            });
+            .all(|value| value.is_finite())
+                && vectors.iter().all(|values| {
+                    !values.is_empty() && values.iter().all(|value| value.is_finite())
+                })
+                && cluster.stakes_futures.len() == cluster.thresholds_futures.len()
+                && cluster.stakes_spot.len() == cluster.thresholds_spot.len()
+        });
     constants.max_stake_multiplier.is_finite()
         && constants.max_stake_multiplier > 0.0
         && constants.derisk_1_reentry_futures.is_finite()
@@ -120,23 +112,25 @@ pub(crate) fn valid_nfi_regular_adjustment_constants(
             && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
             && thresholds.iter().all(|value| value.is_finite())
     });
-    let grinds_are_valid = constants.grinds.len() == 6
-        && constants.grinds.iter().enumerate().all(|(index, grind)| {
-            let level = index + 1;
-            grind.entry_tag == format!("g{level}")
-                && grind.stop_tag == format!("sg{level}")
-                && [
-                    (&grind.stakes_futures, &grind.thresholds_futures),
-                    (&grind.stakes_spot, &grind.thresholds_spot),
-                ]
+    let grinds_are_valid = !constants.grinds.is_empty()
+        && unique_cluster_tags(
+            constants
+                .grinds
                 .iter()
-                .all(|(stakes, thresholds)| {
-                    !stakes.is_empty()
-                        && stakes.len() == thresholds.len()
-                        && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
-                        && thresholds.iter().all(|value| value.is_finite())
-                })
-                && grind.stop_threshold_futures.is_finite()
+                .map(|grind| (&grind.entry_tag, &grind.stop_tag)),
+        )
+        && constants.grinds.iter().all(|grind| {
+            [
+                (&grind.stakes_futures, &grind.thresholds_futures),
+                (&grind.stakes_spot, &grind.thresholds_spot),
+            ]
+            .iter()
+            .all(|(stakes, thresholds)| {
+                !stakes.is_empty()
+                    && stakes.len() == thresholds.len()
+                    && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
+                    && thresholds.iter().all(|value| value.is_finite())
+            }) && grind.stop_threshold_futures.is_finite()
                 && grind.stop_threshold_spot.is_finite()
                 && grind.profit_threshold_futures.is_finite()
                 && grind.profit_threshold_spot.is_finite()
@@ -202,13 +196,17 @@ pub(crate) fn valid_nfi_adjustment_constants(constants: &NfiX7AdjustmentConstant
         && constants
             .rebuy_stake_multiplier
             .is_none_or(|value| value.is_finite() && value > 0.0)
-        && levels == [1, 2, 3]
-        && grinds == [1, 2, 3, 4, 5]
+        && contiguous_levels(&levels)
+        && contiguous_levels(&grinds)
         && derisk_numbers_are_valid
         && grind_numbers_are_valid
 }
 
-pub(crate) fn valid_nfi_adjustment_policy(policy: &NfiX7AdjustmentPolicy) -> bool {
+pub(crate) fn valid_nfi_adjustment_policy(
+    policy: &NfiX7AdjustmentPolicy,
+    derisk_level_count: usize,
+    grind_level_count: usize,
+) -> bool {
     let fallback_levels = policy
         .grind_entry_fallbacks
         .iter()
@@ -217,7 +215,9 @@ pub(crate) fn valid_nfi_adjustment_policy(policy: &NfiX7AdjustmentPolicy) -> boo
     let valid_derisk_levels = |levels: &[usize]| {
         !levels.is_empty()
             && levels.windows(2).all(|pair| pair[0] < pair[1])
-            && levels.iter().all(|level| (1..=3).contains(level))
+            && levels
+                .iter()
+                .all(|level| (1..=derisk_level_count).contains(level))
     };
     let fallbacks_are_valid = policy.grind_entry_fallbacks.iter().all(|fallback| {
         fallback.predicates.iter().all(|predicate| {
@@ -235,8 +235,24 @@ pub(crate) fn valid_nfi_adjustment_policy(policy: &NfiX7AdjustmentPolicy) -> boo
         && policy.stale_order_ms > policy.entry_retry_ms
         && valid_derisk_levels(&policy.extra_entry_derisk_levels)
         && valid_nfi_adjustment_condition(&policy.extra_entry_profit_condition)
-        && fallback_levels == [1, 2, 3, 4, 5]
+        && fallback_levels == (1..=grind_level_count).collect::<Vec<_>>()
         && fallbacks_are_valid
+}
+
+fn contiguous_levels(levels: &[usize]) -> bool {
+    !levels.is_empty() && levels.iter().copied().eq(1..=levels.len())
+}
+
+fn unique_cluster_tags<'a>(mut tags: impl Iterator<Item = (&'a String, &'a String)>) -> bool {
+    let mut seen = BTreeSet::new();
+    tags.all(|(entry, stop)| {
+        !entry.is_empty()
+            && !stop.is_empty()
+            && !entry.chars().any(char::is_whitespace)
+            && !stop.chars().any(char::is_whitespace)
+            && seen.insert(entry)
+            && seen.insert(stop)
+    })
 }
 
 pub(crate) fn valid_nfi_adjustment_condition(condition: &NfiX7AdjustmentCondition) -> bool {

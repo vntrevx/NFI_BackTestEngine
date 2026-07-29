@@ -45,6 +45,7 @@ from .reporting.terminal import (
     format_terminal_summary,
 )
 from .result_summary import build_closed_trade_equity_rows, build_result_summary
+from .selected_result import load_selected_run_view
 from .specs import (
     RESULT_EVIDENCE_INDEX_SCHEMA,
     RESULT_VERIFICATION_SCHEMA,
@@ -85,13 +86,15 @@ def write_result_presentation(
     run_path = root / "run.json"
     if not run_path.is_file():
         raise BenchmarkError(f"research run.json does not exist: {run_path}")
-    run_report = read_json(run_path)
-    if not isinstance(run_report, dict):
+    source_run_report = read_json(run_path)
+    if not isinstance(source_run_report, dict):
         raise BenchmarkError(f"research run report must be an object: {run_path}")
+    run_report, selected_result = load_selected_run_view(root, source_run_report)
     protected_sources = _source_evidence_snapshots(
         root,
-        run_report,
+        source_run_report,
         verification_path=verification_path,
+        selected_result=selected_result,
     )
     run_report = _with_adjacent_resource_measurement(root, run_report)
 
@@ -127,6 +130,7 @@ def write_result_presentation(
         root,
         run_id=run_report.get("run_id"),
         include_surface=surface is not None,
+        selected_result=selected_result,
     )
     validate_schema(evidence_index, RESULT_EVIDENCE_INDEX_SCHEMA)
     write_json(root / EVIDENCE_INDEX_FILENAME, evidence_index)
@@ -144,6 +148,7 @@ def _source_evidence_snapshots(
     run_report: Mapping[str, Any],
     *,
     verification_path: str | Path | None,
+    selected_result: Mapping[str, Any] | None,
 ) -> dict[Path, tuple[int, str]]:
     derived_destinations = {
         (root / filename).resolve()
@@ -159,12 +164,8 @@ def _source_evidence_snapshots(
     }
     candidates = [root / "run.json", root / "trade-surface.json"]
     result = run_report.get("result")
-    surface_record = (
-        result.get("trade_surface") if isinstance(result, Mapping) else None
-    )
-    recorded_surface = (
-        surface_record.get("path") if isinstance(surface_record, Mapping) else None
-    )
+    surface_record = result.get("trade_surface") if isinstance(result, Mapping) else None
+    recorded_surface = surface_record.get("path") if isinstance(surface_record, Mapping) else None
     if isinstance(recorded_surface, str):
         candidates.append(Path(recorded_surface))
     if verification_path is not None:
@@ -174,6 +175,13 @@ def _source_evidence_snapshots(
                 f"confirmation source collides with a derived result artifact: {proof}"
             )
         candidates.append(proof)
+    if selected_result is not None:
+        candidates.append(root / "selected-result.json")
+        official = selected_result.get("official")
+        if isinstance(official, Mapping):
+            for record in official.values():
+                if isinstance(record, Mapping) and isinstance(record.get("path"), str):
+                    candidates.append(root / record["path"])
 
     snapshots: dict[Path, tuple[int, str]] = {}
     for candidate in candidates:

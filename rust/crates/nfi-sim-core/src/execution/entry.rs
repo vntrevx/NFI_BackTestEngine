@@ -9,7 +9,7 @@ use crate::calculations::{
 };
 use crate::domain::{
     Candle, ClosedTrade, CustomDataWrite, EntrySignal, FilledOrder, PairSeries, PortfolioConfig,
-    SimError,
+    SimError, StateMachineActionKind, StateMachineReadSource,
 };
 use crate::futures::{
     entry_leverage, reapply_inclusive_funding_after_entry_fill, update_isolated_liquidation_price,
@@ -17,9 +17,11 @@ use crate::futures::{
 use crate::portfolio::{wallet_free, OpenTrade, TradeSide};
 use crate::protections::ProtectionState;
 use crate::validation::nfi_entry_signal_is_supported;
+use crate::{evaluate_state_machine, StateMachineContext};
 
 use super::confirmation::{evaluate_confirm_program, ConfirmInputs};
 use super::stake::{evaluate_stake_program, EntryRequest, EntryStake, StakeInputs};
+use super::state_machine::{order_value as state_machine_order_value, trade_value};
 
 pub(crate) struct EntryExecution<'input, 'state> {
     pub(crate) config: &'input PortfolioConfig,
@@ -239,7 +241,7 @@ pub(crate) fn attempt_entry(
         nfi_adjustment_state: None,
     };
     reapply_inclusive_funding_after_entry_fill(&mut trade, candle, config.funding_fee_interval_ms);
-    apply_order_filled(&mut trade, signal.tag.as_deref(), config);
+    apply_order_filled(&mut trade, signal.tag.as_deref(), config)?;
     update_isolated_liquidation_price(&mut trade, config, candle.timestamp_ms)?;
     Ok(EntryAttempt {
         trade: Some(trade),
@@ -378,13 +380,86 @@ pub(crate) fn apply_order_filled(
     trade: &mut OpenTrade,
     order_tag: Option<&str>,
     config: &PortfolioConfig,
-) {
+) -> Result<(), SimError> {
+    if let Some(program) = &config.state_machine_program {
+        if program.entrypoints.contains_key("order_filled") {
+            let successful_entries = trade.orders.iter().filter(|order| order.is_entry).count();
+            let mut context = StateMachineContext {
+                trade: BTreeMap::new(),
+                orders: BTreeMap::from([
+                    (
+                        "successful_entries".to_owned(),
+                        Value::Number(
+                            u64::try_from(successful_entries)
+                                .map_err(|_| SimError::InvalidStateMachineProgram)?
+                                .into(),
+                        ),
+                    ),
+                    (
+                        "count".to_owned(),
+                        Value::Number(
+                            u64::try_from(trade.orders.len())
+                                .map_err(|_| SimError::InvalidStateMachineProgram)?
+                                .into(),
+                        ),
+                    ),
+                ]),
+                custom_state: trade.custom_data.clone(),
+                ..StateMachineContext::default()
+            };
+            for read in &program.required_reads {
+                let value = match read.source {
+                    StateMachineReadSource::Trade => trade_value(&read.key, trade),
+                    StateMachineReadSource::Orders => state_machine_order_value(&read.key, trade),
+                    StateMachineReadSource::Input if read.key == "pair" => {
+                        Some(Value::String(trade.pair.clone()))
+                    }
+                    StateMachineReadSource::Input if read.key == "order_tag" => {
+                        Some(order_tag.map_or(Value::Null, |tag| Value::String(tag.to_owned())))
+                    }
+                    StateMachineReadSource::Input if read.key == "current_time" => trade
+                        .orders
+                        .last()
+                        .map(|order| Value::Number(order.filled_timestamp_ms.into())),
+                    StateMachineReadSource::Candle
+                    | StateMachineReadSource::Wallet
+                    | StateMachineReadSource::CustomState
+                    | StateMachineReadSource::Input
+                    | StateMachineReadSource::Local => None,
+                };
+                if let Some(value) = value {
+                    let destination = match read.source {
+                        StateMachineReadSource::Trade => &mut context.trade,
+                        StateMachineReadSource::Orders => &mut context.orders,
+                        StateMachineReadSource::Input => &mut context.input,
+                        StateMachineReadSource::Candle
+                        | StateMachineReadSource::Wallet
+                        | StateMachineReadSource::CustomState
+                        | StateMachineReadSource::Local => continue,
+                    };
+                    destination.insert(read.key.clone(), value);
+                }
+            }
+            if let Some(tag) = order_tag {
+                context
+                    .input
+                    .insert("order_tag".to_owned(), Value::String(tag.to_owned()));
+            }
+            let action = evaluate_state_machine(program, "order_filled", &mut context)
+                .map_err(|_| SimError::InvalidStateMachineProgram)?;
+            if action.is_some_and(|action| action.kind != StateMachineActionKind::NoOp) {
+                return Err(SimError::InvalidStateMachineProgram);
+            }
+            trade.custom_data = context.custom_state;
+        }
+        return Ok(());
+    }
     let Some(program) = config
         .callback_program
         .as_ref()
         .and_then(|program| program.order_filled.as_ref())
     else {
-        return;
+        return Ok(());
     };
     let successful_entries = trade.orders.iter().filter(|order| order.is_entry).count();
     if successful_entries == 1 {
@@ -394,11 +469,12 @@ pub(crate) fn apply_order_filled(
         );
     }
     let Some(mode) = order_tag.and_then(|tag| tag.split(' ').next()) else {
-        return;
+        return Ok(());
     };
     if let Some(writes) = program.order_tag_actions.get(mode) {
         apply_custom_writes(&mut trade.custom_data, writes);
     }
+    Ok(())
 }
 
 pub(crate) fn apply_custom_writes(

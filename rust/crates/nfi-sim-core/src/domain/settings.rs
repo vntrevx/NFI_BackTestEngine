@@ -8,7 +8,7 @@ use crate::protections::ProtectionProgram;
 
 use super::{
     CallbackProgram, ConfirmProgram, NfiX7TradeManager, PairSeries, ScalarProgramBundle,
-    StakeProgram,
+    StakeProgram, StateMachineProgram,
 };
 
 const fn default_amount_reserve_percent() -> f64 {
@@ -61,6 +61,8 @@ pub struct PortfolioConfig {
     pub adjustment_rule: Option<AdjustmentRule>,
     #[serde(default)]
     pub callback_program: Option<CallbackProgram>,
+    #[serde(default)]
+    pub state_machine_program: Option<StateMachineProgram>,
     #[serde(default)]
     pub stake_program: Option<StakeProgram>,
     #[serde(default = "default_amount_reserve_percent")]

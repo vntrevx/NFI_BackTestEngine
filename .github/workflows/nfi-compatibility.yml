@@ -2,7 +2,7 @@ name: Latest NFI compatibility
 
 on:
   schedule:
-    - cron: "17 2 * * *"
+    - cron: "17 */4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,8 +13,98 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  discover:
+    name: Detect a new upstream X7 revision
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.revision.outputs.changed }}
+      previous_sha: ${{ steps.revision.outputs.previous_sha }}
+      upstream_sha: ${{ steps.revision.outputs.upstream_sha }}
+    steps:
+      - name: Check out engine
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Compare upstream SHA with the compatibility ledger
+        id: revision
+        env:
+          UPSTREAM_REPOSITORY: iterativv/NostalgiaForInfinity
+        run: |
+          upstream_sha="$(
+            git ls-remote "https://github.com/${UPSTREAM_REPOSITORY}.git" \
+              refs/heads/main | awk '{print $1}'
+          )"
+          test -n "${upstream_sha}"
+          previous_sha=""
+          git fetch --quiet origin compatibility-ledger:refs/remotes/origin/compatibility-ledger \
+            || true
+          if git show-ref --verify --quiet refs/remotes/origin/compatibility-ledger; then
+            previous_sha="$(
+              git show refs/remotes/origin/compatibility-ledger:latest-sha.txt \
+                2>/dev/null || true
+            )"
+          fi
+          {
+            echo "upstream_sha=${upstream_sha}"
+            echo "previous_sha=${previous_sha}"
+            if [ "${upstream_sha}" = "${previous_sha}" ]; then
+              echo "changed=false"
+            else
+              echo "changed=true"
+            fi
+          } >> "${GITHUB_OUTPUT}"
+
+  diff:
+    name: Classify upstream AST/IR changes
+    needs: discover
+    if: needs.discover.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out engine
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install locked Python environment
+        run: uv sync --extra dev --frozen
+      - name: Download old and new strategy revisions
+        env:
+          NEW_SHA: ${{ needs.discover.outputs.upstream_sha }}
+          OLD_SHA: ${{ needs.discover.outputs.previous_sha }}
+        run: |
+          mkdir -p .compatibility
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/iterativv/NostalgiaForInfinity/${NEW_SHA}/NostalgiaForInfinityX7.py" \
+            --output .compatibility/new.py
+          if [ -n "${OLD_SHA}" ]; then
+            curl --fail --location --silent --show-error \
+              "https://raw.githubusercontent.com/iterativv/NostalgiaForInfinity/${OLD_SHA}/NostalgiaForInfinityX7.py" \
+              --output .compatibility/old.py
+          else
+            cp .compatibility/new.py .compatibility/old.py
+          fi
+      - name: Build deterministic strategy difference
+        run: |
+          uv run nfi-bte strategy diff \
+            .compatibility/old.py .compatibility/new.py \
+            --class NostalgiaForInfinityX7 \
+            --output .compatibility/strategy-diff.json
+      - name: Retain strategy difference
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: latest-nfi-x7-strategy-diff
+          path: .compatibility/strategy-diff.json
+          if-no-files-found: error
+          retention-days: 14
+
   x7:
     name: Check latest upstream X7 (${{ matrix.trading_mode }})
+    needs: discover
+    if: needs.discover.outputs.changed == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -35,24 +125,97 @@ jobs:
         run: |
           uv sync --extra dev --frozen
           uv run maturin develop --release --locked
-      - name: Download current upstream strategy
+      - name: Download pinned upstream strategy revision
+        env:
+          UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
           mkdir -p .compatibility
           curl --fail --location --silent --show-error \
-            https://raw.githubusercontent.com/iterativv/NostalgiaForInfinity/main/NostalgiaForInfinityX7.py \
+            "https://raw.githubusercontent.com/iterativv/NostalgiaForInfinity/${UPSTREAM_SHA}/NostalgiaForInfinityX7.py" \
             --output .compatibility/NostalgiaForInfinityX7.py
       - name: Check exact native compatibility
+        env:
+          UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
+          set +e
           uv run nfi-bte strategy check \
             .compatibility/NostalgiaForInfinityX7.py \
             --class NostalgiaForInfinityX7 \
             --trading-mode ${{ matrix.trading_mode }} \
+            --upstream-repository iterativv/NostalgiaForInfinity \
+            --upstream-commit "${UPSTREAM_SHA}" \
             --output .compatibility/report-${{ matrix.trading_mode }}.json
+          status=$?
+          echo "native_compatibility_exit_code=${status}" >> "${GITHUB_STEP_SUMMARY}"
+          exit 0
       - name: Retain compatibility report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .compatibility/report-${{ matrix.trading_mode }}.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
+
+  publish:
+    name: Preserve ledger and reconcile blocker issue
+    needs:
+      - discover
+      - diff
+      - x7
+    if: always() && needs.discover.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Check out engine
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Download compatibility artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: latest-nfi-x7-*
+          path: .compatibility/results
+          merge-multiple: true
+      - name: Publish append-only compatibility ledger branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
+        run: |
+          ledger_dir="$(mktemp -d)"
+          git clone --quiet --no-checkout \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "${ledger_dir}"
+          cd "${ledger_dir}"
+          if git show-ref --verify --quiet refs/remotes/origin/compatibility-ledger; then
+            git switch --quiet --create compatibility-ledger \
+              refs/remotes/origin/compatibility-ledger
+          else
+            git switch --quiet --orphan compatibility-ledger
+          fi
+          mkdir -p "${UPSTREAM_SHA}"
+          cp "${GITHUB_WORKSPACE}/.compatibility/results/report-spot.json" \
+            "${UPSTREAM_SHA}/spot.json"
+          cp "${GITHUB_WORKSPACE}/.compatibility/results/report-futures.json" \
+            "${UPSTREAM_SHA}/futures.json"
+          cp "${GITHUB_WORKSPACE}/.compatibility/results/strategy-diff.json" \
+            "${UPSTREAM_SHA}/strategy-diff.json"
+          printf '%s\n' "${UPSTREAM_SHA}" > latest-sha.txt
+          git add "${UPSTREAM_SHA}" latest-sha.txt
+          git -c user.name=github-actions -c user.email=41898282+github-actions@users.noreply.github.com \
+            commit --quiet -m "compatibility: record ${UPSTREAM_SHA}"
+          git push --quiet origin compatibility-ledger
+      - name: Reconcile deduplicated compatibility issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
+        run: |
+          gh label create nfi-compatibility \
+            --description "Automated latest NFI compatibility blocker" \
+            --color B60205 --force
+          python scripts/compatibility_issue.py \
+            --reports .compatibility/results \
+            --repository "${GITHUB_REPOSITORY}" \
+            --upstream-sha "${UPSTREAM_SHA}"
