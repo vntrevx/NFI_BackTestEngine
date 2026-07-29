@@ -209,6 +209,7 @@ def test_noninteractive_ask_does_not_imply_fallback(
     root = tmp_path / "run"
     _blocked_run(root)
     calls = []
+    messages = []
     monkeypatch.setattr(
         "nfi_backtest_engine.user_flow.record_native_blocker",
         lambda *_args, **_kwargs: 1,
@@ -225,11 +226,71 @@ def test_noninteractive_ask_does_not_imply_fallback(
         fallback_policy="ask",
         timeout_seconds=None,
         interactive=False,
-        emit=lambda _line: None,
+        emit=messages.append,
     )
 
     assert status == 1
     assert calls == []
+    assert any(
+        "Native execution stopped safely: STRATEGY_CALLBACK_NOT_COMPILED"
+        in message
+        for message in messages
+    )
+    assert any(
+        "use --fallback official to run non-interactively" in message
+        for message in messages
+    )
+
+
+def test_explicit_official_fallback_announces_transition_before_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "run"
+    _blocked_run(root)
+    messages = []
+    monkeypatch.setattr(
+        "nfi_backtest_engine.user_flow.record_native_blocker",
+        lambda *_args, **_kwargs: 1,
+    )
+    monkeypatch.setattr(
+        "nfi_backtest_engine.user_flow.run_official_fallback",
+        lambda *_args, **_kwargs: (
+            {
+                "complete": False,
+                "timed_out": False,
+                "exit_code": 2,
+            },
+            tmp_path / "attempt" / "run.json",
+            False,
+        ),
+    )
+
+    status = finish_official_fallback(
+        root,
+        ledger_path=tmp_path / "ledger.sqlite",
+        native_status=1,
+        fallback_policy="official",
+        timeout_seconds=None,
+        interactive=False,
+        emit=messages.append,
+    )
+
+    assert status == 1
+    transition_index = next(
+        index
+        for index, message in enumerate(messages)
+        if message.startswith("official fallback: approved")
+    )
+    failure_index = next(
+        index
+        for index, message in enumerate(messages)
+        if message.startswith("official fallback: failed")
+    )
+    assert transition_index < failure_index
+    assert "may take much longer than Native" in messages[transition_index]
+    assert "Native run remains unchanged" in messages[transition_index]
+    assert "does not claim parity" in messages[transition_index]
 
 
 def test_cli_fallback_policy_is_explicit_and_yes_does_not_change_it() -> None:

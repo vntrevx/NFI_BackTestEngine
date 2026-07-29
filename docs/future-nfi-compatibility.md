@@ -19,6 +19,10 @@ latest NFI
 기본값 `ask`는 대화형 터미널에서만 동의를 묻고, 비대화형 환경에서는 자동으로
 공식 실행하지 않는다. `--yes`도 fallback 동의를 뜻하지 않는다.
 
+전환은 조용히 일어나지 않는다. CLI는 Native blocker code와 설명을 먼저 출력하고,
+공식 실행 동의 여부, 예상 시간 차이, Native evidence가 변경되지 않는다는 점과
+공식-only 결과가 parity 주장이 아니라는 점을 실행 전에 알린다.
+
 공식 결과는 원래 Native run을 수정하지 않고 별도 시도 디렉터리와
 `selected-result.json`에 기록한다. 이 결과의 역할은 `official_only`이며
 `exact_parity`를 주장하지 않는다. Native 완료, 공식 완료, 사용자가 선택한 결과는
@@ -64,3 +68,8 @@ artifact를 양쪽 증거로 재사용할 수 없다.
 
 Native가 아직 모르는 새 동작도 공식 fallback으로 사용할 수 있지만, 공식
 full-state parity를 통과하기 전에는 Native 지원으로 표시하지 않는다.
+
+이 계약은 현재 pinned Freqtrade가 실행할 수 있는 NFI 변경을 즉시 사용할 수 있게
+한다. 향후 NFI가 새로운 Freqtrade API나 외부 의존성을 요구하면 watcher가 실패
+위치와 blocker를 보존하며, 해당 공식 환경의 버전·digest·회귀 fixture를 검증한
+엔진 업데이트 전에는 임의의 이미지나 코드를 추측 실행하지 않는다.

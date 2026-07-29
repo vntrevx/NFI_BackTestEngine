@@ -660,6 +660,21 @@ def finish_official_fallback(
     ):
         return native_status
     blocker_sequence = record_native_blocker(ledger_path, root)
+    capability = _mapping(run, "capability")
+    blockers = capability.get("blockers")
+    first_blocker = (
+        blockers[0]
+        if isinstance(blockers, list)
+        and blockers
+        and isinstance(blockers[0], Mapping)
+        else {}
+    )
+    emit(
+        "Native execution stopped safely: "
+        f"{first_blocker.get('code', 'NATIVE_UNSUPPORTED_SEMANTICS')} — "
+        f"{first_blocker.get('message', 'active strategy semantics are unsupported')}. "
+        "No approximation was used."
+    )
     emit(f"verification ledger: sequence={blocker_sequence}, state=blocked_unsupported_semantics")
 
     if fallback_policy == "official":
@@ -682,6 +697,11 @@ def finish_official_fallback(
         )
         return 1
 
+    emit(
+        "official fallback: approved; checking preflight and reusable evidence before "
+        "starting pinned Freqtrade. It may take much longer than Native. The Native "
+        "run remains unchanged, and this official-only result does not claim parity."
+    )
     report, proof_path, reused = run_official_fallback(
         root,
         timeout_seconds=timeout_seconds,
