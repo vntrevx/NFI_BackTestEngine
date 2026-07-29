@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 59,
+  "revision": 60,
   "updated_at": "2026-07-29",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M7-01",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -1898,7 +1898,7 @@
       "order": 701,
       "milestone": "M7",
       "title": "Finish Rust responsibility modularization",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M6-01"
       ],
@@ -1927,9 +1927,40 @@
         "Spot and Futures full fixture identity"
       ],
       "started_at": "2026-07-29T13:46:09+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-29T14:36:51+09:00",
+      "commit_sha": "2a6cf51351fe86b0f888be2963f7db7fd766781d",
+      "evidence": [
+        {
+          "kind": "module_inventory",
+          "path": ".nfi/roadmap-acceptance/M7-01/worktree-20260729T142554+0900/module-inventory.json",
+          "bytes": 1877,
+          "sha256": "13d937efe5bb8e81a989db3ce4e5861f6bc29001fad0eeefbc09f45b84d14790"
+        },
+        {
+          "kind": "hardcoding_audit",
+          "path": ".nfi/roadmap-acceptance/M7-01/worktree-20260729T142554+0900/hardcoding-audit.json",
+          "bytes": 1420,
+          "sha256": "78e27d793cc772d04433795e5b74babeb15fba5e054c8df9b05e9c348887ffaf"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M7-01/worktree-20260729T142554+0900/acceptance-report.json",
+          "bytes": 2757,
+          "sha256": "5cf626a2e52d20cc88a405cd978f8a113016c09c43aee4139f98191bb3465418"
+        },
+        {
+          "kind": "x7_spot_full",
+          "path": ".nfi/roadmap-acceptance/M7-01/worktree-20260729T142554+0900/x7-spot/run.json",
+          "bytes": 6169,
+          "sha256": "d1d5c808c4130edd5c03d69a69c8cb62ca692f47197a6fe0d1c254b41a09c2a0"
+        },
+        {
+          "kind": "x7_futures_full",
+          "path": ".nfi/roadmap-acceptance/M7-01/worktree-20260729T142554+0900/x7-futures/run.json",
+          "bytes": 6290,
+          "sha256": "e9cb2a0929bf32a7209e31f8ca28348495823a084f7b78cc2b55ff46ec568aad"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -3228,6 +3259,27 @@
         "acceptance_profile": "rust_x7_refactor",
         "worktree_head": "d920d95f19ae45f9a29bcbe3f1addf7be20f63c6",
         "user_instruction": "Finish the Rust modularization cleanly without hardcoded optimization branches."
+      }
+    },
+    {
+      "sequence": 72,
+      "timestamp": "2026-07-29T14:36:51+09:00",
+      "task_id": "M7-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "2a6cf51351fe86b0f888be2963f7db7fd766781d",
+        "acceptance_profile": "rust_x7_refactor",
+        "rust_tests": 100,
+        "python_tests": 442,
+        "clippy_warnings": 0,
+        "spot_trade_surface_equal": true,
+        "spot_state_trace_equal": true,
+        "futures_trade_surface_equal": true,
+        "futures_state_trace_equal": true,
+        "hardcoding_audit": "pass",
+        "algorithm_optimization": false,
+        "remote_push": false,
+        "next_eligible_task": null
       }
     }
   ]
