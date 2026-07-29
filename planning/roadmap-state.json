@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 61,
-  "updated_at": "2026-07-29T16:22:24+09:00",
+  "revision": 62,
+  "updated_at": "2026-07-29T17:05:45+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M8-01",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -1968,7 +1968,7 @@
       "order": 801,
       "milestone": "M8",
       "title": "Finish safe storage lifecycle and reclamation",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M7-01"
       ],
@@ -1999,9 +1999,34 @@
         "full Python and static validation"
       ],
       "started_at": "2026-07-29T16:22:24+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-29T17:05:45+09:00",
+      "commit_sha": "5df9d0cc4a16e0ce4507b3358921d2f323a19d97",
+      "evidence": [
+        {
+          "kind": "clean_audit_pre_apply",
+          "path": ".nfi/roadmap-acceptance/M8-01/worktree-20260729T165526+0900/clean-audit.json",
+          "bytes": 267417,
+          "sha256": "0f60bdc246c72194f9a6271804774f1ce821aeae598b64543f71475c6c9b62f6"
+        },
+        {
+          "kind": "clean_apply_receipt",
+          "path": ".nfi/roadmap-acceptance/M8-01/worktree-20260729T165526+0900/clean-result.json",
+          "bytes": 1962,
+          "sha256": "f3e14006bfbcc2e31371afc2c035764592c9b4e5e61b15cb1113f28cd7ad4979"
+        },
+        {
+          "kind": "clean_audit_post_apply",
+          "path": ".nfi/roadmap-acceptance/M8-01/worktree-20260729T165526+0900/clean-audit-post.json",
+          "bytes": 263986,
+          "sha256": "579d859d892bbc8783f50e809de3fa715410bf16afd0e3443c2d66dfa915e915"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M8-01/worktree-20260729T165526+0900/acceptance-report.json",
+          "bytes": 1666,
+          "sha256": "18ab3cc127daf3ff081a991e9b22dcc5bc14806f79849ee685dd210ba1d668f5"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -3339,6 +3364,32 @@
           "removed_artifact_class": "regenerable vectors and nested vector caches",
           "protected_inputs_and_evidence_preserved": true
         }
+      }
+    },
+    {
+      "sequence": 74,
+      "timestamp": "2026-07-29T17:05:45+09:00",
+      "task_id": "M8-01",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "5df9d0cc4a16e0ce4507b3358921d2f323a19d97",
+        "acceptance_profile": "storage_lifecycle",
+        "python_tests": 452,
+        "clean_tests": 20,
+        "user_flow_tests": 42,
+        "ruff_warnings": 0,
+        "basedpyright_errors": 0,
+        "hard_link_accounting": "pass",
+        "safe_apply_deleted_units": 6,
+        "safe_apply_reclaimed_allocated_bytes": 4211195904,
+        "post_apply_reclaimable_allocated_bytes": 0,
+        "managed_root_after_gib": 9.3,
+        "protected_evidence_preserved": true,
+        "algorithm_optimization": false,
+        "runtime_hardcoding_added": false,
+        "simulation_behavior_changed": false,
+        "remote_push": false,
+        "next_eligible_task": null
       }
     }
   ]
