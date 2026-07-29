@@ -389,6 +389,10 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             f"next={report['next_shard']} -> "
             f"{args.output_dir / 'discovery-report.json'}"
         )
+        print(
+            f"{report['message']} "
+            "Official Freqtrade fallback: available."
+        )
         return 1 if report["status"] == "infrastructure_failed" else 0
     if args.strategy_command == "state-machine":
         from ..state_machine_ir import compile_state_machine_program

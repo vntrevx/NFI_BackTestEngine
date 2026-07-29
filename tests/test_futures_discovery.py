@@ -164,6 +164,7 @@ def test_no_gap_does_not_start_a_deep_search(tmp_path: Path) -> None:
     )
 
     assert report["status"] == "no_gap"
+    assert "Existing exact Futures fixtures" in report["message"]
     assert report["searched_shard_count"] == 0
     assert report["complete"] is True
 
@@ -181,6 +182,7 @@ def test_static_blocker_keeps_official_fallback_without_search(tmp_path: Path) -
 
     assert report["status"] == "unsupported_semantics"
     assert report["official_fallback_available"] is True
+    assert "Static Native compatibility is blocked" in report["message"]
     assert report["searched_shard_count"] == 0
 
 
@@ -216,6 +218,7 @@ def test_unsearchable_gap_fails_closed_without_guessing(
     assert report["searchable_target_count"] == 0
     assert report["unsearchable_target_ids"] == [target["id"]]
     assert report["official_fallback_available"] is True
+    assert "cannot independently prove" in report["message"]
 
 
 def test_budget_cursor_resumes_at_the_next_unsearched_shard(tmp_path: Path) -> None:

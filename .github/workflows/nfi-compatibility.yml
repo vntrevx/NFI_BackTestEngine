@@ -125,6 +125,9 @@ jobs:
             cp .compatibility/new.py .compatibility/old.py
           fi
       - name: Build or reuse deterministic strategy difference
+        env:
+          ENGINE_SHA: ${{ needs.discover.outputs.engine_sha }}
+          UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
           set -euo pipefail
           if [ ! -s .compatibility/strategy-diff.json ]; then
@@ -133,6 +136,16 @@ jobs:
               --class NostalgiaForInfinityX7 \
               --output .compatibility/strategy-diff.json
           fi
+          jq -n \
+            --arg upstream_sha "${UPSTREAM_SHA}" \
+            --arg engine_sha "${ENGINE_SHA}" \
+            --arg source_sha256 "$(sha256sum .compatibility/new.py | awk '{print $1}')" \
+            '{
+              schema_version: "1.0.0",
+              upstream_sha: $upstream_sha,
+              engine_sha: $engine_sha,
+              source_sha256: $source_sha256
+            }' > .compatibility/compatibility-identity.json
       - name: Retain strategy difference and source
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -140,6 +153,7 @@ jobs:
           path: |
             .compatibility/strategy-diff.json
             .compatibility/new.py
+            .compatibility/compatibility-identity.json
           if-no-files-found: error
           retention-days: 30
 

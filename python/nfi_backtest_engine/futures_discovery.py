@@ -413,9 +413,16 @@ def discover_futures_targets(
         "status": status,
     }
     write_json(output / "cursor.json", cursor_document)
+    message = _report_message(
+        status,
+        attempts=attempts,
+        unsearchable_targets=unsearchable_targets,
+        native_compatible=compatibility.get("native_compatible") is True,
+    )
     report = {
         "schema_version": DISCOVERY_REPORT_VERSION,
         "status": status,
+        "message": message,
         "complete": cursor_document["complete"],
         "fingerprint": request["fingerprint"],
         "upstream_commit": upstream_commit,
@@ -440,6 +447,33 @@ def discover_futures_targets(
     write_json(output / "discovery-report.json", report)
     write_json(output / "run.json", report)
     return report
+
+
+def _report_message(
+    status: str,
+    *,
+    attempts: list[dict[str, Any]],
+    unsearchable_targets: list[dict[str, Any]],
+    native_compatible: bool,
+) -> str:
+    if status == "no_gap":
+        return "Existing exact Futures fixtures cover every changed behavior target."
+    if unsearchable_targets:
+        kinds = sorted({str(target["kind"]) for target in unsearchable_targets})
+        return (
+            "Deep search cannot independently prove new output for target kinds "
+            f"{', '.join(kinds)}; official Freqtrade fallback remains available."
+        )
+    if not native_compatible:
+        return (
+            "Static Native compatibility is blocked; official Freqtrade fallback "
+            "remains available."
+        )
+    if status == "budget_exhausted":
+        return "The run budget ended before the next shard; resume from the saved cursor."
+    if attempts:
+        return str(attempts[-1]["message"])
+    return "Futures discovery completed without a branch-reaching exact candidate."
 
 
 def _deep_searchable(target: Mapping[str, Any]) -> bool:

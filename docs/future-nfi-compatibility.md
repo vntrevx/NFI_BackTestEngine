@@ -87,6 +87,43 @@ queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 �
 Native가 아직 모르는 새 동작도 공식 fallback으로 사용할 수 있지만, 공식
 full-state parity를 통과하기 전에는 Native 지원으로 표시하지 않는다.
 
+## Futures branch discovery
+
+4시간 감시의 Futures 표적검증에서 `TARGETED_COVERAGE_GAP`이 남으면 별도의
+저속 탐색 lane이 그 identity를 이어받는다. 이 lane은
+`planning/futures-discovery-policy.json`만으로 범위를 정하며, 현재 계약은 이전
+5개 완료 연도를 분기 단위로 최신순 검색하고, listing-aware universe에서 최대
+80 pairs를 worker 1개로 회당 2시간까지 실행하는 것이다. 특정 pair, 날짜,
+Signal/Grind 번호, 전략 SHA 또는 예상 결과는 검색 분기가 아니다.
+
+```bash
+nfi-bte strategy discover-futures new.py strategy-diff.json report-futures.json \
+  --class NostalgiaForInfinityX7 \
+  --fixtures-root benchmarks/fixtures/captured \
+  --policy planning/futures-discovery-policy.json \
+  --upstream-commit UPSTREAM_COMMIT --engine-commit ENGINE_COMMIT \
+  --profile execution-profile.json --output-dir .nfi/futures-discovery
+```
+
+request fingerprint는 upstream/engine/source/policy/target/time window를 모두
+묶는다. budget 소진 시 다음 미검색 shard를 가리키는 cursor를 남기며, 같은
+fingerprint에서만 재개한다. 최신 identity가 바뀌면 이전 cursor는 보존하되
+재사용하지 않는다. 제거된 동작, runtime에서 관찰할 수 없는 target, tag로
+위치시킬 수 없는 새 callback은 새 결과만으로 증명할 수 없으므로 검색하지 않고
+공식 fallback 상태로 남긴다.
+
+검색 hit 자체는 증거가 아니다. pair와 시간을 최소화한 뒤 pinned Freqtrade와
+Native를 각각 다시 실행해 변경 branch 도달, trade surface exact,
+full-state exact를 모두 통과한 30 MiB 이하 fixture만 candidate가 된다. 자동화는
+allowlist된 fixture와 compact evidence만 새 branch에 넣어 Draft PR을 열고 CI를
+요청한다. 자동 승인과 자동 merge는 하지 않는다.
+
+심층 workflow는 nightly 또는 수동으로 실행되고 동시 실행은 하나뿐이다.
+request/report/cursor는 append-only ledger에 남기며 candidate artifact는 30일
+보존한다. 원시 candles, cache와 trace는 ledger나 PR에 넣지 않는다. 로컬
+budget/인프라 실패 run은 `nfi-bte clean --dry-run`에서 회수 가능 대상으로
+분류된다.
+
 이 계약은 현재 pinned Freqtrade가 실행할 수 있는 NFI 변경을 즉시 사용할 수 있게
 한다. 향후 NFI가 새로운 Freqtrade API나 외부 의존성을 요구하면 watcher가 실패
 위치와 blocker를 보존하며, 해당 공식 환경의 버전·digest·회귀 fixture를 검증한
