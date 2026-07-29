@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 68,
-  "updated_at": "2026-07-30T00:38:30+09:00",
+  "revision": 69,
+  "updated_at": "2026-07-30T01:59:59+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M10-02",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2214,7 +2214,7 @@
       "order": 1002,
       "milestone": "M10",
       "title": "Operationalize unattended future-NFI compatibility verification",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M10-01"
       ],
@@ -2244,9 +2244,61 @@
         "GitHub force and no-op canary run URLs"
       ],
       "started_at": "2026-07-30T00:38:30+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T01:59:59+09:00",
+      "commit_sha": "591610dbca99895c8564af3cfaeb35b05318ce0c",
+      "evidence": [
+        {
+          "kind": "targeted_qualification_commit",
+          "commit_sha": "184641d23826bc6270950ae9f3557298fb825946"
+        },
+        {
+          "kind": "automation_commit",
+          "commit_sha": "591610dbca99895c8564af3cfaeb35b05318ce0c"
+        },
+        {
+          "kind": "main_merge_commit",
+          "commit_sha": "1a528002b30ed574f2761cdf704a95f18148481b"
+        },
+        {
+          "kind": "acceptance_report",
+          "path": ".nfi/roadmap-acceptance/M10-02/worktree-20260730T014500+0900/acceptance-report.json",
+          "bytes": 2820,
+          "sha256": "8d650f4610ec2b7995aaa3c2957b0c4b2959fddd78f33d1b4afa0006c5785771"
+        },
+        {
+          "kind": "latest_upstream_spot_targeting",
+          "path": ".nfi/roadmap-acceptance/M10-02/worktree-20260730T014500+0900/latest-upstream-spot/run.json",
+          "bytes": 1125,
+          "sha256": "f0d276f860f5abc479f607ed417ac2b12e5e24419a6276ce93c72ee8bfac39d0"
+        },
+        {
+          "kind": "latest_upstream_futures_exact_qualification",
+          "path": ".nfi/roadmap-acceptance/M10-02/worktree-20260730T014500+0900/latest-upstream-futures-attempt-2/run.json",
+          "bytes": 2583,
+          "sha256": "337b029ee5421b4bb3be5e5b75458b3b3f9f40cc44049c6ac4673b7c7483f2e3"
+        },
+        {
+          "kind": "pull_request",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/pull/44"
+        },
+        {
+          "kind": "required_ci",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30471541821"
+        },
+        {
+          "kind": "forced_workflow_canary",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30472852054"
+        },
+        {
+          "kind": "unchanged_noop_workflow_canary",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30473244366"
+        },
+        {
+          "kind": "compatibility_ledger",
+          "branch": "compatibility-ledger",
+          "path": "checks/f188ec26fcb69619cea3843429bed08a294ade99/1a528002b30ed574f2761cdf704a95f18148481b/runs/30472852054-1"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -3731,6 +3783,45 @@
         "runtime_hardcoding_allowed": false,
         "remote_push_approved": true,
         "live_canary_approved": true
+      }
+    },
+    {
+      "sequence": 81,
+      "timestamp": "2026-07-30T01:59:59+09:00",
+      "task_id": "M10-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "591610dbca99895c8564af3cfaeb35b05318ce0c",
+        "merge_commit_sha": "1a528002b30ed574f2761cdf704a95f18148481b",
+        "acceptance_profile": "future_nfi_compatibility",
+        "focused_python_tests": 73,
+        "python_tests": 497,
+        "rust_tests": 107,
+        "ruff_warnings": 0,
+        "basedpyright_errors": 0,
+        "clippy_warnings": 0,
+        "actionlint_errors": 0,
+        "full_state_fixture_count": 5,
+        "full_state_fixtures_exact": true,
+        "latest_upstream_sha": "f188ec26fcb69619cea3843429bed08a294ade99",
+        "latest_upstream_changed_route": "64",
+        "latest_spot_static_native_compatible": true,
+        "latest_spot_target_fixture_gap": 1,
+        "latest_spot_official_fallback_available": true,
+        "latest_futures_verification_state": "quick_verified",
+        "latest_futures_changed_branch_reached": true,
+        "latest_futures_trade_surface_exact": true,
+        "latest_futures_full_state_exact": true,
+        "forced_canary_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30472852054",
+        "forced_canary_trigger_reason": "manual-force",
+        "unchanged_canary_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30473244366",
+        "unchanged_canary_expensive_jobs_skipped": true,
+        "compatibility_open_issues": 0,
+        "automation_health_open_issues": 0,
+        "runtime_hardcoding_added": false,
+        "release_published": false,
+        "remote_push": true,
+        "next_eligible_task": null
       }
     }
   ]
