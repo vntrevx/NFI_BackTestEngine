@@ -1,0 +1,257 @@
+//! Validation for NFI adjustment constants and predicate IR.
+
+use crate::domain::{
+    NfiLegacyGrindConstants, NfiRegularAdjustmentConstants, NfiX7AdjustmentCondition,
+    NfiX7AdjustmentConstants, NfiX7AdjustmentOperand, NfiX7AdjustmentPolicy, NfiX7RebuyConstants,
+};
+
+pub(crate) fn valid_nfi_rebuy_constants(constants: &NfiX7RebuyConstants) -> bool {
+    let vectors = [
+        (&constants.stakes_futures, &constants.thresholds_futures),
+        (&constants.stakes_spot, &constants.thresholds_spot),
+    ];
+    vectors.iter().all(|(stakes, thresholds)| {
+        !stakes.is_empty()
+            && stakes.len() == thresholds.len()
+            && stakes
+                .iter()
+                .chain(thresholds.iter())
+                .all(|value| value.is_finite())
+            && stakes.iter().all(|value| *value > 0.0)
+    }) && constants.derisk_futures.is_finite()
+        && constants.derisk_spot.is_finite()
+        && constants.derisk_futures < 0.0
+        && constants.derisk_spot < 0.0
+}
+
+pub(crate) fn valid_nfi_legacy_grind_constants(constants: &NfiLegacyGrindConstants) -> bool {
+    let expected_tags = [
+        ("gd1", "dd1"),
+        ("gd2", "dd2"),
+        ("gd3", "dd3"),
+        ("gd4", "dd4"),
+        ("gd5", "dd5"),
+        ("gd6", "dd6"),
+        ("dl1", "ddl1"),
+        ("dl2", "ddl2"),
+    ];
+    let multipliers_are_valid = [
+        &constants.stake_multipliers_futures,
+        &constants.stake_multipliers_spot,
+    ]
+    .iter()
+    .all(|values| {
+        !values.is_empty() && values.iter().all(|value| value.is_finite() && *value > 0.0)
+    });
+    let clusters_are_valid = constants.clusters.len() == expected_tags.len()
+        && constants
+            .clusters
+            .iter()
+            .zip(expected_tags)
+            .all(|(cluster, expected)| {
+                let vectors = [
+                    &cluster.stakes_futures,
+                    &cluster.stakes_spot,
+                    &cluster.thresholds_futures,
+                    &cluster.thresholds_spot,
+                ];
+                cluster.entry_tag == expected.0
+                    && cluster.stop_tag == expected.1
+                    && [
+                        cluster.stop_threshold_futures,
+                        cluster.stop_threshold_spot,
+                        cluster.profit_threshold_futures,
+                        cluster.profit_threshold_spot,
+                    ]
+                    .iter()
+                    .all(|value| value.is_finite())
+                    && vectors.iter().all(|values| {
+                        !values.is_empty() && values.iter().all(|value| value.is_finite())
+                    })
+                    && cluster.stakes_futures.len() == cluster.thresholds_futures.len()
+                    && cluster.stakes_spot.len() == cluster.thresholds_spot.len()
+            });
+    constants.max_stake_multiplier.is_finite()
+        && constants.max_stake_multiplier > 0.0
+        && constants.derisk_1_reentry_futures.is_finite()
+        && constants.derisk_1_reentry_futures < 0.0
+        && constants.derisk_1_reentry_spot.is_finite()
+        && constants.derisk_1_reentry_spot < 0.0
+        && multipliers_are_valid
+        && clusters_are_valid
+}
+
+pub(crate) fn valid_nfi_regular_adjustment_constants(
+    constants: &NfiRegularAdjustmentConstants,
+) -> bool {
+    let policy = &constants.policy;
+    let policy_is_valid = policy.entry_retry_ms > 0
+        && policy.grind_force_order_age_ms > policy.entry_retry_ms
+        && policy.grind_order_age_ms > policy.grind_force_order_age_ms
+        && policy.rebuy_order_age_ms > policy.grind_order_age_ms
+        && [
+            policy.grind_entry_profit_gate,
+            policy.additional_grind_profit_gate,
+            policy.forced_age_profit_gate,
+            policy.minimum_entry_multiplier,
+            policy.minimum_remaining_multiplier,
+        ]
+        .iter()
+        .all(|value| value.is_finite())
+        && policy.grind_entry_profit_gate > policy.additional_grind_profit_gate
+        && policy.additional_grind_profit_gate > policy.forced_age_profit_gate
+        && policy.forced_age_profit_gate < 0.0
+        && policy.minimum_entry_multiplier > 1.0
+        && policy.minimum_remaining_multiplier > policy.minimum_entry_multiplier;
+    let rebuy_is_valid = [
+        (
+            &constants.rebuy_stakes_futures,
+            &constants.rebuy_thresholds_futures,
+        ),
+        (
+            &constants.rebuy_stakes_spot,
+            &constants.rebuy_thresholds_spot,
+        ),
+    ]
+    .iter()
+    .all(|(stakes, thresholds)| {
+        !stakes.is_empty()
+            && stakes.len() == thresholds.len()
+            && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
+            && thresholds.iter().all(|value| value.is_finite())
+    });
+    let grinds_are_valid = constants.grinds.len() == 6
+        && constants.grinds.iter().enumerate().all(|(index, grind)| {
+            let level = index + 1;
+            grind.entry_tag == format!("g{level}")
+                && grind.stop_tag == format!("sg{level}")
+                && [
+                    (&grind.stakes_futures, &grind.thresholds_futures),
+                    (&grind.stakes_spot, &grind.thresholds_spot),
+                ]
+                .iter()
+                .all(|(stakes, thresholds)| {
+                    !stakes.is_empty()
+                        && stakes.len() == thresholds.len()
+                        && stakes.iter().all(|value| value.is_finite() && *value > 0.0)
+                        && thresholds.iter().all(|value| value.is_finite())
+                })
+                && grind.stop_threshold_futures.is_finite()
+                && grind.stop_threshold_spot.is_finite()
+                && grind.profit_threshold_futures.is_finite()
+                && grind.profit_threshold_spot.is_finite()
+        });
+    constants.derisk_threshold_futures.is_finite()
+        && constants.derisk_threshold_futures < 0.0
+        && constants.derisk_threshold_spot.is_finite()
+        && constants.derisk_threshold_spot < 0.0
+        && constants.derisk_level_1_threshold_futures.is_finite()
+        && constants.derisk_level_1_threshold_futures < 0.0
+        && constants.derisk_level_1_threshold_spot.is_finite()
+        && constants.derisk_level_1_threshold_spot < 0.0
+        && policy_is_valid
+        && rebuy_is_valid
+        && grinds_are_valid
+}
+
+pub(crate) fn valid_nfi_adjustment_constants(constants: &NfiX7AdjustmentConstants) -> bool {
+    let levels = constants
+        .derisk_levels
+        .iter()
+        .map(|level| level.level)
+        .collect::<Vec<_>>();
+    let grinds = constants
+        .grinds
+        .iter()
+        .map(|grind| grind.level)
+        .collect::<Vec<_>>();
+    let derisk_numbers_are_valid = constants.derisk_levels.iter().all(|level| {
+        [
+            level.threshold_futures,
+            level.threshold_spot,
+            level.stake_futures,
+            level.stake_spot,
+        ]
+        .iter()
+        .all(|value| value.is_finite())
+            && level.stake_futures > 0.0
+            && level.stake_spot > 0.0
+    });
+    let grind_numbers_are_valid = constants.grinds.iter().all(|grind| {
+        let scalars = [
+            grind.derisk_futures,
+            grind.derisk_spot,
+            grind.profit_threshold_futures,
+            grind.profit_threshold_spot,
+        ];
+        let vectors = [
+            &grind.stakes_futures,
+            &grind.stakes_spot,
+            &grind.thresholds_futures,
+            &grind.thresholds_spot,
+        ];
+        scalars.iter().all(|value| value.is_finite())
+            && vectors
+                .iter()
+                .all(|values| !values.is_empty() && values.iter().all(|value| value.is_finite()))
+            && grind.stakes_futures.len() == grind.thresholds_futures.len()
+            && grind.stakes_spot.len() == grind.thresholds_spot.len()
+    });
+    constants.max_stake_multiplier.is_finite()
+        && constants.max_stake_multiplier > 0.0
+        && constants
+            .rebuy_stake_multiplier
+            .is_none_or(|value| value.is_finite() && value > 0.0)
+        && levels == [1, 2, 3]
+        && grinds == [1, 2, 3, 4, 5]
+        && derisk_numbers_are_valid
+        && grind_numbers_are_valid
+}
+
+pub(crate) fn valid_nfi_adjustment_policy(policy: &NfiX7AdjustmentPolicy) -> bool {
+    let fallback_levels = policy
+        .grind_entry_fallbacks
+        .iter()
+        .map(|fallback| fallback.level)
+        .collect::<Vec<_>>();
+    let valid_derisk_levels = |levels: &[usize]| {
+        !levels.is_empty()
+            && levels.windows(2).all(|pair| pair[0] < pair[1])
+            && levels.iter().all(|level| (1..=3).contains(level))
+    };
+    let fallbacks_are_valid = policy.grind_entry_fallbacks.iter().all(|fallback| {
+        fallback.predicates.iter().all(|predicate| {
+            (predicate.any_derisk_levels.is_empty()
+                || valid_derisk_levels(&predicate.any_derisk_levels))
+                && !predicate.conditions.is_empty()
+                && predicate
+                    .conditions
+                    .iter()
+                    .all(valid_nfi_adjustment_condition)
+        })
+    });
+
+    policy.entry_retry_ms > 0
+        && policy.stale_order_ms > policy.entry_retry_ms
+        && valid_derisk_levels(&policy.extra_entry_derisk_levels)
+        && valid_nfi_adjustment_condition(&policy.extra_entry_profit_condition)
+        && fallback_levels == [1, 2, 3, 4, 5]
+        && fallbacks_are_valid
+}
+
+pub(crate) fn valid_nfi_adjustment_condition(condition: &NfiX7AdjustmentCondition) -> bool {
+    valid_nfi_adjustment_operand(&condition.left) && valid_nfi_adjustment_operand(&condition.right)
+}
+
+pub(crate) fn valid_nfi_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> bool {
+    match operand {
+        NfiX7AdjustmentOperand::Literal { value } => value.is_finite(),
+        NfiX7AdjustmentOperand::Variable { name } => matches!(
+            name.as_str(),
+            "slice_profit" | "slice_profit_entry" | "num_open_grinds_and_buybacks"
+        ),
+        NfiX7AdjustmentOperand::Feature { name, multiplier } => {
+            !name.is_empty() && multiplier.is_finite()
+        }
+    }
+}

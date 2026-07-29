@@ -5,19 +5,28 @@
 //! grind clusters from filled orders on every candle. This module preserves
 //! that newest-to-oldest order walk and the callback's early-return order.
 
-use super::{
-    adjustment_minimum_pair_stake, evaluate_scalar_program_bundle, fee_close, fee_open,
-    insert_projected_feature_window, nfi_long_grind_supports_trade, nfi_profit_snapshot,
-    number_value, scalar_truthy, AdjustmentSignal, BTreeMap, Candle, FilledOrder,
-    NfiLongGrindRoute, NfiRegularAdjustmentConstants, NfiRegularAdjustmentPolicy, NfiRegularGrind,
-    NfiX7TradeManager, OpenTrade, PairSeries, PortfolioConfig, TradeSide, Value,
+use std::collections::BTreeMap;
+
+use serde_json::Value;
+
+use crate::calculations::{fee_close, fee_open};
+use crate::callbacks::insert_projected_feature_window;
+use crate::domain::{
+    AdjustmentSignal, Candle, FilledOrder, NfiLongGrindRoute, NfiRegularAdjustmentConstants,
+    NfiRegularAdjustmentPolicy, NfiRegularGrind, NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
+use crate::execution::adjustment_minimum_pair_stake;
+use crate::portfolio::{OpenTrade, TradeSide};
+use crate::scalar_vm::{evaluate_scalar_program_bundle, number_value, scalar_truthy};
+
+use super::dispatch::nfi_long_grind_supports_trade;
+use super::state::nfi_profit_snapshot;
 
 const REGULAR_GRIND_COUNT: usize = 6;
 
 /// The regular helper either returns from the outer callback or deliberately
 /// transfers a de-risked trade to the legacy continuation below it.
-pub(super) enum RegularAdjustmentOutcome {
+pub(crate) enum RegularAdjustmentOutcome {
     Return(Option<AdjustmentSignal>),
     ContinueLegacy,
 }
@@ -74,7 +83,7 @@ struct RegularState {
 /// `None` is reserved for an invalid or broader-than-certified input. A valid
 /// callback no-op is represented by `Return(None)`.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn evaluate_nfi_regular_adjustment(
+pub(crate) fn evaluate_nfi_regular_adjustment(
     manager: &NfiX7TradeManager,
     route: &NfiLongGrindRoute,
     trade: &OpenTrade,

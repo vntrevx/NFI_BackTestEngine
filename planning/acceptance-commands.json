@@ -1,0 +1,452 @@
+{
+  "schema_version": "1.0.0",
+  "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
+  "updated_at": "2026-07-28",
+  "execution": {
+    "default_working_directory": ".",
+    "placeholder_rules": {
+      "task_id": "Selected task identifier from roadmap-state.json",
+      "commit_sha": "Current candidate commit or working-tree identity",
+      "artifact_dir": ".nfi/roadmap-acceptance/{task_id}/{commit_sha}"
+    },
+    "run_required_commands_in_order": true,
+    "stop_on_first_failure": true,
+    "record_exit_code_and_output_sha256": true,
+    "never_overwrite_existing_artifact_dir": true
+  },
+  "commands": {
+    "planning_json": {
+      "command": "jq empty planning/roadmap-state.json && jq empty planning/acceptance-commands.json",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 30,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 30,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "lock_check": {
+      "command": "uv lock --check",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 120,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "ruff": {
+      "command": "uv run ruff check .",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 300,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "basedpyright": {
+      "command": "uv run basedpyright --level error python/nfi_backtest_engine",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 300,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "python_all": {
+      "command": "uv run pytest -q",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1800,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "rust_fmt": {
+      "command": "cargo fmt --all -- --check",
+      "working_directory": "rust",
+      "platform": "any",
+      "timeout_seconds": 300,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "rust_test": {
+      "command": "cargo test --workspace --locked",
+      "working_directory": "rust",
+      "platform": "any",
+      "timeout_seconds": 1800,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "rust_clippy": {
+      "command": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+      "working_directory": "rust",
+      "platform": "any",
+      "timeout_seconds": 1800,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "normal_routing_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json --output-dir {artifact_dir}/normal-routing --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "stops_only_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/stops-only-spot-2025-01-01_04/manifest.json --output-dir {artifact_dir}/stops-only --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "x7_spot_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/x7-tag121-spot-v17.4.435-2023-01-01_02/manifest.json --output-dir {artifact_dir}/x7-spot --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "x7_futures_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json --output-dir {artifact_dir}/x7-futures --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "regression_contract_tests": {
+      "command": "uv run pytest -q tests/test_regression_contract.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 600,
+      "required": true,
+      "availability": "planned",
+      "mutates_external_state": false
+    },
+    "verification_ledger_tests": {
+      "command": "uv run pytest -q tests/test_verification_ledger.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 600,
+      "required": true,
+      "availability": "planned",
+      "mutates_external_state": false
+    },
+    "clean_tests": {
+      "command": "uv run pytest -q tests/test_clean.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 600,
+      "required": true,
+      "availability": "planned",
+      "mutates_external_state": false
+    },
+    "release_contract_tests": {
+      "command": "uv run pytest -q tests/test_release_contract.py tests/test_platform_benchmark.py tests/test_evidence_bundle.py tests/test_combined_release.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "strategy_tests": {
+      "command": "uv run pytest -q tests/test_strategy_compatibility.py tests/test_strategy_ir.py tests/test_hot_ir.py tests/test_x7_adapter.py tests/test_nfi_trade_manager.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "reference_certification_tests": {
+      "command": "uv run pytest -q tests/test_reference_runtime.py tests/test_reference_assets.py tests/test_certification.py tests/test_full_x7_certification.py tests/test_evidence_bundle.py tests/test_result_report.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "result_artifact_tests": {
+      "command": "uv run pytest -q tests/test_result_summary.py tests/test_result_report.py tests/test_research_runner.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "result_artifact_v2_tests": {
+      "command": "uv run pytest -q tests/test_result_artifacts_v2.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 600,
+      "required": true,
+      "availability": "planned",
+      "mutates_external_state": false
+    },
+    "user_flow_tests": {
+      "command": "uv run pytest -q tests/test_product_contract.py tests/test_project_setup.py tests/test_research_runner.py tests/test_cli.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "workflow_contract_tests": {
+      "command": "uv run pytest -q tests/test_release_contract.py tests/test_platform_benchmark.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "ci_required_checks": {
+      "command": "gh run list --commit {commit_sha} --json databaseId,name,status,conclusion,url",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 120,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "benchmark_repetitions": {
+      "command": "Run the task-specific sealed workload three times, extend to five above five-percent spread, and write the report under {artifact_dir}",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 21600,
+      "required": true,
+      "availability": "manual",
+      "mutates_external_state": false
+    },
+    "full_mode_certification": {
+      "command": "Run the protected Full X7 mode certification workflow with an approved immutable Oracle and the frozen candidate",
+      "working_directory": ".",
+      "platform": "self-hosted",
+      "timeout_seconds": 259200,
+      "required": true,
+      "availability": "manual",
+      "mutates_external_state": true
+    },
+    "platform_release_workflow": {
+      "command": "Run the final release wheel workflow and seal target-OS exact fixture evidence",
+      "working_directory": ".",
+      "platform": "github-actions",
+      "timeout_seconds": 21600,
+      "required": true,
+      "availability": "manual",
+      "mutates_external_state": true
+    },
+    "publish_combined_release": {
+      "command": "Publish and audit the approved RC, then promote the same assets byte-for-byte to stable",
+      "working_directory": ".",
+      "platform": "github-actions",
+      "timeout_seconds": 21600,
+      "required": true,
+      "availability": "manual",
+      "mutates_external_state": true
+    }
+  },
+  "profiles": {
+    "regression_contract": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "regression_contract_tests",
+      "release_contract_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "verification_ledger": [
+      "planning_json",
+      "diff_check",
+      "verification_ledger_tests",
+      "python_all",
+      "ruff",
+      "basedpyright"
+    ],
+    "clean_dry_run": [
+      "planning_json",
+      "diff_check",
+      "clean_tests",
+      "python_all",
+      "ruff",
+      "basedpyright"
+    ],
+    "release_workflow": [
+      "planning_json",
+      "diff_check",
+      "release_contract_tests",
+      "workflow_contract_tests",
+      "python_all"
+    ],
+    "ci_contract": [
+      "planning_json",
+      "diff_check",
+      "workflow_contract_tests",
+      "python_all",
+      "ci_required_checks"
+    ],
+    "python_refactor": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "x7_refactor": [
+      "planning_json",
+      "diff_check",
+      "strategy_tests",
+      "python_all",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "reference_certification_refactor": [
+      "planning_json",
+      "diff_check",
+      "reference_certification_tests",
+      "python_all",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "rust_refactor": [
+      "planning_json",
+      "diff_check",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "python_all",
+      "normal_routing_full",
+      "stops_only_full"
+    ],
+    "rust_x7_refactor": [
+      "planning_json",
+      "diff_check",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "python_all",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "rust_event_loop_refactor": [
+      "planning_json",
+      "diff_check",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "python_all",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "performance_measurement": [
+      "planning_json",
+      "diff_check",
+      "python_all",
+      "rust_test",
+      "benchmark_repetitions"
+    ],
+    "performance_change": [
+      "planning_json",
+      "diff_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "benchmark_repetitions"
+    ],
+    "result_artifacts": [
+      "planning_json",
+      "diff_check",
+      "result_artifact_tests",
+      "result_artifact_v2_tests",
+      "python_all",
+      "ruff",
+      "basedpyright"
+    ],
+    "user_flow": [
+      "planning_json",
+      "diff_check",
+      "user_flow_tests",
+      "python_all",
+      "ruff",
+      "basedpyright"
+    ],
+    "long_certification_workflow": [
+      "planning_json",
+      "diff_check",
+      "release_contract_tests",
+      "workflow_contract_tests",
+      "python_all"
+    ],
+    "release_candidate": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "platform_release_workflow"
+    ],
+    "full_mode_certification": [
+      "planning_json",
+      "diff_check",
+      "full_mode_certification"
+    ],
+    "platform_release_evidence": [
+      "planning_json",
+      "diff_check",
+      "platform_release_workflow"
+    ],
+    "combined_release": [
+      "planning_json",
+      "diff_check",
+      "release_contract_tests",
+      "publish_combined_release"
+    ]
+  }
+}

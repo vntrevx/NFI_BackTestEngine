@@ -6,14 +6,22 @@
 //! values are still recomputed every candle, so the cache changes no callback
 //! input or source-order decision.
 
-use super::{
-    adjustment_minimum_pair_stake, evaluate_scalar_program_bundle, feature_number_at, fee_close,
-    fee_open, insert_projected_feature_window, nfi_profit_snapshot, number_value,
-    scalar_trade_value, scalar_truthy, AdjustmentSignal, BTreeMap, Candle, NfiProfitSnapshot,
-    NfiX7AdjustmentComparison, NfiX7AdjustmentCondition, NfiX7AdjustmentOperand,
-    NfiX7AdjustmentPredicate, NfiX7GrindLevel, NfiX7PositionAdjustment, NfiX7TradeManager,
-    OpenTrade, PairSeries, PortfolioConfig, PositionAdjustmentRequest, TradeSide, Value,
+use std::collections::BTreeMap;
+
+use serde_json::Value;
+
+use crate::calculations::{fee_close, fee_open};
+use crate::callbacks::{feature_number_at, insert_projected_feature_window, scalar_trade_value};
+use crate::domain::{
+    AdjustmentSignal, Candle, NfiX7AdjustmentComparison, NfiX7AdjustmentCondition,
+    NfiX7AdjustmentOperand, NfiX7AdjustmentPredicate, NfiX7GrindLevel, NfiX7PositionAdjustment,
+    NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
+use crate::execution::adjustment_minimum_pair_stake;
+use crate::portfolio::{OpenTrade, TradeSide};
+use crate::scalar_vm::{evaluate_scalar_program_bundle, number_value, scalar_truthy};
+
+use super::state::{nfi_profit_snapshot, NfiProfitSnapshot, PositionAdjustmentRequest};
 
 #[derive(Debug, Clone, Default)]
 struct GrindCluster {
@@ -49,7 +57,7 @@ impl GrindCluster {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct AdjustmentState {
+pub(crate) struct AdjustmentState {
     order_count: usize,
     clusters: [GrindCluster; 5],
     derisk_found: [bool; 3],
@@ -98,7 +106,7 @@ enum GrindLevelOutcome {
 /// The outer `Option` is the evaluator validity boundary. The inner `Option`
 /// is the callback's ordinary `None` result.
 #[allow(clippy::option_option)] // Outer None is invalid IR; inner None is callback no-op.
-pub(super) fn evaluate_nfi_position_adjustment(
+pub(crate) fn evaluate_nfi_position_adjustment(
     manager: &NfiX7TradeManager,
     adjustment: &NfiX7PositionAdjustment,
     expected_side: TradeSide,
@@ -385,7 +393,7 @@ fn directional_rate(rate: f64, side: TradeSide) -> f64 {
 /// method. Sharing the scalar-program boundary here ensures they receive the
 /// same dataframe projection and variable encoding.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn evaluate_grind_entry_program(
+pub(crate) fn evaluate_grind_entry_program(
     manager: &NfiX7TradeManager,
     program_name: &str,
     trade: &OpenTrade,

@@ -9,31 +9,31 @@ use crate::{Candle, PairSeries, PortfolioConfig};
 /// and prevents future callback fields from expanding every function
 /// signature independently.
 #[derive(Clone, Copy)]
-pub(super) struct PositionAdjustmentRequest<'a> {
-    pub(super) pair: &'a PairSeries,
-    pub(super) candle_index: usize,
-    pub(super) candle: &'a Candle,
-    pub(super) config: &'a PortfolioConfig,
-    pub(super) available_balance: f64,
+pub(crate) struct PositionAdjustmentRequest<'a> {
+    pub(crate) pair: &'a PairSeries,
+    pub(crate) candle_index: usize,
+    pub(crate) candle: &'a Candle,
+    pub(crate) config: &'a PortfolioConfig,
+    pub(crate) available_balance: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct NfiProfitSnapshot {
-    pub(super) stake: f64,
-    pub(super) ratio: f64,
-    pub(super) current_stake_ratio: f64,
-    pub(super) initial_stake_ratio: f64,
+pub(crate) struct NfiProfitSnapshot {
+    pub(crate) stake: f64,
+    pub(crate) ratio: f64,
+    pub(crate) current_stake_ratio: f64,
+    pub(crate) initial_stake_ratio: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(super) struct ProfitTarget {
-    pub(super) rate: f64,
-    pub(super) profit: f64,
-    pub(super) sell_reason: String,
-    pub(super) time_profit_reached_ms: i64,
+pub(crate) struct ProfitTarget {
+    pub(crate) rate: f64,
+    pub(crate) profit: f64,
+    pub(crate) sell_reason: String,
+    pub(crate) time_profit_reached_ms: i64,
 }
 
-pub(super) fn nfi_trade_is_derisked(trade: &OpenTrade) -> Option<bool> {
+pub(crate) fn nfi_trade_is_derisked(trade: &OpenTrade) -> Option<bool> {
     let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
     let tagged_exit = trade
         .orders
@@ -54,7 +54,7 @@ pub(super) fn nfi_trade_is_derisked(trade: &OpenTrade) -> Option<bool> {
     Some(tagged_exit || trade.amount < first_entry.amount * 0.95)
 }
 
-pub(super) fn set_profit_target(
+pub(crate) fn set_profit_target(
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
     trade: &OpenTrade,
     candle: &Candle,
@@ -72,7 +72,7 @@ pub(super) fn set_profit_target(
     );
 }
 
-pub(super) fn nfi_profit_bucket(profit: f64) -> Option<u8> {
+pub(crate) fn nfi_profit_bucket(profit: f64) -> Option<u8> {
     if profit < 0.001 {
         return None;
     }
@@ -88,7 +88,7 @@ pub(super) fn nfi_profit_bucket(profit: f64) -> Option<u8> {
     Some(bucket)
 }
 
-pub(super) fn nfi_profit_snapshot(
+pub(crate) fn nfi_profit_snapshot(
     trade: &OpenTrade,
     exit_rate: f64,
     open_fee_rate: f64,
