@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 62,
-  "updated_at": "2026-07-29T17:05:45+09:00",
+  "revision": 63,
+  "updated_at": "2026-07-29T17:59:45+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M9-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2028,6 +2028,46 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M9-01",
+      "order": 901,
+      "milestone": "M9",
+      "title": "Publish v1.2.0 as a non-combined product release",
+      "status": "in_progress",
+      "depends_on": [
+        "M8-01"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.2.0 changelog and release notes",
+        "checksum-sealed product release contract",
+        "same-commit Required CI and release-candidate build",
+        "three-OS exact final-wheel fixtures",
+        "byte-identical RC and stable assets",
+        "Windows, Linux, and macOS installer audits"
+      ],
+      "forbidden_changes": [
+        "claiming a new combined Full X7 certificate",
+        "relabeling v1.0.0 Spot or v1.1.0 Futures certificates",
+        "weakening the certificate-gated combined release workflows",
+        "rebuilding distribution assets during RC or stable publication",
+        "publishing from a commit other than protected main",
+        "publishing after failed Required CI or release-candidate checks"
+      ],
+      "acceptance_profile": "product_release",
+      "expected_evidence": [
+        "release preparation CI",
+        "sealed product candidate bundle",
+        "three-OS platform evidence",
+        "RC publication and installer audit",
+        "stable byte comparison and installer audit"
+      ],
+      "started_at": "2026-07-29T17:59:45+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -3390,6 +3430,22 @@
         "simulation_behavior_changed": false,
         "remote_push": false,
         "next_eligible_task": null
+      }
+    },
+    {
+      "sequence": 75,
+      "timestamp": "2026-07-29T17:59:45+09:00",
+      "task_id": "M9-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "product_release",
+        "worktree_head": "827c622a1e03c970c6fedd436b84f5357f26b23f",
+        "manual_gate_approved": true,
+        "user_instruction": "Proceed with the v1.2.0 release because the post-v1.1 work is substantial.",
+        "release_kind": "product",
+        "combined_full_x7_certification_claimed": false,
+        "prior_spot_certificate_tag": "v1.0.0",
+        "prior_futures_certificate_tag": "v1.1.0"
       }
     }
   ]

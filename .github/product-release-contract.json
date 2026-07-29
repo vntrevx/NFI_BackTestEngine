@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "package_version": "1.2.0",
+  "release_kind": "product",
+  "combined_full_x7_certified": false,
+  "distribution_policy": {
+    "build_once": true,
+    "byte_identical_rc_stable": true,
+    "sha256_manifest_required": true,
+    "required_ci_commit_match": true,
+    "three_os_exact_fixture_evidence": true
+  },
+  "certification_boundary": {
+    "latest_same_candidate_spot_certificate": false,
+    "latest_same_candidate_futures_certificate": false,
+    "prior_certificates_remain_version_bound": true,
+    "spot_certificate_tag": "v1.0.0",
+    "futures_certificate_tag": "v1.1.0"
+  }
+}

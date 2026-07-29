@@ -290,8 +290,41 @@ jobs:
           set -euo pipefail
           python .github/scripts/release_candidate_contract.py \
             --output dist/release-candidate-plan.json
+          package_version="$(
+            python -c \
+              "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          )"
+          jq -e \
+            --arg version "$package_version" \
+            '.schema_version == "1.0.0"
+             and .package_version == $version
+             and .release_kind == "product"
+             and .combined_full_x7_certified == false
+             and .distribution_policy.build_once == true
+             and .distribution_policy.byte_identical_rc_stable == true
+             and .distribution_policy.sha256_manifest_required == true
+             and .distribution_policy.required_ci_commit_match == true
+             and .distribution_policy.three_os_exact_fixture_evidence == true
+             and .certification_boundary.prior_certificates_remain_version_bound == true' \
+            .github/product-release-contract.json
           cd dist
           find . -type f ! -name SHA256SUMS.txt -print0 \
+            | LC_ALL=C sort -z \
+            | xargs -0 sha256sum > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+          cd ..
+          mkdir product-release
+          cp dist/*.whl dist/*.tar.gz product-release/
+          cp dist/release-candidate-plan.json product-release/
+          cp .github/product-release-contract.json product-release/
+          for mode in spot futures; do
+            cp "dist/platform/$mode/platform-evidence.json" \
+              "product-release/full-x7-$mode-platform-evidence.json"
+            cp "dist/platform/$mode/platform-evidence-bundle.zip" \
+              "product-release/full-x7-$mode-platform-evidence.zip"
+          done
+          cd product-release
+          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 \
             | LC_ALL=C sort -z \
             | xargs -0 sha256sum > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
@@ -300,5 +333,12 @@ jobs:
         with:
           name: release-bundle-${{ github.sha }}
           path: dist/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload sealed product release
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: product-release-bundle-${{ github.sha }}
+          path: product-release/
           if-no-files-found: error
           retention-days: 30

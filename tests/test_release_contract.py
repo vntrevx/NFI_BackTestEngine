@@ -455,6 +455,74 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert promote.index("nfi-bte release verify-combined") < promote.index("gh release create")
 
 
+def test_product_release_workflows_preserve_non_combined_boundary() -> None:
+    root = Path(__file__).parents[1]
+    contract = json.loads(
+        (root / ".github/product-release-contract.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    build = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    publish = (
+        root / ".github/workflows/publish-product-release-candidate.yml"
+    ).read_text(encoding="utf-8")
+    promote = (
+        root / ".github/workflows/promote-product-release.yml"
+    ).read_text(encoding="utf-8")
+
+    assert contract == {
+        "schema_version": "1.0.0",
+        "package_version": "1.2.0",
+        "release_kind": "product",
+        "combined_full_x7_certified": False,
+        "distribution_policy": {
+            "build_once": True,
+            "byte_identical_rc_stable": True,
+            "sha256_manifest_required": True,
+            "required_ci_commit_match": True,
+            "three_os_exact_fixture_evidence": True,
+        },
+        "certification_boundary": {
+            "latest_same_candidate_spot_certificate": False,
+            "latest_same_candidate_futures_certificate": False,
+            "prior_certificates_remain_version_bound": True,
+            "spot_certificate_tag": "v1.0.0",
+            "futures_certificate_tag": "v1.1.0",
+        },
+    }
+    assert "cp .github/product-release-contract.json" in build
+    assert "name: product-release-bundle-${{ github.sha }}" in build
+    assert "full-x7-$mode-platform-evidence.json" in build
+    assert "full-x7-$mode-platform-evidence.zip" in build
+    assert "name: Publish product release candidate" in publish
+    assert "group: product-release-${{ inputs.release_tag }}" in publish
+    assert "cancel-in-progress: false" in publish
+    assert "product releases must be built from main" in publish
+    assert "candidate and publication workflow commits differ" in publish
+    assert "actions/workflows/ci.yml/runs?head_sha=" in publish
+    assert "product-release-bundle-${{ steps.candidate.outputs.sha }}" in publish
+    assert "combined_full_x7_certified == false" in publish
+    assert "test ! -e candidate/release-gate.json" in publish
+    assert "test ! -e candidate/full-x7-release-result.json" in publish
+    assert "Audit Windows product installer" in publish
+    assert "Audit macOS product installer" in publish
+    assert publish.index("sha256sum --check SHA256SUMS.txt") < publish.index(
+        "gh release create"
+    )
+    assert "name: Promote product stable release" in promote
+    assert "group: product-release-${{ inputs.stable_tag }}" in promote
+    assert "cancel-in-progress: false" in promote
+    assert "actions/workflows/publish-product-release-candidate.yml/runs" in promote
+    assert "candidate and promotion workflow commits differ" in promote
+    assert "combined_full_x7_certified == false" in promote
+    assert "diff -qr candidate stable" in promote
+    assert "Audit latest Windows installer" in promote
+    assert "Audit latest macOS installer" in promote
+    assert promote.index("sha256sum --check SHA256SUMS.txt") < promote.index(
+        "gh release create"
+    )
+
+
 def _long_certification_module() -> ModuleType:
     path = Path(__file__).parents[1] / ".github/scripts/long_certification_contract.py"
     spec = importlib.util.spec_from_file_location(
