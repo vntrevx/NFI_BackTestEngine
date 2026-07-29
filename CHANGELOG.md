@@ -2,6 +2,35 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 1.2.0 - 2026-07-29
+
+- Froze the public v1.1 regression contract and added an append-only verification
+  ledger that keeps quick compatibility checks, failed attempts, and release
+  certification states distinct.
+- Split CLI orchestration, strategy analysis and lowering, the X7 adapter and trade
+  manager, reference/certification/reporting code, the Rust simulator, and the
+  Feather boundary into responsibility-focused modules without changing exact
+  result surfaces or event ordering.
+- Applied measured, input-derived optimizations to vector preparation, the Rust event
+  loop, scalar overlays, Feather decoding, and the Python/Rust boundary. No strategy,
+  pair, timerange, SHA, or expected-result runtime branch was added.
+- Added complete `summary.json`, `trades.csv`, and self-contained `report.html`
+  artifacts, compact terminal output, and a one-command project setup/run/resume
+  flow.
+- Added hard-link-aware storage accounting and safe `clean --apply` receipts.
+  Completed runs require explicit opt-in; preserved runs, release evidence,
+  certificates, official Oracles, Freqtrade ZIPs, external paths, and active or
+  ambiguous runtimes remain protected.
+- Added managed default run directories and a configurable disk-aware cache budget,
+  preventing ordinary use from retaining unbounded development-style vector caches.
+- Split pull-request, nightly, protected long-certification, and release trust
+  boundaries, with required CI on Linux, Windows, and macOS and exact final-wheel
+  Spot/Futures fixtures on all three operating systems.
+- Added build-once product-release publication for releases that do not claim a new
+  same-candidate combined Full X7 certificate. The v1.0.0 Spot and v1.1.0 Futures
+  certificates remain valid only for their own sealed candidates and are not
+  relabeled as v1.2.0 certification.
+
 ## 1.1.0
 
 - Certified the continuous X7 v17.4.435 Binance USDT-M isolated-Futures workload

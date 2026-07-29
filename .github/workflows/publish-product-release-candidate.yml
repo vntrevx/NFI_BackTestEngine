@@ -1,0 +1,240 @@
+# yamllint disable rule:line-length
+name: Publish product release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful same-commit Build release candidate workflow run ID
+        required: true
+        type: string
+      release_tag:
+        description: Product prerelease tag, for example v1.2.0-rc.1
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: product-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish checksum-sealed product candidate
+    runs-on: ubuntu-latest
+    outputs:
+      candidate_sha: ${{ steps.candidate.outputs.sha }}
+      release_tag: ${{ inputs.release_tag }}
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate product candidate identity
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          WORKFLOW_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] \
+            || { echo "release_tag must be a vX.Y.Z-rc.N tag" >&2; exit 1; }
+
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}")"
+          [[ "$(jq -r .name <<<"$run_json")" == "Build release candidate" ]]
+          [[ "$(jq -r .event <<<"$run_json")" == "workflow_dispatch" ]]
+          [[ "$(jq -r .conclusion <<<"$run_json")" == "success" ]]
+          [[ "$(jq -r .head_branch <<<"$run_json")" == "main" ]] \
+            || { echo "product releases must be built from main" >&2; exit 1; }
+          candidate_sha="$(jq -r .head_sha <<<"$run_json")"
+          [[ "$candidate_sha" == "$WORKFLOW_COMMIT" ]] \
+            || {
+              echo "candidate and publication workflow commits differ" >&2
+              exit 1
+            }
+
+          package_version="$(
+            python -c \
+              "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          )"
+          expected_version="${RELEASE_TAG#v}"
+          expected_version="${expected_version%%-rc.*}"
+          [[ "$package_version" == "$expected_version" ]] \
+            || {
+              echo "tag version $expected_version differs from package $package_version" >&2
+              exit 1
+            }
+          notes="docs/releases/v${package_version}.md"
+          test -f "$notes"
+
+          ci_json="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${candidate_sha}&status=completed&per_page=100"
+          )"
+          jq -e \
+            '.workflow_runs | any(.conclusion == "success")' \
+            <<<"$ci_json"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" \
+            >/dev/null 2>&1; then
+            echo "tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+          echo "notes=$notes" >> "$GITHUB_OUTPUT"
+      - name: Download exact sealed product bundle
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: product-release-bundle-${{ steps.candidate.outputs.sha }}
+          path: candidate
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify product boundary and candidate bytes
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd candidate && sha256sum --check SHA256SUMS.txt)
+          version="${RELEASE_TAG#v}"
+          version="${version%%-rc.*}"
+          jq -e \
+            --arg version "$version" \
+            '.schema_version == "1.0.0"
+             and .package_version == $version
+             and .release_kind == "product"
+             and .combined_full_x7_certified == false
+             and .distribution_policy.build_once == true
+             and .distribution_policy.byte_identical_rc_stable == true
+             and .distribution_policy.required_ci_commit_match == true
+             and .distribution_policy.three_os_exact_fixture_evidence == true
+             and .certification_boundary.latest_same_candidate_spot_certificate == false
+             and .certification_boundary.latest_same_candidate_futures_certificate == false
+             and .certification_boundary.prior_certificates_remain_version_bound == true' \
+            candidate/product-release-contract.json
+          test "$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 4
+          test "$(find candidate -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
+          test "$(find candidate -mindepth 1 -maxdepth 1 | wc -l)" -eq 12
+          test -f candidate/full-x7-spot-platform-evidence.json
+          test -f candidate/full-x7-spot-platform-evidence.zip
+          test -f candidate/full-x7-futures-platform-evidence.json
+          test -f candidate/full-x7-futures-platform-evidence.zip
+          for mode in spot futures; do
+            jq -e \
+              --arg version "$version" \
+              '.release_certified == true
+               and .lane == "exact-fixture"
+               and .package_version == $version
+               and ([.platforms[].system] | sort)
+                 == ["darwin", "linux", "windows"]' \
+              "candidate/full-x7-$mode-platform-evidence.json"
+          done
+          jq -s -e \
+            '.[0].portable_package_sha256 == .[1].portable_package_sha256
+             and (
+               [.[0].platforms[] | [.system, .wheel_sha256]] | sort
+             ) == (
+               [.[1].platforms[] | [.system, .wheel_sha256]] | sort
+             )' \
+            candidate/full-x7-spot-platform-evidence.json \
+            candidate/full-x7-futures-platform-evidence.json
+          test ! -e candidate/release-gate.json
+          test ! -e candidate/full-x7-release-result.json
+          test "$(find candidate -maxdepth 1 -type f -name '*certification*' | wc -l)" -eq 0
+      - name: Install Linux wheel and repeat exact fixture
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Verify installed product candidate
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(
+            find candidate -maxdepth 1 -type f \
+              -name '*manylinux*x86_64.whl'
+          )
+          test "${#wheels[@]}" -eq 1
+          uv venv --python 3.12 .publish-venv
+          uv pip install --python .publish-venv/bin/python "${wheels[0]}"
+          package_version="${RELEASE_TAG#v}"
+          package_version="${package_version%%-rc.*}"
+          test "$(.publish-venv/bin/nfi-bte --version)" \
+            = "nfi-bte $package_version"
+          .publish-venv/bin/nfi-bte engine fixture \
+            benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json \
+            --output-dir .publish-fixture \
+            --level full
+      - name: Create product prerelease from sealed files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          RELEASE_NOTES: ${{ steps.candidate.outputs.notes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" candidate/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$CANDIDATE_SHA" \
+            --title "NFI Backtest Engine $RELEASE_TAG" \
+            --notes-file "$RELEASE_NOTES" \
+            --prerelease
+      - name: Verify published candidate and Unix installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          NFI_BTE_VERSION: ${{ inputs.release_tag }}
+          NFI_BTE_INSTALL_DRY_RUN: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir published
+          diff -qr candidate published
+          (cd published && sha256sum --check SHA256SUMS.txt)
+          ./install.sh
+
+  windows-installer:
+    name: Audit Windows product installer
+    needs: publish
+    runs-on: windows-latest
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.publish.outputs.candidate_sha }}
+          persist-credentials: false
+      - name: Verify Windows release selection
+        shell: pwsh
+        run: >-
+          .\install.ps1
+          -Version "${{ needs.publish.outputs.release_tag }}"
+          -DryRun
+
+  macos-installer:
+    name: Audit macOS product installer
+    needs: publish
+    runs-on: macos-14
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.publish.outputs.candidate_sha }}
+          persist-credentials: false
+      - name: Verify macOS release selection and bytes
+        env:
+          NFI_BTE_VERSION: ${{ needs.publish.outputs.release_tag }}
+          NFI_BTE_INSTALL_DRY_RUN: "1"
+        shell: bash
+        run: ./install.sh
