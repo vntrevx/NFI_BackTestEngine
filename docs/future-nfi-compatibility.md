@@ -37,28 +37,46 @@ nfi-bte strategy diff old.py new.py -o strategy-diff.json
 nfi-bte strategy state-machine new.py -o state-machine-ir.json
 nfi-bte strategy qualify compatibility.json strategy-diff.json \
   --branch-proof shadow-proof.json -o qualification.json
+nfi-bte strategy verify-targeted new.py strategy-diff.json compatibility.json \
+  --class NostalgiaForInfinityX7 --trading-mode spot \
+  --upstream-repository iterativv/NostalgiaForInfinity \
+  --upstream-commit UPSTREAM_COMMIT --output-dir targeted-spot
 ```
 
 변경 분석은 Signal/tag, callback, dataframe column, custom trade state, Grind level과
-범용 opcode를 추출한다. 기존 명령 조합으로 표현되는 변경은 전략 소스에서
-컴파일한다. 새로운 callback, 동적 키, 무제한 반복, 모호한 stake 방향 또는 알 수
-없는 상태 전이는 정확한 소스 위치와 함께 fail-closed한다.
+범용 opcode뿐 아니라 변경 단위별 `behavior_targets`를 추출한다. 표적 검증은
+fixture 이름이나 Signal 번호를 조건문에 넣지 않고, 이 target과 기존 공식
+coverage의 교집합으로 최소 fixture 집합을 결정론적으로 선택한다. 기존 명령
+조합으로 표현되는 변경은 전략 소스에서 컴파일한다. 새로운 callback, 동적 키,
+무제한 반복, 모호한 stake 방향 또는 관찰할 수 없는 상태 전이는 정확한 소스
+위치와 `TARGETED_COVERAGE_GAP`을 남기고 fail-closed한다.
 
 상태 머신 VM은 source order, step limit, typed custom state, wallet/trade/order read,
 추가 진입, 부분 청산과 exit를 실행한다. 실패한 실행은 custom state를 원자적으로
 rollback한다. Signal 번호와 Grind 단계 수는 opcode가 아니라 IR 데이터다.
 
-`quick_verified` 승격에는 서로 다른 legacy/candidate 실행, 같은 sealed workload,
-변경 branch 도달, trade surface exact, full-state exact가 모두 필요하다. 같은
-artifact를 양쪽 증거로 재사용할 수 없다.
+`quick_verified` 승격에는 최신 전략으로 다시 만든 임시 workload, 서로 독립된
+공식/Native 실행, 변경 branch 도달, trade surface exact, full-state exact가 모두
+필요하다. 원본 fixture는 수정하지 않고 같은 artifact를 양쪽 증거로 재사용할 수
+없다.
 
 ## Upstream 감시
 
-호환성 workflow는 4시간마다 upstream SHA를 확인하고 동일 SHA이면 즉시 종료한다.
-변경이 있으면 Spot/Futures 정적 검사와 AST/IR diff를 만들고 append-only
-`compatibility-ledger` branch에 SHA별 증거를 저장한다. blocker fingerprint가 같은
-실패는 issue와 알림을 중복 생성하지 않으며, 복구 또는 새로운 blocker가 확인되면
-기존 issue 상태를 조정한다.
+호환성 workflow는 4시간마다 upstream SHA와 호환성 엔진 commit을 함께 확인한다.
+둘 다 같으면 즉시 종료하고, upstream이 같아도 엔진이 개선됐으면 다시 검사한다.
+수동 실행의 `force=true`는 같은 identity도 재검사한다. GitHub 예약 실행은
+queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 아니라 검사 주기다.
+
+검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을
+실행한다. 성공한 실행만 `compatibility-ledger`의
+`checks/<upstream>/<engine>/runs/<run-attempt>`에 compact JSON으로 추가하고,
+대용량 임시 trace는 업로드하지 않는다. compact JSON artifact만 30일 보존한다.
+실패한 자동화는 identity를 전진시키지 않아 다음 주기에 재시도한다.
+
+전략 blocker는 `nfi-compatibility`, 다운로드·빌드·권한·artifact 장애는
+`nfi-automation-health`로 분리한다. 같은 canonical fingerprint는 issue와 알림을
+중복 생성하지 않으며, 복구 또는 새로운 blocker가 확인되면 기존 issue 상태를
+자동 조정한다.
 
 매 업데이트마다 5년 인증을 다시 실행하지 않는다.
 

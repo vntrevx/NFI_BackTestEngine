@@ -20,11 +20,23 @@ def build_issue_plan(
     open_issues: Sequence[Mapping[str, Any]],
     *,
     upstream_sha: str,
+    targeted_reports: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     failures = {
-        mode: list(report.get("blockers", []))
+        mode: _mode_blockers(
+            report,
+            (
+                targeted_reports.get(mode)
+                if targeted_reports is not None
+                else None
+            ),
+        )
         for mode, report in sorted(reports.items())
-        if report.get("native_compatible") is not True
+    }
+    failures = {
+        mode: blockers
+        for mode, blockers in failures.items()
+        if blockers
     }
     fingerprint = (
         _canonical_sha256(failures) if failures else None
@@ -77,11 +89,22 @@ def main() -> int:
     parser.add_argument("--reports", type=Path, required=True)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--upstream-sha", required=True)
+    parser.add_argument("--targeted-reports", type=Path)
     args = parser.parse_args()
     reports = {
         mode: _read_object(args.reports / f"report-{mode}.json")
         for mode in ("spot", "futures")
     }
+    targeted_reports = (
+        {
+            mode: _read_object(
+                args.targeted_reports / f"targeted-report-{mode}.json"
+            )
+            for mode in ("spot", "futures")
+        }
+        if args.targeted_reports is not None
+        else None
+    )
     issues = json.loads(
         _gh(
             "issue",
@@ -100,6 +123,7 @@ def main() -> int:
         reports,
         issues,
         upstream_sha=args.upstream_sha,
+        targeted_reports=targeted_reports,
     )
     create = plan["create"]
     if isinstance(create, Mapping):
@@ -135,6 +159,26 @@ def main() -> int:
 
 def _MARKER_TEXT(fingerprint: str) -> str:
     return f"<!-- nfi-compatibility-fingerprint:{fingerprint} -->"
+
+
+def _mode_blockers(
+    compatibility: Mapping[str, Any],
+    targeted: Mapping[str, Any] | None,
+) -> list[Any]:
+    if compatibility.get("native_compatible") is not True:
+        return list(compatibility.get("blockers", []))
+    if targeted is None:
+        return []
+    plan = targeted.get("plan")
+    if (
+        isinstance(plan, Mapping)
+        and plan.get("status") == "no-changes"
+    ):
+        return []
+    if targeted.get("verification_state") == "quick_verified":
+        return []
+    blockers = targeted.get("blockers")
+    return list(blockers) if isinstance(blockers, list) else []
 
 
 def _gh(*arguments: str) -> str:

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 67,
-  "updated_at": "2026-07-29T23:58:56+09:00",
+  "revision": 68,
+  "updated_at": "2026-07-30T00:38:30+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M10-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2208,6 +2208,46 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M10-02",
+      "order": 1002,
+      "milestone": "M10",
+      "title": "Operationalize unattended future-NFI compatibility verification",
+      "status": "in_progress",
+      "depends_on": [
+        "M10-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "upstream and engine identity based scheduled rechecks with manual force",
+        "generic behavior-target extraction and deterministic targeted fixture selection",
+        "independent official and Native changed-branch exact qualification",
+        "separate deduplicated compatibility and automation-health issue lifecycles",
+        "append-only compact compatibility ledger with bounded diagnostic artifacts",
+        "live force and no-op workflow canary"
+      ],
+      "forbidden_changes": [
+        "NFI version, Signal, Grind, pair, timerange, SHA, or expected-result runtime branches",
+        "promoting static compatibility without changed-branch full-state proof",
+        "using one execution artifact as both official and Native evidence",
+        "overwriting immutable fixture or release evidence",
+        "silently falling back from Native to official execution",
+        "advancing the ledger identity after an incomplete automation run"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "identity, force, no-op, health, targeting, and qualification tests",
+        "full Python and Rust test suites",
+        "existing Spot, Futures, and generic full-state fixture parity",
+        "hardcoding audit",
+        "GitHub force and no-op canary run URLs"
+      ],
+      "started_at": "2026-07-30T00:38:30+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -3676,6 +3716,21 @@
         "focused_tests": 20,
         "runtime_hardcoding_added": false,
         "remote_push": false
+      }
+    },
+    {
+      "sequence": 80,
+      "timestamp": "2026-07-30T00:38:30+09:00",
+      "task_id": "M10-02",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "4651797deddf65dd151bd31fbaef864ca47b7fdf",
+        "user_instruction": "Implement the approved unattended future-NFI automation plan.",
+        "verification_policy": "changed-path targeted verification",
+        "runtime_hardcoding_allowed": false,
+        "remote_push_approved": true,
+        "live_canary_approved": true
       }
     }
   ]

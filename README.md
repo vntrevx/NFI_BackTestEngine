@@ -198,6 +198,12 @@ and is not labeled as Native parity. See
 [Future NFI Compatibility](docs/future-nfi-compatibility.md) for the compiler,
 upstream monitoring, and promotion contracts.
 
+The scheduled watcher checks both upstream and engine revisions every four hours,
+classifies generic behavior targets, and runs only matching Spot/Futures branch
+fixtures. It promotes a revision only after independent official/Native trade
+surface and full-state equality; otherwise the announced official fallback remains
+available without claiming Native parity.
+
 ## Confirm with official Freqtrade
 
 Run the pinned official reference from a completed native result:

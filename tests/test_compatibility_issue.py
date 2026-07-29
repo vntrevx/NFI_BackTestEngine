@@ -64,3 +64,39 @@ def test_recovery_closes_open_compatibility_issues() -> None:
     assert plan["create"] is None
     assert plan["close"] == [9]
     assert plan["recovered"] is True
+
+
+def test_targeted_coverage_gap_opens_issue_after_static_success() -> None:
+    reports = {
+        "spot": {"native_compatible": True, "blockers": []},
+        "futures": {"native_compatible": True, "blockers": []},
+    }
+    targeted = {
+        "spot": {
+            "verification_state": "latest_checked",
+            "plan": {"status": "coverage-gap"},
+            "blockers": [
+                {
+                    "code": "TARGETED_COVERAGE_GAP",
+                    "message": "new signal has no fixture",
+                }
+            ],
+        },
+        "futures": {
+            "verification_state": "latest_checked",
+            "plan": {"status": "no-changes"},
+            "blockers": [],
+        },
+    }
+
+    plan = MODULE.build_issue_plan(
+        reports,
+        [],
+        upstream_sha="e" * 40,
+        targeted_reports=targeted,
+    )
+
+    assert plan["create"] is not None
+    assert "TARGETED_COVERAGE_GAP" in plan["create"]["body"]
+    assert "### spot" in plan["create"]["body"]
+    assert "### futures" not in plan["create"]["body"]
