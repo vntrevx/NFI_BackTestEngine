@@ -15,6 +15,7 @@ from typing import Any
 import psutil
 
 from .canonical import read_json, write_json
+from .clean_accounting import InodeUsage, apply_physical_accounting
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
 from .specs import (
@@ -93,6 +94,7 @@ class _UnitScan:
     internal_symlinks: list[str] = field(default_factory=list)
     special_files: list[str] = field(default_factory=list)
     arrow_files: int = 0
+    inode_usages: list[InodeUsage] = field(default_factory=list)
 
 
 def create_clean_audit(
@@ -102,16 +104,21 @@ def create_clean_audit(
     preserve: Sequence[str | Path] = (),
     activity_probe: ActivityProbe | None = None,
     inspect_runtime: bool = True,
+    include_completed: bool = False,
     created_at: str | None = None,
+    _control_paths: Sequence[str | Path] = (),
 ) -> dict[str, Any]:
     """Classify managed disk usage and write an audit without deleting anything."""
     managed_root = _managed_root(root)
     destination = _audit_destination(managed_root, output_path)
+    control_paths = {
+        Path(path).absolute() for path in (destination, *_control_paths)
+    }
     preserved_units = _preserved_units(managed_root, preserve)
     runtime = (
         dict(activity_probe())
         if activity_probe is not None
-        else _probe_runtime_activity()
+        else _probe_runtime_activity(managed_root)
         if inspect_runtime
         else _unprobed_runtime_activity()
     )
@@ -119,8 +126,8 @@ def create_clean_audit(
 
     scanned_units = [
         _scan_unit(managed_root, child, destination)
-        for child in sorted(managed_root.iterdir(), key=lambda path: path.name)
-        if child != destination
+        for child in _managed_units(managed_root)
+        if child not in control_paths
     ]
     scans = [
         scan
@@ -132,11 +139,16 @@ def create_clean_audit(
         _classify_unit(
             managed_root,
             scan,
-            explicitly_preserved=scan.relative_path in preserved_units,
+            explicitly_preserved=_is_preserved(scan.relative_path, preserved_units),
             global_runtime_blocker=global_runtime_blocker,
+            include_completed=include_completed,
         )
         for scan in scans
     ]
+    apply_physical_accounting(
+        entries,
+        [usage for scan in scans for usage in scan.inode_usages],
+    )
     global_runtime_active = bool(
         runtime["services"]["active"] or runtime["containers"]["active"]
     )
@@ -211,7 +223,6 @@ def create_clean_audit(
                 or active_locks
                 or global_runtime_active
                 or global_runtime_blocker
-                or issues
             ),
         },
         "categories": categories,
@@ -310,7 +321,35 @@ def _preserved_units(root: Path, paths: Sequence[str | Path]) -> set[str]:
             )
         if not resolved.exists():
             raise SpecValidationError(f"preserved path does not exist: {candidate}")
-        units.add(resolved.relative_to(root).parts[0])
+        relative = resolved.relative_to(root)
+        parts: tuple[str, ...] = tuple(relative.parts)
+        if not parts:
+            raise SpecValidationError(
+                f"preserved path must identify one entry inside the managed root: {candidate}"
+            )
+        first = parts[0]
+        if len(parts) >= 2 and first == "runs":
+            units.add(Path(*parts[:2]).as_posix())
+        else:
+            units.add(first)
+    return units
+
+
+def _is_preserved(relative_path: str, preserved_units: set[str]) -> bool:
+    return any(
+        relative_path == preserved or relative_path.startswith(f"{preserved}/")
+        for preserved in preserved_units
+    )
+
+
+def _managed_units(root: Path) -> list[Path]:
+    """Return cleanup units, splitting engine-managed runs individually."""
+    units: list[Path] = []
+    for child in sorted(root.iterdir(), key=lambda path: path.name):
+        if child.name == "runs" and child.is_dir() and not child.is_symlink():
+            units.extend(sorted(child.iterdir(), key=lambda path: path.name))
+        else:
+            units.append(child)
     return units
 
 
@@ -353,6 +392,7 @@ def _record_symlink(root: Path, scan: _UnitScan, path: Path) -> None:
     scan.file_count += 1
     scan.logical_bytes += metadata.st_size
     scan.allocated_bytes += _allocated_bytes(metadata)
+    scan.inode_usages.append(_inode_usage(scan, metadata))
     scan.internal_symlinks.append(path.relative_to(root).as_posix())
 
 
@@ -366,6 +406,7 @@ def _record_file(
     scan.file_count += 1
     scan.logical_bytes += metadata.st_size
     scan.allocated_bytes += _allocated_bytes(metadata)
+    scan.inode_usages.append(_inode_usage(scan, metadata))
     scan.names.add(lower_name)
     scan.segments.update(part.lower() for part in path.relative_to(root).parts[:-1])
     if not stat.S_ISREG(metadata.st_mode):
@@ -383,7 +424,7 @@ def _record_file(
         scan.arrow_files += 1
     if _is_evidence_name(lower_name):
         scan.evidence_files.append(path)
-    if _is_oracle_name(lower_name):
+    if path.suffix.lower() == ".zip":
         scan.oracle_files.append(path)
 
 
@@ -393,6 +434,7 @@ def _classify_unit(
     *,
     explicitly_preserved: bool,
     global_runtime_blocker: str | None,
+    include_completed: bool,
 ) -> dict[str, Any]:
     active_pids = [item for item in scan.pid_files if item["status"] == "active"]
     active_locks = [
@@ -436,8 +478,12 @@ def _classify_unit(
             identities = _identity_records(root, scan.run_files)
             identity_complete = True
             category = "user_preserved_run"
-            deletable = False
-            reason = "completed run evidence is preserved by default"
+            deletable = include_completed
+            reason = (
+                "completed run selected explicitly by --include-completed"
+                if include_completed
+                else "completed run evidence is preserved by default"
+            )
         elif run_status["interrupted_or_failed"]:
             category = "interrupted_failed_run"
             deletable = True
@@ -636,12 +682,6 @@ def _is_evidence_name(name: str) -> bool:
     )
 
 
-def _is_oracle_name(name: str) -> bool:
-    return name.endswith(".zip") and (
-        "freqtrade" in name or "official-oracle" in name or "oracle-evidence" in name
-    )
-
-
 def _inspect_pid_file(root: Path, path: Path) -> dict[str, Any]:
     try:
         value = path.read_text(encoding="utf-8").strip()
@@ -685,9 +725,9 @@ def _inspect_lock_file(root: Path, path: Path) -> dict[str, Any]:
     }
 
 
-def _probe_runtime_activity() -> dict[str, Any]:
+def _probe_runtime_activity(root: Path) -> dict[str, Any]:
     return {
-        "services": _probe_services(),
+        "services": _probe_services(root),
         "containers": _probe_containers(),
     }
 
@@ -707,11 +747,15 @@ def _unprobed_runtime_activity() -> dict[str, Any]:
     }
 
 
-def _probe_services() -> dict[str, Any]:
+def _probe_services(root: Path) -> dict[str, Any]:
     executable = shutil.which("systemctl")
     if executable is None:
-        return {"status": "unavailable", "active": [], "detail": "systemctl not found"}
-    return _run_activity_command(
+        return {
+            "status": "available",
+            "active": [],
+            "detail": "systemd user services are not installed on this host",
+        }
+    listed = _run_activity_command(
         [
             executable,
             "--user",
@@ -724,12 +768,92 @@ def _probe_services() -> dict[str, Any]:
         ],
         item_kind="service",
     )
+    if listed["status"] != "available":
+        return listed
+    active = []
+    for item in listed["active"]:
+        unit = str(item["identity"]).split(maxsplit=1)[0]
+        ownership = _service_owns_root(executable, unit, root)
+        if ownership is None:
+            return {
+                "status": "unavailable",
+                "active": [],
+                "detail": f"cannot resolve managed-root ownership for {unit}",
+            }
+        if ownership:
+            active.append({"kind": "service", "identity": unit})
+    return {"status": "available", "active": active, "detail": None}
+
+
+def _service_owns_root(executable: str, unit: str, root: Path) -> bool | None:
+    try:
+        completed = subprocess.run(
+            [
+                executable,
+                "--user",
+                "show",
+                unit,
+                "--property=MainPID",
+                "--property=WorkingDirectory",
+                "--no-pager",
+            ],
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+            timeout=3,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    properties = {}
+    for line in completed.stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            properties[key] = value
+
+    working_directory = properties.get("WorkingDirectory", "").lstrip("!+-")
+    if working_directory and _path_owns_root(working_directory, root):
+        return True
+    try:
+        pid = int(properties.get("MainPID", "0"))
+    except ValueError:
+        return None
+    if pid <= 0:
+        return False
+    try:
+        process = psutil.Process(pid)
+        if _path_owns_root(process.cwd(), root):
+            return True
+        for opened in process.open_files():
+            if _path_owns_root(opened.path, root):
+                return True
+        for argument in process.cmdline():
+            if argument.startswith("/") and _path_owns_root(argument, root):
+                return True
+    except (psutil.Error, OSError):
+        return None
+    return False
+
+
+def _path_owns_root(value: str, root: Path) -> bool:
+    try:
+        candidate = Path(value).resolve(strict=False)
+    except OSError:
+        return False
+    return candidate.is_relative_to(root.parent)
 
 
 def _probe_containers() -> dict[str, Any]:
     executable = shutil.which("docker")
     if executable is None:
-        return {"status": "unavailable", "active": [], "detail": "docker not found"}
+        return {
+            "status": "available",
+            "active": [],
+            "detail": "Docker is not installed on this host",
+        }
     return _run_activity_command(
         [
             executable,
@@ -814,3 +938,13 @@ def _category_totals(entries: Sequence[Mapping[str, Any]]) -> list[dict[str, Any
 def _allocated_bytes(metadata: os.stat_result) -> int:
     blocks = getattr(metadata, "st_blocks", None)
     return int(blocks) * 512 if isinstance(blocks, int) else metadata.st_size
+
+
+def _inode_usage(scan: _UnitScan, metadata: os.stat_result) -> InodeUsage:
+    return InodeUsage(
+        unit_path=scan.relative_path,
+        device=int(metadata.st_dev),
+        inode=int(metadata.st_ino),
+        link_count=int(metadata.st_nlink),
+        allocated_bytes=_allocated_bytes(metadata),
+    )

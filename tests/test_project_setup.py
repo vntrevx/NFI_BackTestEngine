@@ -109,7 +109,9 @@ def test_standard_layout_initializes_without_prompts(tmp_path: Path) -> None:
     assert settings.class_name == "SimpleStrategy"
     assert settings.config_path == config
     assert settings.data_directory == data
-    assert settings.output_directory == (tmp_path / "artifacts/simple-strategy-20250101-20260101")
+    assert settings.output_directory == (
+        tmp_path / ".nfi/runs/simple-strategy-20250101-20260101"
+    )
     document = read_json(tmp_path / ".nfi/project.json")
     assert document["workspace"] == ".."
     assert document["strategy"]["path"] == "user_data/strategies/SimpleStrategy.py"

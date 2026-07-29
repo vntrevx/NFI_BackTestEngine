@@ -8,6 +8,7 @@ import psutil
 import pytest
 from nfi_backtest_engine import cli
 from nfi_backtest_engine.clean import _pid_active, create_clean_audit, format_clean_audit
+from nfi_backtest_engine.clean_apply import apply_clean
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.evidence_bundle import write_evidence_bundle
 
@@ -115,11 +116,13 @@ def test_release_bundle_and_official_zip_are_identity_bound_and_protected(
     assert oracle_entry["evidence_identity"][0]["sha256"]
 
 
-def test_incomplete_certification_identity_is_protected_fail_closed(
+def test_incomplete_certification_identity_is_protected_without_blocking_other_units(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / ".nfi"
     _write_json(root / "candidate" / "full-x7-certification.json", {})
+    (root / "cache").mkdir(parents=True)
+    (root / "cache" / "payload").write_bytes(b"cache")
 
     audit = create_clean_audit(
         root,
@@ -131,8 +134,14 @@ def test_incomplete_certification_identity_is_protected_fail_closed(
     assert entry["category"] == "release_certificate_bundle"
     assert entry["deletable"] is False
     assert entry["identity_complete"] is False
-    assert audit["safety"]["fail_closed"] is True
+    assert audit["safety"]["fail_closed"] is False
     assert audit["issues"][0]["code"] == "CERTIFICATION_IDENTITY_INCOMPLETE"
+
+    result = apply_clean(root, activity_probe=_no_activity)
+
+    assert (root / "candidate" / "full-x7-certification.json").is_file()
+    assert not (root / "cache").exists()
+    assert {item["path"] for item in result["deleted"]} == {"cache"}
 
 
 def test_active_pid_protects_its_run_and_checkpoints(tmp_path: Path) -> None:
@@ -327,6 +336,31 @@ def test_cli_requires_dry_run_writes_audit_and_keeps_payload(
     }
 
 
+def test_cli_rejects_skipped_runtime_probes_in_apply_mode(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    root = tmp_path / ".nfi"
+    (root / "cache").mkdir(parents=True)
+    payload = root / "cache" / "payload"
+    payload.write_bytes(b"cache")
+
+    exit_code = cli.main(
+        [
+            "clean",
+            "--apply",
+            "--root",
+            str(root),
+            "--no-runtime-probes",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "--no-runtime-probes cannot be used with --apply" in captured.err
+    assert payload.read_bytes() == b"cache"
+
+
 def test_terminal_projection_includes_every_category(tmp_path: Path) -> None:
     root = tmp_path / ".nfi"
     root.mkdir()
@@ -347,3 +381,173 @@ def test_terminal_projection_includes_every_category(tmp_path: Path) -> None:
         "regenerable_vector_cache",
     ):
         assert category in snapshot
+
+
+def test_hard_links_are_counted_once_as_physical_reclaimable_storage(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    cache = root / "cache"
+    cache.mkdir(parents=True)
+    first = cache / "first"
+    second = cache / "second"
+    first.write_bytes(b"x" * 8192)
+    os.link(first, second)
+
+    audit = create_clean_audit(root, activity_probe=_no_activity)
+    entry = _entries_by_path(audit)["cache"]
+
+    assert entry["logical_bytes"] == 16_384
+    assert entry["allocated_bytes"] == first.stat().st_blocks * 512
+    assert entry["reclaimable_allocated_bytes"] == entry["allocated_bytes"]
+    assert audit["summary"]["allocated_bytes"] == entry["allocated_bytes"]
+
+
+def test_hard_link_shared_with_a_protected_run_is_not_claimed_reclaimable(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    cache = root / "cache"
+    completed = root / "runs" / "done"
+    cache.mkdir(parents=True)
+    completed.mkdir(parents=True)
+    payload = cache / "vector.feather"
+    payload.write_bytes(b"x" * 8192)
+    os.link(payload, completed / "vector.feather")
+    _write_json(
+        completed / "run.json",
+        {"run_id": "done", "status": "complete", "complete": True},
+    )
+
+    audit = create_clean_audit(root, activity_probe=_no_activity)
+    entries = _entries_by_path(audit)
+
+    assert entries["cache"]["deletable"] is True
+    assert entries["cache"]["reclaimable_allocated_bytes"] == 0
+    assert entries["runs/done"]["deletable"] is False
+    assert audit["summary"]["allocated_bytes"] < audit["summary"]["logical_bytes"]
+
+
+def test_hard_link_outside_managed_root_is_not_claimed_reclaimable(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    cache = root / "cache"
+    cache.mkdir(parents=True)
+    payload = cache / "vector.feather"
+    payload.write_bytes(b"x" * 8192)
+    outside = tmp_path / "outside-vector.feather"
+    os.link(payload, outside)
+
+    audit = create_clean_audit(root, activity_probe=_no_activity)
+    entry = _entries_by_path(audit)["cache"]
+
+    assert entry["deletable"] is True
+    assert entry["allocated_bytes"] > 0
+    assert entry["reclaimable_allocated_bytes"] == 0
+
+
+def test_apply_deletes_only_fresh_audit_candidates_and_writes_receipt(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    (root / "cache").mkdir(parents=True)
+    (root / "cache" / "payload").write_bytes(b"cache")
+    _write_json(root / "failed" / "run.json", {"status": "failed", "complete": False})
+    _write_json(
+        root / "runs" / "complete" / "run.json",
+        {"run_id": "complete", "status": "complete", "complete": True},
+    )
+    (root / "oracle").mkdir()
+    (root / "oracle" / "freqtrade-result.zip").write_bytes(b"official")
+
+    result = apply_clean(root, activity_probe=_no_activity)
+
+    assert result["status"] == "complete"
+    assert {item["path"] for item in result["deleted"]} == {"cache", "failed"}
+    assert not (root / "cache").exists()
+    assert not (root / "failed").exists()
+    assert (root / "runs" / "complete" / "run.json").is_file()
+    assert (root / "oracle" / "freqtrade-result.zip").is_file()
+    assert (root / "clean-audit.json").is_file()
+    receipt = json.loads((root / "clean-result.json").read_text(encoding="utf-8"))
+    assert receipt["audit"]["sha256"]
+    assert receipt["summary"]["deleted_unit_count"] == 2
+
+
+def test_include_completed_never_overrides_preservation_or_evidence(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    _write_json(
+        root / "runs" / "delete-me" / "run.json",
+        {"run_id": "delete-me", "status": "complete", "complete": True},
+    )
+    _write_json(
+        root / "runs" / "keep-me" / "run.json",
+        {"run_id": "keep-me", "status": "complete", "complete": True},
+    )
+    (root / "runs" / "keep-me" / ".nfi-preserve").write_text("", encoding="utf-8")
+    _write_json(
+        root / "runs" / "keep-explicit" / "run.json",
+        {"run_id": "keep-explicit", "status": "complete", "complete": True},
+    )
+    evidence = root / "runs" / "evidence"
+    evidence.mkdir(parents=True)
+    (evidence / "result.zip").write_bytes(b"official")
+
+    result = apply_clean(
+        root,
+        include_completed=True,
+        preserve=["runs/keep-explicit"],
+        activity_probe=_no_activity,
+    )
+
+    assert {item["path"] for item in result["deleted"]} == {"runs/delete-me"}
+    assert not (root / "runs" / "delete-me").exists()
+    assert (root / "runs" / "keep-me" / "run.json").is_file()
+    assert (root / "runs" / "keep-explicit" / "run.json").is_file()
+    assert (evidence / "result.zip").is_file()
+
+
+def test_apply_refuses_a_fail_closed_audit_without_deleting(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    (root / "cache").mkdir(parents=True)
+    payload = root / "cache" / "payload"
+    payload.write_bytes(b"cache")
+
+    def active_service() -> dict:
+        return {
+            "services": {
+                "status": "available",
+                "active": [{"kind": "service", "identity": "nfi-run.service"}],
+                "detail": None,
+            },
+            "containers": {"status": "available", "active": [], "detail": None},
+        }
+
+    with pytest.raises(SpecValidationError, match="fail-closed"):
+        apply_clean(root, activity_probe=active_service)
+
+    assert payload.read_bytes() == b"cache"
+    assert not (root / "clean-result.json").exists()
+
+
+def test_apply_refuses_control_output_inside_a_deletion_target(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".nfi"
+    (root / "cache").mkdir(parents=True)
+    payload = root / "cache" / "payload"
+    payload.write_bytes(b"cache")
+
+    with pytest.raises(SpecValidationError, match="control output"):
+        apply_clean(
+            root,
+            audit_path=root / "cache" / "audit.json",
+            activity_probe=_no_activity,
+        )
+
+    assert payload.read_bytes() == b"cache"

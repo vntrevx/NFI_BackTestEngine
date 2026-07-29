@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from nfi_backtest_engine import cache as cache_module
+from nfi_backtest_engine import cache_policy
 from nfi_backtest_engine.cache import ContentCache, cache_key
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
@@ -103,3 +104,39 @@ def test_cache_rejects_a_noncanonical_worker_digest(tmp_path: Path) -> None:
             source,
             expected_sha256="not-a-digest",
         )
+
+
+def test_default_cache_budget_is_bounded_by_the_current_filesystem(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv(cache_policy.CACHE_MAX_BYTES_ENV, raising=False)
+    monkeypatch.setattr(
+        cache_policy.psutil,
+        "disk_usage",
+        lambda _path: type(
+            "Usage",
+            (),
+            {"total": 200 * 1024**3, "free": 40 * 1024**3},
+        )(),
+    )
+
+    cache = ContentCache(tmp_path / "cache")
+
+    assert cache.max_bytes == 10 * 1024**3
+    assert cache.budget.source == "disk-aware-default"
+
+
+def test_cache_budget_can_be_configured_without_workload_hardcoding(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv(cache_policy.CACHE_MAX_BYTES_ENV, "123456")
+
+    environment_cache = ContentCache(tmp_path / "environment-cache")
+    explicit_cache = ContentCache(tmp_path / "explicit-cache", max_bytes=654321)
+
+    assert environment_cache.max_bytes == 123456
+    assert environment_cache.budget.source == "environment"
+    assert explicit_cache.max_bytes == 654321
+    assert explicit_cache.budget.source == "explicit"

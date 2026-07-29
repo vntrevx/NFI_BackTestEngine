@@ -343,7 +343,7 @@ def _select_output_directory(
         return resolve_workspace_path(workspace, output_directory)
     separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", class_name)
     slug = re.sub(r"[^a-z0-9]+", "-", separated.lower()).strip("-")
-    return (workspace / "artifacts" / f"{slug}-{timerange}").resolve()
+    return (workspace / ".nfi" / "runs" / f"{slug}-{timerange}").resolve()
 
 
 def _strategy_candidates(workspace: Path) -> list[Path]:

@@ -13,6 +13,7 @@ from typing import Any
 
 import psutil
 
+from .cache_policy import resolve_cache_budget
 from .canonical import read_json, write_json
 from .docker_resources import derive_docker_policy, inspect_docker_daemon
 from .errors import BenchmarkError, NfiBacktestError, SpecValidationError
@@ -56,6 +57,7 @@ def inspect_run_preflight(
     required_free_bytes = remaining_work_bytes + safety_margin_bytes
     disk_path = _existing_parent(settings.output_directory)
     disk = psutil.disk_usage(str(disk_path))
+    cache_budget = resolve_cache_budget(settings.cache_directory)
     sufficient = disk.free >= required_free_bytes
     download_growth_bounded = data_usage["file_count"] > 0 or not download_missing
 
@@ -89,6 +91,11 @@ def inspect_run_preflight(
                 "remaining known-input work plus one input-derived safety envelope; "
                 "existing owned output is credited only for resume"
             ),
+            "cache_max_bytes": cache_budget.max_bytes,
+            "cache_budget_source": cache_budget.source,
+            "cache_filesystem_path": str(cache_budget.filesystem_path),
+            "cache_filesystem_available_bytes": cache_budget.available_bytes,
+            "cache_filesystem_total_bytes": cache_budget.total_bytes,
         },
         "passed": sufficient,
     }
@@ -140,6 +147,8 @@ def format_run_preflight(report: Mapping[str, Any], destination: Path) -> str:
         f"memory={host.get('available_memory_bytes')} bytes, "
         f"disk={disk.get('available_bytes')} available / "
         f"{disk.get('required_free_bytes')} required ({bounded}), "
+        f"cache={disk.get('cache_max_bytes')} max "
+        f"({disk.get('cache_budget_source')}), "
         f"docker={docker_detail} -> {destination}"
     )
 

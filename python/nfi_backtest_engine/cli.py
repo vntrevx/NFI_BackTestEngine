@@ -370,13 +370,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     clean = subcommands.add_parser(
         "clean",
-        help="classify managed .nfi disk use without deleting files",
+        help="audit or safely reclaim managed .nfi disk use",
     )
-    clean.add_argument(
+    clean_mode = clean.add_mutually_exclusive_group(required=True)
+    clean_mode.add_argument(
         "--dry-run",
         action="store_true",
-        required=True,
-        help="required safety mode; no deletion implementation exists",
+        help="write a fresh audit without deleting files",
+    )
+    clean_mode.add_argument(
+        "--apply",
+        action="store_true",
+        help="write a fresh audit, then delete only its safe candidates",
     )
     clean.add_argument(
         "--root",
@@ -391,6 +396,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="audit JSON path inside --root (default: ROOT/clean-audit.json)",
     )
     clean.add_argument(
+        "--result",
+        type=Path,
+        help="apply receipt inside --root (default: ROOT/clean-result.json)",
+    )
+    clean.add_argument(
         "--preserve",
         action="append",
         type=Path,
@@ -400,7 +410,12 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument(
         "--no-runtime-probes",
         action="store_true",
-        help="skip user-service and managed-Docker probes; PID and lock checks still run",
+        help="dry-run only: skip service/container probes and report fail-closed",
+    )
+    clean.add_argument(
+        "--include-completed",
+        action="store_true",
+        help="also select completed runs; evidence, Oracle, ZIP, and preserved runs stay protected",
     )
 
     init = subcommands.add_parser(

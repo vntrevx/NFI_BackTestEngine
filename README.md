@@ -239,6 +239,25 @@ nfi-bte report artifacts\x7-research
 nfi-bte report artifacts\x7-research --full-report
 ```
 
+## Storage
+
+New wizard-created runs live under `.nfi/runs`; rerunning the same saved project
+resumes that stable directory. The reusable cache has a disk-aware ceiling and can be
+set explicitly with `NFI_BTE_CACHE_MAX_BYTES`.
+
+Inspect reclaimable data without changing anything:
+
+```text
+nfi-bte clean --dry-run
+```
+
+`nfi-bte clean --apply` creates a fresh audit before deletion and writes a durable
+receipt. It removes only regenerable cache, failed/incomplete runs, temporary spool,
+and rebuildable data by default. Completed runs require `--include-completed`;
+preserve markers, certificates, evidence bundles, Oracle data, ZIP archives, active
+runs, and unclassified files remain protected. See [managed storage and safe
+cleanup](docs/clean.md).
+
 ## Key commands
 
 | Command | Purpose |
@@ -250,6 +269,7 @@ nfi-bte report artifacts\x7-research --full-report
 | `nfi-bte confirm ...` | Compare an existing Freqtrade export |
 | `nfi-bte report RUN_DIR` | Rebuild the human-readable report |
 | `nfi-bte runs list` | Inspect the durable run index |
+| `nfi-bte clean --dry-run` | Audit managed storage without deleting |
 | `nfi-bte performance ...` | Repeat a sealed performance gate |
 | `nfi-bte certify ...` | Create release-grade evidence |
 | `nfi-bte contract verify` | Verify the sealed regression contract |

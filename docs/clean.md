@@ -1,18 +1,34 @@
-# Evidence-aware clean dry-run
+# Managed storage and safe cleanup
 
-`nfi-bte clean` currently implements classification and auditing only. It has no
-deletion path. The `--dry-run` flag is mandatory:
+NFI Backtest Engine keeps reusable state under `.nfi`. New wizard-created runs use
+`.nfi/runs/<strategy>-<timerange>`; an existing saved project keeps its recorded output
+path unchanged.
+
+The content cache is bounded without using strategy-, pair-, date-, SHA-, or
+result-specific rules. Its default ceiling is the smallest of:
+
+- 50 GiB
+- 10% of the cache filesystem
+- 25% of currently available space
+
+Set an exact positive byte ceiling with `NFI_BTE_CACHE_MAX_BYTES`. Code embedding the
+engine can instead pass `max_bytes` to `ContentCache`; an explicit value takes
+precedence over the environment.
+
+## Audit first
+
+The dry run classifies storage and never deletes files:
 
 ```bash
 nfi-bte clean --dry-run
 ```
 
 The managed root must be a real directory named `.nfi`. A different directory,
-a symlinked root, an audit path outside that root, or any nested symlink that resolves
-outside the root is rejected before the audit is written.
+symlinked root, output outside the root, escaping nested symlink, or special
+filesystem entry is rejected or protected.
 
-The default audit is `.nfi/clean-audit.json`. A different destination must still be
-inside the selected root:
+The default audit is `.nfi/clean-audit.json`. A custom destination must remain inside
+the managed root:
 
 ```bash
 nfi-bte clean --dry-run \
@@ -20,46 +36,70 @@ nfi-bte clean --dry-run \
   --output work/.nfi/audits/clean.json
 ```
 
-## Classification
+Logical bytes count path names. Allocated bytes count each `(device, inode)` once, so
+hard-linked vectors are not multiplied. Allocated bytes are reported as reclaimable
+only when every filesystem link to that inode was observed inside selected deletion
+units. A hard link in a protected run or outside `.nfi` therefore contributes zero
+expected physical reclamation.
 
-The report groups each top-level managed entry into one of these categories:
+## Apply safely
 
-- active run and checkpoint
-- release certificate and evidence bundle
-- official Oracle and Freqtrade ZIP
-- explicitly or conservatively preserved run
-- regenerable vector and cache data
-- interrupted or failed run
-- temporary Arrow and Docker spool
-- old build and calibration data
-- unclassified protected data
-
-Every category reports file count, logical bytes, allocated bytes, and reclaimable
-bytes. Every entry includes its protection reason. Protected evidence includes
-path, byte size, and SHA-256 identity; a certification-like directory with incomplete
-identity remains protected and raises a fail-closed issue.
-
-Create an empty `.nfi-preserve` or `.nfi-keep` marker inside a run to preserve it, or
-select it explicitly:
+Apply mode does not consume an old audit. It acquires a cleanup lock, creates a fresh
+audit with runtime probes, and deletes only entries that fresh audit marks deletable:
 
 ```bash
-nfi-bte clean --dry-run --preserve results/important-run
+nfi-bte clean --apply
 ```
 
-Relative `--preserve` paths are resolved from the managed `.nfi` root. Paths outside
-that root are rejected.
+The default selection includes only:
+
+- regenerable vector/cache data
+- failed, interrupted, or incomplete runs
+- temporary Arrow/Docker spool data
+- rebuildable build/calibration data
+
+Completed runs are protected unless selected explicitly:
+
+```bash
+nfi-bte clean --apply --include-completed
+```
+
+Use `.nfi-preserve` or `.nfi-keep` inside a run, or repeat `--preserve`, to override
+that selection:
+
+```bash
+nfi-bte clean --apply --include-completed \
+  --preserve runs/important-result
+```
+
+Release certificates, evidence bundles, Oracle data, and ZIP archives remain
+protected even with `--include-completed`. Unclassified data is protected.
+Incomplete certification identity is reported as an issue and its entire unit stays
+protected; it does not make an unrelated, fully classified cache unit deletable or
+block that cache unit's reclamation.
+
+Before each deletion the root identity, target boundary, symlink status, and special
+filesystem entries are checked again. The audit or result path cannot be placed
+inside a selected target. Cleanup stops on the first validation or filesystem
+failure.
+
+Every apply writes:
+
+- `.nfi/clean-audit.json`: the exact fresh selection and measured byte accounting
+- `.nfi/clean-result.json`: audit SHA-256, selection, deleted units, estimated
+  physically reclaimed bytes, and complete or partial-failure status
+
+Both paths can be changed with `--output` and `--result`, but must remain inside the
+managed root. Deletion is not reversible; regenerate cache/vector data or rerun a
+deleted result when needed.
 
 ## Activity guards
 
-PID files and held lock files are inspected inside each managed entry. By default the
-command also queries running `nfi-*` user services and Docker containers carrying the
-engine's managed label. Active PIDs, locks, services, or containers block associated
-reclamation.
+PID files and held lock files are inspected per unit. The command also checks managed
+Docker containers and running `nfi-*` user services whose process or working
+directory owns the selected `.nfi` workspace. A power-policy or other unrelated
+service does not block cleanup merely because its name starts with `nfi-`.
 
-`--no-runtime-probes` exists for isolated diagnostics, but it does not weaken the
-verdict: reclaimable entries remain protected and the audit is marked fail-closed
-because service and container activity is unknown.
-
-The JSON field `safety.deletion_performed` is always `false`. A future deletion
-implementation requires a separate roadmap task and is not implied by a dry-run
-classification.
+An active or unknown managed runtime makes the audit fail closed and prevents apply.
+`--no-runtime-probes` is diagnostic dry-run only and cannot be combined with
+`--apply`.

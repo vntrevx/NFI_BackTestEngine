@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 60,
-  "updated_at": "2026-07-29",
+  "revision": 61,
+  "updated_at": "2026-07-29T16:22:24+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M8-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -1962,6 +1962,47 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M8-01",
+      "order": 801,
+      "milestone": "M8",
+      "title": "Finish safe storage lifecycle and reclamation",
+      "status": "in_progress",
+      "depends_on": [
+        "M7-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "hard-link-aware physical and reclaimable byte accounting",
+        "fail-closed clean apply with a durable deletion receipt",
+        "explicit completed-run selection with preserve overrides",
+        "managed default run storage",
+        "disk-aware configurable content-cache budget",
+        "storage preflight and user documentation"
+      ],
+      "forbidden_changes": [
+        "automatic deletion of completed runs",
+        "deletion of release certificates, evidence bundles, official Oracles, or Freqtrade ZIPs",
+        "following symlinks outside the managed root",
+        "cleanup while managed runtime identity is active or unknown",
+        "strategy, pair, timerange, SHA, or expected-result runtime branches",
+        "simulation, event ordering, or serialization behavior changes"
+      ],
+      "acceptance_profile": "storage_lifecycle",
+      "expected_evidence": [
+        "hard-link accounting tests",
+        "dry-run and apply deletion receipts",
+        "protected evidence and active-run rejection tests",
+        "completed-run opt-in and preserve override tests",
+        "cache-budget policy tests",
+        "full Python and static validation"
+      ],
+      "started_at": "2026-07-29T16:22:24+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -3280,6 +3321,24 @@
         "algorithm_optimization": false,
         "remote_push": false,
         "next_eligible_task": null
+      }
+    },
+    {
+      "sequence": 73,
+      "timestamp": "2026-07-29T16:22:24+09:00",
+      "task_id": "M8-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "storage_lifecycle",
+        "worktree_head": "863798f10f9b154d2694f2df7d9722db40af858a",
+        "user_instruction": "Make storage lifecycle and cleanup safe enough that normal users do not accumulate unbounded development-style artifacts.",
+        "observed_cleanup": {
+          "managed_root_before_gib": 172,
+          "managed_root_after_gib": 14,
+          "reclaimed_gib": 158,
+          "removed_artifact_class": "regenerable vectors and nested vector caches",
+          "protected_inputs_and_evidence_preserved": true
+        }
       }
     }
   ]

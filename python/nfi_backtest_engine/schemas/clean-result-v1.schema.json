@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/clean-result-v1.schema.json",
+  "title": "NFI Backtest Engine cleanup application receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "completed_at",
+    "mode",
+    "status",
+    "root",
+    "audit",
+    "result_path",
+    "selection",
+    "deleted",
+    "failure",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "mode": {
+      "const": "apply"
+    },
+    "status": {
+      "enum": [
+        "in_progress",
+        "complete",
+        "partial_failure"
+      ]
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "device",
+        "inode"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "device": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inode": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "result_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "include_completed",
+        "preserve"
+      ],
+      "properties": {
+        "include_completed": {
+          "type": "boolean"
+        },
+        "preserve": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "deleted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "category",
+          "logical_bytes",
+          "reclaimable_allocated_bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "enum": [
+              "user_preserved_run",
+              "regenerable_vector_cache",
+              "interrupted_failed_run",
+              "temporary_arrow_docker_spool",
+              "old_build_calibration"
+            ]
+          },
+          "logical_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reclaimable_allocated_bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "failure": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deleted_unit_count",
+        "deleted_logical_bytes",
+        "estimated_reclaimed_allocated_bytes"
+      ],
+      "properties": {
+        "deleted_unit_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deleted_logical_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimated_reclaimed_allocated_bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

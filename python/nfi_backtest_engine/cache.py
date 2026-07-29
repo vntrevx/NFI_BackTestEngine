@@ -16,6 +16,7 @@ from typing import Any
 
 import psutil
 
+from .cache_policy import CacheBudget, resolve_cache_budget
 from .canonical import read_json, write_json
 from .errors import SpecValidationError
 from .fixture import sha256_file
@@ -35,11 +36,13 @@ def cache_key(namespace: str, identity: dict[str, Any]) -> str:
 
 
 class ContentCache:
-    def __init__(self, root: str | Path, *, max_bytes: int = 50 * 1024**3) -> None:
+    def __init__(self, root: str | Path, *, max_bytes: int | None = None) -> None:
         self.root = Path(root).resolve()
-        if max_bytes <= 0:
-            raise SpecValidationError("cache max_bytes must be positive")
-        self.max_bytes = max_bytes
+        self.budget: CacheBudget = resolve_cache_budget(
+            self.root,
+            requested_bytes=max_bytes,
+        )
+        self.max_bytes = self.budget.max_bytes
         self.root.mkdir(parents=True, exist_ok=True)
 
     def get(self, key: str) -> Path | None:
