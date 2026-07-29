@@ -157,7 +157,7 @@ jobs:
             jq -r .source_sha256 .discovery/input/compatibility-identity.json
           )"
           if [ -s .discovery/downloaded-cursor.json ]; then
-            python scripts/select_discovery_cursor.py \
+            uv run python scripts/select_discovery_cursor.py \
               --strategy-diff .discovery/input/strategy-diff.json \
               --compatibility .discovery/input/report-futures.json \
               --fixtures-root benchmarks/fixtures/captured \
@@ -356,7 +356,7 @@ jobs:
           max_bytes="$(
             jq -er .candidate.max_bytes planning/futures-discovery-policy.json
           )"
-          python scripts/futures_candidate_pr.py \
+          uv run python scripts/futures_candidate_pr.py \
             --report .discovery/result/discovery-report.json \
             --candidate-dir .discovery/result/candidate-fixture \
             --repo-root "${GITHUB_WORKSPACE}" \
