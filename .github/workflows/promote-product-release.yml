@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       candidate_tag:
-        description: Published product candidate tag, for example v1.2.0-rc.1
+        description: Published product candidate tag, for example vX.Y.Z-rc.N
         required: true
         type: string
       stable_tag:
-        description: Stable product tag, for example v1.2.0
+        description: Stable product tag, for example vX.Y.Z
         required: true
         type: string
 
