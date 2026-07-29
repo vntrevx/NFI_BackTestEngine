@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0.0",
+  "status": "implemented-and-exact",
+  "recorded_at": "2026-07-30",
+  "claim_boundary": "State-machine program v2 preserves v1 execution while adding source-driven, transitive inlining of bounded pure strategy helpers and static class mapping or sequence values. A pinned official Freqtrade stateful fixture matches the v2 Native execution at zero tolerance for both trade surface and full projected state. This does not claim support for unknown future callback semantics.",
+  "program": {
+    "schema_version": "state-machine-program-v2",
+    "previous_schema_supported": "state-machine-program-v1",
+    "execution_order": "source-order",
+    "step_budget": "static-bounded",
+    "custom_state_failure_policy": "atomic-rollback",
+    "helper_policy": {
+      "supported": "synchronous pure single-return self helpers with bounded transitive calls",
+      "class_data": "literal mappings and sequences",
+      "unsupported": [
+        "recursive helpers",
+        "stateful helpers",
+        "variadic helpers",
+        "dynamic class-data keys",
+        "arbitrary Python execution"
+      ],
+      "unsupported_behavior": "fail-closed with source location"
+    },
+    "strategy_version_or_method_sha_runtime_branch": false
+  },
+  "latest_x7": {
+    "upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+    "strategy_source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+    "spot_static_native_compatible": true,
+    "spot_report_sha256": "e464afdbae66b95a2320e22f32f7356448d8c00235e5a1e149f09d4fc9d8301b",
+    "futures_static_native_compatible": true,
+    "futures_report_sha256": "e3cba1dce85bc4bc8a3135210bf0df30a876ed0d8f913a7a1e8440dc6fac5728"
+  },
+  "official_exact_fixture": {
+    "fixture_id": "generic-state-machine-grind12-btc-spot",
+    "strategy_source_sha256": "f01e9bbb2a09341d945d66e7f16a20418046279aa90974cd97e96044bbaf77cd",
+    "oracle": {
+      "engine": "freqtrade",
+      "version": "2026.5.1",
+      "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+      "platform": "linux/amd64"
+    },
+    "state_machine_ir_sha256": "517788fd8d153aa1872aa31cf3b7183abf9842afc15b31e4fef0bdc6218b61e1",
+    "full_verification_run_sha256": "805dc22b024f6174efa2f7c5668885dab3c5c2661b754b5bcde6460a7bfc915d",
+    "trading_mode": "spot",
+    "trade_count": 2,
+    "state_event_count": 861,
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "numeric_tolerance": 0
+  },
+  "verification": {
+    "python_semantics": [
+      "v1 and v2 schema compatibility",
+      "transitive pure-helper inlining",
+      "class mapping threshold and route extraction",
+      "X7-named helper source mutation changes IR",
+      "stateful and unbounded constructs fail closed"
+    ],
+    "rust_semantics": [
+      "v1 and v2 execution",
+      "source-order actions",
+      "loop-bound enforcement",
+      "custom-state rollback"
+    ],
+    "full_artifacts_root": ".nfi/roadmap-acceptance/M12-03/worktree"
+  },
+  "limitations": [
+    "Current full NFI X7 callbacks also use dedicated source-bound X7 IR lowerings; v2 does not reinterpret those large callbacks as arbitrary Python.",
+    "A future helper or callback using a new semantic operation remains official-only until the generic opcode and independent exact proof exist.",
+    "This is a callback-semantics certificate, not a five-year Spot, Futures, or performance certificate."
+  ]
+}

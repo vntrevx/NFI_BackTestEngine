@@ -61,6 +61,14 @@ tag는 증거에 그대로 보존된다.
 추가 진입, 부분 청산과 exit를 실행한다. 실패한 실행은 custom state를 원자적으로
 rollback한다. Signal 번호와 Grind 단계 수는 opcode가 아니라 IR 데이터다.
 
+`state-machine-program-v2`는 v1 프로그램도 계속 실행하면서, 동기식
+`self.helper(...)`가 순수한 단일 return 계산이면 호출 그래프를 소스에서
+전이적으로 인라인한다. helper가 읽는 class mapping/sequence의 threshold와 route
+tag도 IR literal이므로 helper 본문이나 데이터가 바뀌면 프로그램 identity가
+바뀐다. 재귀, `*args`, 상태를 쓰는 helper, 동적 key 또는 임의 Python 호출은
+소스 위치와 함께 차단한다. 전략 버전이나 method SHA를 새 실행 의미론의 선택
+조건으로 사용하지 않는다.
+
 `quick_verified` 승격에는 최신 전략으로 다시 만든 임시 workload, 서로 독립된
 이전 공식·최신 공식·최신 Native 실행, presence/absence/transition branch 증명,
 trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 수정하지

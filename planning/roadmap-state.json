@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 74,
-  "updated_at": "2026-07-30T07:15:38+09:00",
+  "revision": 75,
+  "updated_at": "2026-07-30T08:25:07+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-02",
+  "active_task_id": "M12-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2595,7 +2595,7 @@
       "order": 1202,
       "milestone": "M12",
       "title": "Quick-verify the latest Signal 65 transition",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-01"
       ],
@@ -2621,9 +2621,34 @@
         "compatibility issue reconciliation"
       ],
       "started_at": "2026-07-30T07:15:38+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T08:25:07+09:00",
+      "commit_sha": "9f0070e0a16c5948adbfd211dd7551c29aeda73c",
+      "evidence": [
+        {
+          "kind": "latest_signal65_spot_futures_exact",
+          "path": "benchmarks/evidence/latest-nfi-signal65-transition-exact-2026-07-30.json",
+          "bytes": 6274,
+          "sha256": "3f16380bc2f37000ea21fb2da7c6dc023a24e74f0814a8b4bb5738aaebcc2529",
+          "trading_modes": [
+            "spot",
+            "futures"
+          ],
+          "changed_branch_reached": true,
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        },
+        {
+          "kind": "focused_regression_suite",
+          "tests_passed": 38,
+          "regression_contract_complete": true
+        },
+        {
+          "kind": "python_full_suite",
+          "tests_passed": 529,
+          "known_failures_rechecked": 4,
+          "known_failures_recheck_passed": 4
+        }
+      ],
       "blocker": null
     },
     {
@@ -2631,7 +2656,7 @@
       "order": 1203,
       "milestone": "M12",
       "title": "Expand source-driven callback state-machine compatibility",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M12-02"
       ],
@@ -2656,7 +2681,7 @@
         "X7 source mutation tests",
         "independent shadow exact fixtures"
       ],
-      "started_at": null,
+      "started_at": "2026-07-30T08:25:07+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -4387,6 +4412,40 @@
           "previous official",
           "latest official",
           "latest Native"
+        ]
+      }
+    },
+    {
+      "sequence": 91,
+      "timestamp": "2026-07-30T08:25:07+09:00",
+      "task_id": "M12-02",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "9f0070e0a16c5948adbfd211dd7551c29aeda73c",
+        "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+        "verification_state": "quick_verified",
+        "target_count": 4,
+        "spot_branch_reached": true,
+        "futures_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_hardcoding_added": false,
+        "next_eligible_task": "M12-03"
+      }
+    },
+    {
+      "sequence": 92,
+      "timestamp": "2026-07-30T08:25:07+09:00",
+      "task_id": "M12-03",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "9f0070e0a16c5948adbfd211dd7551c29aeda73c",
+        "program_version": "state-machine-program-v2",
+        "runtime_hardcoding_allowed": false,
+        "required_modes": [
+          "spot",
+          "futures"
         ]
       }
     }
