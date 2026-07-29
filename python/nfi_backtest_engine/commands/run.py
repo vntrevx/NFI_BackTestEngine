@@ -331,6 +331,32 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             f"full_state_exact={report['full_state_exact']}"
         )
         return 0 if report["verification_state"] == "quick_verified" else 1
+    if args.strategy_command == "verify-targeted":
+        from ..targeted_verification import verify_targeted_strategy
+
+        if args.timeout <= 0:
+            raise NfiBacktestError("--timeout must be positive")
+        report = verify_targeted_strategy(
+            args.source,
+            args.strategy_diff,
+            args.compatibility_report,
+            args.fixtures_root,
+            args.output_dir,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            timeout_seconds=args.timeout,
+            workers=args.workers,
+        )
+        print(
+            "targeted strategy verification: "
+            f"state={report['verification_state']}, "
+            f"fixtures={report['plan']['selected_fixture_count']}, "
+            f"missing_targets={report['plan']['missing_target_count']} -> "
+            f"{args.output_dir / 'run.json'}"
+        )
+        return 0 if report["complete"] else 1
     if args.strategy_command == "state-machine":
         from ..state_machine_ir import compile_state_machine_program
 

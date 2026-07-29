@@ -658,6 +658,37 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_qualify.add_argument("strategy_diff", type=Path)
     strategy_qualify.add_argument("--branch-proof", type=Path)
     strategy_qualify.add_argument("--output", "-o", type=Path)
+    strategy_verify_targeted = strategy_commands.add_parser(
+        "verify-targeted",
+        help="run branch-reaching official and Native exact checks for changed behavior",
+    )
+    strategy_verify_targeted.add_argument("source", type=Path)
+    strategy_verify_targeted.add_argument("strategy_diff", type=Path)
+    strategy_verify_targeted.add_argument("compatibility_report", type=Path)
+    strategy_verify_targeted.add_argument("--class", dest="class_name", required=True)
+    strategy_verify_targeted.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        required=True,
+    )
+    strategy_verify_targeted.add_argument(
+        "--fixtures-root",
+        type=Path,
+        default=Path("benchmarks/fixtures/captured"),
+    )
+    strategy_verify_targeted.add_argument("--upstream-repository", required=True)
+    strategy_verify_targeted.add_argument("--upstream-commit", required=True)
+    strategy_verify_targeted.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+    )
+    strategy_verify_targeted.add_argument("--workers", type=int)
+    strategy_verify_targeted.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
+    )
     strategy_state_machine = strategy_commands.add_parser(
         "state-machine",
         help="compile bounded stateful callbacks into generic VM IR",

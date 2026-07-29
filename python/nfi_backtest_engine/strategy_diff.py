@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import json
 import re
 from collections.abc import Mapping
 from pathlib import Path
@@ -13,12 +15,13 @@ from .errors import StrategyAnalysisError
 from .strategy import STRATEGY_CALLBACKS
 from .strategy_ir import analyze_strategy
 
-STRATEGY_DIFF_VERSION = "1.0.0"
+STRATEGY_DIFF_VERSION = "1.2.0"
 _VECTOR_METHODS = {
     "populate_indicators",
     "populate_entry_trend",
     "populate_exit_trend",
 }
+_RUNTIME_METHODS = STRATEGY_CALLBACKS | _VECTOR_METHODS
 _STATEFUL_CALLBACKS = {
     "order_filled",
     "adjust_trade_position",
@@ -28,6 +31,10 @@ _SIGNAL_TAG = re.compile(r"^\s*\d+(?:\s+\d+)*\s*$")
 _GRIND_LEVEL = re.compile(
     r"(?i)(?:grind|derisk|buyback|rebuy|(?:sg|gd|gm|gmd|dd|ddl|g|d))"
     r"(?:[_ -]*(?:level)?[_ -]*)?(\d+)"
+)
+_ROUTE_SELECTOR = re.compile(
+    r"(?i)(?:signal|tag|route|grind|derisk|"
+    r"condition.*(?:index|id)|(?:index|id).*condition)"
 )
 
 
@@ -66,6 +73,11 @@ def diff_strategies(
         "new": new["diagnostics"],
     }
     classification = _classify(changed_callbacks, changes, diagnostics)
+    behavior_targets = _behavior_targets(
+        changes,
+        old_inventory=old,
+        new_inventory=new,
+    )
     report = {
         "schema_version": STRATEGY_DIFF_VERSION,
         "selected_class": new["class_name"],
@@ -73,6 +85,7 @@ def diff_strategies(
         "new": new["source"],
         "classification": classification,
         "changes": changes,
+        "behavior_targets": behavior_targets,
         "diagnostics": diagnostics,
     }
     if output_path is not None:
@@ -111,6 +124,7 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
     state_keys: set[str] = set()
     grind_levels: set[int] = set()
     opcodes: set[str] = set()
+    method_features: dict[str, dict[str, Any]] = {}
     method_records = strategy.get("methods")
     records = method_records if isinstance(method_records, list) else []
     record_by_name = {
@@ -118,9 +132,13 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
         for item in records
         if isinstance(item, Mapping) and isinstance(item.get("name"), str)
     }
-    for method in class_node.body:
-        if not isinstance(method, ast.FunctionDef | ast.AsyncFunctionDef):
-            continue
+    methods = [
+        method
+        for method in class_node.body
+        if isinstance(method, ast.FunctionDef | ast.AsyncFunctionDef)
+    ]
+    method_names = {method.name for method in methods}
+    for method in methods:
         record = record_by_name.get(method.name)
         if record is not None:
             callbacks[method.name] = {
@@ -128,23 +146,43 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
                 "location": record["location"],
             }
         method_tags = _method_tags(method)
-        tags.update(method_tags)
-        if method.name in _VECTOR_METHODS:
-            signals.update(
-                token
-                for tag in method_tags
-                if _SIGNAL_TAG.fullmatch(tag)
-                for token in tag.split()
-            )
-        columns.update(_dataframe_columns(method))
-        state_keys.update(_custom_state_keys(method))
-        grind_levels.update(
-            int(match.group(1))
-            for tag in method_tags
-            for match in _GRIND_LEVEL.finditer(tag)
+        method_state_keys = _custom_state_keys(method)
+        method_grind_levels = {
+            int(match.group(1)) for tag in method_tags for match in _GRIND_LEVEL.finditer(tag)
+        }
+        method_opcodes = _method_opcodes(method) if method.name in STRATEGY_CALLBACKS else set()
+        method_columns = _dataframe_columns(method)
+        method_routes = _method_routes(method)
+        method_signals = {
+            token for tag in method_tags if _SIGNAL_TAG.fullmatch(tag) for token in tag.split()
+        }
+        method_signals.update(
+            route for route in method_routes if _SIGNAL_TAG.fullmatch(route)
         )
-        if method.name in STRATEGY_CALLBACKS:
-            opcodes.update(_method_opcodes(method))
+        method_features[method.name] = {
+            "signals": method_signals,
+            "tags": method_tags,
+            "columns": method_columns,
+            "state_keys": method_state_keys,
+            "grind_levels": method_grind_levels,
+            "opcodes": method_opcodes,
+            "calls": _method_calls(method, method_names),
+            "routes": method_routes,
+        }
+        tags.update(method_tags)
+        columns.update(method_columns)
+        state_keys.update(method_state_keys)
+        grind_levels.update(method_grind_levels)
+        opcodes.update(method_opcodes)
+    for method in sorted(_VECTOR_METHODS & method_names):
+        signals.update(
+            tag
+            for tag in _method_tags_for(
+                {"method_features": method_features},
+                [method],
+            )
+            if _SIGNAL_TAG.fullmatch(tag)
+        )
     return {
         "source": {
             "name": path.name,
@@ -159,7 +197,221 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
         "state_keys": state_keys,
         "grind_levels": grind_levels,
         "opcodes": opcodes,
+        "method_features": method_features,
         "diagnostics": analysis["diagnostics"],
+    }
+
+
+def _behavior_targets(
+    changes: Mapping[str, Any],
+    *,
+    old_inventory: Mapping[str, Any],
+    new_inventory: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    targets: list[dict[str, Any]] = []
+    field_kinds = {
+        "signals": "signal",
+        "tags": "tag",
+        "dataframe_columns": "dataframe_column",
+        "custom_state_keys": "custom_state_key",
+        "grind_levels": "grind_level",
+        "opcodes": "opcode",
+    }
+    for field, kind in field_kinds.items():
+        change = changes[field]
+        for direction, inventory in (
+            ("added", new_inventory),
+            ("removed", old_inventory),
+        ):
+            for value in change[direction]:
+                methods = _feature_methods(inventory, field, value)
+                targets.append(
+                    _target(
+                        kind=kind,
+                        change=direction,
+                        value=value,
+                        methods=methods,
+                        tags=_method_tags_for(inventory, methods),
+                    )
+                )
+
+    callbacks = changes["callbacks"]
+    for direction, inventory in (
+        ("added", new_inventory),
+        ("removed", old_inventory),
+        ("changed", new_inventory),
+    ):
+        for name in callbacks[direction]:
+            tags = _changed_method_tags(
+                name,
+                direction=direction,
+                old_inventory=old_inventory,
+                new_inventory=new_inventory,
+            )
+            if not _behavior_method_relevant(inventory, name, tags):
+                continue
+            targets.append(
+                _target(
+                    kind="callback",
+                    change=direction,
+                    value=name,
+                    methods=[name],
+                    tags=tags,
+                )
+            )
+    return sorted(targets, key=lambda item: item["id"])
+
+
+def _feature_methods(
+    inventory: Mapping[str, Any],
+    field: str,
+    value: Any,
+) -> list[str]:
+    feature_name = {
+        "dataframe_columns": "columns",
+        "custom_state_keys": "state_keys",
+    }.get(field, field)
+    method_features = inventory.get("method_features")
+    if not isinstance(method_features, Mapping):
+        return []
+    return sorted(
+        str(method)
+        for method, features in method_features.items()
+        if isinstance(features, Mapping) and value in features.get(feature_name, set())
+    )
+
+
+def _method_tags_for(
+    inventory: Mapping[str, Any],
+    methods: list[str],
+) -> list[str]:
+    method_features = inventory.get("method_features")
+    if not isinstance(method_features, Mapping):
+        return []
+    reachable = _reachable_methods(method_features, methods)
+    runtime_callers = {
+        str(method)
+        for method in _RUNTIME_METHODS
+        if method in method_features
+        and set(methods) & _reachable_methods(method_features, [method])
+    }
+    reachable.update(_reachable_methods(method_features, sorted(runtime_callers)))
+    tags: set[str] = set()
+    for method in reachable:
+        features = method_features.get(method)
+        if not isinstance(features, Mapping):
+            continue
+        tags.update(str(tag) for tag in features.get("tags", set()))
+        routes = features.get("routes")
+        if isinstance(routes, Mapping):
+            tags.update(str(route) for route in routes)
+    return sorted(tags)
+
+
+def _reachable_methods(
+    method_features: Mapping[str, Any],
+    roots: list[str],
+) -> set[str]:
+    pending = list(roots)
+    reached: set[str] = set()
+    while pending:
+        method = pending.pop()
+        if method in reached:
+            continue
+        features = method_features.get(method)
+        if not isinstance(features, Mapping):
+            continue
+        reached.add(method)
+        pending.extend(
+            str(called) for called in features.get("calls", set()) if str(called) not in reached
+        )
+    return reached
+
+
+def _changed_method_tags(
+    name: str,
+    *,
+    direction: str,
+    old_inventory: Mapping[str, Any],
+    new_inventory: Mapping[str, Any],
+) -> list[str]:
+    if direction == "added":
+        return _method_tags_for(new_inventory, [name])
+    if direction == "removed":
+        return _method_tags_for(old_inventory, [name])
+    old_routes = _method_routes_for(old_inventory, name)
+    new_routes = _method_routes_for(new_inventory, name)
+    changed_routes = sorted(
+        route
+        for route in set(old_routes) | set(new_routes)
+        if old_routes.get(route) != new_routes.get(route)
+    )
+    return changed_routes or _method_tags_for(new_inventory, [name])
+
+
+def _method_routes_for(
+    inventory: Mapping[str, Any],
+    method: str,
+) -> dict[str, str]:
+    method_features = inventory.get("method_features")
+    if not isinstance(method_features, Mapping):
+        return {}
+    features = method_features.get(method)
+    if not isinstance(features, Mapping):
+        return {}
+    routes = features.get("routes")
+    if not isinstance(routes, Mapping):
+        return {}
+    return {str(route): str(fingerprint) for route, fingerprint in routes.items()}
+
+
+def _behavior_method_relevant(
+    inventory: Mapping[str, Any],
+    method: str,
+    tags: list[str],
+) -> bool:
+    if method in _RUNTIME_METHODS or tags:
+        return True
+    method_features = inventory.get("method_features")
+    if not isinstance(method_features, Mapping):
+        return False
+    return any(
+        method in _reachable_methods(method_features, [runtime_method])
+        for runtime_method in _RUNTIME_METHODS
+        if runtime_method in method_features
+    )
+
+
+def _target(
+    *,
+    kind: str,
+    change: str,
+    value: Any,
+    methods: list[str],
+    tags: list[str],
+) -> dict[str, Any]:
+    identity = {
+        "kind": kind,
+        "change": change,
+        "value": value,
+        "methods": methods,
+        "tags": tags,
+    }
+    payload = json.dumps(
+        identity,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return {
+        "id": hashlib.sha256(payload).hexdigest(),
+        **identity,
+        "runtime_observable": bool(
+            kind in {"signal", "tag", "grind_level"}
+            or tags
+            or (kind == "callback" and str(value) in STRATEGY_CALLBACKS)
+        ),
     }
 
 
@@ -178,9 +430,7 @@ def _method_tags(method: ast.AST) -> set[str]:
                 result.update(_string_literals(value))
         if isinstance(node, ast.Return) and node.value is not None:
             result.update(
-                value
-                for value in _string_literals(node.value)
-                if _looks_like_action_tag(value)
+                value for value in _string_literals(node.value) if _looks_like_action_tag(value)
             )
     return {value.strip() for value in result if value.strip()}
 
@@ -199,6 +449,50 @@ def _string_literals(node: ast.AST) -> set[str]:
         str(item.value)
         for item in ast.walk(node)
         if isinstance(item, ast.Constant) and isinstance(item.value, str)
+    }
+
+
+def _method_calls(method: ast.AST, method_names: set[str]) -> set[str]:
+    return {
+        name
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call)
+        if (name := ast.unparse(node.func).split(".")[-1]) in method_names
+    }
+
+
+def _method_routes(method: ast.AST) -> dict[str, str]:
+    route_nodes: dict[str, list[str]] = {}
+    for node in ast.walk(method):
+        if not isinstance(node, ast.If) or not _route_selector(node.test):
+            continue
+        fingerprint_source = ast.dump(
+            node,
+            annotate_fields=True,
+            include_attributes=False,
+        )
+        for value in _route_values(node.test):
+            route_nodes.setdefault(value, []).append(fingerprint_source)
+    return {
+        route: hashlib.sha256("\n".join(sorted(nodes)).encode()).hexdigest()
+        for route, nodes in route_nodes.items()
+    }
+
+
+def _route_selector(test: ast.AST) -> bool:
+    names = [node.id for node in ast.walk(test) if isinstance(node, ast.Name)]
+    names.extend(node.attr for node in ast.walk(test) if isinstance(node, ast.Attribute))
+    return any(_ROUTE_SELECTOR.search(name) for name in names)
+
+
+def _route_values(test: ast.AST) -> set[str]:
+    return {
+        str(node.value).strip()
+        for node in ast.walk(test)
+        if isinstance(node, ast.Constant)
+        and not isinstance(node.value, bool)
+        and isinstance(node.value, str | int)
+        and str(node.value).strip()
     }
 
 
