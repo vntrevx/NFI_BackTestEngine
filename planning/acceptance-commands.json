@@ -16,7 +16,7 @@
   },
   "commands": {
     "planning_json": {
-      "command": "jq empty planning/roadmap-state.json planning/acceptance-commands.json planning/futures-discovery-policy.json planning/futures-discovery-config.json",
+      "command": "jq empty planning/roadmap-state.json planning/acceptance-commands.json planning/futures-discovery-policy.json planning/futures-discovery-config.json planning/spot-discovery-policy.json planning/spot-discovery-config.json",
       "working_directory": ".",
       "platform": "linux",
       "timeout_seconds": 30,

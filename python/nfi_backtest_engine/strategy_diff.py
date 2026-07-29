@@ -15,7 +15,7 @@ from .errors import StrategyAnalysisError
 from .strategy import STRATEGY_CALLBACKS
 from .strategy_ir import analyze_strategy
 
-STRATEGY_DIFF_VERSION = "1.2.0"
+STRATEGY_DIFF_VERSION = "1.3.0"
 _VECTOR_METHODS = {
     "populate_indicators",
     "populate_entry_trend",
@@ -232,6 +232,8 @@ def _behavior_targets(
                         value=value,
                         methods=methods,
                         tags=_method_tags_for(inventory, methods),
+                        old_inventory=old_inventory,
+                        new_inventory=new_inventory,
                     )
                 )
 
@@ -257,6 +259,8 @@ def _behavior_targets(
                     value=name,
                     methods=[name],
                     tags=tags,
+                    old_inventory=old_inventory,
+                    new_inventory=new_inventory,
                 )
             )
     return sorted(targets, key=lambda item: item["id"])
@@ -389,6 +393,8 @@ def _target(
     value: Any,
     methods: list[str],
     tags: list[str],
+    old_inventory: Mapping[str, Any],
+    new_inventory: Mapping[str, Any],
 ) -> dict[str, Any]:
     identity = {
         "kind": kind,
@@ -407,12 +413,39 @@ def _target(
     return {
         "id": hashlib.sha256(payload).hexdigest(),
         **identity,
+        "proof": {
+            "mode": {
+                "added": "presence",
+                "removed": "absence",
+                "changed": "transition",
+            }[change],
+            "old_source_spans": _source_spans(old_inventory, methods),
+            "new_source_spans": _source_spans(new_inventory, methods),
+        },
         "runtime_observable": bool(
             kind in {"signal", "tag", "grind_level"}
             or tags
             or (kind == "callback" and str(value) in STRATEGY_CALLBACKS)
         ),
     }
+
+
+def _source_spans(
+    inventory: Mapping[str, Any],
+    methods: list[str],
+) -> list[dict[str, Any]]:
+    callbacks = inventory.get("callbacks")
+    if not isinstance(callbacks, Mapping):
+        return []
+    return [
+        {
+            "method": method,
+            **dict(record["location"]),
+        }
+        for method in methods
+        if isinstance((record := callbacks.get(method)), Mapping)
+        and isinstance(record.get("location"), Mapping)
+    ]
 
 
 def _method_tags(method: ast.AST) -> set[str]:

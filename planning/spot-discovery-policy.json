@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "history": {
+    "completed_years": 5,
+    "shard_months": 3,
+    "order": "newest-first",
+    "coverage": "listing-aware"
+  },
+  "universe": {
+    "pair_limit": 80,
+    "template_config": "planning/spot-discovery-config.json"
+  },
+  "execution": {
+    "budget_seconds": 7200,
+    "workers": 1
+  },
+  "candidate": {
+    "context_days": 2,
+    "max_bytes": 31457280,
+    "artifact_retention_days": 30
+  }
+}

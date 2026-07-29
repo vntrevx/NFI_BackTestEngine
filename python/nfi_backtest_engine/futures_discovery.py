@@ -1,4 +1,4 @@
-"""Bounded, resumable discovery of branch-reaching Futures workloads.
+"""Bounded, resumable discovery of branch-reaching Spot/Futures workloads.
 
 The discovery lane is deliberately separate from compatibility qualification.
 Search heuristics may identify a promising pair and interval, but only the
@@ -52,6 +52,7 @@ class SearchShard:
 class DiscoveryPolicy:
     """Validated operational bounds loaded from declarative repository data."""
 
+    trading_mode: str
     completed_years: int
     shard_months: int
     pair_limit: int
@@ -73,6 +74,9 @@ class DiscoveryContext:
     strategy_diff: dict[str, Any]
     compatibility: dict[str, Any]
     targets: list[dict[str, Any]]
+    search_targets: list[dict[str, Any]]
+    baseline_source: Path | None
+    baseline_upstream_commit: str | None
     policy: DiscoveryPolicy
     output: Path
     class_name: str
@@ -109,9 +113,10 @@ def load_discovery_policy(
         not isinstance(document, dict)
         or set(document) != expected
         or document.get("schema_version") != DISCOVERY_POLICY_VERSION
-        or document.get("trading_mode") != "futures"
+        or document.get("trading_mode") not in {"spot", "futures"}
     ):
-        raise SpecValidationError("Futures discovery policy fields or version differ")
+        raise SpecValidationError("discovery policy fields, mode, or version differ")
+    trading_mode = str(document["trading_mode"])
     history = _object(document["history"], "history")
     universe = _object(document["universe"], "universe")
     execution = _object(document["execution"], "execution")
@@ -130,7 +135,7 @@ def load_discovery_policy(
     )
     if history["order"] != "newest-first" or history["coverage"] != "listing-aware":
         raise SpecValidationError(
-            "Futures discovery history must be newest-first and listing-aware"
+            "discovery history must be newest-first and listing-aware"
         )
     completed_years = _positive_int(history["completed_years"], "completed_years")
     shard_months = _positive_int(history["shard_months"], "shard_months")
@@ -159,6 +164,7 @@ def load_discovery_policy(
             "discovery template_config must resolve to a repository file"
         )
     return DiscoveryPolicy(
+        trading_mode=trading_mode,
         completed_years=completed_years,
         shard_months=shard_months,
         pair_limit=pair_limit,
@@ -212,16 +218,22 @@ def build_discovery_request(
     upstream_commit: str,
     engine_commit: str,
     as_of: date,
+    baseline_upstream_commit: str | None = None,
+    baseline_source_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Bind one missing-target queue to upstream, engine, policy, and time scope."""
     difference = _document(strategy_diff, "strategy diff")
     compatibility = _document(compatibility_report, "compatibility report")
     _validate_sha(upstream_commit, "upstream")
     _validate_sha(engine_commit, "engine")
+    if baseline_upstream_commit is not None:
+        _validate_sha(baseline_upstream_commit, "baseline upstream")
+    if baseline_source_sha256 is not None:
+        _validate_sha256(baseline_source_sha256, "baseline source")
     plan = plan_targeted_verification(
         difference,
         fixtures_root,
-        trading_mode="futures",
+        trading_mode=policy.trading_mode,
     )
     missing = plan["missing_targets"]
     searchable = [target for target in missing if _deep_searchable(target)]
@@ -233,8 +245,11 @@ def build_discovery_request(
     )
     identity = {
         "upstream_commit": upstream_commit,
+        "baseline_upstream_commit": baseline_upstream_commit,
         "engine_commit": engine_commit,
         "strategy_sha256": difference.get("new", {}).get("sha256"),
+        "baseline_strategy_sha256": baseline_source_sha256,
+        "trading_mode": policy.trading_mode,
         "policy_sha256": policy.source_sha256,
         "target_ids": sorted(str(target["id"]) for target in missing),
         "completed_through": shards[0].stop.isoformat(),
@@ -243,7 +258,7 @@ def build_discovery_request(
     fingerprint = _canonical_sha256(identity)
     return {
         "schema_version": DISCOVERY_REQUEST_VERSION,
-        "trading_mode": "futures",
+        "trading_mode": policy.trading_mode,
         "fingerprint": fingerprint,
         "identity": identity,
         "native_compatible": compatibility.get("native_compatible") is True,
@@ -260,7 +275,7 @@ def build_discovery_request(
     }
 
 
-def discover_futures_targets(
+def discover_targets(
     source: str | Path,
     strategy_diff: Mapping[str, Any] | str | Path,
     compatibility_report: Mapping[str, Any] | str | Path,
@@ -273,20 +288,31 @@ def discover_futures_targets(
     upstream_commit: str,
     engine_commit: str,
     profile_path: str | Path,
+    baseline_source: str | Path | None = None,
+    baseline_upstream_commit: str | None = None,
     cursor_path: str | Path | None = None,
     as_of: date | None = None,
     workers: int | None = None,
     scout_service: ShardScout | None = None,
     clock: Clock = time.monotonic,
 ) -> dict[str, Any]:
-    """Search missing Futures targets until a candidate, exhaustion, or budget stop."""
+    """Search missing targets until a candidate, exhaustion, or budget stop."""
     source_path = Path(source).resolve()
+    baseline_path = (
+        Path(baseline_source).resolve()
+        if baseline_source is not None
+        else None
+    )
     profile = Path(profile_path).resolve()
-    if not source_path.is_file() or not profile.is_file():
+    if (
+        not source_path.is_file()
+        or not profile.is_file()
+        or (baseline_path is not None and not baseline_path.is_file())
+    ):
         raise SpecValidationError("discovery source and execution profile must exist")
     output = Path(output_directory).resolve()
     if output.exists() and any(output.iterdir()):
-        raise BenchmarkError(f"Futures discovery output must be empty: {output}")
+        raise BenchmarkError(f"discovery output must be empty: {output}")
     output.mkdir(parents=True, exist_ok=True)
     policy = load_discovery_policy(policy_path)
     difference = _document(strategy_diff, "strategy diff")
@@ -300,9 +326,14 @@ def discover_futures_targets(
         upstream_commit=upstream_commit,
         engine_commit=engine_commit,
         as_of=effective_as_of,
+        baseline_upstream_commit=baseline_upstream_commit,
+        baseline_source_sha256=(
+            sha256_file(baseline_path) if baseline_path is not None else None
+        ),
     )
     write_json(output / "discovery-request.json", request)
     targets = [dict(target) for target in request["searchable_targets"]]
+    all_targets = [dict(target) for target in request["missing_targets"]]
     unsearchable_targets = [
         dict(target) for target in request["unsearchable_targets"]
     ]
@@ -323,7 +354,10 @@ def discover_futures_targets(
         source=source_path,
         strategy_diff=difference,
         compatibility=compatibility,
-        targets=targets,
+        targets=all_targets,
+        search_targets=targets,
+        baseline_source=baseline_path,
+        baseline_upstream_commit=baseline_upstream_commit,
         policy=policy,
         output=output,
         class_name=class_name,
@@ -340,10 +374,10 @@ def discover_futures_targets(
     status = "coverage_exhausted"
     candidate: dict[str, Any] | None = None
     next_shard = cursor["next_shard"]
-    if not targets:
-        status = "unsupported_semantics" if unsearchable_targets else "no_gap"
-    elif unsearchable_targets or compatibility.get("native_compatible") is not True:
+    if compatibility.get("native_compatible") is not True:
         status = "unsupported_semantics"
+    elif not targets:
+        status = "unsupported_semantics" if unsearchable_targets else "no_gap"
     else:
         if scout_service is None:
             from .futures_discovery_runtime import run_shard_scout
@@ -421,11 +455,13 @@ def discover_futures_targets(
     )
     report = {
         "schema_version": DISCOVERY_REPORT_VERSION,
+        "trading_mode": policy.trading_mode,
         "status": status,
         "message": message,
         "complete": cursor_document["complete"],
         "fingerprint": request["fingerprint"],
         "upstream_commit": upstream_commit,
+        "baseline_upstream_commit": baseline_upstream_commit,
         "engine_commit": engine_commit,
         "strategy_sha256": sha256_file(source_path),
         "policy_sha256": policy.source_sha256,
@@ -449,6 +485,30 @@ def discover_futures_targets(
     return report
 
 
+def discover_futures_targets(
+    source: str | Path,
+    strategy_diff: Mapping[str, Any] | str | Path,
+    compatibility_report: Mapping[str, Any] | str | Path,
+    fixtures_root: str | Path,
+    policy_path: str | Path,
+    output_directory: str | Path,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Backward-compatible entry point restricted to a Futures policy."""
+    policy = load_discovery_policy(policy_path)
+    if policy.trading_mode != "futures":
+        raise SpecValidationError("discover-futures requires a Futures policy")
+    return discover_targets(
+        source,
+        strategy_diff,
+        compatibility_report,
+        fixtures_root,
+        policy_path,
+        output_directory,
+        **kwargs,
+    )
+
+
 def _report_message(
     status: str,
     *,
@@ -457,23 +517,23 @@ def _report_message(
     native_compatible: bool,
 ) -> str:
     if status == "no_gap":
-        return "Existing exact Futures fixtures cover every changed behavior target."
-    if unsearchable_targets:
-        kinds = sorted({str(target["kind"]) for target in unsearchable_targets})
-        return (
-            "Deep search cannot independently prove new output for target kinds "
-            f"{', '.join(kinds)}; official Freqtrade fallback remains available."
-        )
+        return "Existing exact fixtures cover every changed behavior target."
     if not native_compatible:
         return (
             "Static Native compatibility is blocked; official Freqtrade fallback "
             "remains available."
         )
-    if status == "budget_exhausted":
-        return "The run budget ended before the next shard; resume from the saved cursor."
     if attempts:
         return str(attempts[-1]["message"])
-    return "Futures discovery completed without a branch-reaching exact candidate."
+    if unsearchable_targets:
+        kinds = sorted({str(target["kind"]) for target in unsearchable_targets})
+        return (
+            "No independently searchable transition partner exists for target kinds "
+            f"{', '.join(kinds)}; a paired previous/latest proof is required."
+        )
+    if status == "budget_exhausted":
+        return "The run budget ended before the next shard; resume from the saved cursor."
+    return "Discovery completed without a branch-reaching exact candidate."
 
 
 def _deep_searchable(target: Mapping[str, Any]) -> bool:
@@ -568,6 +628,13 @@ def _validate_sha(value: str, label: str) -> None:
     if len(value) != 40 or any(character not in "0123456789abcdef" for character in value):
         raise SpecValidationError(
             f"discovery {label} commit must be a lowercase 40-character SHA"
+        )
+
+
+def _validate_sha256(value: str, label: str) -> None:
+    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
+        raise SpecValidationError(
+            f"discovery {label} must be a lowercase 64-character SHA-256"
         )
 
 

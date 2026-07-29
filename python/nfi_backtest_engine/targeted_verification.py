@@ -283,22 +283,37 @@ def assess_targeted_coverage(
     candidate = _fixture_features(Path(candidate_manifest).resolve())
     reached: list[str] = []
     missing: list[str] = []
+    target_proofs: list[dict[str, Any]] = []
     for target in targets:
         target_id = str(target.get("id", ""))
         baseline_observed = target_observed(target, baseline)
         candidate_observed = target_observed(target, candidate)
-        change = target.get("change")
-        covered = (
-            baseline_observed and not candidate_observed
-            if change == "removed"
-            else candidate_observed
-        )
+        proof_mode = _target_proof_mode(target)
+        if proof_mode == "absence":
+            covered = baseline_observed and not candidate_observed
+        elif proof_mode == "transition":
+            covered = baseline_observed and candidate_observed
+        else:
+            covered = candidate_observed
         (reached if covered else missing).append(target_id)
+        target_proofs.append(
+            {
+                "target_id": target_id,
+                "proof_mode": proof_mode,
+                "baseline_observed": baseline_observed,
+                "candidate_observed": candidate_observed,
+                "complete": covered,
+            }
+        )
     return {
         "complete": not missing,
         "changed_branch_reached": not missing and bool(targets),
         "reached_target_ids": sorted(reached),
         "missing_target_ids": sorted(missing),
+        "target_proofs": sorted(
+            target_proofs,
+            key=lambda item: item["target_id"],
+        ),
     }
 
 
@@ -814,12 +829,19 @@ def target_observed(
         return str(value).strip() in tags
     if kind == "grind_level":
         return isinstance(value, int) and value in grind_levels
-    if kind == "callback" and str(value) in callbacks:
-        return True
     target_tags = target.get("tags")
-    return isinstance(target_tags, list) and any(
+    tag_observed = isinstance(target_tags, list) and any(
         isinstance(tag, str) and tag.strip() in tags for tag in target_tags
     )
+    if kind != "callback":
+        return tag_observed
+    # A changed callback invocation alone does not prove that its changed
+    # source branch ran. Require one independently visible route/tag when the
+    # diff supplied such selectors. Added callbacks without a selector retain
+    # the callback-level proof used by existing fixtures.
+    if _target_proof_mode(target) == "transition" and target_tags:
+        return tag_observed
+    return str(value) in callbacks or tag_observed
 
 
 def behavior_targets(difference: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -839,6 +861,18 @@ def behavior_targets(difference: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise SpecValidationError("strategy diff behavior target is invalid")
         targets.append(dict(target))
     return targets
+
+
+def _target_proof_mode(target: Mapping[str, Any]) -> str:
+    proof = target.get("proof")
+    explicit = proof.get("mode") if isinstance(proof, Mapping) else None
+    if explicit in {"presence", "absence", "transition"}:
+        return str(explicit)
+    return {
+        "added": "presence",
+        "removed": "absence",
+        "changed": "transition",
+    }.get(str(target.get("change")), "presence")
 
 
 # Private aliases preserve compatibility for tests and internal callers that predate

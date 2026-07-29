@@ -43,7 +43,13 @@ def test_strategy_diff_classifies_vector_signal_change(tmp_path: Path) -> None:
     }
     assert targets[("signal", "removed", "62")]["runtime_observable"] is True
     assert targets[("signal", "added", "63")]["runtime_observable"] is True
+    assert targets[("signal", "removed", "62")]["proof"]["mode"] == "absence"
+    assert targets[("signal", "added", "63")]["proof"]["mode"] == "presence"
     assert targets[("callback", "changed", "populate_entry_trend")]["tags"] == ["63"]
+    callback_proof = targets[("callback", "changed", "populate_entry_trend")]["proof"]
+    assert callback_proof["mode"] == "transition"
+    assert callback_proof["old_source_spans"][0]["method"] == "populate_entry_trend"
+    assert callback_proof["new_source_spans"][0]["method"] == "populate_entry_trend"
 
 
 def test_strategy_diff_flags_dynamic_grind_state_for_review(tmp_path: Path) -> None:

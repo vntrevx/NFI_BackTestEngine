@@ -10,12 +10,14 @@ from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.futures_discovery import (
     build_discovery_request,
     discover_futures_targets,
+    discover_targets,
     load_discovery_policy,
     search_shards,
 )
 
 ROOT = Path(__file__).parents[1]
 POLICY = ROOT / "planning" / "futures-discovery-policy.json"
+SPOT_POLICY = ROOT / "planning" / "spot-discovery-policy.json"
 FIXTURES = ROOT / "benchmarks" / "fixtures" / "captured"
 
 
@@ -151,6 +153,21 @@ def test_request_binds_targets_policy_upstream_engine_and_windows() -> None:
     )
     assert same_completed_years["fingerprint"] == first["fingerprint"]
 
+    paired = build_discovery_request(
+        _difference(_target()),
+        {"native_compatible": True},
+        FIXTURES,
+        policy=policy,
+        upstream_commit="a" * 40,
+        baseline_upstream_commit="c" * 40,
+        baseline_source_sha256="d" * 64,
+        engine_commit="b" * 40,
+        as_of=date(2026, 7, 30),
+    )
+    assert paired["fingerprint"] != first["fingerprint"]
+    assert paired["identity"]["baseline_upstream_commit"] == "c" * 40
+    assert paired["identity"]["baseline_strategy_sha256"] == "d" * 64
+
 
 def test_no_gap_does_not_start_a_deep_search(tmp_path: Path) -> None:
     def unexpected(*_args):
@@ -164,7 +181,7 @@ def test_no_gap_does_not_start_a_deep_search(tmp_path: Path) -> None:
     )
 
     assert report["status"] == "no_gap"
-    assert "Existing exact Futures fixtures" in report["message"]
+    assert "Existing exact fixtures" in report["message"]
     assert report["searched_shard_count"] == 0
     assert report["complete"] is True
 
@@ -218,7 +235,88 @@ def test_unsearchable_gap_fails_closed_without_guessing(
     assert report["searchable_target_count"] == 0
     assert report["unsearchable_target_ids"] == [target["id"]]
     assert report["official_fallback_available"] is True
-    assert "cannot independently prove" in report["message"]
+    assert "paired previous/latest proof" in report["message"]
+
+
+def test_removed_target_does_not_block_searchable_transition_partner(
+    tmp_path: Path,
+) -> None:
+    added = _target("added-route")
+    removed = {
+        **_target("removed-route"),
+        "change": "removed",
+        "value": "old-route",
+        "tags": ["old-route"],
+    }
+    seen: list[list[str]] = []
+
+    def candidate(_shard, context):
+        seen.append([target["id"] for target in context.search_targets])
+        assert {target["id"] for target in context.targets} == {
+            "added-route",
+            "removed-route",
+        }
+        return {
+            "outcome": "candidate",
+            "message": "paired transition exact",
+            "target_ids": ["added-route"],
+            "candidate": {
+                "proved_target_ids": ["added-route", "removed-route"],
+                "trade_surface_exact": True,
+                "full_state_exact": True,
+            },
+        }
+
+    report = _discover(
+        tmp_path,
+        output_name="mixed-transition",
+        difference=_difference(added, removed),
+        scout_service=candidate,
+    )
+
+    assert seen == [["added-route"]]
+    assert report["status"] == "candidate_found"
+    assert report["unsearchable_target_ids"] == ["removed-route"]
+    assert report["candidate"]["proved_target_ids"] == [
+        "added-route",
+        "removed-route",
+    ]
+
+
+def test_spot_policy_uses_the_shared_discovery_service(tmp_path: Path) -> None:
+    source, profile = _files(tmp_path)
+    seen_modes: list[str] = []
+
+    report = discover_targets(
+        source,
+        _difference(_target()),
+        {"native_compatible": True},
+        FIXTURES,
+        SPOT_POLICY,
+        tmp_path / "spot",
+        class_name="Demo",
+        upstream_repository="iterativv/NostalgiaForInfinity",
+        upstream_commit="a" * 40,
+        engine_commit="b" * 40,
+        profile_path=profile,
+        as_of=date(2026, 7, 30),
+        scout_service=lambda _shard, context: (
+            seen_modes.append(context.policy.trading_mode)
+            or {
+                "outcome": "candidate",
+                "message": "spot exact",
+                "target_ids": ["target-new-route"],
+                "candidate": {
+                    "trade_surface_exact": True,
+                    "full_state_exact": True,
+                },
+            }
+        ),
+    )
+
+    assert seen_modes == ["spot"]
+    assert report["trading_mode"] == "spot"
+    assert report["status"] == "candidate_found"
 
 
 def test_budget_cursor_resumes_at_the_next_unsearched_shard(tmp_path: Path) -> None:

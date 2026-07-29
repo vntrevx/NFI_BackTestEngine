@@ -1,4 +1,4 @@
-"""Production shard execution and exact candidate capture for Futures discovery."""
+"""Production shard execution and paired exact candidate capture."""
 
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def run_shard_scout(
     features = _surface_features(surface)
     reached = [
         str(target["id"])
-        for target in context.targets
+        for target in context.search_targets
         if target_observed(target, features)
     ]
     if not reached:
@@ -82,7 +82,7 @@ def run_shard_scout(
             "target_ids": [],
             "native_report": str(engine_output / "run.json"),
         }
-    hit = _locate_hit(context.targets, reached, surface)
+    hit = _locate_hit(context.search_targets, reached, surface)
     if hit is None:
         return {
             "outcome": "unsupported",
@@ -101,8 +101,11 @@ def run_shard_scout(
     )
     if candidate is None:
         return {
-            "outcome": "unsupported",
-            "message": "branch hit could not pass minimized official/Native exact capture",
+            "outcome": "miss",
+            "message": (
+                "a partial route hit did not prove every transition target; "
+                "continue with the next shard"
+            ),
             "target_ids": reached,
             "native_report": str(engine_output / "run.json"),
         }
@@ -153,7 +156,9 @@ def _ensure_universe(
     ):
         raise SpecValidationError("discovery universe did not produce canonical pairs")
     if not raw_pairs:
-        raise BenchmarkError("discovery universe contains no eligible Futures pairs")
+        raise BenchmarkError(
+            f"discovery universe contains no eligible {context.policy.trading_mode} pairs"
+        )
     pairs = list(raw_pairs[: context.policy.pair_limit])
     exchange = effective.get("exchange")
     if not isinstance(exchange, dict):
@@ -186,9 +191,7 @@ def _capture_candidate(
     from .research_runner import required_data_pairs
 
     pair = str(hit["pair"])
-    selected_targets = [
-        target for target in context.targets if str(target["id"]) in target_ids
-    ]
+    selected_targets = list(context.targets)
     required = _required_coverage(selected_targets, hit)
     candidate_root = context.output / "candidate-fixture"
     capture_work_root = context.output / "work" / "candidate-capture"
@@ -197,7 +200,7 @@ def _capture_candidate(
         start=1,
     ):
         output = context.output / "work" / f"candidate-fixture-attempt-{attempt}"
-        work = capture_work_root / f"attempt-{attempt}"
+        work = capture_work_root / f"latest-attempt-{attempt}"
         spec_path = context.output / "work" / f"candidate-probe-{attempt}.json"
         market_path = context.output / "work" / f"candidate-market-{attempt}.json"
         _filter_market_snapshot(engine_market_path, market_path, [pair])
@@ -213,9 +216,12 @@ def _capture_candidate(
         spec = {
             "schema_version": "1.0.0",
             "fixture": {
-                "id": f"future-nfi-futures-{context.fingerprint[:16]}",
+                "id": (
+                    f"future-nfi-{context.policy.trading_mode}-"
+                    f"{context.fingerprint[:16]}"
+                ),
                 "description": (
-                    "Automatically discovered Futures branch fixture with independent "
+                    "Automatically discovered branch fixture with independent "
                     "official and Native exact evidence."
                 ),
                 "probe_kind": "future-nfi-target",
@@ -258,34 +264,121 @@ def _capture_candidate(
                 timeout_seconds=max(1, context.policy.budget_seconds),
                 workers=context.workers,
             )
+            baseline_manifest = _capture_transition_baseline(
+                context,
+                attempt=attempt,
+                latest_spec=spec,
+                latest_spec_path=spec_path,
+                required=_baseline_required_coverage(hit),
+                timeout_seconds=max(1, context.policy.budget_seconds),
+                workers=context.workers,
+            )
             coverage = assess_targeted_coverage(
                 selected_targets,
-                baseline_manifest=output / "manifest.json",
+                baseline_manifest=baseline_manifest or output / "manifest.json",
                 candidate_manifest=output / "manifest.json",
             )
         except (BenchmarkError, BranchCoverageError, SpecValidationError):
             continue
         if not coverage["complete"] or not coverage["changed_branch_reached"]:
             continue
+        baseline_output = (
+            baseline_manifest.parent
+            if baseline_manifest is not None
+            else None
+        )
         logical_bytes = sum(
-            path.stat().st_size for path in output.rglob("*") if path.is_file()
+            path.stat().st_size
+            for root in (output, baseline_output)
+            if root is not None
+            for path in root.rglob("*")
+            if path.is_file()
         )
         if logical_bytes > context.policy.max_candidate_bytes:
             return None
         output.rename(candidate_root)
+        baseline_record = None
+        if baseline_output is not None:
+            baseline_destination = candidate_root / "transition-baseline"
+            baseline_output.rename(baseline_destination)
+            baseline_manifest = baseline_destination / "manifest.json"
+            baseline_record = {
+                "manifest_path": str(baseline_manifest),
+                "manifest_sha256": sha256_file(baseline_manifest),
+                "upstream_commit": context.baseline_upstream_commit,
+            }
         return {
             "fixture_id": capture["fixture_id"],
             "path": str(candidate_root),
             "manifest_path": str(candidate_root / "manifest.json"),
             "manifest_sha256": sha256_file(candidate_root / "manifest.json"),
             "logical_bytes": logical_bytes,
-            "target_ids": sorted(target_ids),
+            "target_ids": coverage["reached_target_ids"],
+            "proved_target_ids": coverage["reached_target_ids"],
+            "target_proofs": coverage["target_proofs"],
             "pair": pair,
             "timerange": timerange,
             "trade_surface_exact": True,
             "full_state_exact": True,
+            "transition_baseline": baseline_record,
         }
     return None
+
+
+def _capture_transition_baseline(
+    context: DiscoveryContext,
+    *,
+    attempt: int,
+    latest_spec: Mapping[str, Any],
+    latest_spec_path: Path,
+    required: dict[str, Any],
+    timeout_seconds: int,
+    workers: int,
+) -> Path | None:
+    if not any(
+        target.get("change") in {"removed", "changed"}
+        for target in context.targets
+    ):
+        return None
+    if (
+        context.baseline_source is None
+        or context.baseline_upstream_commit is None
+    ):
+        raise SpecValidationError(
+            "changed or removed targets require a previous strategy source and commit"
+        )
+    from .probe_capture import capture_x7_probe
+
+    baseline_spec = {
+        **dict(latest_spec),
+        "fixture": {
+            **dict(latest_spec["fixture"]),
+            "id": f"{latest_spec['fixture']['id']}-baseline",
+            "required_coverage": required,
+        },
+        "upstream": {
+            "repository": context.upstream_repository,
+            "commit": context.baseline_upstream_commit,
+        },
+        "strategy": {
+            "source": str(context.baseline_source),
+            "class_name": context.class_name,
+        },
+    }
+    baseline_spec_path = latest_spec_path.with_name(
+        f"candidate-baseline-probe-{attempt}.json"
+    )
+    write_json(baseline_spec_path, baseline_spec)
+    output = context.output / "work" / f"candidate-baseline-attempt-{attempt}"
+    work = context.output / "work" / "candidate-capture" / f"baseline-attempt-{attempt}"
+    capture_x7_probe(
+        baseline_spec_path,
+        output,
+        work,
+        timeout_seconds=timeout_seconds,
+        workers=workers,
+    )
+    return output / "manifest.json"
 
 
 def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
@@ -362,6 +455,7 @@ def _locate_hit(
                 "open_timestamp_ms": opened,
                 "event_timestamp_ms": max(timestamps),
                 "entry_tag": str(trade.get("entry_tag", "")).strip(),
+                "exit_reason": str(trade.get("exit_reason", "")).strip(),
             }
     return None
 
@@ -375,6 +469,7 @@ def _required_coverage(
     requested = {
         str(value).strip()
         for target in targets
+        if target.get("change") != "removed"
         for value in (
             [target.get("value")]
             if target.get("kind") in {"signal", "tag"}
@@ -390,6 +485,26 @@ def _required_coverage(
             if len(entry_tokens) > 1 and requested & entry_tokens
             else []
         ),
+        "protection_methods": [],
+        "exit_reasons": (
+            [exit_reason]
+            if (exit_reason := str(hit.get("exit_reason", "")).strip()) in requested
+            else []
+        ),
+        "sides": [],
+        "minimum_lock_count": 0,
+        "minimum_distinct_leverages": 1,
+        "minimum_funded_trades": 0,
+        "require_rejected_locked_entry": False,
+    }
+
+
+def _baseline_required_coverage(hit: Mapping[str, Any]) -> dict[str, Any]:
+    entry_tag = str(hit.get("entry_tag", "")).strip()
+    return {
+        "callbacks": [],
+        "entry_tags": sorted(set(entry_tag.split())),
+        "compound_tags": [entry_tag] if len(entry_tag.split()) > 1 else [],
         "protection_methods": [],
         "exit_reasons": [],
         "sides": [],

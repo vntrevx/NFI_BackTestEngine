@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 72,
-  "updated_at": "2026-07-30T05:49:00+09:00",
+  "revision": 73,
+  "updated_at": "2026-07-30T06:53:55+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M12-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2521,6 +2521,150 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M12-01",
+      "order": 1201,
+      "milestone": "M12",
+      "title": "Prove added, removed, and renamed behavior across both modes",
+      "status": "in_progress",
+      "depends_on": [
+        "M11-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "presence, absence, and transition behavior proofs",
+        "old official, new official, and new Native sealed executions",
+        "source-span branch coverage",
+        "shared Spot and Futures bounded discovery",
+        "backward-compatible discovery CLI"
+      ],
+      "forbidden_changes": [
+        "Signal, tag, pair, timerange, strategy SHA, or expected-result runtime branches",
+        "treating callback invocation alone as changed-branch evidence",
+        "promoting official-only or inexact output",
+        "modifying existing official fixtures or release evidence"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "target proof schema and unit tests",
+        "mixed added and removed target discovery tests",
+        "Spot and Futures discovery integration tests",
+        "existing full-state fixture parity"
+      ],
+      "started_at": "2026-07-30T06:53:55+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M12-02",
+      "order": 1202,
+      "milestone": "M12",
+      "title": "Quick-verify the latest Signal 65 transition",
+      "status": "pending",
+      "depends_on": [
+        "M12-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest upstream identity verification",
+        "Spot and Futures branch-reaching Signal 65 fixtures",
+        "official and Native trade-surface exactness",
+        "official and Native full-state exactness",
+        "append-only quick-verified evidence"
+      ],
+      "forbidden_changes": [
+        "five-year release recertification",
+        "hardcoded Signal 65 or exit-tag runtime behavior",
+        "relabeling prior release certificates",
+        "closing compatibility blockers without exact proof"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "three-lane Spot proof",
+        "three-lane Futures proof",
+        "quick-verified qualification records",
+        "compatibility issue reconciliation"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M12-03",
+      "order": 1203,
+      "milestone": "M12",
+      "title": "Expand source-driven callback state-machine compatibility",
+      "status": "pending",
+      "depends_on": [
+        "M12-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "state-machine-program-v2",
+        "transitive helper and reviewed Freqtrade callback semantics",
+        "source-driven tag, route, threshold, and Grind data",
+        "independent legacy and generic shadow exactness",
+        "fail-closed unsupported source diagnostics"
+      ],
+      "forbidden_changes": [
+        "strategy-version or method-SHA runtime compatibility allowlists",
+        "unbounded loops or arbitrary Python execution in Rust",
+        "silent fallback to handwritten old behavior",
+        "removing the independent lane before exact proof"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "v1 and v2 schema compatibility tests",
+        "compiler and VM semantic tests",
+        "X7 source mutation tests",
+        "independent shadow exact fixtures"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M12-04",
+      "order": 1204,
+      "milestone": "M12",
+      "title": "Operate NFI and Freqtrade compatibility qualification unattended",
+      "status": "pending",
+      "depends_on": [
+        "M12-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "NFI, engine, and Freqtrade digest identity",
+        "four-hour dual-mode fast lane",
+        "dual-mode bounded deep-search handoff",
+        "automatic quick-verified ledger promotion",
+        "deduplicated unsupported-opcode issue and draft PR flow"
+      ],
+      "forbidden_changes": [
+        "automatic approval or merge of new semantics",
+        "claiming Native support from static compatibility alone",
+        "workflow-wide write permissions",
+        "overwriting prior ledger evidence"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "workflow contract tests",
+        "identity and digest mutation tests",
+        "same-fingerprint deduplication tests",
+        "successful latest-upstream compatibility canary"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -4158,6 +4302,24 @@
         },
         "combined_full_x7_certification_claimed": false,
         "next_eligible_task": null
+      }
+    },
+    {
+      "sequence": 88,
+      "timestamp": "2026-07-30T06:53:55+09:00",
+      "task_id": "M12-01",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "1917d06508d35eede99ce2619022741a31c07077",
+        "user_instruction": "Implement latest Native exact and sustainable future NFI compatibility without hardcoding.",
+        "latest_upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+        "verification_tier": "changed-path quick_verified",
+        "trading_modes": [
+          "spot",
+          "futures"
+        ],
+        "runtime_hardcoding_allowed": false
       }
     }
   ]

@@ -255,6 +255,62 @@ def test_removed_target_requires_baseline_presence_and_candidate_absence(
 
     assert report["complete"] is True
     assert report["changed_branch_reached"] is True
+    assert report["target_proofs"] == [
+        {
+            "target_id": "d" * 64,
+            "proof_mode": "absence",
+            "baseline_observed": True,
+            "candidate_observed": False,
+            "complete": True,
+        }
+    ]
+
+
+def test_changed_callback_requires_old_and_new_route_observation(
+    tmp_path: Path,
+) -> None:
+    baseline = _fixture(
+        tmp_path / "baseline",
+        fixture_id="old",
+        mode="spot",
+        callbacks=["custom_exit"],
+        order_tags=["route-65"],
+    )
+    candidate = _fixture(
+        tmp_path / "candidate",
+        fixture_id="new",
+        mode="spot",
+        callbacks=["custom_exit"],
+        order_tags=["route-65"],
+    )
+    target = _target(
+        "t",
+        kind="callback",
+        change="changed",
+        value="custom_exit",
+        tags=["route-65"],
+    )
+
+    complete = assess_targeted_coverage(
+        [target],
+        baseline_manifest=baseline,
+        candidate_manifest=candidate,
+    )
+    assert complete["changed_branch_reached"] is True
+
+    missing_candidate = _fixture(
+        tmp_path / "missing",
+        fixture_id="missing",
+        mode="spot",
+        callbacks=["custom_exit"],
+    )
+    incomplete = assess_targeted_coverage(
+        [target],
+        baseline_manifest=baseline,
+        candidate_manifest=missing_candidate,
+    )
+    assert incomplete["changed_branch_reached"] is False
+    assert incomplete["target_proofs"][0]["candidate_observed"] is False
 
 
 def test_targeted_verifier_stays_latest_checked_without_branch_fixture(
