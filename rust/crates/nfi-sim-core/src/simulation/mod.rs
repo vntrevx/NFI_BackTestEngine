@@ -12,8 +12,9 @@ use crate::calculations::{
 };
 use crate::callbacks::{callback_feature_index, evaluate_adjustment_bundle};
 use crate::execution::{
-    apply_adjustment, close_trade, evaluate_exit_confirm_program, exit_decision, rule_adjustment,
-    update_extrema, EntryExecution,
+    apply_adjustment, close_trade, evaluate_exit_confirm_program,
+    evaluate_state_machine_adjustment, exit_decision, rule_adjustment, update_extrema,
+    EntryExecution,
 };
 use crate::futures::apply_funding;
 use crate::nfi::{evaluate_nfi_position_adjustment, PositionAdjustmentRequest, ProfitTarget};
@@ -158,6 +159,56 @@ pub(super) fn simulate_internal(
                     false
                 };
 
+            // Freqtrade invokes adjust_trade_position after a new entry fill on
+            // the same backtest candle. The legacy adapters never depended on
+            // that callback point, but a generic compiled state machine may
+            // have a fee-aware guard or source-visible state transition there.
+            if opened_now {
+                if let Some(program) = &config.state_machine_program {
+                    if program.entrypoints.contains_key("adjust_trade_position") {
+                        let trade_index = open_trades
+                            .iter()
+                            .position(|trade| trade.pair_index == pair_index)
+                            .ok_or(SimError::InvalidStateMachineProgram)?;
+                        let tied_up_stake = open_trades
+                            .iter()
+                            .map(|trade| trade.stake_amount)
+                            .sum::<f64>();
+                        let adjustment_available = available_stake_amount(
+                            available_balance,
+                            tied_up_stake,
+                            config.tradable_balance_ratio,
+                        );
+                        let feature_index = callback_feature_index(cursor)
+                            .ok_or(SimError::InvalidStateMachineProgram)?;
+                        if let Some(adjustment) = evaluate_state_machine_adjustment(
+                            program,
+                            &mut open_trades[trade_index],
+                            pair,
+                            feature_index,
+                            candle,
+                            config,
+                            adjustment_available,
+                        )? {
+                            let order_count = open_trades[trade_index].orders.len();
+                            apply_adjustment(
+                                &mut open_trades[trade_index],
+                                candle,
+                                &adjustment,
+                                config,
+                                adjustment_available,
+                                next_order_id,
+                            )?;
+                            if open_trades[trade_index].orders.len() > order_count {
+                                next_order_id += 1;
+                            }
+                            available_balance =
+                                wallet_free(config.starting_balance, &open_trades, &closed_trades);
+                        }
+                    }
+                }
+            }
+
             if !opened_now {
                 let mut exited_side = None;
                 if let Some(trade_index) = open_trades
@@ -186,6 +237,22 @@ pub(super) fn simulate_internal(
                     );
                     let adjustment = if let Some(adjustment) = &candle.adjustment {
                         Some(adjustment.clone())
+                    } else if let Some(program) = &config.state_machine_program {
+                        if program.entrypoints.contains_key("adjust_trade_position") {
+                            let feature_index = callback_feature_index(cursor)
+                                .ok_or(SimError::InvalidStateMachineProgram)?;
+                            evaluate_state_machine_adjustment(
+                                program,
+                                &mut open_trades[trade_index],
+                                pair,
+                                feature_index,
+                                candle,
+                                config,
+                                adjustment_available,
+                            )?
+                        } else {
+                            None
+                        }
                     } else if let Some(manager) = &config.nfi_x7_trade_manager {
                         let feature_index = callback_feature_index(cursor).ok_or_else(|| {
                             SimError::InvalidPositionAdjustment {
@@ -252,7 +319,7 @@ pub(super) fn simulate_internal(
                             wallet_free(config.starting_balance, &open_trades, &closed_trades);
                     }
                     if let Some(exit) = exit_decision(
-                        &open_trades[trade_index],
+                        &mut open_trades[trade_index],
                         pair,
                         cursor,
                         candle,

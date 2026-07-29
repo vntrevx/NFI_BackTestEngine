@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-07-28",
+  "updated_at": "2026-07-29",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -92,6 +92,24 @@
       "working_directory": "rust",
       "platform": "any",
       "timeout_seconds": 1800,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "future_nfi_compatibility_tests": {
+      "command": "uv run pytest -q tests/test_official_fallback.py tests/test_strategy_diff.py tests/test_targeted_verification.py tests/test_compatibility_identity.py tests/test_compatibility_issue.py tests/test_workflow_health_issue.py tests/test_nfi_compatibility_workflow.py tests/test_compatibility_qualification.py tests/test_state_machine_ir.py tests/test_state_machine_shadow.py tests/test_dynamic_grind_levels.py tests/test_strategy_compatibility.py tests/test_generic_adapter.py tests/test_probe_capture.py tests/test_research_reference.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "generic_state_machine_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/generic-state-machine-grind12-spot-2025-01-01_04/manifest.json --output-dir {artifact_dir}/generic-state-machine --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
       "required": true,
       "availability": "available",
       "mutates_external_state": false
@@ -490,6 +508,23 @@
       "platform_release_workflow",
       "publish_product_release",
       "promote_product_release"
+    ],
+    "future_nfi_compatibility": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full",
+      "generic_state_machine_full"
     ]
   }
 }

@@ -124,6 +124,34 @@ def test_probe_capture_parser_keeps_fixture_and_work_outputs_separate() -> None:
     assert args.workers == 4
 
 
+def test_targeted_strategy_verification_parser_binds_exact_inputs() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "strategy",
+            "verify-targeted",
+            "latest.py",
+            "strategy-diff.json",
+            "compatibility.json",
+            "--class",
+            "NostalgiaForInfinityX7",
+            "--trading-mode",
+            "futures",
+            "--upstream-repository",
+            "iterativv/NostalgiaForInfinity",
+            "--upstream-commit",
+            "a" * 40,
+            "--output-dir",
+            ".nfi/targeted",
+        ]
+    )
+
+    assert args.strategy_command == "verify-targeted"
+    assert args.source == Path("latest.py")
+    assert args.trading_mode == "futures"
+    assert args.fixtures_root == Path("benchmarks/fixtures/captured")
+    assert args.output_dir == Path(".nfi/targeted")
+
+
 def test_result_report_and_run_registry_machine_modes_parse() -> None:
     parser = cli.build_parser()
 

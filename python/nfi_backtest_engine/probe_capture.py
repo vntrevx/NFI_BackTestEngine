@@ -9,7 +9,7 @@ from typing import Any
 from .branch_coverage import funded_trade_count
 from .canonical import read_json
 from .data_seal import compact_candle_directory
-from .errors import BenchmarkError, SpecValidationError
+from .errors import BenchmarkError, BranchCoverageError, SpecValidationError
 from .fixture import sha256_file
 from .fixture_capture import CaptureInput, finalize_fixture_v3, stage_fixture_v3
 from .probe_strategy import prepare_probe_strategy, write_probe_config
@@ -492,7 +492,7 @@ def _require_native_surface_coverage(
     """
     trades = surface.get("trades") if isinstance(surface, dict) else None
     if not isinstance(trades, list):
-        raise BenchmarkError("native probe trade surface has no trades array")
+        raise BranchCoverageError("native probe trade surface has no trades array")
     complete_tags = {
         tag.strip()
         for trade in trades
@@ -564,7 +564,7 @@ def _require_native_surface_coverage(
     if funded < minimum_funded:
         missing.append(f"funded_trades:{funded}<{minimum_funded}")
     if missing:
-        raise BenchmarkError(
+        raise BranchCoverageError(
             "native probe did not reach trade-visible required coverage: "
             + ", ".join(missing)
         )

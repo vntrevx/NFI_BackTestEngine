@@ -17,6 +17,10 @@ class BenchmarkError(NfiBacktestError):
     """A benchmark could not be measured reproducibly."""
 
 
+class BranchCoverageError(BenchmarkError):
+    """A bounded fixture completed but did not reach its required branch."""
+
+
 class TraceError(NfiBacktestError):
     """A canonical state trace is malformed or cannot be compared."""
 

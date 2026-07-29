@@ -23,7 +23,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated.
 | Latest public release | [v1.2.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.2.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.2.0 product release source; no new combined Full X7 certification claim |
+| Current `main` | Post-v1.2.0 future-NFI compatibility development; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -99,9 +99,10 @@ Evidence:
 ## How it works
 
 1. Inspect the supplied strategy, config, market data, and machine.
-2. Stop if active behavior cannot be lowered exactly.
-3. Run the deterministic native engine with calibrated CPU and memory limits.
-4. Confirm a chosen result with pinned official Freqtrade.
+2. Run the deterministic native engine when active behavior can be lowered exactly.
+3. If Native safely blocks, optionally run pinned official Freqtrade without modifying
+   the Native run.
+4. Confirm a Native result against an independent official result.
 5. Report exact parity or the first exact difference.
 
 The native lane is for fast research. The official lane is independent and slower by
@@ -110,10 +111,11 @@ design; it is the final semantic authority.
 ## Native core structure
 
 The Rust core keeps the public API in a thin facade and separates domain contracts,
-vector-backed I/O, scalar callbacks, execution, validation, portfolio/futures rules,
-NFI routing and adjustments, protections, chronological simulation, profiling, and
-result assembly. The Feather boundary separately owns manifest verification, Arrow
-schema projection, fixed-width row encoding, and typed scalar decoding.
+vector-backed I/O, scalar callbacks, bounded state-machine execution, validation,
+portfolio/futures rules, NFI routing and adjustments, protections, chronological
+simulation, profiling, and result assembly. The Feather boundary separately owns
+manifest verification, Arrow schema projection, fixed-width row encoding, and typed
+scalar decoding.
 
 This layout is a behavior-preserving refactor. It does not add strategy-, pair-,
 timerange-, SHA-, or expected-result branches, and optimization work remains a
@@ -183,6 +185,25 @@ nfi-bte run path\to\NostalgiaForInfinityX7.py `
 Missing public candles are downloaded through the pinned Freqtrade container by
 default. Add `--no-download` for an offline, fail-if-missing run.
 
+For a newer NFI revision whose active callbacks are not yet supported by Native, run
+the exact sealed workload through official Freqtrade:
+
+```powershell
+nfi-bte run path\to\NostalgiaForInfinityX7.py --fallback official
+```
+
+The default `--fallback ask` requests consent only in an interactive terminal;
+`--yes` does not grant fallback consent. An official-only result is kept separately
+and is not labeled as Native parity. See
+[Future NFI Compatibility](docs/future-nfi-compatibility.md) for the compiler,
+upstream monitoring, and promotion contracts.
+
+The scheduled watcher checks both upstream and engine revisions every four hours,
+classifies generic behavior targets, and runs only matching Spot/Futures branch
+fixtures. It promotes a revision only after independent official/Native trade
+surface and full-state equality; otherwise the announced official fallback remains
+available without claiming Native parity.
+
 ## Confirm with official Freqtrade
 
 Run the pinned official reference from a completed native result:
@@ -210,6 +231,7 @@ open-trade, protection, and strategy state.
 
 - Official Freqtrade is the final oracle.
 - Unknown active semantics fail closed.
+- Official fallback results remain distinct from Native parity evidence.
 - Pair lists, dates, strategy hashes, and expected outputs come from sealed inputs,
   never runtime special cases.
 - Hardware calibration caps workers by visible CPUs and measured memory.
@@ -230,6 +252,8 @@ Every run is an ordinary hash-linked directory:
 | `summary.json` | Compact research summary |
 | `trades.csv` | Full spreadsheet-ready trade export |
 | `report.html` | Self-contained visual report |
+| `selected-result.json` | Immutable Native or official-only result selection |
+| `official-fallback/attempt-N/` | Preserved official fallback attempts |
 | `checkpoints/` | Hash-validated resumable stages |
 
 Regenerate presentation files without rerunning the simulation:

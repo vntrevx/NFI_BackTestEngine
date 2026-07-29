@@ -20,7 +20,7 @@ from .config_loader import (
 )
 from .data_seal import DATA_SEAL_VERSION, prepare_data, validate_data_seal
 from .engine_runtime import run_engine
-from .errors import BenchmarkError, SpecValidationError
+from .errors import BenchmarkError, SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
 from .generic_adapter import (
     GENERIC_ADAPTER_VERSION,
@@ -41,6 +41,10 @@ from .reference_runtime import load_reference_leverage_tiers
 from .result_report import write_result_presentation
 from .run_registry import RunRegistry
 from .specs import validate_trade_surface
+from .state_machine_ir import (
+    STATE_MACHINE_PROGRAM_VERSION,
+    compile_state_machine_program,
+)
 from .strategy_ir import STRATEGY_IR_VERSION
 from .strategy_overrides import effective_stoploss_ratio
 from .vector_runtime import (
@@ -133,6 +137,39 @@ def run_research_backtest(
         run_mode="backtest",
         config=run_config,
     )
+    state_machine_program: dict[str, Any] | None = None
+    if not hot_ir["hot_loop_ready"]:
+        try:
+            candidate_program = compile_state_machine_program(
+                source,
+                class_name=class_name,
+            )
+        except StrategyAnalysisError:
+            pass
+        else:
+            active_callbacks = {
+                callback["name"]
+                for callback in hot_ir["callbacks"]
+                if callback["active_for_run"]
+            }
+            compiled_callbacks = set(candidate_program["entrypoints"])
+            if active_callbacks and compiled_callbacks == active_callbacks:
+                state_machine_program = candidate_program
+    state_machine_ready = state_machine_program is not None
+    native_callbacks_ready = hot_ir["hot_loop_ready"] or state_machine_ready
+    adapter_lane = (
+        "generic-state-machine"
+        if state_machine_ready and not hot_ir["hot_loop_ready"]
+        else "x7-legacy"
+        if hot_ir["hot_loop_ready"]
+        and bool(
+            analysis["strategies"][0].get(
+                "strategy_callbacks",
+                analysis["strategies"][0].get("hot_callbacks", []),
+            )
+        )
+        else "generic-signal"
+    )
     if execution_profile is None:
         profile = ensure_execution_profile(profile_path, workspace=output)
     else:
@@ -153,7 +190,7 @@ def run_research_backtest(
     )
     automatic_market_path = output / "market-metadata.json"
     if (
-        hot_ir["hot_loop_ready"]
+        native_callbacks_ready
         and selected_market_metadata is None
         and download_market_metadata
     ):
@@ -237,6 +274,17 @@ def run_research_backtest(
             if selected_market_metadata is not None and selected_market_metadata.is_file()
             else None
         ),
+        **(
+            {
+                "state_machine": {
+                    "schema_version": STATE_MACHINE_PROGRAM_VERSION,
+                    "adapter_lane": adapter_lane,
+                    "program": state_machine_program,
+                }
+            }
+            if state_machine_program is not None
+            else {}
+        ),
     }
     run_id = _identity_sha256(identity)
     if existing_identity_document is not None:
@@ -308,6 +356,13 @@ def run_research_backtest(
         resuming=resuming_existing,
         label="hot callback IR",
     )
+    if state_machine_program is not None:
+        _write_or_validate_stage_json(
+            output / "state-machine-ir.json",
+            state_machine_program,
+            resuming=resuming_existing,
+            label="state machine IR",
+        )
     _write_or_validate_stage_json(
         output / "execution-profile.json",
         {
@@ -419,15 +474,9 @@ def run_research_backtest(
     ):
         return existing_run
 
-    blockers = list(hot_ir["blockers"])
-    has_strategy_callbacks = bool(
-        analysis["strategies"][0].get(
-            "strategy_callbacks",
-            analysis["strategies"][0].get("hot_callbacks", []),
-        )
-    )
+    blockers = [] if state_machine_ready else list(hot_ir["blockers"])
     if not blockers and not prepare_only:
-        if has_strategy_callbacks:
+        if adapter_lane == "x7-legacy":
             blockers.extend(
                 x7_adapter_blockers(
                     analysis,
@@ -442,9 +491,10 @@ def run_research_backtest(
                     analysis,
                     run_config,
                     market_metadata_path=selected_market_metadata,
+                    state_machine_program=state_machine_program,
                 )
             )
-    if not blockers and not prepare_only and not has_strategy_callbacks:
+    if not blockers and not prepare_only and adapter_lane != "x7-legacy":
         blockers.extend(generic_data_blockers(analysis, vector_report))
     capability_seconds = _elapsed_seconds(stage_started_ns)
     manifest_seconds = 0.0
@@ -498,7 +548,7 @@ def run_research_backtest(
         else:
             _require_absent(simulation_input_path, label="simulation input")
             stage_started_ns = time.perf_counter_ns()
-            if has_strategy_callbacks:
+            if adapter_lane == "x7-legacy":
                 build_x7_vector_manifest(
                     analysis=analysis,
                     hot_ir=hot_ir,
@@ -514,6 +564,7 @@ def run_research_backtest(
                     vector_report=vector_report,
                     market_metadata_path=selected_market_metadata,
                     destination=simulation_input_path,
+                    state_machine_program=state_machine_program,
                 )
             manifest_seconds = _elapsed_seconds(stage_started_ns)
             manifest_record = _artifact_record(simulation_input_path)
@@ -683,7 +734,16 @@ def run_research_backtest(
         "capability": {
             "strategy_static_safe": analysis["static_safe"],
             "hot_ir_fingerprint": hot_ir["fingerprint"],
-            "hot_loop_ready": hot_ir["hot_loop_ready"],
+            "hot_loop_ready": native_callbacks_ready,
+            **(
+                {
+                    "legacy_hot_loop_ready": hot_ir["hot_loop_ready"],
+                    "adapter_lane": adapter_lane,
+                    "state_machine_schema_version": STATE_MACHINE_PROGRAM_VERSION,
+                }
+                if state_machine_program is not None
+                else {}
+            ),
             "blockers": blockers,
         },
         "result": result_record,

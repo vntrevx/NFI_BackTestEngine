@@ -33,6 +33,7 @@ def generic_adapter_blockers(
     config: dict[str, Any],
     *,
     market_metadata_path: str | Path | None,
+    state_machine_program: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     strategy = analysis["strategies"][0]
     constants = strategy["constants"]
@@ -41,11 +42,28 @@ def generic_adapter_blockers(
         "strategy_callbacks",
         strategy.get("hot_callbacks", []),
     )
-    if strategy_callbacks:
+    if config.get("trading_mode", "spot") == "spot":
+        strategy_callbacks = [
+            name for name in strategy_callbacks if name != "leverage"
+        ]
+    compiled_callbacks = (
+        set(state_machine_program.get("entrypoints", {}))
+        if state_machine_program is not None
+        and isinstance(state_machine_program.get("entrypoints"), dict)
+        else set()
+    )
+    uncovered_callbacks = sorted(set(strategy_callbacks) - compiled_callbacks)
+    unexpected_entrypoints = sorted(compiled_callbacks - set(strategy_callbacks))
+    if uncovered_callbacks or unexpected_entrypoints:
         blockers.append(
             {
                 "code": "STRATEGY_CALLBACK_ADAPTER_UNSUPPORTED",
-                "message": "generic signal adapter requires no strategy callbacks",
+                "callbacks": uncovered_callbacks,
+                "unexpected_entrypoints": unexpected_entrypoints,
+                "message": (
+                    "generic state-machine adapter requires exact coverage of all "
+                    "strategy callbacks"
+                ),
             }
         )
     if config.get("trading_mode", "spot") != "spot":
@@ -79,7 +97,10 @@ def generic_adapter_blockers(
                 "message": "trailing_stop is not implemented by the generic adapter",
             }
         )
-    if constants.get("position_adjustment_enable") is True:
+    if (
+        constants.get("position_adjustment_enable") is True
+        and "adjust_trade_position" not in compiled_callbacks
+    ):
         blockers.append(
             {
                 "code": "POSITION_ADJUSTMENT_IR_REQUIRED",
@@ -283,11 +304,13 @@ def build_generic_simulation_input(
     vector_report: dict[str, Any],
     market_metadata_path: str | Path,
     destination: str | Path,
+    state_machine_program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     blockers = generic_adapter_blockers(
         analysis,
         config,
         market_metadata_path=market_metadata_path,
+        state_machine_program=state_machine_program,
     )
     if blockers:
         raise StrategyAnalysisError(blockers[0]["message"])
@@ -352,6 +375,7 @@ def build_generic_simulation_input(
             amount_step=pairs[0]["amount_step"],
             price_step=pairs[0]["price_step"],
             pair_count=len(pairs),
+            state_machine_program=state_machine_program,
         ),
         "pairs": pairs,
     }
@@ -366,12 +390,14 @@ def build_generic_vector_manifest(
     vector_report: dict[str, Any],
     market_metadata_path: str | Path,
     destination: str | Path,
+    state_machine_program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Write a compact Feather manifest for the certified generic subset."""
     blockers = generic_adapter_blockers(
         analysis,
         config,
         market_metadata_path=market_metadata_path,
+        state_machine_program=state_machine_program,
     )
     if blockers:
         raise StrategyAnalysisError(blockers[0]["message"])
@@ -397,6 +423,11 @@ def build_generic_vector_manifest(
         source = Path(artifact["path"]).resolve()
         vector_sha256 = declared_vector_sha256(source, artifact, pair)
         columns = feather_column_names(source, pair)
+        state_machine_columns = (
+            set(state_machine_program.get("required_columns", []))
+            if state_machine_program is not None
+            else set()
+        )
         require_columns(
             columns,
             {
@@ -408,7 +439,8 @@ def build_generic_vector_manifest(
                 "volume",
                 "nfi_exec_enter_long",
                 "nfi_exec_exit_long",
-            },
+            }
+            | state_machine_columns,
             pair,
         )
         precision_frame = pd.read_feather(
@@ -447,7 +479,7 @@ def build_generic_vector_manifest(
                     "rows": len(precision_frame),
                     "format": "feather-ipc",
                 },
-                "feature_columns": [],
+                "feature_columns": sorted(state_machine_columns),
                 "can_short": can_short,
                 "use_exit_signal": use_exit_signal is not False,
                 # The generic certified subset has no entry callback and never
@@ -470,6 +502,7 @@ def build_generic_vector_manifest(
             amount_step=pairs[0]["amount_step"],
             price_step=pairs[0]["price_step"],
             pair_count=len(pairs),
+            state_machine_program=state_machine_program,
         ),
         "pairs": pairs,
     }
@@ -485,6 +518,7 @@ def _generic_portfolio_config(
     amount_step: float,
     price_step: float,
     pair_count: int,
+    state_machine_program: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Keep the certified portfolio semantics identical across transports."""
     max_open_trades = int(config["max_open_trades"])
@@ -503,6 +537,11 @@ def _generic_portfolio_config(
         "price_step": price_step,
         "custom_exit_after_ms": None,
         "adjustment_rule": None,
+        **(
+            {"state_machine_program": state_machine_program}
+            if state_machine_program is not None
+            else {}
+        ),
     }
 
 

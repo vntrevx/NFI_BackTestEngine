@@ -15,8 +15,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .canonical import canonical_decimal
+from .reporting.tags import signal_tag_tokens, summarize_grind_tags
 
-RESULT_SUMMARY_VERSION = "1.1.0"
+RESULT_SUMMARY_VERSION = "1.2.0"
 MAX_EQUITY_POINTS = 1_000
 
 
@@ -102,6 +103,9 @@ def build_result_summary(
             "id": run_report.get("run_id"),
             "status": status,
             "complete": bool(run_report.get("complete", status == "complete")),
+            "native_status": run_report.get("native_status", status),
+            "selected_status": run_report.get("selected_status", status),
+            "execution_lane": run_report.get("selected_lane") or execution.get("lane") or "native",
             "created_at": run_report.get("created_at"),
             "strategy": strategy_input.get("class_name")
             or (trade_surface.get("strategy") if trade_surface else None),
@@ -150,6 +154,14 @@ def build_result_summary(
             "by_direction": [],
             "by_year": [],
             "by_month": [],
+        },
+        "tag_analysis": {
+            "signal": {
+                "source": "entry_tag",
+                "multi_label": True,
+                "rows": [],
+            },
+            "grind": summarize_grind_tags([]),
         },
         "equity_curve": {
             "source": "closed_trade_profit",
@@ -270,6 +282,7 @@ def build_result_summary(
     by_direction = _group(trades, "direction", "direction")
     by_year = _group_by_period(trades, "%Y", "year", starting_balance)
     by_month = _group_by_period(trades, "%Y-%m", "month", starting_balance)
+    by_signal_tag = _group_by_signal_tag(trades)
     summary["breakdowns"] = {
         "by_pair": sorted(
             by_pair,
@@ -296,6 +309,20 @@ def build_result_summary(
         "by_year": by_year,
         "by_month": by_month,
     }
+    summary["tag_analysis"] = {
+        "signal": {
+            "source": "entry_tag",
+            "multi_label": True,
+            "rows": sorted(
+                by_signal_tag,
+                key=lambda item: (
+                    -float(item["profit_abs"]),
+                    str(item["signal_tag"]),
+                ),
+            ),
+        },
+        "grind": summarize_grind_tags(trades),
+    }
     points = equity["points"]
     sampled_points = _sample_equity_points(
         points,
@@ -312,6 +339,18 @@ def build_result_summary(
     return summary
 
 
+def _group_by_signal_tag(
+    trades: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Group individual entry-tag tokens without treating groups as additive."""
+
+    groups: dict[str, _Aggregate] = {}
+    for trade in trades:
+        for signal_tag in signal_tag_tokens(trade.get("entry_tag")):
+            groups.setdefault(signal_tag, _Aggregate()).add(trade)
+    return [aggregate.export("signal_tag", signal_tag) for signal_tag, aggregate in groups.items()]
+
+
 def _futures_summary(
     trades: Sequence[Mapping[str, Any]],
     *,
@@ -325,14 +364,9 @@ def _futures_summary(
     reconstructed liquidation price is not promoted into release evidence.
     """
 
-    funding_values = [
-        _decimal(_mapping(trade, "fees").get("funding"))
-        for trade in trades
-    ]
+    funding_values = [_decimal(_mapping(trade, "fees").get("funding")) for trade in trades]
     leverages = [
-        _decimal(trade.get("leverage"))
-        for trade in trades
-        if trade.get("leverage") is not None
+        _decimal(trade.get("leverage")) for trade in trades if trade.get("leverage") is not None
     ]
     leverage_rows = _group(trades, "leverage", "leverage")
     return {
@@ -341,9 +375,7 @@ def _futures_summary(
         "short_trades": sum(trade.get("direction") == "short" for trade in trades),
         "funded_trades": sum(value != 0 for value in funding_values),
         "funding_total": _number(sum(funding_values, Decimal(0))),
-        "liquidation_exits": sum(
-            trade.get("exit_reason") == "liquidation" for trade in trades
-        ),
+        "liquidation_exits": sum(trade.get("exit_reason") == "liquidation" for trade in trades),
         "protection_locks": lock_count,
         "distinct_leverages": len(set(leverages)),
         "minimum_leverage": _number(min(leverages)) if leverages else None,
@@ -370,12 +402,15 @@ def _verification_summary(
             "difference": existing.get("difference"),
         }
     is_reference = "exact_parity" in verification and "equal" not in verification
+    is_official_fallback = verification.get("purpose") == "fallback"
     reference_complete = verification.get("complete")
     exact_value = verification.get("equal", verification.get("exact_parity"))
     exact = exact_value if isinstance(exact_value, bool) else None
     status = (
         "reference_incomplete"
         if is_reference and reference_complete is not True
+        else "official_only"
+        if is_official_fallback and reference_complete is True
         else "exact_match"
         if exact is True
         else "mismatch"
@@ -567,9 +602,7 @@ def _closed_trade_equity_rows(
         )
     if rows:
         rows[-1]["source_final_balance"] = _canonical_decimal(final_balance)
-        rows[-1]["reconciliation_delta"] = _canonical_decimal(
-            final_balance - equity
-        )
+        rows[-1]["reconciliation_delta"] = _canonical_decimal(final_balance - equity)
     return rows
 
 
@@ -591,9 +624,7 @@ def _closed_trade_risk_metrics(rows: Sequence[Mapping[str, Any]]) -> dict[str, A
     mean = sum(returns, Decimal(0)) / len(returns)
     sharpe = None
     if len(returns) >= 2:
-        variance = sum(((value - mean) ** 2 for value in returns), Decimal(0)) / (
-            len(returns) - 1
-        )
+        variance = sum(((value - mean) ** 2 for value in returns), Decimal(0)) / (len(returns) - 1)
         if variance > 0:
             sharpe = _rounded(float(mean / variance.sqrt()))
 
@@ -601,11 +632,7 @@ def _closed_trade_risk_metrics(rows: Sequence[Mapping[str, Any]]) -> dict[str, A
         (min(value, Decimal(0)) ** 2 for value in returns),
         Decimal(0),
     ) / len(returns)
-    sortino = (
-        _rounded(float(mean / downside_variance.sqrt()))
-        if downside_variance > 0
-        else None
-    )
+    sortino = _rounded(float(mean / downside_variance.sqrt())) if downside_variance > 0 else None
     return {
         "sharpe": sharpe,
         "sortino": sortino,

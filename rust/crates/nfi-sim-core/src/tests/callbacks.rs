@@ -76,6 +76,84 @@ fn order_filled_program_updates_compiled_trade_custom_state() {
 }
 
 #[test]
+fn generic_order_filled_state_machine_updates_typed_custom_state() {
+    let mut config = config(1);
+    config.state_machine_program = Some(
+        serde_json::from_value(serde_json::json!({
+            "schema_version": "state-machine-program-v1",
+            "entrypoints": {
+                "order_filled": {
+                    "max_steps": 4,
+                    "instructions": [{
+                        "opcode": "set_state",
+                        "id": "i1",
+                        "key": "system_version",
+                        "value_type": "string",
+                        "value": {"kind": "literal", "value": "system_v3_2"}
+                    }]
+                }
+            },
+            "required_reads": [],
+            "required_columns": [],
+            "required_state_keys": ["system_version"],
+            "opcodes": ["set_state"],
+            "source_map": {
+                "i1": {
+                    "path": "strategy.py",
+                    "line": 1,
+                    "column": 0,
+                    "end_line": 1,
+                    "end_column": 1
+                }
+            }
+        }))
+        .expect("valid generic state machine"),
+    );
+    let pair = PairSeries {
+        pair: "AAA/USDT".to_owned(),
+        execution_start_index: 0,
+        amount_step: None,
+        price_step: None,
+        price_steps: Vec::new(),
+        minimum_stake: None,
+        minimum_amount: None,
+        minimum_cost: None,
+        feature_columns: BTreeMap::new(),
+        candles: vec![candle(1, 100.0, 99.0)].into(),
+    };
+    let signal = EntrySignal {
+        tag: Some("63".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    };
+
+    let trade = enter_trade(
+        EntryRequest {
+            pair_index: 0,
+            pair: &pair,
+            candle: &pair.candles.get(0).expect("fixture candle"),
+            side: TradeSide::Long,
+            signal: &signal,
+            stake: EntryStake {
+                proposed: 100.0,
+                maximum: 1_000.0,
+            },
+            open_trades: &[],
+            id: 1,
+            order_id: 1,
+        },
+        &config,
+    )
+    .expect("valid entry")
+    .expect("sized entry");
+
+    assert_eq!(
+        trade.custom_data.get("system_version"),
+        Some(&Value::String("system_v3_2".to_owned()))
+    );
+}
+
+#[test]
 fn bounded_stake_vm_applies_tag_rule_and_exchange_minimum() {
     let program: StakeProgram = serde_json::from_value(serde_json::json!({
         "statements": [

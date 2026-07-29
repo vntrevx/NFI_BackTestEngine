@@ -66,6 +66,14 @@ def format_terminal_summary(
         _terminal_row("Period", _format_timerange(context.get("timerange"))),
         _terminal_row("Mode", _mode_label(context)),
         _terminal_row(
+            "Execution lane",
+            (
+                "Official Freqtrade fallback (Native blocked)"
+                if run.get("execution_lane") == "official"
+                else "Native Rust"
+            ),
+        ),
+        _terminal_row(
             "Pairs / trades",
             f"{_integer_text(run.get('pair_count'))} / {_integer_text(activity.get('trades'))}",
         ),
@@ -138,7 +146,7 @@ def format_terminal_summary(
         ]
     )
     blockers = summary.get("blockers")
-    if isinstance(blockers, list):
+    if isinstance(blockers, list) and run.get("execution_lane") != "official":
         for blocker in blockers[:3]:
             if isinstance(blocker, Mapping):
                 lines.append(
@@ -167,11 +175,12 @@ def format_terminal_summary(
 
 
 def format_terminal_breakdowns(summary: Mapping[str, Any]) -> str:
-    """Render complete pair, entry-tag, and exit-reason performance tables."""
+    """Render complete performance and Signal/Grind tag tables."""
 
     performance = _mapping(summary, "performance")
     activity = _mapping(summary, "activity")
     breakdowns = _mapping(summary, "breakdowns")
+    tag_analysis = _mapping(summary, "tag_analysis")
     if not performance or not activity:
         return ""
     currency = _summary_currency(summary)
@@ -191,6 +200,12 @@ def format_terminal_breakdowns(summary: Mapping[str, Any]) -> str:
             "ENTRY TAG",
             "entry_tag",
             breakdowns.get("by_entry_tag"),
+        ),
+        (
+            "SIGNAL TAG PERFORMANCE (OVERLAPPING)",
+            "SIGNAL TAG",
+            "signal_tag",
+            _mapping(tag_analysis, "signal").get("rows"),
         ),
         (
             "EXIT REASON PERFORMANCE",
@@ -216,7 +231,76 @@ def format_terminal_breakdowns(summary: Mapping[str, Any]) -> str:
         )
         for title, name_header, key, value in definitions
     ]
+    grind_table = _terminal_grind_table(_mapping(tag_analysis, "grind"))
+    if grind_table:
+        tables.append(grind_table)
     return "\n\n".join(table for table in tables if table)
+
+
+def _terminal_grind_table(grind: Mapping[str, Any]) -> str:
+    raw_levels = grind.get("levels")
+    levels = (
+        [row for row in raw_levels if isinstance(row, Mapping)]
+        if isinstance(raw_levels, list)
+        else []
+    )
+    if not levels:
+        return ""
+    headers = ("LEVEL", "TRADES", "ORDERS", "ENTRIES", "EXITS", "DERISKS", "TAG FORMS")
+
+    def cells(row: Mapping[str, Any]) -> tuple[str, ...]:
+        raw_forms = row.get("tag_forms")
+        forms = raw_forms if isinstance(raw_forms, list) else []
+        return (
+            _integer_text(row.get("level")),
+            _integer_text(row.get("trades")),
+            _integer_text(row.get("orders")),
+            _integer_text(row.get("entries")),
+            _integer_text(row.get("exits")),
+            _integer_text(row.get("derisks")),
+            ", ".join(str(form) for form in forms),
+        )
+
+    rows = [cells(row) for row in levels]
+    total = (
+        "TOTAL",
+        _integer_text(grind.get("trades")),
+        _integer_text(grind.get("orders")),
+        _integer_text(sum(int(row.get("entries", 0)) for row in levels)),
+        _integer_text(sum(int(row.get("exits", 0)) for row in levels)),
+        _integer_text(sum(int(row.get("derisks", 0)) for row in levels)),
+        "",
+    )
+    all_rows = [*rows, total]
+    widths = [
+        max(len(headers[index]), *(len(row[index]) for row in all_rows))
+        for index in range(len(headers))
+    ]
+    widths[-1] = min(widths[-1], _TERMINAL_BREAKDOWN_NAME_LIMIT)
+
+    def render(row: tuple[str, ...]) -> str:
+        values = list(row)
+        values[-1] = _truncate(values[-1], widths[-1])
+        return "  ".join(
+            (
+                value.ljust(widths[index])
+                if index in {0, len(values) - 1}
+                else value.rjust(widths[index])
+            )
+            for index, value in enumerate(values)
+        )
+
+    separator = "  ".join("─" * width for width in widths)
+    return "\n".join(
+        [
+            f"GRIND LEVEL ACTIVITY · {len(rows)} levels",
+            render(headers),
+            separator,
+            *(render(row) for row in rows),
+            separator,
+            render(total),
+        ]
+    )
 
 
 def _terminal_breakdown_table(
@@ -286,6 +370,7 @@ def format_run_list(records: Sequence[Mapping[str, Any]]) -> str:
     columns = (
         ("UPDATED", 20),
         ("STATUS", 13),
+        ("LANE", 9),
         ("STRATEGY", 24),
         ("PAIRS", 5),
         ("TRADES", 7),
@@ -299,9 +384,14 @@ def format_run_list(records: Sequence[Mapping[str, Any]]) -> str:
         values = (
             _short_timestamp(record.get("updated_at")),
             str(record.get("status", "unknown")),
+            str(record.get("selected_lane") or "native"),
             str(record.get("strategy_class", "unknown")),
             _integer_text(record.get("pair_count")),
-            _integer_text(record.get("trade_count")),
+            _integer_text(
+                record.get("official_trade_count")
+                if record.get("selected_lane") == "official"
+                else record.get("trade_count")
+            ),
             str(record.get("run_id", ""))[:12],
             _compact_path(record.get("output_directory")),
         )

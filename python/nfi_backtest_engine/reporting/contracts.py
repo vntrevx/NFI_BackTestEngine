@@ -16,7 +16,7 @@ EVIDENCE_INDEX_FILENAME = "evidence/index.json"
 
 HTML_FILENAME = "report.html"
 
-ORDERS_CSV_SCHEMA_VERSION = "1.0.0"
+ORDERS_CSV_SCHEMA_VERSION = "1.1.0"
 
 EQUITY_CSV_SCHEMA_VERSION = "1.0.0"
 
@@ -50,6 +50,13 @@ _TRADES_CSV_FIELDS = (
     "maximum_rate",
     "order_count",
     "is_open",
+    "signal_tags",
+    "signal_tag_count",
+    "grind_levels",
+    "grind_order_count",
+    "grind_entry_count",
+    "grind_exit_count",
+    "grind_derisk_count",
 )
 
 # Backward-compatible private alias retained for callers of the original trades
@@ -72,6 +79,11 @@ _ORDERS_CSV_FIELDS = (
     "price",
     "cost",
     "tag",
+    "tag_token",
+    "tag_family",
+    "tag_level",
+    "tag_action",
+    "tag_reference_order_ids",
     "trade_open_time_utc",
     "trade_close_time_utc",
     "trade_exit_reason",

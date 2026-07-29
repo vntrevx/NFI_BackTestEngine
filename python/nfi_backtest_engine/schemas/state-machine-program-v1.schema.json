@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/state-machine-program-v1.schema.json",
+  "title": "NFI Backtest Engine generic state-machine program",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "entrypoints",
+    "required_reads",
+    "required_columns",
+    "required_state_keys",
+    "opcodes",
+    "source_map"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "state-machine-program-v1"
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/entrypoint"
+      },
+      "propertyNames": {
+        "enum": [
+          "order_filled",
+          "adjust_trade_position",
+          "custom_exit"
+        ]
+      }
+    },
+    "required_reads": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/read"
+      },
+      "uniqueItems": true
+    },
+    "required_columns": {
+      "$ref": "#/$defs/unique_strings"
+    },
+    "required_state_keys": {
+      "$ref": "#/$defs/unique_strings"
+    },
+    "opcodes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "if",
+          "set_local",
+          "set_state",
+          "delete_state",
+          "evaluate",
+          "bounded_for",
+          "action"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "source_map": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/location"
+      }
+    }
+  },
+  "$defs": {
+    "unique_strings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_steps",
+        "instructions"
+      ],
+      "properties": {
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "instructions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/instruction"
+          }
+        }
+      }
+    },
+    "read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "key"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/read_source"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "read_source": {
+      "enum": [
+        "candle",
+        "wallet",
+        "trade",
+        "orders",
+        "custom_state",
+        "input",
+        "local"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "line",
+        "column",
+        "end_line",
+        "end_column"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "instruction": {
+      "type": "object",
+      "required": [
+        "opcode",
+        "id"
+      ],
+      "properties": {
+        "opcode": {
+          "enum": [
+            "if",
+            "set_local",
+            "set_state",
+            "delete_state",
+            "evaluate",
+            "bounded_for",
+            "action"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^i[1-9][0-9]*$"
+        },
+        "condition": {
+          "$ref": "#/$defs/expression"
+        },
+        "then_instructions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/instruction"
+          }
+        },
+        "else_instructions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/instruction"
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "$ref": "#/$defs/expression"
+        },
+        "value_type": {
+          "enum": [
+            "null",
+            "bool",
+            "integer",
+            "number",
+            "string",
+            "json"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expression": {
+          "$ref": "#/$defs/expression"
+        },
+        "variable": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start": {
+          "type": "integer"
+        },
+        "stop": {
+          "type": "integer"
+        },
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "instructions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/instruction"
+          }
+        },
+        "kind": {
+          "enum": [
+            "add_entry",
+            "partial_exit",
+            "derisk",
+            "buyback",
+            "stop",
+            "exit",
+            "no_op"
+          ]
+        },
+        "stake": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            }
+          ]
+        },
+        "tag": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            }
+          ]
+        }
+      }
+    },
+    "expression": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "literal",
+            "read",
+            "unary",
+            "binary",
+            "boolean",
+            "compare",
+            "scalar_call"
+          ]
+        },
+        "value": {},
+        "source": {
+          "$ref": "#/$defs/read_source"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/expression"
+            }
+          ]
+        },
+        "operator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operand": {
+          "$ref": "#/$defs/expression"
+        },
+        "left": {
+          "$ref": "#/$defs/expression"
+        },
+        "right": {
+          "$ref": "#/$defs/expression"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          }
+        }
+      }
+    }
+  }
+}

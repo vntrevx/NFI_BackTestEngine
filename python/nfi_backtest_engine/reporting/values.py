@@ -33,6 +33,7 @@ def _terminal_row(label: str, value: Any) -> str:
 def _status_label(status: str) -> str:
     return {
         "complete": "COMPLETE ✓",
+        "official_complete": "OFFICIAL RESULT ✓",
         "prepared": "PREPARED",
         "blocked_unsupported_semantics": "BLOCKED — SAFE STOP",
     }.get(status, status.upper())
@@ -44,6 +45,8 @@ def _verification_label(verification: Mapping[str, Any]) -> str:
         return "EXACT MATCH ✓"
     if status == "mismatch":
         return f"MISMATCH — {_difference_text(verification.get('difference'))}"
+    if status == "official_only":
+        return "OFFICIAL ONLY — Native blocked; no parity claim"
     return "NOT RUN — confirmation required"
 
 

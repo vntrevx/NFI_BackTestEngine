@@ -15,6 +15,7 @@ import psutil
 
 from .cache_policy import resolve_cache_budget
 from .canonical import read_json, write_json
+from .data_seal import validate_data_seal
 from .docker_resources import derive_docker_policy, inspect_docker_daemon
 from .errors import BenchmarkError, NfiBacktestError, SpecValidationError
 from .fixture import sha256_file
@@ -25,6 +26,7 @@ from .verification_ledger import VerificationLedger, create_verification_record
 
 RUN_PREFLIGHT_VERSION = "1.0.0"
 OFFICIAL_VERIFICATION_DIRECTORY = "official-verification"
+OFFICIAL_FALLBACK_DIRECTORY = "official-fallback"
 REPORT_FILENAME = "report.html"
 
 Prompt = Callable[[str], str]
@@ -205,6 +207,204 @@ def run_quick_official_verification(
     return report, report_path, False
 
 
+def inspect_official_fallback_preflight(
+    run_directory: str | Path,
+) -> dict[str, Any]:
+    """Recheck Docker, memory, and input-derived disk headroom."""
+
+    root = Path(run_directory).resolve()
+    run = _load_blocked_run(root)
+    docker = _inspect_optional_docker()
+    seal = read_json(root / "data-seal.json")
+    files = seal.get("files") if isinstance(seal, Mapping) else None
+    file_sizes = (
+        [
+            int(item["bytes"])
+            for item in files
+            if isinstance(item, Mapping)
+            and isinstance(item.get("bytes"), int)
+            and not isinstance(item["bytes"], bool)
+            and item["bytes"] >= 0
+        ]
+        if isinstance(files, list)
+        else []
+    )
+    input_bytes = sum(file_sizes)
+    largest_input_bytes = max(file_sizes, default=0)
+    existing_output_bytes = _tree_usage(root)["logical_bytes"]
+    # The official lane mounts candle data read-only. Reserve an output envelope
+    # derived from the larger of the existing run evidence and the largest sealed
+    # input; no pair, timerange, strategy, or fixed GiB constant participates.
+    output_envelope_bytes = max(existing_output_bytes, largest_input_bytes)
+    disk_path = _existing_parent(root)
+    disk = psutil.disk_usage(str(disk_path))
+    memory = psutil.virtual_memory()
+    passed = docker.get("status") == "available" and disk.free >= output_envelope_bytes
+    return {
+        "schema_version": "1.0.0",
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "run_id": run["run_id"],
+        "docker": docker,
+        "memory": {
+            "available_bytes": int(memory.available),
+            "docker_limit_bytes": docker.get("container_memory_limit_bytes"),
+        },
+        "disk": {
+            "filesystem_path": str(disk_path),
+            "available_bytes": int(disk.free),
+            "sealed_input_bytes": input_bytes,
+            "largest_sealed_input_bytes": largest_input_bytes,
+            "existing_output_bytes": existing_output_bytes,
+            "required_free_bytes": output_envelope_bytes,
+            "sufficient": disk.free >= output_envelope_bytes,
+            "estimate_policy": (
+                "one output envelope derived from existing evidence and the "
+                "largest sealed input; candle data remains read-only"
+            ),
+        },
+        "storage_mode": "spooled",
+        "passed": passed,
+    }
+
+
+def run_official_fallback(
+    run_directory: str | Path,
+    *,
+    timeout_seconds: int | None = None,
+) -> tuple[dict[str, Any], Path, bool]:
+    """Reuse a complete fallback or append one immutable official attempt."""
+
+    root = Path(run_directory).resolve()
+    source_run = _load_blocked_run(root)
+    preflight = inspect_official_fallback_preflight(root)
+    write_json(root / "official-fallback-preflight.json", preflight)
+    if preflight["docker"].get("status") != "available":
+        raise BenchmarkError(
+            "official fallback requires an available Docker daemon: "
+            f"{preflight['docker'].get('detail', 'unavailable')}"
+        )
+    if preflight["disk"].get("sufficient") is not True:
+        disk = preflight["disk"]
+        raise BenchmarkError(
+            "official fallback disk preflight failed: "
+            f"{disk['required_free_bytes']} bytes required, "
+            f"{disk['available_bytes']} bytes available"
+        )
+
+    fallback_root = root / OFFICIAL_FALLBACK_DIRECTORY
+    reusable = _find_reusable_fallback(fallback_root, source_run, root)
+    if reusable is not None:
+        from .selected_result import write_official_selection
+
+        write_official_selection(root, reusable[1])
+        return reusable[0], reusable[1], True
+
+    attempt = _next_attempt_directory(fallback_root)
+    from .research_reference import run_research_reference
+
+    try:
+        report = run_research_reference(
+            root,
+            attempt,
+            timeout_seconds=timeout_seconds,
+            purpose="fallback",
+            reference_storage_mode="spooled",
+        )
+    except BenchmarkError as exc:
+        attempt.mkdir(parents=True, exist_ok=True)
+        report = {
+            "schema_version": "1.4.0",
+            "run_id": source_run["run_id"],
+            "purpose": "fallback",
+            "started_at": preflight["created_at"],
+            "ended_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "exit_code": None,
+            "timed_out": False,
+            "complete": False,
+            "exact_parity": None,
+            "difference": None,
+            "error": str(exc),
+        }
+        write_json(attempt / "run.json", report)
+    report_path = attempt / "run.json"
+    if report.get("complete") is True:
+        from .selected_result import write_official_selection
+
+        write_official_selection(root, report_path)
+    return report, report_path, False
+
+
+def record_official_completion(
+    ledger_path: str | Path,
+    run_directory: str | Path,
+    report: Mapping[str, Any],
+    report_path: str | Path,
+) -> int:
+    """Record official usability without upgrading Native verification."""
+
+    root = Path(run_directory).resolve()
+    run = _load_blocked_run(root)
+    proof_path = Path(report_path).resolve()
+    from .selected_result import validate_official_fallback
+
+    validate_official_fallback(root, proof_path)
+    evidence = [
+        _evidence_record("native_blocked_run", root / "run.json"),
+        _evidence_record("data_seal", root / "data-seal.json"),
+        _evidence_record("selected_result", root / "selected-result.json"),
+        _evidence_record("official_fallback", proof_path),
+        _evidence_record(
+            "official_trade_surface",
+            proof_path.parent / "official-trade-surface.json",
+        ),
+    ]
+    record = create_verification_record(
+        subject_kind="run",
+        subject_id=str(run["run_id"]),
+        state="official_complete",
+        outcome="success",
+        fingerprint=_verification_fingerprint(root, run, reference=report),
+        evidence=evidence,
+        recorded_at=str(report["ended_at"]),
+    )
+    with VerificationLedger(ledger_path) as ledger:
+        return ledger.append(record)
+
+
+def record_native_blocker(
+    ledger_path: str | Path,
+    run_directory: str | Path,
+) -> int:
+    """Append the Native fail-closed outcome before any official selection."""
+
+    root = Path(run_directory).resolve()
+    run = _load_blocked_run(root)
+    blockers = _mapping(run, "capability").get("blockers")
+    first = (
+        blockers[0]
+        if isinstance(blockers, list) and blockers and isinstance(blockers[0], Mapping)
+        else {}
+    )
+    record = create_verification_record(
+        subject_kind="run",
+        subject_id=str(run["run_id"]),
+        state="blocked_unsupported_semantics",
+        outcome="failure",
+        fingerprint=_verification_fingerprint(root, run, reference=None),
+        evidence=[
+            _evidence_record("native_blocked_run", root / "run.json"),
+            _evidence_record("data_seal", root / "data-seal.json"),
+        ],
+        failure={
+            "code": str(first.get("code", "NATIVE_UNSUPPORTED_SEMANTICS")),
+            "message": str(first.get("message", "Native semantics are unsupported")),
+        },
+        recorded_at=str(run["created_at"]),
+    )
+    with VerificationLedger(ledger_path) as ledger:
+        return ledger.append(record)
+
+
 def record_native_completion(
     ledger_path: str | Path,
     run_directory: str | Path,
@@ -318,6 +518,8 @@ def finish_one_line_run(
     open_report: bool | None,
     interactive: bool,
     include_breakdowns: bool,
+    fallback_policy: str = "ask",
+    fallback_timeout_seconds: int | None = None,
     emit: Callable[[str], None] = print,
 ) -> int:
     """Complete consented post-run actions and print one final result view."""
@@ -325,9 +527,7 @@ def finish_one_line_run(
     run_path = root / "run.json"
     if not run_path.is_file():
         if verification is True or open_report is True:
-            raise BenchmarkError(
-                "the requested post-run action needs a durable run.json result"
-            )
+            raise BenchmarkError("the requested post-run action needs a durable run.json result")
         return native_status
     run = read_json(run_path)
     if not isinstance(run, dict):
@@ -391,8 +591,17 @@ def finish_one_line_run(
         else:
             emit("official quick verification: skipped (no explicit consent)")
     elif verification is True:
-        raise BenchmarkError(
-            "official quick verification requires a completed Native run"
+        raise BenchmarkError("official quick verification requires a completed Native run")
+    else:
+        final_status = finish_official_fallback(
+            root,
+            ledger_path=ledger_path,
+            native_status=native_status,
+            fallback_policy=fallback_policy,
+            timeout_seconds=fallback_timeout_seconds,
+            interactive=interactive,
+            registry_path=settings.registry_path,
+            emit=emit,
         )
 
     summary_path = root / "summary.json"
@@ -422,6 +631,114 @@ def finish_one_line_run(
     elif open_report is True:
         raise BenchmarkError(f"requested HTML report does not exist: {html_path}")
     return final_status
+
+
+def finish_official_fallback(
+    run_directory: str | Path,
+    *,
+    ledger_path: str | Path,
+    native_status: int,
+    fallback_policy: str,
+    timeout_seconds: int | None,
+    interactive: bool,
+    registry_path: str | Path | None = None,
+    emit: Callable[[str], None] = print,
+) -> int:
+    """Resolve explicit fallback policy for one durable blocked Native run."""
+
+    if fallback_policy not in {"ask", "official", "disabled"}:
+        raise BenchmarkError("fallback policy must be ask, official, or disabled")
+    root = Path(run_directory).resolve()
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        return native_status
+    run = read_json(run_path)
+    if (
+        not isinstance(run, Mapping)
+        or run.get("status") != "blocked_unsupported_semantics"
+        or run.get("complete") is not False
+    ):
+        return native_status
+    blocker_sequence = record_native_blocker(ledger_path, root)
+    capability = _mapping(run, "capability")
+    blockers = capability.get("blockers")
+    first_blocker = (
+        blockers[0]
+        if isinstance(blockers, list)
+        and blockers
+        and isinstance(blockers[0], Mapping)
+        else {}
+    )
+    emit(
+        "Native execution stopped safely: "
+        f"{first_blocker.get('code', 'NATIVE_UNSUPPORTED_SEMANTICS')} — "
+        f"{first_blocker.get('message', 'active strategy semantics are unsupported')}. "
+        "No approximation was used."
+    )
+    emit(f"verification ledger: sequence={blocker_sequence}, state=blocked_unsupported_semantics")
+
+    if fallback_policy == "official":
+        fallback_now = True
+    elif fallback_policy == "disabled":
+        fallback_now = False
+    else:
+        fallback_now = resolve_consent(
+            None,
+            interactive=interactive,
+            question=(
+                "Native stopped on unsupported semantics. Run the pinned official "
+                "Freqtrade fallback now"
+            ),
+        )
+    if not fallback_now:
+        emit(
+            "official fallback: skipped; Native remains blocked "
+            "(use --fallback official to run non-interactively)"
+        )
+        return 1
+
+    emit(
+        "official fallback: approved; checking preflight and reusable evidence before "
+        "starting pinned Freqtrade. It may take much longer than Native. The Native "
+        "run remains unchanged, and this official-only result does not claim parity."
+    )
+    report, proof_path, reused = run_official_fallback(
+        root,
+        timeout_seconds=timeout_seconds,
+    )
+    if report.get("complete") is not True:
+        reason = (
+            "timed out"
+            if report.get("timed_out") is True
+            else f"failed with exit code {report.get('exit_code')}"
+        )
+        emit(f"official fallback: {reason}; Native remains blocked -> {proof_path}")
+        return 1
+
+    from .result_report import write_result_presentation
+
+    write_result_presentation(
+        root,
+        verification=report,
+        verification_path=proof_path,
+    )
+    sequence = record_official_completion(
+        ledger_path,
+        root,
+        report,
+        proof_path,
+    )
+    if registry_path is not None:
+        from .run_registry import RunRegistry
+
+        with RunRegistry(registry_path) as registry:
+            registry.record_selection(root)
+    emit(
+        "official fallback: completed "
+        f"({'reused' if reused else 'new'} result), Native remains blocked, "
+        f"ledger sequence={sequence}, state=official_complete -> {proof_path}"
+    )
+    return 0
 
 
 def report_uri(report_path: str | Path) -> str:
@@ -530,9 +847,7 @@ def _load_completed_run(root: Path) -> dict[str, Any]:
         raise BenchmarkError(f"quick verification requires a completed Native run: {run_path}")
     identity_path = root / "identity.json"
     if not identity_path.is_file():
-        raise BenchmarkError(
-            f"completed Native run failed its sealed identity: {identity_path}"
-        )
+        raise BenchmarkError(f"completed Native run failed its sealed identity: {identity_path}")
     identity_document = read_json(identity_path)
     inputs = document.get("inputs")
     if (
@@ -542,9 +857,7 @@ def _load_completed_run(root: Path) -> dict[str, Any]:
         or identity_document.get("run_id") != document["run_id"]
         or _canonical_sha256(inputs) != document["run_id"]
     ):
-        raise BenchmarkError(
-            f"completed Native run failed its sealed identity: {identity_path}"
-        )
+        raise BenchmarkError(f"completed Native run failed its sealed identity: {identity_path}")
     surface_path = root / "trade-surface.json"
     result = _mapping(document, "result")
     surface_record = _mapping(result, "trade_surface")
@@ -556,6 +869,69 @@ def _load_completed_run(root: Path) -> dict[str, Any]:
     return document
 
 
+def _load_blocked_run(root: Path) -> dict[str, Any]:
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        raise BenchmarkError(f"official fallback requires a durable Native run: {run_path}")
+    document = read_json(run_path)
+    capability = document.get("capability") if isinstance(document, Mapping) else None
+    blockers = capability.get("blockers") if isinstance(capability, Mapping) else None
+    if (
+        not isinstance(document, dict)
+        or document.get("complete") is not False
+        or document.get("status") != "blocked_unsupported_semantics"
+        or not isinstance(document.get("run_id"), str)
+        or not isinstance(blockers, list)
+        or not blockers
+    ):
+        raise BenchmarkError("official fallback requires unsupported Native semantics")
+    identity_path = root / "identity.json"
+    if not identity_path.is_file():
+        raise BenchmarkError(f"blocked Native run failed its sealed identity: {identity_path}")
+    identity_document = read_json(identity_path)
+    inputs = document.get("inputs")
+    if (
+        not isinstance(identity_document, dict)
+        or not isinstance(inputs, dict)
+        or identity_document.get("identity") != inputs
+        or identity_document.get("run_id") != document["run_id"]
+        or _canonical_sha256(inputs) != document["run_id"]
+    ):
+        raise BenchmarkError(f"blocked Native run failed its sealed identity: {identity_path}")
+    validate_data_seal(root / "data-seal.json")
+    return document
+
+
+def _find_reusable_fallback(
+    fallback_root: Path,
+    source_run: Mapping[str, Any],
+    run_root: Path,
+) -> tuple[dict[str, Any], Path] | None:
+    if not fallback_root.exists():
+        return None
+    if not fallback_root.is_dir():
+        raise BenchmarkError(f"official fallback path is not a directory: {fallback_root}")
+    reusable = None
+    from .selected_result import validate_official_fallback
+
+    for attempt in sorted(fallback_root.glob("attempt-*")):
+        if not attempt.is_dir():
+            raise BenchmarkError(f"official fallback attempt is not a directory: {attempt}")
+        report_path = attempt / "run.json"
+        if not report_path.is_file():
+            continue
+        report = read_json(report_path)
+        if not isinstance(report, dict):
+            raise BenchmarkError(f"official fallback report is not an object: {report_path}")
+        if report.get("complete") is not True:
+            continue
+        if report.get("run_id") != source_run.get("run_id"):
+            raise BenchmarkError("official fallback belongs to a different run")
+        validate_official_fallback(run_root, report_path)
+        reusable = (report, report_path)
+    return reusable
+
+
 def _find_reusable_verification(
     verification_root: Path,
     source_run: Mapping[str, Any],
@@ -564,9 +940,7 @@ def _find_reusable_verification(
     if not verification_root.exists():
         return None
     if not verification_root.is_dir():
-        raise BenchmarkError(
-            f"official verification path is not a directory: {verification_root}"
-        )
+        raise BenchmarkError(f"official verification path is not a directory: {verification_root}")
     reusable: tuple[dict[str, Any], Path] | None = None
     for attempt in sorted(verification_root.glob("attempt-*")):
         if not attempt.is_dir():

@@ -14,6 +14,7 @@ from .contracts import (
     EQUITY_CSV_SCHEMA_VERSION,
     ORDERS_CSV_SCHEMA_VERSION,
 )
+from .tags import parse_order_tag, trade_tag_details
 from .values import _float, _iso_timestamp, _mapping
 
 
@@ -35,6 +36,7 @@ def _write_trades_csv(
         for trade in trades:
             if not isinstance(trade, Mapping):
                 continue
+            tag_details = trade_tag_details(trade)
             profit = _mapping(trade, "profit")
             fees = _mapping(trade, "fees")
             ratio = _float(profit.get("ratio"))
@@ -69,6 +71,15 @@ def _write_trades_csv(
                     if isinstance(trade.get("orders"), list)
                     else 0,
                     "is_open": trade.get("is_open"),
+                    "signal_tags": " ".join(tag_details["signal_tags"]),
+                    "signal_tag_count": len(tag_details["signal_tags"]),
+                    "grind_levels": " ".join(
+                        str(level) for level in tag_details["grind_levels"]
+                    ),
+                    "grind_order_count": tag_details["grind_order_count"],
+                    "grind_entry_count": tag_details["grind_entry_count"],
+                    "grind_exit_count": tag_details["grind_exit_count"],
+                    "grind_derisk_count": tag_details["grind_derisk_count"],
                 }
             )
 
@@ -118,6 +129,13 @@ def _write_orders_csv(
                     if is_partial_exit
                     else "exit"
                 )
+                parsed_tag = parse_order_tag(
+                    order.get("tag"),
+                    is_entry=is_entry,
+                    entry_tag=trade.get("entry_tag"),
+                    is_initial_entry=index == 0 and is_entry,
+                    fallback_action=position_action,
+                )
                 writer.writerow(
                     {
                         "schema_version": ORDERS_CSV_SCHEMA_VERSION,
@@ -137,6 +155,14 @@ def _write_orders_csv(
                         "price": order.get("price"),
                         "cost": order.get("cost"),
                         "tag": order.get("tag"),
+                        "tag_token": parsed_tag.token,
+                        "tag_family": parsed_tag.family,
+                        "tag_level": parsed_tag.level,
+                        "tag_action": parsed_tag.action,
+                        "tag_reference_order_ids": " ".join(
+                            str(order_id)
+                            for order_id in parsed_tag.reference_order_ids
+                        ),
                         "trade_open_time_utc": _iso_timestamp(
                             trade.get("open_timestamp_ms")
                         ),

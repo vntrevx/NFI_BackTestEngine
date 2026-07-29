@@ -59,8 +59,8 @@ impl GrindCluster {
 #[derive(Debug, Clone)]
 pub(crate) struct AdjustmentState {
     order_count: usize,
-    clusters: [GrindCluster; 5],
-    derisk_found: [bool; 3],
+    clusters: Vec<GrindCluster>,
+    derisk_found: Vec<bool>,
     first_entry_amount: f64,
     first_entry_cost: f64,
     latest_entry_price: f64,
@@ -138,7 +138,7 @@ pub(crate) fn evaluate_nfi_position_adjustment(
         .nfi_adjustment_state
         .take()
         .filter(|state| state.order_count == trade.orders.len())
-        .or_else(|| rebuild_adjustment_state(trade))?;
+        .or_else(|| rebuild_adjustment_state(trade, adjustment))?;
     let result = evaluate_nfi_position_adjustment_with_state(
         manager,
         adjustment,
@@ -301,14 +301,17 @@ fn adjustment_minimum_stake(
         .then(|| adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent))
 }
 
-fn rebuild_adjustment_state(trade: &OpenTrade) -> Option<AdjustmentState> {
+fn rebuild_adjustment_state(
+    trade: &OpenTrade,
+    adjustment: &NfiX7PositionAdjustment,
+) -> Option<AdjustmentState> {
     let first = trade.orders.first()?;
     let latest = trade.orders.last()?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
     let latest_exit = trade.orders.iter().rev().find(|order| !order.is_entry);
-    let mut clusters: [GrindCluster; 5] = std::array::from_fn(|_| GrindCluster::default());
-    let mut cluster_closed = [false; 5];
-    let mut derisk_found = [false; 3];
+    let mut clusters = vec![GrindCluster::default(); adjustment.constants.grinds.len()];
+    let mut cluster_closed = vec![false; clusters.len()];
+    let mut derisk_found = vec![false; adjustment.constants.derisk_levels.len()];
 
     // Reversed traversal is observable: exit tags list still-open entry IDs
     // newest first, matching NFI's `reversed(filled_orders)` loop.
@@ -316,8 +319,8 @@ fn rebuild_adjustment_state(trade: &OpenTrade) -> Option<AdjustmentState> {
         let tag = order.tag.as_deref().unwrap_or("");
         if order.is_entry && order.sequence != 0 {
             if let Some(index) = grind_entry_index(tag) {
-                if !cluster_closed[index] {
-                    let cluster = &mut clusters[index];
+                if !cluster_closed.get(index).copied()? {
+                    let cluster = clusters.get_mut(index)?;
                     cluster.count += 1;
                     cluster.total_amount += order.amount;
                     cluster.total_cost += order.amount * order.price;
@@ -332,11 +335,11 @@ fn rebuild_adjustment_state(trade: &OpenTrade) -> Option<AdjustmentState> {
         }
         let head = tag.split_whitespace().next().unwrap_or("");
         if let Some(index) = derisk_level_index(head) {
-            derisk_found[index] = true;
+            *derisk_found.get_mut(index)? = true;
         } else if let Some(index) = grind_exit_index(head) {
-            if !cluster_closed[index] {
-                cluster_closed[index] = true;
-                clusters[index].exit_price = Some(order.price);
+            if !cluster_closed.get(index).copied()? {
+                *cluster_closed.get_mut(index)? = true;
+                clusters.get_mut(index)?.exit_price = Some(order.price);
             }
         } else if head == "derisk_global" {
             for (closed, cluster) in cluster_closed.iter_mut().zip(&mut clusters) {
@@ -362,18 +365,27 @@ fn rebuild_adjustment_state(trade: &OpenTrade) -> Option<AdjustmentState> {
 }
 
 fn grind_entry_index(tag: &str) -> Option<usize> {
-    (0..5).find(|index| tag == format!("grind_{}_entry", index + 1))
+    structured_level_index(tag, "grind_", &["entry"])
 }
 
 fn grind_exit_index(tag: &str) -> Option<usize> {
-    (0..5).find(|index| {
-        let level = index + 1;
-        tag == format!("grind_{level}_exit") || tag == format!("grind_{level}_derisk")
-    })
+    structured_level_index(tag, "grind_", &["exit", "derisk"])
 }
 
 fn derisk_level_index(tag: &str) -> Option<usize> {
-    (0..3).find(|index| tag == format!("derisk_level_{}", index + 1))
+    tag.strip_prefix("derisk_level_")?
+        .parse::<usize>()
+        .ok()?
+        .checked_sub(1)
+}
+
+fn structured_level_index(tag: &str, prefix: &str, actions: &[&str]) -> Option<usize> {
+    let suffix = tag.strip_prefix(prefix)?;
+    let (level, action) = suffix.split_once('_')?;
+    if !actions.contains(&action) {
+        return None;
+    }
+    level.parse::<usize>().ok()?.checked_sub(1)
 }
 
 fn price_distance(rate: f64, reference: f64) -> Option<f64> {
@@ -440,36 +452,40 @@ pub(crate) fn evaluate_grind_entry_program(
 
 fn read_and_update_cluster_maxima(
     trade: &mut OpenTrade,
-    clusters: &[GrindCluster; 5],
+    clusters: &[GrindCluster],
     rate: f64,
     close_fee: f64,
-) -> [(f64, f64); 5] {
-    std::array::from_fn(|index| {
-        let level = index + 1;
-        let stake_key = format!("grind_{level}_cluster_max_profit_stake");
-        let rate_key = format!("grind_{level}_cluster_max_profit_rate");
-        let previous_stake = custom_number(trade, &stake_key);
-        let previous_rate = custom_number(trade, &rate_key);
-        let profit_stake = clusters[index].profit_stake(rate, close_fee, trade.side);
-        let profit_rate = clusters[index].profit_rate(rate);
-        if profit_stake > previous_stake {
-            trade
-                .custom_data
-                .insert(stake_key, number_value(profit_stake).unwrap_or(Value::Null));
-        }
-        let rate_improved = match trade.side {
-            TradeSide::Long => profit_rate > previous_rate,
-            // Upstream stores the raw price distance for shorts, so a more
-            // profitable cluster is a more negative value.
-            TradeSide::Short => profit_rate < previous_rate,
-        };
-        if rate_improved {
-            trade
-                .custom_data
-                .insert(rate_key, number_value(profit_rate).unwrap_or(Value::Null));
-        }
-        (previous_stake, previous_rate)
-    })
+) -> Vec<(f64, f64)> {
+    clusters
+        .iter()
+        .enumerate()
+        .map(|(index, cluster)| {
+            let level = index + 1;
+            let stake_key = format!("grind_{level}_cluster_max_profit_stake");
+            let rate_key = format!("grind_{level}_cluster_max_profit_rate");
+            let previous_stake = custom_number(trade, &stake_key);
+            let previous_rate = custom_number(trade, &rate_key);
+            let profit_stake = cluster.profit_stake(rate, close_fee, trade.side);
+            let profit_rate = cluster.profit_rate(rate);
+            if profit_stake > previous_stake {
+                trade
+                    .custom_data
+                    .insert(stake_key, number_value(profit_stake).unwrap_or(Value::Null));
+            }
+            let rate_improved = match trade.side {
+                TradeSide::Long => profit_rate > previous_rate,
+                // Upstream stores the raw price distance for shorts, so a more
+                // profitable cluster is a more negative value.
+                TradeSide::Short => profit_rate < previous_rate,
+            };
+            if rate_improved {
+                trade
+                    .custom_data
+                    .insert(rate_key, number_value(profit_rate).unwrap_or(Value::Null));
+            }
+            (previous_stake, previous_rate)
+        })
+        .collect()
 }
 
 fn custom_number(trade: &OpenTrade, key: &str) -> f64 {
@@ -527,7 +543,7 @@ fn evaluate_grind_level(
     context: &AdjustmentContext<'_>,
     trade: &OpenTrade,
     state: &AdjustmentState,
-    previous_maxima: &[(f64, f64); 5],
+    previous_maxima: &[(f64, f64)],
     index: usize,
 ) -> Option<GrindLevelOutcome> {
     let constants = context.adjustment.constants.grinds.get(index)?;
@@ -585,7 +601,13 @@ fn evaluate_grind_level(
     }
 
     if cluster.count > 0
-        && grind_exit_signal(context, trade, cluster, constants, previous_maxima[index])?
+        && grind_exit_signal(
+            context,
+            trade,
+            cluster,
+            constants,
+            *previous_maxima.get(index)?,
+        )?
     {
         let raw_exit = cluster.total_amount * context.candle.open / trade.leverage;
         if let Some(stake_amount) = partial_exit_stake(context, trade, raw_exit) {
@@ -868,7 +890,10 @@ fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{grind_callback_maximum_stake, grind_callback_minimum_stake};
+    use super::{
+        derisk_level_index, grind_callback_maximum_stake, grind_callback_minimum_stake,
+        grind_entry_index, grind_exit_index,
+    };
 
     #[test]
     fn rebuy_transfer_keeps_the_wrappers_leverage_adjusted_minimum() {
@@ -890,5 +915,15 @@ mod tests {
 
         assert!((transferred - 32_929.5).abs() < f64::EPSILON);
         assert!((direct - exchange_maximum).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn structured_grind_tags_have_no_fixed_level_ceiling() {
+        assert_eq!(grind_entry_index("grind_7_entry"), Some(6));
+        assert_eq!(grind_exit_index("grind_12_exit"), Some(11));
+        assert_eq!(grind_exit_index("grind_12_derisk"), Some(11));
+        assert_eq!(derisk_level_index("derisk_level_12"), Some(11));
+        assert_eq!(grind_entry_index("grind_0_entry"), None);
+        assert_eq!(grind_exit_index("grind_12_unknown"), None);
     }
 }

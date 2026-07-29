@@ -47,12 +47,14 @@ def execute(args: argparse.Namespace) -> int:
 
         if args.verification_timeout is not None and args.verification_timeout <= 0:
             raise NfiBacktestError("--verification-timeout must be positive")
+        if args.fallback_timeout is not None and args.fallback_timeout <= 0:
+            raise NfiBacktestError("--fallback-timeout must be positive")
         if args.verify is False and args.verification_timeout is not None:
-            raise NfiBacktestError(
-                "--verification-timeout cannot be combined with --no-verify"
-            )
+            raise NfiBacktestError("--verification-timeout cannot be combined with --no-verify")
         if args.prepare_only and args.verify is True:
             raise NfiBacktestError("--verify requires a completed Native run")
+        if args.prepare_only and args.fallback == "official":
+            raise NfiBacktestError("--fallback official cannot be combined with --prepare-only")
 
         project_path = args.project.resolve()
         if project_path.is_file():
@@ -121,6 +123,8 @@ def execute(args: argparse.Namespace) -> int:
             open_report=args.open_report,
             interactive=not args.yes and sys.stdin.isatty(),
             include_breakdowns=args.full_report,
+            fallback_policy=args.fallback,
+            fallback_timeout_seconds=args.fallback_timeout,
         )
 
     if args.command_name == "data":
@@ -146,8 +150,7 @@ def execute(args: argparse.Namespace) -> int:
         else:
             seal = validate_data_seal(args.seal)
             print(
-                f"data seal valid: {len(seal['files'])} files, "
-                f"aggregate={seal['aggregate_sha256']}"
+                f"data seal valid: {len(seal['files'])} files, aggregate={seal['aggregate_sha256']}"
             )
         return 0
 
@@ -155,7 +158,11 @@ def execute(args: argparse.Namespace) -> int:
         return _execute_strategy(args)
 
     if args.command_name == "backtest":
-        return execute_research_backtest(
+        if args.fallback_timeout is not None and args.fallback_timeout <= 0:
+            raise NfiBacktestError("--fallback-timeout must be positive")
+        if args.prepare_only and args.fallback == "official":
+            raise NfiBacktestError("--fallback official cannot be combined with --prepare-only")
+        native_status = execute_research_backtest(
             {
                 "strategy_path": args.source,
                 "class_name": args.class_name,
@@ -177,7 +184,29 @@ def execute(args: argparse.Namespace) -> int:
             recalibrate=args.recalibrate,
             history_coverage_policy=args.history_coverage,
             full_report=args.full_report,
+            print_summary=False,
         )
+        from ..result_report import format_terminal_summary, load_result_summary
+        from ..user_flow import finish_official_fallback
+
+        final_status = finish_official_fallback(
+            args.output_dir,
+            ledger_path=args.registry.parent / "verification-ledger.sqlite",
+            native_status=native_status,
+            fallback_policy=args.fallback,
+            timeout_seconds=args.fallback_timeout,
+            interactive=sys.stdin.isatty(),
+            registry_path=args.registry,
+        )
+        if (args.output_dir / "summary.json").is_file():
+            print(
+                format_terminal_summary(
+                    load_result_summary(args.output_dir),
+                    args.output_dir,
+                    include_breakdowns=args.full_report,
+                )
+            )
+        return final_status
 
     if args.command_name == "batch":
         from ..batch_runner import run_batch
@@ -261,6 +290,106 @@ def _execute_strategy(args: argparse.Namespace) -> int:
                 f"outcome={'success' if report['native_compatible'] else 'failure'}"
             )
         return 0 if report["native_compatible"] else 1
+    if args.strategy_command == "diff":
+        from ..strategy_diff import diff_strategies
+
+        report = diff_strategies(
+            args.old_source,
+            args.new_source,
+            class_name=args.class_name,
+            output_path=args.output,
+        )
+        changes = report["changes"]
+        callbacks = changes["callbacks"]
+        callback_change_count = sum(
+            len(callbacks[key]) for key in ("added", "removed", "changed")
+        )
+        print(
+            "strategy diff: "
+            f"classification={report['classification']}, "
+            f"callbacks={callback_change_count}, "
+            f"signals=+{len(changes['signals']['added'])}/-{len(changes['signals']['removed'])}, "
+            f"state_keys=+{len(changes['custom_state_keys']['added'])}/"
+            f"-{len(changes['custom_state_keys']['removed'])}"
+        )
+        if args.output:
+            print(f"strategy diff report: {args.output}")
+        return 0
+    if args.strategy_command == "qualify":
+        from ..compatibility_qualification import qualify_compatibility
+
+        report = qualify_compatibility(
+            args.compatibility_report,
+            args.strategy_diff,
+            branch_proof=args.branch_proof,
+            output_path=args.output,
+        )
+        print(
+            "strategy qualification: "
+            f"state={report['verification_state']}, "
+            f"changed_branch_reached={report['changed_branch_reached']}, "
+            f"full_state_exact={report['full_state_exact']}"
+        )
+        return 0 if report["verification_state"] == "quick_verified" else 1
+    if args.strategy_command == "verify-targeted":
+        from ..targeted_verification import verify_targeted_strategy
+
+        if args.timeout <= 0:
+            raise NfiBacktestError("--timeout must be positive")
+        report = verify_targeted_strategy(
+            args.source,
+            args.strategy_diff,
+            args.compatibility_report,
+            args.fixtures_root,
+            args.output_dir,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            timeout_seconds=args.timeout,
+            workers=args.workers,
+        )
+        print(
+            "targeted strategy verification: "
+            f"state={report['verification_state']}, "
+            f"fixtures={report['plan']['selected_fixture_count']}, "
+            f"missing_targets={report['plan']['missing_target_count']} -> "
+            f"{args.output_dir / 'run.json'}"
+        )
+        return 0 if report["complete"] else 1
+    if args.strategy_command == "state-machine":
+        from ..state_machine_ir import compile_state_machine_program
+
+        program = compile_state_machine_program(
+            args.source,
+            class_name=args.class_name,
+        )
+        write_json(args.output, program)
+        print(
+            "state-machine IR: "
+            f"entrypoints={','.join(program['entrypoints']) or 'none'}, "
+            f"opcodes={len(program['opcodes'])}, "
+            f"state_keys={len(program['required_state_keys'])} -> {args.output}"
+        )
+        return 0
+    if args.strategy_command == "shadow-gate":
+        from ..state_machine_shadow import evaluate_state_machine_shadow_gate
+
+        report = evaluate_state_machine_shadow_gate(
+            args.legacy_run,
+            args.candidate_run,
+            legacy_trace=args.legacy_trace,
+            candidate_trace=args.candidate_trace,
+            branch_proof=args.branch_proof,
+            output_path=args.output,
+        )
+        print(
+            "state-machine shadow gate: "
+            f"trade_surface_exact={report['trade_surface_exact']}, "
+            f"full_state_exact={report['full_state_exact']}, "
+            f"promoted={report['promoted']} -> {args.output}"
+        )
+        return 0 if report["promoted"] else 1
     if args.strategy_command == "prepare":
         manifest = prepare_strategy(
             args.source,

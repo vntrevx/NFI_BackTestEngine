@@ -111,7 +111,7 @@ pub struct NfiManagedLongRoute {
 
 /// One repeated cluster in X7's legacy long-grind callback.
 ///
-/// The callback spells out eight nearly identical branches. Keeping the tags
+/// The callback spells out repeated branches. Keeping the tags
 /// and constants typed while evaluating them in source order avoids eight
 /// copies of stake arithmetic without making the order classifier generic.
 #[derive(Debug, Clone, Deserialize)]
@@ -140,7 +140,7 @@ pub struct NfiLegacyGrindConstants {
     pub clusters: Vec<NfiLegacyGrindCluster>,
 }
 
-/// One ``g1`` through ``g6`` cluster in tag 121's regular-mode prelude.
+/// One source-extracted cluster in tag 121's regular-mode prelude.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NfiRegularGrind {

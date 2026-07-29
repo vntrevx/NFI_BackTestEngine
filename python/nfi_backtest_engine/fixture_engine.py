@@ -41,8 +41,12 @@ def run_fixture_engine(
         manifest_file,
         validate_trace_semantics=False,
     )
-    if manifest["schema_version"] == "3.0.0":
-        return _run_x7_fixture_engine(
+    if (
+        manifest["schema_version"] == "3.0.0"
+        or manifest["freqtrade"]["strategy"]
+        not in {"ContractStopsOnly", "ContractNormalRouting"}
+    ):
+        return _run_research_fixture_engine(
             manifest_file,
             manifest,
             output_directory=output_directory,
@@ -187,7 +191,7 @@ def run_fixture_engine(
     return report
 
 
-def _run_x7_fixture_engine(
+def _run_research_fixture_engine(
     manifest_file: Path,
     manifest: dict[str, Any],
     *,
@@ -196,7 +200,7 @@ def _run_x7_fixture_engine(
     timeout_seconds: int | None,
     verification_level: VerificationLevel,
 ) -> dict[str, Any]:
-    """Execute a branch-reaching X7 fixture through the real research pipeline."""
+    """Execute a compiled fixture through the real research pipeline."""
     from .research_runner import run_research_backtest
 
     output = Path(output_directory).resolve()
@@ -287,7 +291,11 @@ def _run_x7_fixture_engine(
             },
         }
     parity_equal = trade_equal and state_parity["equal"] is not False
-    coverage = validate_fixture_coverage(manifest_file, manifest)
+    coverage = (
+        validate_fixture_coverage(manifest_file, manifest)
+        if manifest["schema_version"] == "3.0.0"
+        else None
+    )
     report = {
         "schema_version": "1.1.0",
         "fixture_id": manifest["fixture_id"],
@@ -326,7 +334,7 @@ def _run_x7_fixture_engine(
                 else None
             ),
         },
-        "complete": parity_equal and coverage["met"],
+        "complete": parity_equal and (coverage is None or coverage["met"]),
     }
     write_json(output / "run.json", report)
     return report

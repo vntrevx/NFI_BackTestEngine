@@ -76,7 +76,27 @@ def _add_full_report_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--full-report",
         action="store_true",
-        help="append complete pair, entry-tag, and exit-reason tables to terminal output",
+        help=(
+            "append complete pair, entry-tag, Signal-tag, Grind-level, "
+            "and exit-reason tables to terminal output"
+        ),
+    )
+
+
+def _add_fallback_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--fallback",
+        choices=("ask", "official", "disabled"),
+        default="ask",
+        help=(
+            "when Native safely blocks: ask interactively, run pinned official "
+            "Freqtrade, or remain blocked (default: ask)"
+        ),
+    )
+    parser.add_argument(
+        "--fallback-timeout",
+        type=int,
+        help="optional timeout for an official fallback in seconds",
     )
 
 
@@ -480,6 +500,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="optional timeout for the consented official verification in seconds",
     )
+    _add_fallback_arguments(run)
     run.add_argument(
         "--open-report",
         action=argparse.BooleanOptionalAction,
@@ -621,6 +642,70 @@ def build_parser() -> argparse.ArgumentParser:
         "--strategy-version",
         help="upstream strategy version recorded with the checked source",
     )
+    strategy_diff = strategy_commands.add_parser(
+        "diff",
+        help="classify AST/IR-relevant changes between two strategy revisions",
+    )
+    strategy_diff.add_argument("old_source", type=Path)
+    strategy_diff.add_argument("new_source", type=Path)
+    strategy_diff.add_argument("--class", dest="class_name")
+    strategy_diff.add_argument("--output", "-o", type=Path)
+    strategy_qualify = strategy_commands.add_parser(
+        "qualify",
+        help="gate latest_checked to quick_verified with a branch-reaching proof",
+    )
+    strategy_qualify.add_argument("compatibility_report", type=Path)
+    strategy_qualify.add_argument("strategy_diff", type=Path)
+    strategy_qualify.add_argument("--branch-proof", type=Path)
+    strategy_qualify.add_argument("--output", "-o", type=Path)
+    strategy_verify_targeted = strategy_commands.add_parser(
+        "verify-targeted",
+        help="run branch-reaching official and Native exact checks for changed behavior",
+    )
+    strategy_verify_targeted.add_argument("source", type=Path)
+    strategy_verify_targeted.add_argument("strategy_diff", type=Path)
+    strategy_verify_targeted.add_argument("compatibility_report", type=Path)
+    strategy_verify_targeted.add_argument("--class", dest="class_name", required=True)
+    strategy_verify_targeted.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        required=True,
+    )
+    strategy_verify_targeted.add_argument(
+        "--fixtures-root",
+        type=Path,
+        default=Path("benchmarks/fixtures/captured"),
+    )
+    strategy_verify_targeted.add_argument("--upstream-repository", required=True)
+    strategy_verify_targeted.add_argument("--upstream-commit", required=True)
+    strategy_verify_targeted.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+    )
+    strategy_verify_targeted.add_argument("--workers", type=int)
+    strategy_verify_targeted.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
+    )
+    strategy_state_machine = strategy_commands.add_parser(
+        "state-machine",
+        help="compile bounded stateful callbacks into generic VM IR",
+    )
+    strategy_state_machine.add_argument("source", type=Path)
+    strategy_state_machine.add_argument("--class", dest="class_name")
+    strategy_state_machine.add_argument("--output", "-o", type=Path, required=True)
+    strategy_shadow_gate = strategy_commands.add_parser(
+        "shadow-gate",
+        help="compare independent legacy and generic state-machine executions",
+    )
+    strategy_shadow_gate.add_argument("legacy_run", type=Path)
+    strategy_shadow_gate.add_argument("candidate_run", type=Path)
+    strategy_shadow_gate.add_argument("--legacy-trace", type=Path, required=True)
+    strategy_shadow_gate.add_argument("--candidate-trace", type=Path, required=True)
+    strategy_shadow_gate.add_argument("--branch-proof", type=Path, required=True)
+    strategy_shadow_gate.add_argument("--output", "-o", type=Path, required=True)
     strategy_prepare = strategy_commands.add_parser(
         "prepare", help="create a hash-bound, static-safe strategy bundle"
     )
@@ -705,6 +790,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="available",
         help="accept post-listing starts or require every pair at the range start",
     )
+    _add_fallback_arguments(backtest)
     _add_full_report_argument(backtest)
 
     confirm = subcommands.add_parser(

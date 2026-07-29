@@ -21,6 +21,7 @@ STRATEGY_STATES = ("latest_checked", "quick_verified", "release_certified")
 RUN_STATES = (
     "prepared",
     "native_complete",
+    "official_complete",
     "quick_verified",
     "release_certified",
     "blocked_unsupported_semantics",
@@ -319,13 +320,16 @@ class VerificationLedger:
             "latest_checked": _latest_matching(strategies, lambda _record: True),
             "quick_verified": _latest_matching(
                 strategies,
-                lambda record: record["outcome"] == "success"
-                and _STRATEGY_SUCCESS_RANK.get(record["state"], 0) >= 2,
+                lambda record: (
+                    record["outcome"] == "success"
+                    and _STRATEGY_SUCCESS_RANK.get(record["state"], 0) >= 2
+                ),
             ),
             "release_certified": _latest_matching(
                 strategies,
-                lambda record: record["outcome"] == "success"
-                and record["state"] == "release_certified",
+                lambda record: (
+                    record["outcome"] == "success" and record["state"] == "release_certified"
+                ),
             ),
         }
         run_groups: dict[str, list[dict[str, Any]]] = {}
@@ -351,6 +355,13 @@ class VerificationLedger:
                         successful,
                         lambda record, rank=highest_rank: (
                             _RUN_SUCCESS_RANK[record["state"]] == rank
+                        ),
+                    ),
+                    "official_complete": _latest_matching(
+                        run_records,
+                        lambda record: (
+                            record["outcome"] == "success"
+                            and record["state"] == "official_complete"
                         ),
                     ),
                     "latest_failure": _latest_matching(
@@ -450,11 +461,11 @@ class VerificationLedger:
             return
         subject = record["subject"]
         rank_table = (
-            _STRATEGY_SUCCESS_RANK
-            if subject["kind"] == "strategy_revision"
-            else _RUN_SUCCESS_RANK
+            _STRATEGY_SUCCESS_RANK if subject["kind"] == "strategy_revision" else _RUN_SUCCESS_RANK
         )
         proposed_rank = rank_table.get(record["state"])
+        if subject["kind"] == "run" and record["state"] == "official_complete":
+            return
         if proposed_rank is None:
             raise BenchmarkError(
                 f"failure-only verification state cannot succeed: {record['state']}"
@@ -514,9 +525,7 @@ def _validate_record(record: dict[str, Any]) -> None:
     validate_verification_ledger_record(record)
     fingerprint_sha256 = _canonical_sha256(record["fingerprint"])
     if record["fingerprint_sha256"] != fingerprint_sha256:
-        raise SpecValidationError(
-            "$.fingerprint_sha256: does not match the canonical fingerprint"
-        )
+        raise SpecValidationError("$.fingerprint_sha256: does not match the canonical fingerprint")
     event_payload = {key: value for key, value in record.items() if key != "event_id"}
     if record["event_id"] != _canonical_sha256(event_payload):
         raise SpecValidationError("$.event_id: does not match the canonical record")
@@ -618,8 +627,8 @@ def _render_html(projection: Mapping[str, Any]) -> str:
             "</tr>"
         )
     return (
-        "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">"
-        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        '<!doctype html><html lang="en"><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>Verification status</title>"
         "<style>body{font:15px system-ui;margin:2rem;max-width:58rem}"
         "table{border-collapse:collapse;width:100%}th,td{padding:.7rem;"

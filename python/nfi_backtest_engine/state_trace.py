@@ -264,13 +264,23 @@ def read_state_trace(path: str | Path) -> StateTrace:
 
 
 def first_trace_difference(
-    expected_path: str | Path, actual_path: str | Path
+    expected_path: str | Path,
+    actual_path: str | Path,
+    *,
+    compare_input_identity: bool = True,
 ) -> TraceDifference | None:
     """Return the first exact difference using bounded memory."""
     expected = _TraceStream(expected_path)
     actual = _TraceStream(actual_path)
 
-    for field in _COMPARABLE_HEADER_FIELDS:
+    comparable_fields = (
+        _COMPARABLE_HEADER_FIELDS
+        if compare_input_identity
+        else tuple(
+            field for field in _COMPARABLE_HEADER_FIELDS if field != "input_sha256"
+        )
+    )
+    for field in comparable_fields:
         if expected.header[field] != actual.header[field]:
             return TraceDifference(
                 sequence=None,

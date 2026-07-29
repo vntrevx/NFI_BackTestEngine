@@ -31,12 +31,17 @@ pub use io::{
 mod portfolio;
 mod profiling;
 mod scalar_vm;
+mod state_machine_vm;
 mod validation;
 #[cfg(test)]
 use portfolio::TradeSide;
 #[cfg(test)]
 use scalar_vm::evaluate_scalar_program_bundle_from_base;
 pub use scalar_vm::{evaluate_scalar_decision_program, evaluate_scalar_program_bundle};
+pub use state_machine_vm::{
+    evaluate_state_machine, validate_state_machine_program, StateMachineAction,
+    StateMachineContext, StateMachineError,
+};
 mod futures;
 #[cfg(test)]
 use futures::evaluate_nfi_leverage;
@@ -45,8 +50,9 @@ pub use domain::*;
 #[cfg(test)]
 use execution::{
     adjustment_minimum_pair_stake, enter_trade, evaluate_confirm_program,
-    evaluate_exit_confirm_program, evaluate_stake_program, exit_decision, minimum_pair_stake,
-    pair_price_step, ConfirmInputs, EntryRequest, EntryStake, StakeInputs,
+    evaluate_exit_confirm_program, evaluate_stake_program, evaluate_state_machine_adjustment,
+    evaluate_state_machine_exit, exit_decision, minimum_pair_stake, pair_price_step, ConfirmInputs,
+    EntryRequest, EntryStake, StakeInputs,
 };
 #[cfg(test)]
 use validation::nfi_managed_short_route_supports_tags;

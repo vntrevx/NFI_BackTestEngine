@@ -650,6 +650,168 @@ fn compiled_position_adjustment_bundle_adds_a_tagged_entry() {
 }
 
 #[test]
+fn generic_state_machine_emits_dynamic_grind_adjustment_and_exit() {
+    let portfolio = config(1);
+    let pair = PairSeries {
+        pair: "AAA/USDT".to_owned(),
+        execution_start_index: 0,
+        amount_step: None,
+        price_step: None,
+        price_steps: Vec::new(),
+        minimum_stake: None,
+        minimum_amount: None,
+        minimum_cost: None,
+        feature_columns: BTreeMap::new(),
+        candles: vec![candle(1, 100.0, 99.0), candle(2, 90.0, 80.0)].into(),
+    };
+    let signal = EntrySignal {
+        tag: Some("63".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    };
+    let entry_candle = pair.candles.get(0).expect("entry candle");
+    let mut trade = enter_trade(
+        EntryRequest {
+            pair_index: 0,
+            pair: &pair,
+            candle: &entry_candle,
+            side: TradeSide::Long,
+            signal: &signal,
+            stake: EntryStake {
+                proposed: 100.0,
+                maximum: 1_000.0,
+            },
+            open_trades: &[],
+            id: 1,
+            order_id: 1,
+        },
+        &portfolio,
+    )
+    .expect("valid entry")
+    .expect("sized entry");
+    let program: StateMachineProgram = serde_json::from_value(serde_json::json!({
+        "schema_version": "state-machine-program-v1",
+        "entrypoints": {
+            "adjust_trade_position": {
+                "max_steps": 8,
+                "instructions": [{
+                    "opcode": "action",
+                    "id": "i1",
+                    "kind": "add_entry",
+                    "stake": {"kind": "literal", "value": 25.0},
+                    "tag": {"kind": "literal", "value": "grind_12_entry"}
+                }]
+            },
+            "custom_exit": {
+                "max_steps": 8,
+                "instructions": [{
+                    "opcode": "action",
+                    "id": "i2",
+                    "kind": "exit",
+                    "stake": null,
+                    "tag": {"kind": "literal", "value": "signal_63_exit"}
+                }]
+            }
+        },
+        "required_reads": [],
+        "required_columns": [],
+        "required_state_keys": [],
+        "opcodes": ["action"],
+        "source_map": {
+            "i1": {"path": "strategy.py", "line": 1, "column": 0, "end_line": 1, "end_column": 1},
+            "i2": {"path": "strategy.py", "line": 2, "column": 0, "end_line": 2, "end_column": 1}
+        }
+    }))
+    .expect("valid generic state machine");
+    let callback_candle = pair.candles.get(1).expect("callback candle");
+
+    let adjustment = evaluate_state_machine_adjustment(
+        &program,
+        &mut trade,
+        &pair,
+        1,
+        &callback_candle,
+        &portfolio,
+        500.0,
+    )
+    .expect("valid state-machine adjustment")
+    .expect("adjustment exists");
+    let exit =
+        evaluate_state_machine_exit(&program, &mut trade, &pair, 1, &callback_candle, &portfolio)
+            .expect("valid state-machine exit");
+
+    assert_eq!(adjustment.stake_amount, 25.0);
+    assert_eq!(adjustment.tag, "grind_12_entry");
+    assert_eq!(exit.as_deref(), Some("signal_63_exit"));
+}
+
+#[test]
+fn generic_state_machine_adjusts_on_the_entry_candle() {
+    let mut portfolio = config(1);
+    portfolio.stoploss_ratio = -0.99;
+    portfolio.state_machine_program = Some(
+        serde_json::from_value(serde_json::json!({
+            "schema_version": "state-machine-program-v1",
+            "entrypoints": {
+                "adjust_trade_position": {
+                    "max_steps": 8,
+                    "instructions": [{
+                        "opcode": "action",
+                        "id": "i1",
+                        "kind": "add_entry",
+                        "stake": {"kind": "literal", "value": 25.0},
+                        "tag": {"kind": "literal", "value": "same_candle_grind"}
+                    }]
+                }
+            },
+            "required_reads": [],
+            "required_columns": [],
+            "required_state_keys": [],
+            "opcodes": ["action"],
+            "source_map": {
+                "i1": {
+                    "path": "strategy.py",
+                    "line": 1,
+                    "column": 0,
+                    "end_line": 1,
+                    "end_column": 1
+                }
+            }
+        }))
+        .expect("valid generic state machine"),
+    );
+    let mut entry = candle(2, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("entry".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: portfolio,
+        pairs: vec![PairSeries {
+            pair: "AAA/USDT".to_owned(),
+            execution_start_index: 1,
+            amount_step: None,
+            price_step: None,
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: vec![candle(1, 100.0, 100.0), entry, candle(3, 100.0, 100.0)].into(),
+        }],
+    };
+
+    let result = simulate(&input).expect("valid same-candle generic adjustment");
+    let trade = &result.trades[0];
+
+    assert_eq!(trade.orders[0].filled_timestamp_ms, 2);
+    assert_eq!(trade.orders[1].filled_timestamp_ms, 2);
+    assert_eq!(trade.orders[1].tag.as_deref(), Some("same_candle_grind"));
+}
+
+#[test]
 fn position_adjustment_receives_tradable_balance_limited_max_stake() {
     let mut portfolio = config(1);
     portfolio.starting_balance = 1_000.0;

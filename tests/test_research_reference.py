@@ -122,7 +122,7 @@ def test_callback_audit_timestamps_are_sorted_unique_and_nonnegative() -> None:
     assert _validate_audit_timestamps([30, 10, 30]) == [10, 30]
     with pytest.raises(BenchmarkError, match="non-negative"):
         _validate_audit_timestamps([-1])
-    assert RESEARCH_REFERENCE_VERSION == "1.3.0"
+    assert RESEARCH_REFERENCE_VERSION == "1.4.0"
 
 
 def test_research_reference_can_retain_the_in_memory_diagnostic_baseline(

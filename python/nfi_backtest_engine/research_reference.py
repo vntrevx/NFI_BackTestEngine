@@ -1,4 +1,4 @@
-"""Official Freqtrade verification for a completed research run."""
+"""Official Freqtrade execution for verification and fail-closed fallback."""
 
 from __future__ import annotations
 
@@ -31,7 +31,8 @@ from .reference_runtime import (
     ensure_reference_image,
 )
 
-RESEARCH_REFERENCE_VERSION = "1.3.0"
+RESEARCH_REFERENCE_VERSION = "1.4.0"
+REFERENCE_PURPOSES = frozenset({"verification", "fallback"})
 
 _RESOURCE_CAPTURE_SCRIPT = """\
 freqtrade "$@"
@@ -75,14 +76,28 @@ def run_research_reference(
     reference_storage_mode: str = "spooled",
     swap_cap_bytes: int | None = None,
     trace_identity: dict[str, Any] | None = None,
+    purpose: str = "verification",
 ) -> dict[str, Any]:
-    """Run the pinned oracle against the exact inputs of one completed run."""
-    root, run, inputs = _load_completed_run(run_directory)
+    """Run the pinned oracle against the exact sealed inputs of one run.
+
+    Verification compares a completed Native trade surface. Fallback accepts only
+    a durable Native unsupported-semantics result and intentionally makes no
+    parity claim.
+    """
+    if purpose not in REFERENCE_PURPOSES:
+        raise BenchmarkError("official research purpose must be 'verification' or 'fallback'")
+    root, run, inputs = _load_research_run(run_directory, purpose=purpose)
     output = Path(output_directory).resolve()
     _initialize_output(output)
     input_directory = output / "inputs"
     input_directory.mkdir()
-    materialized = _materialize_reference_inputs(root, run, inputs, input_directory)
+    materialized = _materialize_reference_inputs(
+        root,
+        run,
+        inputs,
+        input_directory,
+        require_engine_surface=purpose == "verification",
+    )
 
     snapshot_path = output / "reference-markets.json"
     if market_snapshot_path is not None:
@@ -180,7 +195,13 @@ def run_research_reference(
         except OSError as exc:
             raise BenchmarkError(f"cannot execute Docker: {exc}") from exc
 
-    result_zip = _single_result_zip(output) if exit_code == 0 else None
+    result_zip = None
+    result_error = None
+    if exit_code == 0:
+        try:
+            result_zip = _single_result_zip(output)
+        except BenchmarkError as exc:
+            result_error = str(exc)
     official_surface_path = output / "official-trade-surface.json"
     difference = None
     if result_zip is not None:
@@ -190,7 +211,11 @@ def run_research_reference(
             strategy=materialized["strategy"],
             surface_version="2",
         )
-        difference = first_difference(materialized["engine_surface"], official_surface)
+        if purpose == "verification":
+            difference = first_difference(
+                materialized["engine_surface"],
+                official_surface,
+            )
 
     memory_peak = _read_nonnegative_integer(output / "container-memory-peak.txt")
     memory_events = _read_integer_record(output / "container-memory.events")
@@ -212,16 +237,22 @@ def run_research_reference(
         and storage_metrics.get("mode") == "spooled"
         and storage_metrics.get("removed_on_exit") is True
     )
-    complete = (
+    execution_complete = (
         exit_code == 0
-        and difference is None
         and (not audit_timestamps or audit_path.is_file())
         and (validated_trace_identity is None or trace_path.is_file())
         and storage_complete
     )
+    complete = execution_complete and (purpose == "fallback" or difference is None)
+    exact_parity = (
+        (difference is None if result_zip is not None else False)
+        if purpose == "verification"
+        else None
+    )
     report = {
         "schema_version": RESEARCH_REFERENCE_VERSION,
         "run_id": run["run_id"],
+        "purpose": purpose,
         "reference": {
             "version": REFERENCE_VERSION,
             "image": REFERENCE_IMAGE,
@@ -235,16 +266,21 @@ def run_research_reference(
         "wall_time_seconds": (time.perf_counter_ns() - started_ns) / 1_000_000_000,
         "exit_code": exit_code,
         "timed_out": timed_out,
+        "error": result_error,
         "complete": complete,
-        "exact_parity": difference is None if result_zip is not None else False,
-        "difference": _difference_record(difference),
+        "exact_parity": exact_parity,
+        "difference": (_difference_record(difference) if purpose == "verification" else None),
         "inputs": {
             "strategy": _file_record(input_directory / "strategy.py"),
             "config": _file_record(input_directory / "config.json"),
             "market_config": _file_record(input_directory / "market-config.json"),
             "market_snapshot": _file_record(snapshot_path),
             "data_seal": _file_record(root / "data-seal.json"),
-            "engine_trade_surface": _file_record(materialized["engine_surface_path"]),
+            "engine_trade_surface": (
+                _file_record(materialized["engine_surface_path"])
+                if materialized["engine_surface_path"] is not None
+                else None
+            ),
         },
         "result": _file_record(result_zip) if result_zip is not None else None,
         "official_trade_surface": (
@@ -516,16 +552,29 @@ def _validate_trace_identity(
     return {field: str(identity[field]) for field in sorted(required)}
 
 
-def _load_completed_run(
+def _load_research_run(
     run_directory: str | Path,
+    *,
+    purpose: str,
 ) -> tuple[Path, dict[str, Any], dict[str, Any]]:
     root = Path(run_directory).resolve()
     run_path = root / "run.json"
     if not run_path.is_file():
         raise BenchmarkError(f"research run.json does not exist: {run_path}")
     run = read_json(run_path)
-    if run.get("status") != "complete" or not isinstance(run.get("result"), dict):
-        raise BenchmarkError("only a complete research run can use the official reference")
+    if purpose == "verification":
+        if run.get("status") != "complete" or not isinstance(run.get("result"), dict):
+            raise BenchmarkError("only a complete research run can use official verification")
+    elif (
+        run.get("status") != "blocked_unsupported_semantics"
+        or run.get("complete") is not False
+        or not isinstance(run.get("capability"), dict)
+        or not isinstance(run["capability"].get("blockers"), list)
+        or not run["capability"]["blockers"]
+    ):
+        raise BenchmarkError(
+            "official fallback requires a durable unsupported-semantics Native result"
+        )
     inputs = run.get("inputs")
     if not isinstance(inputs, dict):
         raise BenchmarkError("research run has no sealed input identity")
@@ -538,6 +587,8 @@ def _materialize_reference_inputs(
     run: dict[str, Any],
     inputs: dict[str, Any],
     destination: Path,
+    *,
+    require_engine_surface: bool,
 ) -> dict[str, Any]:
     strategy_record = inputs.get("strategy")
     config_record = inputs.get("config")
@@ -595,17 +646,21 @@ def _materialize_reference_inputs(
     ):
         raise BenchmarkError("research pairlists are invalid")
 
-    result = run["result"]
-    surface_record = result.get("trade_surface")
-    if not isinstance(surface_record, dict) or not isinstance(surface_record.get("path"), str):
-        raise BenchmarkError("research run has no engine trade surface")
-    engine_surface_path = Path(surface_record["path"]).resolve()
-    if (
-        not engine_surface_path.is_relative_to(root)
-        or not engine_surface_path.is_file()
-        or sha256_file(engine_surface_path) != surface_record.get("sha256")
-    ):
-        raise BenchmarkError("research engine trade surface failed its hash binding")
+    engine_surface_path = None
+    engine_surface = None
+    if require_engine_surface:
+        result = run["result"]
+        surface_record = result.get("trade_surface")
+        if not isinstance(surface_record, dict) or not isinstance(surface_record.get("path"), str):
+            raise BenchmarkError("research run has no engine trade surface")
+        engine_surface_path = Path(surface_record["path"]).resolve()
+        if (
+            not engine_surface_path.is_relative_to(root)
+            or not engine_surface_path.is_file()
+            or sha256_file(engine_surface_path) != surface_record.get("sha256")
+        ):
+            raise BenchmarkError("research engine trade surface failed its hash binding")
+        engine_surface = read_json(engine_surface_path)
     data_directory = Path(str(inputs.get("data_directory", ""))).resolve()
     if not data_directory.is_dir():
         raise BenchmarkError(f"research data directory does not exist: {data_directory}")
@@ -633,7 +688,7 @@ def _materialize_reference_inputs(
         "trading_mode": trading_mode,
         "data_directory": data_directory,
         "engine_surface_path": engine_surface_path,
-        "engine_surface": read_json(engine_surface_path),
+        "engine_surface": engine_surface,
     }
 
 

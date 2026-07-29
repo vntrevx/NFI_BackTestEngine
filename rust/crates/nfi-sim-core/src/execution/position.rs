@@ -75,7 +75,7 @@ pub(crate) fn apply_adjustment(
     })?;
     reapply_inclusive_funding_after_entry_fill(trade, candle, config.funding_fee_interval_ms);
     trade.adjustment_count += 1;
-    apply_order_filled(trade, Some(&adjustment.tag), config);
+    apply_order_filled(trade, Some(&adjustment.tag), config)?;
     update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
     Ok(())
 }
@@ -156,7 +156,7 @@ pub(crate) fn apply_partial_exit(
         })?
     };
     trade.adjustment_count += 1;
-    apply_order_filled(trade, Some(&adjustment.tag), config);
+    apply_order_filled(trade, Some(&adjustment.tag), config)?;
     Ok(())
 }
 

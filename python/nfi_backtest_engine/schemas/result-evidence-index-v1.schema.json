@@ -65,7 +65,11 @@
             "trades_csv",
             "orders_csv",
             "equity_csv",
-            "verification"
+            "verification",
+            "state_machine_ir",
+            "selected_result",
+            "official_fallback_report",
+            "official_trade_surface"
           ]
         },
         "provenance": {

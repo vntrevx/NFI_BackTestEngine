@@ -36,6 +36,8 @@ pub enum SimError {
     InvalidLiquidationPrice { pair: String, timestamp_ms: i64 },
     #[error("callback program contains an invalid key, tag, or value")]
     InvalidCallbackProgram,
+    #[error("generic state-machine program or runtime value is invalid")]
+    InvalidStateMachineProgram,
     #[error("compiled custom stake program is invalid for {pair:?} at {timestamp_ms}")]
     InvalidStakeProgram { pair: String, timestamp_ms: i64 },
     #[error("compiled entry confirmation program is invalid for {pair:?} at {timestamp_ms}")]

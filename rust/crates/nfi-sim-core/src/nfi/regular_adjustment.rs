@@ -1,7 +1,7 @@
 //! Exact backtest regular-mode adjustment used by NFI X7 tag 121.
 //!
 //! X7 sends tag 121 through `long_adjust_trade_position_no_derisk()` before
-//! the legacy grind callback. The source rebuilds one rebuy bucket and six
+//! the legacy grind callback. The source rebuilds one rebuy bucket and its
 //! grind clusters from filled orders on every candle. This module preserves
 //! that newest-to-oldest order walk and the callback's early-return order.
 
@@ -21,8 +21,6 @@ use crate::scalar_vm::{evaluate_scalar_program_bundle, number_value, scalar_trut
 
 use super::dispatch::nfi_long_grind_supports_trade;
 use super::state::nfi_profit_snapshot;
-
-const REGULAR_GRIND_COUNT: usize = 6;
 
 /// The regular helper either returns from the outer callback or deliberately
 /// transfers a de-risked trade to the legacy continuation below it.
@@ -68,7 +66,7 @@ impl RegularCluster {
 #[derive(Debug)]
 struct RegularState {
     rebuy: RegularCluster,
-    grinds: [RegularCluster; REGULAR_GRIND_COUNT],
+    grinds: Vec<RegularCluster>,
     is_derisk: bool,
     is_derisk_1: bool,
     first_entry_cost: f64,
@@ -103,7 +101,7 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
     let constants = route.regular_constants.as_ref()?;
     let program = route.regular_decision_program.as_deref()?;
     let minimum_stake = regular_adjustment_minimum_stake(pair, candle, config)?;
-    let state = rebuild_regular_state(trade, candle.open)?;
+    let state = rebuild_regular_state(trade, candle.open, constants)?;
 
     // The helper returns this flag to `long_grind_adjust_trade_position()`.
     // Only this outcome continues into the legacy post-de-risk clusters.
@@ -379,24 +377,29 @@ fn evaluate_grind(
     Some(BranchOutcome::Continue)
 }
 
-fn rebuild_regular_state(trade: &OpenTrade, rate: f64) -> Option<RegularState> {
+fn rebuild_regular_state(
+    trade: &OpenTrade,
+    rate: f64,
+    constants: &NfiRegularAdjustmentConstants,
+) -> Option<RegularState> {
     let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
     let latest_order = trade.orders.last()?;
     let mut rebuy = RegularCluster::default();
-    let mut grinds: [RegularCluster; REGULAR_GRIND_COUNT] =
-        std::array::from_fn(|_| RegularCluster::default());
+    let mut grinds = (0..constants.grinds.len())
+        .map(|_| RegularCluster::default())
+        .collect::<Vec<_>>();
     let mut rebuy_closed = false;
-    let mut grind_closed = [false; REGULAR_GRIND_COUNT];
+    let mut grind_closed = vec![false; constants.grinds.len()];
     let mut is_derisk = false;
     let mut is_derisk_1 = false;
 
     for order in trade.orders.iter().rev() {
         let full_tag = order.tag.as_deref().unwrap_or("");
         if order.is_entry && order.id != first_entry.id {
-            if let Some(index) = regular_grind_entry_index(full_tag) {
-                if !grind_closed[index] {
-                    grinds[index].add_entry(order);
+            if let Some(index) = regular_grind_entry_index(full_tag, &constants.grinds) {
+                if !grind_closed.get(index).copied()? {
+                    grinds.get_mut(index)?.add_entry(order);
                 }
             } else if !rebuy_closed && !regular_rebuy_entry_excluded(full_tag) {
                 rebuy.add_entry(order);
@@ -408,8 +411,8 @@ fn rebuild_regular_state(trade: &OpenTrade, rate: f64) -> Option<RegularState> {
         }
 
         let head = full_tag.split_whitespace().next().unwrap_or("");
-        if let Some(index) = regular_grind_exit_index(head) {
-            grind_closed[index] = true;
+        if let Some(index) = regular_grind_exit_index(head, &constants.grinds) {
+            *grind_closed.get_mut(index)? = true;
         } else if regular_derisk_exit(head) {
             is_derisk = true;
             is_derisk_1 |= head == "d1";
@@ -598,90 +601,38 @@ fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
     })
 }
 
-fn regular_grind_entry_index(tag: &str) -> Option<usize> {
-    match tag {
-        "g1" => Some(0),
-        "g2" => Some(1),
-        "g3" => Some(2),
-        "g4" => Some(3),
-        "g5" => Some(4),
-        "g6" => Some(5),
-        _ => None,
-    }
+fn regular_grind_entry_index(tag: &str, grinds: &[NfiRegularGrind]) -> Option<usize> {
+    grinds.iter().position(|grind| grind.entry_tag == tag)
 }
 
-fn regular_grind_exit_index(tag: &str) -> Option<usize> {
-    match tag {
-        "g1" | "sg1" => Some(0),
-        "g2" | "sg2" => Some(1),
-        "g3" | "sg3" => Some(2),
-        "g4" | "sg4" => Some(3),
-        "g5" | "sg5" => Some(4),
-        "g6" | "sg6" => Some(5),
-        _ => None,
-    }
+fn regular_grind_exit_index(tag: &str, grinds: &[NfiRegularGrind]) -> Option<usize> {
+    grinds
+        .iter()
+        .position(|grind| grind.entry_tag == tag || grind.stop_tag == tag)
 }
 
 fn regular_derisk_exit(tag: &str) -> bool {
-    matches!(
-        tag,
-        "d" | "d1" | "dd0" | "ddl1" | "ddl2" | "dd1" | "dd2" | "dd3" | "dd4" | "dd5" | "dd6"
-    )
+    matches!(tag, "d" | "d1" | "dd0")
+        || structured_level_tag(tag, "dd").is_some()
+        || structured_level_tag(tag, "ddl").is_some()
 }
 
 fn regular_rebuy_entry_excluded(tag: &str) -> bool {
-    matches!(
-        tag,
-        "g1" | "g2"
-            | "g3"
-            | "g4"
-            | "g5"
-            | "g6"
-            | "sg1"
-            | "sg2"
-            | "sg3"
-            | "sg4"
-            | "sg5"
-            | "sg6"
-            | "dl1"
-            | "dl2"
-            | "gd1"
-            | "gd2"
-            | "gd3"
-            | "gd4"
-            | "gd5"
-            | "gd6"
-            | "gm0"
-            | "gmd0"
-    )
+    matches!(tag, "gm0" | "gmd0")
+        || ["g", "sg", "dl", "gd"]
+            .iter()
+            .any(|prefix| structured_level_tag(tag, prefix).is_some())
 }
 
 fn regular_rebuy_exit_excluded(tag: &str) -> bool {
-    matches!(
-        tag,
-        "p" | "g1"
-            | "g2"
-            | "g3"
-            | "g4"
-            | "g5"
-            | "g6"
-            | "sg1"
-            | "sg2"
-            | "sg3"
-            | "sg4"
-            | "sg5"
-            | "sg6"
-            | "dl1"
-            | "dl2"
-            | "gd1"
-            | "gd2"
-            | "gd3"
-            | "gd4"
-            | "gd5"
-            | "gd6"
-            | "gm0"
-            | "gmd0"
-    )
+    tag == "p" || regular_rebuy_entry_excluded(tag)
+}
+
+fn structured_level_tag(tag: &str, prefix: &str) -> Option<usize> {
+    let suffix = tag.strip_prefix(prefix)?;
+    (!suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_digit()))
+        .then(|| suffix.parse::<usize>().ok())
+        .flatten()
 }
 
 fn price_distance(rate: f64, reference: f64) -> Option<f64> {
