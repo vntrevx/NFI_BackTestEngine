@@ -23,7 +23,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated.
 | Latest public release | [v1.1.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.1.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.2.0 candidate validated at `d920d95`; not published as a combined certified release |
+| Current `main` | v1.2.0 source candidate validated by Required CI; not published as a combined certified release |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
