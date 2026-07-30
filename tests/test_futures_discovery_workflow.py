@@ -13,7 +13,10 @@ def test_fast_lane_exports_identity_for_separate_deep_search() -> None:
     assert ".compatibility/compatibility-identity.json" in text
     assert "--arg upstream_sha" in text
     assert "--arg engine_sha" in text
+    assert "--arg freqtrade_digest" in text
+    assert "--arg baseline_upstream_sha" in text
     assert "--arg source_sha256" in text
+    assert ".compatibility/old.py" in text
 
 
 def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
@@ -25,11 +28,19 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert r"split(\"/\")" not in text
     assert "cancel-in-progress: false" in text
     assert "timeout-minutes: 125" in text
-    assert "planning/futures-discovery-policy.json" in text
+    assert "github.event.workflow_run.conclusion == 'success'" in text
+    assert 'test "${source_run_id}" = "${ledger_run_id}"' in text
+    assert "trading_mode:\n          - spot\n          - futures" in text
+    assert 'strategy discover \\' in text
+    assert '--trading-mode "${MODE}"' in text
+    assert '"planning/${MODE}-discovery-policy.json"' in text
     assert "uv run python scripts/select_discovery_cursor.py" in text
     assert "\n            python scripts/select_discovery_cursor.py" not in text
     assert "--cursor .discovery/previous-cursor.json" in text
-    assert "discovery/latest.json" in text
+    assert "--baseline-source .discovery/input/old.py" in text
+    assert '--baseline-upstream-commit "${baseline_commit}"' in text
+    assert '"discovery/${MODE}/latest.json"' in text
+    assert "${ORACLE_KEY}" in text
     assert "retention-days: 30" in text
 
 
@@ -54,6 +65,17 @@ def test_discovery_semantic_and_infrastructure_issues_are_separate() -> None:
     text = DISCOVERY.read_text(encoding="utf-8")
 
     assert "scripts/futures_discovery_issue.py" in text
-    assert "nfi-futures-discovery" in text
+    assert "nfi-branch-discovery" in text
     assert "scripts/futures_discovery_health_issue.py" in text
-    assert "nfi-futures-discovery-health" in text
+    assert "nfi-branch-discovery-health" in text
+
+
+def test_discovery_binds_checked_freqtrade_and_keeps_modes_independent() -> None:
+    text = DISCOVERY.read_text(encoding="utf-8")
+
+    assert "freqtrade_digest: ${{ steps.identity.outputs.freqtrade_digest }}" in text
+    assert 'test "${freqtrade_digest}" = "${local_digest}"' in text
+    assert ".freqtrade_digest == $freqtrade" in text
+    assert 'name: nfi-branch-discovery-${{ matrix.trading_mode }}' in text
+    assert 'run_path="discovery/${MODE}/checks/' in text
+    assert 'git add "discovery/${MODE}"' in text

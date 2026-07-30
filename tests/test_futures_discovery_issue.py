@@ -16,6 +16,7 @@ SPEC.loader.exec_module(MODULE)
 def _report(status: str) -> dict:
     return {
         "status": status,
+        "trading_mode": "futures",
         "fingerprint": "d" * 64,
         "upstream_commit": "a" * 40,
         "engine_commit": "b" * 40,
@@ -38,7 +39,7 @@ def test_terminal_gap_is_deduplicated_by_target_fingerprint() -> None:
         [
             {
                 "number": 17,
-                "body": f"<!-- nfi-futures-discovery:{fingerprint} -->",
+                "body": f"<!-- nfi-branch-discovery:futures:{fingerprint} -->",
             }
         ],
         run_url="https://example.invalid/2",
@@ -54,7 +55,11 @@ def test_budget_resume_does_not_create_an_issue_and_recovery_closes_old_gap() ->
         [
             {
                 "number": 18,
-                "body": "<!-- nfi-futures-discovery:" + "e" * 64 + " -->",
+                "body": (
+                    "<!-- nfi-branch-discovery:futures:"
+                    + "e" * 64
+                    + " -->"
+                ),
             }
         ],
         run_url="https://example.invalid/3",
@@ -64,3 +69,25 @@ def test_budget_resume_does_not_create_an_issue_and_recovery_closes_old_gap() ->
     assert plan["create"] is None
     assert plan["close"] == [18]
     assert plan["recovered"] is True
+
+
+def test_spot_reconciliation_does_not_close_a_futures_gap() -> None:
+    report = _report("coverage_exhausted")
+    report["trading_mode"] = "spot"
+    plan = MODULE.build_issue_plan(
+        report,
+        [
+            {
+                "number": 19,
+                "body": (
+                    "<!-- nfi-branch-discovery:futures:"
+                    + "e" * 64
+                    + " -->"
+                ),
+            }
+        ],
+        run_url="https://example.invalid/4",
+    )
+
+    assert plan["create"] is not None
+    assert plan["close"] == []

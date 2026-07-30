@@ -20,6 +20,7 @@ from typing import Any
 from .canonical import read_json, write_json
 from .errors import BenchmarkError, BranchCoverageError, SpecValidationError
 from .fixture import sha256_file
+from .reference.contracts import REFERENCE_INDEX_DIGEST
 from .targeted_verification import plan_targeted_verification
 
 DISCOVERY_POLICY_VERSION = "1.0.0"
@@ -230,6 +231,10 @@ def build_discovery_request(
         _validate_sha(baseline_upstream_commit, "baseline upstream")
     if baseline_source_sha256 is not None:
         _validate_sha256(baseline_source_sha256, "baseline source")
+    if (baseline_upstream_commit is None) != (baseline_source_sha256 is None):
+        raise SpecValidationError(
+            "baseline upstream commit and source digest must be supplied together"
+        )
     plan = plan_targeted_verification(
         difference,
         fixtures_root,
@@ -237,7 +242,18 @@ def build_discovery_request(
     )
     missing = plan["missing_targets"]
     searchable = [target for target in missing if _deep_searchable(target)]
-    unsearchable = [target for target in missing if not _deep_searchable(target)]
+    if (
+        not searchable
+        and baseline_upstream_commit is not None
+        and baseline_source_sha256 is not None
+    ):
+        searchable = [
+            target for target in missing if _baseline_deep_searchable(target)
+        ]
+    searchable_ids = {str(target["id"]) for target in searchable}
+    unsearchable = [
+        target for target in missing if str(target["id"]) not in searchable_ids
+    ]
     shards = search_shards(
         as_of,
         completed_years=policy.completed_years,
@@ -247,6 +263,7 @@ def build_discovery_request(
         "upstream_commit": upstream_commit,
         "baseline_upstream_commit": baseline_upstream_commit,
         "engine_commit": engine_commit,
+        "freqtrade_image_digest": REFERENCE_INDEX_DIGEST,
         "strategy_sha256": difference.get("new", {}).get("sha256"),
         "baseline_strategy_sha256": baseline_source_sha256,
         "trading_mode": policy.trading_mode,
@@ -463,6 +480,7 @@ def discover_targets(
         "upstream_commit": upstream_commit,
         "baseline_upstream_commit": baseline_upstream_commit,
         "engine_commit": engine_commit,
+        "freqtrade_image_digest": REFERENCE_INDEX_DIGEST,
         "strategy_sha256": sha256_file(source_path),
         "policy_sha256": policy.source_sha256,
         "target_count": len(request["missing_targets"]),
@@ -539,6 +557,22 @@ def _report_message(
 def _deep_searchable(target: Mapping[str, Any]) -> bool:
     """Return whether a new runtime surface can independently prove this target."""
     if target.get("change") == "removed" or target.get("runtime_observable") is not True:
+        return False
+    kind = target.get("kind")
+    if kind in {"signal", "tag", "grind_level"}:
+        return True
+    tags = target.get("tags")
+    return isinstance(tags, list) and any(
+        isinstance(tag, str) and tag.strip() for tag in tags
+    )
+
+
+def _baseline_deep_searchable(target: Mapping[str, Any]) -> bool:
+    """Return whether a previous runtime surface can prove a removed target."""
+    if (
+        target.get("change") != "removed"
+        or target.get("runtime_observable") is not True
+    ):
         return False
     kind = target.get("kind")
     if kind in {"signal", "tag", "grind_level"}:

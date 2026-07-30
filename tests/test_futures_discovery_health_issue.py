@@ -26,7 +26,7 @@ def test_discovery_health_failure_is_deduplicated() -> None:
             {
                 "number": 21,
                 "body": (
-                    "<!-- nfi-futures-discovery-health:"
+                    "<!-- nfi-branch-discovery-health:"
                     f"{initial['fingerprint']} -->"
                 ),
             }
@@ -46,7 +46,7 @@ def test_healthy_discovery_closes_only_its_health_issue() -> None:
             {
                 "number": 22,
                 "body": (
-                    "<!-- nfi-futures-discovery-health:" + "a" * 64 + " -->"
+                    "<!-- nfi-branch-discovery-health:" + "a" * 64 + " -->"
                 ),
             }
         ],

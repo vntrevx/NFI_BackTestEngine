@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 75,
-  "updated_at": "2026-07-30T08:25:07+09:00",
+  "revision": 76,
+  "updated_at": "2026-07-30T08:39:54+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-03",
+  "active_task_id": "M12-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2656,7 +2656,7 @@
       "order": 1203,
       "milestone": "M12",
       "title": "Expand source-driven callback state-machine compatibility",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-02"
       ],
@@ -2682,9 +2682,32 @@
         "independent shadow exact fixtures"
       ],
       "started_at": "2026-07-30T08:25:07+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T08:39:54+09:00",
+      "commit_sha": "06c8fa2c32e4c4dcb82d400825d615134546a81f",
+      "evidence": [
+        {
+          "kind": "state_machine_program_v2_exact",
+          "path": "benchmarks/evidence/state-machine-program-v2-exact-2026-07-30.json",
+          "bytes": 3604,
+          "sha256": "eb67964568673f66a19eb9dd1142e8eaaffa1912fcac45bfd237651c5ce67677"
+        },
+        {
+          "kind": "official_generic_full_state_exact",
+          "path": ".nfi/roadmap-acceptance/M12-03/worktree/generic-state-machine-v2-full/run.json",
+          "sha256": "805dc22b024f6174efa2f7c5668885dab3c5c2661b754b5bcde6460a7bfc915d",
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        },
+        {
+          "kind": "future_nfi_focused_suite",
+          "tests_passed": 96
+        },
+        {
+          "kind": "rust_workspace_suite",
+          "tests_passed": 108,
+          "clippy_warnings": 0
+        }
+      ],
       "blocker": null
     },
     {
@@ -2692,7 +2715,7 @@
       "order": 1204,
       "milestone": "M12",
       "title": "Operate NFI and Freqtrade compatibility qualification unattended",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M12-03"
       ],
@@ -2717,7 +2740,7 @@
         "same-fingerprint deduplication tests",
         "successful latest-upstream compatibility canary"
       ],
-      "started_at": null,
+      "started_at": "2026-07-30T08:39:54+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -4447,6 +4470,45 @@
           "spot",
           "futures"
         ]
+      }
+    },
+    {
+      "sequence": 93,
+      "timestamp": "2026-07-30T08:39:54+09:00",
+      "task_id": "M12-03",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "06c8fa2c32e4c4dcb82d400825d615134546a81f",
+        "program_version": "state-machine-program-v2",
+        "v1_compatible": true,
+        "transitive_pure_helpers": true,
+        "source_driven_class_data": true,
+        "latest_spot_static_native_compatible": true,
+        "latest_futures_static_native_compatible": true,
+        "official_trade_surface_exact": true,
+        "official_full_state_exact": true,
+        "runtime_hardcoding_added": false,
+        "next_eligible_task": "M12-04"
+      }
+    },
+    {
+      "sequence": 94,
+      "timestamp": "2026-07-30T08:39:54+09:00",
+      "task_id": "M12-04",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "06c8fa2c32e4c4dcb82d400825d615134546a81f",
+        "identity_components": [
+          "upstream_sha",
+          "engine_sha",
+          "freqtrade_image_digest"
+        ],
+        "trading_modes": [
+          "spot",
+          "futures"
+        ],
+        "runtime_hardcoding_allowed": false
       }
     }
   ]

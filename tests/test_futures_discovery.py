@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import nfi_backtest_engine.futures_discovery as discovery
 import nfi_backtest_engine.futures_discovery_runtime as discovery_runtime
 import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
@@ -15,6 +17,7 @@ from nfi_backtest_engine.futures_discovery import (
     load_discovery_policy,
     search_shards,
 )
+from nfi_backtest_engine.reference.contracts import REFERENCE_INDEX_DIGEST
 
 ROOT = Path(__file__).parents[1]
 POLICY = ROOT / "planning" / "futures-discovery-policy.json"
@@ -194,6 +197,7 @@ def test_request_binds_targets_policy_upstream_engine_and_windows() -> None:
     assert first["searchable_targets"] == [_target()]
     assert first["unsearchable_targets"] == []
     assert len(first["identity"]["timeranges"]) == 20
+    assert first["identity"]["freqtrade_image_digest"] == REFERENCE_INDEX_DIGEST
 
     same_completed_years = build_discovery_request(
         _difference(_target()),
@@ -220,6 +224,54 @@ def test_request_binds_targets_policy_upstream_engine_and_windows() -> None:
     assert paired["fingerprint"] != first["fingerprint"]
     assert paired["identity"]["baseline_upstream_commit"] == "c" * 40
     assert paired["identity"]["baseline_strategy_sha256"] == "d" * 64
+
+
+def test_request_fingerprint_changes_with_pinned_freqtrade_digest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    policy = load_discovery_policy(POLICY)
+    kwargs = {
+        "policy": policy,
+        "upstream_commit": "a" * 40,
+        "engine_commit": "b" * 40,
+        "as_of": date(2026, 7, 30),
+    }
+    first = build_discovery_request(
+        _difference(_target()),
+        {"native_compatible": True},
+        FIXTURES,
+        **kwargs,
+    )
+    monkeypatch.setattr(
+        discovery,
+        "REFERENCE_INDEX_DIGEST",
+        "sha256:" + "e" * 64,
+    )
+    changed = build_discovery_request(
+        _difference(_target()),
+        {"native_compatible": True},
+        FIXTURES,
+        **kwargs,
+    )
+
+    assert changed["fingerprint"] != first["fingerprint"]
+    assert changed["identity"]["freqtrade_image_digest"] == "sha256:" + "e" * 64
+
+
+def test_request_rejects_unpaired_baseline_identity() -> None:
+    policy = load_discovery_policy(POLICY)
+
+    with pytest.raises(SpecValidationError, match="must be supplied together"):
+        build_discovery_request(
+            _difference(_target()),
+            {"native_compatible": True},
+            FIXTURES,
+            policy=policy,
+            upstream_commit="a" * 40,
+            baseline_upstream_commit="c" * 40,
+            engine_commit="b" * 40,
+            as_of=date(2026, 7, 30),
+        )
 
 
 def test_no_gap_does_not_start_a_deep_search(tmp_path: Path) -> None:
@@ -289,6 +341,42 @@ def test_unsearchable_gap_fails_closed_without_guessing(
     assert report["unsearchable_target_ids"] == [target["id"]]
     assert report["official_fallback_available"] is True
     assert "paired previous/latest proof" in report["message"]
+
+
+def test_removed_only_gap_searches_previous_surface_for_absence_proof(
+    tmp_path: Path,
+) -> None:
+    source, _profile = _files(tmp_path)
+    baseline = tmp_path / "baseline.py"
+    baseline.write_text("class Demo: pass\n# previous\n", encoding="utf-8")
+    policy = load_discovery_policy(POLICY)
+    removed = {
+        **_target("removed-route"),
+        "change": "removed",
+        "value": "old-route",
+        "tags": ["old-route"],
+    }
+    request = build_discovery_request(
+        _difference(removed),
+        {"native_compatible": True},
+        FIXTURES,
+        policy=policy,
+        upstream_commit="a" * 40,
+        baseline_upstream_commit="c" * 40,
+        baseline_source_sha256=discovery.sha256_file(baseline),
+        engine_commit="b" * 40,
+        as_of=date(2026, 7, 30),
+    )
+
+    assert request["searchable_targets"] == [removed]
+    assert request["unsearchable_targets"] == []
+    context = SimpleNamespace(
+        source=source,
+        baseline_source=baseline,
+        baseline_upstream_commit="c" * 40,
+        search_targets=[removed],
+    )
+    assert discovery_runtime._scout_strategy_source(context) == baseline
 
 
 def test_removed_target_does_not_block_searchable_transition_partner(

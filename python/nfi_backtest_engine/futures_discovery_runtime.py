@@ -41,8 +41,9 @@ def run_shard_scout(
     generated_config, pairs = _ensure_universe(context, shared)
     shard_root = context.output / "work" / f"shard-{shard.index:03d}"
     engine_output = shard_root / "engine"
+    scout_source = _scout_strategy_source(context)
     engine = run_research_backtest(
-        strategy_path=context.source,
+        strategy_path=scout_source,
         class_name=context.class_name,
         config_path=generated_config,
         data_directory=shared / "data",
@@ -120,6 +121,22 @@ def run_shard_scout(
         "native_report": str(engine_output / "run.json"),
         "candidate": candidate,
     }
+
+
+def _scout_strategy_source(context: DiscoveryContext) -> Path:
+    """Use the previous strategy only when every search target proves removal."""
+    if context.search_targets and all(
+        target.get("change") == "removed" for target in context.search_targets
+    ):
+        if (
+            context.baseline_source is None
+            or context.baseline_upstream_commit is None
+        ):
+            raise SpecValidationError(
+                "removed-only discovery requires a previous strategy source and commit"
+            )
+        return context.baseline_source
+    return context.source
 
 
 def _ensure_universe(

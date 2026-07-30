@@ -10,14 +10,18 @@ WORKFLOW = (
 )
 
 
-def test_workflow_rechecks_upstream_and_engine_with_manual_force() -> None:
+def test_workflow_rechecks_full_identity_every_four_hours_with_manual_force() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
     assert 'cron: "17 */4 * * *"' in text
     assert "force:" in text
     assert "scripts/compatibility_identity.py" in text
     assert "previous_engine_sha" in text
+    assert "previous_freqtrade_digest" in text
+    assert '--freqtrade-digest "${freqtrade_digest}"' in text
     assert "previous_check_path" in text
+    assert 'baseline_sha="${previous_sha}"' in text
+    assert 'baseline_sha="${stored_baseline_sha:-${previous_sha}}"' in text
 
 
 def test_workflow_runs_targeted_exact_gate_before_ledger_publish() -> None:
@@ -29,9 +33,21 @@ def test_workflow_runs_targeted_exact_gate_before_ledger_publish() -> None:
         "Publish append-only compatibility ledger"
     )
     assert (
-        'checks/${UPSTREAM_SHA}/${ENGINE_SHA}/runs/'
+        'checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${oracle_key}/runs/'
         '${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}'
     ) in text
+    assert "freqtrade_digest: $freqtrade_digest" in text
+    assert "baseline_upstream_sha: $baseline_upstream_sha" in text
+
+
+def test_workflow_exports_paired_sources_and_three_part_identity() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert ".compatibility/old.py" in text
+    assert ".compatibility/new.py" in text
+    assert ".compatibility/compatibility-identity.json" in text
+    assert "--arg freqtrade_digest" in text
+    assert "--arg baseline_upstream_sha" in text
 
 
 def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
