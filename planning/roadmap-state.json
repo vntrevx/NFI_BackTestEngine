@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 82,
-  "updated_at": "2026-07-30T16:40:26+09:00",
+  "revision": 83,
+  "updated_at": "2026-07-30T17:50:18+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-05",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2822,7 +2822,7 @@
       "order": 1205,
       "milestone": "M12",
       "title": "Publish v1.4.0 latest-NFI exact product release",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-04"
       ],
@@ -2850,9 +2850,57 @@
         "stable byte comparison and installer audit"
       ],
       "started_at": "2026-07-30T16:40:26+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T17:50:18+09:00",
+      "commit_sha": "10172e659472c1c58b09ced182543f4c8510b8f3",
+      "evidence": [
+        {
+          "kind": "same_commit_required_ci",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30526109274",
+          "run_id": 30526109274,
+          "commit_sha": "10172e659472c1c58b09ced182543f4c8510b8f3",
+          "conclusion": "success"
+        },
+        {
+          "kind": "sealed_product_candidate_bundle",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30526111879",
+          "run_id": 30526111879,
+          "artifact_id": 8753453358,
+          "artifact_name": "product-release-bundle-10172e659472c1c58b09ced182543f4c8510b8f3",
+          "artifact_digest": "sha256:868f8faefedc11ec2b62acb5e795ab18cb8b514645ec320ec3c6bb729f483b57",
+          "three_os_spot_and_futures_fixture_evidence": true,
+          "conclusion": "success"
+        },
+        {
+          "kind": "product_rc_publication",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30528014719",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.0-rc.1",
+          "tag": "v1.4.0-rc.1",
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        },
+        {
+          "kind": "stable_byte_identical_promotion",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30528098255",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.0",
+          "tag": "v1.4.0",
+          "latest": true,
+          "asset_count": 12,
+          "rc_stable_byte_identical": true,
+          "sha256_manifest_digest": "sha256:365bfc3bff38e7d1b1be32652fa1909992b6ebbff0595ed80ed8d403e5f7798e",
+          "product_contract_digest": "sha256:31ae35e71b33b7232080b4f7fb5fd7d9fdd6b38765b96234208852f8144b1f7d",
+          "combined_full_x7_certified": false,
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        }
+      ],
       "blocker": null
     }
   ],
@@ -4756,6 +4804,28 @@
         "stable_tag": "v1.4.0",
         "combined_full_x7_certified": false,
         "prior_certificates_remain_version_bound": true
+      }
+    },
+    {
+      "sequence": 101,
+      "timestamp": "2026-07-30T17:50:18+09:00",
+      "task_id": "M12-05",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "10172e659472c1c58b09ced182543f4c8510b8f3",
+        "release_version": "1.4.0",
+        "required_ci_run_id": 30526109274,
+        "candidate_build_run_id": 30526111879,
+        "candidate_publish_run_id": 30528014719,
+        "stable_promotion_run_id": 30528098255,
+        "candidate_tag": "v1.4.0-rc.1",
+        "stable_tag": "v1.4.0",
+        "asset_count": 12,
+        "rc_stable_byte_identical": true,
+        "three_os_installer_audits": true,
+        "three_os_spot_futures_exact_evidence": true,
+        "combined_full_x7_certified": false,
+        "roadmap_complete": true
       }
     }
   ]
