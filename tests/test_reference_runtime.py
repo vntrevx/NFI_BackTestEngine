@@ -70,6 +70,37 @@ def test_reference_image_check_rejects_an_unbound_config_digest(
         reference_execution.ensure_reference_image(docker_config=tmp_path)
 
 
+def test_reference_dependency_builder_uses_bind_mount_owner(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: list[str] = []
+
+    def run_container(arguments: list[str], **_kwargs):
+        captured.extend(arguments)
+        marker = (
+            tmp_path
+            / "artifacts"
+            / "docker"
+            / "reference-deps"
+            / "blake3"
+            / "blake3.cpython-314-x86_64-linux-gnu.so"
+        )
+        marker.parent.mkdir(parents=True)
+        marker.touch()
+        return CompletedProcess(arguments, 0, "", ""), {}
+
+    monkeypatch.setattr(reference_execution, "run_managed_container", run_container)
+
+    dependency_directory = reference_execution.ensure_reference_dependencies(
+        project_root=tmp_path,
+        docker_config=tmp_path / "docker-config",
+    )
+
+    owner = dependency_directory.stat()
+    assert captured[captured.index("--user") + 1] == f"{owner.st_uid}:{owner.st_gid}"
+
+
 def test_reference_command_is_digest_pinned_offline_and_read_only(tmp_path: Path) -> None:
     manifest = read_json(MANIFEST)
     fixture = MANIFEST.parent

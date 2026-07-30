@@ -319,9 +319,12 @@ def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) ->
     if marker.is_file():
         return dependency_directory
     dependency_directory.mkdir(parents=True, exist_ok=True)
+    mount_owner = dependency_directory.stat()
     arguments = [
         "--platform",
         REFERENCE_PLATFORM,
+        "--user",
+        f"{mount_owner.st_uid}:{mount_owner.st_gid}",
         "--volume",
         f"{dependency_directory}:/reference-deps",
         "--entrypoint",
