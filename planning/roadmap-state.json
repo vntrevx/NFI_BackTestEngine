@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 88,
-  "updated_at": "2026-07-31T04:32:54+09:00",
+  "revision": 89,
+  "updated_at": "2026-07-31T05:05:34+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-08",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3091,7 +3091,7 @@
       "order": 1208,
       "milestone": "M12",
       "title": "Repair same-identity non-deferred cursor restoration",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-07"
       ],
@@ -3113,9 +3113,46 @@
         "successful dual-mode workflow"
       ],
       "started_at": "2026-07-31T04:32:54+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-31T05:05:34+09:00",
+      "commit_sha": "b4d93fee021069977197771ae4a4c5468d745de4",
+      "evidence": [
+        {
+          "kind": "cursor_restore_contract",
+          "implementation_commit": "b4d93fee021069977197771ae4a4c5468d745de4",
+          "pull_request": 85,
+          "required_ci_run_id": 30575369258,
+          "workflow_contract_tests_passed": 41,
+          "linux_passed": true,
+          "windows_passed": true,
+          "macos_passed": true
+        },
+        {
+          "kind": "new_main_identity_qualification",
+          "compatibility_run_id": 30576573726,
+          "engine_sha": "24d44a89913c451b8e7af900aaf487c38fa38aae",
+          "spot_static_native_compatible": true,
+          "futures_static_native_compatible": true,
+          "spot_targeted_exact": true,
+          "futures_targeted_exact": true
+        },
+        {
+          "kind": "same_identity_dual_mode_canary",
+          "initial_discovery_run_id": 30577018580,
+          "reused_discovery_run_id": 30577301031,
+          "spot_status": "external_data_deferred",
+          "spot_reuse_seconds": 15,
+          "spot_install_build_download_search_skipped": true,
+          "spot_artifact_bytes": 2615,
+          "futures_cursor_restored": true,
+          "futures_status": "no_gap",
+          "futures_searched_shards": 0,
+          "futures_artifact_bytes": 1905,
+          "compact_artifact_retention_days": 1,
+          "dual_mode_workflow_succeeded": true,
+          "health_issue_closed": 84,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     }
   ],
@@ -5130,6 +5167,25 @@
         "root_cause": "cursor destination directory did not exist",
         "spot_deferred_reuse_verified": true,
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 107,
+      "timestamp": "2026-07-31T05:05:34+09:00",
+      "task_id": "M12-08",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "b4d93fee021069977197771ae4a4c5468d745de4",
+        "required_ci_run_id": 30575369258,
+        "compatibility_run_id": 30576573726,
+        "initial_discovery_run_id": 30577018580,
+        "same_identity_discovery_run_id": 30577301031,
+        "spot_deferred_reuse_seconds": 15,
+        "spot_external_request_repeated": false,
+        "futures_cursor_restored": true,
+        "dual_mode_workflow_succeeded": true,
+        "health_issue_84_closed": true,
+        "runtime_hardcoding_added": false
       }
     }
   ]
