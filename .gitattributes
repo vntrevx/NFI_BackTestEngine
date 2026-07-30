@@ -8,6 +8,8 @@
 # Frozen fixture bytes are part of the benchmark identity.
 /benchmarks/fixtures/** -text
 /benchmarks/fixtures/** whitespace=-trailing-space
+# Captured inputs are third-party snapshots, not project implementation code.
+/benchmarks/fixtures/** linguist-vendored
 
 *.zip binary
 *.feather binary

@@ -2,10 +2,7 @@
 
 **Backtest years of NFI in minutes, then prove the result against Freqtrade.**
 
-[![Release](https://img.shields.io/github/v/release/vntrevx/NFI_BackTestEngine?display_name=tag&sort=semver)](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest)
-[![CI](https://github.com/vntrevx/NFI_BackTestEngine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vntrevx/NFI_BackTestEngine/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.12--3.14-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![License](https://img.shields.io/github/license/vntrevx/NFI_BackTestEngine)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/vntrevx/NFI_BackTestEngine?display_name=tag&sort=semver)](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest) [![CI](https://github.com/vntrevx/NFI_BackTestEngine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vntrevx/NFI_BackTestEngine/actions/workflows/ci.yml) [![Python](https://img.shields.io/badge/Python-3.12--3.14-3776AB?logo=python&logoColor=white)](pyproject.toml) [![Rust](https://img.shields.io/badge/Rust-1.83%2B-000000?logo=rust&logoColor=white)](rust/Cargo.toml) [![License](https://img.shields.io/github/license/vntrevx/NFI_BackTestEngine)](LICENSE)
 
 NFI Backtest Engine is a native Rust/Python research backtester for
 [NostalgiaForInfinity](https://github.com/iterativv/NostalgiaForInfinity).
