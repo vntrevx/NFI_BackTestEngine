@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from ..canonical import read_json
-from ..docker_runtime import managed_docker_run, run_managed_container
+from ..docker_runtime import (
+    docker_bind_owner_arguments,
+    managed_docker_run,
+    run_managed_container,
+)
 from ..errors import BenchmarkError
 from ..fixture import fixture_input_sha256, validate_fixture
 from ..reference_assets import reference_package_root, reference_tracer_root
@@ -64,6 +68,7 @@ def build_reference_docker_command(
             REFERENCE_PLATFORM,
             "--network",
             "none",
+            *docker_bind_owner_arguments(output_directory),
             "--workdir",
             "/fixture",
             "--volume",
@@ -150,6 +155,7 @@ def capture_reference_markets(
                     *lease["command_prefix"],
                     "--platform",
                     REFERENCE_PLATFORM,
+                    *docker_bind_owner_arguments(output),
                     "--workdir",
                     "/fixture",
                     "--volume",
@@ -319,12 +325,10 @@ def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) ->
     if marker.is_file():
         return dependency_directory
     dependency_directory.mkdir(parents=True, exist_ok=True)
-    mount_owner = dependency_directory.stat()
     arguments = [
         "--platform",
         REFERENCE_PLATFORM,
-        "--user",
-        f"{mount_owner.st_uid}:{mount_owner.st_gid}",
+        *docker_bind_owner_arguments(dependency_directory),
         "--volume",
         f"{dependency_directory}:/reference-deps",
         "--entrypoint",

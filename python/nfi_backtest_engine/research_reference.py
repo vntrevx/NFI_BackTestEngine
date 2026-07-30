@@ -12,7 +12,11 @@ from typing import Any
 from .canonical import read_json, write_json
 from .config_loader import config_sha256, strip_service_only_settings
 from .data_seal import validate_data_seal
-from .docker_runtime import managed_docker_run, run_managed_container
+from .docker_runtime import (
+    docker_bind_owner_arguments,
+    managed_docker_run,
+    run_managed_container,
+)
 from .errors import BenchmarkError
 from .fixture import sha256_file
 from .normalize import normalize_file
@@ -378,6 +382,7 @@ def build_research_market_capture_command(
     return [
         "--platform",
         REFERENCE_PLATFORM,
+        *docker_bind_owner_arguments(output_directory),
         "--workdir",
         "/input",
         "--volume",
@@ -426,6 +431,7 @@ def build_research_reference_command(
         REFERENCE_PLATFORM,
         "--network",
         "none",
+        *docker_bind_owner_arguments(output_directory),
         "--workdir",
         "/input",
         "--volume",

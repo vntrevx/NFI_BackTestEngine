@@ -24,6 +24,12 @@ ROLE_LABEL_PREFIX = "io.nfi-backtest-engine.role="
 _LOCK_PATH = Path(tempfile.gettempdir()) / "nfi-bte-docker-runtime.lock"
 
 
+def docker_bind_owner_arguments(path: str | Path) -> list[str]:
+    """Run a container as the owner of a writable bind mount."""
+    owner = Path(path).stat()
+    return ["--user", f"{owner.st_uid}:{owner.st_gid}"]
+
+
 @contextmanager
 def managed_docker_run(
     *,

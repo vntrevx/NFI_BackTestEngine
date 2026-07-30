@@ -18,10 +18,12 @@ from nfi_backtest_engine.research_reference import (
 
 
 def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
     command = build_research_reference_command(
         run_prefix=["docker", "run", "--rm"],
         input_directory=tmp_path / "inputs",
-        output_directory=tmp_path / "output",
+        output_directory=output,
         data_directory=tmp_path / "data",
         strategy="NostalgiaForInfinityX7",
         timerange="20210101-20260101",
@@ -40,6 +42,8 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
     assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
     assert any(value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command)
     assert "PYTHONPATH=/nfi-reference-tracer:/nfi-python" in command
+    owner = output.stat()
+    assert command[command.index("--user") + 1] == f"{owner.st_uid}:{owner.st_gid}"
     assert command[-6:] == [
         "--cache",
         "none",
@@ -51,9 +55,11 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
 
 
 def test_market_capture_uses_the_pinned_list_pairs_contract(tmp_path: Path) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
     command = build_research_market_capture_command(
         input_directory=tmp_path / "inputs",
-        output_directory=tmp_path / "output",
+        output_directory=output,
     )
 
     assert command[-5:] == [
@@ -128,10 +134,12 @@ def test_callback_audit_timestamps_are_sorted_unique_and_nonnegative() -> None:
 def test_research_reference_can_retain_the_in_memory_diagnostic_baseline(
     tmp_path: Path,
 ) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
     command = build_research_reference_command(
         run_prefix=["docker", "run", "--rm"],
         input_directory=tmp_path / "inputs",
-        output_directory=tmp_path / "output",
+        output_directory=output,
         data_directory=tmp_path / "data",
         strategy="NostalgiaForInfinityX7",
         timerange="20250101-20250102",
@@ -147,10 +155,12 @@ def test_research_reference_can_retain_the_in_memory_diagnostic_baseline(
 def test_research_reference_trace_is_full_state_and_hash_bound(
     tmp_path: Path,
 ) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
     command = build_research_reference_command(
         run_prefix=["docker", "run"],
         input_directory=tmp_path / "input",
-        output_directory=tmp_path / "output",
+        output_directory=output,
         data_directory=tmp_path / "data",
         strategy="NostalgiaForInfinityX7",
         timerange="20250101-20250102",
