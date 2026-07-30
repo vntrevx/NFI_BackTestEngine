@@ -364,7 +364,30 @@ jobs:
             .compatibility/verification-plan-${{ matrix.trading_mode }}.json
           echo "targeted_verification_exit_code=${status}" \
             >> "${GITHUB_STEP_SUMMARY}"
+      - name: Collect compact targeted diagnostics
+        if: always()
+        env:
+          MODE: ${{ matrix.trading_mode }}
+        run: |
+          set -euo pipefail
+          source=".compatibility/targeted-${MODE}"
+          destination=".compatibility/targeted-diagnostics-${MODE}"
+          mkdir -p "${destination}"
+          if [ -d "${source}" ]; then
+            while IFS= read -r -d '' file; do
+              cp --parents "${file}" "${destination}"
+            done < <(
+              find "${source}" -type f \
+                \( -name run.json \
+                -o -name qualification.json \
+                -o -name verification-plan.json \
+                -o -name stderr.log \
+                -o -name stdout.log \) \
+                -print0
+            )
+          fi
       - name: Retain compact targeted-verification evidence
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-targeted
@@ -372,7 +395,8 @@ jobs:
             .compatibility/targeted-report-${{ matrix.trading_mode }}.json
             .compatibility/qualification-${{ matrix.trading_mode }}.json
             .compatibility/verification-plan-${{ matrix.trading_mode }}.json
-          if-no-files-found: error
+            .compatibility/targeted-diagnostics-${{ matrix.trading_mode }}/
+          if-no-files-found: warn
           retention-days: 30
 
   publish:

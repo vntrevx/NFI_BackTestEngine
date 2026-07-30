@@ -66,6 +66,20 @@ def test_workflow_materializes_only_digest_bound_release_fixtures() -> None:
     assert "--freqtrade-digest" in text
 
 
+def test_workflow_retains_compact_targeted_diagnostics_on_failure() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    diagnostics = text[
+        text.index("Collect compact targeted diagnostics") :
+        text.index("Preserve ledger and reconcile compatibility issue")
+    ]
+
+    assert diagnostics.count("if: always()") == 2
+    assert "-name run.json" in diagnostics
+    assert "-name stderr.log" in diagnostics
+    assert "-name stdout.log" in diagnostics
+    assert ".nfitrace" not in diagnostics
+
+
 def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 

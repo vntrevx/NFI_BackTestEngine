@@ -19,7 +19,7 @@ from .config_loader import (
     sanitize_config,
     strip_service_only_settings,
 )
-from .docker_runtime import managed_docker_run
+from .docker_runtime import docker_bind_owner_arguments, managed_docker_run
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
 from .reference_runtime import (
@@ -795,6 +795,7 @@ def _download_data(
                 *lease["command_prefix"],
                 "--platform",
                 REFERENCE_PLATFORM,
+                *docker_bind_owner_arguments(data_root),
                 "--volume",
                 f"{standalone_config}:/input/config.json:ro",
                 "--volume",
