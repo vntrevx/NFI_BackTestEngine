@@ -51,8 +51,9 @@ Oracle exports, release assets, and golden evidence.
 Follow the existing concise prefixes: `feat(scope):`, `fix(scope):`, `refactor:`,
 `docs:`, `chore:`, and `release:`. Keep commits small and separate refactors from
 optimizations. PRs should explain intent, behavior risk, validation commands, and any
-performance or parity evidence; link an issue when one exists. Required CI must pass
-on Linux, Windows, and macOS before merge.
+performance or parity evidence; link an issue when one exists. Runtime changes must
+pass Required CI on Linux, Windows, and macOS before merge. Documentation-only and
+CI-policy-only changes use the risk-tiered checks in `docs/ci-policy.md`.
 
 ## Security & Repository Safety
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "workflow": ".github/workflows/ci.yml",
   "required_check": {
     "job_id": "required",
@@ -7,14 +7,35 @@
   },
   "docs_only": {
     "prefixes": [
-      "docs/"
+      "docs/",
+      "examples/"
     ],
     "files": [
+      "AGENTS.md",
+      "benchmarks/README.md",
       "CHANGELOG.md",
       "CONTRIBUTING.md",
       "LICENSE",
+      "planning/acceptance-commands.json",
+      "planning/roadmap-state.json",
       "README.md",
       "SECURITY.md"
+    ]
+  },
+  "policy_only": {
+    "prefixes": [
+      ".github/ISSUE_TEMPLATE/"
+    ],
+    "files": [
+      ".gitattributes",
+      ".github/CODEOWNERS",
+      ".github/ci-contract.json",
+      ".github/dependabot.yml",
+      ".github/scripts/ci_contract.py",
+      ".github/scripts/test_ci_contract.py",
+      ".github/workflows/ci.yml",
+      ".gitignore",
+      ".python-version"
     ]
   },
   "jobs": {
@@ -24,6 +45,10 @@
     },
     "documentation": {
       "name": "Documentation path",
+      "timeout_minutes": 5
+    },
+    "policy": {
+      "name": "CI policy checks",
       "timeout_minutes": 5
     },
     "python": {
@@ -48,12 +73,26 @@
       "timeout_minutes": 5
     }
   },
-  "code_job_ids": [
+  "conditional_job_ids": [
+    "policy",
     "python",
     "quality",
     "parity"
   ],
+  "classifications": {
+    "docs-only": [],
+    "policy-only": [
+      "policy"
+    ],
+    "code": [
+      "python",
+      "quality",
+      "parity"
+    ]
+  },
   "coverage": {
+    "text_integrity": "documentation",
+    "ci_policy": "policy",
     "quality": "quality",
     "python_linux": "python",
     "rust_tests": "quality",
@@ -69,14 +108,24 @@
     "allows_secrets": false,
     "allows_privileged_fork_execution": false,
     "allows_official_reference": false,
-    "required_capabilities": [
-      "quality",
-      "python_linux",
-      "rust_tests",
-      "platform_smoke",
-      "contract_parity",
-      "evidence_integrity"
-    ]
+    "required_capabilities_by_classification": {
+      "docs-only": [
+        "text_integrity"
+      ],
+      "policy-only": [
+        "text_integrity",
+        "ci_policy"
+      ],
+      "code": [
+        "text_integrity",
+        "quality",
+        "python_linux",
+        "rust_tests",
+        "platform_smoke",
+        "contract_parity",
+        "evidence_integrity"
+      ]
+    }
   },
   "concurrency": {
     "group": "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",

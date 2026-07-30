@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       classification: ${{ steps.paths.outputs.classification }}
+      policy_changes: ${{ steps.paths.outputs.policy_changes }}
       code_changes: ${{ steps.paths.outputs.code_changes }}
       changed_paths_json: ${{ steps.paths.outputs.changed_paths_json }}
     steps:
@@ -59,6 +60,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CHANGED_PATHS_JSON: ${{ needs.changes.outputs.changed_paths_json }}
         shell: bash
         run: |
           set -euo pipefail
@@ -68,6 +70,22 @@ jobs:
           else
             git show --check --format= "$GITHUB_SHA"
           fi
+          python .github/scripts/ci_contract.py validate-text \
+            --paths-json "$CHANGED_PATHS_JSON"
+
+  policy:
+    name: CI policy checks
+    needs: changes
+    if: needs.changes.outputs.policy_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Validate CI policy without project build
+        run: python .github/scripts/test_ci_contract.py
 
   python:
     name: Python ${{ matrix.os }}
@@ -167,7 +185,7 @@ jobs:
   required:
     name: Required CI
     if: always()
-    needs: [changes, documentation, python, quality, parity]
+    needs: [changes, documentation, policy, python, quality, parity]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -180,6 +198,7 @@ jobs:
           CLASSIFICATION: ${{ needs.changes.outputs.classification }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
+          POLICY_RESULT: ${{ needs.policy.result }}
           PYTHON_RESULT: ${{ needs.python.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           PARITY_RESULT: ${{ needs.parity.result }}
@@ -190,6 +209,7 @@ jobs:
             --classification "$CLASSIFICATION" \
             --changes-result "$CHANGES_RESULT" \
             --documentation-result "$DOCUMENTATION_RESULT" \
+            --job-result "policy=$POLICY_RESULT" \
             --job-result "python=$PYTHON_RESULT" \
             --job-result "quality=$QUALITY_RESULT" \
             --job-result "parity=$PARITY_RESULT"

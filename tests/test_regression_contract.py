@@ -25,7 +25,7 @@ def test_bundled_v11_contract_verifies_all_repository_evidence_offline() -> None
     assert report["contract_version"] == "1.1.0"
     assert report["checks"] == {
         "schema": "valid",
-        "repository_files": 17,
+        "repository_files": 12,
         "full_state_fixtures": 9,
         "public_command_paths": 64,
         "stable_error_codes": 48,
@@ -36,23 +36,24 @@ def test_bundled_v11_contract_verifies_all_repository_evidence_offline() -> None
     }
 
 
-def test_contract_rejects_one_same_size_evidence_mutation_immediately(tmp_path: Path) -> None:
+def test_contract_rejects_one_same_size_schema_mutation_immediately(tmp_path: Path) -> None:
     manifest, _ = load_regression_contract()
-    mutated = bytearray((ROOT / "README.md").read_bytes())
+    record = manifest["repository_files"][0]
+    relative_path = Path(record["path"])
+    mutated = bytearray((ROOT / relative_path).read_bytes())
     mutated[0] = ord("!") if mutated[0] != ord("!") else ord("#")
-    (tmp_path / "README.md").write_bytes(mutated)
+    target = tmp_path / relative_path
+    target.parent.mkdir(parents=True)
+    target.write_bytes(mutated)
 
     contract = deepcopy(manifest)
-    contract["repository_files"][0] = {
-        "kind": "document",
-        "path": "README.md",
-        "bytes": len(mutated),
-        "sha256": manifest["repository_files"][0]["sha256"],
-    }
     contract_path = tmp_path / "contract.json"
     write_json(contract_path, contract)
 
-    with pytest.raises(SpecValidationError, match=r"README\.md: SHA-256 differs"):
+    with pytest.raises(
+        SpecValidationError,
+        match=r"benchmark-fixture\.schema\.json: SHA-256 differs",
+    ):
         verify_regression_contract(contract_path, repository_root=tmp_path)
 
 
@@ -132,7 +133,7 @@ def test_contract_cli_maps_evidence_mutation_to_exit_two(
     )
 
     assert exit_code == 2
-    assert "README.md: SHA-256 differs" in capsys.readouterr().err
+    assert "benchmark-fixture.schema.json: SHA-256 differs" in capsys.readouterr().err
 
 
 def test_contract_schema_rejects_unknown_fields() -> None:
