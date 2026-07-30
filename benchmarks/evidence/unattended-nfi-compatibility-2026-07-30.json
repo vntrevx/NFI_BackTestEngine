@@ -6,6 +6,7 @@
   "implementation": {
     "commit": "ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
     "hosted_runner_hardening_merge": "255cb1731373dd3347c1d38d82e6e15796026204",
+    "deep_lane_gate_merge": "e9f0e18798aba8bcc57971bfc2fb0617dcef0370",
     "runtime_hardcoding_added": false,
     "official_fallback_preserved": true,
     "fallback_is_user_visible": true
@@ -109,14 +110,14 @@
       }
     },
     "hosted_runner_canary": {
-      "workflow_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30516491925",
-      "engine_sha": "255cb1731373dd3347c1d38d82e6e15796026204",
+      "workflow_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30518163820",
+      "engine_sha": "e9f0e18798aba8bcc57971bfc2fb0617dcef0370",
       "conclusion": "success",
       "spot": {
-        "artifact_id": 8749193550,
+        "artifact_id": 8749811591,
         "artifact_name": "latest-nfi-x7-spot-targeted",
-        "artifact_digest": "sha256:582b94ccdbdf5dcac69ffc24d8a4c2d799510b64098e494c36aede18f4a82ecd",
-        "report_sha256": "e206d482aca0e8c820e99177806ca704367f2e45aabec34edd8ecbd2e4d34fc1",
+        "artifact_digest": "sha256:23fba97dcf83de2102802efce84f0ccdb9675fab4a40c34e923983353212ce6d",
+        "report_sha256": "4553364547558abf8c6bc2bae861c30d73c0b47e3a8d4cc8736eb048108e67dc",
         "fixtures": 2,
         "verification_state": "quick_verified",
         "complete": true,
@@ -126,10 +127,10 @@
         "blockers": []
       },
       "futures": {
-        "artifact_id": 8749189289,
+        "artifact_id": 8749818835,
         "artifact_name": "latest-nfi-x7-futures-targeted",
-        "artifact_digest": "sha256:dd91ca4b1783cd2befd80f1df9ba7de552d6ba4f0eabc1570a02b61131634fbd",
-        "report_sha256": "4804532c7298550e8dcd4df2afd4298ed55bb73bf673b49b20de42dbc4e6db0f",
+        "artifact_digest": "sha256:21d400e35151def219af18b67cda93153fe8468bdac4d83a3f1e109fbe9f0914",
+        "report_sha256": "28574e21a4dc46fd649c9e7035e7a3348d3c83cb6efacc53b80229a4076fe85b",
         "fixtures": 2,
         "verification_state": "quick_verified",
         "complete": true,
@@ -146,6 +147,22 @@
         "number": 61,
         "state": "closed"
       }
+    },
+    "deep_lane_exact_noop": {
+      "workflow_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30518595011",
+      "conclusion": "success",
+      "resolve": "success",
+      "spot_futures_search": "skipped",
+      "cursor_publish": "skipped",
+      "candidate_pr": "skipped",
+      "health_reconciliation": "success",
+      "skip_requires_both_modes_exact": true,
+      "missing_or_incomplete_qualification_runs_deep_search": true,
+      "closed_issues": [
+        58,
+        59,
+        69
+      ]
     },
     "hosted_runner_portability": {
       "failed_runs": [
@@ -178,8 +195,8 @@
       "passed": true
     },
     "workflow_sha256": {
-      "fast_lane": "82ae63a2408e6afd8c7cf4eb461890ce5634e6a848986f2194a37fa9cd023749",
-      "deep_lane": "271e601fa4fe98ca2f5116ed04deca7cdf3a70c5605f40a4f6febfb2514c269d"
+      "fast_lane": "49d71cc7b486c3c0ca312d2a2a2abab8a467383539b81a7e837a034b2b0f576b",
+      "deep_lane": "4b8d83f5ecdaed6d49371b113612051ec7d11f6040dd259d077be3173bc96d74"
     }
   },
   "acceptance": {
@@ -216,13 +233,13 @@
     "all_full_states_exact": true
   },
   "post_acceptance_validation": {
-    "python_tests_passed": 569,
+    "python_tests_passed": 570,
     "rust_tests_passed": 108,
     "ruff_passed": true,
     "basedpyright_errors": 0,
     "rustfmt_passed": true,
     "clippy_warnings": 0,
-    "required_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30515720754",
+    "required_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30517285577",
     "required_ci_conclusion": "success"
   },
   "safety": {

@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 80,
-  "updated_at": "2026-07-30T14:35:00+09:00",
+  "revision": 81,
+  "updated_at": "2026-07-30T15:09:00+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
@@ -2748,17 +2748,17 @@
         {
           "kind": "unattended_compatibility_qualification",
           "path": "benchmarks/evidence/unattended-nfi-compatibility-2026-07-30.json",
-          "bytes": 9402,
-          "sha256": "48cc7e820cacf087b99216720233429dbe0797dd65b7f9facf3a1ec938cf1c88"
+          "bytes": 9998,
+          "sha256": "113c0934bb0407a8e113c7eea89b7ae047058dc8ca62cd6e2c06f9aca00e8167"
         },
         {
           "kind": "hosted_runner_dual_mode_exact_canary",
-          "workflow_run_id": 30516491925,
-          "engine_sha": "255cb1731373dd3347c1d38d82e6e15796026204",
+          "workflow_run_id": 30518163820,
+          "engine_sha": "e9f0e18798aba8bcc57971bfc2fb0617dcef0370",
           "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
           "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
-          "spot_artifact_id": 8749193550,
-          "futures_artifact_id": 8749189289,
+          "spot_artifact_id": 8749811591,
+          "futures_artifact_id": 8749818835,
           "verification_state": "quick_verified",
           "changed_branch_reached": true,
           "trade_surface_exact": true,
@@ -4670,6 +4670,38 @@
         "automation_health_issue_closed": 61,
         "runtime_hardcoding_added": false,
         "python_tests_passed": 569,
+        "rust_tests_passed": 108
+      }
+    },
+    {
+      "sequence": 99,
+      "timestamp": "2026-07-30T15:09:00+09:00",
+      "task_id": "M12-04",
+      "event": "task_evidence_amended",
+      "details": {
+        "commit_sha": "e9f0e18798aba8bcc57971bfc2fb0617dcef0370",
+        "reason": "avoid redundant deep discovery after dual-mode exact qualification",
+        "compatibility_run_id": 30518163820,
+        "discovery_run_id": 30518595011,
+        "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+        "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+        "spot_artifact_id": 8749811591,
+        "futures_artifact_id": 8749818835,
+        "spot_verification_state": "quick_verified",
+        "futures_verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "blockers": 0,
+        "deep_search_skipped": true,
+        "fail_closed_on_missing_qualification": true,
+        "reconciled_issues": [
+          58,
+          59,
+          69
+        ],
+        "runtime_hardcoding_added": false,
+        "python_tests_passed": 570,
         "rust_tests_passed": 108
       }
     }
