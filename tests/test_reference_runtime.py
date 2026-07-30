@@ -134,7 +134,9 @@ def test_reference_command_is_digest_pinned_offline_and_read_only(tmp_path: Path
     assert "NFI_BTE_PROFILE_EVENTS=/output/profile.jsonl" in command
     assert "NFI_MARKET_SNAPSHOT_PATH=/fixture/inputs/market_metadata/markets.json" in command
     owner = output.stat()
-    assert command[command.index("--user") + 1] == f"{owner.st_uid}:{owner.st_gid}"
+    assert command[command.index("--user") + 1] == "0:0"
+    assert f"NFI_BIND_UID={owner.st_uid}" in command
+    assert f"NFI_BIND_GID={owner.st_gid}" in command
     assert command[-4:] == [
         "--userdir",
         "/output/user_data",

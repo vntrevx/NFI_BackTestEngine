@@ -13,7 +13,9 @@ from nfi_backtest_engine.docker_resources import (
     inspect_docker_swap_capacity,
 )
 from nfi_backtest_engine.docker_runtime import (
+    BIND_OWNER_EXECUTABLE_FUNCTION,
     cleanup_stopped_managed_containers,
+    docker_root_with_bind_owner_arguments,
     managed_docker_run,
 )
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
@@ -31,6 +33,26 @@ def _daemon(*, total_gib: int = 24) -> dict:
         "memory_limit_supported": True,
         "swap_limit_supported": True,
     }
+
+
+def test_private_image_executable_drops_to_dynamic_bind_owner(
+    tmp_path: Path,
+) -> None:
+    arguments = docker_root_with_bind_owner_arguments(tmp_path)
+    owner = tmp_path.stat()
+
+    assert arguments == [
+        "--user",
+        "0:0",
+        "--env",
+        f"NFI_BIND_UID={owner.st_uid}",
+        "--env",
+        f"NFI_BIND_GID={owner.st_gid}",
+    ]
+    assert 'command -v "$1"' in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert 'getent passwd "${nfi_image_uid}"' in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "--reuid=\"${NFI_BIND_UID}\"" in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "ftuser" not in BIND_OWNER_EXECUTABLE_FUNCTION
 
 
 def test_daemon_inspection_reads_resources_visible_inside_docker(
