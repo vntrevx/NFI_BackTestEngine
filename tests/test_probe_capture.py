@@ -8,6 +8,7 @@ from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.probe_capture import (
     _candle_role,
     _load_probe_spec,
+    _preserve_reference_diagnostics,
     _require_native_surface_coverage,
 )
 
@@ -215,3 +216,34 @@ def test_native_surface_coverage_requires_an_actual_funding_charge() -> None:
 
     with pytest.raises(BenchmarkError, match="funded_trades:0<1"):
         _require_native_surface_coverage(required, surface)
+
+
+def test_reference_failure_diagnostics_are_compact_and_durable(
+    tmp_path: Path,
+) -> None:
+    reference = tmp_path / "disposable-work" / "reference"
+    reference.mkdir(parents=True)
+    report = {"complete": False, "exit_code": 1}
+    write_json(reference / "run.json", report)
+    (reference / "stdout.log").write_bytes(b"o" * 32)
+    (reference / "stderr.log").write_bytes(b"prefix" + b"e" * (128 * 1024))
+    (reference / "state-trace.nfitrace").write_bytes(b"large-trace")
+
+    destination = _preserve_reference_diagnostics(
+        reference,
+        tmp_path / "targeted-fixture",
+        phase="official-verification",
+    )
+
+    assert destination == (
+        tmp_path
+        / "targeted-fixture"
+        / "diagnostics"
+        / "official-verification"
+    )
+    assert (destination / "run.json").is_file()
+    assert (destination / "stdout.log").read_bytes() == b"o" * 32
+    stderr = (destination / "stderr.log").read_bytes()
+    assert stderr.startswith(b"[truncated to final 131072 bytes]\n")
+    assert stderr.endswith(b"e" * (128 * 1024))
+    assert not (destination / "state-trace.nfitrace").exists()
