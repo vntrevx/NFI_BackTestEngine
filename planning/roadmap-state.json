@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 83,
-  "updated_at": "2026-07-30T17:50:18+09:00",
+  "revision": 84,
+  "updated_at": "2026-07-30T22:25:21+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M12-06",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2901,6 +2901,47 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M12-06",
+      "order": 1206,
+      "milestone": "M12",
+      "title": "Publish v1.4.1 Python AST identity hotfix",
+      "status": "in_progress",
+      "depends_on": [
+        "M12-05"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.4.1 package version and hotfix release notes",
+        "same-commit Required CI and release-candidate build",
+        "Python 3.12, 3.13, and 3.14 AST identity regression",
+        "three-OS Spot and Futures exact fixture evidence",
+        "checksum-sealed byte-identical RC and stable assets",
+        "Windows, Linux, and macOS installer audits"
+      ],
+      "forbidden_changes": [
+        "hard-coding a Python version, strategy, Signal, or expected result",
+        "claiming a new combined Full X7 certificate",
+        "relabeling prior Spot or Futures certificates",
+        "rebuilding distribution assets during promotion",
+        "publishing from outside protected main",
+        "publishing after failed Required CI or candidate checks"
+      ],
+      "acceptance_profile": "product_release",
+      "expected_evidence": [
+        "release preparation Required CI",
+        "sealed product candidate bundle",
+        "three-OS platform evidence",
+        "Python 3.13 and 3.14 AST compatibility checks",
+        "RC publication and installer audit",
+        "stable byte comparison and installer audit"
+      ],
+      "started_at": "2026-07-30T22:25:21+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -4825,6 +4866,23 @@
         "three_os_spot_futures_exact_evidence": true,
         "combined_full_x7_certified": false,
         "roadmap_complete": true
+      }
+    },
+    {
+      "sequence": 102,
+      "timestamp": "2026-07-30T22:25:21+09:00",
+      "task_id": "M12-06",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "product_release",
+        "worktree_head": "92f9b4c1aaaa675bd8487d7579845b3179fd103f",
+        "release_version": "1.4.1",
+        "candidate_tag": "v1.4.1-rc.1",
+        "stable_tag": "v1.4.1",
+        "combined_full_x7_certified": false,
+        "prior_certificates_remain_version_bound": true,
+        "simulation_semantics_changed": false,
+        "runtime_hardcoding_added": false
       }
     }
   ]
