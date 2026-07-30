@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 86,
-  "updated_at": "2026-07-31T03:46:24+09:00",
+  "revision": 87,
+  "updated_at": "2026-07-31T03:58:57+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-07",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3023,7 +3023,7 @@
       "order": 1207,
       "milestone": "M12",
       "title": "Defer inaccessible external discovery data without repeated CI failure",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-06"
       ],
@@ -3051,9 +3051,39 @@
         "workflow contract and focused test report"
       ],
       "started_at": "2026-07-31T03:46:24+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-31T03:58:57+09:00",
+      "commit_sha": "d292006312cc8eecd9f9a7540a60e8c897b65af0",
+      "evidence": [
+        {
+          "kind": "policy_deferred_external_data_contract",
+          "implementation_commit": "d292006312cc8eecd9f9a7540a60e8c897b65af0",
+          "policy_version": "1.1.0",
+          "same_identity_external_retry": false,
+          "manual_retry_available": true,
+          "native_qualification_advanced": false,
+          "unknown_infrastructure_still_fails": true
+        },
+        {
+          "kind": "future_nfi_compatibility_acceptance",
+          "python_tests_passed": 582,
+          "future_nfi_tests_passed": 97,
+          "discovery_tests_passed": 74,
+          "rust_tests_passed": 108,
+          "full_fixtures_exact": 5,
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        },
+        {
+          "kind": "storage_boundary",
+          "non_candidate_artifact_retention_days": 1,
+          "raw_candles_uploaded": false,
+          "vectors_uploaded": false,
+          "docker_layers_uploaded": false,
+          "full_traces_uploaded": false,
+          "local_safe_bytes_reclaimed": 266240,
+          "preserved_certificates_and_oracles": true
+        }
+      ],
       "blocker": null
     }
   ],
@@ -5035,6 +5065,25 @@
         "paid_runner_allowed": false,
         "development_laptop_storage_allowed": false,
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 105,
+      "timestamp": "2026-07-31T03:58:57+09:00",
+      "task_id": "M12-07",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "d292006312cc8eecd9f9a7540a60e8c897b65af0",
+        "policy_version": "1.1.0",
+        "policy_selected_external_data_is_deferred": true,
+        "same_identity_reuses_compact_state": true,
+        "new_identity_or_manual_retry_only": true,
+        "unexpected_infrastructure_still_fails": true,
+        "official_fallback_available": true,
+        "native_promotion_fail_closed": true,
+        "development_laptop_runner_used": false,
+        "paid_runner_used": false,
+        "runtime_hardcoding_added": false
       }
     }
   ]
