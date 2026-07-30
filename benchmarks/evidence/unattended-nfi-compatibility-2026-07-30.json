@@ -2,9 +2,9 @@
   "schema_version": "1.0.0",
   "status": "verified",
   "recorded_at": "2026-07-30",
-  "claim_boundary": "This record verifies unattended latest-NFI compatibility qualification and bounded Spot/Futures deep discovery. It does not claim that unknown future Freqtrade semantics are already Native-compatible, and it does not replace five-year release certificates.",
+  "claim_boundary": "This record verifies unattended latest-NFI compatibility qualification, digest-bound compact fixture materialization, and bounded Spot/Futures discovery control. GitHub-hosted runners cannot currently reach Binance from their region, so a future uncovered branch still needs registered sealed data or a network-compatible runner for deep discovery. It does not claim that unknown future Freqtrade semantics are already Native-compatible, and it does not replace five-year release certificates.",
   "implementation": {
-    "commit": "3e7ec036802e342d7095759f9e72502189489a9a",
+    "commit": "ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
     "runtime_hardcoding_added": false,
     "official_fallback_preserved": true,
     "fallback_is_user_visible": true
@@ -59,9 +59,65 @@
       "resolved_source_sha256": "09b42540f0f79a3df76d0f48d6c2b80a3a6fbfeae8c8bc84e6219a93dec103c5",
       "commit_hardcoding": false
     },
+    "fixture_registry": {
+      "path": "planning/compatibility-fixtures.json",
+      "sha256": "9aa8673cb811b9f169b4e41206f97997323953ae3b82edfa7b5cec0f27b117ca",
+      "release": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/compatibility-fixtures-v1",
+      "prerelease": true,
+      "selection_identity": [
+        "trading_mode",
+        "strategy_source_sha256",
+        "freqtrade_image_index_digest"
+      ],
+      "archive_sha256_required": true,
+      "safe_extraction_required": true,
+      "maximum_extracted_bytes": 67108864,
+      "assets": [
+        {
+          "trading_mode": "spot",
+          "name": "nfi-signal65-spot-e8526d82-fixtures.tar.gz",
+          "bytes": 3422689,
+          "sha256": "f9c472dde8c7ba6599b4cf2661717db609ec887f25801c03ca12cd7d71ec40ad"
+        },
+        {
+          "trading_mode": "futures",
+          "name": "nfi-signal65-futures-e8526d82-fixtures.tar.gz",
+          "bytes": 5552274,
+          "sha256": "2729d48eabe339cf1db5abd3813c6fe507be61a356319b8c0e3362a2c3711990"
+        }
+      ]
+    },
+    "registered_targeted_exact": {
+      "spot": {
+        "run": ".nfi/roadmap-acceptance/M12-04/registry-targeted-spot-v3/run.json",
+        "sha256": "34fd2058e8964d11d61642508dbee863910a6bccd617f7fe548c2fbc4ef418bb",
+        "fixtures": 2,
+        "verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true
+      },
+      "futures": {
+        "run": ".nfi/roadmap-acceptance/M12-04/registry-targeted-futures/run.json",
+        "sha256": "69de76570a37d1f519b9685fb3d422e962fb94c5cdf321b84969070acf20e7ab",
+        "fixtures": 2,
+        "verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true
+      }
+    },
     "removed_only_baseline_first_search": true,
+    "removed_target_candidate_capture_requires_stable_execution_anchor": true,
     "semantic_issue_deduplication": true,
+    "legacy_issue_marker_migration": true,
     "infrastructure_issue_separation": true,
+    "hosted_deep_lane_market_access": {
+      "status": "infrastructure_limited",
+      "observed_error": "Binance market catalog HTTP 451",
+      "classified_as_unsupported_semantics": false,
+      "semantic_issue_created_for_infrastructure_failure": false
+    },
     "draft_pr_deduplication_includes_closed_and_merged": true,
     "automatic_merge_or_approval": false,
     "workflow_contract_lint": {
@@ -70,38 +126,38 @@
       "passed": true
     },
     "workflow_sha256": {
-      "fast_lane": "bd42dfe46637be90290068499d37bfc2ff2805786a70bc80e288b00fc7020707",
+      "fast_lane": "82ae63a2408e6afd8c7cf4eb461890ce5634e6a848986f2194a37fa9cd023749",
       "deep_lane": "271e601fa4fe98ca2f5116ed04deca7cdf3a70c5605f40a4f6febfb2514c269d"
     }
   },
   "acceptance": {
-    "root": ".nfi/roadmap-acceptance/M12-04/3e7ec036802e342d7095759f9e72502189489a9a",
-    "commands_passed": 15,
-    "python_tests_passed": 552,
-    "future_nfi_tests_passed": 89,
-    "discovery_tests_passed": 58,
+    "root": ".nfi/roadmap-acceptance/M12-04/ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
+    "commands_passed": 16,
+    "python_tests_passed": 561,
+    "future_nfi_tests_passed": 95,
+    "discovery_tests_passed": 61,
     "rust_tests_passed": 108,
     "clippy_warnings": 0,
     "full_fixture_runs": [
       {
         "name": "normal-routing",
-        "run_sha256": "bb5a2a44accaa1e0398e973204688c04acb646937a82af2924ff66475f255c4a"
+        "run_sha256": "dba9a0400bca65e0bf22f63a2225a30d781d725131c8352a0c67e5abbc94ccfb"
       },
       {
         "name": "stops-only",
-        "run_sha256": "bc1e78774113405ee25e2abb8ca1cff1d3a64f0ca6f852109f1455391223ef62"
+        "run_sha256": "39f42a65e52ce1a779ddf83eaff1efbd23cbfe830a9b28e448c70985cf8ab68c"
       },
       {
         "name": "x7-spot",
-        "run_sha256": "8b1352eecb93494aaab966f35f632e45d0e9c92c3b45e02dafecfdc248cc2e36"
+        "run_sha256": "ea7942c353327297470b0e518adc76c2382f88bb58b0bb8ea7036dfba9bda97f"
       },
       {
         "name": "x7-futures",
-        "run_sha256": "1c819a1ab787e3e007dd4309a9e694cb99dc2d309b9bd878400edfa38e0a7dd2"
+        "run_sha256": "13788adae9523dba1d75ec27a3d6049ca37f61b559200361666f97e472fbb2ae"
       },
       {
         "name": "generic-state-machine",
-        "run_sha256": "d37e52d508091cf712960df8cdfe0da19ba3d01febb199b0503ae77765d32032"
+        "run_sha256": "2ca80a2fdb02846b51f90ef9893c732f64ff05a5fc38edceb00a1b9e3bff24d0"
       }
     ],
     "all_trade_surfaces_exact": true,
