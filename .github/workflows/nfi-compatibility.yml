@@ -28,8 +28,10 @@ jobs:
       previous_sha: ${{ steps.revision.outputs.previous_sha }}
       previous_engine_sha: ${{ steps.revision.outputs.previous_engine_sha }}
       previous_check_path: ${{ steps.revision.outputs.previous_check_path }}
+      baseline_sha: ${{ steps.revision.outputs.baseline_sha }}
       upstream_sha: ${{ steps.revision.outputs.upstream_sha }}
       engine_sha: ${{ steps.revision.outputs.engine_sha }}
+      freqtrade_digest: ${{ steps.revision.outputs.freqtrade_digest }}
     steps:
       - name: Check out engine
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -51,7 +53,9 @@ jobs:
           engine_sha="${GITHUB_SHA}"
           previous_sha=""
           previous_engine_sha=""
+          previous_freqtrade_digest=""
           previous_check_path=""
+          stored_baseline_sha=""
           if git ls-remote --exit-code --heads origin compatibility-ledger \
             >/dev/null 2>&1; then
             git fetch --quiet origin \
@@ -63,7 +67,13 @@ jobs:
             if [ -n "${latest}" ]; then
               previous_sha="$(jq -r '.upstream_sha // ""' <<<"${latest}")"
               previous_engine_sha="$(jq -r '.engine_sha // ""' <<<"${latest}")"
+              previous_freqtrade_digest="$(
+                jq -r '.freqtrade_digest // ""' <<<"${latest}"
+              )"
               previous_check_path="$(jq -r '.check_path // ""' <<<"${latest}")"
+              stored_baseline_sha="$(
+                jq -r '.baseline_upstream_sha // .upstream_sha // ""' <<<"${latest}"
+              )"
             else
               previous_sha="$(
                 git show refs/remotes/origin/compatibility-ledger:latest-sha.txt \
@@ -71,15 +81,27 @@ jobs:
               )"
             fi
           fi
+          if [ "${upstream_sha}" != "${previous_sha}" ]; then
+            baseline_sha="${previous_sha}"
+          else
+            baseline_sha="${stored_baseline_sha:-${previous_sha}}"
+          fi
+          freqtrade_digest="$(
+            PYTHONPATH=python python -c \
+              'from nfi_backtest_engine.reference.contracts import REFERENCE_INDEX_DIGEST; print(REFERENCE_INDEX_DIGEST)'
+          )"
           python scripts/compatibility_identity.py \
             --upstream-sha "${upstream_sha}" \
             --engine-sha "${engine_sha}" \
+            --freqtrade-digest "${freqtrade_digest}" \
             --previous-upstream-sha "${previous_sha}" \
             --previous-engine-sha "${previous_engine_sha}" \
+            --previous-freqtrade-digest "${previous_freqtrade_digest}" \
             --previous-check-path "${previous_check_path}" \
             --force "${FORCE}" \
             --github-output "${GITHUB_OUTPUT}" \
             --github-summary "${GITHUB_STEP_SUMMARY}"
+          echo "baseline_sha=${baseline_sha}" >> "${GITHUB_OUTPUT}"
 
   diff:
     name: Classify upstream AST/IR changes
@@ -100,7 +122,7 @@ jobs:
       - name: Materialize old and new strategy revisions
         env:
           NEW_SHA: ${{ needs.discover.outputs.upstream_sha }}
-          OLD_SHA: ${{ needs.discover.outputs.previous_sha }}
+          OLD_SHA: ${{ needs.discover.outputs.baseline_sha }}
           PREVIOUS_CHECK_PATH: ${{ needs.discover.outputs.previous_check_path }}
         run: |
           set -euo pipefail
@@ -127,6 +149,8 @@ jobs:
       - name: Build or reuse deterministic strategy difference
         env:
           ENGINE_SHA: ${{ needs.discover.outputs.engine_sha }}
+          FREQTRADE_DIGEST: ${{ needs.discover.outputs.freqtrade_digest }}
+          BASELINE_UPSTREAM_SHA: ${{ needs.discover.outputs.baseline_sha }}
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
           set -euo pipefail
@@ -139,11 +163,15 @@ jobs:
           jq -n \
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
+            --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
+            --arg baseline_upstream_sha "${BASELINE_UPSTREAM_SHA}" \
             --arg source_sha256 "$(sha256sum .compatibility/new.py | awk '{print $1}')" \
             '{
               schema_version: "1.0.0",
               upstream_sha: $upstream_sha,
               engine_sha: $engine_sha,
+              freqtrade_digest: $freqtrade_digest,
+              baseline_upstream_sha: $baseline_upstream_sha,
               source_sha256: $source_sha256
             }' > .compatibility/compatibility-identity.json
       - name: Retain strategy difference and source
@@ -152,6 +180,7 @@ jobs:
           name: latest-nfi-x7-strategy-diff
           path: |
             .compatibility/strategy-diff.json
+            .compatibility/old.py
             .compatibility/new.py
             .compatibility/compatibility-identity.json
           if-no-files-found: error
@@ -334,6 +363,8 @@ jobs:
       - name: Publish append-only compatibility ledger
         env:
           ENGINE_SHA: ${{ needs.discover.outputs.engine_sha }}
+          FREQTRADE_DIGEST: ${{ needs.discover.outputs.freqtrade_digest }}
+          BASELINE_UPSTREAM_SHA: ${{ needs.discover.outputs.baseline_sha }}
           GH_TOKEN: ${{ github.token }}
           TRIGGER_REASON: ${{ needs.discover.outputs.reason }}
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
@@ -350,7 +381,8 @@ jobs:
           else
             git switch --quiet --orphan compatibility-ledger
           fi
-          check_path="checks/${UPSTREAM_SHA}/${ENGINE_SHA}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          oracle_key="${FREQTRADE_DIGEST#sha256:}"
+          check_path="checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${oracle_key}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "${check_path}"
           mkdir -p "${check_path}"
           for file in \
@@ -370,6 +402,8 @@ jobs:
           jq -n \
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
+            --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
+            --arg baseline_upstream_sha "${BASELINE_UPSTREAM_SHA}" \
             --arg check_path "${check_path}" \
             --arg trigger_reason "${TRIGGER_REASON}" \
             --arg run_url "${run_url}" \
@@ -377,6 +411,8 @@ jobs:
               schema_version: "1.0.0",
               upstream_sha: $upstream_sha,
               engine_sha: $engine_sha,
+              freqtrade_digest: $freqtrade_digest,
+              baseline_upstream_sha: $baseline_upstream_sha,
               check_path: $check_path,
               trigger_reason: $trigger_reason,
               run_url: $run_url

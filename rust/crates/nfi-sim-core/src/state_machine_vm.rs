@@ -59,7 +59,7 @@ pub fn evaluate_state_machine(
     entrypoint: &str,
     context: &mut StateMachineContext,
 ) -> Result<Option<StateMachineAction>, StateMachineError> {
-    if program.schema_version != "state-machine-program-v1" {
+    if !supported_schema(&program.schema_version) {
         return Err(StateMachineError::UnsupportedSchema);
     }
     let entrypoint = program
@@ -86,7 +86,7 @@ pub fn evaluate_state_machine(
 
 #[must_use]
 pub fn validate_state_machine_program(program: &StateMachineProgram) -> bool {
-    if program.schema_version != "state-machine-program-v1"
+    if !supported_schema(&program.schema_version)
         || program.entrypoints.keys().any(|name| {
             !matches!(
                 name.as_str(),
@@ -124,6 +124,13 @@ pub fn validate_state_machine_program(program: &StateMachineProgram) -> bool {
             .required_state_keys
             .iter()
             .all(|key| !key.is_empty())
+}
+
+fn supported_schema(schema_version: &str) -> bool {
+    matches!(
+        schema_version,
+        "state-machine-program-v1" | "state-machine-program-v2"
+    )
 }
 
 fn validate_instructions(
@@ -526,8 +533,39 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::{
-        evaluate_state_machine, StateMachineActionKind, StateMachineContext, StateMachineProgram,
+        evaluate_state_machine, validate_state_machine_program, StateMachineActionKind,
+        StateMachineContext, StateMachineProgram,
     };
+
+    #[test]
+    fn v1_and_v2_program_contracts_remain_executable() {
+        for schema_version in ["state-machine-program-v1", "state-machine-program-v2"] {
+            let program: StateMachineProgram = serde_json::from_value(json!({
+                "schema_version": schema_version,
+                "entrypoints": {
+                    "custom_exit": {
+                        "max_steps": 1,
+                        "instructions": []
+                    }
+                },
+                "required_reads": [],
+                "required_columns": [],
+                "required_state_keys": [],
+                "opcodes": [],
+                "source_map": {}
+            }))
+            .expect("supported state-machine program");
+
+            assert!(validate_state_machine_program(&program));
+            assert!(evaluate_state_machine(
+                &program,
+                "custom_exit",
+                &mut StateMachineContext::default()
+            )
+            .expect("supported program executes")
+            .is_none());
+        }
+    }
 
     #[test]
     fn dynamic_grind_action_and_typed_state_execute_in_source_order() {

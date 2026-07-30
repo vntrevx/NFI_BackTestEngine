@@ -152,6 +152,42 @@ def test_targeted_strategy_verification_parser_binds_exact_inputs() -> None:
     assert args.output_dir == Path(".nfi/targeted")
 
 
+def test_shared_strategy_discovery_parser_binds_transition_inputs() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "strategy",
+            "discover",
+            "latest.py",
+            "strategy-diff.json",
+            "compatibility.json",
+            "--class",
+            "NostalgiaForInfinityX7",
+            "--trading-mode",
+            "spot",
+            "--upstream-repository",
+            "iterativv/NostalgiaForInfinity",
+            "--upstream-commit",
+            "a" * 40,
+            "--baseline-source",
+            "previous.py",
+            "--baseline-upstream-commit",
+            "b" * 40,
+            "--engine-commit",
+            "c" * 40,
+            "--profile",
+            "profile.json",
+            "--output-dir",
+            ".nfi/discovery",
+        ]
+    )
+
+    assert args.strategy_command == "discover"
+    assert args.trading_mode == "spot"
+    assert args.policy is None
+    assert args.baseline_source == Path("previous.py")
+    assert args.baseline_upstream_commit == "b" * 40
+
+
 def test_result_report_and_run_registry_machine_modes_parse() -> None:
     parser = cli.build_parser()
 

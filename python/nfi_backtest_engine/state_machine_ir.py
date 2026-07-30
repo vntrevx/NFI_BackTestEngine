@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Any, Never
 
 from .errors import StrategyAnalysisError
-from .specs import STATE_MACHINE_PROGRAM_SCHEMA, validate_schema
+from .specs import STATE_MACHINE_PROGRAM_V2_SCHEMA, validate_schema
 from .strategy_ir import analyze_strategy
 
-STATE_MACHINE_PROGRAM_VERSION = "state-machine-program-v1"
+STATE_MACHINE_PROGRAM_VERSION = "state-machine-program-v2"
 STATE_MACHINE_ENTRYPOINTS = (
     "order_filled",
     "adjust_trade_position",
@@ -78,6 +78,11 @@ def compile_state_machine_program(
     compiler = _Compiler(
         path,
         class_constants=constants if isinstance(constants, Mapping) else {},
+        methods={
+            node.name: node
+            for node in class_node.body
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        },
     )
     entrypoints = {}
     for node in class_node.body:
@@ -108,7 +113,7 @@ def compile_state_machine_program(
         "opcodes": sorted(compiler.opcodes),
         "source_map": compiler.source_map,
     }
-    validate_schema(program, STATE_MACHINE_PROGRAM_SCHEMA)
+    validate_schema(program, STATE_MACHINE_PROGRAM_V2_SCHEMA)
     return program
 
 
@@ -118,9 +123,11 @@ class _Compiler:
         path: Path,
         *,
         class_constants: Mapping[str, Any],
+        methods: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
     ) -> None:
         self.path = path
         self.class_constants = class_constants
+        self.methods = methods
         self.next_id = 1
         self.source_map: dict[str, dict[str, Any]] = {}
         self.required_reads: set[tuple[str, str]] = set()
@@ -129,6 +136,8 @@ class _Compiler:
         self.opcodes: set[str] = set()
         self.parameters: set[str] = set()
         self.locals: set[str] = set()
+        self.expression_bindings: list[dict[str, dict[str, Any]]] = []
+        self.helper_stack: list[str] = []
 
     def statements(self, nodes: Sequence[ast.stmt]) -> list[dict[str, Any]]:
         return [instruction for node in nodes for instruction in self.statement(node)]
@@ -287,6 +296,9 @@ class _Compiler:
                 self.unsupported(node, "ellipsis")
             return {"kind": "literal", "value": node.value}
         if isinstance(node, ast.Name):
+            for bindings in reversed(self.expression_bindings):
+                if node.id in bindings:
+                    return bindings[node.id]
             if node.id in self.locals:
                 return self.read("local", node.id)
             if node.id in _CANDLE_INPUTS:
@@ -310,6 +322,9 @@ class _Compiler:
                 }
             self.unsupported(node, "attribute read")
         if isinstance(node, ast.Subscript):
+            found_constant, constant = self.class_constant_subscript(node)
+            if found_constant:
+                return {"kind": "literal", "value": constant}
             if (
                 isinstance(node.slice, ast.Constant)
                 and isinstance(node.slice.value, str)
@@ -347,6 +362,9 @@ class _Compiler:
             }
         if isinstance(node, ast.Call):
             name = _call_leaf(node)
+            helper = self.pure_helper_expression(node)
+            if helper is not None:
+                return helper
             if name == "get_custom_data":
                 if not node.args or not _literal_string(node.args[0]) or node.keywords:
                     self.unsupported(node, "get_custom_data arguments")
@@ -377,6 +395,113 @@ class _Compiler:
                 }
             self.unsupported(node, f"call {name or ast.unparse(node.func)}")
         self.unsupported(node, f"expression {type(node).__name__}")
+
+    def class_constant_subscript(self, node: ast.Subscript) -> tuple[bool, Any]:
+        owner = node.value
+        if (
+            not isinstance(owner, ast.Attribute)
+            or not isinstance(owner.value, ast.Name)
+            or owner.value.id != "self"
+            or owner.attr not in self.class_constants
+        ):
+            return False, None
+        try:
+            key = ast.literal_eval(node.slice)
+            value = self.class_constants[owner.attr]
+            if isinstance(value, Mapping):
+                return True, value[key]
+            if isinstance(value, Sequence) and not isinstance(value, str | bytes):
+                if isinstance(key, bool) or not isinstance(key, int):
+                    self.unsupported(node.slice, "class sequence index")
+                return True, value[key]
+        except (KeyError, IndexError, TypeError, ValueError):
+            self.unsupported(node, "class constant subscript")
+        self.unsupported(node, "class constant subscript")
+
+    def pure_helper_expression(self, call: ast.Call) -> dict[str, Any] | None:
+        function = call.func
+        if (
+            not isinstance(function, ast.Attribute)
+            or not isinstance(function.value, ast.Name)
+            or function.value.id != "self"
+        ):
+            return None
+        name = function.attr
+        method = self.methods.get(name)
+        if method is None or name in STATE_MACHINE_ENTRYPOINTS:
+            return None
+        if isinstance(method, ast.AsyncFunctionDef):
+            self.unsupported(call, f"async helper {name}")
+        if name in self.helper_stack:
+            self.unsupported(call, f"recursive helper {name}")
+        body = [
+            statement
+            for statement in method.body
+            if not (
+                isinstance(statement, ast.Expr)
+                and isinstance(statement.value, ast.Constant)
+                and isinstance(statement.value.value, str)
+            )
+        ]
+        if (
+            len(body) != 1
+            or not isinstance(body[0], ast.Return)
+            or body[0].value is None
+        ):
+            self.unsupported(call, f"stateful helper {name}")
+        bindings = self.helper_bindings(call, method)
+        self.helper_stack.append(name)
+        self.expression_bindings.append(bindings)
+        try:
+            return self.expression(body[0].value)
+        finally:
+            self.expression_bindings.pop()
+            self.helper_stack.pop()
+
+    def helper_bindings(
+        self,
+        call: ast.Call,
+        method: ast.FunctionDef,
+    ) -> dict[str, dict[str, Any]]:
+        arguments = [*method.args.posonlyargs, *method.args.args]
+        if not arguments or arguments[0].arg != "self":
+            self.unsupported(call, f"helper {method.name} receiver")
+        if method.args.vararg is not None or method.args.kwarg is not None:
+            self.unsupported(call, f"variadic helper {method.name}")
+        parameters = arguments[1:]
+        positional_names = [argument.arg for argument in parameters]
+        keyword_only_names = [argument.arg for argument in method.args.kwonlyargs]
+        names = [*positional_names, *keyword_only_names]
+        if len(call.args) > len(names):
+            self.unsupported(call, f"helper {method.name} arguments")
+        bindings = {
+            name: self.expression(value)
+            for name, value in zip(names, call.args, strict=False)
+        }
+        for keyword in call.keywords:
+            if keyword.arg is None or keyword.arg not in names or keyword.arg in bindings:
+                self.unsupported(call, f"helper {method.name} keywords")
+            bindings[keyword.arg] = self.expression(keyword.value)
+        positional_defaults = [None] * (len(parameters) - len(method.args.defaults)) + list(
+            method.args.defaults
+        )
+        for name, default in zip(positional_names, positional_defaults, strict=True):
+            if name not in bindings:
+                if default is None:
+                    self.unsupported(call, f"helper {method.name} missing argument {name}")
+                bindings[name] = self.expression(default)
+        for parameter, default in zip(
+            method.args.kwonlyargs,
+            method.args.kw_defaults,
+            strict=True,
+        ):
+            name = parameter.arg
+            if name in bindings:
+                continue
+            if default is None:
+                self.unsupported(call, f"helper {method.name} missing argument {name}")
+            bindings[name] = self.expression(default)
+        return bindings
 
     def read(
         self,

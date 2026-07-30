@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deduplicate infrastructure failures in the Futures discovery workflow."""
+"""Deduplicate infrastructure failures in the dual-mode discovery workflow."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import re
 import subprocess
 from collections.abc import Mapping, Sequence
 
-_MARKER = re.compile(r"<!-- nfi-futures-discovery-health:([0-9a-f]{64}) -->")
+_MARKER = re.compile(r"<!-- nfi-branch-discovery-health:([0-9a-f]{64}) -->")
 
 
 def build_health_plan(
@@ -44,9 +44,9 @@ def build_health_plan(
             for name, conclusion in failures.items()
         )
         create = {
-            "title": "Futures discovery automation health failure",
+            "title": "NFI branch discovery automation health failure",
             "body": (
-                f"<!-- nfi-futures-discovery-health:{fingerprint} -->\n\n"
+                f"<!-- nfi-branch-discovery-health:{fingerprint} -->\n\n"
                 f"{details}\n\nWorkflow: {run_url}\n\n"
                 "The discovery cursor was not advanced. A later run will retry."
             ),
@@ -78,7 +78,7 @@ def main() -> int:
             "--repo",
             args.repository,
             "--label",
-            "nfi-futures-discovery-health",
+            "nfi-branch-discovery-health",
             "--state",
             "open",
             "--json",
@@ -94,7 +94,7 @@ def main() -> int:
             "--repo",
             args.repository,
             "--label",
-            "nfi-futures-discovery-health",
+            "nfi-branch-discovery-health",
             "--title",
             str(create["title"]),
             "--body",
@@ -108,7 +108,7 @@ def main() -> int:
             "--repo",
             args.repository,
             "--comment",
-            "Futures discovery automation recovered.",
+            "NFI branch discovery automation recovered.",
         )
     return 0
 

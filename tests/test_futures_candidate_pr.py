@@ -31,6 +31,7 @@ def _report() -> dict:
     manifest = MODULE.validate_fixture(FIXTURE / "manifest.json")
     return {
         "status": "candidate_found",
+        "trading_mode": "futures",
         "fingerprint": "a" * 64,
         "upstream_commit": manifest["strategy_provenance"]["upstream_commit"],
         "engine_commit": "c" * 40,
@@ -104,6 +105,19 @@ def test_candidate_plan_rejects_manifest_identity_mismatch(tmp_path: Path) -> No
         )
 
 
+def test_candidate_plan_rejects_cross_mode_manifest(tmp_path: Path) -> None:
+    report = _report()
+    report["trading_mode"] = "spot"
+
+    with pytest.raises(ValueError, match="sealed manifest"):
+        MODULE.build_candidate_plan(
+            report,
+            FIXTURE,
+            tmp_path,
+            max_bytes=30 * 1024 * 1024,
+        )
+
+
 def test_candidate_plan_rejects_symlinked_input(tmp_path: Path) -> None:
     candidate = tmp_path / "candidate"
     candidate.symlink_to(FIXTURE, target_is_directory=True)
@@ -115,3 +129,25 @@ def test_candidate_plan_rejects_symlinked_input(tmp_path: Path) -> None:
             tmp_path / "repo",
             max_bytes=30 * 1024 * 1024,
         )
+
+
+def test_candidate_pr_deduplication_includes_closed_and_merged_prs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(arguments: list[str], **_kwargs) -> str:
+        calls.append(arguments)
+        return '[{"number":47,"state":"MERGED","url":"https://example.invalid/47"}]'
+
+    monkeypatch.setattr(MODULE, "_run", fake_run)
+
+    existing = MODULE._open_pr("owner/repository", "automation/spot-fixture-deadbeef")
+
+    assert existing == {
+        "number": 47,
+        "state": "MERGED",
+        "url": "https://example.invalid/47",
+    }
+    assert "--state" in calls[0]
+    assert calls[0][calls[0].index("--state") + 1] == "all"

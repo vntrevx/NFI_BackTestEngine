@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconcile one deduplicated Issue for terminal Futures discovery gaps."""
+"""Reconcile deduplicated terminal Spot and Futures discovery gaps."""
 
 from __future__ import annotations
 
@@ -11,7 +11,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-_MARKER = re.compile(r"<!-- nfi-futures-discovery:([0-9a-f]{64}) -->")
+_MARKER = re.compile(
+    r"<!-- nfi-branch-discovery:(spot|futures):([0-9a-f]{64}) -->"
+)
 _ISSUE_STATES = {"coverage_exhausted", "unsupported_semantics"}
 
 
@@ -23,31 +25,41 @@ def build_issue_plan(
 ) -> dict[str, Any]:
     """Create only terminal semantic gaps; budget resumes and candidates stay quiet."""
     status = report.get("status")
+    trading_mode = report.get("trading_mode")
+    if trading_mode not in {"spot", "futures"}:
+        raise ValueError("discovery report trading mode is invalid")
     fingerprint = report.get("fingerprint") if status in _ISSUE_STATES else None
     if fingerprint is not None and re.fullmatch(r"[0-9a-f]{64}", str(fingerprint)) is None:
         raise ValueError("discovery report fingerprint is invalid")
     existing = {
-        match.group(1): issue
+        (match.group(1), match.group(2)): issue
         for issue in open_issues
         if isinstance(issue.get("body"), str)
         if (match := _MARKER.search(str(issue["body"]))) is not None
     }
-    keep = existing.get(str(fingerprint), {}).get("number") if fingerprint else None
+    keep = (
+        existing.get((str(trading_mode), str(fingerprint)), {}).get("number")
+        if fingerprint
+        else None
+    )
     close = [
         int(issue["number"])
         for issue in open_issues
+        if isinstance(issue.get("body"), str)
+        if (match := _MARKER.search(str(issue["body"]))) is not None
+        if match.group(1) == trading_mode
         if issue.get("number") != keep
-    ]
+    ] if status != "infrastructure_failed" else []
     create = None
     if fingerprint and keep is None:
         last_message = str(report.get("message", "")).strip()
         create = {
             "title": (
-                "Futures branch discovery gap "
+                f"{str(trading_mode).title()} branch discovery gap "
                 f"({str(report.get('upstream_commit', ''))[:12]})"
             ),
             "body": (
-                f"<!-- nfi-futures-discovery:{fingerprint} -->\n\n"
+                f"<!-- nfi-branch-discovery:{trading_mode}:{fingerprint} -->\n\n"
                 f"Status: `{status}`\n\n"
                 f"Upstream: `{report.get('upstream_commit')}`\n\n"
                 f"Engine: `{report.get('engine_commit')}`\n\n"
@@ -64,7 +76,9 @@ def build_issue_plan(
         "fingerprint": fingerprint,
         "create": create,
         "close": close,
-        "recovered": status not in _ISSUE_STATES,
+        "trading_mode": trading_mode,
+        "recovered": status not in _ISSUE_STATES
+        and status != "infrastructure_failed",
     }
 
 
@@ -84,7 +98,7 @@ def main() -> int:
             "--repo",
             args.repository,
             "--label",
-            "nfi-futures-discovery",
+            "nfi-branch-discovery",
             "--state",
             "open",
             "--json",
@@ -100,7 +114,7 @@ def main() -> int:
             "--repo",
             args.repository,
             "--label",
-            "nfi-futures-discovery",
+            "nfi-branch-discovery",
             "--title",
             str(create["title"]),
             "--body",
@@ -115,7 +129,8 @@ def main() -> int:
             args.repository,
             "--comment",
             (
-                "Futures discovery recovered or advanced to a non-terminal state "
+                f"{str(plan['trading_mode']).title()} discovery recovered or "
+                "advanced to a non-terminal state "
                 f"at `{report.get('upstream_commit')}`."
             ),
         )

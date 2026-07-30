@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish one size-bounded Futures fixture candidate as a draft pull request."""
+"""Publish one size-bounded Spot or Futures fixture candidate as a draft PR."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from nfi_backtest_engine.fixture import sha256_file, validate_fixture
 _FINGERPRINT = re.compile(r"[0-9a-f]{64}")
 _FIXTURE_ID = re.compile(r"[a-z0-9][a-z0-9.-]*")
 _COMMIT = re.compile(r"[0-9a-f]{40}")
+_MODES = {"spot", "futures"}
 
 
 def build_candidate_plan(
@@ -41,8 +42,13 @@ def build_candidate_plan(
     if report.get("status") != "candidate_found":
         raise ValueError("discovery report does not contain a fixture candidate")
     fingerprint = report.get("fingerprint")
+    trading_mode = report.get("trading_mode")
     candidate = report.get("candidate")
-    if _FINGERPRINT.fullmatch(str(fingerprint)) is None or not isinstance(candidate, Mapping):
+    if (
+        _FINGERPRINT.fullmatch(str(fingerprint)) is None
+        or trading_mode not in _MODES
+        or not isinstance(candidate, Mapping)
+    ):
         raise ValueError("discovery candidate identity is invalid")
     if (
         candidate.get("trade_surface_exact") is not True
@@ -70,6 +76,7 @@ def build_candidate_plan(
         or not isinstance(provenance, Mapping)
         or provenance.get("upstream_commit") != upstream_commit
         or provenance.get("effective_source_sha256") != report.get("strategy_sha256")
+        or manifest.get("freqtrade", {}).get("trading_mode") != trading_mode
         or candidate.get("fixture_id") != fixture_id
         or candidate.get("manifest_sha256") != manifest_sha256
     ):
@@ -87,8 +94,8 @@ def build_candidate_plan(
         raise ValueError("fixture candidate exceeds or differs from its sealed size")
     suffix = str(fingerprint)[:16]
     fixture_relative = Path("benchmarks") / "fixtures" / "captured" / fixture_id
-    evidence_relative = (
-        Path("benchmarks") / "evidence" / f"future-nfi-futures-{suffix}.json"
+    evidence_relative = Path("benchmarks") / "evidence" / (
+        f"future-nfi-{trading_mode}-{suffix}.json"
     )
     if (root / fixture_relative).exists() or (root / evidence_relative).exists():
         raise ValueError("fixture candidate destination already exists")
@@ -99,7 +106,8 @@ def build_candidate_plan(
         raise ValueError("fixture candidate target ids are invalid")
     return {
         "fingerprint": fingerprint,
-        "branch": f"automation/futures-fixture-{suffix}",
+        "branch": f"automation/{trading_mode}-fixture-{suffix}",
+        "trading_mode": trading_mode,
         "fixture_id": fixture_id,
         "fixture_source": str(candidate_root),
         "fixture_destination": fixture_relative.as_posix(),
@@ -152,10 +160,12 @@ def publish_candidate(
             {
                 "schema_version": "1.0.0",
                 "claim_boundary": (
-                    "Branch-reaching Futures fixture candidate. This is compact "
+                    f"Branch-reaching {plan['trading_mode']} fixture candidate. "
+                    "This is compact "
                     "quick-verification evidence, not a five-year certificate."
                 ),
                 "fingerprint": plan["fingerprint"],
+                "trading_mode": plan["trading_mode"],
                 "upstream_commit": plan["upstream_commit"],
                 "engine_commit": plan["engine_commit"],
                 "strategy_sha256": plan["strategy_sha256"],
@@ -198,14 +208,20 @@ def publish_candidate(
                 "user.email=41898282+github-actions@users.noreply.github.com",
                 "commit",
                 "-m",
-                f"test(futures): add discovered fixture {plan['fixture_id']}",
+                (
+                    f"test({plan['trading_mode']}): add discovered fixture "
+                    f"{plan['fixture_id']}"
+                ),
             ],
             cwd=root,
         )
         _run(["git", "push", "origin", f"HEAD:{branch}"], cwd=root)
-    title = f"test(futures): add discovered fixture {plan['fixture_id']}"
+    title = (
+        f"test({plan['trading_mode']}): add discovered fixture "
+        f"{plan['fixture_id']}"
+    )
     body = (
-        "Automated bounded Futures branch discovery candidate.\n\n"
+        f"Automated bounded {plan['trading_mode']} branch discovery candidate.\n\n"
         f"- Fingerprint: `{plan['fingerprint']}`\n"
         f"- Upstream: `{plan['upstream_commit']}`\n"
         f"- Engine: `{plan['engine_commit']}`\n"
@@ -301,9 +317,9 @@ def _open_pr(repository: str, branch: str) -> dict[str, Any] | None:
             "--head",
             branch,
             "--state",
-            "open",
+            "all",
             "--json",
-            "number,url",
+            "number,state,url",
         ]
     )
     records = json.loads(output)

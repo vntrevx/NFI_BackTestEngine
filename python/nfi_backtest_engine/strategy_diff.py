@@ -15,7 +15,7 @@ from .errors import StrategyAnalysisError
 from .strategy import STRATEGY_CALLBACKS
 from .strategy_ir import analyze_strategy
 
-STRATEGY_DIFF_VERSION = "1.2.0"
+STRATEGY_DIFF_VERSION = "1.3.0"
 _VECTOR_METHODS = {
     "populate_indicators",
     "populate_entry_trend",
@@ -67,6 +67,10 @@ def diff_strategies(
         "custom_state_keys": _set_change(old["state_keys"], new["state_keys"]),
         "grind_levels": _set_change(old["grind_levels"], new["grind_levels"]),
         "opcodes": _set_change(old["opcodes"], new["opcodes"]),
+        "boolean_mappings": _boolean_mapping_changes(
+            old["boolean_mappings"],
+            new["boolean_mappings"],
+        ),
     }
     diagnostics = {
         "old": old["diagnostics"],
@@ -197,9 +201,49 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
         "state_keys": state_keys,
         "grind_levels": grind_levels,
         "opcodes": opcodes,
+        "boolean_mappings": _boolean_mappings(strategy.get("constants")),
         "method_features": method_features,
         "diagnostics": analysis["diagnostics"],
     }
+
+
+def _boolean_mappings(constants: Any) -> dict[str, dict[str, bool]]:
+    if not isinstance(constants, Mapping):
+        return {}
+    return {
+        str(mapping): {
+            str(key): value
+            for key, value in values.items()
+            if isinstance(key, str) and isinstance(value, bool)
+        }
+        for mapping, values in constants.items()
+        if isinstance(mapping, str)
+        and isinstance(values, Mapping)
+        and any(isinstance(value, bool) for value in values.values())
+    }
+
+
+def _boolean_mapping_changes(
+    old: Mapping[str, Mapping[str, bool]],
+    new: Mapping[str, Mapping[str, bool]],
+) -> list[dict[str, Any]]:
+    changes: list[dict[str, Any]] = []
+    for mapping in sorted(set(old) & set(new)):
+        old_values = old[mapping]
+        new_values = new[mapping]
+        for key in sorted(set(old_values) & set(new_values)):
+            before = old_values[key]
+            after = new_values[key]
+            if before != after:
+                changes.append(
+                    {
+                        "mapping": mapping,
+                        "key": key,
+                        "old": before,
+                        "new": after,
+                    }
+                )
+    return changes
 
 
 def _behavior_targets(
@@ -232,6 +276,8 @@ def _behavior_targets(
                         value=value,
                         methods=methods,
                         tags=_method_tags_for(inventory, methods),
+                        old_inventory=old_inventory,
+                        new_inventory=new_inventory,
                     )
                 )
 
@@ -257,6 +303,8 @@ def _behavior_targets(
                     value=name,
                     methods=[name],
                     tags=tags,
+                    old_inventory=old_inventory,
+                    new_inventory=new_inventory,
                 )
             )
     return sorted(targets, key=lambda item: item["id"])
@@ -389,6 +437,8 @@ def _target(
     value: Any,
     methods: list[str],
     tags: list[str],
+    old_inventory: Mapping[str, Any],
+    new_inventory: Mapping[str, Any],
 ) -> dict[str, Any]:
     identity = {
         "kind": kind,
@@ -407,12 +457,39 @@ def _target(
     return {
         "id": hashlib.sha256(payload).hexdigest(),
         **identity,
+        "proof": {
+            "mode": {
+                "added": "presence",
+                "removed": "absence",
+                "changed": "transition",
+            }[change],
+            "old_source_spans": _source_spans(old_inventory, methods),
+            "new_source_spans": _source_spans(new_inventory, methods),
+        },
         "runtime_observable": bool(
             kind in {"signal", "tag", "grind_level"}
             or tags
             or (kind == "callback" and str(value) in STRATEGY_CALLBACKS)
         ),
     }
+
+
+def _source_spans(
+    inventory: Mapping[str, Any],
+    methods: list[str],
+) -> list[dict[str, Any]]:
+    callbacks = inventory.get("callbacks")
+    if not isinstance(callbacks, Mapping):
+        return []
+    return [
+        {
+            "method": method,
+            **dict(record["location"]),
+        }
+        for method in methods
+        if isinstance((record := callbacks.get(method)), Mapping)
+        and isinstance(record.get("location"), Mapping)
+    ]
 
 
 def _method_tags(method: ast.AST) -> set[str]:

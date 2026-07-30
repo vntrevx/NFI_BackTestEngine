@@ -357,25 +357,42 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             f"{args.output_dir / 'run.json'}"
         )
         return 0 if report["complete"] else 1
-    if args.strategy_command == "discover-futures":
+    if args.strategy_command in {"discover", "discover-futures"}:
         from datetime import date
 
-        from ..futures_discovery import discover_futures_targets
+        from ..futures_discovery import discover_futures_targets, discover_targets
 
         try:
             as_of = date.fromisoformat(args.as_of) if args.as_of else None
         except ValueError as exc:
             raise NfiBacktestError("--as-of must be a valid YYYY-MM-DD date") from exc
-        report = discover_futures_targets(
+        trading_mode = (
+            args.trading_mode
+            if args.strategy_command == "discover"
+            else "futures"
+        )
+        policy = (
+            args.policy
+            if args.policy is not None
+            else Path(f"planning/{trading_mode}-discovery-policy.json")
+        )
+        service = (
+            discover_targets
+            if args.strategy_command == "discover"
+            else discover_futures_targets
+        )
+        report = service(
             args.source,
             args.strategy_diff,
             args.compatibility_report,
             args.fixtures_root,
-            args.policy,
+            policy,
             args.output_dir,
             class_name=args.class_name,
             upstream_repository=args.upstream_repository,
             upstream_commit=args.upstream_commit,
+            baseline_source=args.baseline_source,
+            baseline_upstream_commit=args.baseline_upstream_commit,
             engine_commit=args.engine_commit,
             profile_path=args.profile,
             cursor_path=args.cursor,
@@ -383,7 +400,7 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             workers=args.workers,
         )
         print(
-            "Futures target discovery: "
+            f"{trading_mode.capitalize()} target discovery: "
             f"status={report['status']}, "
             f"searched={report['searched_shard_count']}/{report['shard_count']}, "
             f"next={report['next_shard']} -> "

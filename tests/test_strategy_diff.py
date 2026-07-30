@@ -43,7 +43,13 @@ def test_strategy_diff_classifies_vector_signal_change(tmp_path: Path) -> None:
     }
     assert targets[("signal", "removed", "62")]["runtime_observable"] is True
     assert targets[("signal", "added", "63")]["runtime_observable"] is True
+    assert targets[("signal", "removed", "62")]["proof"]["mode"] == "absence"
+    assert targets[("signal", "added", "63")]["proof"]["mode"] == "presence"
     assert targets[("callback", "changed", "populate_entry_trend")]["tags"] == ["63"]
+    callback_proof = targets[("callback", "changed", "populate_entry_trend")]["proof"]
+    assert callback_proof["mode"] == "transition"
+    assert callback_proof["old_source_spans"][0]["method"] == "populate_entry_trend"
+    assert callback_proof["new_source_spans"][0]["method"] == "populate_entry_trend"
 
 
 def test_strategy_diff_flags_dynamic_grind_state_for_review(tmp_path: Path) -> None:
@@ -154,3 +160,37 @@ class Demo(IStrategy):
     )
     assert "63" in helper["tags"]
     assert helper["runtime_observable"] is True
+
+
+def test_strategy_diff_records_source_driven_boolean_mapping_transitions(
+    tmp_path: Path,
+) -> None:
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    old.write_text(
+        "class Demo(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    long_entry_signal_params = {'route_enable': False}\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+    new.write_text(
+        "class Demo(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    long_entry_signal_params = {'route_enable': True}\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    report = diff_strategies(old, new, class_name="Demo")
+
+    assert report["changes"]["boolean_mappings"] == [
+        {
+            "mapping": "long_entry_signal_params",
+            "key": "route_enable",
+            "old": False,
+            "new": True,
+        }
+    ]

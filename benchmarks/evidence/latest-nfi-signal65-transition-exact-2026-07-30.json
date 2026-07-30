@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0.0",
+  "status": "quick-verified",
+  "recorded_at": "2026-07-30",
+  "claim_boundary": "The source changes between the previous and latest NFI X7 revisions were reached in independent official executions for Spot and Futures. The latest revision then matched pinned Freqtrade at zero tolerance for both the normalized trade surface and full projected state. This changed-path certificate is not a five-year release or performance certificate.",
+  "upstream": {
+    "repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "strategy": "NostalgiaForInfinityX7",
+    "previous_commit": "f188ec26fcb69619cea3843429bed08a294ade99",
+    "previous_source_sha256": "09b42540f0f79a3df76d0f48d6c2b80a3a6fbfeae8c8bc84e6219a93dec103c5",
+    "latest_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+    "latest_source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+    "strategy_diff_sha256": "aa732483ddec9cf983682d9fcd7911d90a5654d10fe2f9f1f332abc195e39086"
+  },
+  "oracle": {
+    "engine": "freqtrade",
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "network_during_backtest": false
+  },
+  "changed_behavior": {
+    "classification": "ir-compatible",
+    "class_boolean_mapping_transition": {
+      "mapping": "long_entry_signal_params",
+      "key": "long_entry_condition_65_enable",
+      "previous": false,
+      "latest": true
+    },
+    "previous_exit_reason": "exit_long_rebuy_signal65_early_recovery ( 65 )",
+    "latest_exit_reason": "exit_long_rebuy_e_r ( 65 )",
+    "canonical_latest_route": "exit_long_rebuy_e_r",
+    "runtime_hardcoding_added": false
+  },
+  "scope": {
+    "timerange": "20240321-20240328",
+    "spot_pair": "RSR/USDT",
+    "futures_pair": "RSR/USDT:USDT",
+    "timeframe": "5m",
+    "proof_lanes": [
+      "previous official",
+      "latest official",
+      "latest Native"
+    ],
+    "numeric_tolerance": 0
+  },
+  "modes": {
+    "spot": {
+      "paired_fixture_logical_bytes": 24287867,
+      "candidate_limit_bytes": 31457280,
+      "previous": {
+        "fixture_id": "previous-nfi-signal65-transition-spot-rsr-compact-f188ec26",
+        "manifest_sha256": "1ce9759f358c591402cd94e8bef4a705c08d4518b92813e45f00e6980371e3df",
+        "trade_surface_sha256": "b623bc956e8eed94d7e69e89846d348e91679722ea0409b087549a8ce52e3e52",
+        "official_state_trace_sha256": "debb8e1bf73f1444cd4b3e888787cf823c4482abb8677f8d7be136a6c6166bb5",
+        "sealed_exact_run_sha256": "9f73f6554600f8ecb4eac3756649e49d13e0b83808ffc65d33fd01654031a8fe"
+      },
+      "latest": {
+        "fixture_id": "latest-nfi-signal65-transition-spot-rsr-compact-e8526d82",
+        "manifest_sha256": "442b5f30c235d9fa58d95bd6b361d28956692f92ba0b1a6f2d33ca4071f34ebf",
+        "trade_surface_sha256": "ad468a41e79de62e2c6adfafc5447966171fd1860801311ce730328138cbf608",
+        "official_state_trace_sha256": "c420ae4b95ea5bcb7cd8dba35ff9ac8fb23fe4e0a6cac6a651a96255202fd19e",
+        "sealed_exact_run_sha256": "87fad344aa262a49f49f0b0a47e934c1e636f095cca2125d4f7186454bf95dcd"
+      },
+      "branch_proof_sha256": "27f9a9752a8b1548c44ae3d19f9ee8adb3985310eb4207e585b28f4d14938cca",
+      "qualification_sha256": "a1d45de526d34565fba1b495c2f5393f347fd329b8c635dc22e16c4d7f08b56c",
+      "changed_branch_reached": true,
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    },
+    "futures": {
+      "paired_fixture_logical_bytes": 27586949,
+      "candidate_limit_bytes": 31457280,
+      "previous": {
+        "fixture_id": "previous-nfi-signal65-transition-futures-rsr-compact-f188ec26",
+        "manifest_sha256": "c1f70c0cc9d071f430718301fa8fc4cd06143d102710c8a93c0092e5efb2060f",
+        "trade_surface_sha256": "83803ac84050302c752ec638ed140152a6c180120e57f3354b25eeea9f8bd6e2",
+        "official_state_trace_sha256": "e2815dd95ed6bfb6d40da213a74fe7b1eb13e01465ffc9fea8ac7bea226ed192",
+        "sealed_exact_run_sha256": "0a7e1d7888cc31aab1a229919a58186e042af47d20a43c7751ba4927ce031c06"
+      },
+      "latest": {
+        "fixture_id": "latest-nfi-signal65-transition-futures-rsr-compact-e8526d82",
+        "manifest_sha256": "59c54f37d8b043fe222fb731b0e38b24bde7e420b84b21c59b3bdca48ece5149",
+        "trade_surface_sha256": "f62662aa00c8c9352c7815c90b8ac68eb6fa1caa47f7f3933f6cc238656838e6",
+        "official_state_trace_sha256": "7659146dacc58b81c99612a7a206b55b9cf255c5af6df853b7ba0d716084fba3",
+        "sealed_exact_run_sha256": "2fcd04f47874cb0e125df881a68d8f12485fefed6e70358073001bb902695968"
+      },
+      "branch_proof_sha256": "27f9a9752a8b1548c44ae3d19f9ee8adb3985310eb4207e585b28f4d14938cca",
+      "qualification_sha256": "a1d45de526d34565fba1b495c2f5393f347fd329b8c635dc22e16c4d7f08b56c",
+      "changed_branch_reached": true,
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  },
+  "target_proofs": {
+    "target_count": 4,
+    "presence_complete": true,
+    "absence_complete": true,
+    "transition_complete": true,
+    "missing_target_count": 0
+  },
+  "promotion": {
+    "verification_state": "quick_verified",
+    "spot_blockers": [],
+    "futures_blockers": [],
+    "prior_release_certificates_reused": false
+  },
+  "artifact_retention": {
+    "tracked_record": "this compact evidence document",
+    "full_local_artifacts_root": ".nfi/roadmap-acceptance/M12-02/worktree",
+    "full_fixtures_committed": false,
+    "reason": "Preserve digest-bound raw evidence locally without adding roughly 46 MB to every repository clone."
+  },
+  "limitations": [
+    "This certificate proves only changed-path compatibility for the identified upstream transition.",
+    "The previous source constant was toggled through a source-span-bound, diff-derived transformation so the old branch could be observed; the transformation is recorded in each previous fixture manifest.",
+    "It does not replace the continuous five-year Spot or Futures release certificates.",
+    "A future source change with unsupported semantics remains official-only until an independent exact proof succeeds."
+  ]
+}

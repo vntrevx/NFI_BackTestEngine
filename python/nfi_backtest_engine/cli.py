@@ -709,6 +709,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_discover_futures.add_argument("--upstream-repository", required=True)
     strategy_discover_futures.add_argument("--upstream-commit", required=True)
+    strategy_discover_futures.add_argument("--baseline-source", type=Path)
+    strategy_discover_futures.add_argument("--baseline-upstream-commit")
     strategy_discover_futures.add_argument("--engine-commit", required=True)
     strategy_discover_futures.add_argument("--profile", type=Path, required=True)
     strategy_discover_futures.add_argument("--cursor", type=Path)
@@ -718,6 +720,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_discover_futures.add_argument("--workers", type=int)
     strategy_discover_futures.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+    )
+    strategy_discover = strategy_commands.add_parser(
+        "discover",
+        help="search bounded listing-aware shards for missing Spot/Futures targets",
+    )
+    strategy_discover.add_argument("source", type=Path)
+    strategy_discover.add_argument("strategy_diff", type=Path)
+    strategy_discover.add_argument("compatibility_report", type=Path)
+    strategy_discover.add_argument("--class", dest="class_name", required=True)
+    strategy_discover.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        required=True,
+    )
+    strategy_discover.add_argument(
+        "--fixtures-root",
+        type=Path,
+        default=Path("benchmarks/fixtures/captured"),
+    )
+    strategy_discover.add_argument("--policy", type=Path)
+    strategy_discover.add_argument("--upstream-repository", required=True)
+    strategy_discover.add_argument("--upstream-commit", required=True)
+    strategy_discover.add_argument("--baseline-source", type=Path)
+    strategy_discover.add_argument("--baseline-upstream-commit")
+    strategy_discover.add_argument("--engine-commit", required=True)
+    strategy_discover.add_argument("--profile", type=Path, required=True)
+    strategy_discover.add_argument("--cursor", type=Path)
+    strategy_discover.add_argument(
+        "--as-of",
+        help="UTC discovery date in YYYY-MM-DD form; default is today",
+    )
+    strategy_discover.add_argument("--workers", type=int)
+    strategy_discover.add_argument(
         "--output-dir",
         type=Path,
         required=True,

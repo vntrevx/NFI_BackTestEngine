@@ -1,5 +1,5 @@
 # yamllint disable rule:line-length
-name: Futures branch discovery
+name: NFI branch discovery
 
 on:
   workflow_run:
@@ -20,30 +20,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: futures-branch-discovery
+  group: nfi-branch-discovery
   cancel-in-progress: false
 
 jobs:
   resolve:
-    name: Resolve latest checked identity
+    name: Resolve checked NFI, engine, and Freqtrade identity
+    if: >-
+      github.event_name != 'workflow_run'
+      || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.identity.outputs.ready }}
       source_run_id: ${{ steps.identity.outputs.source_run_id }}
       upstream_sha: ${{ steps.identity.outputs.upstream_sha }}
       engine_sha: ${{ steps.identity.outputs.engine_sha }}
-      cursor_path: ${{ steps.identity.outputs.cursor_path }}
+      freqtrade_digest: ${{ steps.identity.outputs.freqtrade_digest }}
+      oracle_key: ${{ steps.identity.outputs.oracle_key }}
     steps:
       - name: Check out current main
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Resolve compatibility ledger and resumable cursor
+      - name: Resolve immutable compatibility identity
         id: identity
         env:
           GH_TOKEN: ${{ github.token }}
-          REQUESTED_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.compatibility_run_id || '' }}
+          REQUESTED_RUN_ID: >-
+            ${{ github.event_name == 'workflow_dispatch'
+                && inputs.compatibility_run_id
+                || github.event_name == 'workflow_run'
+                && github.event.workflow_run.id
+                || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -54,10 +63,13 @@ jobs:
           test -s "${metadata}"
           upstream_sha="$(jq -er .upstream_sha "${metadata}")"
           engine_sha="$(jq -er .engine_sha "${metadata}")"
+          freqtrade_digest="$(jq -er .freqtrade_digest "${metadata}")"
+          ledger_run_id="$(jq -er '.run_url | split("/")[-1]' "${metadata}")"
           source_run_id="${REQUESTED_RUN_ID}"
           if [ -z "${source_run_id}" ]; then
-            source_run_id="$(jq -er '.run_url | split("/")[-1]' "${metadata}")"
+            source_run_id="${ledger_run_id}"
           fi
+          test "${source_run_id}" = "${ledger_run_id}"
           run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${source_run_id}")"
           jq -e \
             '.name == "Latest NFI compatibility" and .conclusion == "success"' \
@@ -66,39 +78,41 @@ jobs:
           main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           ready=false
           if [ "${engine_sha}" = "${main_sha}" ]; then
+            local_digest="$(
+              PYTHONPATH=python python -c \
+                'from nfi_backtest_engine.reference.contracts import REFERENCE_INDEX_DIGEST; print(REFERENCE_INDEX_DIGEST)'
+            )"
+            test "${freqtrade_digest}" = "${local_digest}"
             ready=true
-          fi
-          cursor_path=""
-          discovery_latest="${ledger_dir}/discovery/latest.json"
-          if [ -s "${discovery_latest}" ] \
-            && [ "$(jq -r .upstream_sha "${discovery_latest}")" = "${upstream_sha}" ] \
-            && [ "$(jq -r .engine_sha "${discovery_latest}")" = "${engine_sha}" ]; then
-            cursor_path="$(jq -r '.cursor_path // ""' "${discovery_latest}")"
           fi
           {
             echo "ready=${ready}"
             echo "source_run_id=${source_run_id}"
             echo "upstream_sha=${upstream_sha}"
             echo "engine_sha=${engine_sha}"
-            echo "cursor_path=${cursor_path}"
+            echo "freqtrade_digest=${freqtrade_digest}"
+            echo "oracle_key=${freqtrade_digest#sha256:}"
           } >> "${GITHUB_OUTPUT}"
           {
             echo "ready=${ready}"
             echo "source_run_id=${source_run_id}"
             echo "upstream_sha=${upstream_sha}"
             echo "engine_sha=${engine_sha}"
-            echo "cursor_path=${cursor_path:-none}"
+            echo "freqtrade_digest=${freqtrade_digest}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   discover:
-    name: Search bounded Futures shards
+    name: Search bounded ${{ matrix.trading_mode }} shards
     needs: resolve
     if: needs.resolve.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 125
-    outputs:
-      status: ${{ steps.result.outputs.status }}
-      fingerprint: ${{ steps.result.outputs.fingerprint }}
+    strategy:
+      fail-fast: false
+      matrix:
+        trading_mode:
+          - spot
+          - futures
     steps:
       - name: Check out checked engine identity
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -119,59 +133,84 @@ jobs:
           path: .discovery/input
           run-id: ${{ needs.resolve.outputs.source_run_id }}
           github-token: ${{ github.token }}
-      - name: Download checked Futures compatibility
+      - name: Download checked mode compatibility
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: latest-nfi-x7-futures-compatibility
+          name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .discovery/input
           run-id: ${{ needs.resolve.outputs.source_run_id }}
           github-token: ${{ github.token }}
-      - name: Restore matching discovery cursor
+      - name: Restore same-mode matching cursor
         env:
-          CURSOR_PATH: ${{ needs.resolve.outputs.cursor_path }}
+          ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
+          FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
+          MODE: ${{ matrix.trading_mode }}
+          UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n "${CURSOR_PATH}" ]; then
-            git fetch --quiet origin \
-              compatibility-ledger:refs/remotes/origin/compatibility-ledger
-            git show \
-              "refs/remotes/origin/compatibility-ledger:${CURSOR_PATH}" \
-              > .discovery/downloaded-cursor.json
+          ledger_dir="$(mktemp -d)"
+          git clone --quiet --single-branch --branch compatibility-ledger \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "${ledger_dir}"
+          latest="${ledger_dir}/discovery/${MODE}/latest.json"
+          if [ -s "${latest}" ] \
+            && [ "$(jq -r .upstream_sha "${latest}")" = "${UPSTREAM_SHA}" ] \
+            && [ "$(jq -r .engine_sha "${latest}")" = "${ENGINE_SHA}" ] \
+            && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ]; then
+            cursor_path="$(jq -r '.cursor_path // ""' "${latest}")"
+            if [ -n "${cursor_path}" ]; then
+              cp "${ledger_dir}/${cursor_path}" .discovery/downloaded-cursor.json
+            fi
           fi
       - name: Validate immutable compatibility identity
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
+          FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
+          MODE: ${{ matrix.trading_mode }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
         run: |
           set -euo pipefail
           jq -e \
             --arg engine "${ENGINE_SHA}" \
+            --arg freqtrade "${FREQTRADE_DIGEST}" \
             --arg upstream "${UPSTREAM_SHA}" \
-            '.engine_sha == $engine and .upstream_sha == $upstream' \
+            '.engine_sha == $engine and .freqtrade_digest == $freqtrade and .upstream_sha == $upstream' \
             .discovery/input/compatibility-identity.json
           test "$(
             sha256sum .discovery/input/new.py | awk '{print $1}'
           )" = "$(
             jq -r .source_sha256 .discovery/input/compatibility-identity.json
           )"
+          baseline_commit="$(
+            jq -r '.baseline_upstream_sha // ""' \
+              .discovery/input/compatibility-identity.json
+          )"
+          baseline=()
+          if [[ "${baseline_commit}" =~ ^[0-9a-f]{40}$ ]]; then
+            baseline=(
+              --baseline-source .discovery/input/old.py
+              --baseline-upstream-commit "${baseline_commit}"
+            )
+          fi
           if [ -s .discovery/downloaded-cursor.json ]; then
             uv run python scripts/select_discovery_cursor.py \
               --strategy-diff .discovery/input/strategy-diff.json \
-              --compatibility .discovery/input/report-futures.json \
+              --compatibility ".discovery/input/report-${MODE}.json" \
               --fixtures-root benchmarks/fixtures/captured \
-              --policy planning/futures-discovery-policy.json \
+              --policy "planning/${MODE}-discovery-policy.json" \
               --upstream-commit "${UPSTREAM_SHA}" \
               --engine-commit "${ENGINE_SHA}" \
               --candidate .discovery/downloaded-cursor.json \
-              --output .discovery/previous-cursor.json
+              --output .discovery/previous-cursor.json \
+              "${baseline[@]}"
           fi
       - name: Tune bounded runner
         run: uv run nfi-bte system tune --output .discovery/profile.json
-      - name: Search or resume missing Futures targets
+      - name: Search or resume missing mode targets
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
+          MODE: ${{ matrix.trading_mode }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
         run: |
@@ -180,44 +219,49 @@ jobs:
           if [ -s .discovery/previous-cursor.json ]; then
             cursor=(--cursor .discovery/previous-cursor.json)
           fi
+          baseline_commit="$(
+            jq -r '.baseline_upstream_sha // ""' \
+              .discovery/input/compatibility-identity.json
+          )"
+          baseline=()
+          if [[ "${baseline_commit}" =~ ^[0-9a-f]{40}$ ]]; then
+            baseline=(
+              --baseline-source .discovery/input/old.py
+              --baseline-upstream-commit "${baseline_commit}"
+            )
+          fi
           set +e
-          uv run nfi-bte strategy discover-futures \
+          uv run nfi-bte strategy discover \
             .discovery/input/new.py \
             .discovery/input/strategy-diff.json \
-            .discovery/input/report-futures.json \
+            ".discovery/input/report-${MODE}.json" \
             --class NostalgiaForInfinityX7 \
+            --trading-mode "${MODE}" \
             --fixtures-root benchmarks/fixtures/captured \
-            --policy planning/futures-discovery-policy.json \
+            --policy "planning/${MODE}-discovery-policy.json" \
             --upstream-repository iterativv/NostalgiaForInfinity \
             --upstream-commit "${UPSTREAM_SHA}" \
             --engine-commit "${ENGINE_SHA}" \
             --profile .discovery/profile.json \
             --workers 1 \
             --output-dir .discovery/result \
+            "${baseline[@]}" \
             "${cursor[@]}"
-          status=$?
+          command_status=$?
           set -e
           test -s .discovery/result/discovery-report.json
-          report_status="$(
-            jq -er .status .discovery/result/discovery-report.json
-          )"
+          report_status="$(jq -er .status .discovery/result/discovery-report.json)"
           if [ "${report_status}" = "infrastructure_failed" ]; then
-            test "${status}" -ne 0
+            test "${command_status}" -ne 0
           else
-            test "${status}" -eq 0
+            test "${command_status}" -eq 0
           fi
-      - name: Export discovery state
-        id: result
-        shell: bash
-        run: |
-          {
-            echo "status=$(jq -er .status .discovery/result/discovery-report.json)"
-            echo "fingerprint=$(jq -er .fingerprint .discovery/result/discovery-report.json)"
-          } >> "${GITHUB_OUTPUT}"
           jq '{
+            trading_mode,
             status,
             message,
             fingerprint,
+            freqtrade_image_digest,
             target_count,
             searchable_target_count,
             unsearchable_target_ids,
@@ -225,12 +269,11 @@ jobs:
             next_shard,
             shard_count,
             candidate
-          }' .discovery/result/discovery-report.json \
-            >> "${GITHUB_STEP_SUMMARY}"
+          }' .discovery/result/discovery-report.json >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain compact report and optional size-bounded candidate
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: futures-branch-discovery-${{ steps.result.outputs.fingerprint }}
+          name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: |
             .discovery/result/discovery-request.json
             .discovery/result/discovery-report.json
@@ -238,16 +281,30 @@ jobs:
             .discovery/result/candidate-fixture
           if-no-files-found: error
           retention-days: 30
+      - name: Fail this mode only on infrastructure failure
+        shell: bash
+        run: |
+          test "$(
+            jq -r .status .discovery/result/discovery-report.json
+          )" != "infrastructure_failed"
 
   publish:
-    name: Preserve cursor and reconcile discovery gap
+    name: Preserve ${{ matrix.trading_mode }} cursor and semantic state
     needs:
       - resolve
       - discover
     if: >-
-      needs.discover.result == 'success'
-      && needs.discover.outputs.status != 'infrastructure_failed'
+      always()
+      && needs.resolve.outputs.ready == 'true'
+      && needs.discover.result != 'skipped'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        trading_mode:
+          - spot
+          - futures
     permissions:
       actions: read
       contents: write
@@ -258,31 +315,38 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: false
-      - name: Download compact discovery result
+      - name: Download compact mode result
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: futures-branch-discovery-${{ needs.discover.outputs.fingerprint }}
+          name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: .discovery/result
       - name: Reconcile terminal semantic gap
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh label create nfi-futures-discovery \
-            --description "Terminal Futures branch discovery gap" \
+          gh label create nfi-branch-discovery \
+            --description "Terminal NFI branch discovery gap" \
             --color 8B0000 --force
           python scripts/futures_discovery_issue.py \
             --report .discovery/result/discovery-report.json \
             --repository "${GITHUB_REPOSITORY}" \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-      - name: Advance append-only discovery cursor
+      - name: Advance append-only same-mode cursor
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
-          FINGERPRINT: ${{ needs.discover.outputs.fingerprint }}
+          FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
           GH_TOKEN: ${{ github.token }}
+          MODE: ${{ matrix.trading_mode }}
+          ORACLE_KEY: ${{ needs.resolve.outputs.oracle_key }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          report="${GITHUB_WORKSPACE}/.discovery/result/discovery-report.json"
+          if [ "$(jq -r .status "${report}")" = "infrastructure_failed" ]; then
+            exit 0
+          fi
+          fingerprint="$(jq -er .fingerprint "${report}")"
           ledger_dir="$(mktemp -d)"
           git clone --quiet --no-checkout \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
@@ -290,9 +354,9 @@ jobs:
           cd "${ledger_dir}"
           git switch --quiet --create compatibility-ledger \
             refs/remotes/origin/compatibility-ledger
-          run_path="discovery/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${FINGERPRINT}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_path="discovery/${MODE}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "${run_path}"
-          mkdir -p "${run_path}" discovery
+          mkdir -p "${run_path}" "discovery/${MODE}"
           for file in discovery-request.json discovery-report.json cursor.json; do
             cp "${GITHUB_WORKSPACE}/.discovery/result/${file}" "${run_path}/${file}"
           done
@@ -300,7 +364,9 @@ jobs:
           jq -n \
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
-            --arg fingerprint "${FINGERPRINT}" \
+            --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
+            --arg trading_mode "${MODE}" \
+            --arg fingerprint "${fingerprint}" \
             --arg run_path "${run_path}" \
             --arg cursor_path "${cursor_path}" \
             --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
@@ -308,26 +374,38 @@ jobs:
               schema_version: "1.0.0",
               upstream_sha: $upstream_sha,
               engine_sha: $engine_sha,
+              freqtrade_digest: $freqtrade_digest,
+              trading_mode: $trading_mode,
               fingerprint: $fingerprint,
               run_path: $run_path,
               cursor_path: $cursor_path,
               run_url: $run_url
             }' > "${run_path}/metadata.json"
-          cp "${run_path}/metadata.json" discovery/latest.json
-          git add discovery
+          cp "${run_path}/metadata.json" "discovery/${MODE}/latest.json"
+          git add "discovery/${MODE}"
           git -c user.name=github-actions \
             -c user.email=41898282+github-actions@users.noreply.github.com \
-            commit --quiet -m "discovery: record ${FINGERPRINT}"
+            commit --quiet -m "discovery(${MODE}): record ${fingerprint}"
           git push --quiet origin HEAD:compatibility-ledger
 
   candidate-pr:
-    name: Open size-bounded draft fixture PR
+    name: Open ${{ matrix.trading_mode }} exact-fixture Draft PR
     needs:
       - resolve
       - discover
       - publish
-    if: needs.discover.outputs.status == 'candidate_found'
+    if: >-
+      always()
+      && needs.resolve.outputs.ready == 'true'
+      && needs.discover.result != 'skipped'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        trading_mode:
+          - spot
+          - futures
     permissions:
       actions: write
       contents: write
@@ -343,18 +421,24 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --extra dev --frozen
-      - name: Download exact candidate
+      - name: Download exact candidate result
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: futures-branch-discovery-${{ needs.discover.outputs.fingerprint }}
+          name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: .discovery/result
-      - name: Open draft PR and dispatch required CI
+      - name: Open Draft PR and dispatch required CI when exact
         env:
           GH_TOKEN: ${{ github.token }}
+          MODE: ${{ matrix.trading_mode }}
         shell: bash
         run: |
+          if [ "$(
+            jq -r .status .discovery/result/discovery-report.json
+          )" != "candidate_found" ]; then
+            exit 0
+          fi
           max_bytes="$(
-            jq -er .candidate.max_bytes planning/futures-discovery-policy.json
+            jq -er .candidate.max_bytes "planning/${MODE}-discovery-policy.json"
           )"
           uv run python scripts/futures_candidate_pr.py \
             --report .discovery/result/discovery-report.json \
@@ -365,7 +449,7 @@ jobs:
             --max-bytes "${max_bytes}"
 
   health:
-    name: Reconcile Futures discovery health
+    name: Reconcile dual-mode discovery health
     needs:
       - resolve
       - discover
@@ -384,8 +468,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh label create nfi-futures-discovery-health \
-            --description "Futures discovery workflow infrastructure failure" \
+          gh label create nfi-branch-discovery-health \
+            --description "NFI branch discovery workflow infrastructure failure" \
             --color D93F0B --force
           python scripts/futures_discovery_health_issue.py \
             --repository "${GITHUB_REPOSITORY}" \

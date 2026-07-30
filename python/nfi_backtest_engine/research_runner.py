@@ -41,10 +41,7 @@ from .reference_runtime import load_reference_leverage_tiers
 from .result_report import write_result_presentation
 from .run_registry import RunRegistry
 from .specs import validate_trade_surface
-from .state_machine_ir import (
-    STATE_MACHINE_PROGRAM_VERSION,
-    compile_state_machine_program,
-)
+from .state_machine_ir import compile_state_machine_program
 from .strategy_ir import STRATEGY_IR_VERSION
 from .strategy_overrides import effective_stoploss_ratio
 from .vector_runtime import (
@@ -277,7 +274,7 @@ def run_research_backtest(
         **(
             {
                 "state_machine": {
-                    "schema_version": STATE_MACHINE_PROGRAM_VERSION,
+                    "schema_version": state_machine_program["schema_version"],
                     "adapter_lane": adapter_lane,
                     "program": state_machine_program,
                 }
@@ -739,7 +736,9 @@ def run_research_backtest(
                 {
                     "legacy_hot_loop_ready": hot_ir["hot_loop_ready"],
                     "adapter_lane": adapter_lane,
-                    "state_machine_schema_version": STATE_MACHINE_PROGRAM_VERSION,
+                    "state_machine_schema_version": state_machine_program[
+                        "schema_version"
+                    ],
                 }
                 if state_machine_program is not None
                 else {}
