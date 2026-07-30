@@ -17,6 +17,7 @@ def test_fast_lane_exports_identity_for_separate_deep_search() -> None:
     assert "--arg baseline_upstream_sha" in text
     assert "--arg source_sha256" in text
     assert ".compatibility/old.py" in text
+    assert "scripts/resolve_upstream_source.py" in text
 
 
 def test_discovery_is_separate_resumable_and_resource_bounded() -> None:

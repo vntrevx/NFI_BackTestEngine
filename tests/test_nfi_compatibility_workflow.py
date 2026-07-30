@@ -48,6 +48,22 @@ def test_workflow_exports_paired_sources_and_three_part_identity() -> None:
     assert ".compatibility/compatibility-identity.json" in text
     assert "--arg freqtrade_digest" in text
     assert "--arg baseline_upstream_sha" in text
+    assert "scripts/resolve_upstream_source.py" in text
+    assert 'jq -er \'.old.sha256\'' in text
+    assert 'sha256sum .compatibility/old.py' in text
+    assert ".compatibility/baseline-resolution.json" in text
+
+
+def test_workflow_materializes_only_digest_bound_release_fixtures() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "scripts/compatibility_fixture_registry.py select" in text
+    assert "planning/compatibility-fixtures.json" in text
+    assert 'gh release download "${release_tag}"' in text
+    assert '--pattern "${asset_name}"' in text
+    assert "scripts/compatibility_fixture_registry.py materialize" in text
+    assert "--source-sha256" in text
+    assert "--freqtrade-digest" in text
 
 
 def test_workflow_health_is_separate_from_compatibility_blockers() -> None:

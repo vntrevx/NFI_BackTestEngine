@@ -2,9 +2,9 @@
   "schema_version": "1.0.0",
   "status": "verified",
   "recorded_at": "2026-07-30",
-  "claim_boundary": "This record verifies unattended latest-NFI compatibility qualification and bounded Spot/Futures deep discovery. It does not claim that unknown future Freqtrade semantics are already Native-compatible, and it does not replace five-year release certificates.",
+  "claim_boundary": "This record verifies unattended latest-NFI compatibility qualification, digest-bound compact fixture materialization, and bounded Spot/Futures discovery control. GitHub-hosted runners cannot currently reach Binance from their region, so a future uncovered branch still needs registered sealed data or a network-compatible runner for deep discovery. It does not claim that unknown future Freqtrade semantics are already Native-compatible, and it does not replace five-year release certificates.",
   "implementation": {
-    "commit": "dacfe59878f7e244493d6687f70fef849c5d03f4",
+    "commit": "ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
     "runtime_hardcoding_added": false,
     "official_fallback_preserved": true,
     "fallback_is_user_visible": true
@@ -52,9 +52,72 @@
     "deep_lane_budget_minutes_per_mode": 120,
     "same_mode_cursor_resume": true,
     "paired_previous_latest_sources": true,
+    "legacy_baseline_resolution": {
+      "content_digest_bound": true,
+      "history_search_limit": 200,
+      "resolved_canary_commit": "f188ec26fcb69619cea3843429bed08a294ade99",
+      "resolved_source_sha256": "09b42540f0f79a3df76d0f48d6c2b80a3a6fbfeae8c8bc84e6219a93dec103c5",
+      "commit_hardcoding": false
+    },
+    "fixture_registry": {
+      "path": "planning/compatibility-fixtures.json",
+      "sha256": "9aa8673cb811b9f169b4e41206f97997323953ae3b82edfa7b5cec0f27b117ca",
+      "release": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/compatibility-fixtures-v1",
+      "prerelease": true,
+      "selection_identity": [
+        "trading_mode",
+        "strategy_source_sha256",
+        "freqtrade_image_index_digest"
+      ],
+      "archive_sha256_required": true,
+      "safe_extraction_required": true,
+      "maximum_extracted_bytes": 67108864,
+      "assets": [
+        {
+          "trading_mode": "spot",
+          "name": "nfi-signal65-spot-e8526d82-fixtures.tar.gz",
+          "bytes": 3422689,
+          "sha256": "f9c472dde8c7ba6599b4cf2661717db609ec887f25801c03ca12cd7d71ec40ad"
+        },
+        {
+          "trading_mode": "futures",
+          "name": "nfi-signal65-futures-e8526d82-fixtures.tar.gz",
+          "bytes": 5552274,
+          "sha256": "2729d48eabe339cf1db5abd3813c6fe507be61a356319b8c0e3362a2c3711990"
+        }
+      ]
+    },
+    "registered_targeted_exact": {
+      "spot": {
+        "run": ".nfi/roadmap-acceptance/M12-04/registry-targeted-spot-v3/run.json",
+        "sha256": "34fd2058e8964d11d61642508dbee863910a6bccd617f7fe548c2fbc4ef418bb",
+        "fixtures": 2,
+        "verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true
+      },
+      "futures": {
+        "run": ".nfi/roadmap-acceptance/M12-04/registry-targeted-futures/run.json",
+        "sha256": "69de76570a37d1f519b9685fb3d422e962fb94c5cdf321b84969070acf20e7ab",
+        "fixtures": 2,
+        "verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true
+      }
+    },
     "removed_only_baseline_first_search": true,
+    "removed_target_candidate_capture_requires_stable_execution_anchor": true,
     "semantic_issue_deduplication": true,
+    "legacy_issue_marker_migration": true,
     "infrastructure_issue_separation": true,
+    "hosted_deep_lane_market_access": {
+      "status": "infrastructure_limited",
+      "observed_error": "Binance market catalog HTTP 451",
+      "classified_as_unsupported_semantics": false,
+      "semantic_issue_created_for_infrastructure_failure": false
+    },
     "draft_pr_deduplication_includes_closed_and_merged": true,
     "automatic_merge_or_approval": false,
     "workflow_contract_lint": {
@@ -63,38 +126,38 @@
       "passed": true
     },
     "workflow_sha256": {
-      "fast_lane": "1f68ff5d263ce7152aa635dc0cef71a062d594dbbffe5237fc61406daf43418c",
+      "fast_lane": "82ae63a2408e6afd8c7cf4eb461890ce5634e6a848986f2194a37fa9cd023749",
       "deep_lane": "271e601fa4fe98ca2f5116ed04deca7cdf3a70c5605f40a4f6febfb2514c269d"
     }
   },
   "acceptance": {
-    "root": ".nfi/roadmap-acceptance/M12-04/dacfe59878f7e244493d6687f70fef849c5d03f4",
-    "commands_passed": 15,
-    "python_tests_passed": 545,
-    "future_nfi_tests_passed": 82,
-    "discovery_tests_passed": 58,
+    "root": ".nfi/roadmap-acceptance/M12-04/ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
+    "commands_passed": 16,
+    "python_tests_passed": 561,
+    "future_nfi_tests_passed": 95,
+    "discovery_tests_passed": 61,
     "rust_tests_passed": 108,
     "clippy_warnings": 0,
     "full_fixture_runs": [
       {
         "name": "normal-routing",
-        "run_sha256": "b616cebc86e7dc630144bd6825cf16616b1b5aff52666a260759e96856b07357"
+        "run_sha256": "dba9a0400bca65e0bf22f63a2225a30d781d725131c8352a0c67e5abbc94ccfb"
       },
       {
         "name": "stops-only",
-        "run_sha256": "4f689009599383c42c071eb71672824acb823c20b1411a152093f3bb94537fae"
+        "run_sha256": "39f42a65e52ce1a779ddf83eaff1efbd23cbfe830a9b28e448c70985cf8ab68c"
       },
       {
         "name": "x7-spot",
-        "run_sha256": "c8b5a1c4b7477bcd195e46c5b2fe15eef88e8360409e64258329841585fe4c02"
+        "run_sha256": "ea7942c353327297470b0e518adc76c2382f88bb58b0bb8ea7036dfba9bda97f"
       },
       {
         "name": "x7-futures",
-        "run_sha256": "d031960a0a5d0a75d0e8366f4ef37a5a5a20cf0571e1b0d6c6c376bdc38018aa"
+        "run_sha256": "13788adae9523dba1d75ec27a3d6049ca37f61b559200361666f97e472fbb2ae"
       },
       {
         "name": "generic-state-machine",
-        "run_sha256": "98b70c248ece74657f45aa4de0db207b091aba504f5f7785eb09c38ba84eb624"
+        "run_sha256": "2ca80a2fdb02846b51f90ef9893c732f64ff05a5fc38edceb00a1b9e3bff24d0"
       }
     ],
     "all_trade_surfaces_exact": true,

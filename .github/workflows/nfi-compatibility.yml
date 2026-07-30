@@ -151,6 +151,7 @@ jobs:
           ENGINE_SHA: ${{ needs.discover.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.discover.outputs.freqtrade_digest }}
           BASELINE_UPSTREAM_SHA: ${{ needs.discover.outputs.baseline_sha }}
+          GH_TOKEN: ${{ github.token }}
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
           set -euo pipefail
@@ -160,11 +161,33 @@ jobs:
               --class NostalgiaForInfinityX7 \
               --output .compatibility/strategy-diff.json
           fi
+          baseline_upstream_sha="${BASELINE_UPSTREAM_SHA}"
+          expected_old_sha="$(
+            jq -er '.old.sha256' .compatibility/strategy-diff.json
+          )"
+          materialized_old_sha="$(
+            sha256sum .compatibility/old.py | awk '{print $1}'
+          )"
+          if [ "${materialized_old_sha}" != "${expected_old_sha}" ]; then
+            uv run python scripts/resolve_upstream_source.py \
+              --repository iterativv/NostalgiaForInfinity \
+              --head-sha "${UPSTREAM_SHA}" \
+              --source-path NostalgiaForInfinityX7.py \
+              --expected-sha256 "${expected_old_sha}" \
+              --output-source .compatibility/old.py \
+              --output-metadata .compatibility/baseline-resolution.json
+            baseline_upstream_sha="$(
+              jq -er .resolved_commit .compatibility/baseline-resolution.json
+            )"
+          fi
+          test "$(
+            sha256sum .compatibility/old.py | awk '{print $1}'
+          )" = "${expected_old_sha}"
           jq -n \
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
             --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
-            --arg baseline_upstream_sha "${BASELINE_UPSTREAM_SHA}" \
+            --arg baseline_upstream_sha "${baseline_upstream_sha}" \
             --arg source_sha256 "$(sha256sum .compatibility/new.py | awk '{print $1}')" \
             '{
               schema_version: "1.0.0",
@@ -182,6 +205,7 @@ jobs:
             .compatibility/strategy-diff.json
             .compatibility/old.py
             .compatibility/new.py
+            .compatibility/baseline-resolution.json
             .compatibility/compatibility-identity.json
           if-no-files-found: error
           retention-days: 30
@@ -279,6 +303,38 @@ jobs:
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .compatibility
+      - name: Materialize registered compact exact fixtures
+        env:
+          FREQTRADE_DIGEST: ${{ needs.discover.outputs.freqtrade_digest }}
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ matrix.trading_mode }}
+        run: |
+          set -euo pipefail
+          source_sha256="$(sha256sum .compatibility/new.py | awk '{print $1}')"
+          selection="$(
+            uv run python scripts/compatibility_fixture_registry.py select \
+              --registry planning/compatibility-fixtures.json \
+              --trading-mode "${MODE}" \
+              --source-sha256 "${source_sha256}" \
+              --freqtrade-digest "${FREQTRADE_DIGEST}"
+          )"
+          if [ "$(jq -r .found <<<"${selection}")" != "true" ]; then
+            exit 0
+          fi
+          release_tag="$(jq -er .bundle.release_tag <<<"${selection}")"
+          asset_name="$(jq -er .bundle.asset_name <<<"${selection}")"
+          mkdir -p .compatibility/assets
+          gh release download "${release_tag}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${asset_name}" \
+            --dir .compatibility/assets
+          uv run python scripts/compatibility_fixture_registry.py materialize \
+            --registry planning/compatibility-fixtures.json \
+            --trading-mode "${MODE}" \
+            --source-sha256 "${source_sha256}" \
+            --freqtrade-digest "${FREQTRADE_DIGEST}" \
+            --asset ".compatibility/assets/${asset_name}" \
+            --output-dir benchmarks/fixtures/compatibility-cache
       - name: Run targeted official and Native qualification
         env:
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
@@ -364,7 +420,6 @@ jobs:
         env:
           ENGINE_SHA: ${{ needs.discover.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.discover.outputs.freqtrade_digest }}
-          BASELINE_UPSTREAM_SHA: ${{ needs.discover.outputs.baseline_sha }}
           GH_TOKEN: ${{ github.token }}
           TRIGGER_REASON: ${{ needs.discover.outputs.reason }}
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
@@ -382,6 +437,10 @@ jobs:
             git switch --quiet --orphan compatibility-ledger
           fi
           oracle_key="${FREQTRADE_DIGEST#sha256:}"
+          baseline_upstream_sha="$(
+            jq -er .baseline_upstream_sha \
+              "${GITHUB_WORKSPACE}/.compatibility/results/compatibility-identity.json"
+          )"
           check_path="checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${oracle_key}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "${check_path}"
           mkdir -p "${check_path}"
@@ -403,7 +462,7 @@ jobs:
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
             --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
-            --arg baseline_upstream_sha "${BASELINE_UPSTREAM_SHA}" \
+            --arg baseline_upstream_sha "${baseline_upstream_sha}" \
             --arg check_path "${check_path}" \
             --arg trigger_reason "${TRIGGER_REASON}" \
             --arg run_url "${run_url}" \

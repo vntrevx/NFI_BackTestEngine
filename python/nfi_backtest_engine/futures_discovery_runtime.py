@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING, Any
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config, sanitize_config
-from .errors import BenchmarkError, BranchCoverageError, SpecValidationError
+from .errors import (
+    BenchmarkError,
+    BranchCoverageError,
+    DiscoveryInfrastructureError,
+    SpecValidationError,
+)
 from .fixture import sha256_file
 from .market_snapshot import capture_market_catalog
 from .release_inputs import discover_release_universe
@@ -158,7 +163,12 @@ def _ensure_universe(
     if not isinstance(effective, dict):
         raise SpecValidationError("discovery template config must be an object")
     catalog_path = shared / "market-catalog.json"
-    capture_market_catalog(effective, catalog_path)
+    try:
+        capture_market_catalog(effective, catalog_path)
+    except BenchmarkError as exc:
+        raise DiscoveryInfrastructureError(
+            f"market catalog capture failed before semantic discovery: {exc}"
+        ) from exc
     candidates_path = shared / "universe.json"
     overall_timerange = (
         f"{context.all_shards[-1].start:%Y%m%d}-"

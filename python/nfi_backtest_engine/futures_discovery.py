@@ -18,7 +18,12 @@ from pathlib import Path
 from typing import Any
 
 from .canonical import read_json, write_json
-from .errors import BenchmarkError, BranchCoverageError, SpecValidationError
+from .errors import (
+    BenchmarkError,
+    BranchCoverageError,
+    DiscoveryInfrastructureError,
+    SpecValidationError,
+)
 from .fixture import sha256_file
 from .reference.contracts import REFERENCE_INDEX_DIGEST
 from .targeted_verification import plan_targeted_verification
@@ -409,6 +414,12 @@ def discover_targets(
             try:
                 result = scout(shard, context)
                 _validate_shard_result(result)
+            except DiscoveryInfrastructureError as exc:
+                result = {
+                    "outcome": "infrastructure_failed",
+                    "message": str(exc),
+                    "target_ids": [],
+                }
             except (BenchmarkError, BranchCoverageError, SpecValidationError) as exc:
                 result = {
                     "outcome": "unsupported",

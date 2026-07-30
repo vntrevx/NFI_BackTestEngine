@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "bundles": [
+    {
+      "id": "latest-nfi-e8526d82-spot",
+      "trading_mode": "spot",
+      "upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+      "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+      "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "release_tag": "compatibility-fixtures-v1",
+      "asset_name": "nfi-signal65-spot-e8526d82-fixtures.tar.gz",
+      "asset_bytes": 3422689,
+      "asset_sha256": "f9c472dde8c7ba6599b4cf2661717db609ec887f25801c03ca12cd7d71ec40ad",
+      "extracted_bytes": 24287861,
+      "fixture_ids": [
+        "previous-nfi-signal65-transition-spot-rsr-compact-f188ec26",
+        "latest-nfi-signal65-transition-spot-rsr-compact-e8526d82"
+      ]
+    },
+    {
+      "id": "latest-nfi-e8526d82-futures",
+      "trading_mode": "futures",
+      "upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+      "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+      "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "release_tag": "compatibility-fixtures-v1",
+      "asset_name": "nfi-signal65-futures-e8526d82-fixtures.tar.gz",
+      "asset_bytes": 5552274,
+      "asset_sha256": "2729d48eabe339cf1db5abd3813c6fe507be61a356319b8c0e3362a2c3711990",
+      "extracted_bytes": 27586943,
+      "fixture_ids": [
+        "previous-nfi-signal65-transition-futures-rsr-compact-f188ec26",
+        "latest-nfi-signal65-transition-futures-rsr-compact-e8526d82"
+      ]
+    }
+  ]
+}

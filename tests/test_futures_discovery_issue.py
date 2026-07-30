@@ -91,3 +91,25 @@ def test_spot_reconciliation_does_not_close_a_futures_gap() -> None:
 
     assert plan["create"] is not None
     assert plan["close"] == []
+
+
+def test_current_marker_wins_and_closes_same_fingerprint_legacy_duplicate() -> None:
+    report = _report("coverage_exhausted")
+    fingerprint = str(report["fingerprint"])
+    plan = MODULE.build_issue_plan(
+        report,
+        [
+            {
+                "number": 56,
+                "body": f"<!-- nfi-futures-discovery:{fingerprint} -->",
+            },
+            {
+                "number": 59,
+                "body": f"<!-- nfi-branch-discovery:futures:{fingerprint} -->",
+            },
+        ],
+        run_url="https://example.invalid/5",
+    )
+
+    assert plan["create"] is None
+    assert plan["close"] == [56]

@@ -509,16 +509,28 @@ def _targeted_required_coverage(
     entry_tags = _string_set(observed.get("entry_tags"))
     compound_tags = _string_set(observed.get("compound_tags"))
     exit_reasons = _string_set(observed.get("exit_reasons"))
+    positive_targets = [
+        target for target in targets if _target_proof_mode(target) != "absence"
+    ]
     target_methods = {
         str(method)
-        for target in targets
+        for target in positive_targets
         for method in target.get("methods", [])
         if isinstance(method, str)
     }
     target_callbacks = {
-        str(target.get("value")) for target in targets if target.get("kind") == "callback"
+        str(target.get("value"))
+        for target in positive_targets
+        if target.get("kind") == "callback"
     }
-    target_values = {value for target in targets for value in _target_observation_values(target)}
+    target_values = {
+        value
+        for target in positive_targets
+        for value in _target_observation_values(target)
+    }
+    all_target_values = {
+        value for target in targets for value in _target_observation_values(target)
+    }
     required_callbacks = sorted(callbacks & (target_methods | target_callbacks))
     required_entry_tags = sorted(entry_tags & target_values)
     required_compound_tags = sorted(compound_tags & target_values)
@@ -534,11 +546,12 @@ def _targeted_required_coverage(
             if isinstance(trade, Mapping)
             and isinstance((direction := trade.get("direction")), str)
             and direction in {"long", "short"}
-            and _trade_matches_targets(trade, target_values)
+            and _trade_matches_targets(trade, all_target_values)
         }
     )
     require_distinct_leverages = any(
-        target.get("kind") == "callback" and target.get("value") == "leverage" for target in targets
+        target.get("kind") == "callback" and target.get("value") == "leverage"
+        for target in positive_targets
     )
     template_required = manifest.get("required_coverage")
     template_minimum_leverages = (

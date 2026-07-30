@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 77,
-  "updated_at": "2026-07-30T09:21:19+09:00",
+  "revision": 79,
+  "updated_at": "2026-07-30T10:56:16+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
@@ -2723,6 +2723,7 @@
       "scope": [
         "NFI, engine, and Freqtrade digest identity",
         "four-hour dual-mode fast lane",
+        "digest-bound compact fixture registry",
         "dual-mode bounded deep-search handoff",
         "automatic quick-verified ledger promotion",
         "deduplicated unsupported-opcode issue and draft PR flow"
@@ -2742,13 +2743,13 @@
       ],
       "started_at": "2026-07-30T08:39:54+09:00",
       "completed_at": "2026-07-30T09:21:19+09:00",
-      "commit_sha": "dacfe59878f7e244493d6687f70fef849c5d03f4",
+      "commit_sha": "ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
       "evidence": [
         {
           "kind": "unattended_compatibility_qualification",
           "path": "benchmarks/evidence/unattended-nfi-compatibility-2026-07-30.json",
-          "bytes": 4039,
-          "sha256": "11c2bfdfb29718667c8a40319cc44f2ddcdad4bd803ef482778ac87e3737e021"
+          "bytes": 6841,
+          "sha256": "27a4b3d5833440a7c819be07fa1584e1c1fb7575b7e48fe959e552a094858a2b"
         },
         {
           "kind": "latest_upstream_dual_mode_canary",
@@ -2760,10 +2761,33 @@
           "full_state_exact": true
         },
         {
+          "kind": "digest_bound_fixture_registry",
+          "path": "planning/compatibility-fixtures.json",
+          "bytes": 1644,
+          "sha256": "9aa8673cb811b9f169b4e41206f97997323953ae3b82edfa7b5cec0f27b117ca",
+          "release_tag": "compatibility-fixtures-v1",
+          "asset_count": 2,
+          "archive_digest_verified": true,
+          "safe_extraction_verified": true
+        },
+        {
+          "kind": "registered_targeted_dual_mode_exact",
+          "spot_run": ".nfi/roadmap-acceptance/M12-04/registry-targeted-spot-v3/run.json",
+          "spot_sha256": "34fd2058e8964d11d61642508dbee863910a6bccd617f7fe548c2fbc4ef418bb",
+          "futures_run": ".nfi/roadmap-acceptance/M12-04/registry-targeted-futures/run.json",
+          "futures_sha256": "69de76570a37d1f519b9685fb3d422e962fb94c5cdf321b84969070acf20e7ab",
+          "verification_state": "quick_verified",
+          "changed_branch_reached": true,
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        },
+        {
           "kind": "future_nfi_compatibility_acceptance",
-          "path": ".nfi/roadmap-acceptance/M12-04/dacfe59878f7e244493d6687f70fef849c5d03f4",
-          "commands_passed": 15,
-          "python_tests_passed": 545,
+          "path": ".nfi/roadmap-acceptance/M12-04/ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
+          "commands_passed": 16,
+          "python_tests_passed": 561,
+          "future_nfi_tests_passed": 95,
+          "discovery_tests_passed": 61,
           "rust_tests_passed": 108,
           "full_fixtures_exact": 5
         },
@@ -2772,7 +2796,9 @@
           "actionlint_version": "1.7.12",
           "passed": true,
           "spot_futures_independent": true,
-          "same_fingerprint_deduplicated": true
+          "same_fingerprint_deduplicated": true,
+          "legacy_issue_markers_migrated": true,
+          "infrastructure_failures_are_not_semantic_blockers": true
         }
       ],
       "blocker": null
@@ -4564,6 +4590,47 @@
         "runtime_hardcoding_added": false,
         "acceptance_commands_passed": 15,
         "roadmap_complete": true
+      }
+    },
+    {
+      "sequence": 96,
+      "timestamp": "2026-07-30T10:01:01+09:00",
+      "task_id": "M12-04",
+      "event": "task_evidence_amended",
+      "details": {
+        "commit_sha": "3e7ec036802e342d7095759f9e72502189489a9a",
+        "reason": "legacy ledger records lacked a baseline commit identity",
+        "baseline_resolution": "bounded upstream history matched by source SHA-256",
+        "resolved_canary_commit": "f188ec26fcb69619cea3843429bed08a294ade99",
+        "resolved_source_sha256": "09b42540f0f79a3df76d0f48d6c2b80a3a6fbfeae8c8bc84e6219a93dec103c5",
+        "source_or_commit_hardcoding_added": false,
+        "acceptance_commands_passed": 15,
+        "python_tests_passed": 552,
+        "rust_tests_passed": 108,
+        "full_fixtures_exact": 5
+      }
+    },
+    {
+      "sequence": 97,
+      "timestamp": "2026-07-30T10:56:16+09:00",
+      "task_id": "M12-04",
+      "event": "task_evidence_amended",
+      "details": {
+        "commit_sha": "ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
+        "reason": "materialize compact exact fixtures without growing repository clones",
+        "fixture_registry_release": "compatibility-fixtures-v1",
+        "spot_verification_state": "quick_verified",
+        "futures_verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "removed_target_candidate_capture": "absence plus stable execution anchor",
+        "deep_lane_hosted_runner_limit": "Binance market catalog HTTP 451 is infrastructure_failed",
+        "runtime_hardcoding_added": false,
+        "acceptance_commands_passed": 16,
+        "python_tests_passed": 561,
+        "rust_tests_passed": 108,
+        "full_fixtures_exact": 5
       }
     }
   ]

@@ -55,3 +55,30 @@ def test_healthy_discovery_closes_only_its_health_issue() -> None:
 
     assert plan["healthy"] is True
     assert plan["close"] == [22]
+
+
+def test_current_health_marker_wins_over_legacy_duplicate() -> None:
+    stages = {"discover": "failure"}
+    initial = MODULE.build_health_plan(
+        stages,
+        [],
+        run_url="https://example.invalid/4",
+    )
+    fingerprint = str(initial["fingerprint"])
+    plan = MODULE.build_health_plan(
+        stages,
+        [
+            {
+                "number": 23,
+                "body": f"<!-- nfi-futures-discovery-health:{fingerprint} -->",
+            },
+            {
+                "number": 24,
+                "body": f"<!-- nfi-branch-discovery-health:{fingerprint} -->",
+            },
+        ],
+        run_url="https://example.invalid/5",
+    )
+
+    assert plan["create"] is None
+    assert plan["close"] == [23]
