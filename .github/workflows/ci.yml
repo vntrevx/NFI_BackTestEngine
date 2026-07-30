@@ -92,7 +92,7 @@ jobs:
         run: python .github/scripts/test_ci_contract.py
 
   python:
-    name: Python ${{ matrix.os }}
+    name: Python ${{ matrix.os }} / ${{ matrix.python-version }}
     needs: changes
     if: needs.changes.outputs.code_changes == 'true'
     runs-on: ${{ matrix.os }}
@@ -100,7 +100,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-14]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.12"
+            suite: full
+          - os: windows-latest
+            python-version: "3.12"
+            suite: full
+          - os: macos-14
+            python-version: "3.12"
+            suite: full
+          - os: ubuntu-latest
+            python-version: "3.13"
+            suite: ast-compat
+          - os: ubuntu-latest
+            python-version: "3.14"
+            suite: ast-compat
     steps:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -109,15 +124,21 @@ jobs:
       - name: Install uv and Python
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.12"
-          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+          enable-cache: ${{ matrix.suite == 'full' }}
           cache-dependency-glob: "uv.lock"
       - name: Sync locked environment
+        if: matrix.suite == 'full'
         run: uv sync --extra dev --frozen
       - name: Build editable native extension
+        if: matrix.suite == 'full'
         run: uv run maturin develop --locked
       - name: Run Python tests
+        if: matrix.suite == 'full'
         run: uv run pytest -q
+      - name: Check version-stable AST identity
+        if: matrix.suite == 'ast-compat'
+        run: python .github/scripts/test_python_ast_identity.py
 
   quality:
     name: Static and Rust checks

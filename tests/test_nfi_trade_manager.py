@@ -57,6 +57,24 @@ def long_exit_rebuy(self, enter_tags, current_time, trade, profit_init_ratio):
     ) == _method_ast_sha256(base, remove_statement_index=None)
 
 
+def test_method_ast_hash_is_python_version_stable() -> None:
+    method = _method(
+        """
+def route(self, value: float) -> tuple:
+    if value >= 0.5:
+        return True, "exit"
+    return False, None
+"""
+    )
+
+    # Python 3.13+ omits empty AST fields by default. The identity helper must
+    # retain the Python 3.12 representation used by the reviewed route hashes.
+    assert (
+        _method_ast_sha256(method, remove_statement_index=None)
+        == "d09ebf44530dc027a248c4f5c20bf0135bf525e06bba73d74f12912b97b8a4a6"
+    )
+
+
 def test_rebuy_terminal_exit_rejects_a_different_comparison_contract() -> None:
     method = _method(
         """
