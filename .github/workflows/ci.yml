@@ -125,7 +125,7 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
-          enable-cache: true
+          enable-cache: ${{ matrix.suite == 'full' }}
           cache-dependency-glob: "uv.lock"
       - name: Sync locked environment
         if: matrix.suite == 'full'
