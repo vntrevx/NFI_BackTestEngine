@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 79,
-  "updated_at": "2026-07-30T10:56:16+09:00",
+  "revision": 80,
+  "updated_at": "2026-07-30T14:35:00+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
@@ -2748,8 +2748,22 @@
         {
           "kind": "unattended_compatibility_qualification",
           "path": "benchmarks/evidence/unattended-nfi-compatibility-2026-07-30.json",
-          "bytes": 6841,
-          "sha256": "27a4b3d5833440a7c819be07fa1584e1c1fb7575b7e48fe959e552a094858a2b"
+          "bytes": 9402,
+          "sha256": "48cc7e820cacf087b99216720233429dbe0797dd65b7f9facf3a1ec938cf1c88"
+        },
+        {
+          "kind": "hosted_runner_dual_mode_exact_canary",
+          "workflow_run_id": 30516491925,
+          "engine_sha": "255cb1731373dd3347c1d38d82e6e15796026204",
+          "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+          "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+          "spot_artifact_id": 8749193550,
+          "futures_artifact_id": 8749189289,
+          "verification_state": "quick_verified",
+          "changed_branch_reached": true,
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "blockers": 0
         },
         {
           "kind": "latest_upstream_dual_mode_canary",
@@ -4631,6 +4645,32 @@
         "python_tests_passed": 561,
         "rust_tests_passed": 108,
         "full_fixtures_exact": 5
+      }
+    },
+    {
+      "sequence": 98,
+      "timestamp": "2026-07-30T14:35:00+09:00",
+      "task_id": "M12-04",
+      "event": "task_evidence_amended",
+      "details": {
+        "commit_sha": "255cb1731373dd3347c1d38d82e6e15796026204",
+        "reason": "prove unattended targeted exact qualification on a GitHub-hosted runner",
+        "workflow_run_id": 30516491925,
+        "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+        "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+        "spot_artifact_id": 8749193550,
+        "futures_artifact_id": 8749189289,
+        "spot_verification_state": "quick_verified",
+        "futures_verification_state": "quick_verified",
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "blockers": 0,
+        "compatibility_issue_closed": 47,
+        "automation_health_issue_closed": 61,
+        "runtime_hardcoding_added": false,
+        "python_tests_passed": 569,
+        "rust_tests_passed": 108
       }
     }
   ]

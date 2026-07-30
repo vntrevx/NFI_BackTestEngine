@@ -5,6 +5,7 @@
   "claim_boundary": "This record verifies unattended latest-NFI compatibility qualification, digest-bound compact fixture materialization, and bounded Spot/Futures discovery control. GitHub-hosted runners cannot currently reach Binance from their region, so a future uncovered branch still needs registered sealed data or a network-compatible runner for deep discovery. It does not claim that unknown future Freqtrade semantics are already Native-compatible, and it does not replace five-year release certificates.",
   "implementation": {
     "commit": "ac572ba3d13e9e0991de416fbd1dcadf6b5f1509",
+    "hosted_runner_hardening_merge": "255cb1731373dd3347c1d38d82e6e15796026204",
     "runtime_hardcoding_added": false,
     "official_fallback_preserved": true,
     "fallback_is_user_visible": true
@@ -107,6 +108,57 @@
         "full_state_exact": true
       }
     },
+    "hosted_runner_canary": {
+      "workflow_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30516491925",
+      "engine_sha": "255cb1731373dd3347c1d38d82e6e15796026204",
+      "conclusion": "success",
+      "spot": {
+        "artifact_id": 8749193550,
+        "artifact_name": "latest-nfi-x7-spot-targeted",
+        "artifact_digest": "sha256:582b94ccdbdf5dcac69ffc24d8a4c2d799510b64098e494c36aede18f4a82ecd",
+        "report_sha256": "e206d482aca0e8c820e99177806ca704367f2e45aabec34edd8ecbd2e4d34fc1",
+        "fixtures": 2,
+        "verification_state": "quick_verified",
+        "complete": true,
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "blockers": []
+      },
+      "futures": {
+        "artifact_id": 8749189289,
+        "artifact_name": "latest-nfi-x7-futures-targeted",
+        "artifact_digest": "sha256:dd91ca4b1783cd2befd80f1df9ba7de552d6ba4f0eabc1570a02b61131634fbd",
+        "report_sha256": "4804532c7298550e8dcd4df2afd4298ed55bb73bf673b49b20de42dbc4e6db0f",
+        "fixtures": 2,
+        "verification_state": "quick_verified",
+        "complete": true,
+        "changed_branch_reached": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "blockers": []
+      },
+      "compatibility_issue": {
+        "number": 47,
+        "state": "closed"
+      },
+      "automation_health_issue": {
+        "number": 61,
+        "state": "closed"
+      }
+    },
+    "hosted_runner_portability": {
+      "failed_runs": [
+        30512843884,
+        30514257060
+      ],
+      "observed_error": "freqtrade: Permission denied",
+      "root_cause": "The image executable lived below an image-user home that was not traversable by the numeric bind owner.",
+      "resolution": "Discover the executable owner and home inside the pinned image, grant traversal only, then drop privileges to the numeric bind owner with isolated writable XDG directories.",
+      "image_username_or_uid_hardcoding_added": false,
+      "diagnostics_bounded": true,
+      "diagnostics_include_trace_or_candles": false
+    },
     "removed_only_baseline_first_search": true,
     "removed_target_candidate_capture_requires_stable_execution_anchor": true,
     "semantic_issue_deduplication": true,
@@ -162,6 +214,16 @@
     ],
     "all_trade_surfaces_exact": true,
     "all_full_states_exact": true
+  },
+  "post_acceptance_validation": {
+    "python_tests_passed": 569,
+    "rust_tests_passed": 108,
+    "ruff_passed": true,
+    "basedpyright_errors": 0,
+    "rustfmt_passed": true,
+    "clippy_warnings": 0,
+    "required_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30515720754",
+    "required_ci_conclusion": "success"
   },
   "safety": {
     "unknown_semantics_fail_closed": true,
