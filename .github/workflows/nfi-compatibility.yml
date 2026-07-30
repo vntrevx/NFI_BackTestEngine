@@ -375,7 +375,10 @@ jobs:
           mkdir -p "${destination}"
           if [ -d "${source}" ]; then
             while IFS= read -r -d '' file; do
-              cp --parents "${file}" "${destination}"
+              relative="${file#"${source}/"}"
+              target="${destination}/${relative}"
+              mkdir -p "$(dirname "${target}")"
+              cp "${file}" "${target}"
             done < <(
               find "${source}" -type f \
                 \( -name run.json \

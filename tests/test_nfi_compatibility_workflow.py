@@ -78,6 +78,9 @@ def test_workflow_retains_compact_targeted_diagnostics_on_failure() -> None:
     assert "-name stderr.log" in diagnostics
     assert "-name stdout.log" in diagnostics
     assert ".nfitrace" not in diagnostics
+    assert 'relative="${file#"${source}/"}"' in diagnostics
+    assert 'target="${destination}/${relative}"' in diagnostics
+    assert "cp --parents" not in diagnostics
 
 
 def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
