@@ -21,6 +21,10 @@ class BranchCoverageError(BenchmarkError):
     """A bounded fixture completed but did not reach its required branch."""
 
 
+class DiscoveryInfrastructureError(BenchmarkError):
+    """A discovery dependency failed before strategy semantics could be assessed."""
+
+
 class TraceError(NfiBacktestError):
     """A canonical state trace is malformed or cannot be compared."""
 

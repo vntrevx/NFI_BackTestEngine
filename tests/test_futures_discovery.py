@@ -9,7 +9,10 @@ import nfi_backtest_engine.futures_discovery as discovery
 import nfi_backtest_engine.futures_discovery_runtime as discovery_runtime
 import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
-from nfi_backtest_engine.errors import SpecValidationError
+from nfi_backtest_engine.errors import (
+    DiscoveryInfrastructureError,
+    SpecValidationError,
+)
 from nfi_backtest_engine.futures_discovery import (
     build_discovery_request,
     discover_futures_targets,
@@ -306,6 +309,23 @@ def test_static_blocker_keeps_official_fallback_without_search(tmp_path: Path) -
     assert report["official_fallback_available"] is True
     assert "Static Native compatibility is blocked" in report["message"]
     assert report["searched_shard_count"] == 0
+
+
+def test_external_market_failure_is_infrastructure_not_unsupported_semantics(
+    tmp_path: Path,
+) -> None:
+    report = _discover(
+        tmp_path,
+        output_name="market-infrastructure",
+        scout_service=lambda *_args: (_ for _ in ()).throw(
+            DiscoveryInfrastructureError("market catalog HTTP 451")
+        ),
+    )
+
+    assert report["status"] == "infrastructure_failed"
+    assert report["message"] == "market catalog HTTP 451"
+    assert report["attempts"][0]["outcome"] == "infrastructure_failed"
+    assert report["official_fallback_available"] is True
 
 
 @pytest.mark.parametrize(

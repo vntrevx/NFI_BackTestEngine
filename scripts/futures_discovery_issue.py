@@ -11,9 +11,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-_MARKER = re.compile(
+_CURRENT_MARKER = re.compile(
     r"<!-- nfi-branch-discovery:(spot|futures):([0-9a-f]{64}) -->"
 )
+_LEGACY_MARKER = re.compile(r"<!-- nfi-futures-discovery:([0-9a-f]{64}) -->")
 _ISSUE_STATES = {"coverage_exhausted", "unsupported_semantics"}
 
 
@@ -31,25 +32,23 @@ def build_issue_plan(
     fingerprint = report.get("fingerprint") if status in _ISSUE_STATES else None
     if fingerprint is not None and re.fullmatch(r"[0-9a-f]{64}", str(fingerprint)) is None:
         raise ValueError("discovery report fingerprint is invalid")
-    existing = {
-        (match.group(1), match.group(2)): issue
+    parsed = [
+        (*identity, issue)
         for issue in open_issues
-        if isinstance(issue.get("body"), str)
-        if (match := _MARKER.search(str(issue["body"]))) is not None
-    }
-    keep = (
-        existing.get((str(trading_mode), str(fingerprint)), {}).get("number")
-        if fingerprint
-        else None
-    )
-    close = [
+        if (identity := _issue_identity(issue)) is not None
+    ]
+    candidates = [
+        (legacy, int(issue["number"]))
+        for mode, issue_fingerprint, legacy, issue in parsed
+        if mode == trading_mode and issue_fingerprint == fingerprint
+    ] if fingerprint else []
+    keep = min(candidates)[1] if candidates else None
+    close = sorted([
         int(issue["number"])
-        for issue in open_issues
-        if isinstance(issue.get("body"), str)
-        if (match := _MARKER.search(str(issue["body"]))) is not None
-        if match.group(1) == trading_mode
+        for mode, _issue_fingerprint, _legacy, issue in parsed
+        if mode == trading_mode
         if issue.get("number") != keep
-    ] if status != "infrastructure_failed" else []
+    ]) if status != "infrastructure_failed" else []
     create = None
     if fingerprint and keep is None:
         last_message = str(report.get("message", "")).strip()
@@ -91,20 +90,28 @@ def main() -> int:
     report = json.loads(args.report.read_text(encoding="utf-8"))
     if not isinstance(report, dict):
         raise ValueError("discovery report must be an object")
-    issues = json.loads(
-        _gh(
-            "issue",
-            "list",
-            "--repo",
-            args.repository,
-            "--label",
-            "nfi-branch-discovery",
-            "--state",
-            "open",
-            "--json",
-            "number,title,body",
+    issues_by_number: dict[int, dict[str, Any]] = {}
+    for label in ("nfi-branch-discovery", "nfi-futures-discovery"):
+        records = json.loads(
+            _gh(
+                "issue",
+                "list",
+                "--repo",
+                args.repository,
+                "--label",
+                label,
+                "--state",
+                "open",
+                "--json",
+                "number,title,body",
+            )
         )
-    )
+        if not isinstance(records, list):
+            raise ValueError("GitHub returned an invalid discovery issue list")
+        for issue in records:
+            if isinstance(issue, dict) and isinstance(issue.get("number"), int):
+                issues_by_number[int(issue["number"])] = issue
+    issues = list(issues_by_number.values())
     plan = build_issue_plan(report, issues, run_url=args.run_url)
     create = plan["create"]
     if isinstance(create, Mapping):
@@ -144,6 +151,21 @@ def _gh(*arguments: str) -> str:
         capture_output=True,
         text=True,
     ).stdout
+
+
+def _issue_identity(
+    issue: Mapping[str, Any],
+) -> tuple[str, str, bool] | None:
+    body = issue.get("body")
+    if not isinstance(body, str):
+        return None
+    current = _CURRENT_MARKER.search(body)
+    if current is not None:
+        return current.group(1), current.group(2), False
+    legacy = _LEGACY_MARKER.search(body)
+    if legacy is not None:
+        return "futures", legacy.group(1), True
+    return None
 
 
 if __name__ == "__main__":

@@ -57,6 +57,7 @@ def _fixture(
     callbacks: list[str] | None = None,
     entry_tags: list[str] | None = None,
     order_tags: list[str] | None = None,
+    direction: str | None = None,
 ) -> Path:
     fixture = root / fixture_id
     artifacts = fixture / "artifacts"
@@ -67,6 +68,7 @@ def _fixture(
             {
                 "entry_tag": (entry_tags or [""])[0],
                 "orders": [{"tag": tag} for tag in order_tags or []],
+                **({"direction": direction} if direction is not None else {}),
             }
         ],
     }
@@ -273,6 +275,36 @@ def test_removed_target_requires_baseline_presence_and_candidate_absence(
             "complete": True,
         }
     ]
+
+
+def test_removed_target_is_not_required_from_candidate_capture(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _fixture(
+        tmp_path,
+        fixture_id="removed-route",
+        mode="spot",
+        entry_tags=["62"],
+        direction="long",
+    )
+    manifest = read_json(manifest_path)
+
+    required = targeted._targeted_required_coverage(
+        manifest_path.parent,
+        manifest,
+        [_target("e", kind="signal", change="removed", value="62")],
+    )
+
+    assert required["entry_tags"] == []
+    assert required["sides"] == ["long"]
+    assert not any(
+        (
+            required["callbacks"],
+            required["compound_tags"],
+            required["exit_reasons"],
+            required["minimum_distinct_leverages"],
+        )
+    )
 
 
 def test_changed_callback_requires_old_and_new_route_observation(

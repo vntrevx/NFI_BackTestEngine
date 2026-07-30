@@ -10,7 +10,12 @@ import re
 import subprocess
 from collections.abc import Mapping, Sequence
 
-_MARKER = re.compile(r"<!-- nfi-branch-discovery-health:([0-9a-f]{64}) -->")
+_CURRENT_MARKER = re.compile(
+    r"<!-- nfi-branch-discovery-health:([0-9a-f]{64}) -->"
+)
+_LEGACY_MARKER = re.compile(
+    r"<!-- nfi-futures-discovery-health:([0-9a-f]{64}) -->"
+)
 
 
 def build_health_plan(
@@ -25,18 +30,22 @@ def build_health_plan(
         if conclusion not in {"success", "skipped"}
     }
     fingerprint = _canonical_sha256(failures) if failures else None
-    existing = {
-        match.group(1): issue
+    parsed = [
+        (*identity, issue)
         for issue in open_issues
-        if isinstance(issue.get("body"), str)
-        if (match := _MARKER.search(str(issue["body"]))) is not None
-    }
-    keep = existing.get(fingerprint, {}).get("number") if fingerprint else None
-    close = [
-        int(issue["number"])
-        for issue in open_issues
-        if issue.get("number") != keep
+        if (identity := _health_identity(issue)) is not None
     ]
+    candidates = [
+        (legacy, int(issue["number"]))
+        for issue_fingerprint, legacy, issue in parsed
+        if issue_fingerprint == fingerprint
+    ] if fingerprint else []
+    keep = min(candidates)[1] if candidates else None
+    close = sorted([
+        int(issue["number"])
+        for _issue_fingerprint, _legacy, issue in parsed
+        if issue.get("number") != keep
+    ])
     create = None
     if fingerprint and keep is None:
         details = "\n".join(
@@ -71,20 +80,31 @@ def main() -> int:
         if not separator or not name or not conclusion:
             raise ValueError("--stage must use NAME=CONCLUSION")
         stages[name] = conclusion
-    issues = json.loads(
-        _gh(
-            "issue",
-            "list",
-            "--repo",
-            args.repository,
-            "--label",
-            "nfi-branch-discovery-health",
-            "--state",
-            "open",
-            "--json",
-            "number,title,body",
+    issues_by_number: dict[int, dict[str, object]] = {}
+    for label in (
+        "nfi-branch-discovery-health",
+        "nfi-futures-discovery-health",
+    ):
+        records = json.loads(
+            _gh(
+                "issue",
+                "list",
+                "--repo",
+                args.repository,
+                "--label",
+                label,
+                "--state",
+                "open",
+                "--json",
+                "number,title,body",
+            )
         )
-    )
+        if not isinstance(records, list):
+            raise ValueError("GitHub returned an invalid discovery health issue list")
+        for issue in records:
+            if isinstance(issue, dict) and isinstance(issue.get("number"), int):
+                issues_by_number[int(issue["number"])] = issue
+    issues = list(issues_by_number.values())
     plan = build_health_plan(stages, issues, run_url=args.run_url)
     create = plan["create"]
     if isinstance(create, Mapping):
@@ -131,6 +151,21 @@ def _gh(*arguments: str) -> str:
         capture_output=True,
         text=True,
     ).stdout
+
+
+def _health_identity(
+    issue: Mapping[str, object],
+) -> tuple[str, bool] | None:
+    body = issue.get("body")
+    if not isinstance(body, str):
+        return None
+    current = _CURRENT_MARKER.search(body)
+    if current is not None:
+        return current.group(1), False
+    legacy = _LEGACY_MARKER.search(body)
+    if legacy is not None:
+        return legacy.group(1), True
+    return None
 
 
 if __name__ == "__main__":

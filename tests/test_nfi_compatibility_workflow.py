@@ -54,6 +54,18 @@ def test_workflow_exports_paired_sources_and_three_part_identity() -> None:
     assert ".compatibility/baseline-resolution.json" in text
 
 
+def test_workflow_materializes_only_digest_bound_release_fixtures() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "scripts/compatibility_fixture_registry.py select" in text
+    assert "planning/compatibility-fixtures.json" in text
+    assert 'gh release download "${release_tag}"' in text
+    assert '--pattern "${asset_name}"' in text
+    assert "scripts/compatibility_fixture_registry.py materialize" in text
+    assert "--source-sha256" in text
+    assert "--freqtrade-digest" in text
+
+
 def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
