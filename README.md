@@ -20,7 +20,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated.
 | Latest public release | [v1.4.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.4.0 product release source; no new combined Full X7 certification claim |
+| Current `main` | v1.4.1 hotfix release candidate; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -141,7 +141,8 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` return `nfi-bte 1.4.0`.
+The latest public installer returns `nfi-bte 1.4.0`. A source checkout of `main`
+returns the v1.4.1 hotfix release candidate.
 
 ## Quick start
 

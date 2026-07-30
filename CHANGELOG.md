@@ -2,6 +2,19 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 1.4.1 - 2026-07-30
+
+- Fixed a false `long_exit_rebuy` compatibility blocker on Python 3.13 and
+  Python 3.14. The callback had not changed; those Python versions changed the
+  default empty-field rendering of `ast.dump()`.
+- Made reviewed callback identities stable across every advertised Python runtime
+  while preserving fail-closed rejection for real stateful route changes.
+- Added lightweight Python 3.13 and 3.14 CI checks for the AST identity contract
+  without duplicating the full three-operating-system test suite.
+- Retained the v1.4.0 execution semantics and independent v1.0.0 Spot and v1.1.0
+  Futures certificate boundaries. This hotfix does not claim a new combined Full X7
+  certification.
+
 ## 1.4.0 - 2026-07-30
 
 - Proved the latest NFI Signal 65 transition on both Spot and Futures with paired
