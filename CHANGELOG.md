@@ -2,6 +2,27 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 1.4.0 - 2026-07-30
+
+- Proved the latest NFI Signal 65 transition on both Spot and Futures with paired
+  previous/latest official Freqtrade executions and latest Native execution.
+  Changed-source coverage, trade surfaces, and full state are all exact.
+- Generalized callback lowering and execution through source-derived
+  `state-machine-program-v2`, including transitive helpers, tags, routes, thresholds,
+  Grind state, and reviewed Freqtrade callback semantics without Signal-, strategy-,
+  pair-, timerange-, SHA-, or expected-result runtime branches.
+- Added digest-bound compact compatibility fixtures outside ordinary repository
+  clones. Archive identity, paths, file types, and extracted size are verified before
+  targeted qualification.
+- Hardened official Freqtrade containers for portable bind ownership without fixed
+  image usernames or UIDs, and retained only bounded failure diagnostics.
+- Completed unattended four-hour Spot/Futures qualification on GitHub-hosted runners.
+  Fully exact revisions skip redundant deep discovery; incomplete qualifications
+  retain the bounded fail-closed discovery and visible official fallback paths.
+- Retained the independent v1.0.0 Spot and v1.1.0 Futures five-year certificate
+  boundaries. v1.4.0 is a product release and does not claim a new same-candidate
+  combined Full X7 certification.
+
 ## 1.3.0 - 2026-07-30
 
 - Added an explicit, user-visible transition from blocked Native execution to the

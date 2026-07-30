@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 81,
-  "updated_at": "2026-07-30T15:09:00+09:00",
+  "revision": 82,
+  "updated_at": "2026-07-30T16:40:26+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M12-05",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2816,6 +2816,44 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M12-05",
+      "order": 1205,
+      "milestone": "M12",
+      "title": "Publish v1.4.0 latest-NFI exact product release",
+      "status": "in_progress",
+      "depends_on": [
+        "M12-04"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.4.0 package version and release notes",
+        "same-commit Required CI and release-candidate build",
+        "three-OS Spot and Futures exact fixture evidence",
+        "checksum-sealed byte-identical RC and stable assets",
+        "Windows, Linux, and macOS installer audits"
+      ],
+      "forbidden_changes": [
+        "claiming a new combined Full X7 certificate",
+        "relabeling prior Spot or Futures certificates",
+        "rebuilding distribution assets during promotion",
+        "publishing from outside protected main",
+        "publishing after failed Required CI or candidate checks"
+      ],
+      "acceptance_profile": "product_release",
+      "expected_evidence": [
+        "release preparation Required CI",
+        "sealed product candidate bundle",
+        "three-OS platform evidence",
+        "RC publication and installer audit",
+        "stable byte comparison and installer audit"
+      ],
+      "started_at": "2026-07-30T16:40:26+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -4703,6 +4741,21 @@
         "runtime_hardcoding_added": false,
         "python_tests_passed": 570,
         "rust_tests_passed": 108
+      }
+    },
+    {
+      "sequence": 100,
+      "timestamp": "2026-07-30T16:40:26+09:00",
+      "task_id": "M12-05",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "product_release",
+        "worktree_head": "7a2b9cfd2314401383278e4269c796d87d1c9540",
+        "release_version": "1.4.0",
+        "candidate_tag": "v1.4.0-rc.1",
+        "stable_tag": "v1.4.0",
+        "combined_full_x7_certified": false,
+        "prior_certificates_remain_version_bound": true
       }
     }
   ]
