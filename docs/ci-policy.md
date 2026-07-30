@@ -30,6 +30,10 @@ a second time on `main`; push-triggered CI is limited to version and product-rel
 contract paths that require a same-commit release check. Manual dispatch remains
 available for an explicit full rerun.
 
+Fast-lane acceptance requires `Required CI` to succeed while every unselected job is
+reported as `skipped`. A documentation-only pull request must not start Python,
+Rust, native parity, or operating-system matrix runners.
+
 The workflow uses read-only repository contents, explicit job timeouts, and
 per-PR/ref concurrency with older runs cancelled. It never uses
 `pull_request_target`.
