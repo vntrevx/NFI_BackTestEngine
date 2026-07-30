@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from .research_runner import run_research_backtest
 from .strategy_ir import analyze_strategy
 
 PROBE_SPEC_VERSION = "1.0.0"
+DIAGNOSTIC_LOG_LIMIT_BYTES = 128 * 1024
 
 
 def capture_x7_probe(
@@ -175,9 +177,14 @@ def capture_x7_probe(
             timeout_seconds=timeout_seconds,
         )
         if not market_capture["complete"]:
+            diagnostics = _preserve_reference_diagnostics(
+                market_capture_output,
+                output,
+                phase="market-capture",
+            )
             raise BenchmarkError(
                 "online reference market capture did not complete exact parity; "
-                "inspect work/reference-market-capture/run.json"
+                f"inspect {diagnostics / 'run.json'}"
             )
         reference_markets = market_capture_output / "reference-markets.json"
 
@@ -222,9 +229,14 @@ def capture_x7_probe(
         trace_identity=trace_identity,
     )
     if not reference["complete"]:
+        diagnostics = _preserve_reference_diagnostics(
+            reference_output,
+            output,
+            phase="official-verification",
+        )
         raise BenchmarkError(
             "official probe run did not complete exact parity; "
-            "inspect work/reference/run.json"
+            f"inspect {diagnostics / 'run.json'}"
         )
     _verify_reference_materialization(
         output,
@@ -593,6 +605,40 @@ def _verify_reference_materialization(
             )
     if not (fixture_root / expected_strategy["path"]).is_file():
         raise BenchmarkError("staged probe strategy disappeared before finalization")
+
+
+def _preserve_reference_diagnostics(
+    reference_output: Path,
+    fixture_root: Path,
+    *,
+    phase: str,
+) -> Path:
+    """Retain compact Oracle failure evidence outside disposable work directories."""
+    destination = fixture_root / "diagnostics" / phase
+    destination.mkdir(parents=True, exist_ok=True)
+    report = reference_output / "run.json"
+    if report.is_file():
+        shutil.copyfile(report, destination / report.name)
+    for name in ("stdout.log", "stderr.log"):
+        source = reference_output / name
+        if source.is_file():
+            _copy_log_tail(
+                source,
+                destination / name,
+                limit_bytes=DIAGNOSTIC_LOG_LIMIT_BYTES,
+            )
+    return destination
+
+
+def _copy_log_tail(source: Path, destination: Path, *, limit_bytes: int) -> None:
+    size = source.stat().st_size
+    with source.open("rb") as source_file, destination.open("wb") as destination_file:
+        if size > limit_bytes:
+            source_file.seek(-limit_bytes, 2)
+            destination_file.write(
+                f"[truncated to final {limit_bytes} bytes]\n".encode()
+            )
+        shutil.copyfileobj(source_file, destination_file)
 
 
 def _freqtrade_record(
