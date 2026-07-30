@@ -138,12 +138,7 @@ jobs:
         run: uv run pytest -q
       - name: Check version-stable AST identity
         if: matrix.suite == 'ast-compat'
-        env:
-          PYTHONPATH: python
-        run: >-
-          uv run --no-project --with pytest==9.0.2
-          pytest -q tests/test_nfi_trade_manager.py
-          -k method_ast_hash_is_python_version_stable
+        run: python .github/scripts/test_python_ast_identity.py
 
   quality:
     name: Static and Rust checks
