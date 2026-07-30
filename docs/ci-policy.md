@@ -4,21 +4,34 @@ The machine-readable policy is `.github/ci-contract.json`. The `CI` workflow alw
 runs a change-classification job and a stable aggregate job named `Required CI`.
 Branch protection requires that aggregate name instead of matrix-generated names.
 
-## Path policy
+## Risk-tiered path policy
 
-A change is documentation-only only when every changed path is an explicitly listed
-root documentation file or is below `docs/`. An empty diff, an unavailable base
-commit, a manual dispatch, or any unlisted path is treated as a code change.
+The classifier selects the cheapest lane that covers every changed path:
 
-Documentation-only changes run the classifier, text validation, and aggregate check.
-The Python, quality/Rust, and full-parity jobs must be skipped. Code changes run the
-existing full Python matrix on Linux, Windows, and macOS, static and Rust checks, and
-native full-parity fixtures. The aggregate check fails unless every selected job has
-the expected result.
+- `docs-only`: root documentation, `docs/`, `examples/`, and the two roadmap
+  bookkeeping files in `planning/`; text validation and the aggregate check only;
+- `policy-only`: documentation plus explicitly listed repository metadata and the
+  required-CI implementation itself; a dependency-free policy self-test runs on
+  Ubuntu;
+- `code`: every unlisted path, runtime source, tests, schemas, fixtures, build
+  inputs, and installers; the full Python matrix on Linux, Windows, and macOS,
+  static/Rust checks, and native full-parity fixtures run.
+
+Mixed changes escalate to the highest-risk lane. An empty diff, unavailable base
+commit, or manual dispatch fails closed to `code`. `Required CI` checks that selected
+jobs succeeded and every unselected expensive job was skipped.
+
+Operational discovery configuration, release contracts, non-CI workflows, runtime
+schemas, and fixtures are not covered by broad directory exceptions. They remain in
+the `code` lane unless individually reviewed and listed.
 
 The workflow uses read-only repository contents, explicit job timeouts, and
 per-PR/ref concurrency with older runs cancelled. It never uses
 `pull_request_target`.
+
+Documentation is intentionally excluded from the runtime regression manifest.
+Runtime schemas, fixtures, evidence, CLI behavior, and release identities remain
+sealed; editing prose does not create a stale hash that blocks the next code change.
 
 ## Nightly boundary
 

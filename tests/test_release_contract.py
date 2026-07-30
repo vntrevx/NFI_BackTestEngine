@@ -803,7 +803,7 @@ def _ci_contract_module() -> ModuleType:
     return module
 
 
-def test_ci_contract_accepts_only_explicit_documentation_paths() -> None:
+def test_ci_contract_selects_risk_tier_from_all_changed_paths() -> None:
     root = Path(__file__).parents[1]
     module = _ci_contract_module()
     contract = module.load_contract(root / ".github/ci-contract.json")
@@ -817,6 +817,21 @@ def test_ci_contract_accepts_only_explicit_documentation_paths() -> None:
     )
     assert (
         module.classify_paths(["planning/roadmap-state.json"], contract)
+        == module.DOCS_CLASSIFICATION
+    )
+    assert (
+        module.classify_paths(
+            ["docs/ci-policy.md", ".github/workflows/ci.yml"],
+            contract,
+        )
+        == module.POLICY_CLASSIFICATION
+    )
+    assert (
+        module.classify_paths(["planning/futures-discovery-policy.json"], contract)
+        == module.CODE_CLASSIFICATION
+    )
+    assert (
+        module.classify_paths([".github/workflows/release.yml"], contract)
         == module.CODE_CLASSIFICATION
     )
     assert (
@@ -826,41 +841,35 @@ def test_ci_contract_accepts_only_explicit_documentation_paths() -> None:
     assert module.classify_paths([], contract) == module.CODE_CLASSIFICATION
 
 
-def test_ci_contract_requires_the_full_code_job_matrix() -> None:
+def test_ci_contract_requires_only_the_selected_job_matrix() -> None:
     root = Path(__file__).parents[1]
     module = _ci_contract_module()
     contract = module.load_contract(root / ".github/ci-contract.json")
-    success = {job: "success" for job in contract["code_job_ids"]}
-    skipped = {job: "skipped" for job in contract["code_job_ids"]}
-
-    assert module.required_results_pass(
-        "code",
-        changes_result="success",
-        documentation_result="success",
-        job_results=success,
-        contract=contract,
-    )
-    assert module.required_results_pass(
-        "docs-only",
-        changes_result="success",
-        documentation_result="success",
-        job_results=skipped,
-        contract=contract,
-    )
-    assert not module.required_results_pass(
-        "code",
-        changes_result="success",
-        documentation_result="success",
-        job_results={**success, "parity": "failure"},
-        contract=contract,
-    )
-    assert not module.required_results_pass(
-        "docs-only",
-        changes_result="success",
-        documentation_result="success",
-        job_results=success,
-        contract=contract,
-    )
+    conditional_jobs = contract["conditional_job_ids"]
+    for classification, selected_jobs in contract["classifications"].items():
+        selected = set(selected_jobs)
+        expected = {
+            job: "success" if job in selected else "skipped"
+            for job in conditional_jobs
+        }
+        assert module.required_results_pass(
+            classification,
+            changes_result="success",
+            documentation_result="success",
+            job_results=expected,
+            contract=contract,
+        )
+        broken = dict(expected)
+        broken[conditional_jobs[0]] = (
+            "skipped" if broken[conditional_jobs[0]] == "success" else "success"
+        )
+        assert not module.required_results_pass(
+            classification,
+            changes_result="success",
+            documentation_result="success",
+            job_results=broken,
+            contract=contract,
+        )
 
 
 def test_ci_workflow_matches_machine_readable_policy() -> None:
@@ -874,7 +883,12 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
     assert contract["pull_request"]["allows_secrets"] is False
     assert contract["pull_request"]["allows_privileged_fork_execution"] is False
     assert contract["pull_request"]["allows_official_reference"] is False
-    assert set(contract["pull_request"]["required_capabilities"]) == set(contract["coverage"])
+    required_capabilities = contract["pull_request"][
+        "required_capabilities_by_classification"
+    ]
+    assert set().union(*(set(value) for value in required_capabilities.values())) == set(
+        contract["coverage"]
+    )
     assert f"  group: {contract['concurrency']['group']}" in workflow
     assert "  cancel-in-progress: true" in workflow
     for job_id, job in contract["jobs"].items():
@@ -883,7 +897,7 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
         assert f"    timeout-minutes: {job['timeout_minutes']}" in workflow
     for platform in contract["jobs"]["python"]["matrix"]:
         assert platform in workflow
-    for job_id in contract["code_job_ids"]:
+    for job_id in contract["conditional_job_ids"]:
         start = workflow.index(f"  {job_id}:")
         following = [
             position
@@ -893,7 +907,12 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
         ]
         end = min(following, default=len(workflow))
         section = workflow[start:] if end == -1 else workflow[start:end]
-        assert "if: needs.changes.outputs.code_changes == 'true'" in section
+        expected_condition = (
+            "if: needs.changes.outputs.policy_changes == 'true'"
+            if job_id == "policy"
+            else "if: needs.changes.outputs.code_changes == 'true'"
+        )
+        assert expected_condition in section
     assert "    name: Required CI" in workflow
     assert "    if: always()" in workflow
     assert contract["branch_protection"]["api"]["required_status_checks"]["contexts"] == [

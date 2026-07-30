@@ -16,6 +16,7 @@ from typing import Any
 
 CODE_CLASSIFICATION = "code"
 DOCS_CLASSIFICATION = "docs-only"
+POLICY_CLASSIFICATION = "policy-only"
 SUCCESS = "success"
 SKIPPED = "skipped"
 ZERO_SHA = "0" * 40
@@ -28,11 +29,13 @@ def load_contract(path: str | Path) -> dict[str, Any]:
         document = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise ValueError(f"invalid CI contract: {source}") from exc
-    if not isinstance(document, dict) or document.get("schema_version") != "1.0.0":
-        raise ValueError("CI contract schema_version must be 1.0.0")
+    if not isinstance(document, dict) or document.get("schema_version") != "1.1.0":
+        raise ValueError("CI contract schema_version must be 1.1.0")
     docs = document.get("docs_only")
+    policy = document.get("policy_only")
     jobs = document.get("jobs")
-    code_jobs = document.get("code_job_ids")
+    conditional_jobs = document.get("conditional_job_ids")
+    classifications = document.get("classifications")
     required = document.get("required_check")
     concurrency = document.get("concurrency")
     pull_request = document.get("pull_request")
@@ -42,12 +45,25 @@ def load_contract(path: str | Path) -> dict[str, Any]:
         not isinstance(docs, dict)
         or not _string_list(docs.get("prefixes"))
         or not _string_list(docs.get("files"))
+        or not isinstance(policy, dict)
+        or not _string_list(policy.get("prefixes"))
+        or not _string_list(policy.get("files"))
         or not isinstance(jobs, dict)
-        or not _string_list(code_jobs)
+        or not _string_list(conditional_jobs)
+        or not isinstance(classifications, dict)
+        or set(classifications)
+        != {DOCS_CLASSIFICATION, POLICY_CLASSIFICATION, CODE_CLASSIFICATION}
+        or any(not isinstance(value, list) for value in classifications.values())
+        or any(
+            set(value) - set(conditional_jobs)
+            for value in classifications.values()
+        )
+        or set().union(*(set(value) for value in classifications.values()))
+        != set(conditional_jobs)
         or not isinstance(required, dict)
         or not isinstance(required.get("name"), str)
         or required.get("job_id") not in jobs
-        or any(job not in jobs for job in code_jobs)
+        or any(job not in jobs for job in conditional_jobs)
         or any(
             not isinstance(job, dict)
             or not isinstance(job.get("name"), str)
@@ -64,8 +80,20 @@ def load_contract(path: str | Path) -> dict[str, Any]:
         or pull_request.get("allows_secrets") is not False
         or pull_request.get("allows_privileged_fork_execution") is not False
         or pull_request.get("allows_official_reference") is not False
-        or not _string_list(pull_request.get("required_capabilities"))
-        or set(pull_request.get("required_capabilities", []))
+        or not isinstance(
+            pull_request.get("required_capabilities_by_classification"),
+            dict,
+        )
+        or set(pull_request["required_capabilities_by_classification"])
+        != set(classifications)
+        or set().union(
+            *(
+                set(value)
+                for value in pull_request[
+                    "required_capabilities_by_classification"
+                ].values()
+            )
+        )
         != set(document.get("coverage", {}))
         or not _valid_nightly_contract(nightly)
         or not isinstance(protection, dict)
@@ -79,15 +107,18 @@ def load_contract(path: str | Path) -> dict[str, Any]:
 
 
 def classify_paths(paths: Sequence[str], contract: Mapping[str, Any]) -> str:
-    """Return docs-only only when every changed path is explicitly allowed."""
+    """Select the cheapest safe lane, failing closed to full code CI."""
     normalized = sorted({path.strip("/") for path in paths if path.strip("/")})
     if not normalized:
         return CODE_CLASSIFICATION
-    docs = contract["docs_only"]
-    files = frozenset(docs["files"])
-    prefixes = tuple(docs["prefixes"])
-    if all(path in files or path.startswith(prefixes) for path in normalized):
+    if all(_path_matches(path, contract["docs_only"]) for path in normalized):
         return DOCS_CLASSIFICATION
+    if all(
+        _path_matches(path, contract["docs_only"])
+        or _path_matches(path, contract["policy_only"])
+        for path in normalized
+    ):
+        return POLICY_CLASSIFICATION
     return CODE_CLASSIFICATION
 
 
@@ -101,16 +132,61 @@ def required_results_pass(
 ) -> bool:
     """Evaluate all component jobs behind the stable Required CI check."""
     if (
-        classification not in {CODE_CLASSIFICATION, DOCS_CLASSIFICATION}
+        classification not in {
+            CODE_CLASSIFICATION,
+            DOCS_CLASSIFICATION,
+            POLICY_CLASSIFICATION,
+        }
         or changes_result != SUCCESS
         or documentation_result != SUCCESS
     ):
         return False
-    code_jobs = contract["code_job_ids"]
-    if set(job_results) != set(code_jobs):
+    conditional_jobs = contract["conditional_job_ids"]
+    if set(job_results) != set(conditional_jobs):
         return False
-    expected = SUCCESS if classification == CODE_CLASSIFICATION else SKIPPED
-    return all(job_results[job] == expected for job in code_jobs)
+    selected = set(contract["classifications"][classification])
+    return all(
+        job_results[job] == (SUCCESS if job in selected else SKIPPED)
+        for job in conditional_jobs
+    )
+
+
+def _path_matches(path: str, policy: Mapping[str, Any]) -> bool:
+    files = frozenset(policy["files"])
+    prefixes = tuple(policy["prefixes"])
+    return path in files or path.startswith(prefixes)
+
+
+def validate_text_paths(root: str | Path, paths: Sequence[str]) -> list[str]:
+    """Validate changed text and JSON without installing project dependencies."""
+    repository = Path(root).resolve()
+    validated: list[str] = []
+    text_suffixes = {".json", ".md", ".ps1", ".sh", ".toml", ".txt", ".yaml", ".yml"}
+    text_names = {"LICENSE"}
+    for raw_path in sorted(set(paths)):
+        relative = Path(raw_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"changed path escapes repository: {raw_path}")
+        target = (repository / relative).resolve()
+        if not target.exists():
+            continue
+        if not target.is_relative_to(repository) or not target.is_file():
+            raise ValueError(f"changed path is not a repository file: {raw_path}")
+        if target.suffix.lower() not in text_suffixes and target.name not in text_names:
+            continue
+        try:
+            content = target.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"changed text is not UTF-8: {raw_path}") from exc
+        if "\0" in content:
+            raise ValueError(f"changed text contains NUL: {raw_path}")
+        if target.suffix.lower() == ".json":
+            try:
+                json.loads(content)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"changed JSON is invalid: {raw_path}: {exc}") from exc
+        validated.append(relative.as_posix())
+    return validated
 
 
 def changed_paths(base: str, head: str) -> list[str]:
@@ -623,6 +699,9 @@ def _parser() -> argparse.ArgumentParser:
     summarize.add_argument("--reports", type=Path, required=True)
     summarize.add_argument("--job-result", action="append", default=[])
     summarize.add_argument("--output", type=Path, required=True)
+    validate_text = commands.add_parser("validate-text")
+    validate_text.add_argument("--root", type=Path, default=Path("."))
+    validate_text.add_argument("--paths-json", required=True)
     return parser
 
 
@@ -642,6 +721,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         result = {
             "classification": classification,
+            "policy_changes": str(
+                classification == POLICY_CLASSIFICATION
+            ).lower(),
             "code_changes": str(classification == CODE_CLASSIFICATION).lower(),
             "changed_paths_json": json.dumps(
                 sorted(paths),
@@ -663,6 +745,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print("Required CI passed" if passed else "Required CI failed")
         return 0 if passed else 1
+    if args.command == "validate-text":
+        paths = json.loads(args.paths_json)
+        if not isinstance(paths, list) or any(not isinstance(path, str) for path in paths):
+            raise ValueError("--paths-json must be a JSON array of strings")
+        validated = validate_text_paths(args.root, paths)
+        print(
+            json.dumps(
+                {"validated_text_paths": validated},
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+        return 0
     if args.command == "nightly-matrix":
         matrix = build_nightly_matrix(args.root, contract)
         _write_json(args.output, matrix)

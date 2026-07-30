@@ -12,36 +12,6 @@
   },
   "repository_files": [
     {
-      "kind": "document",
-      "path": "README.md",
-      "bytes": 14218,
-      "sha256": "db6f1f9689546482239a17a13b9ff302d13019b07fe67c6354185481af80f79c"
-    },
-    {
-      "kind": "document",
-      "path": "docs/architecture.md",
-      "bytes": 20174,
-      "sha256": "a4e47ff59a0fa276c0d180833df226f37e0b45b73f50454289f6c348c87ba50d"
-    },
-    {
-      "kind": "document",
-      "path": "docs/release.md",
-      "bytes": 12053,
-      "sha256": "f2a26acd18c2af5534ef834525447a4d6c4173bea9ef6bbb82c9c3277e6a3ba7"
-    },
-    {
-      "kind": "document",
-      "path": "docs/result-report.md",
-      "bytes": 5148,
-      "sha256": "dce1f9eccbdeeaa84dca41ef855048b2d717b4901e9d215ba14c52f42ecbca41"
-    },
-    {
-      "kind": "document",
-      "path": "docs/x7-support.md",
-      "bytes": 12632,
-      "sha256": "63978e2b2fb3e5cb9e84f6d8e92f7032f97e84fea711d6bd232bc888d3c8af8d"
-    },
-    {
       "kind": "schema",
       "path": "python/nfi_backtest_engine/schemas/benchmark-fixture.schema.json",
       "bytes": 4767,
