@@ -14,9 +14,9 @@ from .docker_resources import (
 )
 from .docker_runtime import list_managed_containers
 from .hardware import inspect_hardware, load_execution_profile
+from .reference.contracts import REFERENCE_DOCKER_IMAGE_IDS
 from .reference_runtime import (
     REFERENCE_IMAGE_REF,
-    REFERENCE_PLATFORM_DIGEST,
     ensure_docker_config,
 )
 
@@ -157,7 +157,7 @@ def _docker_checks() -> tuple[list[dict[str, str]], dict[str, Any] | None]:
     checks.append(
         _check(
             "reference_image",
-            inspect.returncode == 0 and image_id == REFERENCE_PLATFORM_DIGEST,
+            inspect.returncode == 0 and image_id in REFERENCE_DOCKER_IMAGE_IDS,
             image_id or "pinned image is not present locally",
             warning=True,
         )

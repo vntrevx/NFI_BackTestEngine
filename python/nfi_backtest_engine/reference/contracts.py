@@ -12,6 +12,20 @@ REFERENCE_PLATFORM_DIGEST = (
     "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b"
 )
 
+REFERENCE_CONFIG_DIGEST = (
+    "sha256:8615e1e2f8c429b27f57a0bcb948dfac1abe6828df8300c63ebd88a16ec6cabc"
+)
+
+# Docker's classic image store reports the config digest as ``.Id`` while the
+# containerd image store reports the pinned platform-manifest digest. Both are
+# immutable identities from the same digest-pinned manifest.
+REFERENCE_DOCKER_IMAGE_IDS = frozenset(
+    {
+        REFERENCE_PLATFORM_DIGEST,
+        REFERENCE_CONFIG_DIGEST,
+    }
+)
+
 REFERENCE_PLATFORM = "linux/amd64"
 
 REFERENCE_IMAGE_REF = f"{REFERENCE_IMAGE}@{REFERENCE_PLATFORM_DIGEST}"
