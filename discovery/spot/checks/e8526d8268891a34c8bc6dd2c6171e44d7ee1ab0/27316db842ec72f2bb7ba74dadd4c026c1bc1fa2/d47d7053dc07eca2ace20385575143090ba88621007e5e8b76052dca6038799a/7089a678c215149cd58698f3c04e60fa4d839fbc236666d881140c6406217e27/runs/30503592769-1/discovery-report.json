@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "status": "unsupported_semantics",
+  "message": "CCXT market capture failed for binance: binance GET https://api.binance.com/api/v3/exchangeInfo 451  {\n  \"code\": 0,\n  \"msg\": \"Service unavailable from a restricted location according to 'b. Eligibility' in https://www.binance.com/en/terms. Please contact customer service if you believe you received this message in error.\"\n}",
+  "complete": true,
+  "fingerprint": "7089a678c215149cd58698f3c04e60fa4d839fbc236666d881140c6406217e27",
+  "upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+  "baseline_upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+  "engine_commit": "27316db842ec72f2bb7ba74dadd4c026c1bc1fa2",
+  "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "strategy_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+  "policy_sha256": "3892672174a91a9c12aceb97ba2aef7a993a61131cf675226ce08a5d79f804f3",
+  "target_count": 4,
+  "searchable_target_count": 3,
+  "unsearchable_target_ids": [
+    "a29c9952b046e08fb5824f3a84d559ca79486595e7ba4b75d60d2b088fc55ec4"
+  ],
+  "searched_shard_count": 1,
+  "next_shard": 1,
+  "shard_count": 20,
+  "elapsed_seconds": 4.483344066000001,
+  "attempts": [
+    {
+      "index": 0,
+      "timerange": "20251001-20260101",
+      "outcome": "unsupported",
+      "message": "CCXT market capture failed for binance: binance GET https://api.binance.com/api/v3/exchangeInfo 451  {\n  \"code\": 0,\n  \"msg\": \"Service unavailable from a restricted location according to 'b. Eligibility' in https://www.binance.com/en/terms. Please contact customer service if you believe you received this message in error.\"\n}",
+      "target_ids": []
+    }
+  ],
+  "candidate": null,
+  "official_fallback_available": true
+}
