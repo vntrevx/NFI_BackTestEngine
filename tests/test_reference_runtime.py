@@ -4,10 +4,16 @@ from copy import deepcopy
 from pathlib import Path
 from subprocess import CompletedProcess
 
+import pytest
 from nfi_backtest_engine import reference_runtime
 from nfi_backtest_engine.canonical import read_json
+from nfi_backtest_engine.errors import BenchmarkError
+from nfi_backtest_engine.reference import execution as reference_execution
 from nfi_backtest_engine.reference_runtime import (
+    REFERENCE_CONFIG_DIGEST,
+    REFERENCE_DOCKER_IMAGE_IDS,
     REFERENCE_IMAGE_REF,
+    REFERENCE_PLATFORM_DIGEST,
     build_reference_docker_command,
 )
 
@@ -20,6 +26,48 @@ MANIFEST = (
     / "stops-only-spot-2025-01-01_04"
     / "manifest.json"
 )
+
+
+def test_reference_image_identity_accepts_both_docker_store_projections() -> None:
+    assert {
+        REFERENCE_PLATFORM_DIGEST,
+        REFERENCE_CONFIG_DIGEST,
+    } == REFERENCE_DOCKER_IMAGE_IDS
+    assert "sha256:" + "0" * 64 not in REFERENCE_DOCKER_IMAGE_IDS
+
+
+@pytest.mark.parametrize("image_id", sorted(REFERENCE_DOCKER_IMAGE_IDS))
+def test_reference_image_check_accepts_each_docker_store_projection(
+    image_id: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        reference_execution,
+        "_run_docker",
+        lambda *_args, **_kwargs: CompletedProcess([], 0, image_id + "\n", ""),
+    )
+
+    reference_execution.ensure_reference_image(docker_config=tmp_path)
+
+
+def test_reference_image_check_rejects_an_unbound_config_digest(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        reference_execution,
+        "_run_docker",
+        lambda *_args, **_kwargs: CompletedProcess(
+            [],
+            0,
+            "sha256:" + "0" * 64 + "\n",
+            "",
+        ),
+    )
+
+    with pytest.raises(BenchmarkError, match="identity mismatch"):
+        reference_execution.ensure_reference_image(docker_config=tmp_path)
 
 
 def test_reference_command_is_digest_pinned_offline_and_read_only(tmp_path: Path) -> None:

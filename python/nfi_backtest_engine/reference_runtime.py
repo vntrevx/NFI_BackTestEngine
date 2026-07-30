@@ -26,6 +26,8 @@ from .reference import execution as _reference_execution
 from .reference.contracts import (
     REFERENCE_BLAKE3_VERSION,
     REFERENCE_CCXT_VERSION,
+    REFERENCE_CONFIG_DIGEST,
+    REFERENCE_DOCKER_IMAGE_IDS,
     REFERENCE_IMAGE,
     REFERENCE_IMAGE_REF,
     REFERENCE_INDEX_DIGEST,
@@ -65,6 +67,8 @@ from .state_trace import first_trace_difference, trace_summary
 __all__ = [
     "REFERENCE_BLAKE3_VERSION",
     "REFERENCE_CCXT_VERSION",
+    "REFERENCE_CONFIG_DIGEST",
+    "REFERENCE_DOCKER_IMAGE_IDS",
     "REFERENCE_IMAGE",
     "REFERENCE_IMAGE_REF",
     "REFERENCE_INDEX_DIGEST",

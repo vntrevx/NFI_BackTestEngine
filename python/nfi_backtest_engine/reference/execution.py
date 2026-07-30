@@ -19,6 +19,7 @@ from .contracts import (
     _BINANCE_TIER_EXPORT,
     _CGROUP_CAPTURE_SCRIPT,
     REFERENCE_BLAKE3_VERSION,
+    REFERENCE_DOCKER_IMAGE_IDS,
     REFERENCE_IMAGE,
     REFERENCE_IMAGE_REF,
     REFERENCE_INDEX_DIGEST,
@@ -303,10 +304,11 @@ def ensure_reference_image(*, docker_config: Path) -> None:
             ["image", "inspect", REFERENCE_IMAGE_REF, "--format", "{{.Id}}"],
         )
     image_id = inspect.stdout.strip()
-    if inspect.returncode != 0 or image_id != REFERENCE_PLATFORM_DIGEST:
+    if inspect.returncode != 0 or image_id not in REFERENCE_DOCKER_IMAGE_IDS:
+        expected = ", ".join(sorted(REFERENCE_DOCKER_IMAGE_IDS))
         raise BenchmarkError(
             "pinned Freqtrade image identity mismatch: "
-            f"expected {REFERENCE_PLATFORM_DIGEST}, found {image_id or '<missing>'}"
+            f"expected one of [{expected}], found {image_id or '<missing>'}"
         )
 
 
