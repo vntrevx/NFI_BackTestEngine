@@ -37,6 +37,7 @@ jobs:
       engine_sha: ${{ steps.identity.outputs.engine_sha }}
       freqtrade_digest: ${{ steps.identity.outputs.freqtrade_digest }}
       oracle_key: ${{ steps.identity.outputs.oracle_key }}
+      deep_search_required: ${{ steps.identity.outputs.deep_search_required }}
     steps:
       - name: Check out current main
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -64,6 +65,7 @@ jobs:
           upstream_sha="$(jq -er .upstream_sha "${metadata}")"
           engine_sha="$(jq -er .engine_sha "${metadata}")"
           freqtrade_digest="$(jq -er .freqtrade_digest "${metadata}")"
+          check_path="$(jq -r '.check_path // ""' "${metadata}")"
           ledger_run_id="$(jq -er '.run_url | split("/")[-1]' "${metadata}")"
           source_run_id="${REQUESTED_RUN_ID}"
           if [ -z "${source_run_id}" ]; then
@@ -85,6 +87,26 @@ jobs:
             test "${freqtrade_digest}" = "${local_digest}"
             ready=true
           fi
+          deep_search_required=true
+          if [ -n "${check_path}" ]; then
+            fully_qualified=true
+            for mode in spot futures; do
+              qualification="${ledger_dir}/${check_path}/qualification-${mode}.json"
+              if ! jq -e '
+                .verification_state == "quick_verified"
+                and .changed_branch_reached == true
+                and .trade_surface_exact == true
+                and .full_state_exact == true
+                and (.blockers | type) == "array"
+                and (.blockers | length) == 0
+              ' "${qualification}" >/dev/null 2>&1; then
+                fully_qualified=false
+              fi
+            done
+            if [ "${fully_qualified}" = true ]; then
+              deep_search_required=false
+            fi
+          fi
           {
             echo "ready=${ready}"
             echo "source_run_id=${source_run_id}"
@@ -92,6 +114,7 @@ jobs:
             echo "engine_sha=${engine_sha}"
             echo "freqtrade_digest=${freqtrade_digest}"
             echo "oracle_key=${freqtrade_digest#sha256:}"
+            echo "deep_search_required=${deep_search_required}"
           } >> "${GITHUB_OUTPUT}"
           {
             echo "ready=${ready}"
@@ -99,12 +122,15 @@ jobs:
             echo "upstream_sha=${upstream_sha}"
             echo "engine_sha=${engine_sha}"
             echo "freqtrade_digest=${freqtrade_digest}"
+            echo "deep_search_required=${deep_search_required}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   discover:
     name: Search bounded ${{ matrix.trading_mode }} shards
     needs: resolve
-    if: needs.resolve.outputs.ready == 'true'
+    if: >-
+      needs.resolve.outputs.ready == 'true'
+      && needs.resolve.outputs.deep_search_required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 125
     strategy:
@@ -464,6 +490,32 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Reconcile gaps already proven exact by the fast lane
+        if: >-
+          needs.resolve.outputs.ready == 'true'
+          && needs.resolve.outputs.deep_search_required == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="$(mktemp -d)"
+          for mode in spot futures; do
+            report="${report_dir}/${mode}.json"
+            jq -n \
+              --arg trading_mode "${mode}" \
+              --arg upstream_commit "${UPSTREAM_SHA}" \
+              '{
+                status: "complete",
+                trading_mode: $trading_mode,
+                upstream_commit: $upstream_commit
+              }' > "${report}"
+            python scripts/futures_discovery_issue.py \
+              --report "${report}" \
+              --repository "${GITHUB_REPOSITORY}" \
+              --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          done
       - name: Reconcile deduplicated infrastructure issue
         env:
           GH_TOKEN: ${{ github.token }}
