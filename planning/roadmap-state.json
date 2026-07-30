@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 76,
-  "updated_at": "2026-07-30T08:39:54+09:00",
+  "revision": 77,
+  "updated_at": "2026-07-30T09:21:19+09:00",
   "source_document": "docs/v1.1.0_이후_개발_로드맵.md",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-04",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2715,7 +2715,7 @@
       "order": 1204,
       "milestone": "M12",
       "title": "Operate NFI and Freqtrade compatibility qualification unattended",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-03"
       ],
@@ -2741,9 +2741,40 @@
         "successful latest-upstream compatibility canary"
       ],
       "started_at": "2026-07-30T08:39:54+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T09:21:19+09:00",
+      "commit_sha": "dacfe59878f7e244493d6687f70fef849c5d03f4",
+      "evidence": [
+        {
+          "kind": "unattended_compatibility_qualification",
+          "path": "benchmarks/evidence/unattended-nfi-compatibility-2026-07-30.json",
+          "bytes": 4039,
+          "sha256": "11c2bfdfb29718667c8a40319cc44f2ddcdad4bd803ef482778ac87e3737e021"
+        },
+        {
+          "kind": "latest_upstream_dual_mode_canary",
+          "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+          "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+          "spot_native_compatible": true,
+          "futures_native_compatible": true,
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        },
+        {
+          "kind": "future_nfi_compatibility_acceptance",
+          "path": ".nfi/roadmap-acceptance/M12-04/dacfe59878f7e244493d6687f70fef849c5d03f4",
+          "commands_passed": 15,
+          "python_tests_passed": 545,
+          "rust_tests_passed": 108,
+          "full_fixtures_exact": 5
+        },
+        {
+          "kind": "github_actions_contract",
+          "actionlint_version": "1.7.12",
+          "passed": true,
+          "spot_futures_independent": true,
+          "same_fingerprint_deduplicated": true
+        }
+      ],
       "blocker": null
     }
   ],
@@ -4509,6 +4540,30 @@
           "futures"
         ],
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 95,
+      "timestamp": "2026-07-30T09:21:19+09:00",
+      "task_id": "M12-04",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "dacfe59878f7e244493d6687f70fef849c5d03f4",
+        "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+        "identity_components": [
+          "upstream_sha",
+          "engine_sha",
+          "freqtrade_image_digest"
+        ],
+        "spot_native_compatible": true,
+        "futures_native_compatible": true,
+        "changed_path_trade_surface_exact": true,
+        "changed_path_full_state_exact": true,
+        "removed_only_baseline_search": true,
+        "official_fallback_preserved": true,
+        "runtime_hardcoding_added": false,
+        "acceptance_commands_passed": 15,
+        "roadmap_complete": true
       }
     }
   ]

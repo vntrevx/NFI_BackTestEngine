@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0.0",
+  "status": "verified",
+  "recorded_at": "2026-07-30",
+  "claim_boundary": "This record verifies unattended latest-NFI compatibility qualification and bounded Spot/Futures deep discovery. It does not claim that unknown future Freqtrade semantics are already Native-compatible, and it does not replace five-year release certificates.",
+  "implementation": {
+    "commit": "dacfe59878f7e244493d6687f70fef849c5d03f4",
+    "runtime_hardcoding_added": false,
+    "official_fallback_preserved": true,
+    "fallback_is_user_visible": true
+  },
+  "identity": {
+    "components": [
+      "nfi_upstream_sha",
+      "engine_sha",
+      "freqtrade_image_index_digest"
+    ],
+    "freqtrade_image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "digest_mutation_rechecks": true,
+    "cursor_fingerprint_binds_all_components": true,
+    "ledger_is_append_only": true
+  },
+  "latest_upstream_canary": {
+    "repository": "iterativv/NostalgiaForInfinity",
+    "commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+    "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+    "spot": {
+      "native_compatible": true,
+      "blockers": [],
+      "report_sha256": "e2fca50b28ecdc196b33f8a4f8aa90139cd878d10b063dd67ddd971f6ceead82"
+    },
+    "futures": {
+      "native_compatible": true,
+      "blockers": [],
+      "report_sha256": "d7eb7b1aafa569fd591d7ccf29a182701b4230e16ba7b76a65c5a7af8d7d6a78"
+    },
+    "changed_path_exact_evidence": "benchmarks/evidence/latest-nfi-signal65-transition-exact-2026-07-30.json",
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "verification_state": "quick_verified"
+  },
+  "automation": {
+    "fast_lane_cron": "17 */4 * * *",
+    "fast_lane_modes": [
+      "spot",
+      "futures"
+    ],
+    "deep_lane_modes": [
+      "spot",
+      "futures"
+    ],
+    "deep_lane_budget_minutes_per_mode": 120,
+    "same_mode_cursor_resume": true,
+    "paired_previous_latest_sources": true,
+    "removed_only_baseline_first_search": true,
+    "semantic_issue_deduplication": true,
+    "infrastructure_issue_separation": true,
+    "draft_pr_deduplication_includes_closed_and_merged": true,
+    "automatic_merge_or_approval": false,
+    "workflow_contract_lint": {
+      "tool": "actionlint",
+      "version": "1.7.12",
+      "passed": true
+    },
+    "workflow_sha256": {
+      "fast_lane": "1f68ff5d263ce7152aa635dc0cef71a062d594dbbffe5237fc61406daf43418c",
+      "deep_lane": "271e601fa4fe98ca2f5116ed04deca7cdf3a70c5605f40a4f6febfb2514c269d"
+    }
+  },
+  "acceptance": {
+    "root": ".nfi/roadmap-acceptance/M12-04/dacfe59878f7e244493d6687f70fef849c5d03f4",
+    "commands_passed": 15,
+    "python_tests_passed": 545,
+    "future_nfi_tests_passed": 82,
+    "discovery_tests_passed": 58,
+    "rust_tests_passed": 108,
+    "clippy_warnings": 0,
+    "full_fixture_runs": [
+      {
+        "name": "normal-routing",
+        "run_sha256": "b616cebc86e7dc630144bd6825cf16616b1b5aff52666a260759e96856b07357"
+      },
+      {
+        "name": "stops-only",
+        "run_sha256": "4f689009599383c42c071eb71672824acb823c20b1411a152093f3bb94537fae"
+      },
+      {
+        "name": "x7-spot",
+        "run_sha256": "c8b5a1c4b7477bcd195e46c5b2fe15eef88e8360409e64258329841585fe4c02"
+      },
+      {
+        "name": "x7-futures",
+        "run_sha256": "d031960a0a5d0a75d0e8366f4ef37a5a5a20cf0571e1b0d6c6c376bdc38018aa"
+      },
+      {
+        "name": "generic-state-machine",
+        "run_sha256": "98b70c248ece74657f45aa4de0db207b091aba504f5f7785eb09c38ba84eb624"
+      }
+    ],
+    "all_trade_surfaces_exact": true,
+    "all_full_states_exact": true
+  },
+  "safety": {
+    "unknown_semantics_fail_closed": true,
+    "unsupported_native_uses_official_freqtrade": true,
+    "native_promotion_requires_changed_branch_reached": true,
+    "native_promotion_requires_trade_surface_exact": true,
+    "native_promotion_requires_full_state_exact": true,
+    "prior_long_horizon_certificates_auto_inherited": false
+  }
+}
