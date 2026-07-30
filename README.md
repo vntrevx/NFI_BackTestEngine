@@ -17,10 +17,10 @@ semantics stop with a clear fail-closed verdict instead of being approximated.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.4.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.0) |
+| Latest public release | [v1.4.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.1) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.4.1 hotfix release candidate; no new combined Full X7 certification claim |
+| Current `main` | v1.4.1; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -86,8 +86,8 @@ Actual runtime still depends on strategy behavior, data, hardware, and memory li
 
 Evidence:
 
-- [v1.4.0 release and notes](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.0)
-- [v1.4.0 product checksums](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.4.0/SHA256SUMS.txt)
+- [v1.4.1 release and notes](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.1)
+- [v1.4.1 product checksums](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.4.1/SHA256SUMS.txt)
 - [Spot v1.0.0 release](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.0.0)
 - [Futures v1.1.0 release](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.1.0)
 - [Futures certificate](https://github.com/vntrevx/NFI_BackTestEngine/releases/download/v1.1.0/full-x7-futures-certification.json)
@@ -141,8 +141,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer returns `nfi-bte 1.4.0`. A source checkout of `main`
-returns the v1.4.1 hotfix release candidate.
+The latest public installer and a source checkout of `main` return `nfi-bte 1.4.1`.
 
 ## Quick start
 
