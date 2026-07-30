@@ -58,5 +58,5 @@ on Linux, Windows, and macOS before merge.
 
 Never commit exchange credentials, API keys, live-trading secrets, or untracked user
 files. Inspect cleanup with `nfi-bte clean --dry-run` before applying it. For roadmap
-work, use `docs/v1.1.0_이후_개발_로드맵.md`, `planning/roadmap-state.json`, and
-`planning/acceptance-commands.json` as the authoritative sources.
+work, use `planning/roadmap-state.json` and `planning/acceptance-commands.json` as the
+authoritative sources.
