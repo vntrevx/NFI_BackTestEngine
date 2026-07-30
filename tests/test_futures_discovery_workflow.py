@@ -43,6 +43,23 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert '"discovery/${MODE}/latest.json"' in text
     assert "${ORACLE_KEY}" in text
     assert "retention-days: 30" in text
+    assert "deep_search_required: ${{ steps.identity.outputs.deep_search_required }}" in text
+    assert 'needs.resolve.outputs.deep_search_required == \'true\'' in text
+    assert '.verification_state == "quick_verified"' in text
+    assert ".changed_branch_reached == true" in text
+    assert ".trade_surface_exact == true" in text
+    assert ".full_state_exact == true" in text
+    assert '(.blockers | length) == 0' in text
+
+
+def test_exact_fast_lane_closes_discovery_gaps_without_running_deep_search() -> None:
+    text = DISCOVERY.read_text(encoding="utf-8")
+    health = text[text.index("  health:") :]
+
+    assert "Reconcile gaps already proven exact by the fast lane" in health
+    assert "needs.resolve.outputs.deep_search_required == 'false'" in health
+    assert 'status: "complete"' in health
+    assert "python scripts/futures_discovery_issue.py" in health
 
 
 def test_candidate_job_has_scoped_write_permissions_and_never_merges() -> None:
