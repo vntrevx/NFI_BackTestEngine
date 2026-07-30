@@ -43,6 +43,14 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert '"discovery/${MODE}/latest.json"' in text
     assert "${ORACLE_KEY}" in text
     assert "retry_deferred:" in text
+    assert "mkdir -p .discovery" in text
+    restore = text[
+        text.index("      - name: Restore same-mode matching cursor") :
+        text.index("      - name: Install uv, Python, and engine")
+    ]
+    assert restore.index("mkdir -p .discovery") < restore.index(
+        'cp "${ledger_dir}/${cursor_path}" .discovery/downloaded-cursor.json'
+    )
     assert "steps.restore.outputs.deferred != 'true'" in text
     assert '"identity-change-or-manual"' not in text
     assert ".storage.compact_artifact_retention_days" in text
