@@ -1,0 +1,119 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "source_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 2,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "latest-nfi-signal65-transition-spot-rsr-compact-e8526d82",
+      "target_ids": [
+        "75f19e77ee1a0f053124988520c14cc37d13fd46a072d514a6587aa6b5782f15",
+        "86b0ae111332065f95c28fa8ab110fd2b6209368006f975eeae4faea94fb045b",
+        "9bf24ad9449ae47fde43eb95a350856ab9f8ae08c03588a911be14c4ee654341"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "latest-nfi-signal65-transition-spot-rsr-compact-e8526d82-targeted-17bb8002110f",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-latest-nfi-signal65-transition-spot-rsr-compact-e8526d82/official-fixture/manifest.json",
+        "manifest_sha256": "e459fea7ac0e5c420d7f5f10d8e7ef248e826eb3c76a670d2c708c8b39e2807a",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-latest-nfi-signal65-transition-spot-rsr-compact-e8526d82/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-latest-nfi-signal65-transition-spot-rsr-compact-e8526d82/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-latest-nfi-signal65-transition-spot-rsr-compact-e8526d82/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "75f19e77ee1a0f053124988520c14cc37d13fd46a072d514a6587aa6b5782f15",
+          "86b0ae111332065f95c28fa8ab110fd2b6209368006f975eeae4faea94fb045b",
+          "9bf24ad9449ae47fde43eb95a350856ab9f8ae08c03588a911be14c4ee654341"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "75f19e77ee1a0f053124988520c14cc37d13fd46a072d514a6587aa6b5782f15",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "86b0ae111332065f95c28fa8ab110fd2b6209368006f975eeae4faea94fb045b",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "9bf24ad9449ae47fde43eb95a350856ab9f8ae08c03588a911be14c4ee654341",
+            "proof_mode": "presence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    },
+    {
+      "fixture_id": "previous-nfi-signal65-transition-spot-rsr-compact-f188ec26",
+      "target_ids": [
+        "a29c9952b046e08fb5824f3a84d559ca79486595e7ba4b75d60d2b088fc55ec4"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "previous-nfi-signal65-transition-spot-rsr-compact-f188ec26-targeted-17bb8002110f",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-previous-nfi-signal65-transition-spot-rsr-compact-f188ec26/official-fixture/manifest.json",
+        "manifest_sha256": "84c0da814cfd9fb18640e227affbc3cd54e0f4fa2eacd0c7502802ec529b423c",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-previous-nfi-signal65-transition-spot-rsr-compact-f188ec26/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-previous-nfi-signal65-transition-spot-rsr-compact-f188ec26/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-previous-nfi-signal65-transition-spot-rsr-compact-f188ec26/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "a29c9952b046e08fb5824f3a84d559ca79486595e7ba4b75d60d2b088fc55ec4"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "a29c9952b046e08fb5824f3a84d559ca79486595e7ba4b75d60d2b088fc55ec4",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": false,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  ],
+  "proof": {
+    "complete": true,
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+    "classification": "ir-compatible",
+    "verification_state": "quick_verified",
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "blockers": []
+  },
+  "blockers": [],
+  "verification_state": "quick_verified",
+  "complete": true
+}
