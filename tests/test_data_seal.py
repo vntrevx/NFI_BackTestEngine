@@ -198,6 +198,7 @@ def test_data_download_flattens_host_relative_config_includes(
     monkeypatch.setattr(data_seal, "managed_docker_run", fake_managed_run)
 
     def fake_subprocess_run(command, **_kwargs):
+        observed["command"] = command
         mount = command[command.index("--volume") + 1]
         mounted_path = Path(mount.removesuffix(":/input/config.json:ro"))
         mounted = read_json(mounted_path)
@@ -220,6 +221,13 @@ def test_data_download_flattens_host_relative_config_includes(
     )
 
     assert report["exit_code"] == 0
+    command = observed["command"]
+    assert isinstance(command, list)
+    owner = data_directory.stat()
+    assert command[command.index("--user") + 1] == "0:0"
+    assert f"NFI_BIND_UID={owner.st_uid}" in command
+    assert f"NFI_BIND_GID={owner.st_gid}" in command
+    assert command[command.index("--entrypoint") + 1] == "/bin/sh"
     assert observed["mounted"] == {
         "exchange": {
             "name": "binance",

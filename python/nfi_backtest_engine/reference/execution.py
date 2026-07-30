@@ -13,6 +13,7 @@ from typing import Any
 from ..canonical import read_json
 from ..docker_runtime import (
     docker_bind_owner_arguments,
+    docker_root_with_bind_owner_arguments,
     managed_docker_run,
     run_managed_container,
 )
@@ -68,7 +69,7 @@ def build_reference_docker_command(
             REFERENCE_PLATFORM,
             "--network",
             "none",
-            *docker_bind_owner_arguments(output_directory),
+            *docker_root_with_bind_owner_arguments(output_directory),
             "--workdir",
             "/fixture",
             "--volume",
@@ -155,7 +156,7 @@ def capture_reference_markets(
                     *lease["command_prefix"],
                     "--platform",
                     REFERENCE_PLATFORM,
-                    *docker_bind_owner_arguments(output),
+                    *docker_root_with_bind_owner_arguments(output),
                     "--workdir",
                     "/fixture",
                     "--volume",

@@ -23,11 +23,66 @@ MANAGED_LABEL = "io.nfi-backtest-engine.managed=true"
 ROLE_LABEL_PREFIX = "io.nfi-backtest-engine.role="
 _LOCK_PATH = Path(tempfile.gettempdir()) / "nfi-bte-docker-runtime.lock"
 
+BIND_OWNER_EXECUTABLE_FUNCTION = """\
+run_as_bind_owner() {
+  case "${NFI_BIND_UID:-}" in
+    ""|*[!0-9]*) echo "invalid NFI_BIND_UID" >&2; return 126 ;;
+  esac
+  case "${NFI_BIND_GID:-}" in
+    ""|*[!0-9]*) echo "invalid NFI_BIND_GID" >&2; return 126 ;;
+  esac
+  nfi_executable="$(command -v "$1")" || {
+    echo "container executable not found: $1" >&2
+    return 127
+  }
+  shift
+  nfi_image_uid="$(stat -c %u "${nfi_executable}")" || return 126
+  nfi_image_home="$(
+    getent passwd "${nfi_image_uid}" | cut -d: -f6
+  )"
+  if [ -z "${nfi_image_home}" ] || [ ! -d "${nfi_image_home}" ]; then
+    echo "container executable owner has no home directory" >&2
+    return 126
+  fi
+  # Python must traverse the image owner's home to load its user-site packages.
+  # Runtime writes stay in an isolated directory owned by the bind-mount user.
+  chmod o+x "${nfi_image_home}" || return 126
+  nfi_runtime_xdg="$(mktemp -d /tmp/nfi-bind-owner.XXXXXX)" || return 126
+  chown "${NFI_BIND_UID}:${NFI_BIND_GID}" "${nfi_runtime_xdg}" || return 126
+  export HOME="${nfi_image_home}"
+  export XDG_CACHE_HOME="${nfi_runtime_xdg}/cache"
+  export XDG_CONFIG_HOME="${nfi_runtime_xdg}/config"
+  export XDG_DATA_HOME="${nfi_runtime_xdg}/data"
+  setpriv \
+    --reuid="${NFI_BIND_UID}" \
+    --regid="${NFI_BIND_GID}" \
+    --clear-groups \
+    "${nfi_executable}" "$@"
+}
+"""
+
+RUN_AS_BIND_OWNER_SCRIPT = (
+    BIND_OWNER_EXECUTABLE_FUNCTION + 'run_as_bind_owner "$@"\n'
+)
+
 
 def docker_bind_owner_arguments(path: str | Path) -> list[str]:
     """Run a container as the owner of a writable bind mount."""
     owner = Path(path).stat()
     return ["--user", f"{owner.st_uid}:{owner.st_gid}"]
+
+
+def docker_root_with_bind_owner_arguments(path: str | Path) -> list[str]:
+    """Start a wrapper as root, then drop to the writable bind mount owner."""
+    owner = Path(path).stat()
+    return [
+        "--user",
+        "0:0",
+        "--env",
+        f"NFI_BIND_UID={owner.st_uid}",
+        "--env",
+        f"NFI_BIND_GID={owner.st_gid}",
+    ]
 
 
 @contextmanager

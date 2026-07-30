@@ -19,7 +19,11 @@ from .config_loader import (
     sanitize_config,
     strip_service_only_settings,
 )
-from .docker_runtime import docker_bind_owner_arguments, managed_docker_run
+from .docker_runtime import (
+    RUN_AS_BIND_OWNER_SCRIPT,
+    docker_root_with_bind_owner_arguments,
+    managed_docker_run,
+)
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
 from .reference_runtime import (
@@ -795,14 +799,20 @@ def _download_data(
                 *lease["command_prefix"],
                 "--platform",
                 REFERENCE_PLATFORM,
-                *docker_bind_owner_arguments(data_root),
+                *docker_root_with_bind_owner_arguments(data_root),
                 "--volume",
                 f"{standalone_config}:/input/config.json:ro",
                 "--volume",
                 f"{data_root}:/data",
                 "--volume",
                 f"{user_data}:/work/user_data",
+                "--entrypoint",
+                "/bin/sh",
                 REFERENCE_IMAGE_REF,
+                "-c",
+                RUN_AS_BIND_OWNER_SCRIPT,
+                "nfi-data-download",
+                "freqtrade",
                 "download-data",
                 "--config",
                 "/input/config.json",

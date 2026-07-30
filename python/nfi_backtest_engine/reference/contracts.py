@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from ..docker_runtime import BIND_OWNER_EXECUTABLE_FUNCTION
+
 REFERENCE_VERSION = "2026.5.1"
 
 REFERENCE_IMAGE = "freqtradeorg/freqtrade"
@@ -65,8 +67,8 @@ print(
 )
 """
 
-_CGROUP_CAPTURE_SCRIPT = """\
-freqtrade "$@"
+_CGROUP_CAPTURE_SCRIPT = BIND_OWNER_EXECUTABLE_FUNCTION + """\
+run_as_bind_owner freqtrade "$@"
 status=$?
 if [ -r /sys/fs/cgroup/memory.peak ]; then
   cat /sys/fs/cgroup/memory.peak > /output/container-memory-peak.txt
