@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "strategy_sha256": "829ade93309889faa2d6400f01ac26eb54915483e3a0e30bbf464fd8c38a32be",
+  "classification": "ir-compatible",
+  "verification_state": "quick_verified",
+  "changed_branch_reached": true,
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "blockers": []
+}
