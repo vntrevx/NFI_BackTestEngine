@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 85,
-  "updated_at": "2026-07-30T23:50:00+09:00",
+  "revision": 86,
+  "updated_at": "2026-07-31T03:46:24+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M12-07",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3017,6 +3017,44 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M12-07",
+      "order": 1207,
+      "milestone": "M12",
+      "title": "Defer inaccessible external discovery data without repeated CI failure",
+      "status": "in_progress",
+      "depends_on": [
+        "M12-06"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "policy-driven external data deferral",
+        "same-identity deferred cursor reuse",
+        "compact short-lived workflow artifacts",
+        "zero development-laptop data storage",
+        "official fallback and Native fail-closed boundary"
+      ],
+      "forbidden_changes": [
+        "disabling the four-hour compatibility watcher",
+        "treating deferred coverage as Native exact evidence",
+        "hard-coding an NFI version, Signal, tag, pair, timerange, or expected result",
+        "persisting raw candles, vectors, Docker layers, or full traces in Git",
+        "using a paid or development-laptop runner"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "external HTTP policy validation",
+        "deferred cursor resume without a network scout",
+        "unexpected infrastructure failures still fail CI",
+        "compact artifact retention policy",
+        "workflow contract and focused test report"
+      ],
+      "started_at": "2026-07-31T03:46:24+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -4982,6 +5020,21 @@
         "public_python_314_futures_native_compatible": true,
         "combined_full_x7_certified": false,
         "roadmap_complete": true
+      }
+    },
+    {
+      "sequence": 104,
+      "timestamp": "2026-07-31T03:46:24+09:00",
+      "task_id": "M12-07",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "9573564cb5389f0a3076d58cb8dadc07b7c9b5cc",
+        "trigger_run_id": 30567905238,
+        "external_failure": "Binance market catalog HTTP 451",
+        "paid_runner_allowed": false,
+        "development_laptop_storage_allowed": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]

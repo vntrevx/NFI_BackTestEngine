@@ -76,7 +76,10 @@ def test_dry_run_classifies_disk_usage_without_deleting_files(tmp_path: Path) ->
     assert len(audit["categories"]) == 9
 
 
-@pytest.mark.parametrize("status", ["budget_exhausted", "infrastructure_failed"])
+@pytest.mark.parametrize(
+    "status",
+    ["budget_exhausted", "external_data_deferred", "infrastructure_failed"],
+)
 def test_incomplete_discovery_work_is_reclaimable(
     tmp_path: Path,
     status: str,

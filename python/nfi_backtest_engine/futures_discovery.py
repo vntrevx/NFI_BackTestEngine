@@ -28,7 +28,7 @@ from .fixture import sha256_file
 from .reference.contracts import REFERENCE_INDEX_DIGEST
 from .targeted_verification import plan_targeted_verification
 
-DISCOVERY_POLICY_VERSION = "1.0.0"
+DISCOVERY_POLICY_VERSION = "1.1.0"
 DISCOVERY_REPORT_VERSION = "1.0.0"
 DISCOVERY_CURSOR_VERSION = "1.0.0"
 DISCOVERY_REQUEST_VERSION = "1.0.0"
@@ -39,9 +39,16 @@ _REPORT_STATES = {
     "budget_exhausted",
     "coverage_exhausted",
     "unsupported_semantics",
+    "external_data_deferred",
     "infrastructure_failed",
 }
-_SHARD_OUTCOMES = {"miss", "candidate", "unsupported", "infrastructure_failed"}
+_SHARD_OUTCOMES = {
+    "miss",
+    "candidate",
+    "unsupported",
+    "external_data_deferred",
+    "infrastructure_failed",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +72,9 @@ class DiscoveryPolicy:
     template_config: Path
     budget_seconds: int
     workers: int
+    deferred_http_statuses: frozenset[int]
+    external_retry: str
+    compact_artifact_retention_days: int
     context_days: int
     max_candidate_bytes: int
     artifact_retention_days: int
@@ -104,7 +114,7 @@ def load_discovery_policy(
     *,
     repository_root: str | Path | None = None,
 ) -> DiscoveryPolicy:
-    """Load the strict v1 policy without embedding operational values in code."""
+    """Load the strict policy without embedding operational values in code."""
     path = Path(policy_path).resolve()
     document = read_json(path)
     expected = {
@@ -113,6 +123,8 @@ def load_discovery_policy(
         "history",
         "universe",
         "execution",
+        "external_data",
+        "storage",
         "candidate",
     }
     if (
@@ -126,6 +138,8 @@ def load_discovery_policy(
     history = _object(document["history"], "history")
     universe = _object(document["universe"], "universe")
     execution = _object(document["execution"], "execution")
+    external_data = _object(document["external_data"], "external_data")
+    storage = _object(document["storage"], "storage")
     candidate = _object(document["candidate"], "candidate")
     _require_exact_fields(
         history,
@@ -134,6 +148,16 @@ def load_discovery_policy(
     )
     _require_exact_fields(universe, {"pair_limit", "template_config"}, "universe")
     _require_exact_fields(execution, {"budget_seconds", "workers"}, "execution")
+    _require_exact_fields(
+        external_data,
+        {"deferred_http_statuses", "retry"},
+        "external_data",
+    )
+    _require_exact_fields(
+        storage,
+        {"compact_artifact_retention_days"},
+        "storage",
+    )
     _require_exact_fields(
         candidate,
         {"context_days", "max_bytes", "artifact_retention_days"},
@@ -150,6 +174,18 @@ def load_discovery_policy(
     pair_limit = _positive_int(universe["pair_limit"], "pair_limit")
     budget_seconds = _positive_int(execution["budget_seconds"], "budget_seconds")
     workers = _positive_int(execution["workers"], "workers")
+    deferred_http_statuses = _http_statuses(
+        external_data["deferred_http_statuses"],
+    )
+    external_retry = external_data["retry"]
+    if external_retry != "identity-change-or-manual":
+        raise SpecValidationError(
+            "discovery external_data retry must be identity-change-or-manual"
+        )
+    compact_retention = _positive_int(
+        storage["compact_artifact_retention_days"],
+        "compact_artifact_retention_days",
+    )
     context_days = _positive_int(candidate["context_days"], "context_days")
     max_candidate_bytes = _positive_int(candidate["max_bytes"], "max_bytes")
     retention = _positive_int(
@@ -177,6 +213,9 @@ def load_discovery_policy(
         template_config=template,
         budget_seconds=budget_seconds,
         workers=workers,
+        deferred_http_statuses=deferred_http_statuses,
+        external_retry=external_retry,
+        compact_artifact_retention_days=compact_retention,
         context_days=context_days,
         max_candidate_bytes=max_candidate_bytes,
         artifact_retention_days=retention,
@@ -294,6 +333,10 @@ def build_discovery_request(
             "workers": policy.workers,
             "timeranges": [shard.timerange for shard in shards],
         },
+        "external_data": {
+            "deferred_http_statuses": sorted(policy.deferred_http_statuses),
+            "retry": policy.external_retry,
+        },
     }
 
 
@@ -396,10 +439,17 @@ def discover_targets(
     status = "coverage_exhausted"
     candidate: dict[str, Any] | None = None
     next_shard = cursor["next_shard"]
+    deferred_external = (
+        dict(cursor["deferred_external"])
+        if isinstance(cursor.get("deferred_external"), dict)
+        else None
+    )
     if compatibility.get("native_compatible") is not True:
         status = "unsupported_semantics"
     elif not targets:
         status = "unsupported_semantics" if unsearchable_targets else "no_gap"
+    elif cursor.get("status") == "external_data_deferred":
+        status = "external_data_deferred"
     else:
         if scout_service is None:
             from .futures_discovery_runtime import run_shard_scout
@@ -415,10 +465,19 @@ def discover_targets(
                 result = scout(shard, context)
                 _validate_shard_result(result)
             except DiscoveryInfrastructureError as exc:
+                defer = (
+                    exc.external_http_status is not None
+                    and exc.external_http_status in policy.deferred_http_statuses
+                )
                 result = {
-                    "outcome": "infrastructure_failed",
+                    "outcome": (
+                        "external_data_deferred"
+                        if defer
+                        else "infrastructure_failed"
+                    ),
                     "message": str(exc),
                     "target_ids": [],
+                    "external_http_status": exc.external_http_status,
                 }
             except (BenchmarkError, BranchCoverageError, SpecValidationError) as exc:
                 result = {
@@ -449,6 +508,15 @@ def discover_targets(
             if result["outcome"] == "unsupported":
                 status = "unsupported_semantics"
                 break
+            if result["outcome"] == "external_data_deferred":
+                status = "external_data_deferred"
+                next_shard = shard.index
+                deferred_external = {
+                    "reason": "http_status",
+                    "http_status": result["external_http_status"],
+                    "retry": policy.external_retry,
+                }
+                break
             if result["outcome"] == "infrastructure_failed":
                 status = "infrastructure_failed"
                 break
@@ -473,6 +541,11 @@ def discover_targets(
             "unsupported_semantics",
         },
         "status": status,
+        **(
+            {"deferred_external": deferred_external}
+            if deferred_external is not None
+            else {}
+        ),
     }
     write_json(output / "cursor.json", cursor_document)
     message = _report_message(
@@ -480,6 +553,7 @@ def discover_targets(
         attempts=attempts,
         unsearchable_targets=unsearchable_targets,
         native_compatible=compatibility.get("native_compatible") is True,
+        deferred_external=deferred_external,
     )
     report = {
         "schema_version": DISCOVERY_REPORT_VERSION,
@@ -505,6 +579,7 @@ def discover_targets(
         "elapsed_seconds": max(0.0, clock() - started),
         "attempts": attempts,
         "candidate": candidate,
+        "external_data": deferred_external,
         "official_fallback_available": True,
     }
     if status not in _REPORT_STATES:
@@ -544,6 +619,7 @@ def _report_message(
     attempts: list[dict[str, Any]],
     unsearchable_targets: list[dict[str, Any]],
     native_compatible: bool,
+    deferred_external: dict[str, Any] | None,
 ) -> str:
     if status == "no_gap":
         return "Existing exact fixtures cover every changed behavior target."
@@ -551,6 +627,17 @@ def _report_message(
         return (
             "Static Native compatibility is blocked; official Freqtrade fallback "
             "remains available."
+        )
+    if status == "external_data_deferred":
+        http_status = (
+            deferred_external.get("http_status")
+            if deferred_external is not None
+            else None
+        )
+        suffix = f" HTTP {http_status}" if isinstance(http_status, int) else ""
+        return (
+            f"External market data returned{suffix}; retry is deferred until "
+            "the checked identity changes or a manual retry is requested."
         )
     if attempts:
         return str(attempts[-1]["message"])
@@ -608,6 +695,7 @@ def _load_cursor(
             "shard_count": shard_count,
         }
     cursor = read_json(Path(cursor_path).resolve())
+    deferred = cursor.get("deferred_external") if isinstance(cursor, dict) else None
     if (
         not isinstance(cursor, dict)
         or cursor.get("schema_version") != DISCOVERY_CURSOR_VERSION
@@ -616,6 +704,16 @@ def _load_cursor(
         or not isinstance(cursor.get("next_shard"), int)
         or isinstance(cursor.get("next_shard"), bool)
         or not 0 <= cursor["next_shard"] <= shard_count
+        or (
+            cursor.get("status") == "external_data_deferred"
+            and (
+                not isinstance(deferred, dict)
+                or deferred.get("reason") != "http_status"
+                or not isinstance(deferred.get("http_status"), int)
+                or isinstance(deferred.get("http_status"), bool)
+                or deferred.get("retry") != "identity-change-or-manual"
+            )
+        )
     ):
         raise SpecValidationError("discovery cursor identity or bounds differ")
     return cursor
@@ -632,6 +730,14 @@ def _validate_shard_result(result: Any) -> None:
         raise SpecValidationError("discovery shard result is invalid")
     if result["outcome"] == "candidate" and not isinstance(result.get("candidate"), dict):
         raise SpecValidationError("candidate shard result lacks candidate evidence")
+    if result["outcome"] == "external_data_deferred" and (
+        not isinstance(result.get("external_http_status"), int)
+        or isinstance(result.get("external_http_status"), bool)
+        or not 400 <= result["external_http_status"] <= 599
+    ):
+        raise SpecValidationError(
+            "deferred external-data result lacks a valid HTTP error status"
+        )
 
 
 def _document(
@@ -667,6 +773,24 @@ def _positive_int(value: Any, label: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
         raise SpecValidationError(f"discovery policy {label} must be positive")
     return value
+
+
+def _http_statuses(value: Any) -> frozenset[int]:
+    if (
+        not isinstance(value, list)
+        or not value
+        or any(
+            not isinstance(status, int)
+            or isinstance(status, bool)
+            or not 400 <= status <= 599
+            for status in value
+        )
+        or len(set(value)) != len(value)
+    ):
+        raise SpecValidationError(
+            "discovery deferred_http_statuses must be unique HTTP error statuses"
+        )
+    return frozenset(value)
 
 
 def _validate_sha(value: str, label: str) -> None:

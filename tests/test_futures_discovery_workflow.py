@@ -42,7 +42,14 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert '--baseline-upstream-commit "${baseline_commit}"' in text
     assert '"discovery/${MODE}/latest.json"' in text
     assert "${ORACLE_KEY}" in text
-    assert "retention-days: 30" in text
+    assert "retry_deferred:" in text
+    assert "steps.restore.outputs.deferred != 'true'" in text
+    assert '"identity-change-or-manual"' not in text
+    assert ".storage.compact_artifact_retention_days" in text
+    assert ".candidate.artifact_retention_days" in text
+    assert "retention-days: ${{ steps.retention.outputs.days }}" in text
+    assert 'current_status}" = "external_data_deferred"' in text
+    assert 'steps.candidate.outputs.found == \'true\'' in text
     assert "deep_search_required: ${{ steps.identity.outputs.deep_search_required }}" in text
     assert 'needs.resolve.outputs.deep_search_required == \'true\'' in text
     assert '.verification_state == "quick_verified"' in text

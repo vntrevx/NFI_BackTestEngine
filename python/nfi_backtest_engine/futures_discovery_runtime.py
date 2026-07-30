@@ -32,6 +32,7 @@ _GRIND_LEVEL = re.compile(
     r"(?i)(?:grind|derisk|buyback|rebuy|(?:sg|gd|gm|gmd|dd|ddl|g|d))"
     r"(?:[_ -]*(?:level)?[_ -]*)?(\d+)"
 )
+_HTTP_STATUS = re.compile(r"(?<!\d)([45]\d{2})(?!\d)")
 
 
 def run_shard_scout(
@@ -167,7 +168,8 @@ def _ensure_universe(
         capture_market_catalog(effective, catalog_path)
     except BenchmarkError as exc:
         raise DiscoveryInfrastructureError(
-            f"market catalog capture failed before semantic discovery: {exc}"
+            f"market catalog capture failed before semantic discovery: {exc}",
+            external_http_status=_external_http_status(str(exc)),
         ) from exc
     candidates_path = shared / "universe.json"
     overall_timerange = (
@@ -206,6 +208,12 @@ def _ensure_universe(
         },
     )
     return config_path, pairs
+
+
+def _external_http_status(message: str) -> int | None:
+    """Extract a provider HTTP failure without binding discovery to one exchange."""
+    match = _HTTP_STATUS.search(message)
+    return int(match.group(1)) if match is not None else None
 
 
 def _capture_candidate(

@@ -14,6 +14,11 @@ on:
         required: false
         default: ""
         type: string
+      retry_deferred:
+        description: Retry a policy-deferred external data request for the same identity
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   actions: read
@@ -145,36 +150,21 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: false
-      - name: Install uv, Python, and engine
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          python-version: "3.12"
-      - run: |
-          uv sync --extra dev --frozen
-          uv run maturin develop --release --locked
-      - name: Download checked strategy difference
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: latest-nfi-x7-strategy-diff
-          path: .discovery/input
-          run-id: ${{ needs.resolve.outputs.source_run_id }}
-          github-token: ${{ github.token }}
-      - name: Download checked mode compatibility
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
-          path: .discovery/input
-          run-id: ${{ needs.resolve.outputs.source_run_id }}
-          github-token: ${{ github.token }}
       - name: Restore same-mode matching cursor
+        id: restore
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
           MODE: ${{ matrix.trading_mode }}
+          RETRY_DEFERRED: >-
+            ${{ github.event_name == 'workflow_dispatch'
+                && inputs.retry_deferred
+                || false }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
         run: |
           set -euo pipefail
+          echo "deferred=false" >> "${GITHUB_OUTPUT}"
           ledger_dir="$(mktemp -d)"
           git clone --quiet --single-branch --branch compatibility-ledger \
             "https://github.com/${GITHUB_REPOSITORY}.git" "${ledger_dir}"
@@ -185,10 +175,57 @@ jobs:
             && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ]; then
             cursor_path="$(jq -r '.cursor_path // ""' "${latest}")"
             if [ -n "${cursor_path}" ]; then
-              cp "${ledger_dir}/${cursor_path}" .discovery/downloaded-cursor.json
+              run_path="$(jq -er .run_path "${latest}")"
+              previous_report="${ledger_dir}/${run_path}/discovery-report.json"
+              if [ -s "${previous_report}" ] \
+                && [ "$(jq -r .status "${previous_report}")" = "external_data_deferred" ]; then
+                if [ "${RETRY_DEFERRED}" != "true" ]; then
+                  mkdir -p .discovery/result
+                  for file in discovery-request.json discovery-report.json cursor.json; do
+                    cp "${ledger_dir}/${run_path}/${file}" ".discovery/result/${file}"
+                  done
+                  echo "deferred=true" >> "${GITHUB_OUTPUT}"
+                  jq '{
+                    trading_mode,
+                    status,
+                    message,
+                    fingerprint,
+                    external_data
+                  }' "${previous_report}" >> "${GITHUB_STEP_SUMMARY}"
+                fi
+              else
+                cp "${ledger_dir}/${cursor_path}" .discovery/downloaded-cursor.json
+              fi
             fi
           fi
+      - name: Install uv, Python, and engine
+        if: steps.restore.outputs.deferred != 'true'
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Build locked engine
+        if: steps.restore.outputs.deferred != 'true'
+        run: |
+          uv sync --extra dev --frozen
+          uv run maturin develop --release --locked
+      - name: Download checked strategy difference
+        if: steps.restore.outputs.deferred != 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: latest-nfi-x7-strategy-diff
+          path: .discovery/input
+          run-id: ${{ needs.resolve.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Download checked mode compatibility
+        if: steps.restore.outputs.deferred != 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
+          path: .discovery/input
+          run-id: ${{ needs.resolve.outputs.source_run_id }}
+          github-token: ${{ github.token }}
       - name: Validate immutable compatibility identity
+        if: steps.restore.outputs.deferred != 'true'
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
@@ -232,8 +269,10 @@ jobs:
               "${baseline[@]}"
           fi
       - name: Tune bounded runner
+        if: steps.restore.outputs.deferred != 'true'
         run: uv run nfi-bte system tune --output .discovery/profile.json
       - name: Search or resume missing mode targets
+        if: steps.restore.outputs.deferred != 'true'
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           MODE: ${{ matrix.trading_mode }}
@@ -294,8 +333,25 @@ jobs:
             searched_shard_count,
             next_shard,
             shard_count,
-            candidate
+            candidate,
+            external_data
           }' .discovery/result/discovery-report.json >> "${GITHUB_STEP_SUMMARY}"
+      - name: Select compact artifact retention
+        id: retention
+        env:
+          MODE: ${{ matrix.trading_mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(jq -er .status .discovery/result/discovery-report.json)"
+          if [ "${status}" = "candidate_found" ]; then
+            days="$(jq -er .candidate.artifact_retention_days \
+              "planning/${MODE}-discovery-policy.json")"
+          else
+            days="$(jq -er .storage.compact_artifact_retention_days \
+              "planning/${MODE}-discovery-policy.json")"
+          fi
+          echo "days=${days}" >> "${GITHUB_OUTPUT}"
       - name: Retain compact report and optional size-bounded candidate
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -306,7 +362,7 @@ jobs:
             .discovery/result/cursor.json
             .discovery/result/candidate-fixture
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ steps.retention.outputs.days }}
       - name: Fail this mode only on infrastructure failure
         shell: bash
         run: |
@@ -380,6 +436,20 @@ jobs:
           cd "${ledger_dir}"
           git switch --quiet --create compatibility-ledger \
             refs/remotes/origin/compatibility-ledger
+          latest="discovery/${MODE}/latest.json"
+          current_status="$(jq -er .status "${report}")"
+          if [ "${current_status}" = "external_data_deferred" ] \
+            && [ -s "${latest}" ] \
+            && [ "$(jq -r .upstream_sha "${latest}")" = "${UPSTREAM_SHA}" ] \
+            && [ "$(jq -r .engine_sha "${latest}")" = "${ENGINE_SHA}" ] \
+            && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ] \
+            && [ "$(jq -r .fingerprint "${latest}")" = "${fingerprint}" ]; then
+            previous_path="$(jq -er .run_path "${latest}")"
+            if [ "$(jq -r .status \
+              "${previous_path}/discovery-report.json")" = "external_data_deferred" ]; then
+              exit 0
+            fi
+          fi
           run_path="discovery/${MODE}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "${run_path}"
           mkdir -p "${run_path}" "discovery/${MODE}"
@@ -442,27 +512,37 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: true
-      - name: Install locked Python environment
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          python-version: "3.12"
-      - run: uv sync --extra dev --frozen
       - name: Download exact candidate result
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: .discovery/result
+      - name: Check for an exact candidate
+        id: candidate
+        shell: bash
+        run: |
+          if [ "$(
+            jq -r .status .discovery/result/discovery-report.json
+          )" = "candidate_found" ]; then
+            echo "found=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "found=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Install locked Python environment
+        if: steps.candidate.outputs.found == 'true'
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Sync locked Python environment
+        if: steps.candidate.outputs.found == 'true'
+        run: uv sync --extra dev --frozen
       - name: Open Draft PR and dispatch required CI when exact
+        if: steps.candidate.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ matrix.trading_mode }}
         shell: bash
         run: |
-          if [ "$(
-            jq -r .status .discovery/result/discovery-report.json
-          )" != "candidate_found" ]; then
-            exit 0
-          fi
           max_bytes="$(
             jq -er .candidate.max_bytes "planning/${MODE}-discovery-policy.json"
           )"
