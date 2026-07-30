@@ -164,6 +164,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p .discovery
           echo "deferred=false" >> "${GITHUB_OUTPUT}"
           ledger_dir="$(mktemp -d)"
           git clone --quiet --single-branch --branch compatibility-ledger \

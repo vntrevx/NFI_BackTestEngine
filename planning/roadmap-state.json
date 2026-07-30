@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 87,
-  "updated_at": "2026-07-31T03:58:57+09:00",
+  "revision": 88,
+  "updated_at": "2026-07-31T04:32:54+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M12-08",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3085,6 +3085,38 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M12-08",
+      "order": 1208,
+      "milestone": "M12",
+      "title": "Repair same-identity non-deferred cursor restoration",
+      "status": "in_progress",
+      "depends_on": [
+        "M12-07"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "create the workflow cursor destination before restoring it",
+        "repeat the same-identity dual-mode operational canary"
+      ],
+      "forbidden_changes": [
+        "disabling cursor restoration",
+        "changing Native qualification semantics",
+        "adding runtime strategy hard-coding"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "workflow contract test",
+        "same-identity Spot deferred reuse",
+        "same-identity Futures cursor restore",
+        "successful dual-mode workflow"
+      ],
+      "started_at": "2026-07-31T04:32:54+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -5084,6 +5116,20 @@
         "development_laptop_runner_used": false,
         "paid_runner_used": false,
         "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 106,
+      "timestamp": "2026-07-31T04:32:54+09:00",
+      "task_id": "M12-08",
+      "event": "task_started",
+      "details": {
+        "trigger_run_id": 30575174549,
+        "failed_mode": "futures",
+        "failure_stage": "Restore same-mode matching cursor",
+        "root_cause": "cursor destination directory did not exist",
+        "spot_deferred_reuse_verified": true,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
