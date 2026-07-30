@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "upstream_sha": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+  "engine_sha": "27316db842ec72f2bb7ba74dadd4c026c1bc1fa2",
+  "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "trading_mode": "futures",
+  "fingerprint": "7b5b3f127a05d3915fdb7c068ebf086bf7a50d264b2112411aee7ea8c505f9c1",
+  "run_path": "discovery/futures/checks/e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0/27316db842ec72f2bb7ba74dadd4c026c1bc1fa2/d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a/7b5b3f127a05d3915fdb7c068ebf086bf7a50d264b2112411aee7ea8c505f9c1/runs/30503592769-1",
+  "cursor_path": "discovery/futures/checks/e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0/27316db842ec72f2bb7ba74dadd4c026c1bc1fa2/d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a/7b5b3f127a05d3915fdb7c068ebf086bf7a50d264b2112411aee7ea8c505f9c1/runs/30503592769-1/cursor.json",
+  "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30503592769"
+}
