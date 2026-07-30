@@ -97,6 +97,8 @@ class CiContractTests(unittest.TestCase):
         self.assertIn("needs.changes.outputs.policy_changes == 'true'", workflow)
         self.assertIn("needs.changes.outputs.code_changes == 'true'", workflow)
         self.assertNotIn("pull_request_target:", workflow)
+        for path in self.contract["push"]["release_paths"]:
+            self.assertIn(f'- "{path}"', workflow)
 
     def test_changed_json_is_validated_without_project_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

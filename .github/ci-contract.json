@@ -127,6 +127,17 @@
       ]
     }
   },
+  "push": {
+    "event": "push",
+    "branches": [
+      "main"
+    ],
+    "release_paths": [
+      "pyproject.toml",
+      ".github/product-release-contract.json",
+      ".github/release-candidate-contract.json"
+    ]
+  },
   "concurrency": {
     "group": "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
     "cancel_in_progress": true

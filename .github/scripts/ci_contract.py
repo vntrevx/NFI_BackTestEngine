@@ -39,6 +39,7 @@ def load_contract(path: str | Path) -> dict[str, Any]:
     required = document.get("required_check")
     concurrency = document.get("concurrency")
     pull_request = document.get("pull_request")
+    push = document.get("push")
     nightly = document.get("nightly")
     protection = document.get("branch_protection")
     if (
@@ -95,6 +96,10 @@ def load_contract(path: str | Path) -> dict[str, Any]:
             )
         )
         != set(document.get("coverage", {}))
+        or not isinstance(push, dict)
+        or push.get("event") != "push"
+        or push.get("branches") != ["main"]
+        or not _string_list(push.get("release_paths"))
         or not _valid_nightly_contract(nightly)
         or not isinstance(protection, dict)
         or protection.get("api", {})
