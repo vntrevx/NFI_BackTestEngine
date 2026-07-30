@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 84,
-  "updated_at": "2026-07-30T22:25:21+09:00",
+  "revision": 85,
+  "updated_at": "2026-07-30T23:50:00+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M12-06",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -2907,7 +2907,7 @@
       "order": 1206,
       "milestone": "M12",
       "title": "Publish v1.4.1 Python AST identity hotfix",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-05"
       ],
@@ -2938,9 +2938,84 @@
         "stable byte comparison and installer audit"
       ],
       "started_at": "2026-07-30T22:25:21+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-07-30T23:50:00+09:00",
+      "commit_sha": "25e810720dd533fc1487195e642e382e079abf2d",
+      "evidence": [
+        {
+          "kind": "same_commit_required_ci",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30549320374",
+          "run_id": 30549320374,
+          "commit_sha": "25e810720dd533fc1487195e642e382e079abf2d",
+          "python_ast_versions": [
+            "3.12",
+            "3.13",
+            "3.14"
+          ],
+          "conclusion": "success"
+        },
+        {
+          "kind": "sealed_product_candidate_bundle",
+          "url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30550690252",
+          "run_id": 30550690252,
+          "artifact_id": 8763572006,
+          "artifact_name": "product-release-bundle-25e810720dd533fc1487195e642e382e079abf2d",
+          "artifact_digest": "sha256:cd009d9185687ed26f43409db10aa77e89322d238843811dd9d30662a6b0db21",
+          "three_os_spot_and_futures_fixture_evidence": true,
+          "conclusion": "success"
+        },
+        {
+          "kind": "product_rc_publication",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30553102053",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.1-rc.1",
+          "tag": "v1.4.1-rc.1",
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        },
+        {
+          "kind": "stable_byte_identical_promotion",
+          "workflow_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/30553257457",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.1",
+          "tag": "v1.4.1",
+          "latest": true,
+          "asset_count": 12,
+          "rc_stable_byte_identical": true,
+          "sha256_manifest_digest": "sha256:3ab5b8de2c8551f7a58345ccb60bd2c56c3bbe81bb2be48ce28ff1bebb4b1a5d",
+          "product_contract_digest": "sha256:d5a80eac651da3ef819fb53007337a7a223eb2437b6842cafe7bf01a64607b84",
+          "combined_full_x7_certified": false,
+          "installer_audits": [
+            "Linux",
+            "Windows",
+            "macOS"
+          ],
+          "conclusion": "success"
+        },
+        {
+          "kind": "public_wheel_latest_x7_smoke",
+          "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.1",
+          "wheel_digest": "sha256:2fb010156445dd9ee32bbc4d0574e2ea2ef06dbf56f2b0aa5d1c6ab579a54cba",
+          "upstream_commit": "e8526d8268891a34c8bc6dd2c6171e44d7ee1ab0",
+          "strategy_version": "v17.4.483",
+          "strategy_sha256": "17bb8002110f5ea0edae051348dd2f5125d943bff578f4c942368e9bff3528cc",
+          "checks": [
+            {
+              "python": "3.13.14",
+              "trading_mode": "spot",
+              "native_compatible": true,
+              "blockers": 0
+            },
+            {
+              "python": "3.14.6",
+              "trading_mode": "futures",
+              "native_compatible": true,
+              "blockers": 0
+            }
+          ]
+        }
+      ],
       "blocker": null
     }
   ],
@@ -4883,6 +4958,30 @@
         "prior_certificates_remain_version_bound": true,
         "simulation_semantics_changed": false,
         "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 103,
+      "timestamp": "2026-07-30T23:50:00+09:00",
+      "task_id": "M12-06",
+      "event": "task_completed",
+      "details": {
+        "commit_sha": "25e810720dd533fc1487195e642e382e079abf2d",
+        "release_version": "1.4.1",
+        "required_ci_run_id": 30549320374,
+        "candidate_build_run_id": 30550690252,
+        "candidate_publish_run_id": 30553102053,
+        "stable_promotion_run_id": 30553257457,
+        "candidate_tag": "v1.4.1-rc.1",
+        "stable_tag": "v1.4.1",
+        "asset_count": 12,
+        "rc_stable_byte_identical": true,
+        "three_os_installer_audits": true,
+        "three_os_spot_futures_exact_evidence": true,
+        "public_python_313_spot_native_compatible": true,
+        "public_python_314_futures_native_compatible": true,
+        "combined_full_x7_certified": false,
+        "roadmap_complete": true
       }
     }
   ]
