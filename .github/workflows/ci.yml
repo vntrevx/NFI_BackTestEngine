@@ -4,6 +4,10 @@ name: CI
 on:
   push:
     branches: ["main"]
+    paths:
+      - "pyproject.toml"
+      - ".github/product-release-contract.json"
+      - ".github/release-candidate-contract.json"
   pull_request:
   workflow_dispatch:
 

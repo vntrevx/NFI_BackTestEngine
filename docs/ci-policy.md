@@ -25,6 +25,11 @@ Operational discovery configuration, release contracts, non-CI workflows, runtim
 schemas, and fixtures are not covered by broad directory exceptions. They remain in
 the `code` lane unless individually reviewed and listed.
 
+Pull requests are the normal required-check surface. A protected merge is not tested
+a second time on `main`; push-triggered CI is limited to version and product-release
+contract paths that require a same-commit release check. Manual dispatch remains
+available for an explicit full rerun.
+
 The workflow uses read-only repository contents, explicit job timeouts, and
 per-PR/ref concurrency with older runs cancelled. It never uses
 `pull_request_target`.
