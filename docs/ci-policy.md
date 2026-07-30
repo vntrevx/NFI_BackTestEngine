@@ -25,6 +25,14 @@ Operational discovery configuration, release contracts, non-CI workflows, runtim
 schemas, and fixtures are not covered by broad directory exceptions. They remain in
 the `code` lane unless individually reviewed and listed.
 
+The separate branch-discovery workflow keeps external-data policy in the mode-specific
+JSON files. A declared provider HTTP restriction is recorded as deferred, does not
+advance Native qualification, and is retried only for a new immutable identity or an
+explicit manual request. Scheduled runs reuse that compact state instead of rebuilding
+or downloading data. Unknown infrastructure failures still fail and remain visible.
+Non-candidate artifacts expire after one day; raw candles, caches, container layers,
+and traces are never uploaded.
+
 Pull requests are the normal required-check surface. A protected merge is not tested
 a second time on `main`; push-triggered CI is limited to version and product-release
 contract paths that require a same-commit release check. Manual dispatch remains

@@ -101,6 +101,22 @@ def test_previous_lane_replays_boolean_mapping_transition_from_diff() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("exchange request failed with HTTP 451", 451),
+        ("503 Service Unavailable", 503),
+        ("connection timed out", None),
+        ("request id 14510 failed", None),
+    ],
+)
+def test_external_http_status_is_provider_agnostic(
+    message: str,
+    expected: int | None,
+) -> None:
+    assert discovery_runtime._external_http_status(message) == expected
+
+
 def _files(tmp_path: Path) -> tuple[Path, Path]:
     source = tmp_path / "strategy.py"
     source.write_text("class Demo: pass\n", encoding="utf-8")
@@ -146,6 +162,9 @@ def test_policy_is_declarative_and_repository_bound() -> None:
     assert policy.shard_months == 3
     assert policy.pair_limit == 80
     assert policy.budget_seconds == 7200
+    assert policy.deferred_http_statuses == frozenset({451})
+    assert policy.external_retry == "identity-change-or-manual"
+    assert policy.compact_artifact_retention_days == 1
     assert policy.max_candidate_bytes == 30 * 1024 * 1024
     assert policy.template_config.is_file()
 
@@ -326,6 +345,107 @@ def test_external_market_failure_is_infrastructure_not_unsupported_semantics(
     assert report["message"] == "market catalog HTTP 451"
     assert report["attempts"][0]["outcome"] == "infrastructure_failed"
     assert report["official_fallback_available"] is True
+
+
+def test_policy_selected_external_status_is_deferred_without_advancing(
+    tmp_path: Path,
+) -> None:
+    report = _discover(
+        tmp_path,
+        output_name="market-deferred",
+        scout_service=lambda *_args: (_ for _ in ()).throw(
+            DiscoveryInfrastructureError(
+                "market catalog HTTP 451",
+                external_http_status=451,
+            )
+        ),
+    )
+
+    assert report["status"] == "external_data_deferred"
+    assert report["complete"] is False
+    assert report["next_shard"] == 0
+    assert report["searched_shard_count"] == 1
+    assert report["attempts"][0]["outcome"] == "external_data_deferred"
+    assert report["external_data"] == {
+        "reason": "http_status",
+        "http_status": 451,
+        "retry": "identity-change-or-manual",
+    }
+    cursor = read_json(tmp_path / "market-deferred" / "cursor.json")
+    assert cursor["status"] == "external_data_deferred"
+    assert cursor["next_shard"] == 0
+
+
+def test_deferred_cursor_does_not_repeat_external_request(
+    tmp_path: Path,
+) -> None:
+    first = _discover(
+        tmp_path,
+        output_name="market-deferred-first",
+        scout_service=lambda *_args: (_ for _ in ()).throw(
+            DiscoveryInfrastructureError(
+                "market catalog HTTP 451",
+                external_http_status=451,
+            )
+        ),
+    )
+    assert first["status"] == "external_data_deferred"
+
+    def unexpected(*_args):
+        raise AssertionError("a deferred identity must not repeat external access")
+
+    resumed = _discover(
+        tmp_path,
+        output_name="market-deferred-resumed",
+        cursor_path=tmp_path / "market-deferred-first" / "cursor.json",
+        scout_service=unexpected,
+    )
+
+    assert resumed["status"] == "external_data_deferred"
+    assert resumed["searched_shard_count"] == 0
+    assert resumed["next_shard"] == 0
+    assert resumed["external_data"] == first["external_data"]
+
+
+def test_unselected_external_status_remains_infrastructure_failure(
+    tmp_path: Path,
+) -> None:
+    report = _discover(
+        tmp_path,
+        output_name="market-unknown-infrastructure",
+        scout_service=lambda *_args: (_ for _ in ()).throw(
+            DiscoveryInfrastructureError(
+                "market catalog HTTP 503",
+                external_http_status=503,
+            )
+        ),
+    )
+
+    assert report["status"] == "infrastructure_failed"
+    assert report["attempts"][0]["external_http_status"] == 503
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("deferred_http_statuses", [399], "HTTP error statuses"),
+        ("deferred_http_statuses", [451, 451], "HTTP error statuses"),
+        ("retry", "always", "identity-change-or-manual"),
+    ],
+)
+def test_policy_rejects_invalid_external_data_contract(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    document = read_json(POLICY)
+    document["external_data"][field] = value
+    policy = tmp_path / "policy.json"
+    write_json(policy, document)
+
+    with pytest.raises(SpecValidationError, match=message):
+        load_discovery_policy(policy, repository_root=ROOT)
 
 
 @pytest.mark.parametrize(

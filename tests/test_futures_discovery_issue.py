@@ -71,6 +71,28 @@ def test_budget_resume_does_not_create_an_issue_and_recovery_closes_old_gap() ->
     assert plan["recovered"] is True
 
 
+def test_external_data_deferral_preserves_existing_semantic_issue() -> None:
+    plan = MODULE.build_issue_plan(
+        _report("external_data_deferred"),
+        [
+            {
+                "number": 20,
+                "body": (
+                    "<!-- nfi-branch-discovery:futures:"
+                    + "e" * 64
+                    + " -->"
+                ),
+            }
+        ],
+        run_url="https://example.invalid/deferred",
+    )
+
+    assert plan["fingerprint"] is None
+    assert plan["create"] is None
+    assert plan["close"] == []
+    assert plan["recovered"] is False
+
+
 def test_spot_reconciliation_does_not_close_a_futures_gap() -> None:
     report = _report("coverage_exhausted")
     report["trading_mode"] = "spot"

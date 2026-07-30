@@ -24,6 +24,15 @@ class BranchCoverageError(BenchmarkError):
 class DiscoveryInfrastructureError(BenchmarkError):
     """A discovery dependency failed before strategy semantics could be assessed."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        external_http_status: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.external_http_status = external_http_status
+
 
 class TraceError(NfiBacktestError):
     """A canonical state trace is malformed or cannot be compared."""

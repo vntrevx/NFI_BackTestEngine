@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "trading_mode": "futures",
   "history": {
     "completed_years": 5,
@@ -14,6 +14,15 @@
   "execution": {
     "budget_seconds": 7200,
     "workers": 1
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  },
+  "storage": {
+    "compact_artifact_retention_days": 1
   },
   "candidate": {
     "context_days": 2,

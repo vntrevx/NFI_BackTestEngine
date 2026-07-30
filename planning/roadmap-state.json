@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 85,
-  "updated_at": "2026-07-30T23:50:00+09:00",
+  "revision": 87,
+  "updated_at": "2026-07-31T03:58:57+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
   "execution_policy": {
@@ -3017,6 +3017,74 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M12-07",
+      "order": 1207,
+      "milestone": "M12",
+      "title": "Defer inaccessible external discovery data without repeated CI failure",
+      "status": "completed",
+      "depends_on": [
+        "M12-06"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "policy-driven external data deferral",
+        "same-identity deferred cursor reuse",
+        "compact short-lived workflow artifacts",
+        "zero development-laptop data storage",
+        "official fallback and Native fail-closed boundary"
+      ],
+      "forbidden_changes": [
+        "disabling the four-hour compatibility watcher",
+        "treating deferred coverage as Native exact evidence",
+        "hard-coding an NFI version, Signal, tag, pair, timerange, or expected result",
+        "persisting raw candles, vectors, Docker layers, or full traces in Git",
+        "using a paid or development-laptop runner"
+      ],
+      "acceptance_profile": "future_nfi_compatibility",
+      "expected_evidence": [
+        "external HTTP policy validation",
+        "deferred cursor resume without a network scout",
+        "unexpected infrastructure failures still fail CI",
+        "compact artifact retention policy",
+        "workflow contract and focused test report"
+      ],
+      "started_at": "2026-07-31T03:46:24+09:00",
+      "completed_at": "2026-07-31T03:58:57+09:00",
+      "commit_sha": "d292006312cc8eecd9f9a7540a60e8c897b65af0",
+      "evidence": [
+        {
+          "kind": "policy_deferred_external_data_contract",
+          "implementation_commit": "d292006312cc8eecd9f9a7540a60e8c897b65af0",
+          "policy_version": "1.1.0",
+          "same_identity_external_retry": false,
+          "manual_retry_available": true,
+          "native_qualification_advanced": false,
+          "unknown_infrastructure_still_fails": true
+        },
+        {
+          "kind": "future_nfi_compatibility_acceptance",
+          "python_tests_passed": 582,
+          "future_nfi_tests_passed": 97,
+          "discovery_tests_passed": 74,
+          "rust_tests_passed": 108,
+          "full_fixtures_exact": 5,
+          "trade_surface_exact": true,
+          "full_state_exact": true
+        },
+        {
+          "kind": "storage_boundary",
+          "non_candidate_artifact_retention_days": 1,
+          "raw_candles_uploaded": false,
+          "vectors_uploaded": false,
+          "docker_layers_uploaded": false,
+          "full_traces_uploaded": false,
+          "local_safe_bytes_reclaimed": 266240,
+          "preserved_certificates_and_oracles": true
+        }
+      ],
+      "blocker": null
     }
   ],
   "events": [
@@ -4982,6 +5050,40 @@
         "public_python_314_futures_native_compatible": true,
         "combined_full_x7_certified": false,
         "roadmap_complete": true
+      }
+    },
+    {
+      "sequence": 104,
+      "timestamp": "2026-07-31T03:46:24+09:00",
+      "task_id": "M12-07",
+      "event": "task_started",
+      "details": {
+        "acceptance_profile": "future_nfi_compatibility",
+        "worktree_head": "9573564cb5389f0a3076d58cb8dadc07b7c9b5cc",
+        "trigger_run_id": 30567905238,
+        "external_failure": "Binance market catalog HTTP 451",
+        "paid_runner_allowed": false,
+        "development_laptop_storage_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 105,
+      "timestamp": "2026-07-31T03:58:57+09:00",
+      "task_id": "M12-07",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "d292006312cc8eecd9f9a7540a60e8c897b65af0",
+        "policy_version": "1.1.0",
+        "policy_selected_external_data_is_deferred": true,
+        "same_identity_reuses_compact_state": true,
+        "new_identity_or_manual_retry_only": true,
+        "unexpected_infrastructure_still_fails": true,
+        "official_fallback_available": true,
+        "native_promotion_fail_closed": true,
+        "development_laptop_runner_used": false,
+        "paid_runner_used": false,
+        "runtime_hardcoding_added": false
       }
     }
   ]

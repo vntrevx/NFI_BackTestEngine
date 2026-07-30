@@ -134,10 +134,18 @@ exact를 모두 통과한 mode별 paired fixture가 30 MiB 이하일 때만 cand
 자동화는 allowlist된 fixture와 compact evidence만 새 branch에 넣어 Draft PR을
 열고 CI를 요청한다. 자동 승인과 자동 merge는 하지 않는다.
 
-심층 workflow는 nightly 또는 수동으로 실행되고 동시 실행은 하나뿐이다.
-request/report/cursor는 append-only ledger에 남기며 candidate artifact는 30일
-보존한다. 원시 candles, cache와 trace는 ledger나 PR에 넣지 않는다. 로컬
-budget/인프라 실패 run은 `nfi-bte clean --dry-run`에서 회수 가능 대상으로
+심층 workflow는 nightly 또는 수동으로 실행되고 동시 실행은 하나뿐이다. 외부
+시장 데이터가 정책에 선언된 HTTP 상태로 차단되면 엔진 실패가 아니라
+`external_data_deferred`로 기록한다. 이 상태는 Native exact 증거가 아니며 cursor를
+전진시키지 않는다. 같은 upstream/engine/Freqtrade identity의 예약 실행은 저장된
+compact 결과를 재사용해 빌드와 외부 요청을 반복하지 않는다. identity가 바뀌거나
+수동 실행에서 `retry_deferred`를 선택한 경우에만 다시 요청한다. 정책에 없는
+네트워크·빌드·권한 장애는 계속 실패한다.
+
+request/report/cursor는 append-only ledger에 한 번만 남긴다. candidate artifact는
+30일, candidate가 없는 compact workflow artifact는 1일 보존한다. 원시 candles,
+cache, Docker layer와 trace는 ledger, artifact 또는 PR에 넣지 않는다. 로컬
+budget/보류/인프라 실패 run은 `nfi-bte clean --dry-run`에서 회수 가능 대상으로
 분류된다.
 
 이 계약은 현재 pinned Freqtrade가 실행할 수 있는 NFI 변경을 즉시 사용할 수 있게

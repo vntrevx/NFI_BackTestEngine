@@ -16,6 +16,7 @@ _CURRENT_MARKER = re.compile(
 )
 _LEGACY_MARKER = re.compile(r"<!-- nfi-futures-discovery:([0-9a-f]{64}) -->")
 _ISSUE_STATES = {"coverage_exhausted", "unsupported_semantics"}
+_PRESERVE_ISSUE_STATES = {"external_data_deferred", "infrastructure_failed"}
 
 
 def build_issue_plan(
@@ -48,7 +49,7 @@ def build_issue_plan(
         for mode, _issue_fingerprint, _legacy, issue in parsed
         if mode == trading_mode
         if issue.get("number") != keep
-    ]) if status != "infrastructure_failed" else []
+    ]) if status not in _PRESERVE_ISSUE_STATES else []
     create = None
     if fingerprint and keep is None:
         last_message = str(report.get("message", "")).strip()
@@ -76,8 +77,7 @@ def build_issue_plan(
         "create": create,
         "close": close,
         "trading_mode": trading_mode,
-        "recovered": status not in _ISSUE_STATES
-        and status != "infrastructure_failed",
+        "recovered": status not in _ISSUE_STATES | _PRESERVE_ISSUE_STATES,
     }
 
 
