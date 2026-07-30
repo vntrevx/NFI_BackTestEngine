@@ -52,12 +52,15 @@
       "timeout_minutes": 5
     },
     "python": {
-      "name": "Python ${{ matrix.os }}",
+      "name": "Python ${{ matrix.os }} / ${{ matrix.python-version }}",
       "timeout_minutes": 30,
       "matrix": [
         "ubuntu-latest",
         "windows-latest",
-        "macos-14"
+        "macos-14",
+        "3.12",
+        "3.13",
+        "3.14"
       ]
     },
     "quality": {

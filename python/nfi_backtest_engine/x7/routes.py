@@ -231,7 +231,20 @@ def _method_ast_sha256(
     normalized = copy.deepcopy(method)
     if remove_statement_index is not None:
         del normalized.body[remove_statement_index]
-    encoded = ast.dump(normalized, include_attributes=False).encode()
+    # Python 3.13 changed ``ast.dump`` to omit empty optional fields by
+    # default.  The fields are still part of the same AST, so relying on that
+    # default made a reviewed callback appear different solely because the
+    # user ran the engine on a newer supported Python version.
+    #
+    # ``show_empty`` does not exist on Python 3.12.  Calling through ``Any``
+    # keeps the compatibility branch explicit without weakening the public
+    # package's 3.12 type-checking target.
+    dump = cast(Any, ast.dump)
+    try:
+        serialized = dump(normalized, include_attributes=False, show_empty=True)
+    except TypeError:
+        serialized = ast.dump(normalized, include_attributes=False)
+    encoded = serialized.encode()
     return hashlib.sha256(encoded).hexdigest()
 
 
