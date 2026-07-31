@@ -1,0 +1,210 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "fingerprint": "cd198a194f3b44ee040bee79a4d240821bce35b0af52967ad36ee3112e4571a0",
+  "identity": {
+    "upstream_commit": "436e2839262b78b8d0359c607d6c301cb99c717b",
+    "baseline_upstream_commit": "15c01a2d5e47da92e2b1f264af552e5716c3b47b",
+    "engine_commit": "a7767dc67bbdb4c888d8e97aeb5ffbe509bc3395",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "e6215c9008c9399e30afb335324545cd512c18efc0100b001d38adff82b632b6",
+    "baseline_strategy_sha256": "829ade93309889faa2d6400f01ac26eb54915483e3a0e30bbf464fd8c38a32be",
+    "trading_mode": "futures",
+    "policy_sha256": "6c06a09aeb79e9a30a361387d1704067d1e9a1603cdab9ffe6e2be7fd5122c1e",
+    "target_ids": [
+      "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "cb305cce726fdf166f8a4bfbec8ec0bb9fefb99e1a15e313dfd7259d47fc41b4"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "value": "base_tf_5m_indicators",
+      "methods": [
+        "base_tf_5m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4042,
+            "column": 2,
+            "end_line": 4269,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4046,
+            "column": 2,
+            "end_line": 4276,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "cb305cce726fdf166f8a4bfbec8ec0bb9fefb99e1a15e313dfd7259d47fc41b4",
+      "kind": "callback",
+      "change": "changed",
+      "value": "informative_4h_indicators",
+      "methods": [
+        "informative_4h_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3690,
+            "end_column": 25
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3694,
+            "end_column": 25
+          }
+        ]
+      },
+      "runtime_observable": false
+    }
+  ],
+  "searchable_targets": [],
+  "unsearchable_targets": [
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "value": "base_tf_5m_indicators",
+      "methods": [
+        "base_tf_5m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4042,
+            "column": 2,
+            "end_line": 4269,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4046,
+            "column": 2,
+            "end_line": 4276,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "cb305cce726fdf166f8a4bfbec8ec0bb9fefb99e1a15e313dfd7259d47fc41b4",
+      "kind": "callback",
+      "change": "changed",
+      "value": "informative_4h_indicators",
+      "methods": [
+        "informative_4h_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3690,
+            "end_column": 25
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3694,
+            "end_column": 25
+          }
+        ]
+      },
+      "runtime_observable": false
+    }
+  ],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}
