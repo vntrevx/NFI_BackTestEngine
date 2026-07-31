@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "classification": "ir-compatible",
+  "status": "coverage-gap",
+  "targets": [
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "value": "base_tf_5m_indicators",
+      "methods": [
+        "base_tf_5m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4042,
+            "column": 2,
+            "end_line": 4269,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4046,
+            "column": 2,
+            "end_line": 4276,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "cb305cce726fdf166f8a4bfbec8ec0bb9fefb99e1a15e313dfd7259d47fc41b4",
+      "kind": "callback",
+      "change": "changed",
+      "value": "informative_4h_indicators",
+      "methods": [
+        "informative_4h_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3690,
+            "end_column": 25
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3694,
+            "end_column": 25
+          }
+        ]
+      },
+      "runtime_observable": false
+    }
+  ],
+  "selected_fixtures": [],
+  "missing_targets": [
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "value": "base_tf_5m_indicators",
+      "methods": [
+        "base_tf_5m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4042,
+            "column": 2,
+            "end_line": 4269,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4046,
+            "column": 2,
+            "end_line": 4276,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "cb305cce726fdf166f8a4bfbec8ec0bb9fefb99e1a15e313dfd7259d47fc41b4",
+      "kind": "callback",
+      "change": "changed",
+      "value": "informative_4h_indicators",
+      "methods": [
+        "informative_4h_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3690,
+            "end_column": 25
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "informative_4h_indicators",
+            "line": 3501,
+            "column": 2,
+            "end_line": 3694,
+            "end_column": 25
+          }
+        ]
+      },
+      "runtime_observable": false
+    }
+  ],
+  "executable": false
+}
