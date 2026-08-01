@@ -1,0 +1,266 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "fingerprint": "f050b31e28c1458f7d3dfa8ce2f1f8efe0edbc4aa83e8de8354e76b02be39277",
+  "identity": {
+    "upstream_commit": "2aee0295ed22a3ed2f933ea289ce03d0b229cadb",
+    "baseline_upstream_commit": "44f0d867df3cebcb35527a700fb761c9be0cb678",
+    "engine_commit": "a7767dc67bbdb4c888d8e97aeb5ffbe509bc3395",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "9ccda132bcd95f447787d8c9aa49fa7d7d212311784d7dc03bd43c6381a5169b",
+    "baseline_strategy_sha256": "fde8c06014a562866a0b515f9f3a9d1a85c545bad429155ba4e7667541b07b64",
+    "trading_mode": "spot",
+    "policy_sha256": "17d7bae69dc578b435c6a220f3fdfb93c7d9b24487bf47fbc54c15696aec07cc",
+    "target_ids": [
+      "5d8cf755265fa3df2a90ab2aa1b0c3d503ba2e50240f4410036defc57e48d9c0",
+      "7288a380f8fad0b78da72e42ad337f355eabbb107a870e7d174a33b3c0c2c330",
+      "d25e33d24a4a6580496c297fff07d8599e4202dbc79fa3785b039d07c3de3add"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "5d8cf755265fa3df2a90ab2aa1b0c3d503ba2e50240f4410036defc57e48d9c0",
+      "kind": "callback",
+      "change": "changed",
+      "value": "chaikin_money_flow",
+      "methods": [
+        "chaikin_money_flow"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "chaikin_money_flow",
+            "line": 3199,
+            "column": 2,
+            "end_line": 3224,
+            "end_column": 28
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "chaikin_money_flow",
+            "line": 3173,
+            "column": 2,
+            "end_line": 3189,
+            "end_column": 28
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "7288a380f8fad0b78da72e42ad337f355eabbb107a870e7d174a33b3c0c2c330",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "501",
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12868,
+            "column": 2,
+            "end_line": 27453,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12833,
+            "column": 2,
+            "end_line": 27421,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "d25e33d24a4a6580496c297fff07d8599e4202dbc79fa3785b039d07c3de3add",
+      "kind": "callback",
+      "change": "removed",
+      "value": "rolling_sum",
+      "methods": [
+        "rolling_sum"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "rolling_sum",
+            "line": 3173,
+            "column": 2,
+            "end_line": 3196,
+            "end_column": 14
+          }
+        ],
+        "new_source_spans": []
+      },
+      "runtime_observable": false
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "7288a380f8fad0b78da72e42ad337f355eabbb107a870e7d174a33b3c0c2c330",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "501",
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12868,
+            "column": 2,
+            "end_line": 27453,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12833,
+            "column": 2,
+            "end_line": 27421,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [
+    {
+      "id": "5d8cf755265fa3df2a90ab2aa1b0c3d503ba2e50240f4410036defc57e48d9c0",
+      "kind": "callback",
+      "change": "changed",
+      "value": "chaikin_money_flow",
+      "methods": [
+        "chaikin_money_flow"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "chaikin_money_flow",
+            "line": 3199,
+            "column": 2,
+            "end_line": 3224,
+            "end_column": 28
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "chaikin_money_flow",
+            "line": 3173,
+            "column": 2,
+            "end_line": 3189,
+            "end_column": 28
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "d25e33d24a4a6580496c297fff07d8599e4202dbc79fa3785b039d07c3de3add",
+      "kind": "callback",
+      "change": "removed",
+      "value": "rolling_sum",
+      "methods": [
+        "rolling_sum"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "rolling_sum",
+            "line": 3173,
+            "column": 2,
+            "end_line": 3196,
+            "end_column": 14
+          }
+        ],
+        "new_source_spans": []
+      },
+      "runtime_observable": false
+    }
+  ],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}
