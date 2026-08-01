@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 107,
-  "updated_at": "2026-08-02T07:51:04+09:00",
+  "revision": 108,
+  "updated_at": "2026-08-02T08:42:41+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M17-01",
+  "active_task_id": "M17-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4087,7 +4087,7 @@
       "order": 1701,
       "milestone": "M17",
       "title": "Compile tag-120 base Grind into generic IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M16-04"
       ],
@@ -4107,9 +4107,16 @@
         "Spot and Futures full-state exact"
       ],
       "started_at": "2026-08-02T07:51:04+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T08:42:41+09:00",
+      "commit_sha": "c12a1e8d38e3e01ca5a53b59969a094c1cf21cca",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/18-legacy-grind-base-tests.log",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/latest-upstream/report-futures.json",
+        "benchmarks/evidence/x7-zec-legacy-grind-v17.4.413.json"
+      ],
       "blocker": null
     },
     {
@@ -4117,7 +4124,7 @@
       "order": 1702,
       "milestone": "M17",
       "title": "Compile all source-defined Grind levels",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M17-01"
       ],
@@ -4136,7 +4143,7 @@
         "dynamic-level mutation tests",
         "all reachable level branch proofs"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T08:42:41+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7475,6 +7482,41 @@
         "objective": "compile tag-120 first-entry recovery and gm0, gd1, and gd2 base transitions into generic IR",
         "tag_120_specific_opcode_allowed": false,
         "unreached_branch_promotion_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 143,
+      "timestamp": "2026-08-02T08:42:41+09:00",
+      "task_id": "M17-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "c12a1e8d38e3e01ca5a53b59969a094c1cf21cca",
+        "trade_manager_schema": "0.25.0",
+        "grind_transition_program": "grind-transition-program-v1",
+        "compiled_transition_tags": [
+          "gm0",
+          "gd1",
+          "gd2"
+        ],
+        "reverse_order_and_policy_are_program_data": true,
+        "official_tag120_trade_surface_evidence_preserved": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_and_futures_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 144,
+      "timestamp": "2026-08-02T08:42:41+09:00",
+      "task_id": "M17-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile every source-defined Grind level plus profit, stop, and Futures fallback transitions into generic IR",
+        "fixed_level_count_allowed": false,
+        "signal_or_tag_result_specialization_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
