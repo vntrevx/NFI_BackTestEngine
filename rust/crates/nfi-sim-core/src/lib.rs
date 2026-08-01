@@ -20,6 +20,8 @@ use calculations::{
     round_step,
 };
 mod domain;
+mod execution_contract;
+pub use execution_contract::contract_json as execution_contract_json;
 mod io;
 #[cfg(test)]
 use io::CALLBACK_FEATURE_LOOKBACK_ROWS;

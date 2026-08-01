@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/execution-contract-v1.schema.json",
+  "title": "Freqtrade-compatible Spot execution contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "semantic_profile_sha256",
+    "scheduler_contract_sha256",
+    "scope",
+    "entry",
+    "adjustment",
+    "exit",
+    "wallet",
+    "fees",
+    "precision",
+    "observer",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "freqtrade-execution-contract-v1"},
+    "semantic_profile_sha256": {"$ref": "#/$defs/sha256"},
+    "scheduler_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "scope": {"$ref": "#/$defs/scope"},
+    "entry": {"$ref": "#/$defs/entry"},
+    "adjustment": {"$ref": "#/$defs/adjustment"},
+    "exit": {"$ref": "#/$defs/exit"},
+    "wallet": {"$ref": "#/$defs/wallet"},
+    "fees": {"$ref": "#/$defs/fees"},
+    "precision": {"$ref": "#/$defs/precision"},
+    "observer": {"$ref": "#/$defs/observer"},
+    "fingerprint": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonempty_strings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trading_modes", "order_types", "unknown_semantics", "parity_requirement"],
+      "properties": {
+        "trading_modes": {"const": ["spot"]},
+        "order_types": {"const": ["market"]},
+        "unknown_semantics": {"const": "fail-before-native-promotion"},
+        "parity_requirement": {"const": "trade-surface-and-full-state-exact-zero-tolerance"}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_order", "fill_rate", "lock_rejection_increments_rejected_signals",
+        "slot_rejection_increments_rejected_signals",
+        "order_id_reserved_before_amount_precision_and_confirmation",
+        "pre_order_gate_rejection_consumes_order_id",
+        "amount_or_confirmation_rejection_consumes_order_id",
+        "rejected_attempt_consumes_trade_id",
+        "trade_id_consumed_on_fill_only"
+      ],
+      "properties": {
+        "gate_order": {"$ref": "#/$defs/nonempty_strings"},
+        "fill_rate": {"const": "execution-candle-open"},
+        "lock_rejection_increments_rejected_signals": {"const": false},
+        "slot_rejection_increments_rejected_signals": {"const": true},
+        "order_id_reserved_before_amount_precision_and_confirmation": {"const": true},
+        "pre_order_gate_rejection_consumes_order_id": {"const": false},
+        "amount_or_confirmation_rejection_consumes_order_id": {"const": true},
+        "rejected_attempt_consumes_trade_id": {"const": false},
+        "trade_id_consumed_on_fill_only": {"const": true}
+      }
+    },
+    "adjustment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callback_position", "positive_fill_rate", "partial_exit_fill_rate",
+        "positive_stake_limited_by_available_wallet",
+        "filled_orders_replayed_in_source_order", "order_filled_callback_after_replay"
+      ],
+      "properties": {
+        "callback_position": {"type": "string", "minLength": 1},
+        "positive_fill_rate": {"type": "string", "minLength": 1},
+        "partial_exit_fill_rate": {"type": "string", "minLength": 1},
+        "positive_stake_limited_by_available_wallet": {"const": true},
+        "filled_orders_replayed_in_source_order": {"const": true},
+        "order_filled_callback_after_replay": {"const": true}
+      }
+    },
+    "exit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_order", "strategy_fill_rate", "confirmation_before_fill",
+        "liquidation_confirmation", "filled_order_appended_before_profit_replay"
+      ],
+      "properties": {
+        "candidate_order": {"$ref": "#/$defs/nonempty_strings"},
+        "strategy_fill_rate": {"type": "string", "minLength": 1},
+        "confirmation_before_fill": {"const": true},
+        "liquidation_confirmation": {"const": false},
+        "filled_order_appended_before_profit_replay": {"const": true}
+      }
+    },
+    "wallet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope", "mutation_order", "free_balance_components",
+        "running_funding_excluded_until_realized", "unlimited_stake_policy",
+        "tradable_balance_ratio_applied_before_stake_selection", "slot_limit"
+      ],
+      "properties": {
+        "scope": {"const": "single-global-quote-wallet"},
+        "mutation_order": {"const": "serial-scheduler-event-order"},
+        "free_balance_components": {"$ref": "#/$defs/nonempty_strings"},
+        "running_funding_excluded_until_realized": {"const": true},
+        "unlimited_stake_policy": {"type": "string", "minLength": 1},
+        "tradable_balance_ratio_applied_before_stake_selection": {"const": true},
+        "slot_limit": {"const": "max-open-trades-global"}
+      }
+    },
+    "fees": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_rate", "close_rate", "entry_fee_in_cost_basis",
+        "exit_fee_in_realized_profit", "each_adjustment_has_its_own_fee"
+      ],
+      "properties": {
+        "open_rate": {"type": "string", "minLength": 1},
+        "close_rate": {"type": "string", "minLength": 1},
+        "entry_fee_in_cost_basis": {"const": true},
+        "exit_fee_in_realized_profit": {"const": true},
+        "each_adjustment_has_its_own_fee": {"const": true}
+      }
+    },
+    "precision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arithmetic_domain", "amount", "entry_price", "exit_price",
+        "weighted_basis_division", "realized_exit_profit", "aggregate_profit", "total_volume"
+      ],
+      "properties": {
+        "arithmetic_domain": {"type": "string", "minLength": 1},
+        "amount": {"type": "string", "minLength": 1},
+        "entry_price": {"type": "string", "minLength": 1},
+        "exit_price": {"type": "string", "minLength": 1},
+        "weighted_basis_division": {"type": "string", "minLength": 1},
+        "realized_exit_profit": {"type": "string", "minLength": 1},
+        "aggregate_profit": {"type": "string", "minLength": 1},
+        "total_volume": {"type": "string", "minLength": 1}
+      }
+    },
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_phases", "canonical_state_fields"],
+      "properties": {
+        "required_phases": {"$ref": "#/$defs/nonempty_strings"},
+        "canonical_state_fields": {"$ref": "#/$defs/nonempty_strings"}
+      }
+    }
+  }
+}

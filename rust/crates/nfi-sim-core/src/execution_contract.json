@@ -1,0 +1,112 @@
+{
+  "schema_version": "freqtrade-execution-contract-v1",
+  "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+  "scheduler_contract_sha256": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+  "scope": {
+    "trading_modes": [
+      "spot"
+    ],
+    "order_types": [
+      "market"
+    ],
+    "unknown_semantics": "fail-before-native-promotion",
+    "parity_requirement": "trade-surface-and-full-state-exact-zero-tolerance"
+  },
+  "entry": {
+    "gate_order": [
+      "pair-lock",
+      "available-slot",
+      "compiled-route-support",
+      "available-stake",
+      "custom-stake",
+      "amount-precision",
+      "confirm-trade-entry",
+      "fill",
+      "order-filled-callback",
+      "wallet-recompute"
+    ],
+    "fill_rate": "execution-candle-open",
+    "lock_rejection_increments_rejected_signals": false,
+    "slot_rejection_increments_rejected_signals": true,
+    "order_id_reserved_before_amount_precision_and_confirmation": true,
+    "pre_order_gate_rejection_consumes_order_id": false,
+    "amount_or_confirmation_rejection_consumes_order_id": true,
+    "rejected_attempt_consumes_trade_id": false,
+    "trade_id_consumed_on_fill_only": true
+  },
+  "adjustment": {
+    "callback_position": "after-exit-check-and-entry-fill-on-same-candle",
+    "positive_fill_rate": "execution-candle-open",
+    "partial_exit_fill_rate": "execution-candle-open-rounded-to-frozen-price-step",
+    "positive_stake_limited_by_available_wallet": true,
+    "filled_orders_replayed_in_source_order": true,
+    "order_filled_callback_after_replay": true
+  },
+  "exit": {
+    "candidate_order": [
+      "explicit-signal",
+      "compiled-state-machine-custom-exit",
+      "compiled-nfi-custom-exit",
+      "compiled-callback-custom-exit",
+      "contract-timed-exit",
+      "stop-loss",
+      "liquidation-extension"
+    ],
+    "strategy_fill_rate": "execution-candle-open-rounded-to-frozen-price-step",
+    "confirmation_before_fill": true,
+    "liquidation_confirmation": false,
+    "filled_order_appended_before_profit_replay": true
+  },
+  "wallet": {
+    "scope": "single-global-quote-wallet",
+    "mutation_order": "serial-scheduler-event-order",
+    "free_balance_components": [
+      "starting-balance",
+      "closed-realized-profit",
+      "open-realized-partial-profit",
+      "minus-open-trade-stake"
+    ],
+    "running_funding_excluded_until_realized": true,
+    "unlimited_stake_policy": "equal-configured-slot-allocation-capped-by-available",
+    "tradable_balance_ratio_applied_before_stake_selection": true,
+    "slot_limit": "max-open-trades-global"
+  },
+  "fees": {
+    "open_rate": "fee-open-override-else-common-fee",
+    "close_rate": "fee-close-override-else-common-fee",
+    "entry_fee_in_cost_basis": true,
+    "exit_fee_in_realized_profit": true,
+    "each_adjustment_has_its_own_fee": true
+  },
+  "precision": {
+    "arithmetic_domain": "shortest-f64-decimal-text-exact-rational",
+    "amount": "floor-to-exchange-step",
+    "entry_price": "execution-candle-open",
+    "exit_price": "round-to-trade-frozen-exchange-step",
+    "weighted_basis_division": "ccxt-precise-truncate-18-decimals",
+    "realized_exit_profit": "python-format-ties-to-even-8-decimals",
+    "aggregate_profit": "numpy-pairwise-f64-order",
+    "total_volume": "cpython-compensated-float-sum"
+  },
+  "observer": {
+    "required_phases": [
+      "trade.entry",
+      "trade.exit_check",
+      "trade.adjustment_check",
+      "trade.exit_order",
+      "candle.after"
+    ],
+    "canonical_state_fields": [
+      "quote_free",
+      "base_balances",
+      "open_trade_count",
+      "realized_profit",
+      "closed_trade_count",
+      "rejected_signals",
+      "trade_id_counter",
+      "order_id_counter",
+      "locks"
+    ]
+  },
+  "fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0"
+}
