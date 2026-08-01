@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 103,
-  "updated_at": "2026-08-02T04:48:41+09:00",
+  "revision": 104,
+  "updated_at": "2026-08-02T05:07:00+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M16-01",
+  "active_task_id": "M16-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3942,7 +3942,7 @@
       "order": 1601,
       "milestone": "M16",
       "title": "Implement generic filled-order aggregates",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M15-04"
       ],
@@ -3962,9 +3962,14 @@
         "official order-walk parity"
       ],
       "started_at": "2026-08-02T04:48:41+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T05:07:00+09:00",
+      "commit_sha": "7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/generic-state-machine-v3/run.json",
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -3972,7 +3977,7 @@
       "order": 1602,
       "milestone": "M16",
       "title": "Compile rebuy state transitions into generic IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M16-01"
       ],
@@ -3991,7 +3996,7 @@
         "Spot and Futures rebuy branch proof",
         "source-driven ladder mutation"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T05:07:00+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7317,6 +7322,39 @@
         "objective": "implement generic filled-order clusters and fill-invalidated aggregates",
         "nfi_tag_specific_aggregate_code_allowed": false,
         "stale_aggregate_reuse_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 135,
+      "timestamp": "2026-08-02T05:07:00+09:00",
+      "task_id": "M16-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4",
+        "generic_order_selectors": [
+          "all",
+          "entries",
+          "exits"
+        ],
+        "exact_tag_clusters_are_data": true,
+        "source_order_preserved": true,
+        "fill_invalidates_aggregate_cache": true,
+        "fill_invalidates_adjustment_cache": true,
+        "generic_order_walk_exact": true,
+        "spot_and_futures_full_state_exact": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 136,
+      "timestamp": "2026-08-02T05:07:00+09:00",
+      "task_id": "M16-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile rebuy stake, retry, level-three de-risk, and regular Grind transfer into generic IR",
+        "fixed_rebuy_result_tables_allowed": false,
+        "silent_stake_clipping_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
