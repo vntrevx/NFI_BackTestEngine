@@ -41,7 +41,10 @@ from .reference_runtime import load_reference_leverage_tiers
 from .result_report import write_result_presentation
 from .run_registry import RunRegistry
 from .specs import validate_trade_surface
-from .state_machine_ir import compile_state_machine_program
+from .state_machine_ir import (
+    STATE_MACHINE_PROGRAM_V3_VERSION,
+    compile_state_machine_program,
+)
 from .strategy_ir import STRATEGY_IR_VERSION
 from .strategy_overrides import effective_stoploss_ratio
 from .vector_runtime import (
@@ -134,24 +137,16 @@ def run_research_backtest(
         run_mode="backtest",
         config=run_config,
     )
-    state_machine_program: dict[str, Any] | None = None
-    if not hot_ir["hot_loop_ready"]:
-        try:
-            candidate_program = compile_state_machine_program(
-                source,
-                class_name=class_name,
-            )
-        except StrategyAnalysisError:
-            pass
-        else:
-            active_callbacks = {
-                callback["name"]
-                for callback in hot_ir["callbacks"]
-                if callback["active_for_run"]
-            }
-            compiled_callbacks = set(candidate_program["entrypoints"])
-            if active_callbacks and compiled_callbacks == active_callbacks:
-                state_machine_program = candidate_program
+    state_machine_program = (
+        _compile_state_machine_for_run(
+            source,
+            class_name=class_name,
+            analysis=analysis,
+            hot_ir=hot_ir,
+        )
+        if not hot_ir["hot_loop_ready"]
+        else None
+    )
     state_machine_ready = state_machine_program is not None
     native_callbacks_ready = hot_ir["hot_loop_ready"] or state_machine_ready
     adapter_lane = (
@@ -757,6 +752,58 @@ def run_research_backtest(
         with RunRegistry(registry_path) as registry:
             registry.record(report, output)
     return report
+
+
+def _compile_state_machine_for_run(
+    source: Path,
+    *,
+    class_name: str,
+    analysis: dict[str, Any],
+    hot_ir: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Select the newest provably finite state-machine contract for this run.
+
+    V2 remains the first choice for replay stability. V3 is attempted only when
+    Freqtrade's finite entry-adjustment contract proves an upper bound for every
+    selected filled-entry collection. Runtime validation still fails closed if an
+    input contradicts that source-derived bound.
+    """
+
+    active_callbacks = {
+        callback["name"]
+        for callback in hot_ir["callbacks"]
+        if callback["active_for_run"]
+    }
+    if not active_callbacks:
+        return None
+    try:
+        candidate = compile_state_machine_program(source, class_name=class_name)
+    except StrategyAnalysisError:
+        constants = analysis["strategies"][0].get("constants", {})
+        maximum_adjustments = constants.get("max_entry_position_adjustment")
+        if (
+            isinstance(maximum_adjustments, bool)
+            or not isinstance(maximum_adjustments, int)
+            or maximum_adjustments < 0
+        ):
+            return None
+        try:
+            candidate = compile_state_machine_program(
+                source,
+                class_name=class_name,
+                schema_version=STATE_MACHINE_PROGRAM_V3_VERSION,
+                max_order_iterations=maximum_adjustments + 1,
+            )
+        except StrategyAnalysisError:
+            return None
+        order_reads = {
+            item["key"]
+            for item in candidate["required_reads"]
+            if item["source"] == "orders"
+        }
+        if order_reads != {"filled_entries"}:
+            return None
+    return candidate if set(candidate["entrypoints"]) == active_callbacks else None
 
 
 def _read_json_object(path: Path, *, label: str) -> dict[str, Any]:

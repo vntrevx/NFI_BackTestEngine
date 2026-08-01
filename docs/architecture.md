@@ -298,6 +298,13 @@ One separate cold seed binds raw inputs, source compilation, vectors, and simula
 while nine compact official probes provide every-candle full-state coverage for the
 release-critical Futures branches.
 
+The generic callback lane also has an NFI-independent v3 proof. Its source compiler
+derives a 13-order finite bound from Freqtrade's position-adjustment contract, scans
+filled entries in trade order, and reaches a computed custom-exit route. The pinned
+official and Native runs match the final trade surface and all 286 projected candle
+states exactly; no strategy name, tag value, timerange, or expected result selects the
+runtime behavior.
+
 ## Explicitly unsupported
 
 The engine fails before simulation instead of approximating:

@@ -662,13 +662,32 @@ fn compare(
     right: &Value,
 ) -> Result<bool, StateMachineError> {
     match operator {
-        StateMachineComparison::Equal | StateMachineComparison::Is => Ok(left == right),
-        StateMachineComparison::NotEqual | StateMachineComparison::IsNot => Ok(left != right),
+        StateMachineComparison::Equal => Ok(python_scalar_equal(left, right)),
+        StateMachineComparison::NotEqual => Ok(!python_scalar_equal(left, right)),
+        StateMachineComparison::Is => Ok(left == right),
+        StateMachineComparison::IsNot => Ok(left != right),
         StateMachineComparison::Less => ordered(left, right, |a, b| a < b),
         StateMachineComparison::LessEqual => ordered(left, right, |a, b| a <= b),
         StateMachineComparison::Greater => ordered(left, right, |a, b| a > b),
         StateMachineComparison::GreaterEqual => ordered(left, right, |a, b| a >= b),
     }
+}
+
+fn python_scalar_equal(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Number(_), Value::Number(_)) => number(left)
+            .ok()
+            .zip(number(right).ok())
+            .is_some_and(|(left_number, right_number)| {
+                left_number.total_cmp(&right_number).is_eq()
+                    || (float_is_zero(left_number) && float_is_zero(right_number))
+            }),
+        _ => left == right,
+    }
+}
+
+const fn float_is_zero(value: f64) -> bool {
+    value.to_bits().trailing_zeros() >= 63
 }
 
 fn ordered(
@@ -708,9 +727,9 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::{
-        evaluate_state_machine, evaluate_state_machine_with_diagnostics,
-        validate_state_machine_program, StateMachineActionKind, StateMachineContext,
-        StateMachineError, StateMachineInstruction, StateMachineProgram,
+        compare, evaluate_state_machine, evaluate_state_machine_with_diagnostics,
+        validate_state_machine_program, StateMachineActionKind, StateMachineComparison,
+        StateMachineContext, StateMachineError, StateMachineInstruction, StateMachineProgram,
     };
 
     #[test]
@@ -794,6 +813,22 @@ mod tests {
             Some(2)
         );
         assert_eq!(context.custom_state.get("tagged_cost"), Some(&json!(7.0)));
+    }
+
+    #[test]
+    fn numeric_equality_matches_python_across_integer_and_float_storage() {
+        assert!(
+            compare(StateMachineComparison::Equal, &json!(12.0), &json!(12),)
+                .expect("numeric equality is supported")
+        );
+        assert!(
+            !compare(StateMachineComparison::NotEqual, &json!(12.0), &json!(12),)
+                .expect("numeric inequality is supported")
+        );
+        assert!(
+            compare(StateMachineComparison::Equal, &json!(-0.0), &json!(0),)
+                .expect("signed zero equality is supported")
+        );
     }
 
     const FINITE_ORDER_PROGRAM_JSON: &str = r#"{

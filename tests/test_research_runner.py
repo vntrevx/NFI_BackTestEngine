@@ -8,6 +8,7 @@ from nfi_backtest_engine import research_runner
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.strategy_ir import analyze_strategy
 
 SURFACE_FIXTURE = (
     Path(__file__).parents[1]
@@ -65,6 +66,34 @@ def _fake_prepare_data(**kwargs) -> dict:
     }
     write_json(kwargs["destination"], seal)
     return seal
+
+
+def test_run_compiler_does_not_infer_an_entry_bound_for_exit_orders(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ExitOrders.py"
+    source.write_text(
+        '''class ExitOrders(IStrategy):
+    max_entry_position_adjustment = 2
+    def custom_exit(self, pair, trade, current_time, current_rate,
+                    current_profit, **kwargs):
+        orders = trade.select_filled_orders(trade.exit_side)
+        for order in orders:
+            if order.ft_order_tag == "partial":
+                return "exit"
+        return None
+''',
+        encoding="utf-8",
+    )
+
+    assert research_runner._compile_state_machine_for_run(
+        source,
+        class_name="ExitOrders",
+        analysis=analyze_strategy(source, class_name="ExitOrders"),
+        hot_ir={
+            "callbacks": [{"name": "custom_exit", "active_for_run": True}],
+        },
+    ) is None
 
 
 def _fake_market_snapshot(

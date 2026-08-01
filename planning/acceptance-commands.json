@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-08-01",
+  "updated_at": "2026-08-02",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -116,6 +116,15 @@
     },
     "generic_state_machine_full": {
       "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/generic-state-machine-grind12-spot-2025-01-01_04/manifest.json --output-dir {artifact_dir}/generic-state-machine --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "generic_state_machine_v3_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/generic-state-machine-v3-orders-spot-2025-01-01_02/manifest.json --output-dir {artifact_dir}/generic-state-machine-v3 --level full",
       "working_directory": ".",
       "platform": "linux",
       "timeout_seconds": 900,
@@ -534,7 +543,8 @@
       "stops_only_full",
       "x7_spot_full",
       "x7_futures_full",
-      "generic_state_machine_full"
+      "generic_state_machine_full",
+      "generic_state_machine_v3_full"
     ],
     "full_native_kernel": [
       "planning_json",
@@ -567,7 +577,8 @@
       "stops_only_full",
       "x7_spot_full",
       "x7_futures_full",
-      "generic_state_machine_full"
+      "generic_state_machine_full",
+      "generic_state_machine_v3_full"
     ],
     "full_native_performance": [
       "planning_json",

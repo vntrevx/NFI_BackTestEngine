@@ -69,6 +69,13 @@ tag도 IR literal이므로 helper 본문이나 데이터가 바뀌면 프로그�
 소스 위치와 함께 차단한다. 전략 버전이나 method SHA를 새 실행 의미론의 선택
 조건으로 사용하지 않는다.
 
+`state-machine-program-v3`는 `trade.select_filled_orders(trade.entry_side)`의
+소스 순서 반복, typed order field, local 누적과 원자적 custom state 변경을
+지원한다. 실행 상한은 Signal·tag가 아니라 전략의 유한한
+`max_entry_position_adjustment + 1`에서 계산한다. 공식 범용 fixture는 진입 주문
+13개 중 source tag가 일치하는 12개를 세어 `finite_order_exit` 분기에 도달하며,
+독립 Native 실행과 trade surface 및 286개 every-candle state가 exact해야 한다.
+
 `quick_verified` 승격에는 최신 전략으로 다시 만든 임시 workload, 서로 독립된
 이전 공식·최신 공식·최신 Native 실행, presence/absence/transition branch 증명,
 trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 수정하지
