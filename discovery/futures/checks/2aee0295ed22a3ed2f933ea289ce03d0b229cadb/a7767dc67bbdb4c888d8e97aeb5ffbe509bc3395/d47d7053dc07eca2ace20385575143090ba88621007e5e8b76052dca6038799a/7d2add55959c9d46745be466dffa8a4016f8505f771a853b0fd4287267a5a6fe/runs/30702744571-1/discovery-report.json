@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "status": "unsupported_semantics",
+  "message": "No independently searchable transition partner exists for target kinds callback; a paired previous/latest proof is required.",
+  "complete": true,
+  "fingerprint": "7d2add55959c9d46745be466dffa8a4016f8505f771a853b0fd4287267a5a6fe",
+  "upstream_commit": "2aee0295ed22a3ed2f933ea289ce03d0b229cadb",
+  "baseline_upstream_commit": "44f0d867df3cebcb35527a700fb761c9be0cb678",
+  "engine_commit": "a7767dc67bbdb4c888d8e97aeb5ffbe509bc3395",
+  "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "strategy_sha256": "9ccda132bcd95f447787d8c9aa49fa7d7d212311784d7dc03bd43c6381a5169b",
+  "policy_sha256": "6c06a09aeb79e9a30a361387d1704067d1e9a1603cdab9ffe6e2be7fd5122c1e",
+  "target_count": 2,
+  "searchable_target_count": 0,
+  "unsearchable_target_ids": [
+    "5d8cf755265fa3df2a90ab2aa1b0c3d503ba2e50240f4410036defc57e48d9c0",
+    "d25e33d24a4a6580496c297fff07d8599e4202dbc79fa3785b039d07c3de3add"
+  ],
+  "searched_shard_count": 0,
+  "next_shard": 0,
+  "shard_count": 20,
+  "elapsed_seconds": 0.00378534200001468,
+  "attempts": [],
+  "candidate": null,
+  "external_data": null,
+  "official_fallback_available": true
+}
