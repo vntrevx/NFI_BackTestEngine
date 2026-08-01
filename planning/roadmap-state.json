@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 95,
-  "updated_at": "2026-08-01T22:33:41+09:00",
+  "revision": 96,
+  "updated_at": "2026-08-01T23:17:22+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M14-01",
+  "active_task_id": "M14-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3487,7 +3487,7 @@
       "order": 1401,
       "milestone": "M14",
       "title": "Generalize source-driven callback IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M13-05"
       ],
@@ -3507,9 +3507,58 @@
         "source mutation tests"
       ],
       "started_at": "2026-08-01T22:33:41+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T23:17:22+09:00",
+      "commit_sha": "e837e74dd8b5855ad270090a88f3f679efd86aca",
+      "evidence": [
+        {
+          "kind": "callback_source_ir_contract",
+          "schema_version": "callback-source-ir-v1",
+          "latest_source_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a",
+          "spot_fingerprint": "22fc125a9f410edc50be8d9b593df0134f46a482cb56ca617d95cf4a8652a4ce",
+          "futures_fingerprint": "96784abb329f5daf6c549b3cc25ff68cc4e43145cf7d6d8fba0d1f082be3f946",
+          "entrypoint_count": 10,
+          "route_key_count": 30,
+          "tag_expression_count": 4387,
+          "required_read_count": 41,
+          "required_column_count": 107,
+          "source_order_preserved": true,
+          "checkout_path_independent": true,
+          "signal_number_opcodes_added": false,
+          "strategy_specific_opcodes_added": false
+        },
+        {
+          "kind": "latest_x7_callback_ir_artifacts",
+          "spot_document_sha256": "be0071ac89f1dfadb961a1b1f59ad5183f96f8ebc2c8d3105b8a5e6e5b706c6f",
+          "futures_document_sha256": "fa5f2cb6f0136efccf41754a7add0b026e0a0b780ebb1d82531e265a89a301a5",
+          "spot_active_entrypoints": 9,
+          "futures_active_entrypoints": 10,
+          "compatibility_preflight_passed": true
+        },
+        {
+          "kind": "full_state_fixture_runs",
+          "normal_routing_run_sha256": "e133fd954a4b890c3867dd3c22d8104ec015d3da677e48cf7086de123716991f",
+          "stops_only_run_sha256": "f0a8870f29c14059b9bfa5ebdb01ff2cc71f8de6eb846372d0b762635ff32ca9",
+          "x7_spot_run_sha256": "c46eaaef002e4354114aa0954597f586aeeb6a86b6c993295914c8d788e996ca",
+          "x7_futures_run_sha256": "c7507ac5dc99f5cb448cf651dc7f40646f3a841cfb4fb6e07f2def2d1744e10d",
+          "generic_state_machine_run_sha256": "510cd4baa23b32333c22c4757b3e005232e795d17ce77af43b8fa6981f79bbef",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 618,
+          "future_nfi_compatibility_tests_passed": 97,
+          "rust_tests_passed": 113,
+          "callback_ir_contract_tests_passed": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3517,7 +3566,7 @@
       "order": 1402,
       "milestone": "M14",
       "title": "Add state-machine-program-v3 finite order collections",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M14-01"
       ],
@@ -3536,7 +3585,7 @@
         "v1 and v2 replay compatibility",
         "v3 compiler contract tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T23:17:22+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6849,6 +6898,37 @@
         "objective": "general source-driven callback IR with tag and route-key data, source-order entrypoints, required reads and columns",
         "signal_number_opcodes_allowed": false,
         "strategy_specific_callback_opcodes_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 119,
+      "timestamp": "2026-08-01T23:17:22+09:00",
+      "task_id": "M14-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "e837e74dd8b5855ad270090a88f3f679efd86aca",
+        "callback_source_ir_schema": "callback-source-ir-v1",
+        "latest_x7_route_keys": 30,
+        "latest_x7_tag_expressions": 4387,
+        "latest_x7_required_columns": 107,
+        "spot_and_futures_compiled": true,
+        "source_mutation_proven": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "signal_number_opcodes_added": false,
+        "strategy_specific_opcodes_added": false
+      }
+    },
+    {
+      "sequence": 120,
+      "timestamp": "2026-08-01T23:17:22+09:00",
+      "task_id": "M14-02",
+      "event": "task_started",
+      "details": {
+        "objective": "state-machine-program-v3 with typed finite order iteration, ordered filtering and accumulation, and atomic custom state",
+        "unbounded_iteration_allowed": false,
+        "arbitrary_python_execution_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
