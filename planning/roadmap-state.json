@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 91,
-  "updated_at": "2026-08-01T20:52:20+09:00",
+  "revision": 92,
+  "updated_at": "2026-08-01T21:12:37+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M13-02",
+  "active_task_id": "M13-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3222,7 +3222,7 @@
       "order": 1302,
       "milestone": "M13",
       "title": "Version the Freqtrade semantic profile and official observer",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M13-01"
       ],
@@ -3241,9 +3241,43 @@
         "deterministic official observer fixture"
       ],
       "started_at": "2026-08-01T20:52:20+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T21:12:37+09:00",
+      "commit_sha": "2c75e31efc5303bcf64eda772dd0309cf4b58a8c",
+      "evidence": [
+        {
+          "kind": "freqtrade_semantic_profile",
+          "reference_version": "2026.5.1",
+          "profile_fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+          "observed_method_count": 15,
+          "event_phase_count": 7,
+          "image_index_platform_and_config_digest_bound": true,
+          "observer_source_digest_bound": true
+        },
+        {
+          "kind": "official_semantic_observer",
+          "spot_fixture_id": "x7-v17.4.435-tag-121-btc-spot",
+          "spot_event_count": 1153,
+          "spot_stream_hash": "0d5a0bc155cd9f362fd7d7869da302d45617482bb5f127d9000889cae8f13c90",
+          "futures_fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+          "futures_event_count": 5665,
+          "futures_stream_hash": "2b99c1ecdf8bdbaef37f3daf753a4586ba802906181b99d3bee8d99cb5a0b459",
+          "byte_deterministic": true,
+          "unknown_event_fail_closed": true
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 592,
+          "rust_tests_passed": 108,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3251,7 +3285,7 @@
       "order": 1303,
       "milestone": "M13",
       "title": "Formalize candle, callback, and pair scheduling semantics",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M13-02"
       ],
@@ -3270,7 +3304,7 @@
         "scheduler event-order exact fixture",
         "parallel preparation determinism"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T21:12:37+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6590,6 +6624,33 @@
       "details": {
         "objective": "digest-bound Freqtrade semantic profile and canonical official observer",
         "copy_freqtrade_implementation": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 111,
+      "timestamp": "2026-08-01T21:12:37+09:00",
+      "task_id": "M13-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "2c75e31efc5303bcf64eda772dd0309cf4b58a8c",
+        "semantic_profile_fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+        "spot_projected_events": 1153,
+        "futures_projected_events": 5665,
+        "byte_deterministic": true,
+        "unknown_events_fail_closed": true,
+        "freqtrade_implementation_copied": false,
+        "simulation_behavior_changed": false
+      }
+    },
+    {
+      "sequence": 112,
+      "timestamp": "2026-08-01T21:12:37+09:00",
+      "task_id": "M13-03",
+      "event": "task_started",
+      "details": {
+        "objective": "formal candle, callback visibility, and same-timestamp pair scheduling",
+        "parallel_wallet_mutation_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
