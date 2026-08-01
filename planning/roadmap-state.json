@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 97,
-  "updated_at": "2026-08-01T23:37:16+09:00",
+  "revision": 98,
+  "updated_at": "2026-08-02T00:02:49+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M14-03",
+  "active_task_id": "M14-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3643,7 +3643,7 @@
       "order": 1403,
       "milestone": "M14",
       "title": "Implement the generic Rust state-machine v3 VM",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M14-02"
       ],
@@ -3663,9 +3663,51 @@
         "invalid-program fail-closed tests"
       ],
       "started_at": "2026-08-01T23:37:16+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T00:02:49+09:00",
+      "commit_sha": "5c65472c40dbcb38f79e260f947d65f7747899a4",
+      "evidence": [
+        {
+          "kind": "generic_rust_state_machine_v3_vm",
+          "schema_version": "state-machine-program-v3",
+          "finite_order_programs_executable": true,
+          "trade_order_sequence_preserved": true,
+          "instruction_and_program_limits_enforced": true,
+          "typed_order_field_declarations_enforced": true,
+          "custom_state_error_rollback": true,
+          "source_mapped_diagnostics": true,
+          "v1_and_v2_execution_preserved": true,
+          "unsafe_rust_added": false,
+          "nfi_specific_vm_branches_added": false
+        },
+        {
+          "kind": "runtime_modularization",
+          "order_collection_module": "rust/crates/nfi-sim-core/src/state_machine_vm/orders.rs",
+          "integer_loop_action_and_order_loop_responsibilities_split": true,
+          "clippy_suppressions_added": false
+        },
+        {
+          "kind": "full_state_fixture_runs",
+          "normal_routing_run_sha256": "c03c5f6efbda12ddcedbb15d3d7d5c350dc58f85914270ee3d387f8067966030",
+          "stops_only_run_sha256": "dc5a6f94bc06ecd41266e35da636630a37bc8e9f346a34eda356b67fc4e961e7",
+          "x7_spot_run_sha256": "0f78700306a5923f09371d0e515ca18ee4145865029a5821fd7e765ff375c2f9",
+          "x7_futures_run_sha256": "a529f6fbe81ff1c7f62344c06482fee2972dd91ed552e526af6b37a96d4252df",
+          "generic_state_machine_run_sha256": "f1465669835767f0af7d3dd35b4649b634c9bda736acc816db39ea0d74ad87b0",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 622,
+          "rust_tests_passed": 115,
+          "state_machine_vm_tests_passed": 6,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3673,7 +3715,7 @@
       "order": 1404,
       "milestone": "M14",
       "title": "Prove state-machine v3 with a generic official fixture",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M14-03"
       ],
@@ -3691,7 +3733,7 @@
         "official generic v3 fixture",
         "independent full-state exact result"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T00:02:49+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7006,6 +7048,36 @@
         "objective": "generic Rust state-machine v3 VM with finite budgets, typed order reads, atomic rollback, and source diagnostics",
         "unsafe_rust_allowed": false,
         "nfi_specific_vm_branches_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 123,
+      "timestamp": "2026-08-02T00:02:49+09:00",
+      "task_id": "M14-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "5c65472c40dbcb38f79e260f947d65f7747899a4",
+        "v3_finite_order_execution": true,
+        "typed_order_reads": true,
+        "dual_iteration_limits": true,
+        "atomic_custom_state_rollback": true,
+        "source_mapped_diagnostics": true,
+        "v1_and_v2_execution_preserved": true,
+        "unsafe_rust_added": false,
+        "nfi_specific_vm_branches_added": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 124,
+      "timestamp": "2026-08-02T00:02:49+09:00",
+      "task_id": "M14-04",
+      "event": "task_started",
+      "details": {
+        "objective": "prove v3 with an NFI-independent official Freqtrade fixture and independent full-state exact comparison",
+        "same_artifact_both_sides_allowed": false,
+        "partial_state_promotion_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
