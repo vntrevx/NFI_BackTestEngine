@@ -345,6 +345,14 @@ def build_parser() -> argparse.ArgumentParser:
     reference_execution_contract.add_argument("--semantic-profile", type=Path, required=True)
     reference_execution_contract.add_argument("--scheduler-contract", type=Path, required=True)
     reference_execution_contract.add_argument("--output", "-o", type=Path, required=True)
+    reference_futures_contract = reference_commands.add_parser(
+        "futures-contract",
+        help="write the Binance isolated-Futures semantic extension",
+    )
+    reference_futures_contract.add_argument("--semantic-profile", type=Path, required=True)
+    reference_futures_contract.add_argument("--scheduler-contract", type=Path, required=True)
+    reference_futures_contract.add_argument("--execution-contract", type=Path, required=True)
+    reference_futures_contract.add_argument("--output", "-o", type=Path, required=True)
     reference_semantic_observe = reference_commands.add_parser(
         "semantic-observe",
         help="project captured official callback/state events canonically",

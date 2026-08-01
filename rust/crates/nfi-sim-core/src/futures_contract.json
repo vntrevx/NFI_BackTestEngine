@@ -1,0 +1,126 @@
+{
+  "schema_version": "freqtrade-futures-contract-v1",
+  "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+  "scheduler_contract_sha256": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+  "base_execution_contract_sha256": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0",
+  "scope": {
+    "trading_mode": "futures",
+    "exchange": "binance",
+    "margin_mode": "isolated",
+    "unknown_exchange_or_margin_semantics": "fail-before-native-promotion",
+    "parity_requirement": "trade-surface-and-full-state-exact-zero-tolerance"
+  },
+  "required_inputs": [
+    "funding-rate-candles",
+    "mark-price-candles",
+    "sealed-leverage-tiers",
+    "historical-amount-and-price-precision"
+  ],
+  "leverage": {
+    "source_priority": [
+      "signal-explicit",
+      "compiled-strategy-program",
+      "config-default",
+      "one"
+    ],
+    "tier_cap_selected_from_proposed_stake": true,
+    "minimum": "one",
+    "direction_preserved_from_entry_signal": true
+  },
+  "funding": {
+    "event_order": [
+      "update-trade-extrema",
+      "apply-running-funding",
+      "position-adjustment",
+      "exit-evaluation"
+    ],
+    "row_multiplication_order": "funding-rate-then-mark-price-then-position-amount",
+    "positive_market_rate": {
+      "long": "pays-negative",
+      "short": "receives-positive"
+    },
+    "running_sum": "cpython-compensated-float-sum",
+    "running_segment_moves_to_next_filled_order": true,
+    "additional_entry_refresh": "inclusive-fill-timestamp-with-post-entry-amount",
+    "partial_exit_refresh": "pre-exit-running-seed-then-next-tick-post-exit-rebase",
+    "wallet_settlement": "filled-order-realization-only"
+  },
+  "liquidation": {
+    "tier_selection": "last-tier-min-notional-not-greater-than-current-isolated-stake",
+    "calculation_inputs": [
+      "stake-amount",
+      "maintenance-amount",
+      "maintenance-margin-rate",
+      "position-amount",
+      "weighted-open-rate",
+      "side"
+    ],
+    "buffer_direction": {
+      "long": "raise-raw-liquidation-price",
+      "short": "lower-raw-liquidation-price"
+    },
+    "recalculation_points": [
+      "initial-entry-after-order-filled-state",
+      "positive-adjustment-after-order-replay",
+      "partial-exit-before-order-replay"
+    ],
+    "explicit_input_price_is_not_recalculated": true
+  },
+  "exit_collision": {
+    "candidate_order": [
+      "strategy-exit",
+      "custom-exit",
+      "stop-loss",
+      "liquidation"
+    ],
+    "stop_loss_wins_stop_liquidation_collision": true,
+    "rejected_stop_does_not_fall_through_to_liquidation": true,
+    "liquidation_bypasses_confirm_trade_exit": true,
+    "threshold_beyond_complete_candle_range_fills_at_open": true,
+    "opposite_side_signal_may_reopen_after_same_candle_exit": true
+  },
+  "protections": {
+    "methods": [
+      "CooldownPeriod",
+      "StoplossGuard",
+      "MaxDrawdown",
+      "LowProfitPairs"
+    ],
+    "evaluation_point": "after-confirmed-trade-close-before-wallet-recompute",
+    "handler_order": [
+      "all-local-handlers",
+      "all-global-handlers"
+    ],
+    "recent_trade_window": "close-time-greater-than-cutoff-and-less-than-or-equal-now",
+    "lock_end_rounding": "always-advance-to-next-timeframe-boundary",
+    "active_boundary": "maximum-lock-end-strictly-greater-than-entry-timestamp",
+    "entry_lock_rejection_increments_rejected_signals": false,
+    "scopes": [
+      "pair",
+      "global",
+      "side",
+      "all-sides"
+    ]
+  },
+  "observer": {
+    "required_phases": [
+      "trade.adjustment_check",
+      "trade.exit_check",
+      "trade.exit_order",
+      "entry.lock_rejected",
+      "candle.after"
+    ],
+    "canonical_state_fields": [
+      "quote_free",
+      "base_balances",
+      "open_trade_count",
+      "realized_profit",
+      "closed_trade_count",
+      "rejected_signals",
+      "trade_id_counter",
+      "order_id_counter",
+      "locks"
+    ]
+  },
+  "fingerprint": "d7d36fa55e652cae5d7e3a0e60b735e0a4fe3596243f436e2d106656448ac896"
+}

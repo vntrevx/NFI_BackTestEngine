@@ -37,6 +37,7 @@ SEMANTIC_OBSERVER_REPORT_SCHEMA = "semantic-observer-report-v1.schema.json"
 SCHEDULER_CONTRACT_SCHEMA = "scheduler-contract-v1.schema.json"
 SCHEDULER_VERIFICATION_SCHEMA = "scheduler-verification-v1.schema.json"
 EXECUTION_CONTRACT_SCHEMA = "execution-contract-v1.schema.json"
+FUTURES_CONTRACT_SCHEMA = "futures-contract-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",

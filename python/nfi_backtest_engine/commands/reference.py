@@ -63,6 +63,20 @@ def execute(
             f"fingerprint={contract['fingerprint']} -> {args.output}"
         )
         return 0
+    if args.reference_command == "futures-contract":
+        from ..futures_contract import write_futures_contract
+
+        contract = write_futures_contract(
+            args.semantic_profile,
+            args.scheduler_contract,
+            args.execution_contract,
+            args.output,
+        )
+        print(
+            "Freqtrade Binance isolated-Futures contract: "
+            f"fingerprint={contract['fingerprint']} -> {args.output}"
+        )
+        return 0
     if args.reference_command == "semantic-observe":
         from ..semantic_observer import project_official_semantic_trace
 

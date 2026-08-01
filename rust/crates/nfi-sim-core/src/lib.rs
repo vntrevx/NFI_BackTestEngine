@@ -47,8 +47,10 @@ pub use state_machine_vm::{
     StateMachineContext, StateMachineError,
 };
 mod futures;
+mod futures_contract;
 #[cfg(test)]
 use futures::evaluate_nfi_leverage;
+pub use futures_contract::contract_json as futures_contract_json;
 mod execution;
 pub use domain::*;
 #[cfg(test)]

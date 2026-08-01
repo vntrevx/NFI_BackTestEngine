@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/futures-contract-v1.schema.json",
+  "title": "Freqtrade-compatible Binance isolated-Futures contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "semantic_profile_sha256",
+    "scheduler_contract_sha256",
+    "base_execution_contract_sha256",
+    "scope",
+    "required_inputs",
+    "leverage",
+    "funding",
+    "liquidation",
+    "exit_collision",
+    "protections",
+    "observer",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "freqtrade-futures-contract-v1"},
+    "semantic_profile_sha256": {"$ref": "#/$defs/sha256"},
+    "scheduler_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "base_execution_contract_sha256": {"$ref": "#/$defs/sha256"},
+    "scope": {"$ref": "#/$defs/scope"},
+    "required_inputs": {"$ref": "#/$defs/nonempty_strings"},
+    "leverage": {"$ref": "#/$defs/leverage"},
+    "funding": {"$ref": "#/$defs/funding"},
+    "liquidation": {"$ref": "#/$defs/liquidation"},
+    "exit_collision": {"$ref": "#/$defs/exit_collision"},
+    "protections": {"$ref": "#/$defs/protections"},
+    "observer": {"$ref": "#/$defs/observer"},
+    "fingerprint": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonempty_strings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trading_mode", "exchange", "margin_mode",
+        "unknown_exchange_or_margin_semantics", "parity_requirement"
+      ],
+      "properties": {
+        "trading_mode": {"const": "futures"},
+        "exchange": {"const": "binance"},
+        "margin_mode": {"const": "isolated"},
+        "unknown_exchange_or_margin_semantics": {"const": "fail-before-native-promotion"},
+        "parity_requirement": {"const": "trade-surface-and-full-state-exact-zero-tolerance"}
+      }
+    },
+    "leverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_priority", "tier_cap_selected_from_proposed_stake", "minimum",
+        "direction_preserved_from_entry_signal"
+      ],
+      "properties": {
+        "source_priority": {
+          "const": [
+            "signal-explicit", "compiled-strategy-program", "config-default", "one"
+          ]
+        },
+        "tier_cap_selected_from_proposed_stake": {"const": true},
+        "minimum": {"const": "one"},
+        "direction_preserved_from_entry_signal": {"const": true}
+      }
+    },
+    "funding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_order", "row_multiplication_order", "positive_market_rate",
+        "running_sum", "running_segment_moves_to_next_filled_order",
+        "additional_entry_refresh", "partial_exit_refresh", "wallet_settlement"
+      ],
+      "properties": {
+        "event_order": {
+          "const": [
+            "update-trade-extrema", "apply-running-funding",
+            "position-adjustment", "exit-evaluation"
+          ]
+        },
+        "row_multiplication_order": {"type": "string", "minLength": 1},
+        "positive_market_rate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["long", "short"],
+          "properties": {
+            "long": {"const": "pays-negative"},
+            "short": {"const": "receives-positive"}
+          }
+        },
+        "running_sum": {"const": "cpython-compensated-float-sum"},
+        "running_segment_moves_to_next_filled_order": {"const": true},
+        "additional_entry_refresh": {"type": "string", "minLength": 1},
+        "partial_exit_refresh": {"type": "string", "minLength": 1},
+        "wallet_settlement": {"const": "filled-order-realization-only"}
+      }
+    },
+    "liquidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier_selection", "calculation_inputs", "buffer_direction",
+        "recalculation_points", "explicit_input_price_is_not_recalculated"
+      ],
+      "properties": {
+        "tier_selection": {"type": "string", "minLength": 1},
+        "calculation_inputs": {"$ref": "#/$defs/nonempty_strings"},
+        "buffer_direction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["long", "short"],
+          "properties": {
+            "long": {"const": "raise-raw-liquidation-price"},
+            "short": {"const": "lower-raw-liquidation-price"}
+          }
+        },
+        "recalculation_points": {"$ref": "#/$defs/nonempty_strings"},
+        "explicit_input_price_is_not_recalculated": {"const": true}
+      }
+    },
+    "exit_collision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_order", "stop_loss_wins_stop_liquidation_collision",
+        "rejected_stop_does_not_fall_through_to_liquidation",
+        "liquidation_bypasses_confirm_trade_exit",
+        "threshold_beyond_complete_candle_range_fills_at_open",
+        "opposite_side_signal_may_reopen_after_same_candle_exit"
+      ],
+      "properties": {
+        "candidate_order": {
+          "const": ["strategy-exit", "custom-exit", "stop-loss", "liquidation"]
+        },
+        "stop_loss_wins_stop_liquidation_collision": {"const": true},
+        "rejected_stop_does_not_fall_through_to_liquidation": {"const": true},
+        "liquidation_bypasses_confirm_trade_exit": {"const": true},
+        "threshold_beyond_complete_candle_range_fills_at_open": {"const": true},
+        "opposite_side_signal_may_reopen_after_same_candle_exit": {"const": true}
+      }
+    },
+    "protections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "methods", "evaluation_point", "handler_order", "recent_trade_window",
+        "lock_end_rounding", "active_boundary",
+        "entry_lock_rejection_increments_rejected_signals", "scopes"
+      ],
+      "properties": {
+        "methods": {
+          "const": ["CooldownPeriod", "StoplossGuard", "MaxDrawdown", "LowProfitPairs"]
+        },
+        "evaluation_point": {"type": "string", "minLength": 1},
+        "handler_order": {"const": ["all-local-handlers", "all-global-handlers"]},
+        "recent_trade_window": {"type": "string", "minLength": 1},
+        "lock_end_rounding": {"type": "string", "minLength": 1},
+        "active_boundary": {"type": "string", "minLength": 1},
+        "entry_lock_rejection_increments_rejected_signals": {"const": false},
+        "scopes": {"const": ["pair", "global", "side", "all-sides"]}
+      }
+    },
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_phases", "canonical_state_fields"],
+      "properties": {
+        "required_phases": {"$ref": "#/$defs/nonempty_strings"},
+        "canonical_state_fields": {"$ref": "#/$defs/nonempty_strings"}
+      }
+    }
+  }
+}
