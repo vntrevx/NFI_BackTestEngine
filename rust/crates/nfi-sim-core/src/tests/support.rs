@@ -439,6 +439,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
         .collect(),
         managed_long_routes,
         managed_exit_program: None,
+        managed_short_exit_program: None,
         short_route_order: vec!["short_rebuy".to_owned()],
         managed_short_routes: vec![short_rebuy_route],
         long_grind: None,
@@ -675,61 +676,7 @@ pub(super) fn enable_test_basic_exit_shadow(
             },
             mode_name: route.mode_name.clone(),
             decision_program_order,
-            state_program: Some(ManagedExitStateProgram {
-                stateful_order: vec![
-                    ManagedExitStateOperation::Stop,
-                    ManagedExitStateOperation::ExistingTarget,
-                    ManagedExitStateOperation::TargetUpdate,
-                    ManagedExitStateOperation::FinalFilter,
-                    ManagedExitStateOperation::TerminalExit,
-                ],
-                inline_exit: None,
-                stop: if matches!(
-                    route.profile,
-                    NfiManagedLongProfile::Rebuy
-                        | NfiManagedLongProfile::Rapid
-                        | NfiManagedLongProfile::Scalp
-                ) {
-                    ManagedExitStopPolicy::StakeThreshold {
-                        enabled: true,
-                        futures_threshold: route.stop_threshold_futures.unwrap_or(0.35),
-                        spot_threshold: route.stop_threshold_spot.unwrap_or(0.12),
-                        divide_by_leverage: true,
-                    }
-                } else {
-                    ManagedExitStopPolicy::SourceHelper {
-                        helper: "long_exit_stoploss".to_owned(),
-                    }
-                },
-                target: ManagedExitTargetPolicy {
-                    u_e_raise_delta: if matches!(
-                        route.profile,
-                        NfiManagedLongProfile::Normal
-                            | NfiManagedLongProfile::Pump
-                            | NfiManagedLongProfile::TopCoins
-                            | NfiManagedLongProfile::Scalp
-                    ) {
-                        0.005
-                    } else {
-                        0.001
-                    },
-                    profit_raise_delta: 0.001,
-                    max_target_floor: if route.profile == NfiManagedLongProfile::HighProfit {
-                        0.03
-                    } else {
-                        0.005
-                    },
-                    protected_reentry_guard: matches!(
-                        route.profile,
-                        NfiManagedLongProfile::Normal
-                            | NfiManagedLongProfile::Quick
-                            | NfiManagedLongProfile::Rapid
-                            | NfiManagedLongProfile::TopCoins
-                    ),
-                    suppress_protected_exit: route.profile != NfiManagedLongProfile::HighProfit,
-                    pure_scalp_trailing: route.profile == NfiManagedLongProfile::Scalp,
-                },
-            }),
+            state_program: Some(test_managed_exit_state(route, "long_exit_stoploss")),
             terminal_exit: route.terminal_exit.clone(),
             location: ManagedExitSourceLocation {
                 line: 1,
@@ -740,6 +687,221 @@ pub(super) fn enable_test_basic_exit_shadow(
         }],
         fingerprint: "b".repeat(64),
     });
+}
+
+fn test_managed_exit_state(
+    route: &NfiManagedLongRoute,
+    source_helper: &str,
+) -> ManagedExitStateProgram {
+    let special_stop = matches!(
+        route.profile,
+        NfiManagedLongProfile::Rebuy | NfiManagedLongProfile::Rapid | NfiManagedLongProfile::Scalp
+    );
+    ManagedExitStateProgram {
+        stateful_order: vec![
+            ManagedExitStateOperation::Stop,
+            ManagedExitStateOperation::ExistingTarget,
+            ManagedExitStateOperation::TargetUpdate,
+            ManagedExitStateOperation::FinalFilter,
+            ManagedExitStateOperation::TerminalExit,
+        ],
+        inline_exit: None,
+        stop: if special_stop {
+            ManagedExitStopPolicy::StakeThreshold {
+                enabled: true,
+                futures_threshold: route.stop_threshold_futures.unwrap_or(0.35),
+                spot_threshold: route.stop_threshold_spot.unwrap_or(0.12),
+                divide_by_leverage: true,
+            }
+        } else {
+            ManagedExitStopPolicy::SourceHelper {
+                helper: source_helper.to_owned(),
+            }
+        },
+        target: test_managed_exit_target(route),
+    }
+}
+
+fn test_managed_exit_target(route: &NfiManagedLongRoute) -> ManagedExitTargetPolicy {
+    ManagedExitTargetPolicy {
+        u_e_raise_delta: if matches!(
+            route.profile,
+            NfiManagedLongProfile::Normal
+                | NfiManagedLongProfile::Pump
+                | NfiManagedLongProfile::TopCoins
+                | NfiManagedLongProfile::Scalp
+        ) {
+            0.005
+        } else {
+            0.001
+        },
+        profit_raise_delta: 0.001,
+        max_target_floor: if route.profile == NfiManagedLongProfile::HighProfit {
+            0.03
+        } else {
+            0.005
+        },
+        protected_reentry_guard: matches!(
+            route.profile,
+            NfiManagedLongProfile::Normal
+                | NfiManagedLongProfile::Quick
+                | NfiManagedLongProfile::Rapid
+                | NfiManagedLongProfile::TopCoins
+        ),
+        suppress_protected_exit: route.profile != NfiManagedLongProfile::HighProfit,
+        pure_scalp_trailing: route.profile == NfiManagedLongProfile::Scalp,
+        pure_scalp_matcher: (route.profile == NfiManagedLongProfile::Scalp).then(|| {
+            ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::All,
+                entry_tags: route.entry_tags.clone(),
+                operands: Vec::new(),
+            }
+        }),
+    }
+}
+
+pub(super) fn enable_test_short_exit_shadow(manager: &mut NfiX7TradeManager) {
+    let known_explicit_tags = manager
+        .managed_short_routes
+        .iter()
+        .filter(|route| route.key != "short_top_coins_fallback")
+        .flat_map(|route| route.entry_tags.clone())
+        .chain(["620".to_owned()])
+        .collect::<Vec<_>>();
+    let rebuy_tags = manager
+        .managed_short_routes
+        .iter()
+        .find(|route| route.key == "short_rebuy")
+        .expect("test manager has short rebuy")
+        .entry_tags
+        .clone();
+    let routes = manager
+        .managed_short_routes
+        .iter()
+        .enumerate()
+        .map(|(source_order, route)| ManagedExitRoute {
+            id: route.key.clone(),
+            source_order,
+            matcher: test_short_exit_matcher(route, &known_explicit_tags, &rebuy_tags),
+            initial_profit_gate: matches!(
+                route.profile,
+                NfiManagedLongProfile::Normal
+                    | NfiManagedLongProfile::Pump
+                    | NfiManagedLongProfile::Quick
+                    | NfiManagedLongProfile::Rapid
+            )
+            .then_some(ManagedExitProfitGate {
+                operator: ManagedExitComparison::GreaterThan,
+                value: 0.0,
+            }),
+            profit_basis: if route.profile == NfiManagedLongProfile::Rebuy {
+                ManagedExitProfitBasis::CurrentStake
+            } else {
+                ManagedExitProfitBasis::InitialStake
+            },
+            mode_name: route.mode_name.clone(),
+            decision_program_order: test_short_program_order(route.profile),
+            state_program: Some(test_managed_exit_state(route, "short_exit_stoploss")),
+            terminal_exit: None,
+            location: ManagedExitSourceLocation {
+                line: source_order + 1,
+                column: 0,
+                end_line: source_order + 1,
+                end_column: 1,
+            },
+        })
+        .collect();
+    manager.managed_short_exit_program = Some(ManagedExitProgram {
+        schema_version: "managed-exit-program-v1".to_owned(),
+        execution_mode: ManagedExitExecutionMode::Shadow,
+        routes,
+        fingerprint: "c".repeat(64),
+    });
+}
+
+fn test_short_program_order(profile: NfiManagedLongProfile) -> Vec<String> {
+    let mut order = [
+        "short_exit_signals",
+        "short_exit_main",
+        "short_exit_williams_r",
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect::<Vec<_>>();
+    if profile != NfiManagedLongProfile::HighProfit {
+        order.push("short_exit_dec".to_owned());
+    }
+    order
+}
+
+fn test_short_exit_matcher(
+    route: &NfiManagedLongRoute,
+    known_explicit_tags: &[String],
+    rebuy_tags: &[String],
+) -> ManagedExitTagMatcher {
+    match route.key.as_str() {
+        "short_rebuy" => test_tag_matcher(ManagedExitTagOperator::All, &route.entry_tags),
+        "short_scalp" => test_short_scalp_matcher(route, rebuy_tags),
+        "short_top_coins_fallback" => ManagedExitTagMatcher {
+            operator: ManagedExitTagOperator::AllOf,
+            entry_tags: Vec::new(),
+            operands: vec![
+                ManagedExitTagMatcher {
+                    operator: ManagedExitTagOperator::IsShort,
+                    entry_tags: Vec::new(),
+                    operands: Vec::new(),
+                },
+                ManagedExitTagMatcher {
+                    operator: ManagedExitTagOperator::Not,
+                    entry_tags: Vec::new(),
+                    operands: vec![test_tag_matcher(
+                        ManagedExitTagOperator::Any,
+                        known_explicit_tags,
+                    )],
+                },
+            ],
+        },
+        _ => test_tag_matcher(ManagedExitTagOperator::Any, &route.entry_tags),
+    }
+}
+
+fn test_short_scalp_matcher(
+    route: &NfiManagedLongRoute,
+    rebuy_tags: &[String],
+) -> ManagedExitTagMatcher {
+    let compound_tags = route
+        .entry_tags
+        .iter()
+        .cloned()
+        .chain(rebuy_tags.iter().cloned())
+        .chain(["620".to_owned()])
+        .collect::<Vec<_>>();
+    ManagedExitTagMatcher {
+        operator: ManagedExitTagOperator::AnyOf,
+        entry_tags: Vec::new(),
+        operands: vec![
+            test_tag_matcher(ManagedExitTagOperator::All, &route.entry_tags),
+            ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::AllOf,
+                entry_tags: Vec::new(),
+                operands: vec![
+                    test_tag_matcher(ManagedExitTagOperator::Any, &route.entry_tags),
+                    test_tag_matcher(ManagedExitTagOperator::All, &compound_tags),
+                ],
+            },
+        ],
+    }
+}
+
+fn test_tag_matcher(
+    operator: ManagedExitTagOperator,
+    entry_tags: &[String],
+) -> ManagedExitTagMatcher {
+    ManagedExitTagMatcher {
+        operator,
+        entry_tags: entry_tags.to_vec(),
+        operands: Vec::new(),
+    }
 }
 
 pub(super) fn enable_test_quick_inline_shadow(manager: &mut NfiX7TradeManager) {

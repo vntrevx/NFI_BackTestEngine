@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.19.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.20.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -569,6 +569,7 @@ def build_nfi_trade_manager_ir(
     )
     from .legacy import _build_long_btc_route, _build_long_grind_route
     from .managed_exit_ir import compile_managed_exit_ir
+    from .managed_short_exit_ir import compile_managed_short_exit_ir
     from .routes import (
         _build_managed_long_routes,
         _build_managed_short_routes,
@@ -644,6 +645,11 @@ def build_nfi_trade_manager_ir(
             if rebuy_terminal_exit is not None
             else None
         ),
+    )
+    managed_short_exit_compilation = compile_managed_short_exit_ir(
+        methods,
+        constants,
+        _MANAGED_SHORT_ROUTE_SPECS,
     )
     validated_terminal_exit = _validate_managed_long_method_identity(
         methods,
@@ -755,9 +761,16 @@ def build_nfi_trade_manager_ir(
             for program in route["decision_program_order"]
         )
     )
+    short_decision_roots = tuple(
+        dict.fromkeys(
+            program
+            for route in managed_short_exit_compilation.program["routes"]
+            for program in route["decision_program_order"]
+        )
+    )
     decision_roots = (
         *basic_decision_roots,
-        *_MANAGED_SHORT_PROGRAM_ORDER,
+        *short_decision_roots,
         *((_MANAGED_LONG_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
         *((_MANAGED_SHORT_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
         *((_LONG_REGULAR_ADJUSTMENT_PROGRAM,) if long_btc_route is not None else ()),
@@ -817,8 +830,9 @@ def build_nfi_trade_manager_ir(
         "supported_routes": supported_routes,
         "route_order": route_order,
         "managed_exit_program": managed_exit_compilation.program,
+        "managed_short_exit_program": managed_short_exit_compilation.program,
         "supported_short_routes": managed_short_routes,
-        "short_route_order": list(_MANAGED_SHORT_ROUTE_ORDER),
+        "short_route_order": list(managed_short_exit_compilation.short_route_order),
         "constants": frozen_constants,
         "programs": {name: programs[name] for name in decision_roots},
     }
@@ -900,6 +914,9 @@ def build_nfi_trade_manager_ir(
             "trade_ir_fingerprint": trade_dependency_ir["fingerprint"],
             "decision_ir_fingerprint": decision_report["fingerprint"],
             "managed_exit_ir_fingerprint": managed_exit_compilation.program["fingerprint"],
+            "managed_short_exit_ir_fingerprint": managed_short_exit_compilation.program[
+                "fingerprint"
+            ],
             "operation_sha256": hashlib.sha256(encoded).hexdigest(),
             "programs": program_proof,
             "stateful_methods": method_identity,

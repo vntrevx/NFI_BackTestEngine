@@ -133,7 +133,12 @@ def compile_managed_exit_ir(
             "location": _location(branch),
         }
         if include_state_program:
-            route["state_program"] = _compile_state_policy(wrapper, constants)
+            route["state_program"] = _compile_state_policy(
+                wrapper,
+                constants,
+                target_helper=methods.get("exit_profit_target"),
+                side="long",
+            )
         routes.append(route)
         custom_masks.add(custom_index)
         wrapper_masks[spec.method] = mask_indices
@@ -276,10 +281,19 @@ def _tag_matcher_leaf(
         or not isinstance(generator.elt.left, ast.Name)
         or generator.elt.left.id != clause.target.id
         or len(generator.elt.comparators) != 1
-        or not isinstance(generator.elt.comparators[0], ast.Name)
     ):
         return None
-    local_name = generator.elt.comparators[0].id
+    comparator = generator.elt.comparators[0]
+    if isinstance(comparator, ast.Name):
+        local_name = comparator.id
+    elif (
+        isinstance(comparator, ast.Attribute)
+        and isinstance(comparator.value, ast.Name)
+        and comparator.value.id == "self"
+    ):
+        local_name = comparator.attr
+    else:
+        return None
     return node.func.id, aliases.get(local_name, local_name)
 
 
@@ -368,7 +382,6 @@ def _uses_order_or_stake_state(call: ast.Call) -> bool:
             "filled_exits",
             "profit_stake",
             "profit_ratio",
-            "profit_current_stake_ratio",
         }
         for node in ast.walk(call)
     )
@@ -587,6 +600,9 @@ def _loop_assigns_sell_signal(node: ast.For) -> bool:
 def _compile_state_policy(
     wrapper: ast.FunctionDef,
     constants: Mapping[str, Any],
+    *,
+    target_helper: ast.FunctionDef | None = None,
+    side: str | None = None,
 ) -> dict[str, Any]:
     inline_exit = _inline_exit_policy(wrapper)
     stop = _stop_policy(wrapper, constants)
@@ -615,6 +631,13 @@ def _compile_state_policy(
             "protected_reentry_guard": _has_protected_reentry_guard(wrapper),
             "suppress_protected_exit": _suppresses_protected_exit(wrapper),
             "pure_scalp_trailing": _uses_pure_scalp_trailing(wrapper),
+            "pure_scalp_matcher": (
+                _pure_scalp_matcher(target_helper, side, constants)
+                if _uses_pure_scalp_trailing(wrapper)
+                and target_helper is not None
+                and side is not None
+                else None
+            ),
         },
     }
 
@@ -628,10 +651,15 @@ def _stop_policy(
         node
         for node in ast.walk(wrapper)
         if isinstance(node, ast.Call)
-        and _call_name(node, aliases) == "long_exit_stoploss"
+        and _call_name(node, aliases) in {"long_exit_stoploss", "short_exit_stoploss"}
     ]
     if common_calls:
-        return {"kind": "source-helper", "helper": "long_exit_stoploss"}
+        helpers = {_call_name(node, aliases) for node in common_calls}
+        if len(helpers) != 1:
+            raise StrategyAnalysisError(
+                f"NFI {wrapper.name} calls multiple managed stop helpers"
+            )
+        return {"kind": "source-helper", "helper": helpers.pop()}
 
     threshold_names = {
         node.attr
@@ -695,7 +723,10 @@ def _inline_exit_policy(wrapper: ast.FunctionDef) -> dict[str, Any] | None:
                 for value in node.values
                 if isinstance(value, ast.Constant)
             )
-            if "_rpd_" in fragments:
+            if "_q_" in fragments:
+                suffix_family = "q"
+                suffix_line = min(suffix_line or node.lineno, node.lineno)
+            elif "_rpd_" in fragments:
                 suffix_family = "rpd"
                 suffix_line = min(suffix_line or node.lineno, node.lineno)
     if suffix_family is None or suffix_line is None:
@@ -705,7 +736,8 @@ def _inline_exit_policy(wrapper: ast.FunctionDef) -> dict[str, Any] | None:
     stop_lines = [
         node.lineno
         for node in ast.walk(wrapper)
-        if isinstance(node, ast.Call) and _call_name(node, {}) == "long_exit_stoploss"
+        if isinstance(node, ast.Call)
+        and _call_name(node, {}) in {"long_exit_stoploss", "short_exit_stoploss"}
     ]
     if not stop_lines:
         stop_lines = [
@@ -761,6 +793,8 @@ def _compile_inline_exit_program(
             suffix_family == "rpd" and "_rpd_" in rendered
         ):
             tuple_candidates.append((name, statement, value))
+    if not tuple_candidates:
+        return _compile_direct_inline_exit_program(wrapper, suffix_family)
     if len(tuple_candidates) != 1:
         raise StrategyAnalysisError(f"NFI {wrapper.name} inline decisions cannot be represented")
     tuple_name, tuple_statement, decision_tuple = tuple_candidates[0]
@@ -870,6 +904,142 @@ def _compile_inline_exit_program(
     ast.copy_location(fragment, wrapper)
     ast.fix_missing_locations(fragment)
     return compile_scalar_ast_program(fragment)
+
+
+class _InlineDecisionReturn(ast.NodeTransformer):
+    """Turn one source ``sell, signal_name = True, reason`` into a return."""
+
+    def visit_Assign(self, node: ast.Assign) -> ast.stmt:
+        if not _sell_signal_target(node.targets) or not isinstance(node.value, ast.Tuple):
+            visited = self.generic_visit(node)
+            if not isinstance(visited, ast.stmt):
+                raise StrategyAnalysisError("NFI inline assignment lowering failed")
+            return visited
+        if (
+            len(node.value.elts) != 2
+            or not isinstance(node.value.elts[0], ast.Constant)
+            or node.value.elts[0].value is not True
+        ):
+            raise StrategyAnalysisError("NFI inline decision assignment changed")
+        return ast.copy_location(ast.Return(value=self.visit(node.value)), node)
+
+
+def _compile_direct_inline_exit_program(
+    wrapper: ast.FunctionDef,
+    suffix_family: str,
+) -> dict[str, Any]:
+    """Compile short quick/rapid's direct source ``if``/``elif`` chain.
+
+    These callbacks do not share long's tuple/loop spelling.  The emitted
+    bytecode still comes from their own conditions and reason expressions;
+    this is deliberately not a sign-flipped long policy.
+    """
+
+    suffix = "_q_" if suffix_family == "q" else "_rpd_"
+    candidates: list[ast.If] = []
+    parents = {
+        child: parent
+        for parent in ast.walk(wrapper)
+        for child in ast.iter_child_nodes(parent)
+    }
+    for node in ast.walk(wrapper):
+        if not isinstance(node, ast.Assign) or not _sell_signal_target(node.targets):
+            continue
+        if suffix not in ast.unparse(node.value):
+            continue
+        parent = parents.get(node)
+        while parent is not None and not isinstance(parent, ast.If):
+            parent = parents.get(parent)
+        if isinstance(parent, ast.If):
+            candidates.append(parent)
+    if not candidates:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline decisions cannot be represented")
+
+    candidate_ids = {id(node) for node in candidates}
+    root = next(
+        (
+            node
+            for node in candidates
+            if not any(
+                isinstance(parent, ast.If) and id(parent) in candidate_ids
+                for parent in _parents(node, parents)
+            )
+        ),
+        None,
+    )
+    if root is None:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline decision root is ambiguous")
+
+    containing = parents.get(root)
+    while containing is not None and not (
+        isinstance(containing, ast.If) and root in containing.body
+    ):
+        containing = parents.get(containing)
+    if not isinstance(containing, ast.If) or not _is_not_sell_test(containing.test):
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline guard changed")
+
+    local_assignments = [
+        copy.deepcopy(statement)
+        for statement in containing.body
+        if isinstance(statement, ast.Assign)
+        and statement.lineno < root.lineno
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and not any(
+            isinstance(item, ast.Name)
+            and item.id
+            in {
+                "filled_orders",
+                "filled_entries",
+                "filled_exits",
+                "profit_stake",
+                "profit_ratio",
+                "profit_current_stake_ratio",
+            }
+            for item in ast.walk(statement.value)
+        )
+    ]
+    decision = _InlineDecisionReturn().visit(copy.deepcopy(root))
+    if not isinstance(decision, ast.If):
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline decision is invalid")
+    fragment = ast.FunctionDef(
+        name=f"__{wrapper.name}_inline",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[
+                ast.arg(arg="mode_name"),
+                ast.arg(arg="profit_init_ratio"),
+                ast.arg(arg="last_candle"),
+            ],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=[
+            *local_assignments,
+            decision,
+            ast.Return(
+                value=ast.Tuple(
+                    elts=[ast.Constant(value=False), ast.Constant(value=None)],
+                    ctx=ast.Load(),
+                )
+            ),
+        ],
+        decorator_list=[],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+    )
+    ast.copy_location(fragment, wrapper)
+    ast.fix_missing_locations(fragment)
+    return compile_scalar_ast_program(fragment)
+
+
+def _parents(node: ast.AST, parents: Mapping[ast.AST, ast.AST]) -> Iterable[ast.AST]:
+    parent = parents.get(node)
+    while parent is not None:
+        yield parent
+        parent = parents.get(parent)
 
 
 def _inline_reason_template(loop: ast.For) -> ast.expr:
@@ -1130,6 +1300,71 @@ def _uses_pure_scalp_trailing(wrapper: ast.FunctionDef) -> bool:
         isinstance(node, ast.Attribute)
         and "stop_threshold_scalp" in node.attr
         for node in ast.walk(wrapper)
+    )
+
+
+def _pure_scalp_matcher(
+    helper: ast.FunctionDef,
+    side: str,
+    constants: Mapping[str, Any],
+) -> dict[str, Any]:
+    if side not in {"long", "short"}:
+        raise StrategyAnalysisError("NFI pure-scalp side is invalid")
+    parents = {
+        child: parent
+        for parent in ast.walk(helper)
+        for child in ast.iter_child_nodes(parent)
+    }
+    aliases = _self_aliases(helper)
+    candidates: list[dict[str, Any]] = []
+    for node in ast.walk(helper):
+        if (
+            not isinstance(node, ast.Assign)
+            or len(node.targets) != 1
+            or not isinstance(node.targets[0], ast.Name)
+            or node.targets[0].id != "is_scalp_mode"
+        ):
+            continue
+        branch_side = _enclosing_trade_side(node, parents)
+        if branch_side != side:
+            continue
+        matcher = _compile_tag_matcher(node.value, aliases, constants)
+        if matcher is None:
+            raise StrategyAnalysisError(
+                f"NFI {side} pure-scalp target matcher cannot be represented"
+            )
+        candidates.append(matcher)
+    if len(candidates) != 1:
+        raise StrategyAnalysisError(
+            f"NFI {side} pure-scalp target matcher is missing or ambiguous"
+        )
+    return candidates[0]
+
+
+def _enclosing_trade_side(
+    node: ast.AST,
+    parents: Mapping[ast.AST, ast.AST],
+) -> str | None:
+    child = node
+    parent = parents.get(child)
+    while parent is not None:
+        if isinstance(parent, ast.If) and _trade_is_short_test(parent.test):
+            if child in parent.body:
+                return "short"
+            if child in parent.orelse:
+                return "long"
+            return None
+        child = parent
+        parent = parents.get(parent)
+    return None
+
+
+def _trade_is_short_test(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "is_short"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "trade"
     )
 
 

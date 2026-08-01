@@ -41,12 +41,14 @@ fn nfi_short_rebuy_runs_the_short_program_order_with_leverage() {
     });
     let mut manager = nfi_top_coins_manager(nfi_false_program());
     enable_test_full_short_manager(&mut manager);
+    enable_test_short_exit_shadow(&mut manager);
     manager.programs.insert(
         "short_exit_dec".to_owned(),
         nfi_profit_program(0.01, "exit_short_rebuy_d_3_100"),
     );
     let mut manager_config = config(1);
     manager_config.is_futures = true;
+    manager_config.max_entry_position_adjustment = 0;
     manager_config.leverage = Some(3.0);
     enable_nfi_manager(&mut manager_config, manager);
     let mut pair = nfi_pair(vec![entry, candle(2, 90.0, 90.0)], BTreeMap::new());
@@ -67,6 +69,146 @@ fn nfi_short_rebuy_runs_the_short_program_order_with_leverage() {
         "exit_short_rebuy_d_3_100 ( 562 )"
     );
     assert_eq!(result.trades[0].close_timestamp_ms, 2);
+}
+
+#[test]
+fn generic_managed_exit_shadow_short_preserves_compound_scalp_routing() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_short = Some(EntrySignal {
+        tag: Some("661 562".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut force_exit = candle(3, 99.0, 99.0);
+    force_exit.exit_short = Some(ExitSignal {
+        reason: "force_exit".to_owned(),
+    });
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_full_short_manager(&mut manager);
+    enable_test_short_exit_shadow(&mut manager);
+    manager.programs.insert(
+        "short_exit_signals".to_owned(),
+        nfi_profit_program(-1.0, "compound_short_scalp"),
+    );
+    let mut manager_config = config(1);
+    manager_config.is_futures = true;
+    manager_config.max_entry_position_adjustment = 0;
+    enable_nfi_manager(&mut manager_config, manager);
+
+    let mut pair = nfi_pair(
+        vec![entry, candle(2, 100.0, 100.0), force_exit],
+        BTreeMap::new(),
+    );
+    pair.minimum_cost = Some(5.0);
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .expect("source-compiled short scalp matcher agrees with legacy routing");
+
+    assert!(result.trades[0].is_short);
+    assert_eq!(
+        result.trades[0].exit_reason,
+        "compound_short_scalp ( 661 562)"
+    );
+}
+
+#[test]
+fn generic_managed_exit_shadow_short_fails_closed_on_target_state_difference() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_short = Some(EntrySignal {
+        tag: Some("501".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_full_short_manager(&mut manager);
+    enable_test_short_exit_shadow(&mut manager);
+    manager
+        .managed_short_exit_program
+        .as_mut()
+        .expect("short shadow program")
+        .routes
+        .iter_mut()
+        .find(|route| route.id == "short_normal")
+        .expect("short normal route")
+        .state_program
+        .as_mut()
+        .expect("short state program")
+        .target
+        .max_target_floor = 0.50;
+    let mut manager_config = config(1);
+    manager_config.is_futures = true;
+    manager_config.max_entry_position_adjustment = 0;
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(
+        vec![
+            entry,
+            candle(2, 95.0, 95.0),
+            candle(3, 95.0, 95.0),
+            candle(4, 95.0, 95.0),
+        ],
+        BTreeMap::from([
+            (
+                "close".to_owned(),
+                vec![
+                    serde_json::json!(95.0),
+                    serde_json::json!(95.0),
+                    serde_json::json!(95.0),
+                    serde_json::json!(95.0),
+                ],
+            ),
+            (
+                "EMA_200".to_owned(),
+                vec![
+                    serde_json::json!(200.0),
+                    serde_json::json!(200.0),
+                    serde_json::json!(200.0),
+                    serde_json::json!(200.0),
+                ],
+            ),
+            (
+                "RSI_14".to_owned(),
+                vec![
+                    serde_json::json!(50.0),
+                    serde_json::json!(50.0),
+                    serde_json::json!(50.0),
+                    serde_json::json!(50.0),
+                ],
+            ),
+            (
+                "CMF_20".to_owned(),
+                vec![
+                    serde_json::json!(0.0),
+                    serde_json::json!(0.0),
+                    serde_json::json!(0.0),
+                    serde_json::json!(0.0),
+                ],
+            ),
+            (
+                "RSI_14_1h".to_owned(),
+                vec![
+                    serde_json::json!(50.0),
+                    serde_json::json!(50.0),
+                    serde_json::json!(50.0),
+                    serde_json::json!(50.0),
+                ],
+            ),
+        ]),
+    );
+    pair.minimum_cost = Some(5.0);
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    };
+
+    let result = simulate(&input);
+    assert!(
+        matches!(result, Err(SimError::InvalidNfiTradeManager)),
+        "unexpected result: {result:?}"
+    );
 }
 
 #[test]

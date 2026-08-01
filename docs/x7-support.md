@@ -26,7 +26,8 @@ Rust:
 - managed long exits for normal (1-13), pump (21-26), quick (41-53),
   rebuy (61-65), high-profit (81-82), rapid (101-110), top-coins (141-145),
   and scalp (161-163);
-- managed short-rebuy exits and adjustment for tags 561-563;
+- managed short normal, pump, quick, rebuy, high-profit, rapid, scalp, and top-coins
+  fallback exits, plus their short adjustment routes;
 - the dedicated rebuy ladder and level-3 de-risk transition for tags 61-65;
 - the shared system-v3.2 derisk/grind adjustment used by all 57 managed tags,
   including rebuy trades after their first level-3 de-risk fill;
@@ -42,20 +43,21 @@ Rust:
 - static `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`
   definitions with side-aware local/global pair locks in the global event loop.
 
-The route table preserves X7's callback order. All eight managed-long dispatch blocks,
-pure decision prefixes, and route-local state policy are compiled from the supplied AST
-into a generic shadow program. Recursive matcher IR handles compound tags; quick/rapid
-inline conditions are Scalar IR; stop, target-cache, protected-signal, and rebuy terminal
-values are source data. Rust independently executes this program and compares both the
-decision and complete target-cache state with the legacy route. Any disagreement fails
-closed. An unknown companion tag still fails before simulation.
+The route table preserves X7's callback order. All managed-long and managed-short
+dispatch blocks, pure decision prefixes, and route-local state policy are compiled from
+the supplied AST into separate generic shadow programs. Recursive matcher IR handles
+compound tags and the short fallback side predicate; both sides' quick/rapid conditions
+are their own Scalar IR. Stop, target-cache, protected-signal, pure-scalp, and rebuy
+terminal values are source data. Rust independently executes each program and compares
+both the decision and complete target-cache state with the legacy route. Any disagreement
+fails closed. An unknown companion tag still fails before simulation.
 
 ## Proof level
 
 The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
 region. Source-compiled dispatch and pure decision regions are masked from the legacy
-identity gate. Route-local state is additionally compiled and full-state shadowed, while
-the remaining wrapper AST stays pinned until generic managed-short promotion. A changed
+identity gate. Route-local state is additionally compiled and full-state shadowed on both
+sides, while the remaining wrapper AST stays pinned until generic managed-exit promotion. A changed
 callback therefore recompiles into reviewed IR or fails before inheriting unrelated
 Rust behavior.
 It also inventories literal condition-index branches and the effective strategy
@@ -189,7 +191,7 @@ official/Native exact fixture may open a Draft candidate PR.
 The engine rejects rather than approximates:
 
 - the live-only partial-fill retry in the tag-120 route;
-- short routes outside the compiled 561-563 family;
+- the separate legacy short-grind tag 620 route;
 - dynamic or structurally new leverage callback programs;
 - dynamic protection properties, unsupported protection methods, and direct live
   pair-lock mutation outside the compiled protection program;

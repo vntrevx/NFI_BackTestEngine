@@ -12,7 +12,9 @@ from nfi_backtest_engine.x7.managed_exit_ir import (
     _compile_state_policy,
     compile_managed_exit_ir,
 )
+from nfi_backtest_engine.x7.managed_short_exit_ir import compile_managed_short_exit_ir
 from nfi_backtest_engine.x7.routes import _method_ast_sha256
+from nfi_backtest_engine.x7.trade_manager import _MANAGED_SHORT_ROUTE_SPECS
 
 
 @dataclass(frozen=True)
@@ -336,3 +338,99 @@ def test_managed_exit_state_is_source_compiled_for_all_long_routes() -> None:
     changed_policy = _compile_state_policy(changed, constants)
     assert changed_policy["target"]["u_e_raise_delta"] == 0.002
     assert changed_policy != quick
+
+
+def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> None:
+    source = Path(
+        "benchmarks/fixtures/captured/"
+        "x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/strategy.py"
+    )
+    analysis = analyze_strategy(source, class_name="NostalgiaForInfinityX7")
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
+    )
+    methods = {
+        node.name: node
+        for node in class_node.body
+        if isinstance(node, ast.FunctionDef)
+    }
+
+    compiled = compile_managed_short_exit_ir(
+        methods,
+        analysis["strategies"][0]["constants"],
+        _MANAGED_SHORT_ROUTE_SPECS,
+    )
+    routes = {route["id"]: route for route in compiled.program["routes"]}
+
+    assert compiled.short_route_order == (
+        "short_normal",
+        "short_pump",
+        "short_quick",
+        "short_rebuy",
+        "short_high_profit",
+        "short_rapid",
+        "short_scalp",
+        "short_top_coins_fallback",
+    )
+    assert routes["short_rebuy"]["profit_basis"] == "current-stake"
+    assert routes["short_quick"]["state_program"]["inline_exit"]["position"] == (
+        "after-stop"
+    )
+    assert routes["short_rapid"]["state_program"]["inline_exit"]["position"] == (
+        "before-stop"
+    )
+    assert routes["short_scalp"]["match"]["operator"] == "any-of"
+    assert routes["short_scalp"]["state_program"]["target"][
+        "pure_scalp_matcher"
+    ] == {"operator": "all", "entry_tags": ["661"]}
+    assert routes["short_top_coins_fallback"]["match"] == {
+        "operator": "all-of",
+        "operands": [
+            {"operator": "is-short"},
+            {
+                "operator": "not",
+                "operands": [
+                    {
+                        "operator": "any",
+                        "entry_tags": analysis["strategies"][0]["constants"][
+                            "short_exit_known_mode_tags"
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+
+    changed_tree = ast.parse(source.read_text(encoding="utf-8"))
+    changed_class = next(
+        node
+        for node in changed_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
+    )
+    changed_methods = {
+        node.name: node
+        for node in changed_class.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    changed = changed_methods["short_exit_quick"]
+    threshold = next(
+        node
+        for node in ast.walk(changed)
+        if isinstance(node, ast.Constant) and node.value == 22.0
+    )
+    threshold.value = 21.0
+    changed_compilation = compile_managed_short_exit_ir(
+        changed_methods,
+        analysis["strategies"][0]["constants"],
+        _MANAGED_SHORT_ROUTE_SPECS,
+    )
+    changed_routes = {
+        route["id"]: route for route in changed_compilation.program["routes"]
+    }
+    assert (
+        changed_routes["short_quick"]["state_program"]["inline_exit"]["program"]
+        != routes["short_quick"]["state_program"]["inline_exit"]["program"]
+    )

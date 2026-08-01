@@ -32,6 +32,12 @@ pub struct NfiX7TradeManager {
     /// later require it and reject any disagreement at the reached callback.
     #[serde(default)]
     pub managed_exit_program: Option<ManagedExitProgram>,
+    /// Independently source-compiled short router and callback state.
+    ///
+    /// This is separate from the long program so no direction-sensitive
+    /// predicate can be synthesized by sign-flipping a long route.
+    #[serde(default)]
+    pub managed_short_exit_program: Option<ManagedExitProgram>,
     /// Source order for the separately bounded short-side router.
     pub short_route_order: Vec<String>,
     /// The route type is shared because exit/target policy fields are
@@ -166,6 +172,8 @@ pub struct ManagedExitTargetPolicy {
     pub protected_reentry_guard: bool,
     pub suppress_protected_exit: bool,
     pub pure_scalp_trailing: bool,
+    #[serde(default)]
+    pub pure_scalp_matcher: Option<ManagedExitTagMatcher>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -185,6 +193,8 @@ pub enum ManagedExitTagOperator {
     All,
     AnyOf,
     AllOf,
+    Not,
+    IsShort,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]

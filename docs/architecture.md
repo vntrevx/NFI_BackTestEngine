@@ -255,7 +255,8 @@ The source-bound X7 adapter additionally executes:
 
 - managed long exits and shared system-v3.2 adjustment for 57 tags across normal,
   pump, quick, rebuy, high-profit, rapid, top-coins, and scalp profiles;
-- managed short-rebuy tags 561-563 with ordered short exits and adjustment;
+- all eight managed-short exit routes, including compound scalp and top-coins normal
+  fallback, plus the short-rebuy and shared short grind adjustments;
 - the separate rebuy entry/de-risk ladder before its source-defined transition
   into the shared grind-v3 adjustment;
 - ordered per-pair target-cache mutation for mixed supported tags;
@@ -271,12 +272,14 @@ The source-bound X7 adapter additionally executes:
 - the four static Freqtrade protection handlers and their chronological local/global
   pair locks.
 
-The managed-exit long-side layer is source-compiled. Python reads route order, recursive
-tag matchers, profit basis and gate, decision-call order, inline Scalar IR, stop policy,
-target-cache policy, and terminal exits into `managed-exit-program-v1`. Rust executes
-that state machine independently beside the legacy route and compares the decision plus
-the complete target cache. The generic lane is still a fail-closed shadow until the
-short-side compiler and branch proof are complete.
+Both managed-exit sides are independently source-compiled. Python reads route order,
+recursive tag/side matchers, profit basis and gate, decision-call order, inline Scalar
+IR, stop policy, target-cache policy, and terminal exits into separate
+`managed-exit-program-v1` programs. Short conditions come from short AST; they are never
+sign-flipped long rules. The target helper's narrower pure-scalp matcher is also kept
+separate from the wider compound route matcher. Rust executes each state machine beside
+the legacy route and compares both the decision and complete target cache. The generic
+lane remains a fail-closed shadow until M15 promotion retires the exit hash gates.
 
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized

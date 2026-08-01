@@ -11,9 +11,9 @@ use crate::callbacks::{
 };
 use crate::domain::{
     Candle, ManagedExitComparison, ManagedExitExecutionMode, ManagedExitProfitBasis,
-    ManagedExitRoute, ManagedExitStateOperation, ManagedExitStopPolicy, ManagedExitTagMatcher,
-    ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute, NfiX7TradeManager,
-    PairSeries, PortfolioConfig,
+    ManagedExitProgram, ManagedExitRoute, ManagedExitStateOperation, ManagedExitStopPolicy,
+    ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute,
+    NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{
@@ -90,7 +90,7 @@ pub(crate) fn evaluate_nfi_exit(
                         .find(|candidate| candidate.id == route.key)
                 })
                 .map_or(legacy_matches, |candidate| {
-                    managed_exit_matcher_matches(&candidate.matcher, &words)
+                    managed_exit_matcher_matches(&candidate.matcher, &words, trade.side)
                 });
             if source_matches != legacy_matches {
                 return None;
@@ -100,6 +100,7 @@ pub(crate) fn evaluate_nfi_exit(
             }
             match evaluate_nfi_managed_long_exit(
                 manager,
+                manager.managed_exit_program.as_ref(),
                 route,
                 nfi_profile_program_order(route.profile),
                 trade,
@@ -141,7 +142,7 @@ pub(crate) fn evaluate_nfi_exit(
     // X7's custom_exit callback checks every long block before every short
     // block without filtering on trade.is_short. This is observable when its
     // shared enter_tag column contains labels from both sides.
-    if let Some(decision) = evaluate_nfi_short_exit(
+    let short_decision = evaluate_nfi_short_exit(
         manager,
         trade,
         pair,
@@ -149,10 +150,9 @@ pub(crate) fn evaluate_nfi_exit(
         candle,
         config,
         profit_targets,
-    ) {
-        if let CustomExitDecision::Exit(_) = decision {
-            return Some(decision);
-        }
+    )?;
+    if let CustomExitDecision::Exit(_) = short_decision {
+        return Some(short_decision);
     }
     // A compound of individually compiled words may intentionally match no
     // all-tags route. The source callback returns None in that case.
@@ -176,18 +176,33 @@ fn evaluate_nfi_short_exit(
         .unwrap_or("")
         .split_whitespace()
         .collect::<Vec<_>>();
-    let mut matched = false;
     for key in &manager.short_route_order {
         let route = manager
             .managed_short_routes
             .iter()
             .find(|route| &route.key == key)?;
-        if !nfi_managed_short_route_supports_tags(manager, route, &words) {
+        let legacy_matches = nfi_managed_short_route_supports_tags(manager, route, &words);
+        let source_matches = manager
+            .managed_short_exit_program
+            .as_ref()
+            .and_then(|program| {
+                program
+                    .routes
+                    .iter()
+                    .find(|candidate| candidate.id == route.key)
+            })
+            .map_or(legacy_matches, |candidate| {
+                managed_exit_matcher_matches(&candidate.matcher, &words, trade.side)
+            });
+        if source_matches != legacy_matches {
+            return None;
+        }
+        if !source_matches {
             continue;
         }
-        matched = true;
         match evaluate_nfi_managed_long_exit(
             manager,
+            manager.managed_short_exit_program.as_ref(),
             route,
             NFI_SHORT_EXIT_PROGRAMS,
             trade,
@@ -203,7 +218,7 @@ fn evaluate_nfi_short_exit(
             CustomExitDecision::NoExit => {}
         }
     }
-    matched.then_some(CustomExitDecision::NoExit)
+    Some(CustomExitDecision::NoExit)
 }
 
 /// Execute one source-bound NFI X7 managed custom-exit route.
@@ -216,6 +231,7 @@ fn evaluate_nfi_short_exit(
 #[allow(clippy::too_many_arguments)]
 fn evaluate_nfi_managed_long_exit(
     manager: &NfiX7TradeManager,
+    source_program: Option<&ManagedExitProgram>,
     route: &NfiManagedLongRoute,
     program_order: &[&str],
     trade: &OpenTrade,
@@ -238,9 +254,7 @@ fn evaluate_nfi_managed_long_exit(
         config,
         &mut legacy_targets,
     )?;
-    let generic_route = manager
-        .managed_exit_program
-        .as_ref()
+    let generic_route = source_program
         .filter(|program| program.execution_mode == ManagedExitExecutionMode::Shadow)
         .and_then(|program| {
             program
@@ -541,7 +555,7 @@ fn generic_managed_exit_signals(
     snapshot: NfiProfitSnapshot,
     enter_tags: &[String],
 ) -> Option<(bool, Option<String>)> {
-    let route_matches = managed_exit_matcher_matches(&route.matcher, enter_tags);
+    let route_matches = managed_exit_matcher_matches(&route.matcher, enter_tags, trade.side);
     if !route_matches {
         return Some((false, None));
     }
@@ -605,6 +619,7 @@ fn generic_managed_exit_signals(
 fn managed_exit_matcher_matches<T: AsRef<str>>(
     matcher: &ManagedExitTagMatcher,
     enter_tags: &[T],
+    side: TradeSide,
 ) -> bool {
     match matcher.operator {
         ManagedExitTagOperator::Any => enter_tags
@@ -616,11 +631,16 @@ fn managed_exit_matcher_matches<T: AsRef<str>>(
         ManagedExitTagOperator::AnyOf => matcher
             .operands
             .iter()
-            .any(|operand| managed_exit_matcher_matches(operand, enter_tags)),
+            .any(|operand| managed_exit_matcher_matches(operand, enter_tags, side)),
         ManagedExitTagOperator::AllOf => matcher
             .operands
             .iter()
-            .all(|operand| managed_exit_matcher_matches(operand, enter_tags)),
+            .all(|operand| managed_exit_matcher_matches(operand, enter_tags, side)),
+        ManagedExitTagOperator::Not => matcher
+            .operands
+            .first()
+            .is_some_and(|operand| !managed_exit_matcher_matches(operand, enter_tags, side)),
+        ManagedExitTagOperator::IsShort => side == TradeSide::Short,
     }
 }
 
@@ -834,7 +854,10 @@ fn generic_managed_exit_stop(
     is_futures: bool,
 ) -> Option<(bool, Option<String>)> {
     match &route.state_program.as_ref()?.stop {
-        ManagedExitStopPolicy::SourceHelper { helper } if helper == "long_exit_stoploss" => {
+        ManagedExitStopPolicy::SourceHelper { helper }
+            if (helper == "long_exit_stoploss" && trade.side == TradeSide::Long)
+                || (helper == "short_exit_stoploss" && trade.side == TradeSide::Short) =>
+        {
             nfi_common_long_stoploss(
                 manager,
                 &route.mode_name,
@@ -966,7 +989,15 @@ fn evaluate_existing_generic_target(
     let pure_scalp = target_policy.pure_scalp_trailing
         && trade.entry_tag.as_deref().is_some_and(|entry_tag| {
             let words = entry_tag.split_whitespace().collect::<Vec<_>>();
-            !words.is_empty() && managed_exit_matcher_matches(&route.matcher, &words)
+            !words.is_empty()
+                && managed_exit_matcher_matches(
+                    target_policy
+                        .pure_scalp_matcher
+                        .as_ref()
+                        .unwrap_or(&route.matcher),
+                    &words,
+                    trade.side,
+                )
         });
     let decision = nfi_managed_profit_target_exit(
         &route.mode_name,
