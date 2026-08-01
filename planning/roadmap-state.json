@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 96,
-  "updated_at": "2026-08-01T23:17:22+09:00",
+  "revision": 97,
+  "updated_at": "2026-08-01T23:37:16+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M14-02",
+  "active_task_id": "M14-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3566,7 +3566,7 @@
       "order": 1402,
       "milestone": "M14",
       "title": "Add state-machine-program-v3 finite order collections",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M14-01"
       ],
@@ -3586,9 +3586,56 @@
         "v3 compiler contract tests"
       ],
       "started_at": "2026-08-01T23:17:22+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T23:37:16+09:00",
+      "commit_sha": "80484afce96283016956481eacce45925eb86d1b",
+      "evidence": [
+        {
+          "kind": "state_machine_program_v3_contract",
+          "schema_version": "state-machine-program-v3",
+          "finite_order_iteration": true,
+          "trade_order_sequence_preserved": true,
+          "typed_order_fields": true,
+          "ordered_filtering": true,
+          "local_accumulation": true,
+          "custom_state_transaction": "entrypoint_atomic",
+          "caller_supplied_iteration_limit": true,
+          "unbounded_iteration_rejected": true,
+          "unknown_order_fields_rejected": true,
+          "arbitrary_python_execution_added": false
+        },
+        {
+          "kind": "replay_compatibility",
+          "default_program_version": "state-machine-program-v2",
+          "default_and_explicit_v2_byte_equivalent": true,
+          "v1_schema_readable": true,
+          "v1_and_v2_rust_execution_tests_passed": true,
+          "v3_runtime_promotion_performed": false
+        },
+        {
+          "kind": "full_state_fixture_runs",
+          "normal_routing_run_sha256": "df0d4599a3f4ace8b51804257480052a2730037fd86a08c426d7d55e53f7465b",
+          "stops_only_run_sha256": "04e2357bff2a9dedc1a1015bc60275be6bbe924d5465578505d8bafc7ee7cb95",
+          "x7_spot_run_sha256": "b4c247f755209a9a52747f8e198b334a591e14c5dcef7c6ea9af8b3b5a775b07",
+          "x7_futures_run_sha256": "2374b8570bd82e6ffd47ba87ad4591289db9993e49237ab67d367e21a4501483",
+          "generic_state_machine_run_sha256": "f5d38beff17b6800f7f842ae416dedddd7db324b23815123b07d6ee6bcf707a5",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 622,
+          "future_nfi_compatibility_tests_passed": 101,
+          "rust_tests_passed": 113,
+          "state_machine_ir_tests_passed": 10,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3596,7 +3643,7 @@
       "order": 1403,
       "milestone": "M14",
       "title": "Implement the generic Rust state-machine v3 VM",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M14-02"
       ],
@@ -3615,7 +3662,7 @@
         "Rust VM semantic tests",
         "invalid-program fail-closed tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T23:37:16+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6929,6 +6976,36 @@
         "objective": "state-machine-program-v3 with typed finite order iteration, ordered filtering and accumulation, and atomic custom state",
         "unbounded_iteration_allowed": false,
         "arbitrary_python_execution_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 121,
+      "timestamp": "2026-08-01T23:37:16+09:00",
+      "task_id": "M14-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "80484afce96283016956481eacce45925eb86d1b",
+        "schema_version": "state-machine-program-v3",
+        "finite_order_iteration": true,
+        "typed_order_fields": true,
+        "ordered_filter_and_accumulation": true,
+        "custom_state_entrypoint_atomic": true,
+        "v1_and_v2_replay_compatible": true,
+        "unbounded_iteration_allowed": false,
+        "arbitrary_python_execution_added": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 122,
+      "timestamp": "2026-08-01T23:37:16+09:00",
+      "task_id": "M14-03",
+      "event": "task_started",
+      "details": {
+        "objective": "generic Rust state-machine v3 VM with finite budgets, typed order reads, atomic rollback, and source diagnostics",
+        "unsafe_rust_allowed": false,
+        "nfi_specific_vm_branches_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
