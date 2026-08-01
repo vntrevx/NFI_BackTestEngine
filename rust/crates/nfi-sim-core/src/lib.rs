@@ -43,8 +43,9 @@ use portfolio::TradeSide;
 use scalar_vm::evaluate_scalar_program_bundle_from_base;
 pub use scalar_vm::{evaluate_scalar_decision_program, evaluate_scalar_program_bundle};
 pub use state_machine_vm::{
-    evaluate_state_machine, validate_state_machine_program, StateMachineAction,
-    StateMachineContext, StateMachineError,
+    evaluate_state_machine, evaluate_state_machine_with_diagnostics,
+    validate_state_machine_program, StateMachineAction, StateMachineContext,
+    StateMachineDiagnostic, StateMachineError,
 };
 mod futures;
 mod futures_contract;

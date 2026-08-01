@@ -103,7 +103,7 @@
         "number_or_null",
         "string",
         "string_or_null",
-        "datetime_or_null"
+        "timestamp_ms"
       ]
     },
     "order_field_requirement": {

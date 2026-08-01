@@ -8,10 +8,13 @@ use thiserror::Error;
 
 use crate::domain::{
     StateMachineActionKind, StateMachineBinaryOperator, StateMachineBooleanOperator,
-    StateMachineComparison, StateMachineExpression, StateMachineInstruction, StateMachineProgram,
-    StateMachineReadSource, StateMachineScalarCall, StateMachineUnaryOperator,
-    StateMachineValueType,
+    StateMachineComparison, StateMachineCustomStateTransaction, StateMachineExpression,
+    StateMachineInstruction, StateMachineOrderValueType, StateMachineProgram,
+    StateMachineReadSource, StateMachineScalarCall, StateMachineSourceLocation,
+    StateMachineUnaryOperator, StateMachineValueType,
 };
+
+mod orders;
 
 #[derive(Debug, Clone, Default)]
 pub struct StateMachineContext {
@@ -30,7 +33,7 @@ pub struct StateMachineAction {
     pub tag: Option<String>,
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
 pub enum StateMachineError {
     #[error("unsupported state-machine schema")]
     UnsupportedSchema,
@@ -48,6 +51,13 @@ pub enum StateMachineError {
     InvalidLoop,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateMachineDiagnostic {
+    pub error: StateMachineError,
+    pub instruction_id: Option<String>,
+    pub source: Option<StateMachineSourceLocation>,
+}
+
 /// Execute one entrypoint in source order and stop at its first action.
 ///
 /// # Errors
@@ -59,33 +69,82 @@ pub fn evaluate_state_machine(
     entrypoint: &str,
     context: &mut StateMachineContext,
 ) -> Result<Option<StateMachineAction>, StateMachineError> {
+    evaluate_state_machine_with_diagnostics(program, entrypoint, context)
+        .map_err(|diagnostic| diagnostic.error)
+}
+
+/// Execute one entrypoint and retain the failing instruction's source map.
+///
+/// # Errors
+///
+/// Returns the same fail-closed error as [`evaluate_state_machine`] together
+/// with the exact compiler source location when execution reached an opcode.
+pub fn evaluate_state_machine_with_diagnostics(
+    program: &StateMachineProgram,
+    entrypoint: &str,
+    context: &mut StateMachineContext,
+) -> Result<Option<StateMachineAction>, StateMachineDiagnostic> {
     if !supported_schema(&program.schema_version) {
-        return Err(StateMachineError::UnsupportedSchema);
+        return Err(diagnostic(
+            program,
+            StateMachineError::UnsupportedSchema,
+            None,
+        ));
     }
     let entrypoint = program
         .entrypoints
         .get(entrypoint)
-        .ok_or(StateMachineError::MissingEntrypoint)?;
+        .ok_or_else(|| diagnostic(program, StateMachineError::MissingEntrypoint, None))?;
     if entrypoint.max_steps == 0 {
-        return Err(StateMachineError::StepBudget);
+        return Err(diagnostic(program, StateMachineError::StepBudget, None));
+    }
+    let order_field_types = program
+        .required_order_fields
+        .iter()
+        .map(|requirement| (requirement.field.clone(), requirement.value_type))
+        .collect::<BTreeMap<_, _>>();
+    if order_field_types.len() != program.required_order_fields.len() {
+        return Err(diagnostic(program, StateMachineError::InvalidType, None));
     }
     let original_custom_state = context.custom_state.clone();
-    let result = {
-        let mut machine = Machine {
-            remaining_steps: entrypoint.max_steps,
-            locals: BTreeMap::new(),
-            context,
-        };
-        machine.execute(&entrypoint.instructions)
+    let mut machine = Machine {
+        remaining_steps: entrypoint.max_steps,
+        locals: BTreeMap::new(),
+        max_order_iterations: program
+            .limits
+            .as_ref()
+            .map(|limits| limits.max_order_iterations),
+        order_field_types,
+        current_instruction_id: None,
+        context,
     };
-    if result.is_err() {
-        context.custom_state = original_custom_state;
+    let result = machine.execute(&entrypoint.instructions);
+    let instruction_id = machine.current_instruction_id.clone();
+    drop(machine);
+    match result {
+        Ok(action) => Ok(action),
+        Err(error) => {
+            context.custom_state = original_custom_state;
+            Err(diagnostic(program, error, instruction_id.as_deref()))
+        }
     }
-    result
+}
+
+fn diagnostic(
+    program: &StateMachineProgram,
+    error: StateMachineError,
+    instruction_id: Option<&str>,
+) -> StateMachineDiagnostic {
+    StateMachineDiagnostic {
+        error,
+        instruction_id: instruction_id.map(ToOwned::to_owned),
+        source: instruction_id.and_then(|id| program.source_map.get(id).cloned()),
+    }
 }
 
 #[must_use]
 pub fn validate_state_machine_program(program: &StateMachineProgram) -> bool {
+    let is_v3 = program.schema_version == "state-machine-program-v3";
     if !supported_schema(&program.schema_version)
         || program.entrypoints.keys().any(|name| {
             !matches!(
@@ -100,6 +159,31 @@ pub fn validate_state_machine_program(program: &StateMachineProgram) -> bool {
     {
         return false;
     }
+    if is_v3 {
+        if program.limits.is_none()
+            || program.custom_state_transaction
+                != Some(StateMachineCustomStateTransaction::EntrypointAtomic)
+        {
+            return false;
+        }
+    } else if program.limits.is_some()
+        || program.custom_state_transaction.is_some()
+        || !program.required_order_fields.is_empty()
+    {
+        return false;
+    }
+    let required_order_fields = program
+        .required_order_fields
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if required_order_fields.len() != program.required_order_fields.len()
+        || required_order_fields
+            .iter()
+            .any(|requirement| requirement.field.is_empty())
+    {
+        return false;
+    }
     let mut ids = BTreeSet::new();
     let mut opcodes = BTreeSet::new();
     if !program.entrypoints.values().all(|entry| {
@@ -108,6 +192,10 @@ pub fn validate_state_machine_program(program: &StateMachineProgram) -> bool {
             &mut ids,
             &mut opcodes,
             &program.source_map,
+            program
+                .limits
+                .as_ref()
+                .map(|limits| limits.max_order_iterations),
         )
     }) {
         return false;
@@ -129,7 +217,7 @@ pub fn validate_state_machine_program(program: &StateMachineProgram) -> bool {
 fn supported_schema(schema_version: &str) -> bool {
     matches!(
         schema_version,
-        "state-machine-program-v1" | "state-machine-program-v2"
+        "state-machine-program-v1" | "state-machine-program-v2" | "state-machine-program-v3"
     )
 }
 
@@ -138,6 +226,7 @@ fn validate_instructions(
     ids: &mut BTreeSet<String>,
     opcodes: &mut BTreeSet<String>,
     source_map: &BTreeMap<String, crate::domain::StateMachineSourceLocation>,
+    max_order_iterations: Option<usize>,
 ) -> bool {
     instructions.iter().all(|instruction| {
         let id = instruction.id();
@@ -150,9 +239,19 @@ fn validate_instructions(
                 else_instructions,
                 ..
             } => {
-                if !validate_instructions(then_instructions, ids, opcodes, source_map)
-                    || !validate_instructions(else_instructions, ids, opcodes, source_map)
-                {
+                if !validate_instructions(
+                    then_instructions,
+                    ids,
+                    opcodes,
+                    source_map,
+                    max_order_iterations,
+                ) || !validate_instructions(
+                    else_instructions,
+                    ids,
+                    opcodes,
+                    source_map,
+                    max_order_iterations,
+                ) {
                     return false;
                 }
                 "if"
@@ -191,11 +290,38 @@ fn validate_instructions(
                 };
                 if variable.is_empty()
                     || iterations > *max_iterations
-                    || !validate_instructions(instructions, ids, opcodes, source_map)
+                    || !validate_instructions(
+                        instructions,
+                        ids,
+                        opcodes,
+                        source_map,
+                        max_order_iterations,
+                    )
                 {
                     return false;
                 }
                 "bounded_for"
+            }
+            StateMachineInstruction::ForEachOrder {
+                variable,
+                max_iterations,
+                instructions,
+                ..
+            } => {
+                if variable.is_empty()
+                    || *max_iterations == 0
+                    || Some(*max_iterations) > max_order_iterations
+                    || !validate_instructions(
+                        instructions,
+                        ids,
+                        opcodes,
+                        source_map,
+                        max_order_iterations,
+                    )
+                {
+                    return false;
+                }
+                "for_each_order"
             }
             StateMachineInstruction::Action { .. } => "action",
         };
@@ -207,6 +333,9 @@ fn validate_instructions(
 struct Machine<'a> {
     remaining_steps: usize,
     locals: BTreeMap<String, Value>,
+    max_order_iterations: Option<usize>,
+    order_field_types: BTreeMap<String, StateMachineOrderValueType>,
+    current_instruction_id: Option<String>,
     context: &'a mut StateMachineContext,
 }
 
@@ -224,6 +353,7 @@ impl Machine<'_> {
         instructions: &[StateMachineInstruction],
     ) -> Result<Option<StateMachineAction>, StateMachineError> {
         for instruction in instructions {
+            self.current_instruction_id = Some(instruction.id().to_owned());
             self.step()?;
             match instruction {
                 StateMachineInstruction::If {
@@ -272,46 +402,83 @@ impl Machine<'_> {
                     instructions,
                     ..
                 } => {
-                    let iterations = stop
-                        .checked_sub(*start)
-                        .and_then(|value| usize::try_from(value).ok())
-                        .ok_or(StateMachineError::InvalidLoop)?;
-                    if iterations > *max_iterations {
-                        return Err(StateMachineError::InvalidLoop);
+                    if let Some(action) = self.execute_integer_loop(
+                        variable,
+                        *start,
+                        *stop,
+                        *max_iterations,
+                        instructions,
+                    )? {
+                        return Ok(Some(action));
                     }
-                    for value in *start..*stop {
-                        self.locals
-                            .insert(variable.clone(), Value::Number(value.into()));
-                        if let Some(action) = self.execute(instructions)? {
-                            return Ok(Some(action));
-                        }
+                }
+                StateMachineInstruction::ForEachOrder {
+                    variable,
+                    collection,
+                    max_iterations,
+                    instructions,
+                    ..
+                } => {
+                    if let Some(action) = self.execute_order_loop(
+                        variable,
+                        collection,
+                        *max_iterations,
+                        instructions,
+                    )? {
+                        return Ok(Some(action));
                     }
                 }
                 StateMachineInstruction::Action {
                     kind, stake, tag, ..
-                } => {
-                    let stake = stake
-                        .as_ref()
-                        .map(|value| {
-                            let value = self.expression(value)?;
-                            number(&value)
-                        })
-                        .transpose()?;
-                    let tag = tag
-                        .as_ref()
-                        .map(|value| {
-                            self.expression(value)?
-                                .as_str()
-                                .map(ToOwned::to_owned)
-                                .ok_or(StateMachineError::InvalidType)
-                        })
-                        .transpose()?;
-                    return Ok(Some(StateMachineAction {
-                        kind: *kind,
-                        stake,
-                        tag,
-                    }));
-                }
+                } => return self.action(*kind, stake.as_ref(), tag.as_ref()).map(Some),
+            }
+        }
+        Ok(None)
+    }
+
+    fn action(
+        &mut self,
+        kind: StateMachineActionKind,
+        stake: Option<&StateMachineExpression>,
+        tag: Option<&StateMachineExpression>,
+    ) -> Result<StateMachineAction, StateMachineError> {
+        let stake = stake
+            .map(|value| {
+                let value = self.expression(value)?;
+                number(&value)
+            })
+            .transpose()?;
+        let tag = tag
+            .map(|value| {
+                self.expression(value)?
+                    .as_str()
+                    .map(ToOwned::to_owned)
+                    .ok_or(StateMachineError::InvalidType)
+            })
+            .transpose()?;
+        Ok(StateMachineAction { kind, stake, tag })
+    }
+
+    fn execute_integer_loop(
+        &mut self,
+        variable: &str,
+        start: i64,
+        stop: i64,
+        max_iterations: usize,
+        instructions: &[StateMachineInstruction],
+    ) -> Result<Option<StateMachineAction>, StateMachineError> {
+        let iterations = stop
+            .checked_sub(start)
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or(StateMachineError::InvalidLoop)?;
+        if iterations > max_iterations {
+            return Err(StateMachineError::InvalidLoop);
+        }
+        for value in start..stop {
+            self.locals
+                .insert(variable.to_owned(), Value::Number(value.into()));
+            if let Some(action) = self.execute(instructions)? {
+                return Ok(Some(action));
             }
         }
         Ok(None)
@@ -404,6 +571,14 @@ impl Machine<'_> {
                     .collect::<Result<Vec<_>, _>>()?;
                 scalar_call(*name, values)
             }
+            StateMachineExpression::OrderCollection { selector, .. } => {
+                self.order_collection(*selector)
+            }
+            StateMachineExpression::OrderField {
+                order,
+                field,
+                value_type,
+            } => self.order_field(order, field, *value_type),
         }
     }
 }
@@ -533,8 +708,9 @@ mod tests {
     use serde_json::{json, Value};
 
     use super::{
-        evaluate_state_machine, validate_state_machine_program, StateMachineActionKind,
-        StateMachineContext, StateMachineProgram,
+        evaluate_state_machine, evaluate_state_machine_with_diagnostics,
+        validate_state_machine_program, StateMachineActionKind, StateMachineContext,
+        StateMachineError, StateMachineInstruction, StateMachineProgram,
     };
 
     #[test]
@@ -565,6 +741,212 @@ mod tests {
             .expect("supported program executes")
             .is_none());
         }
+    }
+
+    #[test]
+    fn v3_iterates_typed_orders_in_trade_sequence_and_accumulates_locals() {
+        let program = finite_order_program(4);
+        assert!(validate_state_machine_program(&program));
+        let mut context = StateMachineContext {
+            orders: BTreeMap::from([(
+                "filled_entries".to_owned(),
+                json!([
+                    {"ft_order_tag": "ignored", "safe_filled": 10.0, "safe_price": 2.0},
+                    {"ft_order_tag": "grind_entry", "safe_filled": 2.0, "safe_price": 10.0},
+                    {"ft_order_tag": "grind_entry", "safe_filled": 3.0, "safe_price": 5.0}
+                ]),
+            )]),
+            ..StateMachineContext::default()
+        };
+
+        let action = evaluate_state_machine(&program, "custom_exit", &mut context)
+            .expect("v3 order program executes")
+            .expect("exit action exists");
+
+        assert_eq!(action.kind, StateMachineActionKind::Exit);
+        assert_eq!(action.tag.as_deref(), Some("ordered_exit"));
+        assert_eq!(context.custom_state.get("tagged_cost"), Some(&json!(35.0)));
+    }
+
+    #[test]
+    fn v3_order_limit_failure_rolls_back_and_reports_source() {
+        let program = finite_order_program(1);
+        let mut context = StateMachineContext {
+            orders: BTreeMap::from([(
+                "filled_entries".to_owned(),
+                json!([
+                    {"ft_order_tag": "grind_entry", "safe_filled": 2.0, "safe_price": 10.0},
+                    {"ft_order_tag": "grind_entry", "safe_filled": 3.0, "safe_price": 5.0}
+                ]),
+            )]),
+            custom_state: BTreeMap::from([("tagged_cost".to_owned(), json!(7.0))]),
+            ..StateMachineContext::default()
+        };
+
+        let diagnostic =
+            evaluate_state_machine_with_diagnostics(&program, "custom_exit", &mut context)
+                .expect_err("oversized order collection must fail closed");
+
+        assert_eq!(diagnostic.error, StateMachineError::InvalidLoop);
+        assert_eq!(diagnostic.instruction_id.as_deref(), Some("i2"));
+        assert_eq!(
+            diagnostic.source.as_ref().map(|source| source.line),
+            Some(2)
+        );
+        assert_eq!(context.custom_state.get("tagged_cost"), Some(&json!(7.0)));
+    }
+
+    const FINITE_ORDER_PROGRAM_JSON: &str = r#"{
+            "schema_version": "state-machine-program-v3",
+            "entrypoints": {
+                "custom_exit": {
+                    "max_steps": 256,
+                    "instructions": [
+                        {
+                            "opcode": "set_local",
+                            "id": "i1",
+                            "name": "tagged_cost",
+                            "value": {"kind": "literal", "value": 0.0}
+                        },
+                        {
+                            "opcode": "for_each_order",
+                            "id": "i2",
+                            "variable": "entry_order",
+                            "collection": {
+                                "kind": "order_collection",
+                                "selector": "entry_side",
+                                "order": "trade_order_sequence"
+                            },
+                            "max_iterations": 4,
+                            "instructions": [{
+                                "opcode": "if",
+                                "id": "i3",
+                                "condition": {
+                                    "kind": "compare",
+                                    "operator": "equal",
+                                    "left": {
+                                        "kind": "order_field",
+                                        "order": {
+                                            "kind": "read",
+                                            "source": "local",
+                                            "key": "entry_order",
+                                            "default": null
+                                        },
+                                        "field": "ft_order_tag",
+                                        "value_type": "string_or_null"
+                                    },
+                                    "right": {"kind": "literal", "value": "grind_entry"}
+                                },
+                                "then_instructions": [{
+                                    "opcode": "set_local",
+                                    "id": "i4",
+                                    "name": "tagged_cost",
+                                    "value": {
+                                        "kind": "binary",
+                                        "operator": "add",
+                                        "left": {
+                                            "kind": "read",
+                                            "source": "local",
+                                            "key": "tagged_cost",
+                                            "default": null
+                                        },
+                                        "right": {
+                                            "kind": "binary",
+                                            "operator": "multiply",
+                                            "left": {
+                                                "kind": "order_field",
+                                                "order": {
+                                                    "kind": "read",
+                                                    "source": "local",
+                                                    "key": "entry_order",
+                                                    "default": null
+                                                },
+                                                "field": "safe_filled",
+                                                "value_type": "number"
+                                            },
+                                            "right": {
+                                                "kind": "order_field",
+                                                "order": {
+                                                    "kind": "read",
+                                                    "source": "local",
+                                                    "key": "entry_order",
+                                                    "default": null
+                                                },
+                                                "field": "safe_price",
+                                                "value_type": "number"
+                                            }
+                                        }
+                                    }
+                                }],
+                                "else_instructions": []
+                            }]
+                        },
+                        {
+                            "opcode": "set_state",
+                            "id": "i5",
+                            "key": "tagged_cost",
+                            "value_type": "number",
+                            "value": {
+                                "kind": "read",
+                                "source": "local",
+                                "key": "tagged_cost",
+                                "default": null
+                            }
+                        },
+                        {
+                            "opcode": "action",
+                            "id": "i6",
+                            "kind": "exit",
+                            "stake": null,
+                            "tag": {"kind": "literal", "value": "ordered_exit"}
+                        }
+                    ]
+                }
+            },
+            "required_reads": [{"source": "orders", "key": "filled_entries"}],
+            "required_columns": [],
+            "required_state_keys": ["tagged_cost"],
+            "required_order_fields": [
+                {"field": "ft_order_tag", "value_type": "string_or_null"},
+                {"field": "safe_filled", "value_type": "number"},
+                {"field": "safe_price", "value_type": "number"}
+            ],
+            "opcodes": ["action", "for_each_order", "if", "set_local", "set_state"],
+            "limits": {"max_order_iterations": 4},
+            "custom_state_transaction": "entrypoint_atomic",
+            "source_map": {
+                "i1": {"path": "strategy.py", "line": 1, "column": 0, "end_line": 1, "end_column": 1},
+                "i2": {"path": "strategy.py", "line": 2, "column": 0, "end_line": 2, "end_column": 1},
+                "i3": {"path": "strategy.py", "line": 3, "column": 0, "end_line": 3, "end_column": 1},
+                "i4": {"path": "strategy.py", "line": 4, "column": 0, "end_line": 4, "end_column": 1},
+                "i5": {"path": "strategy.py", "line": 5, "column": 0, "end_line": 5, "end_column": 1},
+                "i6": {"path": "strategy.py", "line": 6, "column": 0, "end_line": 6, "end_column": 1}
+            }
+        }"#;
+
+    fn finite_order_program(max_order_iterations: usize) -> StateMachineProgram {
+        let mut program: StateMachineProgram = serde_json::from_str(FINITE_ORDER_PROGRAM_JSON)
+            .expect("valid v3 state-machine program");
+        program
+            .limits
+            .as_mut()
+            .expect("v3 limits")
+            .max_order_iterations = max_order_iterations;
+        let instructions = &mut program
+            .entrypoints
+            .get_mut("custom_exit")
+            .expect("custom_exit entrypoint")
+            .instructions;
+        let StateMachineInstruction::ForEachOrder { max_iterations, .. } = &mut instructions[1]
+        else {
+            panic!("second instruction must be finite order iteration");
+        };
+        *max_iterations = program
+            .limits
+            .as_ref()
+            .expect("v3 limits")
+            .max_order_iterations;
+        program
     }
 
     #[test]

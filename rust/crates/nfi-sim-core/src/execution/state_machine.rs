@@ -196,6 +196,7 @@ pub(super) fn trade_value(key: &str, trade: &OpenTrade) -> Option<Value> {
 
 pub(super) fn order_value(key: &str, trade: &OpenTrade) -> Option<Value> {
     match key {
+        "filled" => Some(Value::Array(trade.orders.iter().map(order_json).collect())),
         "filled_entries" => Some(Value::Array(
             trade
                 .orders
@@ -220,14 +221,29 @@ pub(super) fn order_value(key: &str, trade: &OpenTrade) -> Option<Value> {
 }
 
 fn order_json(order: &crate::domain::FilledOrder) -> Value {
+    let side = match order.side {
+        crate::domain::OrderSide::Buy => "buy",
+        crate::domain::OrderSide::Sell => "sell",
+    };
     json!({
-        "id": order.id,
+        "id": order.id.to_string(),
         "is_entry": order.is_entry,
         "filled_timestamp_ms": order.filled_timestamp_ms,
+        "order_filled_utc": order.filled_timestamp_ms,
         "amount": order.amount,
+        "average": order.price,
+        "filled": order.amount,
         "price": order.price,
         "cost": order.cost,
+        "remaining": 0.0,
+        "safe_filled": order.amount,
+        "safe_price": order.price,
+        "safe_remaining": 0.0,
+        "side": side,
+        "ft_order_side": side,
+        "status": "closed",
         "tag": order.tag,
+        "ft_order_tag": order.tag,
     })
 }
 
