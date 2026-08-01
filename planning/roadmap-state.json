@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 98,
-  "updated_at": "2026-08-02T00:02:49+09:00",
+  "revision": 99,
+  "updated_at": "2026-08-02T00:48:47+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M14-04",
+  "active_task_id": "M15-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3715,7 +3715,7 @@
       "order": 1404,
       "milestone": "M14",
       "title": "Prove state-machine v3 with a generic official fixture",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M14-03"
       ],
@@ -3734,9 +3734,66 @@
         "independent full-state exact result"
       ],
       "started_at": "2026-08-02T00:02:49+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T00:48:47+09:00",
+      "commit_sha": "4555dbf346ced744e4c2d1e7c6e6901605cd1aff",
+      "evidence": [
+        {
+          "kind": "official_generic_state_machine_v3_fixture",
+          "path": "benchmarks/fixtures/captured/generic-state-machine-v3-orders-spot-2025-01-01_02/manifest.json",
+          "manifest_sha256": "c75ec91ec2894a2757d572a59b34b7e5789cc3008c9a1b0846c64436c26d0b69",
+          "strategy": "GenericFiniteOrderState",
+          "nfi_independent": true,
+          "schema_version": "state-machine-program-v3",
+          "max_order_iterations": 13,
+          "filled_entry_orders": 13,
+          "tagged_entry_orders": 12,
+          "exit_reason": "finite_order_exit"
+        },
+        {
+          "kind": "independent_official_native_full_state_exact",
+          "official_replay_run_sha256": "13bc27ec9853ecdf8e08b6d79c5834d30b7f894e859ffa342ddc800759854484",
+          "native_run_sha256": "800377da6e1a1551a29a30707fd56e09df38e31fc7ad3e0f8a39173e6533341e",
+          "state_machine_ir_sha256": "30cc3b835e80cdfc6365202349fbd8ff391007ce831774924891f5fd5be41610",
+          "trade_surface_sha256": "326d7ae0316996fceb4ccfa46d7a4a66b8503d4bc65706246fe4175af74f9b29",
+          "projected_event_count": 286,
+          "projected_stream_hash": "30c77fa2425a00ae4440ea565262414b555be6cfb43408e2582bd223865eeea5",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0,
+          "separate_executions": true
+        },
+        {
+          "kind": "source_derived_finite_bound",
+          "bound_expression": "max_entry_position_adjustment + 1",
+          "filled_entry_collections_only": true,
+          "unbounded_or_exit_side_collection_promoted": false,
+          "strategy_name_branch_added": false,
+          "tag_value_branch_added": false,
+          "runtime_hardcoding_added": false
+        },
+        {
+          "kind": "acceptance",
+          "path": ".nfi/roadmap-acceptance/M14-04/4555dbf346ced744e4c2d1e7c6e6901605cd1aff/acceptance-report.json",
+          "sha256": "3c0635c50e9029119ffd735bfc444b53ec4628741caebb46f2d2e749ea39821e",
+          "commands_passed": 16,
+          "python_tests_passed": 627,
+          "future_nfi_compatibility_tests_passed": 104,
+          "rust_tests_passed": 116,
+          "full_state_fixtures_exact": 6,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true
+        },
+        {
+          "kind": "storage_path_regression",
+          "reference_dependency_root_corrected": true,
+          "duplicate_python_artifacts_removed": true,
+          "temporary_capture_removed": true,
+          "preserved_fixture_trace_bytes": 2477654,
+          "preserved_fixture_projection_bytes": 140582
+        }
+      ],
       "blocker": null
     },
     {
@@ -3744,7 +3801,7 @@
       "order": 1501,
       "milestone": "M15",
       "title": "Compile managed-long basic exits into generic IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M14-04"
       ],
@@ -3762,7 +3819,7 @@
         "long exit shadow fixtures",
         "Spot and Futures full-state exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T00:48:47+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7078,6 +7135,36 @@
         "objective": "prove v3 with an NFI-independent official Freqtrade fixture and independent full-state exact comparison",
         "same_artifact_both_sides_allowed": false,
         "partial_state_promotion_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 125,
+      "timestamp": "2026-08-02T00:48:47+09:00",
+      "task_id": "M14-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "4555dbf346ced744e4c2d1e7c6e6901605cd1aff",
+        "official_generic_v3_fixture": true,
+        "finite_order_exit_reached": true,
+        "filled_entry_orders": 13,
+        "tagged_entry_orders": 12,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "projected_event_count": 286,
+        "separate_official_and_native_executions": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 126,
+      "timestamp": "2026-08-02T00:48:47+09:00",
+      "task_id": "M15-01",
+      "event": "task_started",
+      "details": {
+        "objective": "compile managed-long normal, pump, quick, and high-profit exits into generic source-order IR",
+        "route_method_hash_selection_allowed": false,
+        "tag_value_rust_branches_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
