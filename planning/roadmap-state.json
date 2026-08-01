@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 99,
-  "updated_at": "2026-08-02T00:48:47+09:00",
+  "revision": 100,
+  "updated_at": "2026-08-02T02:03:10+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M15-01",
+  "active_task_id": "M15-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3801,7 +3801,7 @@
       "order": 1501,
       "milestone": "M15",
       "title": "Compile managed-long basic exits into generic IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M14-04"
       ],
@@ -3820,9 +3820,15 @@
         "Spot and Futures full-state exact"
       ],
       "started_at": "2026-08-02T00:48:47+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T02:03:10+09:00",
+      "commit_sha": "806f4444bb0e9549037e2e9653e7f4853cbc34e7",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/latest-upstream-spot.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/latest-upstream-futures.json"
+      ],
       "blocker": null
     },
     {
@@ -3830,7 +3836,7 @@
       "order": 1502,
       "milestone": "M15",
       "title": "Compile managed-long special exits and state into generic IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M15-01"
       ],
@@ -3848,7 +3854,7 @@
         "long special-route branch proof",
         "long_exit_rebuy source mutation proof"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T02:03:10+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7165,6 +7171,37 @@
         "objective": "compile managed-long normal, pump, quick, and high-profit exits into generic source-order IR",
         "route_method_hash_selection_allowed": false,
         "tag_value_rust_branches_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 127,
+      "timestamp": "2026-08-02T02:03:10+09:00",
+      "task_id": "M15-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "806f4444bb0e9549037e2e9653e7f4853cbc34e7",
+        "managed_exit_ir_schema": "managed-exit-program-v1",
+        "source_compiled_basic_routes": 4,
+        "source_order_dispatch": true,
+        "shadow_mismatch_fails_closed": true,
+        "latest_upstream_commit": "2aee0295ed22a3ed2f933ea289ce03d0b229cadb",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 128,
+      "timestamp": "2026-08-02T02:03:10+09:00",
+      "task_id": "M15-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile managed-long special exits, profit targets, stops, and no-fallthrough state into generic IR",
+        "hard_coded_terminal_results_allowed": false,
+        "silent_legacy_fallback_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
