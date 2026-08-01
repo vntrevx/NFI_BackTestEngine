@@ -272,6 +272,23 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         if args.output:
             print(f"semantic inventory report: {args.output}")
         return 0
+    if args.strategy_command == "callback-ir":
+        from ..callback_source_ir import compile_callback_source_ir
+
+        program = compile_callback_source_ir(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+        )
+        write_json(args.output, program)
+        print(
+            "callback source IR: "
+            f"entrypoints={len(program['entrypoints'])}, "
+            f"routes={len(program['route_keys'])}, "
+            f"tags={len(program['emitted_tags'])}, "
+            f"columns={len(program['required_columns'])} -> {args.output}"
+        )
+        return 0
     if args.strategy_command == "check":
         from ..strategy_compatibility import check_strategy_compatibility
         from ..verification_ledger import (

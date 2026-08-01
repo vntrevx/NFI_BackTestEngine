@@ -676,6 +676,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("benchmarks/fixtures/captured"),
     )
     strategy_semantic_inventory.add_argument("--output", "-o", type=Path)
+    strategy_callback_ir = strategy_commands.add_parser(
+        "callback-ir",
+        help="compile source-ordered callback routes, tags, and data dependencies",
+    )
+    strategy_callback_ir.add_argument("source", type=Path)
+    strategy_callback_ir.add_argument("--class", dest="class_name")
+    strategy_callback_ir.add_argument(
+        "--trading-mode",
+        choices=("all", "spot", "futures"),
+        default="all",
+    )
+    strategy_callback_ir.add_argument("--output", "-o", type=Path, required=True)
     strategy_check = strategy_commands.add_parser(
         "check",
         help="check whether a new strategy revision has exact native callback lowerings",
