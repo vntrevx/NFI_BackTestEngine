@@ -413,6 +413,8 @@ pub struct NfiX7PositionAdjustment {
     pub enabled: bool,
     pub entry_tags: Vec<String>,
     pub system_version: String,
+    #[serde(default)]
+    pub source_callback: Option<String>,
     pub decision_program: String,
     pub program_order: Vec<String>,
     pub stateful_input_contract: Value,
@@ -432,6 +434,8 @@ pub struct NfiX7RebuyAdjustment {
     pub system_version: String,
     pub stateful_input_contract: Value,
     pub constants: NfiX7RebuyConstants,
+    #[serde(default)]
+    pub program: Option<CompiledAdjustmentProgram>,
 }
 
 /// Short-rebuy ladder before X7 transfers the trade to short-grind.
@@ -448,6 +452,98 @@ pub struct NfiX7ShortRebuyAdjustment {
     pub post_derisk_action: String,
     pub stateful_input_contract: Value,
     pub constants: NfiX7RebuyConstants,
+    #[serde(default)]
+    pub program: Option<CompiledAdjustmentProgram>,
+}
+
+/// Generic, source-compiled position-adjustment transition program.
+///
+/// Route tags, order direction, formulas, and callback targets are payload
+/// data. The runtime only implements the bounded operations represented here.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledAdjustmentProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledAdjustmentExecutionMode,
+    pub source_order: Vec<CompiledAdjustmentOperation>,
+    pub order_scan: CompiledOrderScan,
+    pub delegate: CompiledAdjustmentDelegate,
+    pub decision_program: ScalarDecisionProgram,
+    pub input_contract: Value,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledAdjustmentExecutionMode {
+    Primary,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledAdjustmentOperation {
+    Delegate,
+    Decision,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub cluster_order_side: CompiledOrderSide,
+    pub boundary_order_side: CompiledOrderSide,
+    pub exclude_first_order: bool,
+    pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledOrderSequence {
+    Reverse,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CompiledOrderSide {
+    Buy,
+    Sell,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledPartialFillPolicy {
+    FilledOrdersHaveZeroRemaining,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledAdjustmentDelegate {
+    pub selector: CompiledOrderSelector,
+    pub tag_operator: CompiledTagOperator,
+    pub tag: String,
+    pub target: CompiledAdjustmentTarget,
+    pub source_target: String,
+    pub target_entry_retry_ms: i64,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledAdjustmentTarget {
+    PositionAdjustment,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledOrderSelector {
+    FirstExit,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledTagOperator {
+    Equal,
 }
 
 #[derive(Debug, Clone, Deserialize)]

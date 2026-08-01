@@ -101,6 +101,13 @@ generic 결과가 기본이며 legacy는 비교 shadow로만 실행된다. 결�
 `custom_exit`의 runtime hash gate는 제거했으며, 아직 IR로 완전히 표현되지 않은
 공통 stop/target helper만 별도 identity gate를 유지한다.
 
+Rebuy의 long/short 역순 주문 cluster, ladder 조건과 stake 산식, level-3 de-risk,
+결과 tag도 `adjustment-transition-program-v1`으로 소스에서 컴파일한다. dataframe
+column은 실행 프로그램에서 유도하며, 최소 stake 배수나 threshold를 Rust 상수로
+복제하지 않는다. 첫 exit가 선택하는 다음 adjustment callback과 그 callback의
+retry window도 같은 payload로 묶어 검증한다. 기존 스키마만 보존된 legacy 실행을
+사용하고, 새 스키마에서는 이 프로그램이 Native primary다.
+
 ## Upstream 감시
 
 호환성 workflow는 4시간마다 upstream SHA와 호환성 엔진 commit을 함께 확인한다.

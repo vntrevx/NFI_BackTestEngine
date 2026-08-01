@@ -453,6 +453,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
             system_version: "system_v3_2".to_owned(),
             stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
             constants: rebuy_constants.clone(),
+            program: None,
         },
         short_rebuy_adjustment: NfiX7ShortRebuyAdjustment {
             enabled: true,
@@ -465,11 +466,13 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
             post_derisk_action: "fail-simulation".to_owned(),
             stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
             constants: rebuy_constants,
+            program: None,
         },
         position_adjustment: Some(NfiX7PositionAdjustment {
             enabled: false,
             entry_tags: adjustment_tags,
             system_version: "system_v3_2".to_owned(),
+            source_callback: None,
             decision_program: "long_grind_entry_v3".to_owned(),
             program_order: [
                 "derisk_level_1",

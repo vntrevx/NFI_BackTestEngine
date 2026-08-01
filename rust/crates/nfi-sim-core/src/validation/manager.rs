@@ -3,10 +3,11 @@
 use std::collections::BTreeSet;
 
 use crate::domain::{
+    CompiledAdjustmentExecutionMode, CompiledAdjustmentOperation, CompiledAdjustmentProgram,
     ManagedExitExecutionMode, ManagedExitInlinePosition, ManagedExitRoute,
     ManagedExitStateOperation, ManagedExitStateProgram, ManagedExitStopPolicy,
     ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute,
-    NfiX7AdjustmentConstants, NfiX7TradeManager, PortfolioConfig, SimError,
+    NfiX7AdjustmentConstants, NfiX7AdjustmentPolicy, NfiX7TradeManager, PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -109,6 +110,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.19.0"
             | "0.20.0"
             | "0.21.0"
+            | "0.22.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -134,6 +136,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.19.0"
             | "0.20.0"
             | "0.21.0"
+            | "0.22.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -225,6 +228,7 @@ pub(crate) fn validate_nfi_trade_manager(
                             | "0.19.0"
                             | "0.20.0"
                             | "0.21.0"
+                            | "0.22.0"
                     )
                 }
                 _ => false,
@@ -324,7 +328,7 @@ pub(crate) fn validate_nfi_trade_manager(
                     && adjustment.constants.policy.is_none()
             }
             "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
-            | "0.19.0" | "0.20.0" | "0.21.0" => {
+            | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -342,6 +346,10 @@ pub(crate) fn validate_nfi_trade_manager(
         adjustment_tags == managed_tags
             && adjustment_tags.len() == adjustment.entry_tags.len()
             && adjustment.system_version == constants.system_v3_2_name
+            && valid_adjustment_source_callback(
+                &manager.schema_version,
+                adjustment.source_callback.as_deref(),
+            )
             && adjustment.decision_program == "long_grind_entry_v3"
             && adjustment.program_order == adjustment_program_order(&adjustment.constants)
             && adjustment.stateful_input_contract.is_object()
@@ -367,6 +375,10 @@ pub(crate) fn validate_nfi_trade_manager(
                     && adjustment_tags == regular_short_tags
                     && adjustment_tags.len() == adjustment.entry_tags.len()
                     && adjustment.system_version == constants.system_v3_2_name
+                    && valid_adjustment_source_callback(
+                        &manager.schema_version,
+                        adjustment.source_callback.as_deref(),
+                    )
                     && adjustment.decision_program == "short_grind_entry_v3"
                     && adjustment.program_order == adjustment_program_order(&adjustment.constants)
                     && adjustment.stateful_input_contract.is_object()
@@ -400,6 +412,12 @@ pub(crate) fn validate_nfi_trade_manager(
             && rebuy_adjustment.system_version == constants.system_v3_2_name
             && rebuy_adjustment.stateful_input_contract.is_object()
             && valid_nfi_rebuy_constants(&rebuy_adjustment.constants)
+            && valid_versioned_rebuy_program(
+                &manager.schema_version,
+                rebuy_adjustment.program.as_ref(),
+                adjustment.and_then(|value| value.constants.policy.as_ref()),
+                adjustment.and_then(|value| value.source_callback.as_deref()),
+            )
     });
     let short_rebuy_route = manager
         .managed_short_routes
@@ -426,6 +444,12 @@ pub(crate) fn validate_nfi_trade_manager(
             && valid_scope
             && short_rebuy_adjustment.stateful_input_contract.is_object()
             && valid_nfi_rebuy_constants(&short_rebuy_adjustment.constants)
+            && valid_versioned_rebuy_program(
+                &manager.schema_version,
+                short_rebuy_adjustment.program.as_ref(),
+                short_adjustment.and_then(|value| value.constants.policy.as_ref()),
+                short_adjustment.and_then(|value| value.source_callback.as_deref()),
+            )
     });
     let thresholds = [
         constants.stop_threshold_futures,
@@ -471,6 +495,51 @@ pub(crate) fn validate_nfi_trade_manager(
     Ok(())
 }
 
+fn valid_versioned_rebuy_program(
+    schema_version: &str,
+    program: Option<&CompiledAdjustmentProgram>,
+    delegate_policy: Option<&NfiX7AdjustmentPolicy>,
+    delegate_source_callback: Option<&str>,
+) -> bool {
+    if schema_version != "0.22.0" {
+        return program.is_none();
+    }
+    let Some(program) = program else {
+        return false;
+    };
+    program.schema_version == "adjustment-transition-program-v1"
+        && program.execution_mode == CompiledAdjustmentExecutionMode::Primary
+        && program.source_order
+            == [
+                CompiledAdjustmentOperation::Delegate,
+                CompiledAdjustmentOperation::Decision,
+            ]
+        && program.order_scan.cluster_order_side != program.order_scan.boundary_order_side
+        && program.order_scan.exclude_first_order
+        && !program.delegate.tag.is_empty()
+        && !program.delegate.source_target.is_empty()
+        && program.delegate.target_entry_retry_ms > 0
+        && delegate_policy
+            .is_some_and(|policy| policy.entry_retry_ms == program.delegate.target_entry_retry_ms)
+        && delegate_source_callback == Some(program.delegate.source_target.as_str())
+        && program.input_contract.is_object()
+        && program.location.line > 0
+        && program.location.end_line >= program.location.line
+        && program.delegate.location.line > 0
+        && program.delegate.location.end_line >= program.delegate.location.line
+        && valid_sha256(&program.fingerprint)
+        && valid_scalar_program(&program.decision_program)
+}
+
+fn valid_adjustment_source_callback(schema_version: &str, callback: Option<&str>) -> bool {
+    if schema_version == "0.22.0" {
+        callback.is_some_and(|value| !value.is_empty())
+    } else {
+        callback.is_none()
+    }
+}
+
+#[allow(clippy::too_many_lines)] // Route proof keeps source order and state policy co-located.
 fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_exit_program.as_ref() else {
         return !managed_exit_program_required(&manager.schema_version);
@@ -492,7 +561,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     }
     if matches!(
         manager.schema_version.as_str(),
-        "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0"
+        "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -559,11 +628,14 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                     state,
                     "long_exit_stoploss",
                     &known_tags,
-                    matches!(manager.schema_version.as_str(), "0.20.0" | "0.21.0"),
+                    matches!(
+                        manager.schema_version.as_str(),
+                        "0.20.0" | "0.21.0" | "0.22.0"
+                    ),
                 ),
                 None => !matches!(
                     manager.schema_version.as_str(),
-                    "0.19.0" | "0.20.0" | "0.21.0"
+                    "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0"
                 ),
             }
             && valid_managed_exit_terminal(route, &matcher_tags)
@@ -575,7 +647,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
 fn managed_exit_program_required(schema_version: &str) -> bool {
     matches!(
         schema_version,
-        "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0"
+        "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0"
     )
 }
 
@@ -596,7 +668,10 @@ fn managed_long_exit_tags(manager: &NfiX7TradeManager) -> BTreeSet<&str> {
 
 fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_short_exit_program.as_ref() else {
-        return !matches!(manager.schema_version.as_str(), "0.20.0" | "0.21.0");
+        return !matches!(
+            manager.schema_version.as_str(),
+            "0.20.0" | "0.21.0" | "0.22.0"
+        );
     };
     if program.schema_version != "managed-exit-program-v1"
         || !valid_managed_exit_execution_mode(&manager.schema_version, program.execution_mode)
@@ -670,7 +745,10 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                     state,
                     "short_exit_stoploss",
                     &known_tags,
-                    matches!(manager.schema_version.as_str(), "0.20.0" | "0.21.0"),
+                    matches!(
+                        manager.schema_version.as_str(),
+                        "0.20.0" | "0.21.0" | "0.22.0"
+                    ),
                 )
             })
             && route.terminal_exit.is_none()
@@ -680,7 +758,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
 }
 
 fn valid_managed_exit_execution_mode(schema_version: &str, mode: ManagedExitExecutionMode) -> bool {
-    if schema_version == "0.21.0" {
+    if matches!(schema_version, "0.21.0" | "0.22.0") {
         mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
     } else {
         mode == ManagedExitExecutionMode::Shadow

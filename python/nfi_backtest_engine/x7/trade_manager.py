@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.21.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.22.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -258,9 +258,6 @@ _MANAGED_LONG_METHOD_SHA256 = {
     "mark_profit_target": ("d1e956d0d1cb9ab3540aa4fd5288ff8c78d873f50241a9cc502b3279c59b994f"),
     "_set_profit_target": ("76aafad6b88f7843cc701ddabcbef129e5c5a4d90a1def70e30600456a16f86f"),
     "_remove_profit_target": ("4fe333ab59e962f743375ddba0b6289233b8b40adc71ac8404d0b944ea1f3210"),
-    "long_rebuy_adjust_trade_position_v3": (
-        "c57bef2165c41fc9f3e9c1b90c92a1cd39323796d8f35d818b97856593f9cdf0"
-    ),
 }
 _MANAGED_SHORT_METHOD_SHA256 = {
     "short_exit_stoploss": ("172808fcb8ebf05ed0c0689fc46672e78b76084cb5420f014fef4d169076e113"),
@@ -286,32 +283,6 @@ _ROUTE_STOP_CONSTANTS = {
     ),
 }
 
-_REBUY_ADJUSTMENT_FEATURES = {
-    "last_candle": [
-        "AROONU_14",
-        "AROONU_14_15m",
-        "EMA_26",
-        "RSI_3",
-        "RSI_3_15m",
-        "close",
-        "protections_long_global",
-    ],
-    "previous_candle_1": [],
-}
-_SHORT_REBUY_ADJUSTMENT_FEATURES = {
-    "last_candle": [
-        "AROOND_14",
-        "AROOND_14_15m",
-        "EMA_26",
-        "RSI_3",
-        "RSI_3_15m",
-        "close",
-        # This looks surprising for a short route, but it is the exact column
-        # read by X7 v17.4.413. Renaming it would change strategy behavior.
-        "protections_long_global",
-    ],
-    "previous_candle_1": [],
-}
 _REBUY_ADJUSTMENT_LIST_CONSTANTS = (
     "system_v3_rebuy_mode_stakes_futures",
     "system_v3_rebuy_mode_stakes_spot",
@@ -436,9 +407,6 @@ _ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
             "edde89ee993890c4b0d76233c4b58680bea031a844739b23a9cb23760bf3d4bb",
         }
     ),
-    "short_rebuy_adjust_trade_position_v3": frozenset(
-        {"539eb5c23f52650df0fc40474d0890aafe87df6830157197935f723e360fe801"}
-    ),
     "short_grind_adjust_trade_position_v3": frozenset(
         {"8cd3b5f7808f7d00c27185f74069184820e74efe948845c64b76c54cb454ec24"}
     ),
@@ -531,6 +499,7 @@ def build_nfi_trade_manager_ir(
     from .legacy import _build_long_btc_route, _build_long_grind_route
     from .managed_exit_ir import compile_managed_exit_ir
     from .managed_short_exit_ir import compile_managed_short_exit_ir
+    from .rebuy_ir import compile_rebuy_transition_ir
     from .routes import (
         _build_managed_long_routes,
         _build_managed_short_routes,
@@ -687,6 +656,8 @@ def build_nfi_trade_manager_ir(
     adjustment_constants: dict[str, Any] | None = None
     short_adjustment_constants: dict[str, Any] | None = None
     rebuy_adjustment_constants: dict[str, Any] | None = None
+    rebuy_transition_program: dict[str, Any] | None = None
+    short_rebuy_transition_program: dict[str, Any] | None = None
     if has_position_adjustment:
         _validate_adjustment_method_identity(method_records)
         adjustment_constants = _build_adjustment_constants(
@@ -700,6 +671,20 @@ def build_nfi_trade_manager_ir(
             side="short",
         )
         rebuy_adjustment_constants = _build_rebuy_adjustment_constants(constants)
+        long_policy = adjustment_constants.get("policy")
+        short_policy = short_adjustment_constants.get("policy")
+        if not isinstance(long_policy, dict) or not isinstance(short_policy, dict):
+            raise StrategyAnalysisError("NFI rebuy delegate policy is unavailable")
+        rebuy_transition_program = compile_rebuy_transition_ir(
+            methods["long_rebuy_adjust_trade_position_v3"],
+            constants,
+            delegate_retry_ms=int(long_policy["entry_retry_ms"]),
+        )
+        short_rebuy_transition_program = compile_rebuy_transition_ir(
+            methods["short_rebuy_adjust_trade_position_v3"],
+            constants,
+            delegate_retry_ms=int(short_policy["entry_retry_ms"]),
+        )
 
     # The stateful router calls its decisions through a tuple variable
     # (``exit_func``), so ordinary call-graph discovery cannot infer those
@@ -794,6 +779,7 @@ def build_nfi_trade_manager_ir(
             # adjustment callbacks and are deliberately excluded.
             "entry_tags": managed_entry_tags,
             "system_version": frozen_constants["system_v3_2_name"],
+            "source_callback": methods["long_grind_adjust_trade_position_v3"].name,
             "decision_program": _MANAGED_LONG_ADJUSTMENT_PROGRAM,
             "program_order": list(_MANAGED_ADJUSTMENT_PROGRAM_ORDER),
             "stateful_input_contract": {
@@ -809,6 +795,7 @@ def build_nfi_trade_manager_ir(
             # routes into the independent legacy short-grind callback.
             "entry_tags": managed_short_adjustment_tags,
             "system_version": frozen_constants["system_v3_2_name"],
+            "source_callback": methods["short_grind_adjust_trade_position_v3"].name,
             "decision_program": _MANAGED_SHORT_ADJUSTMENT_PROGRAM,
             "program_order": list(_MANAGED_ADJUSTMENT_PROGRAM_ORDER),
             "stateful_input_contract": {
@@ -816,16 +803,19 @@ def build_nfi_trade_manager_ir(
             },
             "constants": short_adjustment_constants,
         }
-    if rebuy_adjustment_constants is not None:
+    if (
+        rebuy_adjustment_constants is not None
+        and rebuy_transition_program is not None
+        and short_rebuy_transition_program is not None
+    ):
         rebuy_route = managed_routes["long_rebuy"]
         operation["rebuy_adjustment"] = {
             "enabled": constants["position_adjustment_enable"],
             "entry_tags": rebuy_route["entry_tags"],
             "system_version": frozen_constants["system_v3_2_name"],
-            "stateful_input_contract": {
-                "indexed_fields": _REBUY_ADJUSTMENT_FEATURES,
-            },
+            "stateful_input_contract": rebuy_transition_program["input_contract"],
             "constants": rebuy_adjustment_constants,
+            "program": rebuy_transition_program,
         }
         short_rebuy_route = managed_short_routes["short_rebuy"]
         operation["short_rebuy_adjustment"] = {
@@ -836,10 +826,9 @@ def build_nfi_trade_manager_ir(
             # After the first level-3 de-risk, X7 delegates to the same
             # source-bound short grind-v3 descriptor used by ordinary shorts.
             "post_derisk_action": "short-position-adjustment",
-            "stateful_input_contract": {
-                "indexed_fields": _SHORT_REBUY_ADJUSTMENT_FEATURES,
-            },
+            "stateful_input_contract": short_rebuy_transition_program["input_contract"],
             "constants": rebuy_adjustment_constants,
+            "program": short_rebuy_transition_program,
         }
     encoded = json.dumps(
         operation,
@@ -867,6 +856,16 @@ def build_nfi_trade_manager_ir(
             "managed_short_exit_ir_fingerprint": managed_short_exit_compilation.program[
                 "fingerprint"
             ],
+            "rebuy_transition_ir_fingerprint": (
+                rebuy_transition_program["fingerprint"]
+                if rebuy_transition_program is not None
+                else None
+            ),
+            "short_rebuy_transition_ir_fingerprint": (
+                short_rebuy_transition_program["fingerprint"]
+                if short_rebuy_transition_program is not None
+                else None
+            ),
             "operation_sha256": hashlib.sha256(encoded).hexdigest(),
             "programs": program_proof,
             "stateful_methods": method_identity,

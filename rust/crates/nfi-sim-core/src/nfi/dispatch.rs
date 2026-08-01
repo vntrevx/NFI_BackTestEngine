@@ -9,7 +9,7 @@ use crate::portfolio::{OpenTrade, TradeSide};
 use crate::validation::{nfi_managed_route_supports_tags, nfi_managed_short_route_supports_tags};
 
 use super::{
-    evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
+    compiled_rebuy_delegates, evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
     evaluate_nfi_regular_adjustment, evaluate_nfi_short_rebuy_adjustment,
     evaluate_nfi_system_v3_adjustment, PositionAdjustmentRequest, RegularAdjustmentOutcome,
 };
@@ -36,13 +36,17 @@ pub(crate) fn evaluate_nfi_position_adjustment(
             .split_whitespace()
             .collect::<Vec<_>>();
         if nfi_managed_route_supports_tags(manager, route, &words) {
-            let first_exit_is_level_three = trade
-                .orders
-                .iter()
-                .find(|order| !order.is_entry)
-                .and_then(|order| order.tag.as_deref())
-                == Some("derisk_level_3");
-            if !first_exit_is_level_three {
+            let delegates = if let Some(program) = manager.rebuy_adjustment.program.as_ref() {
+                compiled_rebuy_delegates(program, trade)
+            } else {
+                trade
+                    .orders
+                    .iter()
+                    .find(|order| !order.is_entry)
+                    .and_then(|order| order.tag.as_deref())
+                    == Some("derisk_level_3")
+            };
+            if !delegates {
                 return evaluate_nfi_rebuy_adjustment(
                     &manager.rebuy_adjustment,
                     trade,
@@ -141,13 +145,17 @@ fn evaluate_nfi_short_position_adjustment(
         .iter()
         .find(|route| route.key == "short_rebuy")?;
     if nfi_managed_short_route_supports_tags(manager, rebuy_route, &words) {
-        let first_exit_is_level_three = trade
-            .orders
-            .iter()
-            .find(|order| !order.is_entry)
-            .and_then(|order| order.tag.as_deref())
-            == Some("derisk_level_3");
-        if !first_exit_is_level_three {
+        let delegates = if let Some(program) = manager.short_rebuy_adjustment.program.as_ref() {
+            compiled_rebuy_delegates(program, trade)
+        } else {
+            trade
+                .orders
+                .iter()
+                .find(|order| !order.is_entry)
+                .and_then(|order| order.tag.as_deref())
+                == Some("derisk_level_3")
+        };
+        if !delegates {
             return evaluate_nfi_short_rebuy_adjustment(
                 &manager.short_rebuy_adjustment,
                 trade,

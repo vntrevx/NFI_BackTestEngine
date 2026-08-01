@@ -133,6 +133,11 @@ It accumulates entry, exit, and exact-tag clusters with amount, cost, source-ord
 and latest-fill metadata. Every filled order enters through one append boundary that
 invalidates both this projection and the NFI adjustment cache; no callback can reuse a
 stale order view. Tag values remain ordinary data rather than runtime route names.
+Rebuy callbacks compile their reverse order scan, source-ordered delegate, complete
+stake/de-risk Scalar program, result tags, and target retry contract into a generic
+adjustment-transition payload. Rust selects order directions and actions from that
+payload; changing a supported source literal rebuilds the program instead of selecting
+a strategy-version branch.
 Current candle price and profit are always evaluated freshly. Compiled scalar callbacks
 keep an immutable base scope plus a small per-call write overlay, project the union of
 required features once, and resolve literal field/index access without cloning an entire

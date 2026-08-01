@@ -194,7 +194,6 @@ def test_exit_wrapper_hash_gates_are_retired_after_structural_lowering() -> None
         "mark_profit_target",
         "_set_profit_target",
         "_remove_profit_target",
-        "long_rebuy_adjust_trade_position_v3",
     }
     assert set(_MANAGED_SHORT_METHOD_SHA256) == {"short_exit_stoploss"}
 
@@ -461,7 +460,7 @@ def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) 
 
     assert manager is not None
     operation = manager["operation"]
-    assert operation["schema_version"] == "0.21.0"
+    assert operation["schema_version"] == "0.22.0"
     assert operation["managed_short_exit_program"]["execution_mode"] == (
         "primary-with-legacy-shadow"
     )
