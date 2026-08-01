@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 92,
-  "updated_at": "2026-08-01T21:12:37+09:00",
+  "revision": 93,
+  "updated_at": "2026-08-01T21:48:27+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M13-03",
+  "active_task_id": "M13-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3285,7 +3285,7 @@
       "order": 1303,
       "milestone": "M13",
       "title": "Formalize candle, callback, and pair scheduling semantics",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M13-02"
       ],
@@ -3305,9 +3305,47 @@
         "parallel preparation determinism"
       ],
       "started_at": "2026-08-01T21:12:37+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T21:48:27+09:00",
+      "commit_sha": "a8697731ec8d9a02e3253a6ff2c3c5b5158dac76",
+      "evidence": [
+        {
+          "kind": "scheduler_contract",
+          "semantic_profile_fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+          "scheduler_contract_fingerprint": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+          "python_rust_contract_exact": true,
+          "signal_shift_contract_bound": true,
+          "callback_visibility_contract_bound": true,
+          "parallel_preparation_restores_configured_order": true,
+          "wallet_event_loop_parallelized": false
+        },
+        {
+          "kind": "official_multipair_scheduler_fixture",
+          "fixture_id": "m13-03-latest-nfi-two-pair-scheduler-spot-v2",
+          "manifest_sha256": "d3bae63767852fef2806c4bb094367100d12516f84a2293811f6781d6eddd667",
+          "official_semantic_trace_sha256": "647c7088f75e1999019617a14437ddc3c45198f722aae81f6992418335e4fc8f",
+          "native_events_sha256": "c6b386beeb9f835af5441fed03f96e26d06f828a839928840082cd21a64a66a8",
+          "verification_fingerprint": "102867c3773ee2910234cb6bcb7c02905a0c30d7b20ae0e3a72875ed8c25bcb2",
+          "event_count": 576,
+          "timestamp_batch_count": 288,
+          "same_timestamp_batch_count": 288,
+          "entry_tag_reached": "62",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "event_order_exact": true
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 598,
+          "rust_tests_passed": 111,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3315,7 +3353,7 @@
       "order": 1304,
       "milestone": "M13",
       "title": "Formalize order, wallet, fee, and precision semantics",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M13-03"
       ],
@@ -3333,7 +3371,7 @@
         "order and wallet semantic fixtures",
         "Spot full-state exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T21:48:27+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6651,6 +6689,36 @@
       "details": {
         "objective": "formal candle, callback visibility, and same-timestamp pair scheduling",
         "parallel_wallet_mutation_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 113,
+      "timestamp": "2026-08-01T21:48:27+09:00",
+      "task_id": "M13-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "a8697731ec8d9a02e3253a6ff2c3c5b5158dac76",
+        "scheduler_contract_fingerprint": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+        "official_multipair_events": 576,
+        "same_timestamp_batches": 288,
+        "event_order_exact": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "parallel_preparation_deterministic": true,
+        "parallel_wallet_mutation_added": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 114,
+      "timestamp": "2026-08-01T21:48:27+09:00",
+      "task_id": "M13-04",
+      "event": "task_started",
+      "details": {
+        "objective": "formal order, wallet, stake, fee, and precision semantics",
+        "approximate_rejected_orders_allowed": false,
+        "full_state_tolerance": 0,
         "runtime_hardcoding_allowed": false
       }
     }
