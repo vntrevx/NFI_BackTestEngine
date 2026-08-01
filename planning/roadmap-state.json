@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 93,
-  "updated_at": "2026-08-01T21:48:27+09:00",
+  "revision": 94,
+  "updated_at": "2026-08-01T22:10:49+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M13-04",
+  "active_task_id": "M13-05",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3353,7 +3353,7 @@
       "order": 1304,
       "milestone": "M13",
       "title": "Formalize order, wallet, fee, and precision semantics",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M13-03"
       ],
@@ -3372,9 +3372,45 @@
         "Spot full-state exact"
       ],
       "started_at": "2026-08-01T21:48:27+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T22:10:49+09:00",
+      "commit_sha": "bf22753c5cce1786f9372fa2a22fd903254b2327",
+      "evidence": [
+        {
+          "kind": "spot_execution_contract",
+          "fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0",
+          "semantic_profile_bound": true,
+          "scheduler_contract_bound": true,
+          "python_rust_contract_exact": true,
+          "pre_order_and_post_sizing_rejection_separated": true,
+          "wallet_fee_and_precision_contract_bound": true,
+          "unknown_semantics_fail_closed": true
+        },
+        {
+          "kind": "spot_order_wallet_full_state",
+          "normal_routing_run_sha256": "5596cb3d3a633db95216ef7bffbaa4e9ad320e5ff8abf4c813e4791bca0aabe5",
+          "stops_only_run_sha256": "4f1bde24662e11db643e8950d1ced6cb5e83a766192cc5ba3608af3bf190444d",
+          "normal_routing_trade_count": 6,
+          "normal_routing_order_count": 15,
+          "stops_only_trade_count": 2,
+          "stops_only_order_count": 4,
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 604,
+          "rust_tests_passed": 112,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3382,7 +3418,7 @@
       "order": 1305,
       "milestone": "M13",
       "title": "Formalize Futures, liquidation, and protection semantics",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M13-04"
       ],
@@ -3401,7 +3437,7 @@
         "Futures semantic fixtures",
         "long and short full-state exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T22:10:49+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6719,6 +6755,33 @@
         "objective": "formal order, wallet, stake, fee, and precision semantics",
         "approximate_rejected_orders_allowed": false,
         "full_state_tolerance": 0,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 115,
+      "timestamp": "2026-08-01T22:10:49+09:00",
+      "task_id": "M13-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "bf22753c5cce1786f9372fa2a22fd903254b2327",
+        "execution_contract_fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0",
+        "spot_order_wallet_full_state_exact": true,
+        "numeric_tolerance": 0,
+        "pre_order_and_post_sizing_rejection_separated": true,
+        "simulation_behavior_changed": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 116,
+      "timestamp": "2026-08-01T22:10:49+09:00",
+      "task_id": "M13-05",
+      "event": "task_started",
+      "details": {
+        "objective": "formal Futures funding, liquidation, stop-collision, and protection semantics",
+        "spot_accounting_reuse_allowed": false,
+        "exchange_scope_widening_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
