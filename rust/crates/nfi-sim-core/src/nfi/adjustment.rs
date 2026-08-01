@@ -11,16 +11,24 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use crate::calculations::{fee_close, fee_open};
-use crate::callbacks::{feature_number_at, insert_projected_feature_window, scalar_trade_value};
+use crate::callbacks::{
+    feature_number_at, insert_projected_feature_window, scalar_program_feature_projection,
+    scalar_trade_value,
+};
 use crate::domain::{
-    AdjustmentSignal, Candle, NfiX7AdjustmentComparison, NfiX7AdjustmentCondition,
+    AdjustmentSignal, Candle, CompiledOrderSide, CompiledSystemAdjustmentAction,
+    CompiledSystemAdjustmentExecutionMode, CompiledSystemAdjustmentInputKind,
+    CompiledSystemAdjustmentProgram, CompiledSystemAdjustmentSide, CompiledSystemGrindTags,
+    CompiledSystemStakeScale, NfiX7AdjustmentComparison, NfiX7AdjustmentCondition,
     NfiX7AdjustmentOperand, NfiX7AdjustmentPredicate, NfiX7GrindLevel, NfiX7PositionAdjustment,
-    NfiX7TradeManager, PairSeries, PortfolioConfig,
+    NfiX7TradeManager, OrderSide, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::order_aggregates::FilledOrderSelector;
 use crate::portfolio::{OpenTrade, TradeSide};
-use crate::scalar_vm::{evaluate_scalar_program_bundle, number_value, scalar_truthy};
+use crate::scalar_vm::{
+    evaluate_scalar_decision_program, evaluate_scalar_program_bundle, number_value, scalar_truthy,
+};
 
 use super::state::{nfi_profit_snapshot, NfiProfitSnapshot, PositionAdjustmentRequest};
 
@@ -116,6 +124,59 @@ pub(crate) fn evaluate_nfi_position_adjustment(
     initial_stake_multiplier: f64,
     rebuy_mode: bool,
 ) -> Option<Option<AdjustmentSignal>> {
+    let Some(program) = adjustment.program.as_ref() else {
+        return evaluate_nfi_position_adjustment_legacy(
+            manager,
+            adjustment,
+            expected_side,
+            trade,
+            request,
+            initial_stake_multiplier,
+            rebuy_mode,
+        );
+    };
+    let mut primary_trade = trade.clone();
+    let primary = evaluate_compiled_system_adjustment(
+        manager,
+        adjustment,
+        program,
+        expected_side,
+        &mut primary_trade,
+        request,
+        initial_stake_multiplier,
+        rebuy_mode,
+    )?;
+    let mut shadow_trade = trade.clone();
+    let shadow = evaluate_nfi_position_adjustment_legacy(
+        manager,
+        adjustment,
+        expected_side,
+        &mut shadow_trade,
+        request,
+        initial_stake_multiplier,
+        rebuy_mode,
+    )?;
+    if !same_adjustment(primary.as_ref(), shadow.as_ref())
+        || primary_trade.custom_data != shadow_trade.custom_data
+    {
+        return None;
+    }
+    trade.custom_data = primary_trade.custom_data;
+    trade.nfi_adjustment_state = primary_trade.nfi_adjustment_state;
+    Some(primary)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::option_option)] // Outer None is invalid IR; inner None is callback no-op.
+fn evaluate_nfi_position_adjustment_legacy(
+    manager: &NfiX7TradeManager,
+    adjustment: &NfiX7PositionAdjustment,
+    expected_side: TradeSide,
+    trade: &mut OpenTrade,
+    request: &PositionAdjustmentRequest<'_>,
+    initial_stake_multiplier: f64,
+    rebuy_mode: bool,
+) -> Option<Option<AdjustmentSignal>> {
     if !adjustment.enabled {
         return Some(None);
     }
@@ -151,6 +212,441 @@ pub(crate) fn evaluate_nfi_position_adjustment(
     );
     trade.nfi_adjustment_state = Some(state);
     result
+}
+
+fn same_adjustment(left: Option<&AdjustmentSignal>, right: Option<&AdjustmentSignal>) -> bool {
+    match (left, right) {
+        (None, None) => true,
+        (Some(left), Some(right)) => {
+            left.stake_amount.to_bits() == right.stake_amount.to_bits() && left.tag == right.tag
+        }
+        _ => false,
+    }
+}
+
+enum CompiledActionOutcome {
+    Continue,
+    ReturnNone,
+    Signal(AdjustmentSignal),
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)] // Setup mirrors the complete callback-visible context.
+#[allow(clippy::option_option)] // Preserve compiled-program validity separately from no-op.
+fn evaluate_compiled_system_adjustment(
+    manager: &NfiX7TradeManager,
+    adjustment: &NfiX7PositionAdjustment,
+    program: &CompiledSystemAdjustmentProgram,
+    expected_side: TradeSide,
+    trade: &mut OpenTrade,
+    request: &PositionAdjustmentRequest<'_>,
+    initial_stake_multiplier: f64,
+    rebuy_mode: bool,
+) -> Option<Option<AdjustmentSignal>> {
+    if program.execution_mode != CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
+        || program.side != CompiledSystemAdjustmentSide::Long
+        || expected_side != TradeSide::Long
+        || trade.side != expected_side
+    {
+        return None;
+    }
+    if !adjustment.enabled {
+        return Some(None);
+    }
+    if !rebuy_mode && !nfi_adjustment_supports_trade(adjustment, trade) {
+        return None;
+    }
+    if trade.custom_data.get("system_version")?.as_str()? != adjustment.system_version {
+        return None;
+    }
+    if !initial_stake_multiplier.is_finite() || initial_stake_multiplier <= 0.0 {
+        return None;
+    }
+    let state = rebuild_compiled_adjustment_state(trade, program)?;
+    let exchange_minimum_stake =
+        adjustment_minimum_stake(request.pair, request.candle, trade, request.config)?;
+    let minimum_stake =
+        grind_callback_minimum_stake(exchange_minimum_stake, trade.leverage, rebuy_mode);
+    let available_balance =
+        grind_callback_maximum_stake(request.available_balance, trade.leverage, rebuy_mode);
+    let snapshot = nfi_profit_snapshot(
+        trade,
+        request.candle.open,
+        fee_open(request.config),
+        fee_close(request.config),
+        request.config.is_futures,
+    )?;
+    let slice_amount = state.first_entry_cost / initial_stake_multiplier;
+    let slice_profit = price_distance(request.candle.open, state.latest_order_price)?;
+    let slice_profit_entry = price_distance(request.candle.open, state.latest_entry_price)?;
+    let slice_profit_exit = state
+        .latest_exit_price
+        .and_then(|price| price_distance(request.candle.open, price))
+        .unwrap_or(0.0);
+    let open_grind_count = state
+        .clusters
+        .iter()
+        .map(|cluster| cluster.count)
+        .sum::<usize>();
+    let grind_entry_signal = evaluate_grind_entry_program(
+        manager,
+        &adjustment.decision_program,
+        trade,
+        request.pair,
+        request.candle_index,
+        request.candle,
+        open_grind_count,
+        slice_profit,
+        slice_profit_entry,
+        slice_profit_exit,
+    )?;
+    let policy = adjustment.constants.policy.as_ref()?;
+    if program.retry_policy.entry_retry_ms != policy.entry_retry_ms
+        || program.retry_policy.stale_order_ms != policy.stale_order_ms
+        || program.retry_policy.entry_retry_ms <= 0
+        || program.retry_policy.stale_order_ms <= 0
+    {
+        return None;
+    }
+    let retry_cutoff = request
+        .candle
+        .timestamp_ms
+        .checked_sub(program.retry_policy.entry_retry_ms)?;
+    let stale_cutoff = request
+        .candle
+        .timestamp_ms
+        .checked_sub(program.retry_policy.stale_order_ms)?;
+    let extra_profit = adjustment_condition_matches(
+        &policy.extra_entry_profit_condition,
+        request.pair,
+        request.candle_index,
+        slice_profit,
+        slice_profit_entry,
+        open_grind_count,
+    )?;
+    let extra_derisk = any_derisk_level(&state, &policy.extra_entry_derisk_levels)?;
+    let extra_entry_checks = retry_cutoff > state.latest_entry_timestamp_ms
+        && (stale_cutoff > state.latest_order_timestamp_ms || extra_profit || extra_derisk);
+    let previous_maxima = read_and_update_compiled_cluster_maxima(
+        trade,
+        &state.clusters,
+        &program.order_scan.grind_levels,
+        request.candle.open,
+        fee_close(request.config),
+        trade.side,
+    )?;
+    let context = AdjustmentContext {
+        adjustment,
+        pair: request.pair,
+        candle_index: request.candle_index,
+        candle: request.candle,
+        config: request.config,
+        available_balance,
+        minimum_stake,
+        snapshot,
+        slice_amount,
+        slice_profit,
+        slice_profit_entry,
+        current_stake_amount: trade.amount * request.candle.open,
+        rebuy_mode,
+        is_grind_entry: grind_entry_signal,
+        extra_entry_checks,
+    };
+    for action in &program.source_order {
+        match evaluate_compiled_system_action(
+            action,
+            program,
+            &context,
+            trade,
+            &state,
+            &previous_maxima,
+            open_grind_count,
+        )? {
+            CompiledActionOutcome::Continue => {}
+            CompiledActionOutcome::ReturnNone => {
+                trade.nfi_adjustment_state = Some(state);
+                return Some(None);
+            }
+            CompiledActionOutcome::Signal(signal) => {
+                trade.nfi_adjustment_state = Some(state);
+                return Some(Some(signal));
+            }
+        }
+    }
+    trade.nfi_adjustment_state = Some(state);
+    Some(None)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_compiled_system_action(
+    action: &CompiledSystemAdjustmentAction,
+    program: &CompiledSystemAdjustmentProgram,
+    context: &AdjustmentContext<'_>,
+    trade: &OpenTrade,
+    state: &AdjustmentState,
+    previous_maxima: &[(f64, f64)],
+    open_grind_count: usize,
+) -> Option<CompiledActionOutcome> {
+    let mut variables = BTreeMap::new();
+    for binding in &action.bindings {
+        let value = compiled_binding_value(
+            binding.kind,
+            binding.level,
+            action,
+            program,
+            context,
+            trade,
+            state,
+            previous_maxima,
+            open_grind_count,
+        )?;
+        if variables.insert(binding.name.clone(), value).is_some() {
+            return None;
+        }
+    }
+    let projection = scalar_program_feature_projection(&action.decision_program);
+    insert_projected_feature_window(
+        &mut variables,
+        context.pair,
+        context.candle_index,
+        &projection,
+    )?;
+    let value = evaluate_scalar_decision_program(&action.decision_program, &variables)?;
+    if value.as_str() == Some("continue") {
+        return Some(CompiledActionOutcome::Continue);
+    }
+    if value.as_str() == Some("return-none") {
+        return Some(CompiledActionOutcome::ReturnNone);
+    }
+    let values = value.as_array()?;
+    if values.len() != 2 {
+        return None;
+    }
+    let stake_amount = values.first()?.as_f64()?;
+    let tag = values.get(1)?.as_str()?;
+    if !stake_amount.is_finite() || stake_amount == 0.0 || tag != action.tag {
+        return None;
+    }
+    let mut tag = tag.to_owned();
+    if action.append_entry_ids {
+        let index = compiled_grind_index(program, action.level)?;
+        for id in &state.clusters.get(index)?.entry_ids {
+            tag.push(' ');
+            tag.push_str(&id.to_string());
+        }
+    }
+    Some(CompiledActionOutcome::Signal(AdjustmentSignal {
+        stake_amount,
+        tag,
+    }))
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)] // Typed bindings keep source names out of the runtime.
+fn compiled_binding_value(
+    kind: CompiledSystemAdjustmentInputKind,
+    level: Option<usize>,
+    action: &CompiledSystemAdjustmentAction,
+    program: &CompiledSystemAdjustmentProgram,
+    context: &AdjustmentContext<'_>,
+    trade: &OpenTrade,
+    state: &AdjustmentState,
+    previous_maxima: &[(f64, f64)],
+    open_grind_count: usize,
+) -> Option<Value> {
+    let cluster_value = |level: Option<usize>| -> Option<(usize, &GrindCluster, &NfiX7GrindLevel)> {
+        let level = level?;
+        let index = compiled_grind_index(program, level)?;
+        let cluster = state.clusters.get(index)?;
+        let constants = context
+            .adjustment
+            .constants
+            .grinds
+            .iter()
+            .find(|record| record.level == level)?;
+        Some((index, cluster, constants))
+    };
+    let number = |value| number_value(value);
+    match kind {
+        CompiledSystemAdjustmentInputKind::CurrentRate
+        | CompiledSystemAdjustmentInputKind::ExitRate => number(context.candle.open),
+        CompiledSystemAdjustmentInputKind::CurrentStakeAmount => {
+            number(context.current_stake_amount)
+        }
+        CompiledSystemAdjustmentInputKind::FeeCloseRate => number(fee_close(context.config)),
+        CompiledSystemAdjustmentInputKind::FeeOpenRate => number(fee_open(context.config)),
+        CompiledSystemAdjustmentInputKind::FirstEntryAmount => number(state.first_entry_amount),
+        CompiledSystemAdjustmentInputKind::IsFuturesMode => {
+            Some(Value::Bool(context.config.is_futures))
+        }
+        CompiledSystemAdjustmentInputKind::ExtraEntryChecks => {
+            Some(Value::Bool(context.extra_entry_checks))
+        }
+        CompiledSystemAdjustmentInputKind::GrindEntrySignal => {
+            Some(Value::Bool(context.is_grind_entry))
+        }
+        CompiledSystemAdjustmentInputKind::BelowMaximumStake => Some(Value::Bool(
+            context.current_stake_amount
+                < context.slice_amount * context.adjustment.constants.max_stake_multiplier,
+        )),
+        CompiledSystemAdjustmentInputKind::IsRebuyMode => Some(Value::Bool(context.rebuy_mode)),
+        CompiledSystemAdjustmentInputKind::IsSystemV3
+        | CompiledSystemAdjustmentInputKind::IsSystemV31 => Some(Value::Bool(false)),
+        CompiledSystemAdjustmentInputKind::IsSystemV32 => Some(Value::Bool(true)),
+        CompiledSystemAdjustmentInputKind::LastCandle
+        | CompiledSystemAdjustmentInputKind::PreviousCandle => Some(Value::Null),
+        CompiledSystemAdjustmentInputKind::MaximumStake => number(context.available_balance),
+        CompiledSystemAdjustmentInputKind::MinimumStake => number(context.minimum_stake),
+        CompiledSystemAdjustmentInputKind::OpenGrindCount => {
+            Some(Value::Number(u64::try_from(open_grind_count).ok()?.into()))
+        }
+        CompiledSystemAdjustmentInputKind::ProfitRatio => number(context.snapshot.ratio),
+        CompiledSystemAdjustmentInputKind::ProfitStake => number(context.snapshot.stake),
+        CompiledSystemAdjustmentInputKind::SliceAmount => number(context.slice_amount),
+        CompiledSystemAdjustmentInputKind::SliceProfit => number(context.slice_profit),
+        CompiledSystemAdjustmentInputKind::SliceProfitEntry => number(context.slice_profit_entry),
+        CompiledSystemAdjustmentInputKind::ActionTag => Some(Value::String(action.tag.clone())),
+        CompiledSystemAdjustmentInputKind::Trade => scalar_trade_value(trade),
+        CompiledSystemAdjustmentInputKind::TradeAmount => number(trade.amount),
+        CompiledSystemAdjustmentInputKind::TradeLeverage => number(trade.leverage),
+        CompiledSystemAdjustmentInputKind::TradeStakeAmount => number(trade.stake_amount),
+        CompiledSystemAdjustmentInputKind::DeriskFound => {
+            let index = compiled_derisk_index(program, level?)?;
+            Some(Value::Bool(state.derisk_found.get(index).copied()?))
+        }
+        CompiledSystemAdjustmentInputKind::ClusterCount => {
+            let (_, cluster, _) = cluster_value(level)?;
+            Some(Value::Number(u64::try_from(cluster.count).ok()?.into()))
+        }
+        CompiledSystemAdjustmentInputKind::ClusterMaximumCount => {
+            let stakes = compiled_scaled_stakes(program, context, trade, level?)?;
+            Some(Value::Number(u64::try_from(stakes.len()).ok()?.into()))
+        }
+        CompiledSystemAdjustmentInputKind::ClusterDistance => {
+            let (_, cluster, _) = cluster_value(level)?;
+            number(cluster.directional_distance(context.candle.open, trade.side))
+        }
+        CompiledSystemAdjustmentInputKind::ClusterThresholds => {
+            let (_, _, constants) = cluster_value(level)?;
+            let values = if context.config.is_futures {
+                &constants.thresholds_futures
+            } else {
+                &constants.thresholds_spot
+            };
+            number_array(values)
+        }
+        CompiledSystemAdjustmentInputKind::ClusterStakes => {
+            let values = compiled_scaled_stakes(program, context, trade, level?)?;
+            number_array(&values)
+        }
+        CompiledSystemAdjustmentInputKind::ClusterTotalAmount => {
+            let (_, cluster, _) = cluster_value(level)?;
+            number(cluster.total_amount)
+        }
+        CompiledSystemAdjustmentInputKind::ClusterOpenRate => {
+            let (_, cluster, _) = cluster_value(level)?;
+            let value = if cluster.count == 0 {
+                0.0
+            } else {
+                cluster.total_cost / cluster.total_amount
+            };
+            number(value)
+        }
+        CompiledSystemAdjustmentInputKind::ClusterProfitRate => {
+            let (_, cluster, _) = cluster_value(level)?;
+            number(cluster.profit_rate(context.candle.open))
+        }
+        CompiledSystemAdjustmentInputKind::ClusterProfitStake => {
+            let (_, cluster, _) = cluster_value(level)?;
+            number(cluster.profit_stake(context.candle.open, fee_close(context.config), trade.side))
+        }
+        CompiledSystemAdjustmentInputKind::ClusterProfitThreshold => {
+            let (_, _, constants) = cluster_value(level)?;
+            number(if context.config.is_futures {
+                constants.profit_threshold_futures
+            } else {
+                constants.profit_threshold_spot
+            })
+        }
+        CompiledSystemAdjustmentInputKind::ClusterDeriskThreshold => {
+            let (_, _, constants) = cluster_value(level)?;
+            number(if context.config.is_futures {
+                constants.derisk_futures
+            } else {
+                constants.derisk_spot
+            })
+        }
+        CompiledSystemAdjustmentInputKind::ClusterMaximumProfitStake => {
+            let (index, _, _) = cluster_value(level)?;
+            number(previous_maxima.get(index)?.0)
+        }
+        CompiledSystemAdjustmentInputKind::ClusterMaximumProfitRate => {
+            let (index, _, _) = cluster_value(level)?;
+            number(previous_maxima.get(index)?.1)
+        }
+    }
+}
+
+fn number_array(values: &[f64]) -> Option<Value> {
+    values
+        .iter()
+        .map(|value| number_value(*value))
+        .collect::<Option<Vec<_>>>()
+        .map(Value::Array)
+}
+
+fn compiled_scaled_stakes(
+    program: &CompiledSystemAdjustmentProgram,
+    context: &AdjustmentContext<'_>,
+    trade: &OpenTrade,
+    level: usize,
+) -> Option<Vec<f64>> {
+    let index = compiled_grind_index(program, level)?;
+    let tags = program.order_scan.grind_levels.get(index)?;
+    let constants = context
+        .adjustment
+        .constants
+        .grinds
+        .iter()
+        .find(|record| record.level == level)?;
+    let stakes = if context.config.is_futures {
+        &constants.stakes_futures
+    } else {
+        &constants.stakes_spot
+    };
+    let stake_leverage = match tags.minimum_scale_leverage {
+        CompiledSystemStakeScale::TradeLeverage => trade.leverage,
+        CompiledSystemStakeScale::MarketModeLeverage => {
+            if context.config.is_futures {
+                trade.leverage
+            } else {
+                1.0
+            }
+        }
+    };
+    scale_stakes_for_minimum(
+        stakes,
+        context.slice_amount,
+        context.minimum_stake,
+        stake_leverage,
+        trade.leverage,
+    )
+}
+
+fn compiled_grind_index(program: &CompiledSystemAdjustmentProgram, level: usize) -> Option<usize> {
+    program
+        .order_scan
+        .grind_levels
+        .iter()
+        .position(|record| record.level == level)
+}
+
+fn compiled_derisk_index(program: &CompiledSystemAdjustmentProgram, level: usize) -> Option<usize> {
+    program
+        .order_scan
+        .derisk_tags
+        .iter()
+        .position(|record| record.level == level)
 }
 
 #[allow(clippy::option_option)] // Preserve the evaluator-validity boundary.
@@ -376,6 +872,151 @@ fn rebuild_adjustment_state(
         latest_order_price: latest.price,
         latest_order_timestamp_ms: latest.timestamp_ms,
     })
+}
+
+fn rebuild_compiled_adjustment_state(
+    trade: &OpenTrade,
+    program: &CompiledSystemAdjustmentProgram,
+) -> Option<AdjustmentState> {
+    let first = trade.orders.first()?;
+    if !compiled_order_side_matches(program.order_scan.entry_order_side, first.side) {
+        return None;
+    }
+    let aggregates = trade.filled_order_aggregates();
+    if aggregates.order_count() != trade.orders.len() {
+        return None;
+    }
+    let latest = aggregates
+        .select(FilledOrderSelector::All)
+        .latest
+        .as_ref()?;
+    let latest_entry = aggregates
+        .select(FilledOrderSelector::Entries)
+        .latest
+        .as_ref()?;
+    let latest_exit = aggregates
+        .select(FilledOrderSelector::Exits)
+        .latest
+        .as_ref();
+    let mut clusters = vec![GrindCluster::default(); program.order_scan.grind_levels.len()];
+    let mut cluster_closed = vec![false; clusters.len()];
+    let mut derisk_found = vec![false; program.order_scan.derisk_tags.len()];
+    for order in trade.orders.iter().rev() {
+        let tag = order.tag.as_deref().unwrap_or("");
+        let head = tag.split_whitespace().next().unwrap_or("");
+        if compiled_order_side_matches(program.order_scan.entry_order_side, order.side) {
+            if program.order_scan.exclude_first_entry && order.id == first.id {
+                continue;
+            }
+            if let Some(index) = program
+                .order_scan
+                .grind_levels
+                .iter()
+                .position(|record| record.entry_tag == tag)
+            {
+                if !cluster_closed.get(index).copied()? {
+                    let cluster = clusters.get_mut(index)?;
+                    cluster.count = cluster.count.checked_add(1)?;
+                    cluster.total_amount += order.amount;
+                    cluster.total_cost += order.amount * order.price;
+                    cluster.entry_ids.push(order.id);
+                    cluster.latest_entry_price.get_or_insert(order.price);
+                }
+            }
+            continue;
+        }
+        if !compiled_order_side_matches(program.order_scan.exit_order_side, order.side) {
+            return None;
+        }
+        if let Some(index) = program
+            .order_scan
+            .derisk_tags
+            .iter()
+            .position(|record| record.tag == head)
+        {
+            *derisk_found.get_mut(index)? = true;
+            continue;
+        }
+        if head == program.order_scan.global_exit_tag {
+            for (closed, cluster) in cluster_closed.iter_mut().zip(&mut clusters) {
+                if !*closed {
+                    *closed = true;
+                    cluster.exit_price = Some(order.price);
+                }
+            }
+            continue;
+        }
+        if let Some(index) = program
+            .order_scan
+            .grind_levels
+            .iter()
+            .position(|record| record.exit_tag == head || record.derisk_tag == head)
+        {
+            if !cluster_closed.get(index).copied()? {
+                *cluster_closed.get_mut(index)? = true;
+                clusters.get_mut(index)?.exit_price = Some(order.price);
+            }
+        }
+    }
+    Some(AdjustmentState {
+        order_count: trade.orders.len(),
+        clusters,
+        derisk_found,
+        first_entry_amount: first.amount,
+        first_entry_cost: first.amount * first.price,
+        latest_entry_price: latest_entry.price,
+        latest_entry_timestamp_ms: latest_entry.timestamp_ms,
+        latest_exit_price: latest_exit.map(|order| order.price),
+        latest_order_price: latest.price,
+        latest_order_timestamp_ms: latest.timestamp_ms,
+    })
+}
+
+fn read_and_update_compiled_cluster_maxima(
+    trade: &mut OpenTrade,
+    clusters: &[GrindCluster],
+    levels: &[CompiledSystemGrindTags],
+    rate: f64,
+    close_fee: f64,
+    side: TradeSide,
+) -> Option<Vec<(f64, f64)>> {
+    if clusters.len() != levels.len() {
+        return None;
+    }
+    clusters
+        .iter()
+        .zip(levels)
+        .map(|(cluster, level)| {
+            let previous_stake = custom_number(trade, &level.maximum_profit_stake_key);
+            let previous_rate = custom_number(trade, &level.maximum_profit_rate_key);
+            let profit_stake = cluster.profit_stake(rate, close_fee, side);
+            let profit_rate = cluster.profit_rate(rate);
+            if profit_stake > previous_stake {
+                trade.custom_data.insert(
+                    level.maximum_profit_stake_key.clone(),
+                    number_value(profit_stake)?,
+                );
+            }
+            let rate_improved = match side {
+                TradeSide::Long => profit_rate > previous_rate,
+                TradeSide::Short => profit_rate < previous_rate,
+            };
+            if rate_improved {
+                trade.custom_data.insert(
+                    level.maximum_profit_rate_key.clone(),
+                    number_value(profit_rate)?,
+                );
+            }
+            Some((previous_stake, previous_rate))
+        })
+        .collect()
+}
+
+const fn compiled_order_side_matches(expected: CompiledOrderSide, actual: OrderSide) -> bool {
+    matches!(
+        (expected, actual),
+        (CompiledOrderSide::Buy, OrderSide::Buy) | (CompiledOrderSide::Sell, OrderSide::Sell)
+    )
 }
 
 fn grind_entry_index(tag: &str) -> Option<usize> {
@@ -904,10 +1545,176 @@ fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        derisk_level_index, grind_callback_maximum_stake, grind_callback_minimum_stake,
-        grind_entry_index, grind_exit_index,
+    use std::collections::BTreeMap;
+    use std::sync::OnceLock;
+
+    use serde_json::json;
+
+    use crate::domain::{
+        CompiledSystemAdjustmentProgram, FilledOrder, NfiX7AdjustmentConstants, NfiX7GrindLevel,
+        NfiX7PositionAdjustment, OrderSide, PairSeries, PortfolioConfig,
     };
+    use crate::portfolio::{OpenTrade, TradeSide};
+
+    use super::{
+        derisk_level_index, evaluate_compiled_system_action, grind_callback_maximum_stake,
+        grind_callback_minimum_stake, grind_entry_index, grind_exit_index, AdjustmentContext,
+        AdjustmentState, CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
+    };
+
+    fn compiled_action_program(result: &serde_json::Value) -> CompiledSystemAdjustmentProgram {
+        serde_json::from_value(json!({
+            "schema_version": "system-adjustment-program-v1",
+            "execution_mode": "primary-with-legacy-shadow",
+            "side": "long",
+            "source_callback": "source_adjustment",
+            "source_order": [{
+                "kind": "grind-exit",
+                "level": 12,
+                "tag": "source_exit",
+                "append_entry_ids": true,
+                "decision_program": result,
+                "bindings": [
+                    {"name": "min_stake", "kind": "minimum-stake"},
+                    {"name": "tag", "kind": "action-tag"}
+                ],
+                "input_contract": {},
+                "location": {"line": 10, "column": 0, "end_line": 20, "end_column": 1}
+            }],
+            "order_scan": {
+                "sequence": "reverse",
+                "entry_order_side": "buy",
+                "exit_order_side": "sell",
+                "exclude_first_entry": true,
+                "global_exit_tag": "source_global_exit",
+                "derisk_tags": [],
+                "grind_levels": [{
+                    "level": 12,
+                    "entry_tag": "source_entry",
+                    "exit_tag": "source_exit",
+                    "derisk_tag": "source_derisk",
+                    "maximum_profit_stake_key": "source_max_stake",
+                    "maximum_profit_rate_key": "source_max_rate",
+                    "minimum_scale_leverage": "trade-leverage"
+                }],
+                "partial_fill_policy": "filled-orders-have-zero-remaining"
+            },
+            "input_contract": {},
+            "retry_policy": {"entry_retry_ms": 300_000, "stale_order_ms": 21_600_000},
+            "location": {"line": 1, "column": 0, "end_line": 30, "end_column": 1},
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }))
+        .expect("valid compiled system adjustment")
+    }
+
+    fn test_adjustment() -> NfiX7PositionAdjustment {
+        NfiX7PositionAdjustment {
+            enabled: true,
+            entry_tags: vec!["source_route".to_owned()],
+            system_version: "system_v3_2".to_owned(),
+            source_callback: Some("source_adjustment".to_owned()),
+            decision_program: "source_entry_program".to_owned(),
+            program_order: vec!["source_exit".to_owned()],
+            stateful_input_contract: json!({}),
+            constants: NfiX7AdjustmentConstants {
+                derisk_enable: false,
+                max_stake_multiplier: 1.0,
+                rebuy_stake_multiplier: None,
+                derisk_levels: Vec::new(),
+                grinds: vec![NfiX7GrindLevel {
+                    level: 12,
+                    enabled: true,
+                    use_derisk: true,
+                    derisk_futures: -0.2,
+                    derisk_spot: -0.2,
+                    profit_threshold_futures: 0.02,
+                    profit_threshold_spot: 0.02,
+                    stakes_futures: vec![0.1],
+                    stakes_spot: vec![0.1],
+                    thresholds_futures: vec![-0.1],
+                    thresholds_spot: vec![-0.1],
+                }],
+                policy: None,
+            },
+            program: None,
+        }
+    }
+
+    fn test_trade() -> OpenTrade {
+        OpenTrade {
+            id: 1,
+            pair_index: 0,
+            pair: "TEST/USDT".to_owned(),
+            side: TradeSide::Long,
+            leverage: 1.0,
+            amount_step: 0.001,
+            price_step: 0.01,
+            open_timestamp_ms: 0,
+            open_rate: 100.0,
+            amount: 1.0,
+            stake_amount: 100.0,
+            max_stake_amount: 100.0,
+            entry_cost_with_fees: 100.1,
+            first_entry_cost_with_fees: 100.1,
+            adjustment_count: 0,
+            entry_tag: Some("source_route".to_owned()),
+            funding_fees: 0.0,
+            funding_fees_total: 0.0,
+            funding_sum_high: 0.0,
+            funding_sum_low: 0.0,
+            funding_rebase_seed: None,
+            realized_partial_profit: 0.0,
+            liquidation_price: None,
+            liquidation_price_is_explicit: false,
+            initial_stop_loss: 1.0,
+            stop_loss: 1.0,
+            minimum_rate: 90.0,
+            maximum_rate: 100.0,
+            orders: vec![FilledOrder {
+                id: 1,
+                funding_fee: 0.0,
+                sequence: 0,
+                side: OrderSide::Buy,
+                is_entry: true,
+                filled_timestamp_ms: 0,
+                amount: 1.0,
+                price: 100.0,
+                cost: 100.0,
+                tag: Some("source_route".to_owned()),
+            }],
+            filled_order_aggregates: OnceLock::new(),
+            custom_data: BTreeMap::new(),
+            nfi_adjustment_state: None,
+        }
+    }
+
+    fn pair_and_config() -> (PairSeries, PortfolioConfig) {
+        let pair = serde_json::from_value(json!({
+            "pair": "TEST/USDT",
+            "minimum_cost": 5.0,
+            "candles": [{
+                "timestamp_ms": 300_000,
+                "open": 90.0,
+                "high": 91.0,
+                "low": 89.0,
+                "close": 90.0,
+                "volume": 1.0
+            }]
+        }))
+        .expect("valid pair");
+        let config = serde_json::from_value(json!({
+            "starting_balance": 1_000.0,
+            "max_open_trades": 1,
+            "stake_amount": 100.0,
+            "fee_rate": 0.001,
+            "stoploss_ratio": -0.99,
+            "amount_step": 0.001,
+            "price_step": 0.01,
+            "amount_reserve_percent": 0.0
+        }))
+        .expect("valid config");
+        (pair, config)
+    }
 
     #[test]
     fn rebuy_transfer_keeps_the_wrappers_leverage_adjusted_minimum() {
@@ -939,5 +1746,147 @@ mod tests {
         assert_eq!(derisk_level_index("derisk_level_12"), Some(11));
         assert_eq!(grind_entry_index("grind_0_entry"), None);
         assert_eq!(grind_exit_index("grind_12_unknown"), None);
+    }
+
+    #[test]
+    fn compiled_action_uses_payload_stake_tag_and_dynamic_entry_ids() {
+        let scalar_program = json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["min_stake", "tag"],
+            "expressions": [
+                ["variable", "min_stake"],
+                ["literal", 2.0],
+                ["multiply", 0, 1],
+                ["variable", "tag"],
+                ["tuple", [2, 3]]
+            ],
+            "statements": [["return", 4]]
+        });
+        let program = compiled_action_program(&scalar_program);
+        let adjustment = test_adjustment();
+        let trade = test_trade();
+        let (pair, config) = pair_and_config();
+        let candle = pair.candles.get(0).expect("one candle").into_owned();
+        let state = AdjustmentState {
+            order_count: 1,
+            clusters: vec![GrindCluster {
+                count: 2,
+                total_amount: 0.5,
+                total_cost: 50.0,
+                entry_ids: vec![7, 9],
+                latest_entry_price: Some(100.0),
+                exit_price: None,
+            }],
+            derisk_found: Vec::new(),
+            first_entry_amount: 1.0,
+            first_entry_cost: 100.0,
+            latest_entry_price: 100.0,
+            latest_entry_timestamp_ms: 0,
+            latest_exit_price: None,
+            latest_order_price: 100.0,
+            latest_order_timestamp_ms: 0,
+        };
+        let context = AdjustmentContext {
+            adjustment: &adjustment,
+            pair: &pair,
+            candle_index: 0,
+            candle: &candle,
+            config: &config,
+            available_balance: 1_000.0,
+            minimum_stake: 5.0,
+            snapshot: NfiProfitSnapshot {
+                stake: 0.0,
+                ratio: 0.0,
+                current_stake_ratio: 0.0,
+                initial_stake_ratio: 0.0,
+            },
+            slice_amount: 100.0,
+            slice_profit: -0.1,
+            slice_profit_entry: -0.1,
+            current_stake_amount: 90.0,
+            rebuy_mode: false,
+            is_grind_entry: false,
+            extra_entry_checks: false,
+        };
+        let outcome = evaluate_compiled_system_action(
+            &program.source_order[0],
+            &program,
+            &context,
+            &trade,
+            &state,
+            &[(0.0, 0.0)],
+            2,
+        )
+        .expect("valid generic action");
+
+        let CompiledActionOutcome::Signal(signal) = outcome else {
+            panic!("source action must emit an adjustment");
+        };
+        assert!((signal.stake_amount - 10.0).abs() < f64::EPSILON);
+        assert_eq!(signal.tag, "source_exit 7 9");
+    }
+
+    #[test]
+    fn compiled_action_preserves_explicit_source_return_none() {
+        let scalar_program = json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["min_stake", "tag"],
+            "expressions": [["literal", "return-none"]],
+            "statements": [["return", 0]]
+        });
+        let program = compiled_action_program(&scalar_program);
+        let adjustment = test_adjustment();
+        let trade = test_trade();
+        let (pair, config) = pair_and_config();
+        let candle = pair.candles.get(0).expect("one candle").into_owned();
+        let state = AdjustmentState {
+            order_count: 1,
+            clusters: vec![GrindCluster::default()],
+            derisk_found: Vec::new(),
+            first_entry_amount: 1.0,
+            first_entry_cost: 100.0,
+            latest_entry_price: 100.0,
+            latest_entry_timestamp_ms: 0,
+            latest_exit_price: None,
+            latest_order_price: 100.0,
+            latest_order_timestamp_ms: 0,
+        };
+        let context = AdjustmentContext {
+            adjustment: &adjustment,
+            pair: &pair,
+            candle_index: 0,
+            candle: &candle,
+            config: &config,
+            available_balance: 1_000.0,
+            minimum_stake: 5.0,
+            snapshot: NfiProfitSnapshot {
+                stake: 0.0,
+                ratio: 0.0,
+                current_stake_ratio: 0.0,
+                initial_stake_ratio: 0.0,
+            },
+            slice_amount: 100.0,
+            slice_profit: -0.1,
+            slice_profit_entry: -0.1,
+            current_stake_amount: 90.0,
+            rebuy_mode: false,
+            is_grind_entry: false,
+            extra_entry_checks: false,
+        };
+
+        assert!(matches!(
+            evaluate_compiled_system_action(
+                &program.source_order[0],
+                &program,
+                &context,
+                &trade,
+                &state,
+                &[(0.0, 0.0)],
+                0,
+            ),
+            Some(CompiledActionOutcome::ReturnNone)
+        ));
     }
 }

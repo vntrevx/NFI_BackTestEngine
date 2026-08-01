@@ -419,6 +419,162 @@ pub struct NfiX7PositionAdjustment {
     pub program_order: Vec<String>,
     pub stateful_input_contract: Value,
     pub constants: NfiX7AdjustmentConstants,
+    #[serde(default)]
+    pub program: Option<CompiledSystemAdjustmentProgram>,
+}
+
+/// Source-ordered, strategy-neutral system adjustment program.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemAdjustmentProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledSystemAdjustmentExecutionMode,
+    pub side: CompiledSystemAdjustmentSide,
+    pub source_callback: String,
+    pub source_order: Vec<CompiledSystemAdjustmentAction>,
+    pub order_scan: CompiledSystemOrderScan,
+    pub input_contract: Value,
+    pub retry_policy: CompiledSystemRetryPolicy,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemAdjustmentExecutionMode {
+    PrimaryWithLegacyShadow,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CompiledSystemAdjustmentSide {
+    Long,
+    Short,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemAdjustmentAction {
+    pub kind: CompiledSystemAdjustmentActionKind,
+    pub level: usize,
+    pub tag: String,
+    pub append_entry_ids: bool,
+    pub decision_program: ScalarDecisionProgram,
+    pub bindings: Vec<CompiledSystemAdjustmentBinding>,
+    pub input_contract: Value,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemAdjustmentActionKind {
+    Derisk,
+    GrindEntry,
+    GrindExit,
+    GrindDerisk,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemAdjustmentBinding {
+    pub name: String,
+    pub kind: CompiledSystemAdjustmentInputKind,
+    #[serde(default)]
+    pub level: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemAdjustmentInputKind {
+    CurrentRate,
+    CurrentStakeAmount,
+    ExitRate,
+    FeeCloseRate,
+    FeeOpenRate,
+    FirstEntryAmount,
+    IsFuturesMode,
+    ExtraEntryChecks,
+    GrindEntrySignal,
+    BelowMaximumStake,
+    IsRebuyMode,
+    IsSystemV3,
+    IsSystemV31,
+    IsSystemV32,
+    LastCandle,
+    MaximumStake,
+    MinimumStake,
+    OpenGrindCount,
+    PreviousCandle,
+    ProfitRatio,
+    ProfitStake,
+    SliceAmount,
+    SliceProfit,
+    SliceProfitEntry,
+    ActionTag,
+    Trade,
+    TradeAmount,
+    TradeLeverage,
+    TradeStakeAmount,
+    DeriskFound,
+    ClusterCount,
+    ClusterMaximumCount,
+    ClusterDistance,
+    ClusterThresholds,
+    ClusterStakes,
+    ClusterTotalAmount,
+    ClusterOpenRate,
+    ClusterProfitRate,
+    ClusterProfitStake,
+    ClusterProfitThreshold,
+    ClusterDeriskThreshold,
+    ClusterMaximumProfitStake,
+    ClusterMaximumProfitRate,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub entry_order_side: CompiledOrderSide,
+    pub exit_order_side: CompiledOrderSide,
+    pub exclude_first_entry: bool,
+    pub global_exit_tag: String,
+    pub derisk_tags: Vec<CompiledSystemDeriskTag>,
+    pub grind_levels: Vec<CompiledSystemGrindTags>,
+    pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemDeriskTag {
+    pub level: usize,
+    pub tag: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemGrindTags {
+    pub level: usize,
+    pub entry_tag: String,
+    pub exit_tag: String,
+    pub derisk_tag: String,
+    pub maximum_profit_stake_key: String,
+    pub maximum_profit_rate_key: String,
+    pub minimum_scale_leverage: CompiledSystemStakeScale,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemStakeScale {
+    TradeLeverage,
+    MarketModeLeverage,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemRetryPolicy {
+    pub entry_retry_ms: i64,
+    pub stale_order_ms: i64,
 }
 
 /// Source-bound system-v3 rebuy ladder used only by tags 61-65.

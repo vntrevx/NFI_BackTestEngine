@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.22.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.23.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -37,21 +37,6 @@ _MANAGED_SHORT_PROGRAM_ORDER = (
 _MANAGED_LONG_ADJUSTMENT_PROGRAM = "long_grind_entry_v3"
 _MANAGED_SHORT_ADJUSTMENT_PROGRAM = "short_grind_entry_v3"
 _LONG_REGULAR_ADJUSTMENT_PROGRAM = "long_grind_entry"
-_GRIND_ADJUSTMENT_PROGRAM_ORDER = tuple(
-    step
-    for level in range(1, 6)
-    for step in (
-        f"grind_{level}_entry",
-        f"grind_{level}_exit",
-        f"grind_{level}_derisk",
-    )
-)
-_MANAGED_ADJUSTMENT_PROGRAM_ORDER = (
-    "derisk_level_1",
-    "derisk_level_2",
-    "derisk_level_3",
-    *_GRIND_ADJUSTMENT_PROGRAM_ORDER,
-)
 _MANAGED_LONG_STATEFUL_STEPS = (
     "long_exit_stoploss",
     "exit_profit_target",
@@ -102,6 +87,17 @@ class _ManagedLongRouteSpec:
     tags_constant: str
     method: str
     program_order: tuple[str, ...]
+
+
+def _adjustment_program_order(constants: dict[str, Any]) -> list[str]:
+    return [
+        *(f"derisk_level_{record['level']}" for record in constants["derisk_levels"]),
+        *(
+            f"grind_{record['level']}_{action}"
+            for record in constants["grinds"]
+            for action in ("entry", "exit", "derisk")
+        ),
+    ]
 
 
 _MANAGED_LONG_ROUTE_SPECS = (
@@ -293,24 +289,6 @@ _REBUY_ADJUSTMENT_NUMBER_CONSTANTS = (
     "system_v3_rebuy_mode_derisk_futures",
     "system_v3_rebuy_mode_derisk_spot",
 )
-_MANAGED_LONG_ADJUSTMENT_FEATURES = {
-    "last_candle": [
-        "AROONU_14",
-        "BBU_20_2.0",
-        "BTC_RSI_14_4h",
-        "EMA_20",
-        "ROC_9_1d",
-        "RSI_3",
-        "RSI_3_15m",
-        "RSI_3_1h",
-        "RSI_3_4h",
-        "RSI_14",
-        "STOCHRSIk_14_14_3_3",
-        "WILLR_14",
-        "close",
-    ],
-    "previous_candle_1": [],
-}
 _MANAGED_SHORT_ADJUSTMENT_FEATURES = {
     # ``short_grind_entry_v3`` is source-compiled and contributes its larger
     # projection automatically. These fields belong to the handwritten
@@ -401,12 +379,6 @@ _ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
     "calc_total_profit": frozenset(
         {"ba0fc031f36140bbb3b5ae5feffa70ea7a5943e0315ff630407f2f92cdd9f70b"}
     ),
-    "long_grind_adjust_trade_position_v3": frozenset(
-        {
-            "ce49efa4449cf42610238f37456be6e5f5aac76e33af1fd244c3c8dd66ce03a8",
-            "edde89ee993890c4b0d76233c4b58680bea031a844739b23a9cb23760bf3d4bb",
-        }
-    ),
     "short_grind_adjust_trade_position_v3": frozenset(
         {"8cd3b5f7808f7d00c27185f74069184820e74efe948845c64b76c54cb454ec24"}
     ),
@@ -416,9 +388,6 @@ _ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
     # ``long_grind_entry_v3`` is intentionally absent. Its boolean behavior is
     # compiled from the supplied source, and its only write is proven
     # observability-only by trade_ir before this stateful router can use it.
-    "long_grind_exit_v3": frozenset(
-        {"48dde430a4d4607444af697ce3708089656f99cc1470450e53bdf1b2de8c5af4"}
-    ),
     "profit_or_order_snapshot": frozenset(
         {"d3460303e0dd66274f8e02782818bac8b910220c1947178f8d20836dd0217add"}
     ),
@@ -430,21 +399,7 @@ _ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
 _ADJUSTMENT_BOOL_CONSTANTS = (
     "derisk_enable",
     "position_adjustment_enable",
-    "system_v3_2_derisk_level_1_enable",
-    "system_v3_2_derisk_level_2_enable",
-    "system_v3_2_derisk_level_3_enable",
-    "system_v3_2_derisk_level_4_enable",
     "system_v3_buyback_1_enable",
-    "system_v3_grind_1_enable",
-    "system_v3_grind_1_use_derisk",
-    "system_v3_grind_2_enable",
-    "system_v3_grind_2_use_derisk",
-    "system_v3_grind_3_enable",
-    "system_v3_grind_3_use_derisk",
-    "system_v3_grind_4_enable",
-    "system_v3_grind_4_use_derisk",
-    "system_v3_grind_5_enable",
-    "system_v3_grind_5_use_derisk",
 )
 _ADJUSTMENT_NUMBER_CONSTANTS = (
     "system_v3_max_stake",
@@ -453,20 +408,6 @@ _ADJUSTMENT_NUMBER_CONSTANTS = (
     # state machine and restores the normal slice by dividing by this source
     # constant. Omitting it changes every subsequent grind order.
     "system_v3_rebuy_mode_stake_multiplier",
-    "system_v3_2_derisk_level_1_stake_futures",
-    "system_v3_2_derisk_level_1_stake_spot",
-    "system_v3_2_derisk_level_2_stake_futures",
-    "system_v3_2_derisk_level_2_stake_spot",
-    "system_v3_2_derisk_level_3_stake_futures",
-    "system_v3_2_derisk_level_3_stake_spot",
-)
-_ADJUSTMENT_PAIR_CONSTANTS = (
-    "system_v3_2_derisk_level_1_futures",
-    "system_v3_2_derisk_level_1_spot",
-    "system_v3_2_derisk_level_2_futures",
-    "system_v3_2_derisk_level_2_spot",
-    "system_v3_2_derisk_level_3_futures",
-    "system_v3_2_derisk_level_3_spot",
 )
 _ADJUSTMENT_GRIND_FIELDS = (
     "derisk_futures",
@@ -491,6 +432,7 @@ def build_nfi_trade_manager_ir(
     a changed top-coins route is an error rather than a best-effort match.  This
     keeps a future NFI refactor from silently inheriting stale semantics.
     """
+    from .adjustment_ir import compile_system_adjustment_ir
     from .adjustments import (
         _build_adjustment_constants,
         _build_rebuy_adjustment_constants,
@@ -654,6 +596,7 @@ def build_nfi_trade_manager_ir(
         and constants.get("position_adjustment_enable") is True
     )
     adjustment_constants: dict[str, Any] | None = None
+    adjustment_program: dict[str, Any] | None = None
     short_adjustment_constants: dict[str, Any] | None = None
     rebuy_adjustment_constants: dict[str, Any] | None = None
     rebuy_transition_program: dict[str, Any] | None = None
@@ -675,6 +618,13 @@ def build_nfi_trade_manager_ir(
         short_policy = short_adjustment_constants.get("policy")
         if not isinstance(long_policy, dict) or not isinstance(short_policy, dict):
             raise StrategyAnalysisError("NFI rebuy delegate policy is unavailable")
+        adjustment_program = compile_system_adjustment_ir(
+            methods["long_grind_adjust_trade_position_v3"],
+            methods["long_grind_exit_v3"],
+            constants,
+            side="long",
+            retry_policy=long_policy,
+        )
         rebuy_transition_program = compile_rebuy_transition_ir(
             methods["long_rebuy_adjust_trade_position_v3"],
             constants,
@@ -771,7 +721,7 @@ def build_nfi_trade_manager_ir(
         "constants": frozen_constants,
         "programs": {name: programs[name] for name in decision_roots},
     }
-    if adjustment_constants is not None:
+    if adjustment_constants is not None and adjustment_program is not None:
         operation["position_adjustment"] = {
             "enabled": constants["position_adjustment_enable"],
             # These are exactly X7's ``long_adjust_mode_tags`` for the
@@ -781,11 +731,10 @@ def build_nfi_trade_manager_ir(
             "system_version": frozen_constants["system_v3_2_name"],
             "source_callback": methods["long_grind_adjust_trade_position_v3"].name,
             "decision_program": _MANAGED_LONG_ADJUSTMENT_PROGRAM,
-            "program_order": list(_MANAGED_ADJUSTMENT_PROGRAM_ORDER),
-            "stateful_input_contract": {
-                "indexed_fields": _MANAGED_LONG_ADJUSTMENT_FEATURES,
-            },
+            "program_order": _adjustment_program_order(adjustment_constants),
+            "stateful_input_contract": adjustment_program["input_contract"],
             "constants": adjustment_constants,
+            "program": adjustment_program,
         }
     if short_adjustment_constants is not None:
         operation["short_position_adjustment"] = {
@@ -797,7 +746,7 @@ def build_nfi_trade_manager_ir(
             "system_version": frozen_constants["system_v3_2_name"],
             "source_callback": methods["short_grind_adjust_trade_position_v3"].name,
             "decision_program": _MANAGED_SHORT_ADJUSTMENT_PROGRAM,
-            "program_order": list(_MANAGED_ADJUSTMENT_PROGRAM_ORDER),
+            "program_order": _adjustment_program_order(short_adjustment_constants),
             "stateful_input_contract": {
                 "indexed_fields": _MANAGED_SHORT_ADJUSTMENT_FEATURES,
             },
@@ -865,6 +814,9 @@ def build_nfi_trade_manager_ir(
                 short_rebuy_transition_program["fingerprint"]
                 if short_rebuy_transition_program is not None
                 else None
+            ),
+            "system_adjustment_ir_fingerprint": (
+                adjustment_program["fingerprint"] if adjustment_program is not None else None
             ),
             "operation_sha256": hashlib.sha256(encoded).hexdigest(),
             "programs": program_proof,

@@ -529,6 +529,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
                     .collect(),
                 policy: Some(nfi_adjustment_policy()),
             },
+            program: None,
         }),
         short_position_adjustment: None,
         constants: NfiManagedLongConstants {

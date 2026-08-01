@@ -207,13 +207,16 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.20.0",
         "0.21.0",
         "0.22.0",
+        "0.23.0",
     }
     requires_managed_short_exit_program = operation.get("schema_version") in {
         "0.20.0",
         "0.21.0",
         "0.22.0",
+        "0.23.0",
     }
-    requires_rebuy_program = operation.get("schema_version") == "0.22.0"
+    requires_rebuy_program = operation.get("schema_version") in {"0.22.0", "0.23.0"}
+    requires_long_adjustment_program = operation.get("schema_version") == "0.23.0"
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)
@@ -250,6 +253,15 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
                 or record["program"].get("schema_version")
                 != "adjustment-transition-program-v1"
                 for record in (rebuy_adjustment, short_rebuy_adjustment)
+            )
+        )
+        or (
+            requires_long_adjustment_program
+            and (
+                not isinstance(adjustment, dict)
+                or not isinstance(adjustment.get("program"), dict)
+                or adjustment["program"].get("schema_version")
+                != "system-adjustment-program-v1"
             )
         )
     ):

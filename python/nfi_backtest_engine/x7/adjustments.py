@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import math
+import re
 from typing import Any
 
 from ..errors import StrategyAnalysisError
@@ -12,7 +13,6 @@ from .trade_manager import (
     _ADJUSTMENT_GRIND_FIELDS,
     _ADJUSTMENT_METHOD_SHA256,
     _ADJUSTMENT_NUMBER_CONSTANTS,
-    _ADJUSTMENT_PAIR_CONSTANTS,
     _REBUY_ADJUSTMENT_LIST_CONSTANTS,
     _REBUY_ADJUSTMENT_NUMBER_CONSTANTS,
 )
@@ -60,30 +60,19 @@ def _build_adjustment_constants(
         value = constants.get(name)
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise StrategyAnalysisError(f"NFI adjustment constant {name} must be numeric")
-    for name in _ADJUSTMENT_PAIR_CONSTANTS:
-        values = constants.get(name)
-        if (
-            not isinstance(values, list)
-            or len(values) != 2
-            or any(
-                isinstance(value, bool) or not isinstance(value, int | float) for value in values
-            )
-        ):
-            raise StrategyAnalysisError(f"NFI adjustment constant {name} must be a numeric pair")
     if not constants["position_adjustment_enable"]:
         raise StrategyAnalysisError("NFI position adjustment is disabled")
-    if constants["system_v3_2_derisk_level_4_enable"]:
-        raise StrategyAnalysisError("NFI de-risk level 4 is not lowered")
     if constants["system_v3_buyback_1_enable"]:
         raise StrategyAnalysisError("NFI buyback route is not lowered")
 
+    grind_levels = _numbered_constant_levels(constants, r"system_v3_grind_(\d+)_enable")
     grinds: list[dict[str, Any]] = []
-    for level in range(1, 6):
+    for level in grind_levels:
         prefix = f"system_v3_grind_{level}_"
         record: dict[str, Any] = {
             "level": level,
-            "enabled": constants[f"{prefix}enable"],
-            "use_derisk": constants[f"{prefix}use_derisk"],
+            "enabled": _boolean_constant(constants, f"{prefix}enable"),
+            "use_derisk": _boolean_constant(constants, f"{prefix}use_derisk"),
         }
         for field in _ADJUSTMENT_GRIND_FIELDS:
             name = f"{prefix}{field}"
@@ -110,30 +99,77 @@ def _build_adjustment_constants(
                 )
         grinds.append(record)
 
+    derisk_levels = _numbered_constant_levels(
+        constants,
+        r"system_v3_2_derisk_level_(\d+)_enable",
+    )
+    derisk_records = []
+    for level in derisk_levels:
+        prefix = f"system_v3_2_derisk_level_{level}_"
+        derisk_record: dict[str, Any] = {
+            "level": level,
+            "enabled": _boolean_constant(constants, f"{prefix}enable"),
+        }
+        for mode in ("futures", "spot"):
+            pair_name = f"{prefix}{mode}"
+            values = constants.get(pair_name)
+            if (
+                not isinstance(values, list)
+                or len(values) != 2
+                or any(
+                    isinstance(value, bool) or not isinstance(value, int | float)
+                    for value in values
+                )
+            ):
+                raise StrategyAnalysisError(
+                    f"NFI adjustment constant {pair_name} must be a numeric pair"
+                )
+            stake_name = f"{prefix}stake_{mode}"
+            stake = constants.get(stake_name)
+            if isinstance(stake, bool) or not isinstance(stake, int | float):
+                raise StrategyAnalysisError(
+                    f"NFI adjustment constant {stake_name} must be numeric"
+                )
+            derisk_record[f"threshold_{mode}"] = values[1]
+            derisk_record[f"stake_{mode}"] = stake
+        derisk_records.append(derisk_record)
+
     return {
         "derisk_enable": constants["derisk_enable"],
         "max_stake_multiplier": constants["system_v3_max_stake"],
         "rebuy_stake_multiplier": constants["system_v3_rebuy_mode_stake_multiplier"],
-        "derisk_levels": [
-            {
-                "level": level,
-                "enabled": constants[f"system_v3_2_derisk_level_{level}_enable"],
-                "threshold_futures": constants[f"system_v3_2_derisk_level_{level}_futures"][1],
-                "threshold_spot": constants[f"system_v3_2_derisk_level_{level}_spot"][1],
-                "stake_futures": constants[f"system_v3_2_derisk_level_{level}_stake_futures"],
-                "stake_spot": constants[f"system_v3_2_derisk_level_{level}_stake_spot"],
-            }
-            for level in range(1, 4)
-        ],
+        "derisk_levels": derisk_records,
         "grinds": grinds,
-        "policy": _adjustment_literal_policy(method, side=side),
+        "policy": _adjustment_literal_policy(method, side=side, grind_levels=grind_levels),
     }
+
+
+def _numbered_constant_levels(constants: dict[str, Any], pattern: str) -> list[int]:
+    matcher = re.compile(f"^{pattern}$")
+    levels = sorted(
+        {
+            int(match.group(1))
+            for name in constants
+            if (match := matcher.fullmatch(name)) is not None
+        }
+    )
+    if not levels or levels != list(range(levels[0], levels[-1] + 1)) or levels[0] != 1:
+        raise StrategyAnalysisError(f"NFI adjustment levels are not contiguous: {pattern}")
+    return levels
+
+
+def _boolean_constant(constants: dict[str, Any], name: str) -> bool:
+    value = constants.get(name)
+    if not isinstance(value, bool):
+        raise StrategyAnalysisError(f"NFI adjustment constant {name} must be boolean")
+    return value
 
 
 def _adjustment_literal_policy(
     method: ast.FunctionDef,
     *,
     side: str = "long",
+    grind_levels: list[int] | None = None,
 ) -> dict[str, Any]:
     """Extract non-constant entry gates from the reviewed stateful callback.
 
@@ -174,8 +210,24 @@ def _adjustment_literal_policy(
             "NFI adjustment extra-entry policy changed; exact lowering requires review"
         )
 
+    if grind_levels is None:
+        grind_levels = sorted(
+            {
+                int(match.group(1))
+                for node in ast.walk(method)
+                if isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+                and (
+                    match := re.fullmatch(r"system_v3_grind_(\d+)_enable", node.attr)
+                )
+                is not None
+            }
+        )
+    if not grind_levels:
+        raise StrategyAnalysisError("NFI adjustment has no source-defined Grind levels")
     fallback_records = [
-        _grind_entry_fallbacks(method, level=level, side=side) for level in range(1, 6)
+        _grind_entry_fallbacks(method, level=level, side=side) for level in grind_levels
     ]
     return {
         "entry_retry_ms": retry_ms,
