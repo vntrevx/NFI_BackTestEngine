@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 104,
-  "updated_at": "2026-08-02T05:07:00+09:00",
+  "revision": 105,
+  "updated_at": "2026-08-02T06:02:12+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M16-02",
+  "active_task_id": "M16-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3977,7 +3977,7 @@
       "order": 1602,
       "milestone": "M16",
       "title": "Compile rebuy state transitions into generic IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M16-01"
       ],
@@ -3997,9 +3997,15 @@
         "source-driven ladder mutation"
       ],
       "started_at": "2026-08-02T05:07:00+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T06:02:12+09:00",
+      "commit_sha": "aa1a3fd6a60682f5b482b115f195c061bdf9ac7d",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/latest-upstream/report-futures.json"
+      ],
       "blocker": null
     },
     {
@@ -4007,7 +4013,7 @@
       "order": 1603,
       "milestone": "M16",
       "title": "Compile system-v3 long adjustment into generic IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M16-02"
       ],
@@ -4026,7 +4032,7 @@
         "long adjustment level coverage",
         "long full-state exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T06:02:12+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7355,6 +7361,38 @@
         "objective": "compile rebuy stake, retry, level-three de-risk, and regular Grind transfer into generic IR",
         "fixed_rebuy_result_tables_allowed": false,
         "silent_stake_clipping_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 137,
+      "timestamp": "2026-08-02T06:02:12+09:00",
+      "task_id": "M16-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "aa1a3fd6a60682f5b482b115f195c061bdf9ac7d",
+        "trade_manager_schema": "0.22.0",
+        "rebuy_transition_program": "adjustment-transition-program-v1",
+        "source_compiled_long_and_short_order_scans": true,
+        "source_compiled_stake_derisk_and_tags": true,
+        "delegate_target_and_retry_bound": true,
+        "rebuy_method_hash_gates_retired": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 138,
+      "timestamp": "2026-08-02T06:02:12+09:00",
+      "task_id": "M16-03",
+      "event": "task_started",
+      "details": {
+        "objective": "compile system-v3 long adjustment, partial exits, and wallet stake limits into generic IR",
+        "fixed_grind_level_count_allowed": false,
+        "approximated_source_return_order_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
