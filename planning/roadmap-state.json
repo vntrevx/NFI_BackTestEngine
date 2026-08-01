@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 90,
-  "updated_at": "2026-08-01T20:22:04+09:00",
+  "revision": 91,
+  "updated_at": "2026-08-01T20:52:20+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M13-01",
+  "active_task_id": "M13-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3160,7 +3160,7 @@
       "order": 1301,
       "milestone": "M13",
       "title": "Inventory NFI and Freqtrade semantic ownership and reachability",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M12-08"
       ],
@@ -3181,9 +3181,40 @@
         "latest upstream inventory test"
       ],
       "started_at": "2026-08-01T20:22:04+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T20:52:20+09:00",
+      "commit_sha": "506bd2e32176b8de361c138c9e22b4fc676817cf",
+      "evidence": [
+        {
+          "kind": "latest_upstream_semantic_inventory",
+          "upstream_commit": "b2c7badc19c33c550d5ee2d8f5c302314e78b667",
+          "strategy_sha256": "4c1c0dd4f1847208a10c8be8d56f516e8f09e510b121bd1972ec4b166364e92a",
+          "spot_fingerprint": "ba7e9891d5b0257c3d39908bfa52940046e72ad514eac4a5007ad7db316feb2c",
+          "futures_fingerprint": "60dc07a530ccd7e7ab14eaefcd8d03495adc971e90a1c3f9a4f00e7580d2ccd5",
+          "spot_active_rust_callbacks": "9/9",
+          "futures_active_rust_callbacks": "10/10",
+          "route_count": 18,
+          "exact_source_fixture_count": 0,
+          "exact_fixture_gap_reported_without_promotion": true
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 586,
+          "rust_tests_passed": 108,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixtures": [
+            "normal-routing-spot",
+            "stops-only-spot",
+            "x7-tag121-spot",
+            "x7-futures-lifecycle-short"
+          ],
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3191,7 +3222,7 @@
       "order": 1302,
       "milestone": "M13",
       "title": "Version the Freqtrade semantic profile and official observer",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M13-01"
       ],
@@ -3209,7 +3240,7 @@
         "profile schema tests",
         "deterministic official observer fixture"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T20:52:20+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6532,6 +6563,34 @@
         "runtime_hardcoding_allowed": false,
         "paid_runner_allowed": false,
         "development_laptop_runner_allowed": false
+      }
+    },
+    {
+      "sequence": 109,
+      "timestamp": "2026-08-01T20:52:20+09:00",
+      "task_id": "M13-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "506bd2e32176b8de361c138c9e22b4fc676817cf",
+        "upstream_commit": "b2c7badc19c33c550d5ee2d8f5c302314e78b667",
+        "spot_active_rust_callbacks": "9/9",
+        "futures_active_rust_callbacks": "10/10",
+        "dynamic_route_count": 18,
+        "latest_exact_fixture_gap_reported": true,
+        "full_state_regression_exact": true,
+        "simulation_behavior_changed": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 110,
+      "timestamp": "2026-08-01T20:52:20+09:00",
+      "task_id": "M13-02",
+      "event": "task_started",
+      "details": {
+        "objective": "digest-bound Freqtrade semantic profile and canonical official observer",
+        "copy_freqtrade_implementation": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
