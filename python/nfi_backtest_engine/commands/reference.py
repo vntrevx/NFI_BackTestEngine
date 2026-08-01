@@ -31,6 +31,31 @@ def execute(
     if args.command_name != "reference":
         raise AssertionError(f"unhandled reference command: {args.command_name}")
 
+    if args.reference_command == "semantic-profile":
+        from ..freqtrade_semantic_profile import write_current_freqtrade_semantic_profile
+
+        profile = write_current_freqtrade_semantic_profile(args.output)
+        print(
+            "Freqtrade semantic profile: "
+            f"version={profile['reference']['version']}, "
+            f"fingerprint={profile['fingerprint']} -> {args.output}"
+        )
+        return 0
+    if args.reference_command == "semantic-observe":
+        from ..semantic_observer import project_official_semantic_trace
+
+        report = project_official_semantic_trace(
+            args.manifest,
+            args.profile,
+            args.output_trace,
+            report_path=args.output_report,
+        )
+        print(
+            "official semantic observer: "
+            f"events={report['projected_trace']['event_count']}, "
+            f"stream={report['projected_trace']['stream_hash']} -> {args.output_report}"
+        )
+        return 0
     if args.reference_command == "capture-markets":
         record = capture_reference_markets(
             args.manifest,

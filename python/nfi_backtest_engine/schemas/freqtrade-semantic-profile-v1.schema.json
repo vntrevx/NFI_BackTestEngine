@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/freqtrade-semantic-profile-v1.schema.json",
+  "title": "Digest-bound Freqtrade semantic profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reference",
+    "observer",
+    "scope",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "freqtrade-semantic-profile-v1"
+    },
+    "reference": {
+      "$ref": "#/$defs/reference"
+    },
+    "observer": {
+      "$ref": "#/$defs/observer"
+    },
+    "scope": {
+      "$ref": "#/$defs/scope"
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "docker_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "image",
+        "image_index_digest",
+        "image_platform_digest",
+        "image_config_digest",
+        "platform",
+        "ccxt_version"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/string"
+        },
+        "image": {
+          "$ref": "#/$defs/string"
+        },
+        "image_index_digest": {
+          "$ref": "#/$defs/docker_digest"
+        },
+        "image_platform_digest": {
+          "$ref": "#/$defs/docker_digest"
+        },
+        "image_config_digest": {
+          "$ref": "#/$defs/docker_digest"
+        },
+        "platform": {
+          "const": "linux/amd64"
+        },
+        "ccxt_version": {
+          "$ref": "#/$defs/string"
+        }
+      }
+    },
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "method",
+        "source_sha256"
+      ],
+      "properties": {
+        "owner": {
+          "$ref": "#/$defs/string"
+        },
+        "method": {
+          "$ref": "#/$defs/string"
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase",
+        "callbacks"
+      ],
+      "properties": {
+        "phase": {
+          "$ref": "#/$defs/string"
+        },
+        "callbacks": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tracer_version",
+        "trace_schema_version",
+        "tracer_source_sha256",
+        "state_projection_source_sha256",
+        "semantic_projection_source_sha256",
+        "observed_methods",
+        "events",
+        "canonical_state_fields"
+      ],
+      "properties": {
+        "tracer_version": {
+          "$ref": "#/$defs/string"
+        },
+        "trace_schema_version": {
+          "$ref": "#/$defs/string"
+        },
+        "tracer_source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "state_projection_source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "semantic_projection_source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observed_methods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/method"
+          },
+          "minItems": 1
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          },
+          "minItems": 1
+        },
+        "canonical_state_fields": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "excluded",
+        "unknown_behavior",
+        "parity_requirement"
+      ],
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/string"
+        },
+        "excluded": {
+          "$ref": "#/$defs/strings"
+        },
+        "unknown_behavior": {
+          "const": "fail-before-native-promotion"
+        },
+        "parity_requirement": {
+          "const": "trade-surface-and-full-state-exact"
+        }
+      }
+    }
+  }
+}

@@ -318,6 +318,19 @@ def build_parser() -> argparse.ArgumentParser:
         "reference", help="run the pinned official Freqtrade reference"
     )
     reference_commands = reference.add_subparsers(dest="reference_command", required=True)
+    reference_semantic_profile = reference_commands.add_parser(
+        "semantic-profile",
+        help="write the digest-bound profile for the pinned Freqtrade observer",
+    )
+    reference_semantic_profile.add_argument("--output", "-o", type=Path, required=True)
+    reference_semantic_observe = reference_commands.add_parser(
+        "semantic-observe",
+        help="project captured official callback/state events canonically",
+    )
+    reference_semantic_observe.add_argument("manifest", type=Path)
+    reference_semantic_observe.add_argument("--profile", type=Path, required=True)
+    reference_semantic_observe.add_argument("--output-trace", type=Path, required=True)
+    reference_semantic_observe.add_argument("--output-report", type=Path, required=True)
     reference_run = reference_commands.add_parser(
         "run", help="run and exact-compare one sealed captured fixture"
     )
