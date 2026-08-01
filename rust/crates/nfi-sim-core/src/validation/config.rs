@@ -270,7 +270,10 @@ pub(crate) fn valid_scalar_program(program: &ScalarDecisionProgram) -> bool {
 }
 
 pub(crate) fn uses_full_futures_manager_contract(schema_version: &str) -> bool {
-    matches!(schema_version, "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0")
+    matches!(
+        schema_version,
+        "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0" | "0.19.0"
+    )
 }
 
 pub(crate) fn valid_legacy_futures_fallback(
@@ -280,6 +283,6 @@ pub(crate) fn valid_legacy_futures_fallback(
     route
         .futures_fallback_loss_threshold
         .is_some_and(|threshold| threshold.is_finite() && threshold < 0.0)
-        || (!matches!(schema_version, "0.16.0" | "0.17.0" | "0.18.0")
+        || (!matches!(schema_version, "0.16.0" | "0.17.0" | "0.18.0" | "0.19.0")
             && route.futures_fallback_loss_threshold.is_none())
 }

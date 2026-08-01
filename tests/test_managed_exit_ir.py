@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import ast
+import copy
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 from nfi_backtest_engine.errors import StrategyAnalysisError
-from nfi_backtest_engine.x7.managed_exit_ir import compile_managed_exit_ir
+from nfi_backtest_engine.strategy_ir import analyze_strategy
+from nfi_backtest_engine.x7.managed_exit_ir import (
+    _compile_state_policy,
+    compile_managed_exit_ir,
+)
 from nfi_backtest_engine.x7.routes import _method_ast_sha256
 
 
@@ -134,6 +140,7 @@ def _compile(**kwargs: bool):
         _CONSTANTS,
         _SPECS,
         legacy_route_methods={},
+        include_state_program=False,
     )
 
 
@@ -202,6 +209,7 @@ def test_basic_exit_ir_rejects_an_unknown_long_route() -> None:
             _CONSTANTS,
             _SPECS,
             legacy_route_methods={},
+            include_state_program=False,
         )
 
 
@@ -248,6 +256,7 @@ class Strategy:
         },
         (_Spec("rebuy", "rebuy", "long_exit_rebuy"),),
         legacy_route_methods={},
+        include_state_program=False,
     )
 
     route = compiled.program["routes"][0]
@@ -266,3 +275,64 @@ class Strategy:
     }
     assert route["profit_basis"] == "current-stake"
     assert route["decision_program_order"] == ["decision_a", "decision_b"]
+
+
+def test_managed_exit_state_is_source_compiled_for_all_long_routes() -> None:
+    source = Path(
+        "benchmarks/fixtures/captured/"
+        "x7-futures-lifecycle-long-v17.4.435-2022-04-10_04-20/inputs/strategy.py"
+    )
+    analysis = analyze_strategy(source, class_name="NostalgiaForInfinityX7")
+    constants = analysis["strategies"][0]["constants"]
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
+    )
+    methods = {
+        node.name: node
+        for node in class_node.body
+        if isinstance(node, ast.FunctionDef)
+    }
+
+    quick = _compile_state_policy(methods["long_exit_quick"], constants)
+    rapid = _compile_state_policy(methods["long_exit_rapid"], constants)
+    rebuy = _compile_state_policy(methods["long_exit_rebuy"], constants)
+    high_profit = _compile_state_policy(methods["long_exit_high_profit"], constants)
+    scalp = _compile_state_policy(methods["long_exit_scalp"], constants)
+
+    assert quick["inline_exit"]["position"] == "after-stop"
+    assert quick["inline_exit"]["minimum_profit"] == 0.02
+    assert len(quick["inline_exit"]["program"]["expressions"]) == 89
+    assert rapid["inline_exit"]["position"] == "before-stop"
+    assert rapid["inline_exit"]["minimum_profit"] == 0.005
+    assert rebuy["stop"] == {
+        "kind": "stake-threshold",
+        "enabled": False,
+        "futures_threshold": 1.4,
+        "spot_threshold": 0.48,
+        "divide_by_leverage": True,
+    }
+    assert high_profit["target"]["max_target_floor"] == 0.03
+    assert high_profit["target"]["suppress_protected_exit"] is False
+    assert scalp["target"]["pure_scalp_trailing"] is True
+
+    changed = copy.deepcopy(methods["long_exit_quick"])
+    mutated = False
+    for node in ast.walk(changed):
+        if (
+            isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "profit_ratio"
+            and isinstance(node.comparators[0], ast.BinOp)
+        ):
+            right = node.comparators[0].right
+            if isinstance(right, ast.Constant) and right.value == 0.001:
+                right.value = 0.002
+                mutated = True
+                break
+    assert mutated
+    changed_policy = _compile_state_policy(changed, constants)
+    assert changed_policy["target"]["u_e_raise_delta"] == 0.002
+    assert changed_policy != quick

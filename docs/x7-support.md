@@ -42,22 +42,22 @@ Rust:
 - static `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`
   definitions with side-aware local/global pair locks in the global event loop.
 
-The route table preserves X7's callback order. All eight managed-long dispatch blocks
-and their pure decision prefixes are compiled from the supplied AST into a generic
-shadow program. Recursive any/all matcher IR represents rebuy, rapid, and scalp
-compounds, and rebuy's current-stake profit basis is source data. Rust does not branch
-on those tag values: it executes the serialized matcher and program order, then fails
-closed if the legacy route disagrees. A mixed tag is accepted only when every word
-belongs to the compiled scope. Rebuy, rapid, and scalp combinations retain their
-source-compiled dispatch order; an unknown companion word fails before simulation.
+The route table preserves X7's callback order. All eight managed-long dispatch blocks,
+pure decision prefixes, and route-local state policy are compiled from the supplied AST
+into a generic shadow program. Recursive matcher IR handles compound tags; quick/rapid
+inline conditions are Scalar IR; stop, target-cache, protected-signal, and rebuy terminal
+values are source data. Rust independently executes this program and compares both the
+decision and complete target-cache state with the legacy route. Any disagreement fails
+closed. An unknown companion tag still fails before simulation.
 
 ## Proof level
 
 The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
-region. Source-compiled managed dispatch and decision regions are masked from that legacy
-identity gate, while every surrounding stop/target statement remains pinned. A changed
-callback therefore either recompiles into new generic IR or fails before it can inherit
-an unrelated Rust policy.
+region. Source-compiled dispatch and pure decision regions are masked from the legacy
+identity gate. Route-local state is additionally compiled and full-state shadowed, while
+the remaining wrapper AST stays pinned until generic managed-short promotion. A changed
+callback therefore recompiles into reviewed IR or fails before inheriting unrelated
+Rust behavior.
 It also inventories literal condition-index branches and the effective strategy
 switches. Probe-only source changes are AST-bound to the expected class attribute and
 old literal; routine upstream edits fail closed instead of silently changing the wrong

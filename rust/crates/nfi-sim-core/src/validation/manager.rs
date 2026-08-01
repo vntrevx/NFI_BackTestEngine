@@ -3,8 +3,10 @@
 use std::collections::BTreeSet;
 
 use crate::domain::{
-    ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute,
-    NfiX7AdjustmentConstants, NfiX7TradeManager, PortfolioConfig, SimError,
+    ManagedExitInlinePosition, ManagedExitRoute, ManagedExitStateOperation,
+    ManagedExitStateProgram, ManagedExitStopPolicy, ManagedExitTagMatcher, ManagedExitTagOperator,
+    NfiManagedLongProfile, NfiManagedLongRoute, NfiX7AdjustmentConstants, NfiX7TradeManager,
+    PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -104,6 +106,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.16.0"
             | "0.17.0"
             | "0.18.0"
+            | "0.19.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -118,7 +121,15 @@ pub(crate) fn validate_nfi_trade_manager(
             .all(valid_nfi_managed_long_route);
     let valid_terminal_exit_version = matches!(
         manager.schema_version.as_str(),
-        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
+        "0.11.0"
+            | "0.12.0"
+            | "0.13.0"
+            | "0.14.0"
+            | "0.15.0"
+            | "0.16.0"
+            | "0.17.0"
+            | "0.18.0"
+            | "0.19.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -174,7 +185,10 @@ pub(crate) fn validate_nfi_trade_manager(
     })
     .map(ToOwned::to_owned)
     .collect::<Vec<_>>();
-    let valid_route_order = if matches!(manager.schema_version.as_str(), "0.17.0" | "0.18.0") {
+    let valid_route_order = if matches!(
+        manager.schema_version.as_str(),
+        "0.17.0" | "0.18.0" | "0.19.0"
+    ) {
         manager.route_order.len() == expected_route_order.len()
             && manager.route_order.iter().collect::<BTreeSet<_>>()
                 == expected_route_order.iter().collect::<BTreeSet<_>>()
@@ -198,7 +212,7 @@ pub(crate) fn validate_nfi_trade_manager(
                 "grind-backtest-v2" => {
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
+                        "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0" | "0.19.0"
                     )
                 }
                 _ => false,
@@ -297,7 +311,8 @@ pub(crate) fn validate_nfi_trade_manager(
                     .is_some_and(|value| value.is_finite() && value > 0.0)
                     && adjustment.constants.policy.is_none()
             }
-            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0" => {
+            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
+            | "0.19.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -445,7 +460,10 @@ pub(crate) fn validate_nfi_trade_manager(
 
 fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_exit_program.as_ref() else {
-        return !matches!(manager.schema_version.as_str(), "0.17.0" | "0.18.0");
+        return !matches!(
+            manager.schema_version.as_str(),
+            "0.17.0" | "0.18.0" | "0.19.0"
+        );
     };
     if program.schema_version != "managed-exit-program-v1"
         || !valid_sha256(&program.fingerprint)
@@ -461,7 +479,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     if route_ids.len() != program.routes.len() {
         return false;
     }
-    if manager.schema_version == "0.18.0"
+    if matches!(manager.schema_version.as_str(), "0.18.0" | "0.19.0")
         && route_ids
             != manager
                 .managed_long_routes
@@ -526,9 +544,87 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                 .decision_program_order
                 .iter()
                 .all(|name| manager.programs.get(name).is_some_and(valid_scalar_program))
+            && match route.state_program.as_ref() {
+                Some(state) => valid_managed_exit_state_program(state),
+                None => manager.schema_version != "0.19.0",
+            }
+            && valid_managed_exit_terminal(route, &matcher_tags)
             && route.location.line > 0
             && route.location.end_line >= route.location.line
     })
+}
+
+fn valid_managed_exit_terminal(route: &ManagedExitRoute, matcher_tags: &BTreeSet<&str>) -> bool {
+    route.terminal_exit.as_ref().is_none_or(|terminal| {
+        let tags = terminal
+            .entry_tags
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        !tags.is_empty()
+            && tags.len() == terminal.entry_tags.len()
+            && tags.iter().all(|tag| matcher_tags.contains(tag))
+            && terminal.minimum_age_ms > 0
+            && terminal.minimum_profit_ratio.is_finite()
+            && !terminal.reason.is_empty()
+    })
+}
+
+fn valid_managed_exit_state_program(state: &ManagedExitStateProgram) -> bool {
+    let expected_order = match state.inline_exit.as_ref().map(|inline| inline.position) {
+        Some(ManagedExitInlinePosition::BeforeStop) => vec![
+            ManagedExitStateOperation::InlineExit,
+            ManagedExitStateOperation::Stop,
+            ManagedExitStateOperation::ExistingTarget,
+            ManagedExitStateOperation::TargetUpdate,
+            ManagedExitStateOperation::FinalFilter,
+            ManagedExitStateOperation::TerminalExit,
+        ],
+        Some(ManagedExitInlinePosition::AfterStop) => vec![
+            ManagedExitStateOperation::Stop,
+            ManagedExitStateOperation::InlineExit,
+            ManagedExitStateOperation::ExistingTarget,
+            ManagedExitStateOperation::TargetUpdate,
+            ManagedExitStateOperation::FinalFilter,
+            ManagedExitStateOperation::TerminalExit,
+        ],
+        None => vec![
+            ManagedExitStateOperation::Stop,
+            ManagedExitStateOperation::ExistingTarget,
+            ManagedExitStateOperation::TargetUpdate,
+            ManagedExitStateOperation::FinalFilter,
+            ManagedExitStateOperation::TerminalExit,
+        ],
+    };
+    let valid_inline = state.inline_exit.as_ref().is_none_or(|inline| {
+        inline.minimum_profit.is_finite()
+            && inline.maximum_profit.is_finite()
+            && inline.minimum_profit < inline.maximum_profit
+            && valid_scalar_program(&inline.program)
+    });
+    let valid_stop = match &state.stop {
+        ManagedExitStopPolicy::SourceHelper { helper } => helper == "long_exit_stoploss",
+        ManagedExitStopPolicy::StakeThreshold {
+            futures_threshold,
+            spot_threshold,
+            ..
+        } => {
+            futures_threshold.is_finite()
+                && *futures_threshold >= 0.0
+                && spot_threshold.is_finite()
+                && *spot_threshold >= 0.0
+        }
+    };
+    let target = &state.target;
+    state.stateful_order == expected_order
+        && valid_inline
+        && valid_stop
+        && target.u_e_raise_delta.is_finite()
+        && target.u_e_raise_delta >= 0.0
+        && target.profit_raise_delta.is_finite()
+        && target.profit_raise_delta >= 0.0
+        && target.max_target_floor.is_finite()
+        && target.max_target_floor >= 0.0
 }
 
 fn valid_managed_exit_matcher<'a>(

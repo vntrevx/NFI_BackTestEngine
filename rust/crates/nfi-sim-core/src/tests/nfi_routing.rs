@@ -279,6 +279,101 @@ fn generic_managed_exit_shadow_fails_closed_on_a_decision_difference() {
 }
 
 #[test]
+fn generic_managed_exit_shadow_fails_closed_on_target_state_difference() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("141".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_basic_exit_shadow(&mut manager, "long_top_coins", None);
+    manager
+        .managed_exit_program
+        .as_mut()
+        .expect("shadow program")
+        .routes[0]
+        .state_program
+        .as_mut()
+        .expect("shadow state")
+        .target
+        .max_target_floor = 0.50;
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![nfi_pair(
+            vec![entry, candle(2, 101.0, 101.0)],
+            BTreeMap::new(),
+        )],
+    };
+
+    assert!(matches!(
+        simulate(&input),
+        Err(SimError::InvalidNfiTradeManager)
+    ));
+}
+
+#[test]
+fn generic_managed_exit_shadow_fails_closed_on_inline_program_difference() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("41".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_quick_inline_shadow(&mut manager);
+    let inline = manager
+        .managed_exit_program
+        .as_mut()
+        .expect("shadow program")
+        .routes[0]
+        .state_program
+        .as_mut()
+        .expect("shadow state")
+        .inline_exit
+        .as_mut()
+        .expect("inline program");
+    inline.program.expressions[7] = serde_json::json!(["literal", "changed_reason"]);
+    let features = BTreeMap::from([
+        (
+            "RSI_14".to_owned(),
+            vec![serde_json::json!(79.0), serde_json::json!(50.0)],
+        ),
+        (
+            "MFI_14".to_owned(),
+            vec![serde_json::json!(50.0), serde_json::json!(50.0)],
+        ),
+        (
+            "WILLR_14".to_owned(),
+            vec![serde_json::json!(-50.0), serde_json::json!(-50.0)],
+        ),
+        (
+            "RSI_3".to_owned(),
+            vec![serde_json::json!(50.0), serde_json::json!(50.0)],
+        ),
+        (
+            "RSI_3_15m".to_owned(),
+            vec![serde_json::json!(50.0), serde_json::json!(50.0)],
+        ),
+    ]);
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![nfi_pair(vec![entry, candle(2, 103.0, 103.0)], features)],
+    };
+
+    assert!(matches!(
+        simulate(&input),
+        Err(SimError::InvalidNfiTradeManager)
+    ));
+}
+
+#[test]
 fn generic_managed_exit_shadow_executes_a_recursive_source_matcher() {
     let mut entry = candle(1, 100.0, 100.0);
     entry.enter_long = Some(EntrySignal {
@@ -362,6 +457,7 @@ fn nfi_rebuy_terminal_exit_uses_source_compiled_policy() {
         minimum_profit_ratio: 0.0125,
         reason: "exit_long_rebuy_signal65_early_recovery".to_owned(),
     });
+    enable_test_basic_exit_shadow(&mut manager, "long_rebuy", None);
     assert!(
         manager
             .managed_long_routes
@@ -435,11 +531,10 @@ fn nfi_quick_runs_inline_exit_after_the_common_stop_check() {
             vec![serde_json::json!(50.0), serde_json::json!(50.0)],
         ),
     ]);
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_quick_inline_shadow(&mut manager);
     let mut manager_config = config(1);
-    enable_nfi_manager(
-        &mut manager_config,
-        nfi_top_coins_manager(nfi_false_program()),
-    );
+    enable_nfi_manager(&mut manager_config, manager);
     let input = SimulationInput {
         schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
         config: manager_config,
@@ -462,6 +557,7 @@ fn nfi_high_profit_returns_a_doom_stop_without_waiting_for_target_replay() {
     let mut manager = nfi_top_coins_manager(nfi_false_program());
     manager.constants.system_v3_2_stops_enable = true;
     manager.constants.system_v3_2_stop_threshold_doom_spot = 0.05;
+    enable_test_basic_exit_shadow(&mut manager, "long_high_profit", None);
     let mut manager_config = config(1);
     enable_nfi_manager(&mut manager_config, manager);
     let input = SimulationInput {
@@ -537,11 +633,10 @@ fn nfi_top_coins_profit_target_trails_on_the_next_candle() {
             ],
         ),
     ]);
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_basic_exit_shadow(&mut manager, "long_top_coins", None);
     let mut manager_config = config(1);
-    enable_nfi_manager(
-        &mut manager_config,
-        nfi_top_coins_manager(nfi_false_program()),
-    );
+    enable_nfi_manager(&mut manager_config, manager);
     let input = SimulationInput {
         schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
         config: manager_config,

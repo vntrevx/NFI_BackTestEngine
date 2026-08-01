@@ -86,14 +86,15 @@ trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 
 8개 managed-long route의 `custom_exit` 분기 순서와 재귀 any/all matcher, 수익
 basis와 gate, mode name, pure decision 호출 순서는 이제
 `managed-exit-program-v1` 데이터로 컴파일된다. 복합 rebuy/rapid/scalp tag도
-상수값별 Rust 분기 없이 같은 matcher evaluator가 처리한다. 같은 callback에서
-기존 stateful 경로도 독립 평가하며 routing 또는 decision 결과가 다르면 즉시
-중단한다.
+상수값별 Rust 분기 없이 같은 matcher evaluator가 처리한다. quick/rapid inline
+조건과 reason도 Scalar IR이며 stop 선택·threshold, target-cache 갱신 간격, 최대
+target floor, 보호 신호와 rebuy terminal을 source state program으로 컴파일한다.
+Rust는 generic 경로를 독립 실행하고 결정뿐 아니라 target-cache 전체 상태까지
+기존 경로와 비교하며, 어느 한쪽이라도 다르면 즉시 중단한다.
 
-아직 stop, profit-target cache와 quick/rapid inline state는 기존 경로가 결과를 소유한다.
-따라서 이 단계는 자동 인식 범위를 넓힌 shadow 증명이지 generic 기본 경로 승격은
-아니다. 남은 state와 특수 long/short route까지 branch-reaching exact가 끝난 뒤에만
-legacy hash gate를 제거한다.
+현재 generic state는 managed-long shadow다. 기존 경로는 비교 기준으로 남아 있고,
+managed-short까지 같은 방식의 branch-reaching exact를 끝낸 뒤 generic 기본 경로로
+승격하면서 legacy route hash gate를 제거한다.
 
 ## Upstream 감시
 

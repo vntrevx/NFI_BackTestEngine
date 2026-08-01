@@ -356,6 +356,33 @@ class _ScalarCompiler:
         raise _UnsupportedTradeIr(node, f"call {_call_name(node.func)!r} is not scalar-pure")
 
 
+def compile_scalar_ast_program(
+    node: ast.FunctionDef,
+    *,
+    constants: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compile a synthetic, scalar-pure callback fragment into the shared VM IR.
+
+    Stateful route compilers use this small public boundary after they have
+    reduced source control flow to an independent pure fragment. Unsupported
+    expressions keep their original location and fail closed just like normal
+    trade-dependency compilation.
+    """
+
+    try:
+        return _ScalarCompiler(
+            node,
+            constants=constants or {},
+            available_methods=set(),
+        ).compile()
+    except _UnsupportedTradeIr as exc:
+        line = getattr(exc.node, "lineno", node.lineno)
+        column = getattr(exc.node, "col_offset", node.col_offset)
+        raise StrategyAnalysisError(
+            f"scalar fragment cannot be represented at {line}:{column}: {exc.message}"
+        ) from exc
+
+
 def build_trade_dependency_ir(
     analysis: dict[str, Any],
     *,

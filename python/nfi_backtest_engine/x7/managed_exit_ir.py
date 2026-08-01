@@ -10,6 +10,7 @@ reviewed wrapper hash.
 from __future__ import annotations
 
 import ast
+import copy
 import hashlib
 import json
 from collections.abc import Iterable, Mapping, Sequence
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
 from ..errors import StrategyAnalysisError
+from ..trade_ir import compile_scalar_ast_program
 
 MANAGED_EXIT_PROGRAM_VERSION = "managed-exit-program-v1"
 
@@ -48,6 +50,8 @@ def compile_managed_exit_ir(
     route_specs: Sequence[_RouteSpec],
     *,
     legacy_route_methods: Mapping[str, str],
+    terminal_exits: Mapping[str, Mapping[str, Any]] | None = None,
+    include_state_program: bool = True,
 ) -> ManagedExitCompilation:
     """Compile managed-long tag routes and their pure decision prefixes.
 
@@ -57,6 +61,7 @@ def compile_managed_exit_ir(
     remains covered by the legacy stateful-method identity gate.
     """
 
+    terminal_exits = terminal_exits or {}
     custom_exit = methods.get("custom_exit")
     if custom_exit is None:
         raise StrategyAnalysisError("managed exit IR requires custom_exit")
@@ -116,18 +121,20 @@ def compile_managed_exit_ir(
         _validate_dispatch_branch(branch, spec.method, aliases)
         programs, profit_gate, mask_indices = _compile_decision_prefix(wrapper)
         mode_name = _mode_name(wrapper, constants)
-        routes.append(
-            {
-                "id": spec.key,
-                "source_order": len(routes),
-                "match": matcher,
-                "initial_profit_gate": profit_gate,
-                "profit_basis": _decision_profit_basis(wrapper, programs),
-                "mode_name": mode_name,
-                "decision_program_order": programs,
-                "location": _location(branch),
-            }
-        )
+        route = {
+            "id": spec.key,
+            "source_order": len(routes),
+            "match": matcher,
+            "initial_profit_gate": profit_gate,
+            "profit_basis": _decision_profit_basis(wrapper, programs),
+            "mode_name": mode_name,
+            "decision_program_order": programs,
+            "terminal_exit": terminal_exits.get(spec.key),
+            "location": _location(branch),
+        }
+        if include_state_program:
+            route["state_program"] = _compile_state_policy(wrapper, constants)
+        routes.append(route)
         custom_masks.add(custom_index)
         wrapper_masks[spec.method] = mask_indices
 
@@ -574,6 +581,555 @@ def _loop_assigns_sell_signal(node: ast.For) -> bool:
         and isinstance(item.value, ast.Call)
         and _sell_signal_target(item.targets)
         for item in ast.walk(node)
+    )
+
+
+def _compile_state_policy(
+    wrapper: ast.FunctionDef,
+    constants: Mapping[str, Any],
+) -> dict[str, Any]:
+    inline_exit = _inline_exit_policy(wrapper)
+    stop = _stop_policy(wrapper, constants)
+    stateful_order = ["stop"]
+    if inline_exit is not None:
+        if inline_exit["position"] == "before-stop":
+            stateful_order.insert(0, "inline-exit")
+        else:
+            stateful_order.append("inline-exit")
+    stateful_order.extend(
+        [
+            "existing-target",
+            "target-update",
+            "final-filter",
+            "terminal-exit",
+        ]
+    )
+    return {
+        "stateful_order": stateful_order,
+        "inline_exit": inline_exit,
+        "stop": stop,
+        "target": {
+            "u_e_raise_delta": _u_e_raise_delta(wrapper),
+            "profit_raise_delta": _profit_raise_delta(wrapper),
+            "max_target_floor": _max_target_floor(wrapper),
+            "protected_reentry_guard": _has_protected_reentry_guard(wrapper),
+            "suppress_protected_exit": _suppresses_protected_exit(wrapper),
+            "pure_scalp_trailing": _uses_pure_scalp_trailing(wrapper),
+        },
+    }
+
+
+def _stop_policy(
+    wrapper: ast.FunctionDef,
+    constants: Mapping[str, Any],
+) -> dict[str, Any]:
+    aliases = _self_aliases(wrapper)
+    common_calls = [
+        node
+        for node in ast.walk(wrapper)
+        if isinstance(node, ast.Call)
+        and _call_name(node, aliases) == "long_exit_stoploss"
+    ]
+    if common_calls:
+        return {"kind": "source-helper", "helper": "long_exit_stoploss"}
+
+    threshold_names = {
+        node.attr
+        for node in ast.walk(wrapper)
+        if isinstance(node, ast.Attribute)
+        and node.attr.startswith("system_v3_2_stop_threshold_")
+    }
+    futures_names = sorted(name for name in threshold_names if "_futures" in name)
+    spot_names = sorted(name for name in threshold_names if "_spot" in name)
+    if len(futures_names) != 1 or len(spot_names) != 1:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} stop policy cannot be represented")
+    futures = constants.get(futures_names[0])
+    spot = constants.get(spot_names[0])
+    enabled = constants.get("system_v3_2_stops_enable")
+    if (
+        isinstance(futures, bool)
+        or not isinstance(futures, int | float)
+        or isinstance(spot, bool)
+        or not isinstance(spot, int | float)
+        or not isinstance(enabled, bool)
+    ):
+        raise StrategyAnalysisError(f"NFI {wrapper.name} stop constants are invalid")
+    return {
+        "kind": "stake-threshold",
+        "enabled": enabled,
+        "futures_threshold": float(futures),
+        "spot_threshold": float(spot),
+        "divide_by_leverage": _stop_divides_by_leverage(wrapper),
+    }
+
+
+def _stop_divides_by_leverage(wrapper: ast.FunctionDef) -> bool:
+    for node in ast.walk(wrapper):
+        if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Div):
+            continue
+        divides_by_leverage = any(
+            isinstance(item, ast.Name) and item.id in {"leverage", "trade_leverage"}
+            for item in ast.walk(node.right)
+        )
+        reads_threshold = any(
+            (isinstance(item, ast.Name) and "threshold" in item.id)
+            or (isinstance(item, ast.Attribute) and "threshold" in item.attr)
+            for item in ast.walk(node.left)
+        )
+        if divides_by_leverage and reads_threshold:
+            return True
+    return False
+
+
+def _inline_exit_policy(wrapper: ast.FunctionDef) -> dict[str, Any] | None:
+    suffix_family: str | None = None
+    suffix_line: int | None = None
+    for node in ast.walk(wrapper):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if node.value.startswith("q_"):
+                suffix_family = "q"
+                suffix_line = min(suffix_line or node.lineno, node.lineno)
+        elif isinstance(node, ast.JoinedStr):
+            fragments = "".join(
+                str(value.value)
+                for value in node.values
+                if isinstance(value, ast.Constant)
+            )
+            if "_rpd_" in fragments:
+                suffix_family = "rpd"
+                suffix_line = min(suffix_line or node.lineno, node.lineno)
+    if suffix_family is None or suffix_line is None:
+        return None
+
+    bounds = _inline_profit_bounds(wrapper, suffix_line)
+    stop_lines = [
+        node.lineno
+        for node in ast.walk(wrapper)
+        if isinstance(node, ast.Call) and _call_name(node, {}) == "long_exit_stoploss"
+    ]
+    if not stop_lines:
+        stop_lines = [
+            node.lineno
+            for node in ast.walk(wrapper)
+            if isinstance(node, ast.Compare)
+            and any(
+                isinstance(item, ast.Name) and item.id == "profit_stake"
+                for item in ast.walk(node)
+            )
+        ]
+    if not stop_lines:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline/stop order cannot be represented")
+    return {
+        "position": "before-stop" if suffix_line < min(stop_lines) else "after-stop",
+        **bounds,
+        "program": _compile_inline_exit_program(wrapper, suffix_family),
+    }
+
+
+class _InlineNameSubstitution(ast.NodeTransformer):
+    def __init__(self, replacements: Mapping[str, ast.expr]) -> None:
+        self.replacements = replacements
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        replacement = self.replacements.get(node.id)
+        if replacement is None or not isinstance(node.ctx, ast.Load):
+            return node
+        return self.visit(copy.deepcopy(replacement))
+
+
+def _compile_inline_exit_program(
+    wrapper: ast.FunctionDef,
+    suffix_family: str,
+) -> dict[str, Any]:
+    assignments = {
+        target.id: statement
+        for statement in ast.walk(wrapper)
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance((target := statement.targets[0]), ast.Name)
+    }
+    tuple_candidates: list[tuple[str, ast.Assign, ast.Tuple]] = []
+    for name, statement in assignments.items():
+        value = statement.value
+        if not isinstance(value, ast.Tuple) or not value.elts:
+            continue
+        pairs = [item for item in value.elts if isinstance(item, ast.Tuple) and len(item.elts) == 2]
+        if len(pairs) != len(value.elts):
+            continue
+        rendered = ast.unparse(value)
+        if (suffix_family == "q" and "q_" in rendered) or (
+            suffix_family == "rpd" and "_rpd_" in rendered
+        ):
+            tuple_candidates.append((name, statement, value))
+    if len(tuple_candidates) != 1:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline decisions cannot be represented")
+    tuple_name, tuple_statement, decision_tuple = tuple_candidates[0]
+
+    loop = next(
+        (
+            node
+            for node in ast.walk(wrapper)
+            if isinstance(node, ast.For)
+            and isinstance(node.iter, ast.Name)
+            and node.iter.id == tuple_name
+            and isinstance(node.target, ast.Tuple)
+            and len(node.target.elts) == 2
+            and all(isinstance(item, ast.Name) for item in node.target.elts)
+        ),
+        None,
+    )
+    if loop is None:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline decision loop is missing")
+    loop_target = loop.target
+    if not isinstance(loop_target, ast.Tuple):
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline decision target is invalid")
+    condition_name = cast(ast.Name, loop_target.elts[0]).id
+    reason_name = cast(ast.Name, loop_target.elts[1]).id
+    reason_template = _inline_reason_template(loop)
+
+    parents = {
+        child: parent
+        for parent in ast.walk(wrapper)
+        for child in ast.iter_child_nodes(parent)
+    }
+    container = parents.get(tuple_statement)
+    while container is not None and not (
+        isinstance(container, ast.If) and tuple_statement in container.body
+    ):
+        container = parents.get(container)
+    if not isinstance(container, ast.If):
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline range is missing")
+    range_test = _inline_range_test(container.test, assignments)
+
+    local_assignments = [
+        copy.deepcopy(statement)
+        for statement in container.body
+        if isinstance(statement, ast.Assign)
+        and statement.lineno < tuple_statement.lineno
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id != "in_range"
+    ]
+    decisions: list[ast.stmt] = []
+    for item in decision_tuple.elts:
+        pair = cast(ast.Tuple, item)
+        condition, reason = pair.elts
+        replacements = {
+            condition_name: condition,
+            reason_name: reason,
+            "mode": ast.Name(id="mode_name", ctx=ast.Load()),
+        }
+        compiled_reason = _InlineNameSubstitution(replacements).visit(
+            copy.deepcopy(reason_template)
+        )
+        decisions.append(
+            ast.If(
+                test=copy.deepcopy(condition),
+                body=[
+                    ast.Return(
+                        value=ast.Tuple(
+                            elts=[ast.Constant(value=True), compiled_reason],
+                            ctx=ast.Load(),
+                        )
+                    )
+                ],
+                orelse=[],
+            )
+        )
+    fragment = ast.FunctionDef(
+        name=f"__{wrapper.name}_inline",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[
+                ast.arg(arg="mode_name"),
+                ast.arg(arg="profit_init_ratio"),
+                ast.arg(arg="last_candle"),
+            ],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=[
+            ast.If(
+                test=range_test,
+                body=[*local_assignments, *decisions],
+                orelse=[],
+            ),
+            ast.Return(
+                value=ast.Tuple(
+                    elts=[ast.Constant(value=False), ast.Constant(value=None)],
+                    ctx=ast.Load(),
+                )
+            ),
+        ],
+        decorator_list=[],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+    )
+    ast.copy_location(fragment, wrapper)
+    ast.fix_missing_locations(fragment)
+    return compile_scalar_ast_program(fragment)
+
+
+def _inline_reason_template(loop: ast.For) -> ast.expr:
+    for node in ast.walk(loop):
+        if not isinstance(node, ast.Assign):
+            continue
+        if (
+            len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "signal_name"
+        ):
+            return node.value
+        if (
+            len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Tuple)
+            and len(node.targets[0].elts) == 2
+            and isinstance(node.value, ast.Tuple)
+            and len(node.value.elts) == 2
+            and isinstance(node.targets[0].elts[1], ast.Name)
+            and node.targets[0].elts[1].id == "signal_name"
+        ):
+            return node.value.elts[1]
+    raise StrategyAnalysisError("NFI inline decision reason cannot be represented")
+
+
+def _inline_range_test(
+    test: ast.expr,
+    assignments: Mapping[str, ast.Assign],
+) -> ast.expr:
+    if isinstance(test, ast.Name) and test.id in assignments:
+        return copy.deepcopy(assignments[test.id].value)
+    if isinstance(test, ast.BoolOp) and isinstance(test.op, ast.And):
+        values = [
+            value
+            for value in test.values
+            if not any(
+                isinstance(item, ast.Name) and item.id == "sell"
+                for item in ast.walk(value)
+            )
+        ]
+        if len(values) == 1:
+            return copy.deepcopy(values[0])
+    raise StrategyAnalysisError("NFI inline profit guard cannot be represented")
+
+
+def _inline_profit_bounds(wrapper: ast.FunctionDef, suffix_line: int) -> dict[str, Any]:
+    assignments = {
+        target.id: statement.value
+        for statement in ast.walk(wrapper)
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance((target := statement.targets[0]), ast.Name)
+    }
+    candidates: list[tuple[int, dict[str, Any]]] = []
+    for node in ast.walk(wrapper):
+        if not isinstance(node, ast.If) or node.end_lineno is None:
+            continue
+        if not (node.lineno <= suffix_line <= node.end_lineno):
+            continue
+        test = (
+            assignments.get(node.test.id, node.test)
+            if isinstance(node.test, ast.Name)
+            else node.test
+        )
+        for compare in ast.walk(test):
+            if not isinstance(compare, ast.Compare):
+                continue
+            bounds = _profit_range_bounds(compare)
+            if bounds is not None:
+                candidates.append((node.end_lineno - node.lineno, bounds))
+    if not candidates:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} inline profit range cannot be represented")
+    return min(candidates, key=lambda item: item[0])[1]
+
+
+def _profit_range_bounds(compare: ast.Compare) -> dict[str, Any] | None:
+    operands = [compare.left, *compare.comparators]
+    profit_positions = [
+        index
+        for index, operand in enumerate(operands)
+        if isinstance(operand, ast.Name) and operand.id == "profit_init_ratio"
+    ]
+    if len(profit_positions) != 1:
+        return None
+    profit_index = profit_positions[0]
+    bounds: dict[str, tuple[float, bool]] = {}
+    for index, operator in enumerate(compare.ops):
+        left = operands[index]
+        right = operands[index + 1]
+        if index + 1 == profit_index:
+            value = _number(left)
+            if value is not None and isinstance(operator, ast.Lt | ast.LtE):
+                bounds["minimum"] = (value, isinstance(operator, ast.LtE))
+            elif value is not None and isinstance(operator, ast.Gt | ast.GtE):
+                bounds["maximum"] = (value, isinstance(operator, ast.GtE))
+        elif index == profit_index:
+            value = _number(right)
+            if value is not None and isinstance(operator, ast.Gt | ast.GtE):
+                bounds["minimum"] = (value, isinstance(operator, ast.GtE))
+            elif value is not None and isinstance(operator, ast.Lt | ast.LtE):
+                bounds["maximum"] = (value, isinstance(operator, ast.LtE))
+    if set(bounds) != {"minimum", "maximum"}:
+        return None
+    minimum, minimum_inclusive = bounds["minimum"]
+    maximum, maximum_inclusive = bounds["maximum"]
+    return {
+        "minimum_profit": minimum,
+        "minimum_inclusive": minimum_inclusive,
+        "maximum_profit": maximum,
+        "maximum_inclusive": maximum_inclusive,
+    }
+
+
+def _u_e_raise_delta(wrapper: ast.FunctionDef) -> float:
+    values: list[float] = []
+    for node in ast.walk(wrapper):
+        if (
+            isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "profit_ratio"
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.Gt)
+            and len(node.comparators) == 1
+            and isinstance(node.comparators[0], ast.BinOp)
+            and isinstance(node.comparators[0].op, ast.Add)
+            and isinstance(node.comparators[0].left, ast.Name)
+            and node.comparators[0].left.id == "previous_profit"
+        ):
+            value = _number(node.comparators[0].right)
+            if value is not None:
+                values.append(value)
+    if len(set(values)) != 1:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} target raise delta cannot be represented")
+    return values[0]
+
+
+def _profit_raise_delta(wrapper: ast.FunctionDef) -> float:
+    values: list[float] = []
+    for node in ast.walk(wrapper):
+        if (
+            isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "profit_init_ratio"
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.Gt)
+            and len(node.comparators) == 1
+            and isinstance(node.comparators[0], ast.BinOp)
+            and isinstance(node.comparators[0].op, ast.Add)
+            and isinstance(node.comparators[0].left, ast.Name)
+            and node.comparators[0].left.id == "previous_profit"
+        ):
+            value = _number(node.comparators[0].right)
+            if value is not None:
+                values.append(value)
+    if len(set(values)) != 1:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} profit raise delta cannot be represented")
+    return values[0]
+
+
+def _max_target_floor(wrapper: ast.FunctionDef) -> float:
+    aliases = _self_aliases(wrapper)
+    assignments = {
+        target.id: statement.value
+        for statement in ast.walk(wrapper)
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance((target := statement.targets[0]), ast.Name)
+    }
+    parents = {
+        child: parent
+        for parent in ast.walk(wrapper)
+        for child in ast.iter_child_nodes(parent)
+    }
+    values: list[float] = []
+    for call in ast.walk(wrapper):
+        if (
+            not isinstance(call, ast.Call)
+            or _call_name(call, aliases) != "_set_profit_target"
+            or len(call.args) < 2
+        ):
+            continue
+        reason = call.args[1]
+        if isinstance(reason, ast.Name):
+            reason = assignments.get(reason.id, reason)
+        if "_max" not in ast.unparse(reason):
+            continue
+        ancestor = parents.get(call)
+        while ancestor is not None:
+            if isinstance(ancestor, ast.If):
+                for compare in ast.walk(ancestor.test):
+                    if not (
+                        isinstance(compare, ast.Compare)
+                        and any(isinstance(operator, ast.GtE) for operator in compare.ops)
+                        and any(
+                            isinstance(item, ast.Name) and item.id == "profit_init_ratio"
+                            for item in ast.walk(compare)
+                        )
+                    ):
+                        continue
+                    values.extend(
+                        value
+                        for operand in (compare.left, *compare.comparators)
+                        if (value := _number(operand)) is not None
+                    )
+                if values:
+                    break
+            ancestor = parents.get(ancestor)
+    if len(set(values)) != 1:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} max target floor cannot be represented")
+    return values[0]
+
+
+def _has_protected_reentry_guard(wrapper: ast.FunctionDef) -> bool:
+    return any(
+        isinstance(node, ast.Compare)
+        and isinstance(node.left, ast.Name)
+        and node.left.id == "previous_sell_reason"
+        and any(isinstance(operator, ast.NotIn) for operator in node.ops)
+        for node in ast.walk(wrapper)
+    )
+
+
+def _suppresses_protected_exit(wrapper: ast.FunctionDef) -> bool:
+    assignments = {
+        target.id: statement.value
+        for statement in ast.walk(wrapper)
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance((target := statement.targets[0]), ast.Name)
+    }
+    candidates: list[tuple[int, ast.AST]] = []
+    for node in ast.walk(wrapper):
+        if (
+            isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "signal_name"
+            and any(isinstance(operator, ast.NotIn) for operator in node.ops)
+            and len(node.comparators) == 1
+        ):
+            comparator = node.comparators[0]
+            if isinstance(comparator, ast.Name):
+                comparator = assignments.get(comparator.id, comparator)
+            candidates.append((node.lineno, comparator))
+    if not candidates:
+        raise StrategyAnalysisError(f"NFI {wrapper.name} final signal filter is missing")
+    comparator = max(candidates, key=lambda item: item[0])[1]
+    names = {
+        node.id
+        for node in ast.walk(comparator)
+        if isinstance(node, ast.Name)
+    }
+    rendered = ast.unparse(comparator)
+    return "stoploss" in rendered or any("stoploss" in name for name in names)
+
+
+def _uses_pure_scalp_trailing(wrapper: ast.FunctionDef) -> bool:
+    return any(
+        isinstance(node, ast.Attribute)
+        and "stop_threshold_scalp" in node.attr
+        for node in ast.walk(wrapper)
     )
 
 

@@ -118,7 +118,9 @@ impl NfiX7TradeManager {
 /// whose operands point at a `variable` and a literal string expression. We do
 /// not accept a serialized projection list: deriving it here prevents an input
 /// from omitting a field that executable bytecode can read.
-fn scalar_program_feature_projection(program: &ScalarDecisionProgram) -> FeatureProjection {
+pub(crate) fn scalar_program_feature_projection(
+    program: &ScalarDecisionProgram,
+) -> FeatureProjection {
     let mut projection = FeatureProjection::new();
     for expression in &program.expressions {
         let Some(fields) = expression.as_array() else {

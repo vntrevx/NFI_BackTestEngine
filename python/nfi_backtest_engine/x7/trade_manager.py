@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.18.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.19.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -572,6 +572,7 @@ def build_nfi_trade_manager_ir(
     from .routes import (
         _build_managed_long_routes,
         _build_managed_short_routes,
+        _extract_rebuy_terminal_exit,
         _require_managed_long_methods,
         _top_coins_program_order,
         _validate_managed_long_method_identity,
@@ -629,6 +630,7 @@ def build_nfi_trade_manager_ir(
     if not isinstance(constants, dict):
         raise StrategyAnalysisError("NFI trade manager constants are invalid")
     _require_managed_long_methods(methods)
+    rebuy_terminal_exit, _ = _extract_rebuy_terminal_exit(methods["long_exit_rebuy"])
     managed_exit_compilation = compile_managed_exit_ir(
         methods,
         constants,
@@ -637,8 +639,13 @@ def build_nfi_trade_manager_ir(
             "long_exit_grind": "long_grind",
             "long_exit_btc": "long_btc",
         },
+        terminal_exits=(
+            {"long_rebuy": rebuy_terminal_exit}
+            if rebuy_terminal_exit is not None
+            else None
+        ),
     )
-    rebuy_terminal_exit = _validate_managed_long_method_identity(
+    validated_terminal_exit = _validate_managed_long_method_identity(
         methods,
         method_records,
         custom_exit_statement_indices=(
@@ -646,6 +653,8 @@ def build_nfi_trade_manager_ir(
         ),
         wrapper_statement_indices=managed_exit_compilation.wrapper_statement_indices,
     )
+    if validated_terminal_exit != rebuy_terminal_exit:
+        raise StrategyAnalysisError("NFI long rebuy terminal policy changed during compilation")
     _validate_managed_short_method_identity(methods, method_records)
 
     # The top-coins route uses a literal tuple that can be checked

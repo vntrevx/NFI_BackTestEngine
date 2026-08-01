@@ -97,7 +97,75 @@ pub struct ManagedExitRoute {
     pub profit_basis: ManagedExitProfitBasis,
     pub mode_name: String,
     pub decision_program_order: Vec<String>,
+    #[serde(default)]
+    pub state_program: Option<ManagedExitStateProgram>,
+    #[serde(default)]
+    pub terminal_exit: Option<NfiManagedTerminalExit>,
     pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitStateProgram {
+    pub stateful_order: Vec<ManagedExitStateOperation>,
+    #[serde(default)]
+    pub inline_exit: Option<ManagedExitInlineExit>,
+    pub stop: ManagedExitStopPolicy,
+    pub target: ManagedExitTargetPolicy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitStateOperation {
+    InlineExit,
+    Stop,
+    ExistingTarget,
+    TargetUpdate,
+    FinalFilter,
+    TerminalExit,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitInlineExit {
+    pub position: ManagedExitInlinePosition,
+    pub minimum_profit: f64,
+    pub minimum_inclusive: bool,
+    pub maximum_profit: f64,
+    pub maximum_inclusive: bool,
+    pub program: ScalarDecisionProgram,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitInlinePosition {
+    BeforeStop,
+    AfterStop,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum ManagedExitStopPolicy {
+    SourceHelper {
+        helper: String,
+    },
+    StakeThreshold {
+        enabled: bool,
+        futures_threshold: f64,
+        spot_threshold: f64,
+        divide_by_leverage: bool,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitTargetPolicy {
+    pub u_e_raise_delta: f64,
+    pub profit_raise_delta: f64,
+    pub max_target_floor: f64,
+    pub protected_reentry_guard: bool,
+    pub suppress_protected_exit: bool,
+    pub pure_scalp_trailing: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

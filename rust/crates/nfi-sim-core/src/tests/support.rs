@@ -675,6 +675,62 @@ pub(super) fn enable_test_basic_exit_shadow(
             },
             mode_name: route.mode_name.clone(),
             decision_program_order,
+            state_program: Some(ManagedExitStateProgram {
+                stateful_order: vec![
+                    ManagedExitStateOperation::Stop,
+                    ManagedExitStateOperation::ExistingTarget,
+                    ManagedExitStateOperation::TargetUpdate,
+                    ManagedExitStateOperation::FinalFilter,
+                    ManagedExitStateOperation::TerminalExit,
+                ],
+                inline_exit: None,
+                stop: if matches!(
+                    route.profile,
+                    NfiManagedLongProfile::Rebuy
+                        | NfiManagedLongProfile::Rapid
+                        | NfiManagedLongProfile::Scalp
+                ) {
+                    ManagedExitStopPolicy::StakeThreshold {
+                        enabled: true,
+                        futures_threshold: route.stop_threshold_futures.unwrap_or(0.35),
+                        spot_threshold: route.stop_threshold_spot.unwrap_or(0.12),
+                        divide_by_leverage: true,
+                    }
+                } else {
+                    ManagedExitStopPolicy::SourceHelper {
+                        helper: "long_exit_stoploss".to_owned(),
+                    }
+                },
+                target: ManagedExitTargetPolicy {
+                    u_e_raise_delta: if matches!(
+                        route.profile,
+                        NfiManagedLongProfile::Normal
+                            | NfiManagedLongProfile::Pump
+                            | NfiManagedLongProfile::TopCoins
+                            | NfiManagedLongProfile::Scalp
+                    ) {
+                        0.005
+                    } else {
+                        0.001
+                    },
+                    profit_raise_delta: 0.001,
+                    max_target_floor: if route.profile == NfiManagedLongProfile::HighProfit {
+                        0.03
+                    } else {
+                        0.005
+                    },
+                    protected_reentry_guard: matches!(
+                        route.profile,
+                        NfiManagedLongProfile::Normal
+                            | NfiManagedLongProfile::Quick
+                            | NfiManagedLongProfile::Rapid
+                            | NfiManagedLongProfile::TopCoins
+                    ),
+                    suppress_protected_exit: route.profile != NfiManagedLongProfile::HighProfit,
+                    pure_scalp_trailing: route.profile == NfiManagedLongProfile::Scalp,
+                },
+            }),
+            terminal_exit: route.terminal_exit.clone(),
             location: ManagedExitSourceLocation {
                 line: 1,
                 column: 0,
@@ -683,6 +739,62 @@ pub(super) fn enable_test_basic_exit_shadow(
             },
         }],
         fingerprint: "b".repeat(64),
+    });
+}
+
+pub(super) fn enable_test_quick_inline_shadow(manager: &mut NfiX7TradeManager) {
+    enable_test_basic_exit_shadow(
+        manager,
+        "long_quick",
+        Some(ManagedExitProfitGate {
+            operator: ManagedExitComparison::GreaterThan,
+            value: 0.0,
+        }),
+    );
+    let route = &mut manager
+        .managed_exit_program
+        .as_mut()
+        .expect("shadow program")
+        .routes[0];
+    let state = route.state_program.as_mut().expect("shadow state program");
+    state.stateful_order = vec![
+        ManagedExitStateOperation::Stop,
+        ManagedExitStateOperation::InlineExit,
+        ManagedExitStateOperation::ExistingTarget,
+        ManagedExitStateOperation::TargetUpdate,
+        ManagedExitStateOperation::FinalFilter,
+        ManagedExitStateOperation::TerminalExit,
+    ];
+    state.inline_exit = Some(ManagedExitInlineExit {
+        position: ManagedExitInlinePosition::AfterStop,
+        minimum_profit: 0.02,
+        minimum_inclusive: false,
+        maximum_profit: 0.09,
+        maximum_inclusive: true,
+        program: serde_json::from_value(serde_json::json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["mode_name", "profit_init_ratio", "last_candle"],
+            "expressions": [
+                ["variable", "last_candle"],
+                ["literal", "RSI_14"],
+                ["index", 0, 1],
+                ["literal", 78.0],
+                ["compare", 2, [["greater", 3]]],
+                ["literal", true],
+                ["variable", "mode_name"],
+                ["format", [["text", "exit_"], ["value", 6], ["text", "_q_1"]]],
+                ["tuple", [5, 7]],
+                ["literal", false],
+                ["literal", null],
+                ["tuple", [9, 10]]
+            ],
+            "statements": [
+                ["if", 4, [["return", 8]], []],
+                ["return", 11]
+            ]
+        }))
+        .expect("valid inline scalar program"),
     });
 }
 
