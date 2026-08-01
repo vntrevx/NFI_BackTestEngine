@@ -199,7 +199,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
     programs = operation.get("programs")
     constants = operation.get("constants")
     source_sha256 = operation.get("source_sha256")
-    requires_managed_exit_program = operation.get("schema_version") == "0.17.0"
+    requires_managed_exit_program = operation.get("schema_version") in {"0.17.0", "0.18.0"}
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)

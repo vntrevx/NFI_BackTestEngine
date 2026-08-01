@@ -42,18 +42,19 @@ Rust:
 - static `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`
   definitions with side-aware local/global pair locks in the global event loop.
 
-The route table preserves X7's callback order. Normal, pump, quick, and high-profit
-dispatch plus their pure decision prefixes are compiled from the supplied AST into a
-generic shadow program. Rust does not branch on those tag values: it executes the
-serialized matcher and program order, then fails closed if the legacy route disagrees.
-A mixed tag is accepted only when every
-word belongs to the compiled scope. Rebuy, rapid, and scalp combinations retain their
-source-specific dispatch order; an unknown companion word fails before simulation.
+The route table preserves X7's callback order. All eight managed-long dispatch blocks
+and their pure decision prefixes are compiled from the supplied AST into a generic
+shadow program. Recursive any/all matcher IR represents rebuy, rapid, and scalp
+compounds, and rebuy's current-stake profit basis is source data. Rust does not branch
+on those tag values: it executes the serialized matcher and program order, then fails
+closed if the legacy route disagrees. A mixed tag is accepted only when every word
+belongs to the compiled scope. Rebuy, rapid, and scalp combinations retain their
+source-compiled dispatch order; an unknown companion word fails before simulation.
 
 ## Proof level
 
 The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
-region. Source-compiled basic dispatch and decision regions are masked from that legacy
+region. Source-compiled managed dispatch and decision regions are masked from that legacy
 identity gate, while every surrounding stop/target statement remains pinned. A changed
 callback therefore either recompiles into new generic IR or fails before it can inherit
 an unrelated Rust policy.

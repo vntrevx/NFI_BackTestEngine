@@ -133,7 +133,7 @@
       "mutates_external_state": false
     },
     "managed_exit_shadow_tests": {
-      "command": "uv run pytest -q tests/test_managed_exit_ir.py && cargo test --manifest-path rust/Cargo.toml -p nfi-sim-core --locked generic_basic_exit_shadow",
+      "command": "uv run pytest -q tests/test_managed_exit_ir.py && cargo test --manifest-path rust/Cargo.toml -p nfi-sim-core --locked generic_managed_exit_shadow",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 900,

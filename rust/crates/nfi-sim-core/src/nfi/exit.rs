@@ -7,9 +7,9 @@ use serde_json::Value;
 use crate::calculations::{fee_close, fee_open};
 use crate::callbacks::{feature_number_at, insert_projected_feature_window, scalar_trade_value};
 use crate::domain::{
-    Candle, ManagedExitComparison, ManagedExitExecutionMode, ManagedExitRoute,
-    ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute, NfiX7TradeManager,
-    PairSeries, PortfolioConfig,
+    Candle, ManagedExitComparison, ManagedExitExecutionMode, ManagedExitProfitBasis,
+    ManagedExitRoute, ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile,
+    NfiManagedLongRoute, NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{evaluate_scalar_program_bundle_from_base, number_value};
@@ -72,7 +72,23 @@ pub(crate) fn evaluate_nfi_exit(
             .iter()
             .find(|route| &route.key == key)
         {
-            if !nfi_managed_route_supports_tags(manager, route, &words) {
+            let legacy_matches = nfi_managed_route_supports_tags(manager, route, &words);
+            let source_matches = manager
+                .managed_exit_program
+                .as_ref()
+                .and_then(|program| {
+                    program
+                        .routes
+                        .iter()
+                        .find(|candidate| candidate.id == route.key)
+                })
+                .map_or(legacy_matches, |candidate| {
+                    managed_exit_matcher_matches(&candidate.matcher, &words)
+                });
+            if source_matches != legacy_matches {
+                return None;
+            }
+            if !source_matches {
                 continue;
             }
             match evaluate_nfi_managed_long_exit(
@@ -385,11 +401,7 @@ fn generic_managed_exit_signals(
     snapshot: NfiProfitSnapshot,
     enter_tags: &[String],
 ) -> Option<(bool, Option<String>)> {
-    let route_matches = match route.matcher.operator {
-        ManagedExitTagOperator::Any => enter_tags
-            .iter()
-            .any(|tag| route.matcher.entry_tags.contains(tag)),
-    };
+    let route_matches = managed_exit_matcher_matches(&route.matcher, enter_tags);
     if !route_matches {
         return Some((false, None));
     }
@@ -402,15 +414,16 @@ fn generic_managed_exit_signals(
     {
         return Some((false, None));
     }
+    let current_profit = match route.profit_basis {
+        ManagedExitProfitBasis::InitialStake => snapshot.initial_stake_ratio,
+        ManagedExitProfitBasis::CurrentStake => snapshot.current_stake_ratio,
+    };
     let mut base_variables = BTreeMap::from([
         (
             "mode_name".to_owned(),
             Value::String(route.mode_name.clone()),
         ),
-        (
-            "current_profit".to_owned(),
-            number_value(snapshot.initial_stake_ratio)?,
-        ),
+        ("current_profit".to_owned(), number_value(current_profit)?),
         ("max_profit".to_owned(), number_value(0.0)?),
         ("max_loss".to_owned(), number_value(0.0)?),
         ("trade".to_owned(), scalar_trade_value(trade)?),
@@ -447,6 +460,28 @@ fn generic_managed_exit_signals(
         }
     }
     Some(result)
+}
+
+fn managed_exit_matcher_matches<T: AsRef<str>>(
+    matcher: &ManagedExitTagMatcher,
+    enter_tags: &[T],
+) -> bool {
+    match matcher.operator {
+        ManagedExitTagOperator::Any => enter_tags
+            .iter()
+            .any(|word| matcher.entry_tags.iter().any(|tag| tag == word.as_ref())),
+        ManagedExitTagOperator::All => enter_tags
+            .iter()
+            .all(|word| matcher.entry_tags.iter().any(|tag| tag == word.as_ref())),
+        ManagedExitTagOperator::AnyOf => matcher
+            .operands
+            .iter()
+            .any(|operand| managed_exit_matcher_matches(operand, enter_tags)),
+        ManagedExitTagOperator::AllOf => matcher
+            .operands
+            .iter()
+            .all(|operand| managed_exit_matcher_matches(operand, enter_tags)),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

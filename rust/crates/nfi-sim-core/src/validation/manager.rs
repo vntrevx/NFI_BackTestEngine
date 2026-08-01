@@ -3,8 +3,8 @@
 use std::collections::BTreeSet;
 
 use crate::domain::{
-    NfiManagedLongProfile, NfiManagedLongRoute, NfiX7AdjustmentConstants, NfiX7TradeManager,
-    PortfolioConfig, SimError,
+    ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute,
+    NfiX7AdjustmentConstants, NfiX7TradeManager, PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -103,6 +103,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.15.0"
             | "0.16.0"
             | "0.17.0"
+            | "0.18.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -117,7 +118,7 @@ pub(crate) fn validate_nfi_trade_manager(
             .all(valid_nfi_managed_long_route);
     let valid_terminal_exit_version = matches!(
         manager.schema_version.as_str(),
-        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0"
+        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -173,7 +174,7 @@ pub(crate) fn validate_nfi_trade_manager(
     })
     .map(ToOwned::to_owned)
     .collect::<Vec<_>>();
-    let valid_route_order = if manager.schema_version == "0.17.0" {
+    let valid_route_order = if matches!(manager.schema_version.as_str(), "0.17.0" | "0.18.0") {
         manager.route_order.len() == expected_route_order.len()
             && manager.route_order.iter().collect::<BTreeSet<_>>()
                 == expected_route_order.iter().collect::<BTreeSet<_>>()
@@ -197,7 +198,7 @@ pub(crate) fn validate_nfi_trade_manager(
                 "grind-backtest-v2" => {
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0"
+                        "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
                     )
                 }
                 _ => false,
@@ -296,7 +297,7 @@ pub(crate) fn validate_nfi_trade_manager(
                     .is_some_and(|value| value.is_finite() && value > 0.0)
                     && adjustment.constants.policy.is_none()
             }
-            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" => {
+            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -444,7 +445,7 @@ pub(crate) fn validate_nfi_trade_manager(
 
 fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_exit_program.as_ref() else {
-        return manager.schema_version != "0.17.0";
+        return !matches!(manager.schema_version.as_str(), "0.17.0" | "0.18.0");
     };
     if program.schema_version != "managed-exit-program-v1"
         || !valid_sha256(&program.fingerprint)
@@ -458,6 +459,16 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
         .map(|route| route.id.as_str())
         .collect::<BTreeSet<_>>();
     if route_ids.len() != program.routes.len() {
+        return false;
+    }
+    if manager.schema_version == "0.18.0"
+        && route_ids
+            != manager
+                .managed_long_routes
+                .iter()
+                .map(|route| route.key.as_str())
+                .collect::<BTreeSet<_>>()
+    {
         return false;
     }
     let source_order = manager
@@ -475,8 +486,19 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     {
         return false;
     }
+    let mut known_tags = manager
+        .managed_long_routes
+        .iter()
+        .flat_map(|route| route.entry_tags.iter().map(String::as_str))
+        .collect::<BTreeSet<_>>();
+    if let Some(route) = manager.long_grind.as_ref() {
+        known_tags.extend(route.entry_tags.iter().map(String::as_str));
+    }
+    if let Some(route) = manager.long_btc.as_ref() {
+        known_tags.extend(route.entry_tags.iter().map(String::as_str));
+    }
     program.routes.iter().enumerate().all(|(index, route)| {
-        let tags = route.matcher.entry_tags.iter().collect::<BTreeSet<_>>();
+        let mut matcher_tags = BTreeSet::new();
         let Some(legacy) = manager
             .managed_long_routes
             .iter()
@@ -488,9 +510,13 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
             && !route.id.is_empty()
             && !route.mode_name.is_empty()
             && route.mode_name == legacy.mode_name
-            && !route.matcher.entry_tags.is_empty()
-            && tags.len() == route.matcher.entry_tags.len()
-            && tags == legacy.entry_tags.iter().collect::<BTreeSet<_>>()
+            && valid_managed_exit_matcher(&route.matcher, &known_tags, &mut matcher_tags, 0)
+            && legacy
+                .entry_tags
+                .iter()
+                .all(|tag| matcher_tags.contains(tag.as_str()))
+            && (manager.schema_version != "0.17.0"
+                || matcher_tags == legacy.entry_tags.iter().map(String::as_str).collect())
             && route
                 .initial_profit_gate
                 .as_ref()
@@ -503,6 +529,41 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
             && route.location.line > 0
             && route.location.end_line >= route.location.line
     })
+}
+
+fn valid_managed_exit_matcher<'a>(
+    matcher: &'a ManagedExitTagMatcher,
+    known_tags: &BTreeSet<&str>,
+    collected_tags: &mut BTreeSet<&'a str>,
+    depth: usize,
+) -> bool {
+    if depth >= 8 {
+        return false;
+    }
+    match matcher.operator {
+        ManagedExitTagOperator::Any | ManagedExitTagOperator::All => {
+            let tags = matcher
+                .entry_tags
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>();
+            matcher.operands.is_empty()
+                && !tags.is_empty()
+                && tags.len() == matcher.entry_tags.len()
+                && tags.iter().all(|tag| known_tags.contains(tag))
+                && {
+                    collected_tags.extend(tags);
+                    true
+                }
+        }
+        ManagedExitTagOperator::AnyOf | ManagedExitTagOperator::AllOf => {
+            matcher.entry_tags.is_empty()
+                && matcher.operands.len() >= 2
+                && matcher.operands.iter().all(|operand| {
+                    valid_managed_exit_matcher(operand, known_tags, collected_tags, depth + 1)
+                })
+        }
+    }
 }
 
 fn valid_sha256(value: &str) -> bool {

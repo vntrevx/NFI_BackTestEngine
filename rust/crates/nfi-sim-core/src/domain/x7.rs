@@ -93,6 +93,8 @@ pub struct ManagedExitRoute {
     pub matcher: ManagedExitTagMatcher,
     #[serde(default)]
     pub initial_profit_gate: Option<ManagedExitProfitGate>,
+    #[serde(default)]
+    pub profit_basis: ManagedExitProfitBasis,
     pub mode_name: String,
     pub decision_program_order: Vec<String>,
     pub location: ManagedExitSourceLocation,
@@ -102,13 +104,27 @@ pub struct ManagedExitRoute {
 #[serde(deny_unknown_fields)]
 pub struct ManagedExitTagMatcher {
     pub operator: ManagedExitTagOperator,
+    #[serde(default)]
     pub entry_tags: Vec<String>,
+    #[serde(default)]
+    pub operands: Vec<ManagedExitTagMatcher>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum ManagedExitTagOperator {
     Any,
+    All,
+    AnyOf,
+    AllOf,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitProfitBasis {
+    #[default]
+    InitialStake,
+    CurrentStake,
 }
 
 #[derive(Debug, Clone, Deserialize)]

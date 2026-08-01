@@ -208,12 +208,16 @@ fn nfi_normal_skips_profit_programs_while_initial_stake_is_negative() {
 }
 
 #[test]
-fn generic_basic_exit_shadow_matches_all_four_legacy_routes() {
+fn generic_managed_exit_shadow_matches_all_eight_legacy_routes() {
     for (route_key, tag, gate) in [
         ("long_normal", "1", true),
         ("long_pump", "21", true),
         ("long_quick", "41", true),
+        ("long_rebuy", "61", false),
         ("long_high_profit", "81", false),
+        ("long_rapid", "101", true),
+        ("long_top_coins", "141", false),
+        ("long_scalp", "161", false),
     ] {
         let mut entry = candle(1, 100.0, 100.0);
         entry.enter_long = Some(EntrySignal {
@@ -232,13 +236,12 @@ fn generic_basic_exit_shadow_matches_all_four_legacy_routes() {
         );
         let mut manager_config = config(1);
         enable_nfi_manager(&mut manager_config, manager);
+        let mut pair = nfi_pair(vec![entry, candle(2, 103.0, 103.0)], BTreeMap::new());
+        pair.minimum_cost = Some(5.0);
         let result = simulate(&SimulationInput {
             schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
             config: manager_config,
-            pairs: vec![nfi_pair(
-                vec![entry, candle(2, 103.0, 103.0)],
-                BTreeMap::new(),
-            )],
+            pairs: vec![pair],
         })
         .expect("source-compiled shadow agrees with the legacy route");
 
@@ -250,7 +253,7 @@ fn generic_basic_exit_shadow_matches_all_four_legacy_routes() {
 }
 
 #[test]
-fn generic_basic_exit_shadow_fails_closed_on_a_decision_difference() {
+fn generic_managed_exit_shadow_fails_closed_on_a_decision_difference() {
     let mut entry = candle(1, 100.0, 100.0);
     entry.enter_long = Some(EntrySignal {
         tag: Some("1".to_owned()),
@@ -273,6 +276,69 @@ fn generic_basic_exit_shadow_fails_closed_on_a_decision_difference() {
     });
 
     assert!(matches!(result, Err(SimError::InvalidNfiTradeManager)));
+}
+
+#[test]
+fn generic_managed_exit_shadow_executes_a_recursive_source_matcher() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("61".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut manager = nfi_top_coins_manager(nfi_profit_program(0.01, "recursive_match"));
+    enable_test_basic_exit_shadow(&mut manager, "long_rebuy", None);
+    let rebuy_tags = manager
+        .managed_long_routes
+        .iter()
+        .find(|route| route.key == "long_rebuy")
+        .expect("rebuy route")
+        .entry_tags
+        .clone();
+    manager
+        .managed_exit_program
+        .as_mut()
+        .expect("shadow program")
+        .routes[0]
+        .matcher = ManagedExitTagMatcher {
+        operator: ManagedExitTagOperator::AnyOf,
+        entry_tags: Vec::new(),
+        operands: vec![
+            ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::All,
+                entry_tags: rebuy_tags.clone(),
+                operands: Vec::new(),
+            },
+            ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::AllOf,
+                entry_tags: Vec::new(),
+                operands: vec![
+                    ManagedExitTagMatcher {
+                        operator: ManagedExitTagOperator::Any,
+                        entry_tags: rebuy_tags.clone(),
+                        operands: Vec::new(),
+                    },
+                    ManagedExitTagMatcher {
+                        operator: ManagedExitTagOperator::All,
+                        entry_tags: rebuy_tags,
+                        operands: Vec::new(),
+                    },
+                ],
+            },
+        ],
+    };
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(vec![entry, candle(2, 103.0, 103.0)], BTreeMap::new());
+    pair.minimum_cost = Some(5.0);
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .expect("recursive source matcher agrees with legacy routing");
+
+    assert_eq!(result.trades[0].exit_reason, "recursive_match ( 61)");
 }
 
 #[test]

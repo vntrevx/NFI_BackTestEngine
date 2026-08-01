@@ -42,19 +42,19 @@ class ManagedExitCompilation:
     wrapper_statement_indices: Mapping[str, frozenset[int]]
 
 
-def compile_basic_managed_exit_ir(
+def compile_managed_exit_ir(
     methods: Mapping[str, ast.FunctionDef],
     constants: Mapping[str, Any],
     route_specs: Sequence[_RouteSpec],
     *,
     legacy_route_methods: Mapping[str, str],
 ) -> ManagedExitCompilation:
-    """Compile simple any-tag long routes and their pure decision prefixes.
+    """Compile managed-long tag routes and their pure decision prefixes.
 
-    A supported route must be a top-level ``custom_exit`` branch using
-    ``any(tag in source_tags for tag in enter_tags)``.  Its wrapper must expose
-    an ordered tuple-return decision prefix.  Everything outside the returned
-    AST masks remains covered by the legacy stateful-method identity gate.
+    A supported route must be a top-level ``custom_exit`` branch composed from
+    bounded ``any``/``all`` tag predicates. Its wrapper must expose an ordered
+    tuple-return decision prefix. Everything outside the returned AST masks
+    remains covered by the legacy stateful-method identity gate.
     """
 
     custom_exit = methods.get("custom_exit")
@@ -65,7 +65,7 @@ def compile_basic_managed_exit_ir(
         **legacy_route_methods,
     }
     aliases = _self_aliases(custom_exit)
-    discovered: list[tuple[int, str, ast.If, str | None]] = []
+    discovered: list[tuple[int, str, ast.If, dict[str, Any] | None]] = []
     unknown_long_routes: set[str] = set()
     seen_keys: set[str] = set()
     for index, statement in enumerate(custom_exit.body):
@@ -84,7 +84,12 @@ def compile_basic_managed_exit_ir(
                 continue
             seen_keys.add(key)
             discovered.append(
-                (index, key, statement, _simple_any_tag_constant(statement.test, aliases))
+                (
+                    index,
+                    key,
+                    statement,
+                    _compile_tag_matcher(statement.test, aliases, constants),
+                )
             )
     if unknown_long_routes:
         raise StrategyAnalysisError(
@@ -96,48 +101,35 @@ def compile_basic_managed_exit_ir(
     routes: list[dict[str, Any]] = []
     custom_masks: set[int] = set()
     wrapper_masks: dict[str, frozenset[int]] = {}
-    by_key = {key: (index, statement, tag_name) for index, key, statement, tag_name in discovered}
+    by_key = {key: (index, statement, matcher) for index, key, statement, matcher in discovered}
     for spec in route_specs:
-        if spec.profile not in {"normal", "pump", "quick", "high-profit"}:
-            continue
         found = by_key.get(spec.key)
         if found is None:
             raise StrategyAnalysisError(f"NFI managed exit route is missing: {spec.key}")
-        custom_index, branch, tag_constant = found
-        if tag_constant is None:
-            raise StrategyAnalysisError(
-                f"NFI {spec.key} no longer uses a simple any-tag route"
-            )
-        raw_tags = constants.get(tag_constant)
-        if (
-            not isinstance(raw_tags, list | tuple)
-            or not raw_tags
-            or not all(isinstance(tag, str) and tag for tag in raw_tags)
-        ):
-            raise StrategyAnalysisError(f"NFI {spec.key} route tags are not static strings")
-        tags = list(dict.fromkeys(cast(Sequence[str], raw_tags)))
-        if len(tags) != len(raw_tags):
-            raise StrategyAnalysisError(f"NFI {spec.key} route tags contain duplicates")
+        custom_index, branch, matcher = found
+        if matcher is None:
+            raise StrategyAnalysisError(f"NFI {spec.key} tag matcher cannot be represented")
 
         wrapper = methods.get(spec.method)
         if wrapper is None:
             raise StrategyAnalysisError(f"NFI managed exit wrapper is missing: {spec.method}")
         _validate_dispatch_branch(branch, spec.method, aliases)
-        programs, profit_gate, mask_index = _compile_decision_prefix(wrapper)
+        programs, profit_gate, mask_indices = _compile_decision_prefix(wrapper)
         mode_name = _mode_name(wrapper, constants)
         routes.append(
             {
                 "id": spec.key,
                 "source_order": len(routes),
-                "match": {"operator": "any", "entry_tags": tags},
+                "match": matcher,
                 "initial_profit_gate": profit_gate,
+                "profit_basis": _decision_profit_basis(wrapper, programs),
                 "mode_name": mode_name,
                 "decision_program_order": programs,
                 "location": _location(branch),
             }
         )
         custom_masks.add(custom_index)
-        wrapper_masks[spec.method] = frozenset({mask_index})
+        wrapper_masks[spec.method] = mask_indices
 
     basic_ids = {route["id"] for route in routes}
     expected_basic_order = [key for key in long_route_order if key in basic_ids]
@@ -216,11 +208,48 @@ def _sell_signal_target(targets: Sequence[ast.expr]) -> bool:
     return names == ["sell", "signal_name"]
 
 
-def _simple_any_tag_constant(node: ast.AST, aliases: Mapping[str, str]) -> str | None:
+def _compile_tag_matcher(
+    node: ast.AST,
+    aliases: Mapping[str, str],
+    constants: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And | ast.Or):
+        operands = [_compile_tag_matcher(value, aliases, constants) for value in node.values]
+        if any(operand is None for operand in operands):
+            return None
+        return {
+            "operator": "all-of" if isinstance(node.op, ast.And) else "any-of",
+            "operands": [cast(dict[str, Any], operand) for operand in operands],
+        }
+    leaf = _tag_matcher_leaf(node, aliases)
+    if leaf is None:
+        return None
+    operator, constant_name = leaf
+    raw_tags = constants.get(constant_name)
+    if (
+        not isinstance(raw_tags, list | tuple)
+        or not raw_tags
+        or not all(isinstance(tag, str) and tag for tag in raw_tags)
+    ):
+        raise StrategyAnalysisError(
+            f"NFI managed exit matcher {constant_name} is not a static string list"
+        )
+    tags = list(dict.fromkeys(cast(Sequence[str], raw_tags)))
+    if len(tags) != len(raw_tags):
+        raise StrategyAnalysisError(
+            f"NFI managed exit matcher {constant_name} contains duplicate tags"
+        )
+    return {"operator": operator, "entry_tags": tags}
+
+
+def _tag_matcher_leaf(
+    node: ast.AST,
+    aliases: Mapping[str, str],
+) -> tuple[str, str] | None:
     if (
         not isinstance(node, ast.Call)
         or not isinstance(node.func, ast.Name)
-        or node.func.id != "any"
+        or node.func.id not in {"any", "all"}
         or len(node.args) != 1
         or node.keywords
         or not isinstance(node.args[0], ast.GeneratorExp)
@@ -244,12 +273,12 @@ def _simple_any_tag_constant(node: ast.AST, aliases: Mapping[str, str]) -> str |
     ):
         return None
     local_name = generator.elt.comparators[0].id
-    return aliases.get(local_name, local_name)
+    return node.func.id, aliases.get(local_name, local_name)
 
 
 def _compile_decision_prefix(
     wrapper: ast.FunctionDef,
-) -> tuple[list[str], dict[str, Any] | None, int]:
+) -> tuple[list[str], dict[str, Any] | None, frozenset[int]]:
     callable_tuples = _callable_tuples(wrapper)
     for index, statement in enumerate(wrapper.body):
         gate = _positive_profit_gate(statement)
@@ -263,7 +292,7 @@ def _compile_decision_prefix(
                 callable_tuples,
                 frozenset(programs),
             )
-            return programs, gate, index
+            return programs, gate, frozenset({index})
     for index, statement in enumerate(wrapper.body):
         if isinstance(statement, ast.For):
             programs = _for_programs(statement, callable_tuples)
@@ -273,9 +302,68 @@ def _compile_decision_prefix(
                     callable_tuples,
                     frozenset(programs),
                 )
-                return programs, None, index
+                return programs, None, frozenset({index})
+    programs, indices = _top_level_decision_prefix(wrapper, callable_tuples)
+    if programs:
+        return programs, None, indices
     raise StrategyAnalysisError(
         f"NFI {wrapper.name} pure decision prefix cannot be represented"
+    )
+
+
+def _top_level_decision_prefix(
+    wrapper: ast.FunctionDef,
+    callable_tuples: Mapping[str, list[str]],
+) -> tuple[list[str], frozenset[int]]:
+    programs: list[str] = []
+    indices: set[int] = set()
+    for index, statement in enumerate(wrapper.body):
+        call = _guarded_sell_signal_call(statement)
+        if call is None:
+            if programs:
+                break
+            continue
+        name = _call_name(call, {})
+        if name is None or _uses_order_or_stake_state(call):
+            break
+        _validate_decision_body([statement], callable_tuples, frozenset({name}))
+        programs.append(name)
+        indices.add(index)
+    return _unique_in_order(programs), frozenset(indices)
+
+
+def _guarded_sell_signal_call(statement: ast.stmt) -> ast.Call | None:
+    assignment: ast.stmt = statement
+    if isinstance(statement, ast.If):
+        if (
+            not _is_not_sell_test(statement.test)
+            or statement.orelse
+            or len(statement.body) != 1
+        ):
+            return None
+        assignment = statement.body[0]
+    if (
+        isinstance(assignment, ast.Assign)
+        and _sell_signal_target(assignment.targets)
+        and isinstance(assignment.value, ast.Call)
+    ):
+        return assignment.value
+    return None
+
+
+def _uses_order_or_stake_state(call: ast.Call) -> bool:
+    return any(
+        isinstance(node, ast.Name)
+        and node.id
+        in {
+            "filled_orders",
+            "filled_entries",
+            "filled_exits",
+            "profit_stake",
+            "profit_ratio",
+            "profit_current_stake_ratio",
+        }
+        for node in ast.walk(call)
     )
 
 
@@ -487,6 +575,52 @@ def _loop_assigns_sell_signal(node: ast.For) -> bool:
         and _sell_signal_target(item.targets)
         for item in ast.walk(node)
     )
+
+
+def _decision_profit_basis(wrapper: ast.FunctionDef, programs: Sequence[str]) -> str:
+    tuple_values: dict[str, ast.Tuple] = {}
+    for statement in wrapper.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and isinstance(statement.value, ast.Tuple)
+        ):
+            tuple_values[statement.targets[0].id] = statement.value
+
+    bases: set[str] = set()
+    for node in ast.walk(wrapper):
+        if not isinstance(node, ast.Call):
+            continue
+        name = _call_name(node, {})
+        if name not in programs and name not in {"exit_check", "exit_func"}:
+            continue
+        expanded_arguments: list[ast.AST] = []
+        for argument in node.args:
+            if isinstance(argument, ast.Starred) and isinstance(argument.value, ast.Name):
+                tuple_node = tuple_values.get(argument.value.id)
+                if tuple_node is None:
+                    continue
+                expanded_arguments.extend(tuple_node.elts)
+            else:
+                expanded_arguments.append(argument)
+        arguments: Iterable[ast.AST] = expanded_arguments
+        for argument in arguments:
+            for item in ast.walk(argument):
+                if isinstance(item, ast.Name) and item.id == "profit_init_ratio":
+                    bases.add("initial-stake")
+                elif (
+                    isinstance(item, ast.Name)
+                    and item.id == "profit_current_stake_ratio"
+                ):
+                    bases.add("current-stake")
+        if bases:
+            break
+    if len(bases) != 1:
+        raise StrategyAnalysisError(
+            f"NFI {wrapper.name} decision profit basis cannot be represented"
+        )
+    return bases.pop()
 
 
 def _mode_name(wrapper: ast.FunctionDef, constants: Mapping[str, Any]) -> str:

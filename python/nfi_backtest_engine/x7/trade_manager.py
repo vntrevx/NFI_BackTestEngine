@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.17.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.18.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -275,20 +275,21 @@ _MANAGED_LONG_METHOD_SHA256 = {
 # reviewed stateful router. Removing that one recognized branch must leave this
 # exact AST. This keeps unrelated callback changes fail-closed while allowing
 # source-provided tags, thresholds, duration, and reason to flow through the IR.
-_LONG_EXIT_REBUY_BASE_AST_SHA256 = (
-    "8a90732274e5f1f3e8c72694279e29f5ae36a5fa88d1d4dc56e192ef701db2dc"
-)
-# The pure decision prefix and simple tag-dispatch block of these methods are
-# source-compiled by managed_exit_ir.  Their remaining stateful bodies stay
+# The pure decision prefix and tag-dispatch block of these methods are
+# source-compiled by managed_exit_ir. Their remaining stateful bodies stay
 # identity-bound until M15's state and target opcodes replace them as well.
-_MANAGED_BASIC_WRAPPER_BASE_AST_SHA256 = {
+_MANAGED_WRAPPER_BASE_AST_SHA256 = {
     "long_exit_normal": "4093b79d7f2ef3ae56da6cba2c786a62a8cb03ab97154170daae325514cf9a0b",
     "long_exit_pump": "f062b700aacc4b601a57432dcc49d689fae77d6f04b6ba85c412ab1852c055ab",
     "long_exit_quick": "6b282a2f32002acb7f50947da53121530329838e98f8f7af9d74057e4173542d",
+    "long_exit_rebuy": "6414470b71008358598bdf532d2f45296a48324e3bf63fdba377211d3b5f6c4b",
     "long_exit_high_profit": "f4bc743336eb488739558f877345a75afcce3fc34a53194ba53e2e6722c0a4ce",
+    "long_exit_rapid": "029eb3f8b29a609fb6ef988e3c813f5b16cf89baee262e05f18d2288ef2952f9",
+    "long_exit_top_coins": "309ef9a69b551920ebcfcb1f6dd795f7d76f1d635b97458b058b50762c8743cb",
+    "long_exit_scalp": "216b4f9a5147d7b092c62b6010bb0400d3b87aee0fc2dbb030342f88fc5dc3c1",
 }
-_CUSTOM_EXIT_WITHOUT_BASIC_ROUTES_AST_SHA256 = (
-    "840e9257cc2987ac7a509470fbaf3ab08188edbeaa89dcbb0be0dceda36ee286"
+_CUSTOM_EXIT_WITHOUT_MANAGED_ROUTES_AST_SHA256 = (
+    "25d7e4b272c02ba83fef43c34d63eadbfefe5b614a7657551abd37b18298bf12"
 )
 _MANAGED_SHORT_METHOD_SHA256 = {
     # Pure predicates are source-compiled. These wrappers are pinned because
@@ -567,7 +568,7 @@ def build_nfi_trade_manager_ir(
         _validate_adjustment_method_identity,
     )
     from .legacy import _build_long_btc_route, _build_long_grind_route
-    from .managed_exit_ir import compile_basic_managed_exit_ir
+    from .managed_exit_ir import compile_managed_exit_ir
     from .routes import (
         _build_managed_long_routes,
         _build_managed_short_routes,
@@ -628,7 +629,7 @@ def build_nfi_trade_manager_ir(
     if not isinstance(constants, dict):
         raise StrategyAnalysisError("NFI trade manager constants are invalid")
     _require_managed_long_methods(methods)
-    managed_exit_compilation = compile_basic_managed_exit_ir(
+    managed_exit_compilation = compile_managed_exit_ir(
         methods,
         constants,
         _MANAGED_LONG_ROUTE_SPECS,

@@ -665,8 +665,14 @@ pub(super) fn enable_test_basic_exit_shadow(
             matcher: ManagedExitTagMatcher {
                 operator: ManagedExitTagOperator::Any,
                 entry_tags: route.entry_tags.clone(),
+                operands: Vec::new(),
             },
             initial_profit_gate,
+            profit_basis: if route.profile == NfiManagedLongProfile::Rebuy {
+                ManagedExitProfitBasis::CurrentStake
+            } else {
+                ManagedExitProfitBasis::InitialStake
+            },
             mode_name: route.mode_name.clone(),
             decision_program_order,
             location: ManagedExitSourceLocation {

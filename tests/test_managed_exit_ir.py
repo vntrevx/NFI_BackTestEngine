@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pytest
 from nfi_backtest_engine.errors import StrategyAnalysisError
-from nfi_backtest_engine.x7.managed_exit_ir import compile_basic_managed_exit_ir
+from nfi_backtest_engine.x7.managed_exit_ir import compile_managed_exit_ir
 from nfi_backtest_engine.x7.routes import _method_ast_sha256
 
 
@@ -75,9 +75,9 @@ class Strategy:
         mode_name = self.normal_name
         sell = False
         if profit_init_ratio > 0.0:
-            sell, signal_name = self.decision_a()
+            sell, signal_name = self.decision_a(profit_init_ratio)
             if not sell:
-                sell, signal_name = self.decision_b()
+                sell, signal_name = self.decision_b(profit_init_ratio)
         if not sell:
             sell, signal_name = self.stop_policy()
         return sell, signal_name
@@ -88,7 +88,7 @@ class Strategy:
         if profit_init_ratio > 0.0:
             checks = ({decisions},)
             for exit_check in checks:
-                sell, signal_name = exit_check()
+                sell, signal_name = exit_check(profit_init_ratio)
                 if sell:
                     break
         if not sell:
@@ -100,7 +100,7 @@ class Strategy:
         sell = False
         if profit_init_ratio > 0.0:
             for exit_check in (self.decision_a, self.decision_b):
-                sell, signal_name = exit_check()
+                sell, signal_name = exit_check(profit_init_ratio)
                 if sell:
                     break
         if not sell:
@@ -111,7 +111,7 @@ class Strategy:
         mode_name = self.profit_name
         sell = False
         for exit_func in (self.decision_a, self.decision_b):
-            sell, signal_name = exit_func()
+            sell, signal_name = exit_func(profit_init_ratio)
             if sell:
                 break
         if not sell:
@@ -129,7 +129,7 @@ class Strategy:
 
 
 def _compile(**kwargs: bool):
-    return compile_basic_managed_exit_ir(
+    return compile_managed_exit_ir(
         _methods(**kwargs),
         _CONSTANTS,
         _SPECS,
@@ -148,6 +148,7 @@ def test_basic_exit_ir_reads_route_and_decision_source_order() -> None:
         "operator": "greater-than",
         "value": 0.0,
     }
+    assert routes[0]["profit_basis"] == "initial-stake"
     assert routes[-1]["initial_profit_gate"] is None
     assert routes[1]["decision_program_order"] == ["decision_a", "decision_b"]
 
@@ -196,9 +197,72 @@ def test_basic_exit_ir_rejects_an_unknown_long_route() -> None:
     )
 
     with pytest.raises(StrategyAnalysisError, match="unclassified long routes"):
-        compile_basic_managed_exit_ir(
+        compile_managed_exit_ir(
             methods,
             _CONSTANTS,
             _SPECS,
             legacy_route_methods={},
         )
+
+
+def test_special_exit_ir_compiles_compound_matcher_and_current_stake_basis() -> None:
+    source = '''
+class Strategy:
+    def custom_exit(self, enter_tags, enter_tag):
+        rebuy_tags = self.rebuy_tags
+        compound_tags = self.compound_tags
+        if all(c in rebuy_tags for c in enter_tags) or (
+            any(c in rebuy_tags for c in enter_tags)
+            and all(c in compound_tags for c in enter_tags)
+        ):
+            sell, signal_name = self.long_exit_rebuy()
+            if sell and signal_name is not None:
+                return f"{signal_name} ( {enter_tag})"
+
+    def long_exit_rebuy(self, profit_current_stake_ratio):
+        mode_name = self.rebuy_name
+        signal_args = (mode_name, profit_current_stake_ratio)
+        sell = False
+        for exit_func in (self.decision_a, self.decision_b):
+            sell, signal_name = exit_func(*signal_args)
+            if sell:
+                break
+        if not sell:
+            sell, signal_name = self.stateful_stop()
+        return sell, signal_name
+'''
+    tree = ast.parse(source)
+    class_node = tree.body[0]
+    assert isinstance(class_node, ast.ClassDef)
+    methods = {
+        node.name: node
+        for node in class_node.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    compiled = compile_managed_exit_ir(
+        methods,
+        {
+            "rebuy_tags": ["61", "62"],
+            "compound_tags": ["61", "62", "120"],
+            "rebuy_name": "long_rebuy",
+        },
+        (_Spec("rebuy", "rebuy", "long_exit_rebuy"),),
+        legacy_route_methods={},
+    )
+
+    route = compiled.program["routes"][0]
+    assert route["match"] == {
+        "operator": "any-of",
+        "operands": [
+            {"operator": "all", "entry_tags": ["61", "62"]},
+            {
+                "operator": "all-of",
+                "operands": [
+                    {"operator": "any", "entry_tags": ["61", "62"]},
+                    {"operator": "all", "entry_tags": ["61", "62", "120"]},
+                ],
+            },
+        ],
+    }
+    assert route["profit_basis"] == "current-stake"
+    assert route["decision_program_order"] == ["decision_a", "decision_b"]
