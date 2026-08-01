@@ -247,14 +247,14 @@ pub(super) fn nfi_managed_route(
 
 pub(super) fn nfi_legacy_grind_constants() -> NfiLegacyGrindConstants {
     let tags = [
-        ("gd1", "dd1"),
-        ("gd2", "dd2"),
-        ("gd3", "dd3"),
-        ("gd4", "dd4"),
-        ("gd5", "dd5"),
-        ("gd6", "dd6"),
-        ("dl1", "ddl1"),
-        ("dl2", "ddl2"),
+        ("gd1", "dd1", false),
+        ("gd2", "dd2", false),
+        ("gd3", "dd3", false),
+        ("gd4", "dd4", false),
+        ("gd5", "dd5", false),
+        ("gd6", "dd6", false),
+        ("dl1", "ddl1", true),
+        ("dl2", "ddl2", true),
     ];
     NfiLegacyGrindConstants {
         max_stake_multiplier: 1.0,
@@ -264,9 +264,10 @@ pub(super) fn nfi_legacy_grind_constants() -> NfiLegacyGrindConstants {
         derisk_1_reentry_spot: -0.08,
         clusters: tags
             .into_iter()
-            .map(|(entry_tag, stop_tag)| NfiLegacyGrindCluster {
+            .map(|(entry_tag, stop_tag, post_derisk)| NfiLegacyGrindCluster {
                 entry_tag: entry_tag.to_owned(),
                 stop_tag: stop_tag.to_owned(),
+                post_derisk,
                 stakes_futures: vec![0.2, 0.24, 0.28],
                 stakes_spot: vec![0.2, 0.24, 0.28],
                 thresholds_futures: vec![-0.12, -0.16, -0.20],
@@ -277,6 +278,90 @@ pub(super) fn nfi_legacy_grind_constants() -> NfiLegacyGrindConstants {
                 profit_threshold_spot: 0.018,
             })
             .collect(),
+    }
+}
+
+pub(super) fn nfi_legacy_grind_program(
+    constants: &NfiLegacyGrindConstants,
+) -> CompiledLegacyGrindProgram {
+    let location = || ManagedExitSourceLocation {
+        line: 1,
+        column: 0,
+        end_line: 1,
+        end_column: 1,
+    };
+    let known_clusters = constants
+        .clusters
+        .iter()
+        .map(|cluster| CompiledLegacyGrindCluster {
+            entry_tag: cluster.entry_tag.clone(),
+            stop_tag: cluster.stop_tag.clone(),
+            post_derisk: cluster.post_derisk,
+        })
+        .collect();
+    CompiledLegacyGrindProgram {
+        schema_version: "grind-transition-program-v1".to_owned(),
+        execution_mode: CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow,
+        source_callback: "long_grind_adjust_trade_position".to_owned(),
+        source_order: vec![
+            CompiledLegacyGrindTransition::FirstEntryProfit {
+                tag: "gm0".to_owned(),
+                append_entry_ids_from: "gd1".to_owned(),
+                profit_threshold: 0.018,
+                location: location(),
+            },
+            CompiledLegacyGrindTransition::Cluster {
+                entry_tag: "gd1".to_owned(),
+                stop_tag: "dd1".to_owned(),
+                append_entry_ids: true,
+                location: location(),
+            },
+            CompiledLegacyGrindTransition::Cluster {
+                entry_tag: "gd2".to_owned(),
+                stop_tag: "dd2".to_owned(),
+                append_entry_ids: true,
+                location: location(),
+            },
+        ],
+        order_scan: CompiledLegacyGrindOrderScan {
+            sequence: CompiledOrderSequence::Reverse,
+            entry_order_side: CompiledOrderSide::Buy,
+            exit_order_side: CompiledOrderSide::Sell,
+            exclude_first_entry: true,
+            known_clusters,
+            level_one_entry_excluded_tags: [
+                "r", "d1", "dl1", "ddl1", "dl2", "ddl2", "gd2", "dd2", "gd3", "dd3", "gd4", "dd4",
+                "gd5", "dd5", "gd6", "dd6", "gm0", "gmd0", "gdr",
+            ]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+            level_one_exit_excluded_tags: [
+                "dl1", "ddl1", "dl2", "ddl2", "gd2", "dd2", "gd3", "dd3", "gd4", "dd4", "gd5",
+                "dd5", "gd6", "dd6", "gm0", "gmd0", "gdr",
+            ]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+            close_all_exit_tags: ["p", "r", "d", "dd0", "partial_exit", "force_exit", ""]
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect(),
+            first_entry_closed_tags: ["gm0", "gmd0"].into_iter().map(ToOwned::to_owned).collect(),
+            derisk_entry_tag: "d1".to_owned(),
+            partial_fill_policy: CompiledPartialFillPolicy::FilledOrdersHaveZeroRemaining,
+        },
+        policy: CompiledLegacyGrindPolicy {
+            entry_retry_ms: 10 * 60 * 1_000,
+            order_age_ms: 6 * 60 * 60 * 1_000,
+            force_order_age_ms: 24 * 60 * 60 * 1_000,
+            forced_entry_loss_gate: -0.06,
+            minimum_entry_multiplier: 1.5,
+            minimum_remaining_multiplier: 1.55,
+            derisk_amount_ratio: 0.95,
+        },
+        location: location(),
+        fingerprint: "d".repeat(64),
     }
 }
 
@@ -341,6 +426,7 @@ pub(super) fn enable_test_long_btc(
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
         constants: nfi_legacy_grind_constants(),
+        program: None,
         regular_decision_program: Some("long_grind_entry".to_owned()),
         regular_constants: Some(constants),
     });

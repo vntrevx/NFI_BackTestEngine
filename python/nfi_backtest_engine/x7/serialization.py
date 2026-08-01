@@ -209,6 +209,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.22.0",
         "0.23.0",
         "0.24.0",
+        "0.25.0",
     }
     requires_managed_short_exit_program = operation.get("schema_version") in {
         "0.20.0",
@@ -216,17 +217,24 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.22.0",
         "0.23.0",
         "0.24.0",
+        "0.25.0",
     }
     requires_rebuy_program = operation.get("schema_version") in {
         "0.22.0",
         "0.23.0",
         "0.24.0",
+        "0.25.0",
     }
     requires_long_adjustment_program = operation.get("schema_version") in {
         "0.23.0",
         "0.24.0",
+        "0.25.0",
     }
-    requires_short_adjustment_program = operation.get("schema_version") == "0.24.0"
+    requires_short_adjustment_program = operation.get("schema_version") in {
+        "0.24.0",
+        "0.25.0",
+    }
+    requires_legacy_grind_program = operation.get("schema_version") == "0.25.0"
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)
@@ -281,6 +289,15 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
                 or not isinstance(short_adjustment.get("program"), dict)
                 or short_adjustment["program"].get("schema_version")
                 != "system-adjustment-program-v1"
+            )
+        )
+        or (
+            requires_legacy_grind_program
+            and (
+                not isinstance(long_grind, dict)
+                or not isinstance(long_grind.get("program"), dict)
+                or long_grind["program"].get("schema_version")
+                != "grind-transition-program-v1"
             )
         )
     ):
@@ -364,6 +381,8 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         for name in ("regular_decision_program", "regular_constants"):
             if name in route:
                 record[name] = route[name]
+        if "program" in route:
+            record["program"] = route["program"]
         return record
 
     return {

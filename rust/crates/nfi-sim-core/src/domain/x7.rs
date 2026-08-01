@@ -285,6 +285,8 @@ pub struct NfiManagedLongRoute {
 pub struct NfiLegacyGrindCluster {
     pub entry_tag: String,
     pub stop_tag: String,
+    #[serde(default)]
+    pub post_derisk: bool,
     pub stakes_futures: Vec<f64>,
     pub stakes_spot: Vec<f64>,
     pub thresholds_futures: Vec<f64>,
@@ -381,10 +383,90 @@ pub struct NfiLongGrindRoute {
     pub derisk_use_grind_stops: bool,
     pub stateful_input_contract: Value,
     pub constants: NfiLegacyGrindConstants,
+    /// Reached source-compiled prefix of the legacy Grind callback.
+    ///
+    /// Historical sealed inputs omit this field. New schema revisions require
+    /// it for the tag-agnostic generic runtime and compare it with the legacy
+    /// implementation before accepting a reached transition.
+    #[serde(default)]
+    pub program: Option<CompiledLegacyGrindProgram>,
     #[serde(default)]
     pub regular_decision_program: Option<String>,
     #[serde(default)]
     pub regular_constants: Option<NfiRegularAdjustmentConstants>,
+}
+
+/// Strategy-neutral source program for a proven prefix of a Grind callback.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledLegacyGrindExecutionMode,
+    pub source_callback: String,
+    pub source_order: Vec<CompiledLegacyGrindTransition>,
+    pub order_scan: CompiledLegacyGrindOrderScan,
+    pub policy: CompiledLegacyGrindPolicy,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyGrindExecutionMode {
+    PrimaryWithLegacyShadow,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum CompiledLegacyGrindTransition {
+    FirstEntryProfit {
+        tag: String,
+        append_entry_ids_from: String,
+        profit_threshold: f64,
+        location: ManagedExitSourceLocation,
+    },
+    Cluster {
+        entry_tag: String,
+        stop_tag: String,
+        append_entry_ids: bool,
+        location: ManagedExitSourceLocation,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub entry_order_side: CompiledOrderSide,
+    pub exit_order_side: CompiledOrderSide,
+    pub exclude_first_entry: bool,
+    pub known_clusters: Vec<CompiledLegacyGrindCluster>,
+    pub level_one_entry_excluded_tags: Vec<String>,
+    pub level_one_exit_excluded_tags: Vec<String>,
+    pub close_all_exit_tags: Vec<String>,
+    pub first_entry_closed_tags: Vec<String>,
+    pub derisk_entry_tag: String,
+    pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindCluster {
+    pub entry_tag: String,
+    pub stop_tag: String,
+    pub post_derisk: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindPolicy {
+    pub entry_retry_ms: i64,
+    pub order_age_ms: i64,
+    pub force_order_age_ms: i64,
+    pub forced_entry_loss_gate: f64,
+    pub minimum_entry_multiplier: f64,
+    pub minimum_remaining_multiplier: f64,
+    pub derisk_amount_ratio: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]

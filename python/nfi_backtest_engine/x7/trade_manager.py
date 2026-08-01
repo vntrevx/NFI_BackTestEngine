@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.24.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.25.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -800,6 +800,11 @@ def build_nfi_trade_manager_ir(
             "short_system_adjustment_ir_fingerprint": (
                 short_adjustment_program["fingerprint"]
                 if short_adjustment_program is not None
+                else None
+            ),
+            "legacy_grind_ir_fingerprint": (
+                long_grind_route["program"]["fingerprint"]
+                if long_grind_route is not None
                 else None
             ),
             "operation_sha256": hashlib.sha256(encoded).hexdigest(),

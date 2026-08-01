@@ -9,6 +9,7 @@ from typing import Any
 
 from ..errors import StrategyAnalysisError
 from .adjustments import _ast_number
+from .legacy_grind_ir import compile_legacy_grind_base_ir
 from .trade_manager import (
     _LONG_BTC_ADJUSTMENT_SCOPE,
     _LONG_BTC_METHOD_SHA256,
@@ -154,6 +155,10 @@ def _build_legacy_grind_route(
         }
         for name in stateful_methods
     }
+    legacy_constants = _build_legacy_grind_constants(
+        constants,
+        regular_stake_multiplier=regular_mode,
+    )
     route = {
         "mode_name": mode_name,
         "entry_tags": sorted(set(entry_tags)),
@@ -179,11 +184,18 @@ def _build_legacy_grind_route(
                 "previous_candle": [],
             }
         },
-        "constants": _build_legacy_grind_constants(
-            constants,
-            regular_stake_multiplier=regular_mode,
-        ),
+        "constants": legacy_constants,
     }
+    if grind_mode:
+        route["program"] = compile_legacy_grind_base_ir(
+            methods["long_grind_adjust_trade_position"],
+            {
+                **legacy_constants,
+                "first_entry_profit_threshold_spot": route[
+                    "first_entry_profit_threshold_spot"
+                ],
+            },
+        )
     return route, identity
 
 
@@ -298,17 +310,18 @@ def _build_legacy_grind_constants(
     cluster_specs = []
     for level, derisk_level, prefix in discovered:
         if derisk_level is None:
-            cluster_specs.append((f"gd{level}", f"dd{level}", prefix))
+            cluster_specs.append((f"gd{level}", f"dd{level}", prefix, False))
         elif derisk_level == 1:
-            cluster_specs.append((f"dl{level}", f"ddl{level}", prefix))
+            cluster_specs.append((f"dl{level}", f"ddl{level}", prefix, True))
         else:
             raise StrategyAnalysisError(
                 "NFI legacy post-de-risk tag family changed; exact lowering requires review"
             )
-    for entry_tag, stop_tag, prefix in cluster_specs:
+    for entry_tag, stop_tag, prefix, post_derisk in cluster_specs:
         record: dict[str, Any] = {
             "entry_tag": entry_tag,
             "stop_tag": stop_tag,
+            "post_derisk": post_derisk,
         }
         for mode in ("futures", "spot"):
             stakes = number_list(f"{prefix}_stakes_{mode}")

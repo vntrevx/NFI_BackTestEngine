@@ -396,6 +396,8 @@ fn nfi_long_grind_recovers_the_first_entry_once_with_gm0() {
     });
 
     let mut manager = nfi_top_coins_manager(nfi_false_program());
+    let constants = nfi_legacy_grind_constants();
+    let program = nfi_legacy_grind_program(&constants);
     manager.long_grind = Some(NfiLongGrindRoute {
         mode_name: "long_grind".to_owned(),
         entry_tags: vec!["120".to_owned()],
@@ -408,7 +410,8 @@ fn nfi_long_grind_recovers_the_first_entry_once_with_gm0() {
         futures_fallback_loss_threshold: None,
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
-        constants: nfi_legacy_grind_constants(),
+        constants,
+        program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
     });
@@ -466,6 +469,7 @@ fn nfi_long_grind_dual_mode_scope_accepts_a_futures_trade() {
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
         constants: nfi_legacy_grind_constants(),
+        program: None,
         regular_decision_program: None,
         regular_constants: None,
     });
@@ -520,6 +524,7 @@ fn nfi_long_grind_uses_the_source_bound_futures_drawdown_fallback() {
         derisk_use_grind_stops: false,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
         constants: nfi_legacy_grind_constants(),
+        program: None,
         regular_decision_program: None,
         regular_constants: None,
     });
@@ -572,6 +577,7 @@ fn nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters() {
     manager
         .programs
         .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+    let program = nfi_legacy_grind_program(&constants);
     manager.long_grind = Some(NfiLongGrindRoute {
         mode_name: "long_grind".to_owned(),
         entry_tags: vec!["120".to_owned()],
@@ -585,6 +591,7 @@ fn nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters() {
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
         constants,
+        program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
     });
@@ -632,6 +639,8 @@ fn nfi_long_grind_opens_and_closes_a_gd1_cluster_in_source_order() {
     manager
         .programs
         .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+    let constants = nfi_legacy_grind_constants();
+    let program = nfi_legacy_grind_program(&constants);
     manager.long_grind = Some(NfiLongGrindRoute {
         mode_name: "long_grind".to_owned(),
         entry_tags: vec!["120".to_owned()],
@@ -644,7 +653,8 @@ fn nfi_long_grind_opens_and_closes_a_gd1_cluster_in_source_order() {
         futures_fallback_loss_threshold: None,
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
-        constants: nfi_legacy_grind_constants(),
+        constants,
+        program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
     });
@@ -673,6 +683,117 @@ fn nfi_long_grind_opens_and_closes_a_gd1_cluster_in_source_order() {
     );
     assert!(!trade.orders[2].is_entry);
     assert_eq!(trade.exit_reason, "force_exit");
+}
+
+#[test]
+fn compiled_legacy_grind_reconstructs_gd1_before_reaching_gd2() {
+    const HOUR: i64 = 60 * 60 * 1_000;
+    let mut entry = candle(0, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("120 ".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let grind_one = candle(25 * HOUR, 90.0, 90.0);
+    let grind_two = candle(50 * HOUR, 89.0, 89.0);
+    let mut force_exit = candle(51 * HOUR, 89.0, 89.0);
+    force_exit.exit_long = Some(ExitSignal {
+        reason: "force_exit".to_owned(),
+    });
+
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    manager
+        .programs
+        .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+    let constants = nfi_legacy_grind_constants();
+    let program = nfi_legacy_grind_program(&constants);
+    manager.long_grind = Some(NfiLongGrindRoute {
+        mode_name: "long_grind".to_owned(),
+        entry_tags: vec!["120".to_owned()],
+        exit_profit_threshold: 0.25,
+        adjustment_scope: "spot-grind-backtest-v1".to_owned(),
+        grind_mode: true,
+        decision_program: "long_grind_entry_v3".to_owned(),
+        first_entry_profit_threshold_spot: 0.018,
+        first_entry_stop_threshold_spot: -0.2,
+        futures_fallback_loss_threshold: None,
+        derisk_use_grind_stops: true,
+        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        constants,
+        program: Some(program),
+        regular_decision_program: None,
+        regular_constants: None,
+    });
+    manager.route_order.insert(6, "long_grind".to_owned());
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(
+        vec![entry, grind_one, grind_two, force_exit],
+        BTreeMap::new(),
+    );
+    pair.minimum_cost = Some(5.0);
+
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .expect("compiled gd1/gd2 prefix agrees with the legacy shadow");
+    let trade = &result.trades[0];
+
+    assert_eq!(trade.orders.len(), 4);
+    assert_eq!(trade.orders[1].tag.as_deref(), Some("gd1"));
+    assert_eq!(trade.orders[2].tag.as_deref(), Some("gd2"));
+    assert!(trade.orders[1].is_entry && trade.orders[2].is_entry);
+}
+
+#[test]
+fn compiled_legacy_grind_shadow_rejects_a_policy_disagreement() {
+    const MINUTE: i64 = 60 * 1_000;
+    let mut entry = candle(0, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("120 ".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let reached_boundary = candle(10 * MINUTE + 30_000, 90.0, 90.0);
+
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    manager
+        .programs
+        .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+    let constants = nfi_legacy_grind_constants();
+    let mut program = nfi_legacy_grind_program(&constants);
+    program.policy.entry_retry_ms = 11 * MINUTE;
+    manager.long_grind = Some(NfiLongGrindRoute {
+        mode_name: "long_grind".to_owned(),
+        entry_tags: vec!["120".to_owned()],
+        exit_profit_threshold: 0.25,
+        adjustment_scope: "spot-grind-backtest-v1".to_owned(),
+        grind_mode: true,
+        decision_program: "long_grind_entry_v3".to_owned(),
+        first_entry_profit_threshold_spot: 0.018,
+        first_entry_stop_threshold_spot: -0.2,
+        futures_fallback_loss_threshold: None,
+        derisk_use_grind_stops: true,
+        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        constants,
+        program: Some(program),
+        regular_decision_program: None,
+        regular_constants: None,
+    });
+    manager.route_order.insert(6, "long_grind".to_owned());
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(vec![entry, reached_boundary], BTreeMap::new());
+    pair.minimum_cost = Some(5.0);
+
+    assert!(simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .is_err());
 }
 
 #[test]

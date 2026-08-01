@@ -153,6 +153,13 @@ A ZEC/USDT fixture proves the tag-120 legacy route through `gm0`, repeated `gd1`
 run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, and `d1` branches are executable and have
 focused Rust tests, but do not yet have branch-reaching official fixtures.
 
+Those reached base transitions are now source-compiled rather than selected by tag-120
+runtime code. `grind-transition-program-v1` carries the source tags, reverse order scan,
+cluster inventory, retry/age gates, and stake constraints. The generic result is compared
+with the independent legacy callback implementation on every reached `gm0`, `gd1`, or
+`gd2` action; a mismatch invalidates the Native run. Deeper and post-de-risk transitions
+remain on the legacy residual path pending the next branch-specific certificates.
+
 A separate mid-day Unix-timerange fixture proves the tag-62 rebuy entry, generic
 confirmation path, and rebuy custom exit with one exact trade. That trade did not
 reach a rebuy adjustment, so the entry/de-risk ladder still has source-identity and

@@ -300,6 +300,15 @@ side-specific program first and compares its stake, tag, and complete custom-sta
 with the retained legacy implementation. A mismatch invalidates the Native run; no Signal
 number, strategy SHA, or fixed Grind count selects runtime behavior.
 
+The legacy Grind migration now uses the same contract for its first certified prefix.
+Python extracts the reverse filled-order walk, order directions, complete cluster-tag
+inventory, first-entry recovery tag, retry/age gates, minimum-stake multipliers, and the
+first two ordinary cluster transitions into `grind-transition-program-v1`. Rust evaluates
+the reached `gm0`, `gd1`, and `gd2` transitions from that payload and requires an exact
+stake/tag match from the retained legacy shadow. Post-de-risk clusters, stops, the Futures
+drawdown fallback, and deeper levels deliberately remain residual until their own staged
+proofs; encountering one does not silently promote it into the generic claim.
+
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized
 surface: 11 trades, 164 orders, 142 adjustment orders, one short trade, and eight
