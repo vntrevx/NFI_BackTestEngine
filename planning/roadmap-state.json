@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 105,
-  "updated_at": "2026-08-02T06:02:12+09:00",
+  "revision": 106,
+  "updated_at": "2026-08-02T07:03:37+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M16-03",
+  "active_task_id": "M16-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4013,7 +4013,7 @@
       "order": 1603,
       "milestone": "M16",
       "title": "Compile system-v3 long adjustment into generic IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M16-02"
       ],
@@ -4033,9 +4033,16 @@
         "long full-state exact"
       ],
       "started_at": "2026-08-02T06:02:12+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T07:03:37+09:00",
+      "commit_sha": "33b136df63af67b8d64ec110b20fda9dd71c05fd",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/x7-futures-long/run.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/latest-upstream/report-futures.json"
+      ],
       "blocker": null
     },
     {
@@ -4043,7 +4050,7 @@
       "order": 1604,
       "milestone": "M16",
       "title": "Compile system-v3 short adjustment and promote generic adjustment",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M16-03"
       ],
@@ -4062,7 +4069,7 @@
         "short Futures branch proof",
         "dual-mode adjustment exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T07:03:37+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7393,6 +7400,40 @@
         "objective": "compile system-v3 long adjustment, partial exits, and wallet stake limits into generic IR",
         "fixed_grind_level_count_allowed": false,
         "approximated_source_return_order_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 139,
+      "timestamp": "2026-08-02T07:03:37+09:00",
+      "task_id": "M16-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "33b136df63af67b8d64ec110b20fda9dd71c05fd",
+        "trade_manager_schema": "0.23.0",
+        "system_adjustment_program": "system-adjustment-program-v1",
+        "source_ordered_long_actions": 19,
+        "source_defined_derisk_levels": 4,
+        "source_defined_grind_levels": 5,
+        "stake_tag_and_custom_state_shadow_exact": true,
+        "wallet_return_none_preserved": true,
+        "long_adjustment_method_hash_gates_retired": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_and_futures_long_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 140,
+      "timestamp": "2026-08-02T07:03:37+09:00",
+      "task_id": "M16-04",
+      "event": "task_started",
+      "details": {
+        "objective": "compile the independent system-v3 short adjustment and prove dual-mode generic promotion",
+        "sign_flipped_long_approximation_allowed": false,
+        "promotion_without_short_funding_proof_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
