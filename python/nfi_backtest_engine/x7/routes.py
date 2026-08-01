@@ -11,13 +11,11 @@ from typing import Any, cast
 
 from ..errors import StrategyAnalysisError
 from .trade_manager import (
-    _CUSTOM_EXIT_WITHOUT_MANAGED_ROUTES_AST_SHA256,
     _MANAGED_LONG_METHOD_SHA256,
     _MANAGED_LONG_ROUTE_SPECS,
     _MANAGED_LONG_STATEFUL_FEATURES,
     _MANAGED_SHORT_METHOD_SHA256,
     _MANAGED_SHORT_ROUTE_SPECS,
-    _MANAGED_WRAPPER_BASE_AST_SHA256,
     _QUICK_RAPID_STATEFUL_FEATURES,
     _ROUTE_STOP_CONSTANTS,
 )
@@ -26,7 +24,14 @@ from .trade_manager import (
 def _require_managed_long_methods(methods: Mapping[str, ast.FunctionDef]) -> None:
     """Keep the established incomplete-router diagnostic ahead of IR lowering."""
 
-    missing = [name for name in _MANAGED_LONG_METHOD_SHA256 if name not in methods]
+    required = dict.fromkeys(
+        [
+            "custom_exit",
+            *(spec.method for spec in _MANAGED_LONG_ROUTE_SPECS),
+            *_MANAGED_LONG_METHOD_SHA256,
+        ]
+    )
+    missing = [name for name in required if name not in methods]
     if missing:
         raise StrategyAnalysisError(
             "NFI X7 managed-long state machine is missing: " + ", ".join(missing)
@@ -36,47 +41,20 @@ def _require_managed_long_methods(methods: Mapping[str, ast.FunctionDef]) -> Non
 def _validate_managed_long_method_identity(
     methods: dict[str, ast.FunctionDef],
     method_records: dict[str, dict[str, Any]],
-    *,
-    custom_exit_statement_indices: frozenset[int],
-    wrapper_statement_indices: Mapping[str, frozenset[int]],
-) -> dict[str, Any] | None:
-    """Reject a changed stateful managed-long callback after IR compilation."""
+) -> None:
+    """Pin only residual helpers that generic managed-exit IR still calls."""
 
     _require_managed_long_methods(methods)
-    dynamically_compiled = {"custom_exit", *_MANAGED_WRAPPER_BASE_AST_SHA256}
     changed = [
         name
         for name, expected in _MANAGED_LONG_METHOD_SHA256.items()
-        if name not in dynamically_compiled
         if method_records.get(name, {}).get("source_sha256") != expected
     ]
-    if (
-        _method_ast_sha256(
-            methods["custom_exit"],
-            remove_statement_indices=custom_exit_statement_indices,
-        )
-        != _CUSTOM_EXIT_WITHOUT_MANAGED_ROUTES_AST_SHA256
-    ):
-        changed.append("custom_exit")
-    rebuy_terminal_exit, terminal_index = _extract_rebuy_terminal_exit(methods["long_exit_rebuy"])
-    for name, expected in _MANAGED_WRAPPER_BASE_AST_SHA256.items():
-        indices = wrapper_statement_indices.get(name)
-        if name == "long_exit_rebuy" and terminal_index is not None:
-            indices = (indices or frozenset()) | {terminal_index}
-        if not indices or (
-            _method_ast_sha256(
-                methods[name],
-                remove_statement_indices=indices,
-            )
-            != expected
-        ):
-            changed.append(name)
     if changed:
         raise StrategyAnalysisError(
-            "NFI X7 managed-long route changed; exact lowering requires review: "
+            "NFI X7 managed-exit helper changed; exact lowering requires review: "
             + ", ".join(changed)
         )
-    return rebuy_terminal_exit
 
 
 def _extract_rebuy_terminal_exit(
@@ -278,7 +256,7 @@ def _validate_managed_short_method_identity(
     methods: dict[str, ast.FunctionDef],
     method_records: dict[str, dict[str, Any]],
 ) -> None:
-    """Pin the stateful wrapper for the first executable short route."""
+    """Pin only residual short helpers that generic exit IR still calls."""
     missing = [name for name in _MANAGED_SHORT_METHOD_SHA256 if name not in methods]
     if missing:
         raise StrategyAnalysisError(
@@ -291,7 +269,7 @@ def _validate_managed_short_method_identity(
     ]
     if changed:
         raise StrategyAnalysisError(
-            "NFI X7 managed-short route changed; exact lowering requires review: "
+            "NFI X7 managed-exit helper changed; exact lowering requires review: "
             + ", ".join(changed)
         )
 

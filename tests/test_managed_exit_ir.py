@@ -8,13 +8,19 @@ from pathlib import Path
 import pytest
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.strategy_ir import analyze_strategy
+from nfi_backtest_engine.trade_ir import build_trade_dependency_ir
 from nfi_backtest_engine.x7.managed_exit_ir import (
     _compile_state_policy,
     compile_managed_exit_ir,
 )
 from nfi_backtest_engine.x7.managed_short_exit_ir import compile_managed_short_exit_ir
-from nfi_backtest_engine.x7.routes import _method_ast_sha256
-from nfi_backtest_engine.x7.trade_manager import _MANAGED_SHORT_ROUTE_SPECS
+from nfi_backtest_engine.x7.trade_manager import (
+    _MANAGED_LONG_METHOD_SHA256,
+    _MANAGED_LONG_ROUTE_SPECS,
+    _MANAGED_SHORT_METHOD_SHA256,
+    _MANAGED_SHORT_ROUTE_SPECS,
+    build_nfi_trade_manager_ir,
+)
 
 
 @dataclass(frozen=True)
@@ -149,6 +155,7 @@ def _compile(**kwargs: bool):
 def test_basic_exit_ir_reads_route_and_decision_source_order() -> None:
     compiled = _compile()
 
+    assert compiled.program["execution_mode"] == "primary-with-legacy-shadow"
     assert compiled.long_route_order == ("normal", "pump", "quick", "profit")
     routes = compiled.program["routes"]
     assert [route["id"] for route in routes] == ["normal", "pump", "quick", "profit"]
@@ -175,24 +182,21 @@ def test_basic_exit_ir_changes_as_source_order_changes() -> None:
     assert changed.program["fingerprint"] != original.program["fingerprint"]
 
 
-def test_compiled_prefix_mask_keeps_the_stateful_remainder_identity_bound() -> None:
-    methods = _methods()
-    compiled = _compile()
-    original = methods["long_exit_normal"]
-    modified = _methods()["long_exit_normal"]
-    gate_index = next(iter(compiled.wrapper_statement_indices["long_exit_normal"]))
-    gate = modified.body[gate_index]
-    assert isinstance(gate, ast.If)
-    gate.body.reverse()
+def test_exit_wrapper_hash_gates_are_retired_after_structural_lowering() -> None:
+    long_wrappers = {spec.method for spec in _MANAGED_LONG_ROUTE_SPECS}
+    short_wrappers = {spec.method for spec in _MANAGED_SHORT_ROUTE_SPECS}
 
-    assert _method_ast_sha256(original) != _method_ast_sha256(modified)
-    assert _method_ast_sha256(
-        original,
-        remove_statement_indices=frozenset({gate_index}),
-    ) == _method_ast_sha256(
-        modified,
-        remove_statement_indices=frozenset({gate_index}),
-    )
+    assert long_wrappers.isdisjoint(_MANAGED_LONG_METHOD_SHA256)
+    assert short_wrappers.isdisjoint(_MANAGED_SHORT_METHOD_SHA256)
+    assert set(_MANAGED_LONG_METHOD_SHA256) == {
+        "long_exit_stoploss",
+        "exit_profit_target",
+        "mark_profit_target",
+        "_set_profit_target",
+        "_remove_profit_target",
+        "long_rebuy_adjust_trade_position_v3",
+    }
+    assert set(_MANAGED_SHORT_METHOD_SHA256) == {"short_exit_stoploss"}
 
 
 def test_basic_exit_ir_rejects_an_unknown_long_route() -> None:
@@ -365,6 +369,7 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
     )
     routes = {route["id"]: route for route in compiled.program["routes"]}
 
+    assert compiled.program["execution_mode"] == "primary-with-legacy-shadow"
     assert compiled.short_route_order == (
         "short_normal",
         "short_pump",
@@ -434,3 +439,62 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
         changed_routes["short_quick"]["state_program"]["inline_exit"]["program"]
         != routes["short_quick"]["state_program"]["inline_exit"]["program"]
     )
+
+
+def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) -> None:
+    source = Path(
+        "benchmarks/fixtures/captured/"
+        "x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/strategy.py"
+    )
+    text = source.read_text(encoding="utf-8")
+    old = "(last_rsi_14 < 22.0):\n        sell, signal_name = True, f\"exit_{mode_name}_q_1\""
+    new = "(last_rsi_14 < 21.0):\n        sell, signal_name = True, f\"exit_{mode_name}_q_1\""
+    assert text.count(old) == 1
+    changed_source = tmp_path / "NostalgiaForInfinityX7.py"
+    changed_source.write_text(text.replace(old, new), encoding="utf-8")
+
+    analysis = analyze_strategy(changed_source, class_name="NostalgiaForInfinityX7")
+    manager = build_nfi_trade_manager_ir(
+        analysis,
+        build_trade_dependency_ir(analysis),
+    )
+
+    assert manager is not None
+    operation = manager["operation"]
+    assert operation["schema_version"] == "0.21.0"
+    assert operation["managed_short_exit_program"]["execution_mode"] == (
+        "primary-with-legacy-shadow"
+    )
+
+
+def test_new_uncompiled_short_exit_result_fails_closed() -> None:
+    source = Path(
+        "benchmarks/fixtures/captured/"
+        "x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/strategy.py"
+    )
+    analysis = analyze_strategy(source, class_name="NostalgiaForInfinityX7")
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
+    )
+    methods = {
+        node.name: node
+        for node in class_node.body
+        if isinstance(node, ast.FunctionDef)
+    }
+    wrapper = methods["short_exit_quick"]
+    wrapper.body.insert(
+        -1,
+        ast.parse(
+            'if not sell:\n    sell, signal_name = True, "new_uncompiled_exit"\n'
+        ).body[0],
+    )
+
+    with pytest.raises(StrategyAnalysisError, match="uncompiled direct sell result"):
+        compile_managed_short_exit_ir(
+            methods,
+            analysis["strategies"][0]["constants"],
+            _MANAGED_SHORT_ROUTE_SPECS,
+        )

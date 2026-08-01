@@ -205,8 +205,12 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.18.0",
         "0.19.0",
         "0.20.0",
+        "0.21.0",
     }
-    requires_managed_short_exit_program = operation.get("schema_version") == "0.20.0"
+    requires_managed_short_exit_program = operation.get("schema_version") in {
+        "0.20.0",
+        "0.21.0",
+    }
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)

@@ -92,12 +92,14 @@ target floor, 보호 신호와 rebuy terminal을 source state program으로 컴�
 Rust는 generic 경로를 독립 실행하고 결정뿐 아니라 target-cache 전체 상태까지
 기존 경로와 비교하며, 어느 한쪽이라도 다르면 즉시 중단한다.
 
-managed-short도 별도 source compiler로 같은 shadow 경계에 들어왔다. short quick/rapid
+managed-short도 별도 source compiler로 같은 실행 경계에 들어왔다. short quick/rapid
 조건은 long 조건의 부호 반전이 아니라 short AST에서 직접 Scalar IR로 생성된다.
 scalp compound route와 pure-scalp target matcher, top-coins normal fallback의
 `is_short AND NOT known_tags`도 서로 다른 source predicate로 보존한다. 두 방향 모두
-결정과 target-cache 전체 상태를 비교하며, 다음 단계에서 generic 기본 경로로
-승격하고 legacy route hash gate를 제거한다.
+generic 결과가 기본이며 legacy는 비교 shadow로만 실행된다. 결정과 target-cache
+전체 상태가 다르면 즉시 중단한다. 구조적으로 컴파일되는 route wrapper와
+`custom_exit`의 runtime hash gate는 제거했으며, 아직 IR로 완전히 표현되지 않은
+공통 stop/target helper만 별도 identity gate를 유지한다.
 
 ## Upstream 감시
 

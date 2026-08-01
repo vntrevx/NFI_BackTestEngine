@@ -45,21 +45,20 @@ Rust:
 
 The route table preserves X7's callback order. All managed-long and managed-short
 dispatch blocks, pure decision prefixes, and route-local state policy are compiled from
-the supplied AST into separate generic shadow programs. Recursive matcher IR handles
+the supplied AST into separate generic primary programs. Recursive matcher IR handles
 compound tags and the short fallback side predicate; both sides' quick/rapid conditions
 are their own Scalar IR. Stop, target-cache, protected-signal, pure-scalp, and rebuy
-terminal values are source data. Rust independently executes each program and compares
-both the decision and complete target-cache state with the legacy route. Any disagreement
-fails closed. An unknown companion tag still fails before simulation.
+terminal values are source data. Rust returns the generic result and independently executes
+the legacy route as a shadow, comparing both the decision and complete target-cache state.
+Any disagreement fails closed. An unknown companion tag still fails before simulation.
 
 ## Proof level
 
-The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
-region. Source-compiled dispatch and pure decision regions are masked from the legacy
-identity gate. Route-local state is additionally compiled and full-state shadowed on both
-sides, while the remaining wrapper AST stays pinned until generic managed-exit promotion. A changed
-callback therefore recompiles into reviewed IR or fails before inheriting unrelated
-Rust behavior.
+The source analyzer pins the whole strategy SHA for cache/evidence identity. Managed route
+wrappers and `custom_exit` are structurally compiled, so their runtime hash gates are gone.
+Only residual stop/target helpers not yet wholly represented by generic IR remain
+identity-bound. A changed wrapper therefore recompiles into the same generic opcode set or
+fails structurally before inheriting unrelated Rust behavior.
 It also inventories literal condition-index branches and the effective strategy
 switches. Probe-only source changes are AST-bound to the expected class attribute and
 old literal; routine upstream edits fail closed instead of silently changing the wrong

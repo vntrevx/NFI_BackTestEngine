@@ -1,11 +1,4 @@
-"""Compile the source-ordered, pure prefix of managed exit routes.
-
-The existing X7 adapter still owns stop and profit-target state while the
-generic lane is introduced in stages.  This compiler removes the first source
-dependency from that adapter: tag dispatch and the ordered pure-decision
-prefix are read from the supplied strategy AST instead of selected by a
-reviewed wrapper hash.
-"""
+"""Compile source-ordered managed exits into the generic Native program."""
 
 from __future__ import annotations
 
@@ -36,12 +29,10 @@ class _RouteSpec(Protocol):
 
 @dataclass(frozen=True)
 class ManagedExitCompilation:
-    """Executable IR plus AST regions replaced by that IR."""
+    """Executable IR plus the long route order read from source."""
 
     program: dict[str, Any]
     long_route_order: tuple[str, ...]
-    custom_exit_statement_indices: frozenset[int]
-    wrapper_statement_indices: Mapping[str, frozenset[int]]
 
 
 def compile_managed_exit_ir(
@@ -56,9 +47,8 @@ def compile_managed_exit_ir(
     """Compile managed-long tag routes and their pure decision prefixes.
 
     A supported route must be a top-level ``custom_exit`` branch composed from
-    bounded ``any``/``all`` tag predicates. Its wrapper must expose an ordered
-    tuple-return decision prefix. Everything outside the returned AST masks
-    remains covered by the legacy stateful-method identity gate.
+    bounded tag predicates. Its complete executable wrapper policy must lower
+    structurally; there is no route-wrapper hash selection.
     """
 
     terminal_exits = terminal_exits or {}
@@ -104,14 +94,12 @@ def compile_managed_exit_ir(
 
     long_route_order = tuple(record[1] for record in discovered)
     routes: list[dict[str, Any]] = []
-    custom_masks: set[int] = set()
-    wrapper_masks: dict[str, frozenset[int]] = {}
     by_key = {key: (index, statement, matcher) for index, key, statement, matcher in discovered}
     for spec in route_specs:
         found = by_key.get(spec.key)
         if found is None:
             raise StrategyAnalysisError(f"NFI managed exit route is missing: {spec.key}")
-        custom_index, branch, matcher = found
+        _custom_index, branch, matcher = found
         if matcher is None:
             raise StrategyAnalysisError(f"NFI {spec.key} tag matcher cannot be represented")
 
@@ -119,8 +107,9 @@ def compile_managed_exit_ir(
         if wrapper is None:
             raise StrategyAnalysisError(f"NFI managed exit wrapper is missing: {spec.method}")
         _validate_dispatch_branch(branch, spec.method, aliases)
-        programs, profit_gate, mask_indices = _compile_decision_prefix(wrapper)
+        programs, profit_gate = _compile_decision_prefix(wrapper)
         mode_name = _mode_name(wrapper, constants)
+        _validate_literal_terminal_exits(wrapper, terminal_exits.get(spec.key))
         route = {
             "id": spec.key,
             "source_order": len(routes),
@@ -140,8 +129,6 @@ def compile_managed_exit_ir(
                 side="long",
             )
         routes.append(route)
-        custom_masks.add(custom_index)
-        wrapper_masks[spec.method] = mask_indices
 
     basic_ids = {route["id"] for route in routes}
     expected_basic_order = [key for key in long_route_order if key in basic_ids]
@@ -154,7 +141,7 @@ def compile_managed_exit_ir(
 
     program: dict[str, Any] = {
         "schema_version": MANAGED_EXIT_PROGRAM_VERSION,
-        "execution_mode": "shadow",
+        "execution_mode": "primary-with-legacy-shadow",
         "routes": routes,
     }
     encoded = json.dumps(
@@ -168,8 +155,6 @@ def compile_managed_exit_ir(
     return ManagedExitCompilation(
         program=program,
         long_route_order=long_route_order,
-        custom_exit_statement_indices=frozenset(custom_masks),
-        wrapper_statement_indices=wrapper_masks,
     )
 
 
@@ -299,9 +284,9 @@ def _tag_matcher_leaf(
 
 def _compile_decision_prefix(
     wrapper: ast.FunctionDef,
-) -> tuple[list[str], dict[str, Any] | None, frozenset[int]]:
+) -> tuple[list[str], dict[str, Any] | None]:
     callable_tuples = _callable_tuples(wrapper)
-    for index, statement in enumerate(wrapper.body):
+    for statement in wrapper.body:
         gate = _positive_profit_gate(statement)
         if gate is None:
             continue
@@ -313,8 +298,8 @@ def _compile_decision_prefix(
                 callable_tuples,
                 frozenset(programs),
             )
-            return programs, gate, frozenset({index})
-    for index, statement in enumerate(wrapper.body):
+            return programs, gate
+    for statement in wrapper.body:
         if isinstance(statement, ast.For):
             programs = _for_programs(statement, callable_tuples)
             if programs and _loop_assigns_sell_signal(statement):
@@ -323,10 +308,10 @@ def _compile_decision_prefix(
                     callable_tuples,
                     frozenset(programs),
                 )
-                return programs, None, frozenset({index})
-    programs, indices = _top_level_decision_prefix(wrapper, callable_tuples)
+                return programs, None
+    programs = _top_level_decision_prefix(wrapper, callable_tuples)
     if programs:
-        return programs, None, indices
+        return programs, None
     raise StrategyAnalysisError(
         f"NFI {wrapper.name} pure decision prefix cannot be represented"
     )
@@ -335,10 +320,9 @@ def _compile_decision_prefix(
 def _top_level_decision_prefix(
     wrapper: ast.FunctionDef,
     callable_tuples: Mapping[str, list[str]],
-) -> tuple[list[str], frozenset[int]]:
+) -> list[str]:
     programs: list[str] = []
-    indices: set[int] = set()
-    for index, statement in enumerate(wrapper.body):
+    for statement in wrapper.body:
         call = _guarded_sell_signal_call(statement)
         if call is None:
             if programs:
@@ -349,8 +333,7 @@ def _top_level_decision_prefix(
             break
         _validate_decision_body([statement], callable_tuples, frozenset({name}))
         programs.append(name)
-        indices.add(index)
-    return _unique_in_order(programs), frozenset(indices)
+    return _unique_in_order(programs)
 
 
 def _guarded_sell_signal_call(statement: ast.stmt) -> ast.Call | None:
@@ -605,6 +588,7 @@ def _compile_state_policy(
     side: str | None = None,
 ) -> dict[str, Any]:
     inline_exit = _inline_exit_policy(wrapper)
+    _validate_literal_sell_assignments(wrapper, inline_exit)
     stop = _stop_policy(wrapper, constants)
     stateful_order = ["stop"]
     if inline_exit is not None:
@@ -640,6 +624,82 @@ def _compile_state_policy(
             ),
         },
     }
+
+
+def _validate_literal_terminal_exits(
+    wrapper: ast.FunctionDef,
+    terminal_exit: Mapping[str, Any] | None,
+) -> None:
+    """Reject literal terminal results not represented by route IR."""
+
+    compiled_reason = terminal_exit.get("reason") if terminal_exit is not None else None
+    for node in ast.walk(wrapper):
+        if not isinstance(node, ast.Return) or not isinstance(node.value, ast.Tuple):
+            continue
+        values = node.value.elts
+        if (
+            len(values) != 2
+            or not isinstance(values[0], ast.Constant)
+            or values[0].value is not True
+        ):
+            continue
+        reason = values[1]
+        is_compiled_terminal = (
+            isinstance(reason, ast.Constant)
+            and isinstance(reason.value, str)
+            and reason.value == compiled_reason
+        )
+        if not is_compiled_terminal and not _is_compiled_dynamic_exit_reason(reason):
+            raise StrategyAnalysisError(
+                f"NFI {wrapper.name} contains an uncompiled terminal exit"
+            )
+
+
+def _is_compiled_dynamic_exit_reason(reason: ast.AST) -> bool:
+    if isinstance(reason, ast.Name):
+        return reason.id == "signal_name"
+    if not isinstance(reason, ast.JoinedStr):
+        return False
+    values = reason.values
+    if len(values) == 1 and isinstance(values[0], ast.FormattedValue):
+        value = values[0].value
+        return isinstance(value, ast.Name) and value.id == "signal_name"
+    return (
+        len(values) == 2
+        and isinstance(values[0], ast.FormattedValue)
+        and isinstance(values[0].value, ast.Name)
+        and values[0].value.id == "signal_name_max"
+        and isinstance(values[1], ast.Constant)
+        and values[1].value == "_m"
+    )
+
+
+def _validate_literal_sell_assignments(
+    wrapper: ast.FunctionDef,
+    inline_exit: Mapping[str, Any] | None,
+) -> None:
+    """Reject new direct sell results outside compiled inline/stop policy."""
+
+    for node in ast.walk(wrapper):
+        if (
+            not isinstance(node, ast.Assign)
+            or not _sell_signal_target(node.targets)
+            or not isinstance(node.value, ast.Tuple)
+            or len(node.value.elts) != 2
+            or not isinstance(node.value.elts[0], ast.Constant)
+            or node.value.elts[0].value is not True
+        ):
+            continue
+        reason = node.value.elts[1]
+        rendered = ast.unparse(reason)
+        is_compiled_stop = "stoploss_doom" in rendered
+        is_compiled_inline = inline_exit is not None and (
+            "_q_" in rendered or "_rpd_" in rendered or rendered == "signal"
+        )
+        if not is_compiled_stop and not is_compiled_inline:
+            raise StrategyAnalysisError(
+                f"NFI {wrapper.name} contains an uncompiled direct sell result"
+            )
 
 
 def _stop_policy(

@@ -277,9 +277,11 @@ recursive tag/side matchers, profit basis and gate, decision-call order, inline 
 IR, stop policy, target-cache policy, and terminal exits into separate
 `managed-exit-program-v1` programs. Short conditions come from short AST; they are never
 sign-flipped long rules. The target helper's narrower pure-scalp matcher is also kept
-separate from the wider compound route matcher. Rust executes each state machine beside
-the legacy route and compares both the decision and complete target cache. The generic
-lane remains a fail-closed shadow until M15 promotion retires the exit hash gates.
+separate from the wider compound route matcher. Rust uses each generic state machine as
+the primary result while independently executing the legacy route as a fail-closed shadow;
+both the decision and complete target cache must agree. Managed route-wrapper hash gates
+are retired because those wrappers are structurally lowered. Residual helpers that are not
+yet wholly represented by IR remain identity-bound.
 
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized

@@ -3,10 +3,10 @@
 use std::collections::BTreeSet;
 
 use crate::domain::{
-    ManagedExitInlinePosition, ManagedExitRoute, ManagedExitStateOperation,
-    ManagedExitStateProgram, ManagedExitStopPolicy, ManagedExitTagMatcher, ManagedExitTagOperator,
-    NfiManagedLongProfile, NfiManagedLongRoute, NfiX7AdjustmentConstants, NfiX7TradeManager,
-    PortfolioConfig, SimError,
+    ManagedExitExecutionMode, ManagedExitInlinePosition, ManagedExitRoute,
+    ManagedExitStateOperation, ManagedExitStateProgram, ManagedExitStopPolicy,
+    ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute,
+    NfiX7AdjustmentConstants, NfiX7TradeManager, PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -108,6 +108,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.18.0"
             | "0.19.0"
             | "0.20.0"
+            | "0.21.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -132,6 +133,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.18.0"
             | "0.19.0"
             | "0.20.0"
+            | "0.21.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -215,7 +217,14 @@ pub(crate) fn validate_nfi_trade_manager(
                 "grind-backtest-v2" => {
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0"
+                        "0.14.0"
+                            | "0.15.0"
+                            | "0.16.0"
+                            | "0.17.0"
+                            | "0.18.0"
+                            | "0.19.0"
+                            | "0.20.0"
+                            | "0.21.0"
                     )
                 }
                 _ => false,
@@ -315,7 +324,7 @@ pub(crate) fn validate_nfi_trade_manager(
                     && adjustment.constants.policy.is_none()
             }
             "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
-            | "0.19.0" | "0.20.0" => {
+            | "0.19.0" | "0.20.0" | "0.21.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -464,12 +473,10 @@ pub(crate) fn validate_nfi_trade_manager(
 
 fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_exit_program.as_ref() else {
-        return !matches!(
-            manager.schema_version.as_str(),
-            "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0"
-        );
+        return !managed_exit_program_required(&manager.schema_version);
     };
     if program.schema_version != "managed-exit-program-v1"
+        || !valid_managed_exit_execution_mode(&manager.schema_version, program.execution_mode)
         || !valid_sha256(&program.fingerprint)
         || program.routes.is_empty()
     {
@@ -485,7 +492,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     }
     if matches!(
         manager.schema_version.as_str(),
-        "0.18.0" | "0.19.0" | "0.20.0"
+        "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -552,14 +559,24 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                     state,
                     "long_exit_stoploss",
                     &known_tags,
-                    manager.schema_version == "0.20.0",
+                    matches!(manager.schema_version.as_str(), "0.20.0" | "0.21.0"),
                 ),
-                None => !matches!(manager.schema_version.as_str(), "0.19.0" | "0.20.0"),
+                None => !matches!(
+                    manager.schema_version.as_str(),
+                    "0.19.0" | "0.20.0" | "0.21.0"
+                ),
             }
             && valid_managed_exit_terminal(route, &matcher_tags)
             && route.location.line > 0
             && route.location.end_line >= route.location.line
     })
+}
+
+fn managed_exit_program_required(schema_version: &str) -> bool {
+    matches!(
+        schema_version,
+        "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0"
+    )
 }
 
 fn managed_long_exit_tags(manager: &NfiX7TradeManager) -> BTreeSet<&str> {
@@ -579,9 +596,10 @@ fn managed_long_exit_tags(manager: &NfiX7TradeManager) -> BTreeSet<&str> {
 
 fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_short_exit_program.as_ref() else {
-        return manager.schema_version != "0.20.0";
+        return !matches!(manager.schema_version.as_str(), "0.20.0" | "0.21.0");
     };
     if program.schema_version != "managed-exit-program-v1"
+        || !valid_managed_exit_execution_mode(&manager.schema_version, program.execution_mode)
         || !valid_sha256(&program.fingerprint)
         || program.routes.is_empty()
     {
@@ -652,13 +670,21 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                     state,
                     "short_exit_stoploss",
                     &known_tags,
-                    manager.schema_version == "0.20.0",
+                    matches!(manager.schema_version.as_str(), "0.20.0" | "0.21.0"),
                 )
             })
             && route.terminal_exit.is_none()
             && route.location.line > 0
             && route.location.end_line >= route.location.line
     })
+}
+
+fn valid_managed_exit_execution_mode(schema_version: &str, mode: ManagedExitExecutionMode) -> bool {
+    if schema_version == "0.21.0" {
+        mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
+    } else {
+        mode == ManagedExitExecutionMode::Shadow
+    }
 }
 
 fn valid_managed_exit_terminal(route: &ManagedExitRoute, matcher_tags: &BTreeSet<&str>) -> bool {

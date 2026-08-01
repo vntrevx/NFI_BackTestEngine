@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.20.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.21.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -248,20 +248,11 @@ _MANAGED_SHORT_ROUTE_SPECS = (
 # source-ordered router.
 _MANAGED_SHORT_ROUTE_ORDER = tuple(spec.key for spec in _MANAGED_SHORT_ROUTE_SPECS)
 
-# Stateful callback bodies are handwritten in Rust and therefore require a
-# stronger boundary than the whole strategy SHA. A same-file update can change
-# one branch while leaving all scalar programs compilable; these method hashes
-# make that update fail closed until the ordered policy is reviewed again.
+# These residual helpers are not yet wholly represented by managed-exit IR.
+# Keep their identities fail-closed until their semantics move into generic
+# opcodes. Route wrappers and custom_exit are deliberately absent: their
+# executable behavior is now selected structurally by the source compiler.
 _MANAGED_LONG_METHOD_SHA256 = {
-    "custom_exit": "a0bb3c1d5bf6ab5dedfa96928e3dd52c714a53b489ff59d0183038a9207de497",
-    "long_exit_normal": "c6e0aea5dc4009a736315bf7944fef537d2cbffa1ffc29f9d903e86c4c0a7bd3",
-    "long_exit_pump": "fb87913b8abdc1d711ea1d7a0a70543a382d93263e3f7c1932e342b04ad5e8ea",
-    "long_exit_quick": "ba1996d0493c711e1bd591c0840c1674ba6695b0f45648f45531163593966374",
-    "long_exit_rebuy": "03e0f0ad6cdaac21bdb211a393508d517c0ff1034606eb0acdcd863efc5ffe60",
-    "long_exit_high_profit": ("b0fc7d0c36f7fa18b74392b686097e9f8ffe2f06429173ad82d321459f660d2b"),
-    "long_exit_rapid": "95f96395151ba41c5cf17afacafc44e40dade5828211353fc51ce92fcbd61b53",
-    "long_exit_top_coins": ("0fdf487ced648d2ccc8e790b98b85becebf29e1d4314687f552d365559e42153"),
-    "long_exit_scalp": "b2a6cf02e277f63147e99e912f9e545232dc6705f89ee68dc240bd141bea4ab7",
     "long_exit_stoploss": ("d7eb62382e5caff15dc9e12531cbcda0968b48b0e4db8d410a32ef9c19b197e7"),
     "exit_profit_target": ("6125c745a6f30ea67b68e17c49f8cd937eb3607c8fd4d719618ffe140793d67c"),
     "mark_profit_target": ("d1e956d0d1cb9ab3540aa4fd5288ff8c78d873f50241a9cc502b3279c59b994f"),
@@ -271,37 +262,7 @@ _MANAGED_LONG_METHOD_SHA256 = {
         "c57bef2165c41fc9f3e9c1b90c92a1cd39323796d8f35d818b97856593f9cdf0"
     ),
 }
-# `long_exit_rebuy` may append a structurally compiled terminal exit after the
-# reviewed stateful router. Removing that one recognized branch must leave this
-# exact AST. This keeps unrelated callback changes fail-closed while allowing
-# source-provided tags, thresholds, duration, and reason to flow through the IR.
-# The pure decision prefix and tag-dispatch block of these methods are
-# source-compiled by managed_exit_ir. Their remaining stateful bodies stay
-# identity-bound until M15's state and target opcodes replace them as well.
-_MANAGED_WRAPPER_BASE_AST_SHA256 = {
-    "long_exit_normal": "4093b79d7f2ef3ae56da6cba2c786a62a8cb03ab97154170daae325514cf9a0b",
-    "long_exit_pump": "f062b700aacc4b601a57432dcc49d689fae77d6f04b6ba85c412ab1852c055ab",
-    "long_exit_quick": "6b282a2f32002acb7f50947da53121530329838e98f8f7af9d74057e4173542d",
-    "long_exit_rebuy": "6414470b71008358598bdf532d2f45296a48324e3bf63fdba377211d3b5f6c4b",
-    "long_exit_high_profit": "f4bc743336eb488739558f877345a75afcce3fc34a53194ba53e2e6722c0a4ce",
-    "long_exit_rapid": "029eb3f8b29a609fb6ef988e3c813f5b16cf89baee262e05f18d2288ef2952f9",
-    "long_exit_top_coins": "309ef9a69b551920ebcfcb1f6dd795f7d76f1d635b97458b058b50762c8743cb",
-    "long_exit_scalp": "216b4f9a5147d7b092c62b6010bb0400d3b87aee0fc2dbb030342f88fc5dc3c1",
-}
-_CUSTOM_EXIT_WITHOUT_MANAGED_ROUTES_AST_SHA256 = (
-    "25d7e4b272c02ba83fef43c34d63eadbfefe5b614a7657551abd37b18298bf12"
-)
 _MANAGED_SHORT_METHOD_SHA256 = {
-    # Pure predicates are source-compiled. These wrappers are pinned because
-    # their call order, stop boundaries, inline quick/rapid conditions, and
-    # target-cache mutations are executed by the direction-aware Rust router.
-    "short_exit_normal": "e0ded57e824da65300eed780d215f1fba7e039cfbc0d78950e43dbc4e16ad24b",
-    "short_exit_pump": "27d5b3623a7871f88c5399056cf1077534779e3e5a1975a8cd3c07196dc59836",
-    "short_exit_quick": "c63d94c80e44efdae5a12ad62e42f29caca3b134dedb508a8045a8022c5f6338",
-    "short_exit_rebuy": "bce3263e3df13f9f2873949631b1813d573aeb7e1beb48302409e466d9cdad1a",
-    "short_exit_high_profit": ("f498c2df79d8308f92a64eaad2904691b4f30129a918d01bc282bab47dc25816"),
-    "short_exit_rapid": "039e1c91e45bd61b2c1a188f4fba2bdbdc4dbb1c6c623da7cd7a1aa24d8b5143",
-    "short_exit_scalp": "d78e90d2e8b72f21e239025b076b2d7a1b2e1cc0db9c39120c4310a37261949f",
     "short_exit_stoploss": ("172808fcb8ebf05ed0c0689fc46672e78b76084cb5420f014fef4d169076e113"),
 }
 
@@ -651,22 +612,11 @@ def build_nfi_trade_manager_ir(
         constants,
         _MANAGED_SHORT_ROUTE_SPECS,
     )
-    validated_terminal_exit = _validate_managed_long_method_identity(
-        methods,
-        method_records,
-        custom_exit_statement_indices=(
-            managed_exit_compilation.custom_exit_statement_indices
-        ),
-        wrapper_statement_indices=managed_exit_compilation.wrapper_statement_indices,
-    )
-    if validated_terminal_exit != rebuy_terminal_exit:
-        raise StrategyAnalysisError("NFI long rebuy terminal policy changed during compilation")
+    _validate_managed_long_method_identity(methods, method_records)
     _validate_managed_short_method_identity(methods, method_records)
 
-    # The top-coins route uses a literal tuple that can be checked
-    # structurally in addition to its method hash. Other routes have equivalent
-    # source order expressed through loops or sequential ``if not sell``
-    # blocks, so their complete callback hash is the fail-closed boundary.
+    # The top-coins route uses a literal tuple, so keep its pure call order as
+    # an explicit structural invariant alongside the generic compiler.
     top_coins_router = methods["long_exit_top_coins"]
     actual_order = _top_coins_program_order(top_coins_router)
     if actual_order != _MANAGED_LONG_PROGRAM_ORDER:
@@ -793,22 +743,22 @@ def build_nfi_trade_manager_ir(
             "input_contract": record["input_contract"],
         }
 
+    managed_exit_proof_methods = dict.fromkeys(
+        [
+            "custom_exit",
+            *(spec.method for spec in _MANAGED_LONG_ROUTE_SPECS),
+            *(spec.method for spec in _MANAGED_SHORT_ROUTE_SPECS),
+            *_MANAGED_LONG_METHOD_SHA256,
+            *_MANAGED_SHORT_METHOD_SHA256,
+        ]
+    )
     method_identity = {
         name: {
             "source_sha256": method_records[name]["source_sha256"],
             "location": method_records[name]["location"],
         }
-        for name in _MANAGED_LONG_METHOD_SHA256
+        for name in managed_exit_proof_methods
     }
-    method_identity.update(
-        {
-            name: {
-                "source_sha256": method_records[name]["source_sha256"],
-                "location": method_records[name]["location"],
-            }
-            for name in _MANAGED_SHORT_METHOD_SHA256
-        }
-    )
     method_identity.update(long_grind_method_identity)
     method_identity.update(long_btc_method_identity)
     supported_routes: dict[str, Any] = dict(managed_routes)

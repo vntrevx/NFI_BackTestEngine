@@ -254,19 +254,22 @@ fn evaluate_nfi_managed_long_exit(
         config,
         &mut legacy_targets,
     )?;
-    let generic_route = source_program
-        .filter(|program| program.execution_mode == ManagedExitExecutionMode::Shadow)
-        .and_then(|program| {
-            program
-                .routes
-                .iter()
-                .find(|candidate| candidate.id == route.key)
-        });
+    let generic_route = source_program.and_then(|program| {
+        program
+            .routes
+            .iter()
+            .find(|candidate| candidate.id == route.key)
+    });
     let Some(generic_route) = generic_route else {
         *profit_targets = legacy_targets;
         return Some(legacy);
     };
     if generic_route.state_program.is_none() {
+        if source_program.is_some_and(|program| {
+            program.execution_mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
+        }) {
+            return None;
+        }
         let enter_tags = trade
             .entry_tag
             .as_deref()
@@ -322,8 +325,16 @@ fn evaluate_nfi_managed_long_exit(
     if generic != legacy || generic_targets != legacy_targets {
         return None;
     }
-    *profit_targets = legacy_targets;
-    Some(legacy)
+    match source_program?.execution_mode {
+        ManagedExitExecutionMode::Shadow => {
+            *profit_targets = legacy_targets;
+            Some(legacy)
+        }
+        ManagedExitExecutionMode::PrimaryWithLegacyShadow => {
+            *profit_targets = generic_targets;
+            Some(generic)
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -435,7 +446,7 @@ fn evaluate_nfi_managed_long_exit_legacy(
 
 /// Execute the source-compiled route state machine independently of profile
 /// selection. The shadow caller compares both the decision and the complete
-/// target-cache mutation before retaining the established result.
+/// target-cache mutation before the caller selects the configured primary.
 #[allow(clippy::too_many_arguments)]
 fn evaluate_generic_managed_long_exit(
     manager: &NfiX7TradeManager,

@@ -28,17 +28,16 @@ from .managed_exit_ir import (
     _RouteSpec,
     _self_aliases,
     _validate_dispatch_branch,
+    _validate_literal_terminal_exits,
 )
 
 
 @dataclass(frozen=True)
 class ManagedShortExitCompilation:
-    """Executable short IR plus source regions represented by that IR."""
+    """Executable short IR plus the route order read from source."""
 
     program: dict[str, Any]
     short_route_order: tuple[str, ...]
-    custom_exit_statement_indices: frozenset[int]
-    wrapper_statement_indices: Mapping[str, frozenset[int]]
 
 
 def compile_managed_short_exit_ir(
@@ -101,14 +100,13 @@ def compile_managed_short_exit_ir(
         )
 
     routes: list[dict[str, Any]] = []
-    wrapper_masks: dict[str, set[int]] = defaultdict(set)
-    custom_masks: set[int] = set()
-    for source_order, (custom_index, spec, branch, matcher) in enumerate(discovered):
+    for source_order, (_custom_index, spec, branch, matcher) in enumerate(discovered):
         wrapper = methods.get(spec.method)
         if wrapper is None:
             raise StrategyAnalysisError(f"NFI managed short wrapper is missing: {spec.method}")
         _validate_dispatch_branch(branch, spec.method, aliases)
-        programs, profit_gate, mask_indices = _compile_decision_prefix(wrapper)
+        programs, profit_gate = _compile_decision_prefix(wrapper)
+        _validate_literal_terminal_exits(wrapper, None)
         routes.append(
             {
                 "id": spec.key,
@@ -128,12 +126,9 @@ def compile_managed_short_exit_ir(
                 "location": _location(branch),
             }
         )
-        custom_masks.add(custom_index)
-        wrapper_masks[spec.method].update(mask_indices)
-
     program: dict[str, Any] = {
         "schema_version": MANAGED_EXIT_PROGRAM_VERSION,
-        "execution_mode": "shadow",
+        "execution_mode": "primary-with-legacy-shadow",
         "routes": routes,
     }
     encoded = json.dumps(
@@ -147,10 +142,6 @@ def compile_managed_short_exit_ir(
     return ManagedShortExitCompilation(
         program=program,
         short_route_order=tuple(actual_keys),
-        custom_exit_statement_indices=frozenset(custom_masks),
-        wrapper_statement_indices={
-            name: frozenset(indices) for name, indices in wrapper_masks.items()
-        },
     )
 
 

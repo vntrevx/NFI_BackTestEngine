@@ -88,6 +88,7 @@ pub struct ManagedExitProgram {
 #[serde(rename_all = "kebab-case")]
 pub enum ManagedExitExecutionMode {
     Shadow,
+    PrimaryWithLegacyShadow,
 }
 
 #[derive(Debug, Clone, Deserialize)]
