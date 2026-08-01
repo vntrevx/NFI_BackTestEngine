@@ -1,10 +1,12 @@
 //! Shared open-trade and wallet state for the chronological portfolio.
 
 use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use serde_json::Value;
 
 use super::nfi::AdjustmentState;
+use super::order_aggregates::FilledOrderAggregates;
 use super::{ClosedTrade, FilledOrder};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +57,7 @@ pub(crate) struct OpenTrade {
     pub(crate) minimum_rate: f64,
     pub(crate) maximum_rate: f64,
     pub(crate) orders: Vec<FilledOrder>,
+    pub(crate) filled_order_aggregates: OnceLock<FilledOrderAggregates>,
     pub(crate) custom_data: BTreeMap<String, Value>,
     /// Order-derived NFI grind state.
     ///
@@ -63,6 +66,19 @@ pub(crate) struct OpenTrade {
     /// adjustments only append orders, and the cache records the order count
     /// used to build it so the next callback invalidates it automatically.
     pub(crate) nfi_adjustment_state: Option<AdjustmentState>,
+}
+
+impl OpenTrade {
+    pub(crate) fn push_filled_order(&mut self, order: FilledOrder) {
+        self.orders.push(order);
+        self.filled_order_aggregates.take();
+        self.nfi_adjustment_state = None;
+    }
+
+    pub(crate) fn filled_order_aggregates(&self) -> &FilledOrderAggregates {
+        self.filled_order_aggregates
+            .get_or_init(|| FilledOrderAggregates::from_orders(&self.orders))
+    }
 }
 
 pub(super) fn wallet_free(

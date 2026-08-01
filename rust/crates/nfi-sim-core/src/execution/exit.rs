@@ -230,7 +230,7 @@ pub(crate) fn close_trade(
     let (fallback_remaining_profit, fallback_remaining_profit_ratio) =
         fallback_close_profit(&trade, rate, open_fee_rate, close_fee_rate, gross_proceeds);
     let funding_fee = take_running_funding(&mut trade);
-    trade.orders.push(FilledOrder {
+    trade.push_filled_order(FilledOrder {
         id: order_id,
         funding_fee,
         sequence: trade.orders.len(),

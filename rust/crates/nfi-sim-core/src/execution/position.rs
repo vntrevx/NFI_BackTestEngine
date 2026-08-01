@@ -50,7 +50,7 @@ pub(crate) fn apply_adjustment(
         return Ok(());
     };
     let funding_fee = take_running_funding(trade);
-    trade.orders.push(FilledOrder {
+    trade.push_filled_order(FilledOrder {
         id: order_id,
         funding_fee,
         sequence: trade.orders.len(),
@@ -117,7 +117,7 @@ pub(crate) fn apply_partial_exit(
     // resulting partial-exit order is filled at the frozen rounded price.
     let exit_rate = round_step(candle.open, trade.price_step);
     let funding_fee = take_running_funding(trade);
-    trade.orders.push(FilledOrder {
+    trade.push_filled_order(FilledOrder {
         id: order_id,
         funding_fee,
         sequence: trade.orders.len(),

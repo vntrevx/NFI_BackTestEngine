@@ -18,6 +18,7 @@ use crate::domain::{
     NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
+use crate::order_aggregates::FilledOrderSelector;
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{evaluate_scalar_program_bundle, number_value, scalar_truthy};
 
@@ -306,9 +307,22 @@ fn rebuild_adjustment_state(
     adjustment: &NfiX7PositionAdjustment,
 ) -> Option<AdjustmentState> {
     let first = trade.orders.first()?;
-    let latest = trade.orders.last()?;
-    let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
-    let latest_exit = trade.orders.iter().rev().find(|order| !order.is_entry);
+    let aggregates = trade.filled_order_aggregates();
+    if aggregates.order_count() != trade.orders.len() {
+        return None;
+    }
+    let latest = aggregates
+        .select(FilledOrderSelector::All)
+        .latest
+        .as_ref()?;
+    let latest_entry = aggregates
+        .select(FilledOrderSelector::Entries)
+        .latest
+        .as_ref()?;
+    let latest_exit = aggregates
+        .select(FilledOrderSelector::Exits)
+        .latest
+        .as_ref();
     let mut clusters = vec![GrindCluster::default(); adjustment.constants.grinds.len()];
     let mut cluster_closed = vec![false; clusters.len()];
     let mut derisk_found = vec![false; adjustment.constants.derisk_levels.len()];
@@ -357,10 +371,10 @@ fn rebuild_adjustment_state(
         first_entry_amount: first.amount,
         first_entry_cost: first.amount * first.price,
         latest_entry_price: latest_entry.price,
-        latest_entry_timestamp_ms: latest_entry.filled_timestamp_ms,
+        latest_entry_timestamp_ms: latest_entry.timestamp_ms,
         latest_exit_price: latest_exit.map(|order| order.price),
         latest_order_price: latest.price,
-        latest_order_timestamp_ms: latest.filled_timestamp_ms,
+        latest_order_timestamp_ms: latest.timestamp_ms,
     })
 }
 

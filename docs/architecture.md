@@ -128,13 +128,16 @@ returns to dense every-candle execution until it closes. Full-state observer run
 use this shortcut. A timestamp-only merge pass retains the logical batch and row counts
 reported by the profile without executing skipped strategy work.
 
-Open NFI trades cache only the adjustment state derived from immutable filled-order
-history. Appending an order invalidates that cache automatically; current candle price
-and profit remain freshly evaluated. Compiled scalar callbacks keep an immutable base
-scope plus a small per-call write overlay, project the union of required features once,
-and resolve literal field/index access without cloning an entire candle or trade map.
-These are representation optimizations: program ordering and emitted values remain part
-of the exact-result regression.
+Open trades expose a strategy-neutral projection of immutable filled-order history.
+It accumulates entry, exit, and exact-tag clusters with amount, cost, source-order IDs,
+and latest-fill metadata. Every filled order enters through one append boundary that
+invalidates both this projection and the NFI adjustment cache; no callback can reuse a
+stale order view. Tag values remain ordinary data rather than runtime route names.
+Current candle price and profit are always evaluated freshly. Compiled scalar callbacks
+keep an immutable base scope plus a small per-call write overlay, project the union of
+required features once, and resolve literal field/index access without cloning an entire
+candle or trade map. These are representation optimizations: program ordering and
+emitted values remain part of the exact-result regression.
 
 Completed vectors are immutable cache objects. When run output and cache share a
 filesystem, cache publication uses an atomic hard link bound to the worker-produced

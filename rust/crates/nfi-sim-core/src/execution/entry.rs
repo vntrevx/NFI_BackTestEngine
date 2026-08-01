@@ -237,6 +237,7 @@ pub(crate) fn attempt_entry(
         minimum_rate: candle.low,
         maximum_rate: candle.high,
         orders: vec![order],
+        filled_order_aggregates: std::sync::OnceLock::new(),
         custom_data: BTreeMap::new(),
         nfi_adjustment_state: None,
     };

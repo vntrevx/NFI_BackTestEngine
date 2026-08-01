@@ -30,6 +30,7 @@ pub use io::{
     FeatureColumn, FileBackedFeatureKind, FileBackedRows, FILE_BACKED_FEATURE_BYTES,
     FILE_BACKED_ROW_HEADER_BYTES, TRADE_SURFACE_SCHEMA_VERSION,
 };
+mod order_aggregates;
 mod portfolio;
 mod profiling;
 mod scheduler;
