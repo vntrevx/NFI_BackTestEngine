@@ -11,10 +11,6 @@ use crate::nfi::{
 };
 use crate::scalar_vm::{number_value, value_index};
 
-pub(crate) fn callback_feature_index(execution_index: usize) -> Option<usize> {
-    execution_index.checked_sub(1)
-}
-
 /// Materialize one strategy-visible dataframe row from the pair-level columns.
 ///
 /// Freqtrade callbacks see the current analyzed row plus recent predecessors,

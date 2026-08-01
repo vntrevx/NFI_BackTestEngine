@@ -30,6 +30,8 @@ pub use io::{
 };
 mod portfolio;
 mod profiling;
+mod scheduler;
+pub use scheduler::contract_json as scheduler_contract_json;
 mod scalar_vm;
 mod state_machine_vm;
 mod validation;
@@ -59,9 +61,11 @@ use validation::nfi_managed_short_route_supports_tags;
 
 mod nfi;
 #[cfg(test)]
-use callbacks::{callback_feature_index, insert_feature_window};
+use callbacks::insert_feature_window;
 #[cfg(test)]
 use nfi::{nfi_inline_profile_exit, nfi_profit_snapshot, NfiProfitSnapshot};
+#[cfg(test)]
+use scheduler::callback_feature_index;
 mod protections;
 #[cfg(test)]
 use protections::{PairLockState, ProtectionState};

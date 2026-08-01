@@ -41,6 +41,15 @@ def execute(
             f"fingerprint={profile['fingerprint']} -> {args.output}"
         )
         return 0
+    if args.reference_command == "scheduler-contract":
+        from ..scheduler_contract import write_scheduler_contract
+
+        contract = write_scheduler_contract(args.semantic_profile, args.output)
+        print(
+            "Freqtrade scheduler contract: "
+            f"fingerprint={contract['fingerprint']} -> {args.output}"
+        )
+        return 0
     if args.reference_command == "semantic-observe":
         from ..semantic_observer import project_official_semantic_trace
 

@@ -299,6 +299,15 @@ def build_parser() -> argparse.ArgumentParser:
     trace_compare = trace_commands.add_parser("compare", help="compare two traces exactly")
     trace_compare.add_argument("expected", type=Path)
     trace_compare.add_argument("actual", type=Path)
+    trace_verify_schedule = trace_commands.add_parser(
+        "verify-schedule",
+        help="compare official and Native chronological pair-event order",
+    )
+    trace_verify_schedule.add_argument("manifest", type=Path)
+    trace_verify_schedule.add_argument("official_semantic_trace", type=Path)
+    trace_verify_schedule.add_argument("native_events", type=Path)
+    trace_verify_schedule.add_argument("--contract", type=Path, required=True)
+    trace_verify_schedule.add_argument("--output", "-o", type=Path, required=True)
 
     profile = subcommands.add_parser("profile", help="aggregate Phase 0 profile spans")
     profile.add_argument("events", type=Path)
@@ -323,6 +332,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="write the digest-bound profile for the pinned Freqtrade observer",
     )
     reference_semantic_profile.add_argument("--output", "-o", type=Path, required=True)
+    reference_scheduler_contract = reference_commands.add_parser(
+        "scheduler-contract",
+        help="write the Freqtrade-compatible Native scheduler contract",
+    )
+    reference_scheduler_contract.add_argument("--semantic-profile", type=Path, required=True)
+    reference_scheduler_contract.add_argument("--output", "-o", type=Path, required=True)
     reference_semantic_observe = reference_commands.add_parser(
         "semantic-observe",
         help="project captured official callback/state events canonically",

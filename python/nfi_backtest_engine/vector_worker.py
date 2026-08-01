@@ -17,6 +17,7 @@ from .errors import StrategyAnalysisError
 from .fixture import sha256_file
 from .resource_usage import process_peak_rss_bytes
 from .runtime_versions import vector_dependency_versions
+from .scheduler_contract import SIGNAL_SOURCE_ROW_SHIFT
 from .strategy_compat import (
     VectorDataProvider,
     load_strategy_class,
@@ -193,7 +194,10 @@ def _materialize_execution_signals(frame: pd.DataFrame) -> pd.DataFrame:
         numeric = pd.to_numeric(raw, errors="coerce")
         if not isinstance(numeric, pd.Series):
             raise StrategyAnalysisError(f"vector signal conversion failed: {column}")
-        result[f"nfi_exec_{column}"] = numeric.fillna(0).shift(1, fill_value=0)
+        result[f"nfi_exec_{column}"] = numeric.fillna(0).shift(
+            SIGNAL_SOURCE_ROW_SHIFT,
+            fill_value=0,
+        )
     for column in ("enter_tag", "exit_tag"):
         if column in result:
             raw = result[column]
@@ -201,7 +205,7 @@ def _materialize_execution_signals(frame: pd.DataFrame) -> pd.DataFrame:
                 raise StrategyAnalysisError(
                     f"vector tag column is not one-dimensional: {column}"
                 )
-            shifted = raw.shift(1).astype("object")
+            shifted = raw.shift(SIGNAL_SOURCE_ROW_SHIFT).astype("object")
             result[f"nfi_exec_{column}"] = shifted.where(shifted.notna(), None)
     return result
 

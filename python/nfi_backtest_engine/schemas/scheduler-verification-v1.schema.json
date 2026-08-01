@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/scheduler-verification-v1.schema.json",
+  "title": "Official and Native scheduler event-order verification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "trading_mode",
+    "scheduler_contract_sha256",
+    "official_trace_sha256",
+    "native_events_sha256",
+    "event_order_exact",
+    "event_count",
+    "timestamp_batch_count",
+    "same_timestamp_batch_count",
+    "mismatch",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "scheduler-verification-v1"
+    },
+    "fixture_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trading_mode": {
+      "enum": [
+        "spot",
+        "futures"
+      ]
+    },
+    "scheduler_contract_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "official_trace_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "native_events_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "event_order_exact": {
+      "type": "boolean"
+    },
+    "event_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "timestamp_batch_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "same_timestamp_batch_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mismatch": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/mismatch"
+        }
+      ]
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "event": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "timestamp_ms",
+            "pair"
+          ],
+          "properties": {
+            "timestamp_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pair": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "mismatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "expected",
+        "actual",
+        "reason"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected": {
+          "$ref": "#/$defs/event"
+        },
+        "actual": {
+          "$ref": "#/$defs/event"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

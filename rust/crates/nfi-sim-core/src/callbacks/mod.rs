@@ -9,4 +9,4 @@ pub(crate) use evaluation::{
 };
 #[cfg(test)]
 pub(crate) use projection::insert_feature_window;
-pub(crate) use projection::{callback_feature_index, insert_projected_feature_window};
+pub(crate) use projection::insert_projected_feature_window;

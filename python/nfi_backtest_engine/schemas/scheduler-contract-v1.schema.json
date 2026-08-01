@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/scheduler-contract-v1.schema.json",
+  "title": "Freqtrade-compatible scheduler contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "semantic_profile_sha256",
+    "chronology",
+    "visibility",
+    "preparation",
+    "observer",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "freqtrade-scheduler-contract-v1"
+    },
+    "semantic_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp_order",
+        "same_timestamp_pair_order",
+        "pair_processed_once_per_timestamp",
+        "wallet_mutation",
+        "final_force_exit_order"
+      ],
+      "properties": {
+        "timestamp_order": {
+          "const": "ascending"
+        },
+        "same_timestamp_pair_order": {
+          "const": [
+            "open-trade-insertion-order",
+            "configured-order-for-remaining-pairs"
+          ]
+        },
+        "pair_processed_once_per_timestamp": {
+          "const": true
+        },
+        "wallet_mutation": {
+          "const": "serial-global-event-loop"
+        },
+        "final_force_exit_order": {
+          "const": "reverse-open-trade-insertion-order"
+        }
+      }
+    },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_source_row_shift",
+        "callback_feature_row_offset",
+        "startup_context_is_executable",
+        "timerange_stop_callback_visible",
+        "timerange_stop_entry_allowed"
+      ],
+      "properties": {
+        "signal_source_row_shift": {
+          "const": 1
+        },
+        "callback_feature_row_offset": {
+          "const": -1
+        },
+        "startup_context_is_executable": {
+          "const": false
+        },
+        "timerange_stop_callback_visible": {
+          "const": true
+        },
+        "timerange_stop_entry_allowed": {
+          "const": false
+        }
+      }
+    },
+    "preparation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pair_preparation_parallel",
+        "published_pair_order",
+        "wallet_event_parallel"
+      ],
+      "properties": {
+        "pair_preparation_parallel": {
+          "const": true
+        },
+        "published_pair_order": {
+          "const": "configured-pair-order"
+        },
+        "wallet_event_parallel": {
+          "const": false
+        }
+      }
+    },
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "official_phase",
+        "native_phase",
+        "comparison_key",
+        "unknown_schedule"
+      ],
+      "properties": {
+        "official_phase": {
+          "const": "candle.after"
+        },
+        "native_phase": {
+          "const": "pair.after_candle"
+        },
+        "comparison_key": {
+          "const": [
+            "timestamp_ms",
+            "pair"
+          ]
+        },
+        "unknown_schedule": {
+          "const": "fail-before-native-promotion"
+        }
+      }
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

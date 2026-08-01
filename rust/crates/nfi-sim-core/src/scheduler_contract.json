@@ -1,0 +1,36 @@
+{
+  "schema_version": "freqtrade-scheduler-contract-v1",
+  "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+  "chronology": {
+    "timestamp_order": "ascending",
+    "same_timestamp_pair_order": [
+      "open-trade-insertion-order",
+      "configured-order-for-remaining-pairs"
+    ],
+    "pair_processed_once_per_timestamp": true,
+    "wallet_mutation": "serial-global-event-loop",
+    "final_force_exit_order": "reverse-open-trade-insertion-order"
+  },
+  "visibility": {
+    "signal_source_row_shift": 1,
+    "callback_feature_row_offset": -1,
+    "startup_context_is_executable": false,
+    "timerange_stop_callback_visible": true,
+    "timerange_stop_entry_allowed": false
+  },
+  "preparation": {
+    "pair_preparation_parallel": true,
+    "published_pair_order": "configured-pair-order",
+    "wallet_event_parallel": false
+  },
+  "observer": {
+    "official_phase": "candle.after",
+    "native_phase": "pair.after_candle",
+    "comparison_key": [
+      "timestamp_ms",
+      "pair"
+    ],
+    "unknown_schedule": "fail-before-native-promotion"
+  },
+  "fingerprint": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a"
+}
