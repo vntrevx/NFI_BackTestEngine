@@ -838,6 +838,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_state_machine.add_argument("source", type=Path)
     strategy_state_machine.add_argument("--class", dest="class_name")
+    strategy_state_machine.add_argument(
+        "--schema-version",
+        choices=("state-machine-program-v2", "state-machine-program-v3"),
+        default="state-machine-program-v2",
+    )
+    strategy_state_machine.add_argument(
+        "--max-order-iterations",
+        type=int,
+        help="required finite runtime bound when a v3 program iterates orders",
+    )
     strategy_state_machine.add_argument("--output", "-o", type=Path, required=True)
     strategy_shadow_gate = strategy_commands.add_parser(
         "shadow-gate",

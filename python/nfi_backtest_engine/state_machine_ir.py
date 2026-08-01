@@ -8,10 +8,15 @@ from pathlib import Path
 from typing import Any, Never
 
 from .errors import StrategyAnalysisError
-from .specs import STATE_MACHINE_PROGRAM_V2_SCHEMA, validate_schema
+from .specs import (
+    STATE_MACHINE_PROGRAM_V2_SCHEMA,
+    STATE_MACHINE_PROGRAM_V3_SCHEMA,
+    validate_schema,
+)
 from .strategy_ir import analyze_strategy
 
 STATE_MACHINE_PROGRAM_VERSION = "state-machine-program-v2"
+STATE_MACHINE_PROGRAM_V3_VERSION = "state-machine-program-v3"
 STATE_MACHINE_ENTRYPOINTS = (
     "order_filled",
     "adjust_trade_position",
@@ -28,6 +33,22 @@ _CANDLE_INPUTS = {
     "current_exit_profit",
 }
 _WALLET_INPUTS = {"min_stake", "max_stake"}
+_ORDER_FIELD_TYPES = {
+    "amount": "number",
+    "average": "number_or_null",
+    "cost": "number_or_null",
+    "filled": "number",
+    "ft_order_tag": "string_or_null",
+    "id": "string",
+    "order_filled_utc": "datetime_or_null",
+    "order_type": "string",
+    "price": "number",
+    "remaining": "number",
+    "safe_filled": "number",
+    "safe_price": "number",
+    "side": "string",
+    "status": "string",
+}
 
 
 class StateMachineCompileError(StrategyAnalysisError):
@@ -38,8 +59,27 @@ def compile_state_machine_program(
     source: str | Path,
     *,
     class_name: str | None = None,
+    schema_version: str = STATE_MACHINE_PROGRAM_VERSION,
+    max_order_iterations: int | None = None,
 ) -> dict[str, Any]:
     """Compile supported stateful callbacks without executing strategy code."""
+
+    if schema_version not in {
+        STATE_MACHINE_PROGRAM_VERSION,
+        STATE_MACHINE_PROGRAM_V3_VERSION,
+    }:
+        raise StateMachineCompileError(
+            f"unsupported state-machine schema version: {schema_version}"
+        )
+    if max_order_iterations is not None and max_order_iterations <= 0:
+        raise StateMachineCompileError("max_order_iterations must be positive")
+    if (
+        schema_version == STATE_MACHINE_PROGRAM_VERSION
+        and max_order_iterations is not None
+    ):
+        raise StateMachineCompileError(
+            "max_order_iterations is available only for state-machine-program-v3"
+        )
 
     path = Path(source).resolve()
     analysis = analyze_strategy(path, class_name=class_name)
@@ -77,6 +117,8 @@ def compile_state_machine_program(
     constants = strategies[0].get("constants")
     compiler = _Compiler(
         path,
+        schema_version=schema_version,
+        max_order_iterations=max_order_iterations,
         class_constants=constants if isinstance(constants, Mapping) else {},
         methods={
             node.name: node
@@ -102,7 +144,7 @@ def compile_state_machine_program(
                 "instructions": instructions,
             }
     program = {
-        "schema_version": STATE_MACHINE_PROGRAM_VERSION,
+        "schema_version": schema_version,
         "entrypoints": entrypoints,
         "required_reads": [
             {"source": source_name, "key": key}
@@ -113,7 +155,25 @@ def compile_state_machine_program(
         "opcodes": sorted(compiler.opcodes),
         "source_map": compiler.source_map,
     }
-    validate_schema(program, STATE_MACHINE_PROGRAM_V2_SCHEMA)
+    if schema_version == STATE_MACHINE_PROGRAM_V3_VERSION:
+        program.update(
+            {
+                "limits": {
+                    "max_order_iterations": max_order_iterations or 0,
+                },
+                "custom_state_transaction": "entrypoint_atomic",
+                "required_order_fields": [
+                    {"field": field, "value_type": value_type}
+                    for field, value_type in sorted(compiler.required_order_fields)
+                ],
+            }
+        )
+    validate_schema(
+        program,
+        STATE_MACHINE_PROGRAM_V3_SCHEMA
+        if schema_version == STATE_MACHINE_PROGRAM_V3_VERSION
+        else STATE_MACHINE_PROGRAM_V2_SCHEMA,
+    )
     return program
 
 
@@ -122,20 +182,27 @@ class _Compiler:
         self,
         path: Path,
         *,
+        schema_version: str,
+        max_order_iterations: int | None,
         class_constants: Mapping[str, Any],
         methods: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
     ) -> None:
         self.path = path
+        self.schema_version = schema_version
+        self.max_order_iterations = max_order_iterations
         self.class_constants = class_constants
         self.methods = methods
         self.next_id = 1
         self.source_map: dict[str, dict[str, Any]] = {}
         self.required_reads: set[tuple[str, str]] = set()
         self.required_columns: set[str] = set()
+        self.required_order_fields: set[tuple[str, str]] = set()
         self.required_state_keys: set[str] = set()
         self.opcodes: set[str] = set()
         self.parameters: set[str] = set()
         self.locals: set[str] = set()
+        self.order_collections: set[str] = set()
+        self.order_variables: set[str] = set()
         self.expression_bindings: list[dict[str, dict[str, Any]]] = []
         self.helper_stack: list[str] = []
 
@@ -158,24 +225,32 @@ class _Compiler:
             if not isinstance(target, ast.Name):
                 self.unsupported(node, "assignment target")
             self.locals.add(target.id)
+            value = self.expression(node.value)
+            self.order_collections.discard(target.id)
+            if self._is_order_collection(node.value, value):
+                self.order_collections.add(target.id)
             return [
                 self.instruction(
                     node,
                     "set_local",
                     name=target.id,
-                    value=self.expression(node.value),
+                    value=value,
                 )
             ]
         if isinstance(node, ast.AnnAssign):
             if not isinstance(node.target, ast.Name) or node.value is None:
                 self.unsupported(node, "annotated assignment")
             self.locals.add(node.target.id)
+            value = self.expression(node.value)
+            self.order_collections.discard(node.target.id)
+            if self._is_order_collection(node.value, value):
+                self.order_collections.add(node.target.id)
             return [
                 self.instruction(
                     node,
                     "set_local",
                     name=node.target.id,
-                    value=self.expression(node.value),
+                    value=value,
                 )
             ]
         if isinstance(node, ast.AugAssign):
@@ -212,20 +287,44 @@ class _Compiler:
         if isinstance(node, ast.For):
             if not isinstance(node.target, ast.Name) or node.orelse:
                 self.unsupported(node, "for loop shape")
-            start, stop = _range_bounds(node.iter, self)
-            iterations = stop - start
-            if iterations < 0:
-                self.unsupported(node, "descending range")
+            if _call_leaf_node(node.iter) == "range":
+                start, stop = _range_bounds(node.iter, self)
+                iterations = stop - start
+                if iterations < 0:
+                    self.unsupported(node, "descending range")
+                self.locals.add(node.target.id)
+                return [
+                    self.instruction(
+                        node,
+                        "bounded_for",
+                        variable=node.target.id,
+                        start=start,
+                        stop=stop,
+                        max_iterations=iterations,
+                        instructions=self.statements(node.body),
+                    )
+                ]
+            if self.schema_version != STATE_MACHINE_PROGRAM_V3_VERSION:
+                self.unsupported(node, "non-range for loop")
+            collection = self.expression(node.iter)
+            if not self._is_order_collection(node.iter, collection):
+                self.unsupported(node.iter, "non-order collection")
+            if self.max_order_iterations is None:
+                self.unsupported(node, "order loop requires max_order_iterations")
             self.locals.add(node.target.id)
+            self.order_variables.add(node.target.id)
+            try:
+                instructions = self.statements(node.body)
+            finally:
+                self.order_variables.discard(node.target.id)
             return [
                 self.instruction(
                     node,
-                    "bounded_for",
+                    "for_each_order",
                     variable=node.target.id,
-                    start=start,
-                    stop=stop,
-                    max_iterations=iterations,
-                    instructions=self.statements(node.body),
+                    collection=collection,
+                    max_iterations=self.max_order_iterations,
+                    instructions=instructions,
                 )
             ]
         if isinstance(node, ast.Pass):
@@ -309,6 +408,17 @@ class _Compiler:
                 return self.read("input", node.id)
             self.unsupported(node, f"unbound name {node.id}")
         if isinstance(node, ast.Attribute):
+            if isinstance(node.value, ast.Name) and node.value.id in self.order_variables:
+                value_type = _ORDER_FIELD_TYPES.get(node.attr)
+                if value_type is None:
+                    self.unsupported(node, f"order field {node.attr}")
+                self.required_order_fields.add((node.attr, value_type))
+                return {
+                    "kind": "order_field",
+                    "order": self.read("local", node.value.id),
+                    "field": node.attr,
+                    "value_type": value_type,
+                }
             if isinstance(node.value, ast.Name) and node.value.id == "trade":
                 return self.read("trade", node.attr)
             if (
@@ -380,12 +490,27 @@ class _Compiler:
                 if len(node.args) != 1 or node.keywords:
                     self.unsupported(node, "select_filled_orders arguments")
                 selector = ast.unparse(node.args[0])
-                if selector == "trade.entry_side":
+                if (
+                    selector == "None"
+                    and self.schema_version == STATE_MACHINE_PROGRAM_V3_VERSION
+                ):
+                    key = "filled"
+                    collection_selector = "all"
+                elif selector == "trade.entry_side":
                     key = "filled_entries"
+                    collection_selector = "entry_side"
                 elif selector == "trade.exit_side":
                     key = "filled_exits"
+                    collection_selector = "exit_side"
                 else:
                     self.unsupported(node, "select_filled_orders side")
+                if self.schema_version == STATE_MACHINE_PROGRAM_V3_VERSION:
+                    self.required_reads.add(("orders", key))
+                    return {
+                        "kind": "order_collection",
+                        "selector": collection_selector,
+                        "order": "trade_order_sequence",
+                    }
                 return self.read("orders", key)
             if name in _SCALAR_CALLS and not node.keywords:
                 return {
@@ -395,6 +520,20 @@ class _Compiler:
                 }
             self.unsupported(node, f"call {name or ast.unparse(node.func)}")
         self.unsupported(node, f"expression {type(node).__name__}")
+
+    def _is_order_collection(
+        self,
+        node: ast.AST,
+        expression: Mapping[str, Any],
+    ) -> bool:
+        if expression.get("kind") == "order_collection":
+            return True
+        return (
+            isinstance(node, ast.Name)
+            and node.id in self.order_collections
+            and expression.get("kind") == "read"
+            and expression.get("source") == "local"
+        )
 
     def class_constant_subscript(self, node: ast.Subscript) -> tuple[bool, Any]:
         owner = node.value
@@ -561,6 +700,10 @@ def _call_leaf(node: ast.Call) -> str | None:
     return None
 
 
+def _call_leaf_node(node: ast.AST) -> str | None:
+    return _call_leaf(node) if isinstance(node, ast.Call) else None
+
+
 def _range_bounds(node: ast.AST, compiler: _Compiler) -> tuple[int, int]:
     if not isinstance(node, ast.Call) or _call_leaf(node) != "range" or node.keywords:
         compiler.unsupported(node, "non-range for loop")
@@ -689,7 +832,7 @@ def _instruction_steps(instructions: Sequence[Mapping[str, Any]]) -> int:
                 _instruction_steps(instruction["then_instructions"]),
                 _instruction_steps(instruction["else_instructions"]),
             )
-        elif opcode == "bounded_for":
+        elif opcode in {"bounded_for", "for_each_order"}:
             total += int(instruction["max_iterations"]) * _instruction_steps(
                 instruction["instructions"]
             )

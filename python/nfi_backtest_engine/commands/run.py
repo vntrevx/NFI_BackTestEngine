@@ -457,6 +457,8 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         program = compile_state_machine_program(
             args.source,
             class_name=args.class_name,
+            schema_version=args.schema_version,
+            max_order_iterations=args.max_order_iterations,
         )
         write_json(args.output, program)
         print(
