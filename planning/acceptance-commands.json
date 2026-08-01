@@ -132,6 +132,15 @@
       "availability": "available",
       "mutates_external_state": false
     },
+    "managed_exit_shadow_tests": {
+      "command": "uv run pytest -q tests/test_managed_exit_ir.py && cargo test --manifest-path rust/Cargo.toml -p nfi-sim-core --locked generic_basic_exit_shadow",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
     "normal_routing_full": {
       "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json --output-dir {artifact_dir}/normal-routing --level full",
       "working_directory": ".",
@@ -544,7 +553,8 @@
       "x7_spot_full",
       "x7_futures_full",
       "generic_state_machine_full",
-      "generic_state_machine_v3_full"
+      "generic_state_machine_v3_full",
+      "managed_exit_shadow_tests"
     ],
     "full_native_kernel": [
       "planning_json",
@@ -578,7 +588,8 @@
       "x7_spot_full",
       "x7_futures_full",
       "generic_state_machine_full",
-      "generic_state_machine_v3_full"
+      "generic_state_machine_v3_full",
+      "managed_exit_shadow_tests"
     ],
     "full_native_performance": [
       "planning_json",

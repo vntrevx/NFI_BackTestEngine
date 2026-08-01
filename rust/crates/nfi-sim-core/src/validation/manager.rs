@@ -94,7 +94,15 @@ pub(crate) fn validate_nfi_trade_manager(
         .sum::<usize>();
     let valid_identity = matches!(
         manager.schema_version.as_str(),
-        "0.9.0" | "0.10.0" | "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0"
+        "0.9.0"
+            | "0.10.0"
+            | "0.11.0"
+            | "0.12.0"
+            | "0.13.0"
+            | "0.14.0"
+            | "0.15.0"
+            | "0.16.0"
+            | "0.17.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -109,7 +117,7 @@ pub(crate) fn validate_nfi_trade_manager(
             .all(valid_nfi_managed_long_route);
     let valid_terminal_exit_version = matches!(
         manager.schema_version.as_str(),
-        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0"
+        "0.11.0" | "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -165,7 +173,14 @@ pub(crate) fn validate_nfi_trade_manager(
     })
     .map(ToOwned::to_owned)
     .collect::<Vec<_>>();
-    let valid_route_order = manager.route_order == expected_route_order;
+    let valid_route_order = if manager.schema_version == "0.17.0" {
+        manager.route_order.len() == expected_route_order.len()
+            && manager.route_order.iter().collect::<BTreeSet<_>>()
+                == expected_route_order.iter().collect::<BTreeSet<_>>()
+    } else {
+        manager.route_order == expected_route_order
+    };
+    let valid_managed_exit_program = valid_managed_exit_program(manager);
     let valid_long_grind = long_grind.is_none_or(|route| {
         let route_tags = route.entry_tags.iter().collect::<BTreeSet<_>>();
         let tags_are_disjoint = route_tags.iter().all(|tag| !managed_tags.contains(*tag));
@@ -182,7 +197,7 @@ pub(crate) fn validate_nfi_trade_manager(
                 "grind-backtest-v2" => {
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.14.0" | "0.15.0" | "0.16.0"
+                        "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0"
                     )
                 }
                 _ => false,
@@ -281,7 +296,7 @@ pub(crate) fn validate_nfi_trade_manager(
                     .is_some_and(|value| value.is_finite() && value > 0.0)
                     && adjustment.constants.policy.is_none()
             }
-            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" => {
+            "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -410,6 +425,7 @@ pub(crate) fn validate_nfi_trade_manager(
         || !valid_terminal_exit_version
         || !valid_short_routes
         || !valid_route_order
+        || !valid_managed_exit_program
         || !valid_long_grind
         || !valid_long_btc
         || !valid_programs
@@ -424,6 +440,76 @@ pub(crate) fn validate_nfi_trade_manager(
         return Err(SimError::InvalidNfiTradeManager);
     }
     Ok(())
+}
+
+fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
+    let Some(program) = manager.managed_exit_program.as_ref() else {
+        return manager.schema_version != "0.17.0";
+    };
+    if program.schema_version != "managed-exit-program-v1"
+        || !valid_sha256(&program.fingerprint)
+        || program.routes.is_empty()
+    {
+        return false;
+    }
+    let route_ids = program
+        .routes
+        .iter()
+        .map(|route| route.id.as_str())
+        .collect::<BTreeSet<_>>();
+    if route_ids.len() != program.routes.len() {
+        return false;
+    }
+    let source_order = manager
+        .route_order
+        .iter()
+        .filter(|key| route_ids.contains(key.as_str()))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    if source_order
+        != program
+            .routes
+            .iter()
+            .map(|route| route.id.as_str())
+            .collect::<Vec<_>>()
+    {
+        return false;
+    }
+    program.routes.iter().enumerate().all(|(index, route)| {
+        let tags = route.matcher.entry_tags.iter().collect::<BTreeSet<_>>();
+        let Some(legacy) = manager
+            .managed_long_routes
+            .iter()
+            .find(|candidate| candidate.key == route.id)
+        else {
+            return false;
+        };
+        route.source_order == index
+            && !route.id.is_empty()
+            && !route.mode_name.is_empty()
+            && route.mode_name == legacy.mode_name
+            && !route.matcher.entry_tags.is_empty()
+            && tags.len() == route.matcher.entry_tags.len()
+            && tags == legacy.entry_tags.iter().collect::<BTreeSet<_>>()
+            && route
+                .initial_profit_gate
+                .as_ref()
+                .is_none_or(|gate| gate.value.is_finite())
+            && !route.decision_program_order.is_empty()
+            && route
+                .decision_program_order
+                .iter()
+                .all(|name| manager.programs.get(name).is_some_and(valid_scalar_program))
+            && route.location.line > 0
+            && route.location.end_line >= route.location.line
+    })
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn valid_nfi_managed_short_route(route: &NfiManagedLongRoute) -> bool {

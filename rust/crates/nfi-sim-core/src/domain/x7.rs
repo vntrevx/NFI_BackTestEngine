@@ -26,6 +26,12 @@ pub struct NfiX7TradeManager {
     /// may mutate the pair-level profit target even when it does not exit.
     pub route_order: Vec<String>,
     pub managed_long_routes: Vec<NfiManagedLongRoute>,
+    /// Source-compiled basic exit prefixes evaluated beside the legacy lane.
+    ///
+    /// The program is optional for historical sealed inputs. Schema 0.17 and
+    /// later require it and reject any disagreement at the reached callback.
+    #[serde(default)]
+    pub managed_exit_program: Option<ManagedExitProgram>,
     /// Source order for the separately bounded short-side router.
     pub short_route_order: Vec<String>,
     /// The route type is shared because exit/target policy fields are
@@ -60,6 +66,71 @@ pub struct NfiX7TradeManager {
     /// scalar arenas and cannot be supplied by an input document.
     #[serde(skip)]
     pub(crate) feature_projection_unions: OnceLock<BTreeMap<String, FeatureProjection>>,
+}
+
+/// Generic, source-ordered managed-exit prefix.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitProgram {
+    pub schema_version: String,
+    pub execution_mode: ManagedExitExecutionMode,
+    pub routes: Vec<ManagedExitRoute>,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitExecutionMode {
+    Shadow,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitRoute {
+    pub id: String,
+    pub source_order: usize,
+    #[serde(rename = "match")]
+    pub matcher: ManagedExitTagMatcher,
+    #[serde(default)]
+    pub initial_profit_gate: Option<ManagedExitProfitGate>,
+    pub mode_name: String,
+    pub decision_program_order: Vec<String>,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitTagMatcher {
+    pub operator: ManagedExitTagOperator,
+    pub entry_tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitTagOperator {
+    Any,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitProfitGate {
+    pub operator: ManagedExitComparison,
+    pub value: f64,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitComparison {
+    GreaterThan,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitSourceLocation {
+    pub line: usize,
+    pub column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]

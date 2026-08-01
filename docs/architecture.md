@@ -271,6 +271,14 @@ The source-bound X7 adapter additionally executes:
 - the four static Freqtrade protection handlers and their chronological local/global
   pair locks.
 
+The first managed-exit migration slice is now source-compiled. For normal, pump, quick,
+and high-profit routes, Python reads the `custom_exit` tag matcher, route order,
+positive-profit gate, mode name, and pure decision-call order into
+`managed-exit-program-v1`. Rust evaluates this descriptor beside the legacy stateful
+route and rejects the run on any decision difference. Only the uncompiled stop and
+profit-target remainder stays AST-identity-bound; the generic lane is not promoted to
+the sole result source yet.
+
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized
 surface: 11 trades, 164 orders, 142 adjustment orders, one short trade, and eight

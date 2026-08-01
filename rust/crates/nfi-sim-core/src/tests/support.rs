@@ -438,6 +438,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
         .map(ToOwned::to_owned)
         .collect(),
         managed_long_routes,
+        managed_exit_program: None,
         short_route_order: vec!["short_rebuy".to_owned()],
         managed_short_routes: vec![short_rebuy_route],
         long_grind: None,
@@ -635,6 +636,48 @@ pub(super) fn enable_test_full_short_manager(manager: &mut NfiX7TradeManager) {
         "short_grind_entry_v3".to_owned(),
         nfi_boolean_false_program(),
     );
+}
+
+pub(super) fn enable_test_basic_exit_shadow(
+    manager: &mut NfiX7TradeManager,
+    route_key: &str,
+    initial_profit_gate: Option<ManagedExitProfitGate>,
+) {
+    let route = manager
+        .managed_long_routes
+        .iter()
+        .find(|route| route.key == route_key)
+        .expect("test manager has the shadowed route");
+    let mut decision_program_order = vec![
+        "long_exit_signals".to_owned(),
+        "long_exit_main".to_owned(),
+        "long_exit_williams_r".to_owned(),
+    ];
+    if route.profile != NfiManagedLongProfile::HighProfit {
+        decision_program_order.push("long_exit_dec".to_owned());
+    }
+    manager.managed_exit_program = Some(ManagedExitProgram {
+        schema_version: "managed-exit-program-v1".to_owned(),
+        execution_mode: ManagedExitExecutionMode::Shadow,
+        routes: vec![ManagedExitRoute {
+            id: route.key.clone(),
+            source_order: 0,
+            matcher: ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::Any,
+                entry_tags: route.entry_tags.clone(),
+            },
+            initial_profit_gate,
+            mode_name: route.mode_name.clone(),
+            decision_program_order,
+            location: ManagedExitSourceLocation {
+                line: 1,
+                column: 0,
+                end_line: 1,
+                end_column: 1,
+            },
+        }],
+        fingerprint: "b".repeat(64),
+    });
 }
 
 pub(super) fn nfi_adjustment_policy() -> NfiX7AdjustmentPolicy {

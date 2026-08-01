@@ -195,9 +195,11 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
     short_adjustment = operation.get("short_position_adjustment")
     rebuy_adjustment = operation.get("rebuy_adjustment")
     short_rebuy_adjustment = operation.get("short_rebuy_adjustment")
+    managed_exit_program = operation.get("managed_exit_program")
     programs = operation.get("programs")
     constants = operation.get("constants")
     source_sha256 = operation.get("source_sha256")
+    requires_managed_exit_program = operation.get("schema_version") == "0.17.0"
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)
@@ -210,6 +212,14 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         or not isinstance(programs, dict)
         or not isinstance(constants, dict)
         or not isinstance(source_sha256, str)
+        or (
+            requires_managed_exit_program
+            and (
+                not isinstance(managed_exit_program, dict)
+                or managed_exit_program.get("schema_version")
+                != "managed-exit-program-v1"
+            )
+        )
     ):
         raise StrategyAnalysisError("NFI managed-long operation is incomplete")
     managed_routes: list[dict[str, Any]] = []
@@ -298,6 +308,9 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "source_sha256": source_sha256,
         "route_order": route_order,
         "managed_long_routes": managed_routes,
+        "managed_exit_program": (
+            managed_exit_program if isinstance(managed_exit_program, dict) else None
+        ),
         "short_route_order": short_route_order,
         "managed_short_routes": managed_short_routes,
         "long_grind": legacy_route_config(long_grind),

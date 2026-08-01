@@ -208,6 +208,74 @@ fn nfi_normal_skips_profit_programs_while_initial_stake_is_negative() {
 }
 
 #[test]
+fn generic_basic_exit_shadow_matches_all_four_legacy_routes() {
+    for (route_key, tag, gate) in [
+        ("long_normal", "1", true),
+        ("long_pump", "21", true),
+        ("long_quick", "41", true),
+        ("long_high_profit", "81", false),
+    ] {
+        let mut entry = candle(1, 100.0, 100.0);
+        entry.enter_long = Some(EntrySignal {
+            tag: Some(tag.to_owned()),
+            leverage: None,
+            liquidation_price: None,
+        });
+        let mut manager = nfi_top_coins_manager(nfi_profit_program(0.01, "compiled_basic_exit"));
+        enable_test_basic_exit_shadow(
+            &mut manager,
+            route_key,
+            gate.then_some(ManagedExitProfitGate {
+                operator: ManagedExitComparison::GreaterThan,
+                value: 0.0,
+            }),
+        );
+        let mut manager_config = config(1);
+        enable_nfi_manager(&mut manager_config, manager);
+        let result = simulate(&SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: manager_config,
+            pairs: vec![nfi_pair(
+                vec![entry, candle(2, 103.0, 103.0)],
+                BTreeMap::new(),
+            )],
+        })
+        .expect("source-compiled shadow agrees with the legacy route");
+
+        assert_eq!(
+            result.trades[0].exit_reason,
+            format!("compiled_basic_exit ( {tag})")
+        );
+    }
+}
+
+#[test]
+fn generic_basic_exit_shadow_fails_closed_on_a_decision_difference() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("1".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut manager = nfi_top_coins_manager(nfi_profit_program(-1.0, "must_be_gated"));
+    // Removing the source-compiled positive-profit gate makes the candidate
+    // fire while the legacy route correctly remains idle.
+    enable_test_basic_exit_shadow(&mut manager, "long_normal", None);
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![nfi_pair(
+            vec![entry, candle(2, 99.0, 99.0)],
+            BTreeMap::new(),
+        )],
+    });
+
+    assert!(matches!(result, Err(SimError::InvalidNfiTradeManager)));
+}
+
+#[test]
 fn nfi_rebuy_terminal_exit_uses_source_compiled_policy() {
     const MINUTE: i64 = 60 * 1_000;
     let mut entry = candle(0, 100.0, 100.0);

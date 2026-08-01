@@ -88,6 +88,28 @@ impl NfiX7TradeManager {
             })
             .get(key)
     }
+
+    /// Derive a union for a source-provided program sequence.
+    ///
+    /// The staged managed-exit shadow may change order or add a scalar-pure
+    /// helper before the legacy profile tables are retired. Its projection
+    /// must therefore be computed from bytecode names, not a fixed route key.
+    pub(crate) fn dynamic_feature_projection_union(
+        &self,
+        program_order: &[String],
+    ) -> Option<FeatureProjection> {
+        let mut union = FeatureProjection::new();
+        for program in program_order {
+            let projection = self.feature_projection(program)?;
+            for (variable, columns) in projection {
+                union
+                    .entry(variable.clone())
+                    .or_default()
+                    .extend(columns.iter().cloned());
+            }
+        }
+        Some(union)
+    }
 }
 
 /// Derive dataframe field access directly from the immutable scalar arena.

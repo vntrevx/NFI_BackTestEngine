@@ -7,8 +7,9 @@ use serde_json::Value;
 use crate::calculations::{fee_close, fee_open};
 use crate::callbacks::{feature_number_at, insert_projected_feature_window, scalar_trade_value};
 use crate::domain::{
-    Candle, NfiManagedLongProfile, NfiManagedLongRoute, NfiX7TradeManager, PairSeries,
-    PortfolioConfig,
+    Candle, ManagedExitComparison, ManagedExitExecutionMode, ManagedExitRoute,
+    ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute, NfiX7TradeManager,
+    PairSeries, PortfolioConfig,
 };
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{evaluate_scalar_program_bundle_from_base, number_value};
@@ -213,7 +214,7 @@ fn evaluate_nfi_managed_long_exit(
         fee_close(config),
         config.is_futures,
     )?;
-    let (mut sell, mut signal_name) = nfi_managed_long_signals(
+    let (mut sell, mut signal_name) = nfi_managed_long_signals_with_shadow(
         manager,
         route,
         program_order,
@@ -224,7 +225,6 @@ fn evaluate_nfi_managed_long_exit(
         snapshot,
         &enter_tags,
     )?;
-
     // X7 places rapid's inline RSI/MFI checks before its custom stop, while
     // quick places the same-shaped checks after `long_exit_stoploss()`. The
     // distinction matters when both predicates are true because the returned
@@ -295,6 +295,158 @@ fn evaluate_nfi_managed_long_exit(
         return Some(CustomExitDecision::Exit(nfi_exit_reason(reason, entry_tag)));
     }
     Some(CustomExitDecision::NoExit)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn nfi_managed_long_signals_with_shadow(
+    manager: &NfiX7TradeManager,
+    route: &NfiManagedLongRoute,
+    program_order: &[&str],
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    snapshot: NfiProfitSnapshot,
+    enter_tags: &[String],
+) -> Option<(bool, Option<String>)> {
+    let legacy = nfi_managed_long_signals(
+        manager,
+        route,
+        program_order,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        snapshot,
+        enter_tags,
+    )?;
+    managed_exit_shadow_matches(
+        manager,
+        route,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        snapshot,
+        enter_tags,
+        legacy.0,
+        legacy.1.as_deref(),
+    )?
+    .then_some(legacy)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn managed_exit_shadow_matches(
+    manager: &NfiX7TradeManager,
+    legacy_route: &NfiManagedLongRoute,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    snapshot: NfiProfitSnapshot,
+    enter_tags: &[String],
+    legacy_sell: bool,
+    legacy_reason: Option<&str>,
+) -> Option<bool> {
+    let Some(route) = manager
+        .managed_exit_program
+        .as_ref()
+        .filter(|program| program.execution_mode == ManagedExitExecutionMode::Shadow)
+        .and_then(|program| {
+            program
+                .routes
+                .iter()
+                .find(|candidate| candidate.id == legacy_route.key)
+        })
+    else {
+        return Some(true);
+    };
+    let (shadow_sell, shadow_reason) = generic_managed_exit_signals(
+        manager,
+        route,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        snapshot,
+        enter_tags,
+    )?;
+    Some(shadow_sell == legacy_sell && shadow_reason.as_deref() == legacy_reason)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generic_managed_exit_signals(
+    manager: &NfiX7TradeManager,
+    route: &ManagedExitRoute,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    snapshot: NfiProfitSnapshot,
+    enter_tags: &[String],
+) -> Option<(bool, Option<String>)> {
+    let route_matches = match route.matcher.operator {
+        ManagedExitTagOperator::Any => enter_tags
+            .iter()
+            .any(|tag| route.matcher.entry_tags.contains(tag)),
+    };
+    if !route_matches {
+        return Some((false, None));
+    }
+    if route
+        .initial_profit_gate
+        .as_ref()
+        .is_some_and(|gate| match gate.operator {
+            ManagedExitComparison::GreaterThan => snapshot.initial_stake_ratio <= gate.value,
+        })
+    {
+        return Some((false, None));
+    }
+    let mut base_variables = BTreeMap::from([
+        (
+            "mode_name".to_owned(),
+            Value::String(route.mode_name.clone()),
+        ),
+        (
+            "current_profit".to_owned(),
+            number_value(snapshot.initial_stake_ratio)?,
+        ),
+        ("max_profit".to_owned(), number_value(0.0)?),
+        ("max_loss".to_owned(), number_value(0.0)?),
+        ("trade".to_owned(), scalar_trade_value(trade)?),
+        (
+            "current_time".to_owned(),
+            Value::Number(candle.timestamp_ms.into()),
+        ),
+        (
+            "buy_tag".to_owned(),
+            Value::Array(enter_tags.iter().cloned().map(Value::String).collect()),
+        ),
+    ]);
+    let projection = manager.dynamic_feature_projection_union(&route.decision_program_order)?;
+    insert_projected_feature_window(&mut base_variables, pair, candle_index, &projection)?;
+    let mut result = (false, None);
+    for program_name in &route.decision_program_order {
+        let value = evaluate_scalar_program_bundle_from_base(
+            &manager.programs,
+            program_name,
+            &base_variables,
+        )?;
+        let fields = value.as_array()?;
+        if fields.len() != 2 {
+            return None;
+        }
+        result.0 = fields.first()?.as_bool()?;
+        result.1 = match fields.get(1)? {
+            Value::Null => None,
+            Value::String(reason) => Some(reason.clone()),
+            _ => return None,
+        };
+        if result.0 {
+            break;
+        }
+    }
+    Some(result)
 }
 
 #[allow(clippy::too_many_arguments)]

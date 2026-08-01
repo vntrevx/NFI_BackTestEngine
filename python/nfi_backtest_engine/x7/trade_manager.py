@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.16.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.17.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -243,20 +243,9 @@ _MANAGED_SHORT_ROUTE_SPECS = (
     ),
 )
 
-# These orders are copied from ``custom_exit``. Rebuy remains a separate
-# adjustment payload even though its exit policy belongs in the same router.
-_MANAGED_LONG_ROUTE_ORDER = (
-    "long_normal",
-    "long_pump",
-    "long_quick",
-    "long_rebuy",
-    "long_high_profit",
-    "long_rapid",
-    "long_grind",
-    "long_btc",
-    "long_top_coins",
-    "long_scalp",
-)
+# The long-side order is compiled from ``custom_exit``. Rebuy remains a
+# separate adjustment payload even though its exit policy belongs in that
+# source-ordered router.
 _MANAGED_SHORT_ROUTE_ORDER = tuple(spec.key for spec in _MANAGED_SHORT_ROUTE_SPECS)
 
 # Stateful callback bodies are handwritten in Rust and therefore require a
@@ -288,6 +277,18 @@ _MANAGED_LONG_METHOD_SHA256 = {
 # source-provided tags, thresholds, duration, and reason to flow through the IR.
 _LONG_EXIT_REBUY_BASE_AST_SHA256 = (
     "8a90732274e5f1f3e8c72694279e29f5ae36a5fa88d1d4dc56e192ef701db2dc"
+)
+# The pure decision prefix and simple tag-dispatch block of these methods are
+# source-compiled by managed_exit_ir.  Their remaining stateful bodies stay
+# identity-bound until M15's state and target opcodes replace them as well.
+_MANAGED_BASIC_WRAPPER_BASE_AST_SHA256 = {
+    "long_exit_normal": "4093b79d7f2ef3ae56da6cba2c786a62a8cb03ab97154170daae325514cf9a0b",
+    "long_exit_pump": "f062b700aacc4b601a57432dcc49d689fae77d6f04b6ba85c412ab1852c055ab",
+    "long_exit_quick": "6b282a2f32002acb7f50947da53121530329838e98f8f7af9d74057e4173542d",
+    "long_exit_high_profit": "f4bc743336eb488739558f877345a75afcce3fc34a53194ba53e2e6722c0a4ce",
+}
+_CUSTOM_EXIT_WITHOUT_BASIC_ROUTES_AST_SHA256 = (
+    "840e9257cc2987ac7a509470fbaf3ab08188edbeaa89dcbb0be0dceda36ee286"
 )
 _MANAGED_SHORT_METHOD_SHA256 = {
     # Pure predicates are source-compiled. These wrappers are pinned because
@@ -566,9 +567,11 @@ def build_nfi_trade_manager_ir(
         _validate_adjustment_method_identity,
     )
     from .legacy import _build_long_btc_route, _build_long_grind_route
+    from .managed_exit_ir import compile_basic_managed_exit_ir
     from .routes import (
         _build_managed_long_routes,
         _build_managed_short_routes,
+        _require_managed_long_methods,
         _top_coins_program_order,
         _validate_managed_long_method_identity,
         _validate_managed_short_method_identity,
@@ -621,7 +624,27 @@ def build_nfi_trade_manager_ir(
         for method in strategy.get("methods", [])
         if isinstance(method, dict) and isinstance(method.get("name"), str)
     }
-    rebuy_terminal_exit = _validate_managed_long_method_identity(methods, method_records)
+    constants = strategy.get("constants")
+    if not isinstance(constants, dict):
+        raise StrategyAnalysisError("NFI trade manager constants are invalid")
+    _require_managed_long_methods(methods)
+    managed_exit_compilation = compile_basic_managed_exit_ir(
+        methods,
+        constants,
+        _MANAGED_LONG_ROUTE_SPECS,
+        legacy_route_methods={
+            "long_exit_grind": "long_grind",
+            "long_exit_btc": "long_btc",
+        },
+    )
+    rebuy_terminal_exit = _validate_managed_long_method_identity(
+        methods,
+        method_records,
+        custom_exit_statement_indices=(
+            managed_exit_compilation.custom_exit_statement_indices
+        ),
+        wrapper_statement_indices=managed_exit_compilation.wrapper_statement_indices,
+    )
     _validate_managed_short_method_identity(methods, method_records)
 
     # The top-coins route uses a literal tuple that can be checked
@@ -646,9 +669,6 @@ def build_nfi_trade_manager_ir(
         strategy.get("methods"),
     )
 
-    constants = strategy.get("constants")
-    if not isinstance(constants, dict):
-        raise StrategyAnalysisError("NFI trade manager constants are invalid")
     managed_routes = _build_managed_long_routes(constants)
     if rebuy_terminal_exit is not None:
         managed_routes["long_rebuy"]["terminal_exit"] = rebuy_terminal_exit
@@ -718,8 +738,15 @@ def build_nfi_trade_manager_ir(
     # The stateful router calls its decisions through a tuple variable
     # (``exit_func``), so ordinary call-graph discovery cannot infer those
     # targets. Compile the structurally proven literal tuple as explicit roots.
+    basic_decision_roots = tuple(
+        dict.fromkeys(
+            program
+            for route in managed_exit_compilation.program["routes"]
+            for program in route["decision_program_order"]
+        )
+    )
     decision_roots = (
-        *_MANAGED_LONG_PROGRAM_ORDER,
+        *basic_decision_roots,
         *_MANAGED_SHORT_PROGRAM_ORDER,
         *((_MANAGED_LONG_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
         *((_MANAGED_SHORT_ADJUSTMENT_PROGRAM,) if has_position_adjustment else ()),
@@ -766,13 +793,20 @@ def build_nfi_trade_manager_ir(
         supported_routes["long_grind"] = long_grind_route
     if long_btc_route is not None:
         supported_routes["long_btc"] = long_btc_route
-    route_order = [name for name in _MANAGED_LONG_ROUTE_ORDER if name in supported_routes]
+    route_order = [
+        name
+        for name in managed_exit_compilation.long_route_order
+        if name in supported_routes
+    ]
+    if set(route_order) != set(supported_routes):
+        raise StrategyAnalysisError("NFI custom_exit long route inventory is incomplete")
     operation = {
         "opcode": "nfi-x7-trade-manager-v1",
         "schema_version": NFI_TRADE_MANAGER_IR_VERSION,
         "source_sha256": source_sha256,
         "supported_routes": supported_routes,
         "route_order": route_order,
+        "managed_exit_program": managed_exit_compilation.program,
         "supported_short_routes": managed_short_routes,
         "short_route_order": list(_MANAGED_SHORT_ROUTE_ORDER),
         "constants": frozen_constants,
@@ -855,6 +889,7 @@ def build_nfi_trade_manager_ir(
             "source_sha256": source_sha256,
             "trade_ir_fingerprint": trade_dependency_ir["fingerprint"],
             "decision_ir_fingerprint": decision_report["fingerprint"],
+            "managed_exit_ir_fingerprint": managed_exit_compilation.program["fingerprint"],
             "operation_sha256": hashlib.sha256(encoded).hexdigest(),
             "programs": program_proof,
             "stateful_methods": method_identity,

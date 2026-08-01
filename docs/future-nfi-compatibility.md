@@ -81,6 +81,19 @@ tag도 IR literal이므로 helper 본문이나 데이터가 바뀌면 프로그�
 trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 수정하지
 않고 같은 artifact를 양쪽 증거로 재사용할 수 없다.
 
+## Managed exit의 단계적 Native 전환
+
+normal, pump, quick, high-profit의 `custom_exit` 분기 순서와 any-tag matcher,
+초기 수익 gate, mode name, pure decision 호출 순서는 이제
+`managed-exit-program-v1` 데이터로 컴파일된다. Rust에는 Signal·tag 값별 분기를
+추가하지 않고 이 순서형 프로그램만 실행한다. 같은 callback에서 기존 stateful
+경로도 독립 평가하며 결과가 다르면 즉시 중단한다.
+
+아직 stop, profit-target cache와 quick inline state는 기존 경로가 결과를 소유한다.
+따라서 이 단계는 자동 인식 범위를 넓힌 shadow 증명이지 generic 기본 경로 승격은
+아니다. 남은 state와 특수 long/short route까지 branch-reaching exact가 끝난 뒤에만
+legacy hash gate를 제거한다.
+
 ## Upstream 감시
 
 호환성 workflow는 4시간마다 upstream SHA와 호환성 엔진 commit을 함께 확인한다.

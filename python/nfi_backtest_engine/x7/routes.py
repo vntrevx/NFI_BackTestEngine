@@ -6,11 +6,14 @@ import ast
 import copy
 import hashlib
 import math
+from collections.abc import Mapping
 from typing import Any, cast
 
 from ..errors import StrategyAnalysisError
 from .trade_manager import (
+    _CUSTOM_EXIT_WITHOUT_BASIC_ROUTES_AST_SHA256,
     _LONG_EXIT_REBUY_BASE_AST_SHA256,
+    _MANAGED_BASIC_WRAPPER_BASE_AST_SHA256,
     _MANAGED_LONG_METHOD_SHA256,
     _MANAGED_LONG_ROUTE_SPECS,
     _MANAGED_LONG_STATEFUL_FEATURES,
@@ -21,32 +24,58 @@ from .trade_manager import (
 )
 
 
-def _validate_managed_long_method_identity(
-    methods: dict[str, ast.FunctionDef],
-    method_records: dict[str, dict[str, Any]],
-) -> dict[str, Any] | None:
-    """Reject a missing or changed stateful managed-long callback.
+def _require_managed_long_methods(methods: Mapping[str, ast.FunctionDef]) -> None:
+    """Keep the established incomplete-router diagnostic ahead of IR lowering."""
 
-    Scalar predicates remain source-compiled, but routing, target-cache writes,
-    stop order, and the quick/rapid inline predicates are implemented directly
-    in Rust. All of those observable bodies must match the reviewed snapshot.
-    """
     missing = [name for name in _MANAGED_LONG_METHOD_SHA256 if name not in methods]
     if missing:
         raise StrategyAnalysisError(
             "NFI X7 managed-long state machine is missing: " + ", ".join(missing)
         )
+
+
+def _validate_managed_long_method_identity(
+    methods: dict[str, ast.FunctionDef],
+    method_records: dict[str, dict[str, Any]],
+    *,
+    custom_exit_statement_indices: frozenset[int],
+    wrapper_statement_indices: Mapping[str, frozenset[int]],
+) -> dict[str, Any] | None:
+    """Reject a changed stateful managed-long callback after IR compilation."""
+
+    _require_managed_long_methods(methods)
+    dynamically_compiled = {"custom_exit", *_MANAGED_BASIC_WRAPPER_BASE_AST_SHA256}
     changed = [
         name
         for name, expected in _MANAGED_LONG_METHOD_SHA256.items()
-        if name != "long_exit_rebuy"
+        if name not in dynamically_compiled | {"long_exit_rebuy"}
         if method_records.get(name, {}).get("source_sha256") != expected
     ]
+    if (
+        _method_ast_sha256(
+            methods["custom_exit"],
+            remove_statement_indices=custom_exit_statement_indices,
+        )
+        != _CUSTOM_EXIT_WITHOUT_BASIC_ROUTES_AST_SHA256
+    ):
+        changed.append("custom_exit")
+    for name, expected in _MANAGED_BASIC_WRAPPER_BASE_AST_SHA256.items():
+        indices = wrapper_statement_indices.get(name)
+        if not indices or (
+            _method_ast_sha256(
+                methods[name],
+                remove_statement_indices=indices,
+            )
+            != expected
+        ):
+            changed.append(name)
     rebuy_terminal_exit, terminal_index = _extract_rebuy_terminal_exit(methods["long_exit_rebuy"])
     if (
         _method_ast_sha256(
             methods["long_exit_rebuy"],
-            remove_statement_index=terminal_index,
+            remove_statement_indices=(
+                frozenset({terminal_index}) if terminal_index is not None else frozenset()
+            ),
         )
         != _LONG_EXIT_REBUY_BASE_AST_SHA256
     ):
@@ -226,11 +255,17 @@ def _numeric_expression(node: ast.AST) -> float | None:
 def _method_ast_sha256(
     method: ast.FunctionDef,
     *,
-    remove_statement_index: int | None,
+    remove_statement_indices: frozenset[int] = frozenset(),
+    remove_statement_index: int | None = None,
 ) -> str:
     normalized = copy.deepcopy(method)
     if remove_statement_index is not None:
-        del normalized.body[remove_statement_index]
+        remove_statement_indices = remove_statement_indices | {remove_statement_index}
+    normalized.body = [
+        statement
+        for index, statement in enumerate(normalized.body)
+        if index not in remove_statement_indices
+    ]
     # Python 3.13 changed ``ast.dump`` to omit empty optional fields by
     # default.  The fields are still part of the same AST, so relying on that
     # default made a reviewed callback appear different solely because the
