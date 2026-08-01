@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 89,
-  "updated_at": "2026-07-31T05:05:34+09:00",
+  "revision": 90,
+  "updated_at": "2026-08-01T20:22:04+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M13-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3154,6 +3154,1323 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M13-01",
+      "order": 1301,
+      "milestone": "M13",
+      "title": "Inventory NFI and Freqtrade semantic ownership and reachability",
+      "status": "in_progress",
+      "depends_on": [
+        "M12-08"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest NFI Spot and Futures callback graph",
+        "NFI, Freqtrade, exchange, and live-only ownership classification",
+        "handwritten Rust route and exact-fixture coverage mapping"
+      ],
+      "forbidden_changes": [
+        "changing simulation behavior",
+        "runtime strategy hard-coding",
+        "claiming reachability without official evidence"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "deterministic semantic inventory",
+        "latest upstream inventory test"
+      ],
+      "started_at": "2026-08-01T20:22:04+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M13-02",
+      "order": 1302,
+      "milestone": "M13",
+      "title": "Version the Freqtrade semantic profile and official observer",
+      "status": "pending",
+      "depends_on": [
+        "M13-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "Freqtrade digest-bound semantic profile",
+        "canonical callback and state event projection"
+      ],
+      "forbidden_changes": [
+        "copying Freqtrade implementation code",
+        "widening unverified semantics"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "profile schema tests",
+        "deterministic official observer fixture"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M13-03",
+      "order": 1303,
+      "milestone": "M13",
+      "title": "Formalize candle, callback, and pair scheduling semantics",
+      "status": "pending",
+      "depends_on": [
+        "M13-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "candle and signal shift",
+        "callback dataframe visibility",
+        "same-timestamp pair order"
+      ],
+      "forbidden_changes": [
+        "parallel wallet mutation",
+        "result-specialized scheduling"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "scheduler event-order exact fixture",
+        "parallel preparation determinism"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M13-04",
+      "order": 1304,
+      "milestone": "M13",
+      "title": "Formalize order, wallet, fee, and precision semantics",
+      "status": "pending",
+      "depends_on": [
+        "M13-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "order create, reject, and fill order",
+        "wallet, stake, slot, fee, and precision contracts"
+      ],
+      "forbidden_changes": [
+        "approximating rejected orders",
+        "relaxing full-state equality"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "order and wallet semantic fixtures",
+        "Spot full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M13-05",
+      "order": 1305,
+      "milestone": "M13",
+      "title": "Formalize Futures, liquidation, and protection semantics",
+      "status": "pending",
+      "depends_on": [
+        "M13-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "funding and liquidation order",
+        "stop collisions",
+        "protection and pair-lock chronology"
+      ],
+      "forbidden_changes": [
+        "widening exchange scope without a fixture",
+        "reusing Spot accounting for Futures"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "Futures semantic fixtures",
+        "long and short full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M14-01",
+      "order": 1401,
+      "milestone": "M14",
+      "title": "Generalize source-driven callback IR",
+      "status": "pending",
+      "depends_on": [
+        "M13-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "tag and route-key data",
+        "source-order entrypoints",
+        "required read and column analysis"
+      ],
+      "forbidden_changes": [
+        "Signal-number opcodes",
+        "strategy-specific callback opcodes"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "callback IR schema tests",
+        "source mutation tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M14-02",
+      "order": 1402,
+      "milestone": "M14",
+      "title": "Add state-machine-program-v3 finite order collections",
+      "status": "pending",
+      "depends_on": [
+        "M14-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "typed finite order iteration",
+        "ordered filtering and local accumulation",
+        "atomic custom state"
+      ],
+      "forbidden_changes": [
+        "unbounded iteration",
+        "arbitrary Python execution"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "v1 and v2 replay compatibility",
+        "v3 compiler contract tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M14-03",
+      "order": 1403,
+      "milestone": "M14",
+      "title": "Implement the generic Rust state-machine v3 VM",
+      "status": "pending",
+      "depends_on": [
+        "M14-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "finite iteration budget",
+        "typed order reads",
+        "rollback and source diagnostics"
+      ],
+      "forbidden_changes": [
+        "unsafe Rust",
+        "NFI-specific VM branches"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "Rust VM semantic tests",
+        "invalid-program fail-closed tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M14-04",
+      "order": 1404,
+      "milestone": "M14",
+      "title": "Prove state-machine v3 with a generic official fixture",
+      "status": "pending",
+      "depends_on": [
+        "M14-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "NFI-independent official fixture",
+        "trade-surface and full-state shadow proof"
+      ],
+      "forbidden_changes": [
+        "using one artifact as both sides",
+        "partial-state promotion"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "official generic v3 fixture",
+        "independent full-state exact result"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M15-01",
+      "order": 1501,
+      "milestone": "M15",
+      "title": "Compile managed-long basic exits into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M14-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "normal, pump, quick, and high-profit routes",
+        "source-order exit dispatch"
+      ],
+      "forbidden_changes": [
+        "route method-hash selection",
+        "tag-value Rust branches"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "long exit shadow fixtures",
+        "Spot and Futures full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M15-02",
+      "order": 1502,
+      "milestone": "M15",
+      "title": "Compile managed-long special exits and state into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M15-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "rebuy terminal, rapid, top-coins, and scalp",
+        "profit-target, stop, and no-fallthrough state"
+      ],
+      "forbidden_changes": [
+        "hard-coded terminal results",
+        "silent legacy fallback"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "long special-route branch proof",
+        "long_exit_rebuy source mutation proof"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M15-03",
+      "order": 1503,
+      "milestone": "M15",
+      "title": "Compile managed-short exits into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M15-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "all managed-short exit routes",
+        "target-cache and compound-tag direction"
+      ],
+      "forbidden_changes": [
+        "sign-flipping long semantics",
+        "unproven compound-tag widening"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "short exit branch fixtures",
+        "Futures full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M15-04",
+      "order": 1504,
+      "milestone": "M15",
+      "title": "Promote generic managed exits and retire exit hash gates",
+      "status": "pending",
+      "depends_on": [
+        "M15-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "generic custom-exit default",
+        "legacy exit shadow only",
+        "exit hash-gate retirement"
+      ],
+      "forbidden_changes": [
+        "promotion without changed-branch proof",
+        "removing fallback"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "dual-mode exit promotion proof",
+        "latest upstream compatibility canary"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M16-01",
+      "order": 1601,
+      "milestone": "M16",
+      "title": "Implement generic filled-order aggregates",
+      "status": "pending",
+      "depends_on": [
+        "M15-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "filled-order clusters",
+        "amount, cost, and latest-price accumulators",
+        "fill-triggered invalidation"
+      ],
+      "forbidden_changes": [
+        "NFI-tag-specific aggregate code",
+        "stale aggregate reuse"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "generic aggregate tests",
+        "official order-walk parity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M16-02",
+      "order": 1602,
+      "milestone": "M16",
+      "title": "Compile rebuy state transitions into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M16-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "rebuy stake and retry window",
+        "level-three de-risk",
+        "regular Grind transition"
+      ],
+      "forbidden_changes": [
+        "fixed rebuy result tables",
+        "silent stake clipping"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "Spot and Futures rebuy branch proof",
+        "source-driven ladder mutation"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M16-03",
+      "order": 1603,
+      "milestone": "M16",
+      "title": "Compile system-v3 long adjustment into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M16-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "long de-risk and Grind entry",
+        "partial exit",
+        "wallet and stake limits"
+      ],
+      "forbidden_changes": [
+        "fixed Grind level count",
+        "approximated source return order"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "long adjustment level coverage",
+        "long full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M16-04",
+      "order": 1604,
+      "milestone": "M16",
+      "title": "Compile system-v3 short adjustment and promote generic adjustment",
+      "status": "pending",
+      "depends_on": [
+        "M16-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "short directional clusters",
+        "short de-risk and partial exit",
+        "dual-mode generic promotion"
+      ],
+      "forbidden_changes": [
+        "sign-flipped long approximation",
+        "promotion without short funding proof"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "short Futures branch proof",
+        "dual-mode adjustment exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M17-01",
+      "order": 1701,
+      "milestone": "M17",
+      "title": "Compile tag-120 base Grind into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M16-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "first-entry recovery",
+        "reverse order reconstruction",
+        "gm0, gd1, and gd2 transitions"
+      ],
+      "forbidden_changes": [
+        "tag-120 opcode",
+        "unreached branch promotion"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "tag-120 base transition fixture",
+        "Spot and Futures full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M17-02",
+      "order": 1702,
+      "milestone": "M17",
+      "title": "Compile all source-defined Grind levels",
+      "status": "pending",
+      "depends_on": [
+        "M17-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "dynamic Grind levels",
+        "de-risk transitions",
+        "profit, stop, and Futures fallback"
+      ],
+      "forbidden_changes": [
+        "fixed level count",
+        "Signal or tag result specialization"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "dynamic-level mutation tests",
+        "all reachable level branch proofs"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M17-03",
+      "order": 1703,
+      "milestone": "M17",
+      "title": "Compile Derisk and Buyback transitions into generic IR",
+      "status": "pending",
+      "depends_on": [
+        "M17-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "d1 buyback",
+        "stake restoration",
+        "retry and source-order transitions"
+      ],
+      "forbidden_changes": [
+        "hard-coded buyback outcomes",
+        "unbounded retry"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "Derisk and Buyback official fixture",
+        "atomic state transition proof"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M17-04",
+      "order": 1704,
+      "milestone": "M17",
+      "title": "Compile tag-121 regular-to-Grind continuation",
+      "status": "pending",
+      "depends_on": [
+        "M17-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "regular-mode prelude",
+        "no-derisk adjustment",
+        "post-de-risk Grind continuation"
+      ],
+      "forbidden_changes": [
+        "tag-121 runtime selector",
+        "legacy fallthrough without proof"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "tag-121 transition fixture",
+        "dual-mode full-state exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M17-05",
+      "order": 1705,
+      "milestone": "M17",
+      "title": "Audit all latest-NFI stateful route coverage",
+      "status": "pending",
+      "depends_on": [
+        "M17-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest callback graph refresh",
+        "Spot and Futures reachability closure",
+        "live-only exclusion proof"
+      ],
+      "forbidden_changes": [
+        "closing gaps without branch proof",
+        "treating live-only code as backtest evidence"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "zero reachable stateful gaps",
+        "latest-upstream dual-mode qualification"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M18-01",
+      "order": 1801,
+      "milestone": "M18",
+      "title": "Make generic stateful execution the default Native lane",
+      "status": "pending",
+      "depends_on": [
+        "M17-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "generic lane default",
+        "legacy CI shadow",
+        "official fallback preservation"
+      ],
+      "forbidden_changes": [
+        "removing legacy before exact proof",
+        "silent official fallback"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "default-lane contract tests",
+        "legacy and generic shadow exact"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M18-02",
+      "order": 1802,
+      "milestone": "M18",
+      "title": "Optimize tag and callback dispatch structurally",
+      "status": "pending",
+      "depends_on": [
+        "M18-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "interned tag IDs",
+        "program handles",
+        "route jump tables with original-tag output"
+      ],
+      "forbidden_changes": [
+        "tag-value specialization",
+        "changing public tag strings"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "dispatch identity tests",
+        "pre/post optimization parity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M18-03",
+      "order": 1803,
+      "milestone": "M18",
+      "title": "Optimize compiled programs and runtime aggregates",
+      "status": "pending",
+      "depends_on": [
+        "M18-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "constant folding and dead-branch removal",
+        "column liveness",
+        "order and Grind aggregate caches"
+      ],
+      "forbidden_changes": [
+        "result-specialized folding",
+        "stale state caching"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "optimization report",
+        "cache invalidation tests",
+        "full-state parity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M18-04",
+      "order": 1804,
+      "milestone": "M18",
+      "title": "Benchmark generic stateful Native performance",
+      "status": "pending",
+      "depends_on": [
+        "M18-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "fresh-process median performance",
+        "event-loop and peak-RSS gates",
+        "cold and warm diagnostics"
+      ],
+      "forbidden_changes": [
+        "claiming diagnostic timings as certification",
+        "hard-coded benchmark paths"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "three-run benchmark report",
+        "result SHA identity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M18-05",
+      "order": 1805,
+      "milestone": "M18",
+      "title": "Remove handwritten X7 stateful runtime behavior",
+      "status": "pending",
+      "depends_on": [
+        "M18-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "remove X7 stateful backends",
+        "remove runtime method-hash gates",
+        "preserve legacy evidence replay"
+      ],
+      "forbidden_changes": [
+        "deleting certificates or Oracle data",
+        "removing backward schema readers"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "zero X7 runtime behavior branches",
+        "all exact fixtures pass without legacy"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M19-01",
+      "order": 1901,
+      "milestone": "M19",
+      "title": "Upgrade the upstream watcher for generic Native identities",
+      "status": "pending",
+      "depends_on": [
+        "M18-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "NFI, engine, Freqtrade, and semantic-profile identity",
+        "independent Spot and Futures checks"
+      ],
+      "forbidden_changes": [
+        "identity advancement after incomplete checks",
+        "duplicate alerts"
+      ],
+      "acceptance_profile": "full_native_automation",
+      "expected_evidence": [
+        "four-identity watcher contract",
+        "dual-mode hosted canary"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M19-02",
+      "order": 1902,
+      "milestone": "M19",
+      "title": "Automate generic IR qualification and fallback classification",
+      "status": "pending",
+      "depends_on": [
+        "M19-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "IR-compatible targeted exact",
+        "new-opcode Draft PR flow",
+        "bounded discovery and official-only states"
+      ],
+      "forbidden_changes": [
+        "automatic semantic merge",
+        "treating external deferral as exact"
+      ],
+      "acceptance_profile": "full_native_automation",
+      "expected_evidence": [
+        "classification tests",
+        "deduplicated issue and deferred-reuse canary"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M19-03",
+      "order": 1903,
+      "milestone": "M19",
+      "title": "Build the v1.5.0 Native Stateful Runtime release candidate",
+      "status": "pending",
+      "depends_on": [
+        "M19-02"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.5.0 version and notes",
+        "generic-stateful three-OS candidate",
+        "sealed exact evidence"
+      ],
+      "forbidden_changes": [
+        "calling v1.5 Full Native Strategy",
+        "publishing after failed Required CI"
+      ],
+      "acceptance_profile": "full_native_release",
+      "expected_evidence": [
+        "same-commit Required CI",
+        "sealed product candidate",
+        "installer audits"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M19-04",
+      "order": 1904,
+      "milestone": "M19",
+      "title": "Promote the byte-identical v1.5.0 stable release",
+      "status": "pending",
+      "depends_on": [
+        "M19-03"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "byte-identical stable promotion",
+        "Native Stateful Runtime product claim",
+        "existing Oracle reuse"
+      ],
+      "forbidden_changes": [
+        "rebuilding stable assets",
+        "new five-year claim without certification"
+      ],
+      "acceptance_profile": "full_native_release",
+      "expected_evidence": [
+        "RC/stable byte identity",
+        "three-OS stable installer audit"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-01",
+      "order": 2001,
+      "milestone": "M20",
+      "title": "Inventory all latest-NFI indicator operations",
+      "status": "pending",
+      "depends_on": [
+        "M19-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "indicator and helper call graph",
+        "TA-Lib, qtpylib, pandas, rolling, and informative operations",
+        "lookback and NaN contracts"
+      ],
+      "forbidden_changes": [
+        "implementing arbitrary pandas",
+        "omitting informative dependencies"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "deterministic indicator inventory",
+        "operation coverage matrix"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-02",
+      "order": 2002,
+      "milestone": "M20",
+      "title": "Define indicator-program-v1",
+      "status": "pending",
+      "depends_on": [
+        "M20-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "typed indicator DAG",
+        "rolling, shift, EWM, condition, and informative merge",
+        "source map and lookback"
+      ],
+      "forbidden_changes": [
+        "strategy-named indicator opcodes",
+        "lookahead-capable defaults"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "indicator schema tests",
+        "source mutation and identity tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-03",
+      "order": 2003,
+      "milestone": "M20",
+      "title": "Implement the safe Rust nfi-vector-core engine",
+      "status": "pending",
+      "depends_on": [
+        "M20-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "Arrow-backed typed columns",
+        "deterministic f64 and NaN behavior",
+        "streaming rolling state"
+      ],
+      "forbidden_changes": [
+        "unsafe Rust",
+        "fast-math",
+        "materializing unused columns"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "Rust vector-kernel tests",
+        "memory-bounded column execution"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-04",
+      "order": 2004,
+      "milestone": "M20",
+      "title": "Implement all NFI-reachable indicator kernels",
+      "status": "pending",
+      "depends_on": [
+        "M20-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "moving, momentum, volatility, volume, and oscillator kernels",
+        "official Python and TA-Lib vector shadow"
+      ],
+      "forbidden_changes": [
+        "tolerance-based Native promotion",
+        "unverified numerical substitutions"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "column-exact vector fixtures",
+        "boundary-sensitive signal tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-05",
+      "order": 2005,
+      "milestone": "M20",
+      "title": "Implement multi-timeframe and informative data semantics",
+      "status": "pending",
+      "depends_on": [
+        "M20-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "resample anchors",
+        "no-lookahead informative visibility",
+        "missing, duplicate, and cross-pair candles"
+      ],
+      "forbidden_changes": [
+        "fabricating missing candles",
+        "forward-looking informative joins"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "informative merge exact fixtures",
+        "cross-pair dependency tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-01",
+      "order": 2101,
+      "milestone": "M21",
+      "title": "Define and compile signal-program-v1",
+      "status": "pending",
+      "depends_on": [
+        "M20-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "dataframe assignment and loc semantics",
+        "entry and exit long and short",
+        "source-order overwrite"
+      ],
+      "forbidden_changes": [
+        "Signal-number execution branches",
+        "unordered assignment evaluation"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "signal schema tests",
+        "entry and exit mutation tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-02",
+      "order": 2102,
+      "milestone": "M21",
+      "title": "Compile exact Native tag generation",
+      "status": "pending",
+      "depends_on": [
+        "M21-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "literal and compound tags",
+        "assignment priority",
+        "canonical route with original tag preservation"
+      ],
+      "forbidden_changes": [
+        "tag-specific Rust branches",
+        "discarding original tag strings"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "tag priority tests",
+        "compound-tag vector exactness"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-03",
+      "order": 2103,
+      "milestone": "M21",
+      "title": "Prove Python and Rust vector shadow exactness",
+      "status": "pending",
+      "depends_on": [
+        "M21-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "independent Python and Rust vector runs",
+        "indicator, signal, tag, and execution-index comparison"
+      ],
+      "forbidden_changes": [
+        "sharing one output across both lanes",
+        "ignoring numerical mismatches"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "dual-mode vector shadow",
+        "column and tag exact reports"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-04",
+      "order": 2104,
+      "milestone": "M21",
+      "title": "Connect the in-memory Rust vector and simulation pipeline",
+      "status": "pending",
+      "depends_on": [
+        "M21-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "in-memory vector transport",
+        "parallel pair DAG execution",
+        "Feather evidence and replay compatibility"
+      ],
+      "forbidden_changes": [
+        "removing sealed vector replay",
+        "parallel wallet mutation"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "end-to-end Native vector fixture",
+        "transport parity and performance report"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-01",
+      "order": 2201,
+      "milestone": "M22",
+      "title": "Qualify latest NFI as a Full Native Strategy",
+      "status": "pending",
+      "depends_on": [
+        "M21-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest upstream full pipeline",
+        "Spot and Futures changed-branch proof",
+        "indicator through full-state exactness"
+      ],
+      "forbidden_changes": [
+        "static-only promotion",
+        "partial callback coverage"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "latest dual-mode Full Native qualification",
+        "zero blockers"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-02",
+      "order": 2202,
+      "milestone": "M22",
+      "title": "Remove NFI Python execution from the Native lane",
+      "status": "pending",
+      "depends_on": [
+        "M22-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "remove populate methods from Native execution",
+        "retain Python AST compiler",
+        "retain official Freqtrade fallback"
+      ],
+      "forbidden_changes": [
+        "removing fallback",
+        "executing uncompiled Python in Native mode"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "no-Python-execution contract tests",
+        "fallback isolation tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-03",
+      "order": 2203,
+      "milestone": "M22",
+      "title": "Certify Full Native performance and storage boundaries",
+      "status": "pending",
+      "depends_on": [
+        "M22-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "cold and warm Full Native benchmarks",
+        "five-year representative workload",
+        "bounded cache and artifact lifecycle"
+      ],
+      "forbidden_changes": [
+        "unbounded local accumulation",
+        "claiming unmatched benchmark identities"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "Full Native benchmark report",
+        "storage lifecycle audit",
+        "result SHA identity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-04",
+      "order": 2204,
+      "milestone": "M22",
+      "title": "Publish the v1.6.0 Full Native Strategy release",
+      "status": "pending",
+      "depends_on": [
+        "M22-03"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.6.0 RC and stable",
+        "three-OS Full Native installers",
+        "byte-identical promotion and product documentation"
+      ],
+      "forbidden_changes": [
+        "publishing before Full Native exact proof",
+        "relabeling prior certificates"
+      ],
+      "acceptance_profile": "full_native_release",
+      "expected_evidence": [
+        "same-commit Required CI",
+        "Full Native product bundle",
+        "RC/stable byte identity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -5186,6 +6503,35 @@
         "dual_mode_workflow_succeeded": true,
         "health_issue_84_closed": true,
         "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 108,
+      "timestamp": "2026-08-01T20:22:04+09:00",
+      "task_id": "M13-01",
+      "event": "task_started",
+      "details": {
+        "program": "NFI Full Native Strategy",
+        "milestones": [
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "M17",
+          "M18",
+          "M19",
+          "M20",
+          "M21",
+          "M22"
+        ],
+        "stateful_release_target": "v1.5.0",
+        "full_native_release_target": "v1.6.0",
+        "latest_upstream_commit": "44f0d867df3cebcb35527a700fb761c9be0cb678",
+        "latest_compatibility_run_id": 30695134906,
+        "python_native_lane_role": "static compiler frontend only after M22",
+        "runtime_hardcoding_allowed": false,
+        "paid_runner_allowed": false,
+        "development_laptop_runner_allowed": false
       }
     }
   ]

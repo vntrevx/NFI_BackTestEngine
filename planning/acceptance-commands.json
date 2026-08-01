@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-07-30",
+  "updated_at": "2026-08-01",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -535,6 +535,97 @@
       "x7_spot_full",
       "x7_futures_full",
       "generic_state_machine_full"
+    ],
+    "full_native_kernel": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "regression_contract_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "full_native_runtime": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full",
+      "generic_state_machine_full"
+    ],
+    "full_native_performance": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "benchmark_repetitions"
+    ],
+    "full_native_automation": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "futures_discovery_tests",
+      "workflow_contract_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy"
+    ],
+    "full_native_vector": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "full_native_release": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "platform_release_workflow",
+      "publish_product_release",
+      "promote_product_release"
     ]
   }
 }

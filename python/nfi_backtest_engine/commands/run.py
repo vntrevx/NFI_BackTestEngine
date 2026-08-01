@@ -249,6 +249,29 @@ def _execute_strategy(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
         return 0 if analysis["static_safe"] else 1
+    if args.strategy_command == "semantic-inventory":
+        from ..semantic_inventory import build_semantic_inventory
+
+        report = build_semantic_inventory(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            config_path=args.config,
+            fixtures_root=args.fixtures_root,
+            output_path=args.output,
+        )
+        summary = report["summary"]
+        print(
+            "semantic inventory: "
+            f"class={report['selected_class']}, mode={report['trading_mode']}, "
+            f"callbacks={summary['rust_callback_count']}/{summary['active_callback_count']} rust, "
+            f"source_bound={summary['source_bound_callback_count']}, "
+            f"exact_fixtures={summary['exact_source_fixture_count']}, "
+            f"complete={summary['inventory_complete']}"
+        )
+        if args.output:
+            print(f"semantic inventory report: {args.output}")
+        return 0
     if args.strategy_command == "check":
         from ..strategy_compatibility import check_strategy_compatibility
         from ..verification_ledger import (

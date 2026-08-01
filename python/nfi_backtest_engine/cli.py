@@ -616,6 +616,23 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_inspect.add_argument("source", type=Path)
     strategy_inspect.add_argument("--class", dest="class_name")
     strategy_inspect.add_argument("--output", "-o", type=Path)
+    strategy_semantic_inventory = strategy_commands.add_parser(
+        "semantic-inventory",
+        help="map NFI/Freqtrade ownership, Native boundaries, and exact fixture coverage",
+    )
+    strategy_semantic_inventory.add_argument("source", type=Path)
+    strategy_semantic_inventory.add_argument("--class", dest="class_name")
+    strategy_semantic_inventory.add_argument("--config", type=Path)
+    strategy_semantic_inventory.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+    )
+    strategy_semantic_inventory.add_argument(
+        "--fixtures-root",
+        type=Path,
+        default=Path("benchmarks/fixtures/captured"),
+    )
+    strategy_semantic_inventory.add_argument("--output", "-o", type=Path)
     strategy_check = strategy_commands.add_parser(
         "check",
         help="check whether a new strategy revision has exact native callback lowerings",

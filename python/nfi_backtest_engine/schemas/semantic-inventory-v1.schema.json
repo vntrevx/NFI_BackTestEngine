@@ -1,0 +1,603 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/semantic-inventory-v1.schema.json",
+  "title": "NFI and Freqtrade semantic ownership inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "selected_class",
+    "trading_mode",
+    "config",
+    "static_safe",
+    "ownership_contract",
+    "vector_methods",
+    "callbacks",
+    "routes",
+    "kernel_domains",
+    "registered_source_bound_adapters",
+    "active_source_boundaries",
+    "fixture_coverage",
+    "compilation_errors",
+    "summary",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "semantic-inventory-v1"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "selected_class": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "trading_mode": {
+      "enum": [
+        "spot",
+        "futures"
+      ]
+    },
+    "config": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/config"
+        }
+      ]
+    },
+    "static_safe": {
+      "const": true
+    },
+    "ownership_contract": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ownership"
+      },
+      "minItems": 1
+    },
+    "vector_methods": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/vector_method"
+      }
+    },
+    "callbacks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/callback"
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/route"
+      }
+    },
+    "kernel_domains": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/kernel_domain"
+      },
+      "minItems": 1
+    },
+    "registered_source_bound_adapters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/adapter"
+      }
+    },
+    "active_source_boundaries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/boundary"
+      }
+    },
+    "fixture_coverage": {
+      "$ref": "#/$defs/fixture_coverage"
+    },
+    "compilation_errors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "column",
+        "end_line",
+        "end_column"
+      ],
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "semantic_owner",
+        "runtime_responsibility",
+        "native_target"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "semantic_owner": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "runtime_responsibility": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "native_target": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "vector_method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "owner",
+        "current_lane",
+        "native_target",
+        "source_sha256",
+        "location",
+        "calls"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "owner": {
+          "const": "nfi-strategy"
+        },
+        "current_lane": {
+          "const": "python-batch-vector-worker"
+        },
+        "native_target": {
+          "const": "rust-vector-and-scalar-ir"
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "calls": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "callback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "semantic_owner",
+        "dispatch_owner",
+        "active_for_run",
+        "backend",
+        "executable_in_rust",
+        "native_boundary",
+        "source_sha256",
+        "location",
+        "calls",
+        "exact_fixture_ids"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "kind": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "semantic_owner": {
+          "const": "nfi-strategy"
+        },
+        "dispatch_owner": {
+          "const": "freqtrade"
+        },
+        "active_for_run": {
+          "type": "boolean"
+        },
+        "backend": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "executable_in_rust": {
+          "type": "boolean"
+        },
+        "native_boundary": {
+          "enum": [
+            "generic-rust-ir",
+            "source-bound-rust-adapter",
+            "uncompiled-python-source",
+            "lowering-review-required"
+          ]
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "calls": {
+          "$ref": "#/$defs/strings"
+        },
+        "exact_fixture_ids": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "nullable_string": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side",
+        "key",
+        "profile",
+        "mode_name",
+        "entry_tags",
+        "backend",
+        "exact_fixture_ids"
+      ],
+      "properties": {
+        "side": {
+          "enum": [
+            "long",
+            "short"
+          ]
+        },
+        "key": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "profile": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "mode_name": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "entry_tags": {
+          "$ref": "#/$defs/strings"
+        },
+        "backend": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "exact_fixture_ids": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "kernel_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "implementation",
+        "verification_requirement"
+      ],
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "implementation": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "verification_requirement": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backend",
+        "callbacks",
+        "implementation",
+        "migration_target"
+      ],
+      "properties": {
+        "backend": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "callbacks": {
+          "$ref": "#/$defs/strings"
+        },
+        "implementation": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "migration_target": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callback",
+        "backend",
+        "stateful_methods",
+        "exact_source_fixture_ids",
+        "branch_coverage_fixture_ids",
+        "migration_target"
+      ],
+      "properties": {
+        "callback": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "backend": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "stateful_methods": {
+          "$ref": "#/$defs/strings"
+        },
+        "exact_source_fixture_ids": {
+          "$ref": "#/$defs/strings"
+        },
+        "branch_coverage_fixture_ids": {
+          "$ref": "#/$defs/strings"
+        },
+        "migration_target": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixture_id",
+        "manifest",
+        "identity_match",
+        "evidence_status",
+        "callbacks",
+        "entry_tags",
+        "protection_methods",
+        "sides"
+      ],
+      "properties": {
+        "fixture_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "manifest": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "identity_match": {
+          "enum": [
+            "effective-source-exact",
+            "base-source-with-transformations"
+          ]
+        },
+        "evidence_status": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "callbacks": {
+          "$ref": "#/$defs/strings"
+        },
+        "entry_tags": {
+          "$ref": "#/$defs/strings"
+        },
+        "protection_methods": {
+          "$ref": "#/$defs/strings"
+        },
+        "sides": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "fixture_diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest",
+        "message"
+      ],
+      "properties": {
+        "manifest": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "message": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "fixture_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "root_exists",
+        "exact_source_fixtures",
+        "related_base_source_fixtures",
+        "diagnostics"
+      ],
+      "properties": {
+        "root": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "root_exists": {
+          "type": "boolean"
+        },
+        "exact_source_fixtures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixture"
+          }
+        },
+        "related_base_source_fixtures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixture"
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fixture_diagnostic"
+          }
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "message": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vector_method_count",
+        "callback_count",
+        "active_callback_count",
+        "rust_callback_count",
+        "source_bound_callback_count",
+        "route_count",
+        "exact_source_fixture_count",
+        "inventory_complete"
+      ],
+      "properties": {
+        "vector_method_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "callback_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_callback_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rust_callback_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_bound_callback_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "route_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exact_source_fixture_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inventory_complete": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

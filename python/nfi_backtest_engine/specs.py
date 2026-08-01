@@ -31,6 +31,7 @@ RESULT_VERIFICATION_SCHEMA = "result-verification-v1.schema.json"
 RESULT_EVIDENCE_INDEX_SCHEMA = "result-evidence-index-v1.schema.json"
 STATE_MACHINE_PROGRAM_SCHEMA = "state-machine-program-v1.schema.json"
 STATE_MACHINE_PROGRAM_V2_SCHEMA = "state-machine-program-v2.schema.json"
+SEMANTIC_INVENTORY_SCHEMA = "semantic-inventory-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
