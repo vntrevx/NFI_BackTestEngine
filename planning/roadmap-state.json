@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 94,
-  "updated_at": "2026-08-01T22:10:49+09:00",
+  "revision": 95,
+  "updated_at": "2026-08-01T22:33:41+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M13-05",
+  "active_task_id": "M14-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3418,7 +3418,7 @@
       "order": 1305,
       "milestone": "M13",
       "title": "Formalize Futures, liquidation, and protection semantics",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M13-04"
       ],
@@ -3438,9 +3438,48 @@
         "long and short full-state exact"
       ],
       "started_at": "2026-08-01T22:10:49+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-01T22:33:41+09:00",
+      "commit_sha": "58a7f47d56f84ea0fff5021e387936d4896884ef",
+      "evidence": [
+        {
+          "kind": "binance_isolated_futures_contract",
+          "fingerprint": "d7d36fa55e652cae5d7e3a0e60b735e0a4fe3596243f436e2d106656448ac896",
+          "semantic_profile_scheduler_and_execution_bound": true,
+          "python_rust_contract_exact": true,
+          "funding_inclusive_refresh_bound": true,
+          "liquidation_recalculation_order_bound": true,
+          "stop_liquidation_no_fallthrough_bound": true,
+          "protection_chronology_bound": true,
+          "unknown_exchange_or_margin_semantics_fail_closed": true
+        },
+        {
+          "kind": "futures_full_state_fixtures",
+          "long_run_sha256": "259fe9562376e1cbcfb10601479ac600fcc2cee3303bc97f23f84a826d6a3c92",
+          "short_run_sha256": "65b5640d5c0dff79e194f636cf61d5e078830b01506d37218e88cd4da5014f0e",
+          "variable_leverage_run_sha256": "a0614a8b6addcfc58fd352cd31cc4da98b0c43543ffe8c200b8f4344d28e92d3",
+          "liquidation_stoploss_guard_run_sha256": "c13c5ab34b0fc2891810205a6d28b7ba5a855bdefcc3d63ea662313362303a57",
+          "cooldown_run_sha256": "bea7e57102e9cc931f0e9deb02030854d97c508d9b9e02d8db5c37561e75ab00",
+          "low_profit_run_sha256": "4dc3e2c69bda0d25069ddcc4323fc841f4a19d08af5de40f80a4ba00a70131c0",
+          "max_drawdown_run_sha256": "94b08958a2a85a602fbd39ff7101f7bd967bf1c8e776c2892f7bc4dba25588b8",
+          "long_and_short_exact": true,
+          "all_four_protection_methods_exact": true,
+          "liquidation_collision_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 614,
+          "rust_tests_passed": 113,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 10,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
       "blocker": null
     },
     {
@@ -3448,7 +3487,7 @@
       "order": 1401,
       "milestone": "M14",
       "title": "Generalize source-driven callback IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M13-05"
       ],
@@ -3467,7 +3506,7 @@
         "callback IR schema tests",
         "source mutation tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-01T22:33:41+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -6782,6 +6821,34 @@
         "objective": "formal Futures funding, liquidation, stop-collision, and protection semantics",
         "spot_accounting_reuse_allowed": false,
         "exchange_scope_widening_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 117,
+      "timestamp": "2026-08-01T22:33:41+09:00",
+      "task_id": "M13-05",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "58a7f47d56f84ea0fff5021e387936d4896884ef",
+        "futures_contract_fingerprint": "d7d36fa55e652cae5d7e3a0e60b735e0a4fe3596243f436e2d106656448ac896",
+        "long_and_short_full_state_exact": true,
+        "liquidation_collision_exact": true,
+        "all_four_protection_methods_exact": true,
+        "numeric_tolerance": 0,
+        "simulation_behavior_changed": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 118,
+      "timestamp": "2026-08-01T22:33:41+09:00",
+      "task_id": "M14-01",
+      "event": "task_started",
+      "details": {
+        "objective": "general source-driven callback IR with tag and route-key data, source-order entrypoints, required reads and columns",
+        "signal_number_opcodes_allowed": false,
+        "strategy_specific_callback_opcodes_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
