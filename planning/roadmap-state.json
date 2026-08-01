@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 106,
-  "updated_at": "2026-08-02T07:03:37+09:00",
+  "revision": 107,
+  "updated_at": "2026-08-02T07:51:04+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M16-04",
+  "active_task_id": "M17-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4050,7 +4050,7 @@
       "order": 1604,
       "milestone": "M16",
       "title": "Compile system-v3 short adjustment and promote generic adjustment",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M16-03"
       ],
@@ -4070,9 +4070,16 @@
         "dual-mode adjustment exact"
       ],
       "started_at": "2026-08-02T07:03:37+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T07:51:04+09:00",
+      "commit_sha": "fd5213c98e22b50db4d804a03770bc78b79102a8",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/x7-futures-long/run.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/x7-compound-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/latest-upstream/report-futures.json"
+      ],
       "blocker": null
     },
     {
@@ -4080,7 +4087,7 @@
       "order": 1701,
       "milestone": "M17",
       "title": "Compile tag-120 base Grind into generic IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M16-04"
       ],
@@ -4099,7 +4106,7 @@
         "tag-120 base transition fixture",
         "Spot and Futures full-state exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T07:51:04+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7434,6 +7441,40 @@
         "objective": "compile the independent system-v3 short adjustment and prove dual-mode generic promotion",
         "sign_flipped_long_approximation_allowed": false,
         "promotion_without_short_funding_proof_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 141,
+      "timestamp": "2026-08-02T07:51:04+09:00",
+      "task_id": "M16-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "fd5213c98e22b50db4d804a03770bc78b79102a8",
+        "trade_manager_schema": "0.24.0",
+        "system_adjustment_program": "system-adjustment-program-v1",
+        "source_ordered_long_actions": 19,
+        "source_ordered_short_actions": 18,
+        "short_compiled_from_independent_ast": true,
+        "directional_order_sides_are_program_data": true,
+        "short_cluster_and_partial_exit_runtime_proof": true,
+        "long_and_short_adjustment_method_hash_gates_retired": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_futures_and_compound_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 142,
+      "timestamp": "2026-08-02T07:51:04+09:00",
+      "task_id": "M17-01",
+      "event": "task_started",
+      "details": {
+        "objective": "compile tag-120 first-entry recovery and gm0, gd1, and gd2 base transitions into generic IR",
+        "tag_120_specific_opcode_allowed": false,
+        "unreached_branch_promotion_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
