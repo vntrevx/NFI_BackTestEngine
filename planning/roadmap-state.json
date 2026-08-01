@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 101,
-  "updated_at": "2026-08-02T03:20:33+09:00",
+  "revision": 102,
+  "updated_at": "2026-08-02T04:17:54+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M15-03",
+  "active_task_id": "M15-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3872,7 +3872,7 @@
       "order": 1503,
       "milestone": "M15",
       "title": "Compile managed-short exits into generic IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M15-02"
       ],
@@ -3891,9 +3891,14 @@
         "Futures full-state exact"
       ],
       "started_at": "2026-08-02T03:20:33+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T04:17:54+09:00",
+      "commit_sha": "09c6f5243f821a6892b47b0e8f5c8c49d93f96e0",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/latest-upstream-spot.json",
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/latest-upstream-futures.json"
+      ],
       "blocker": null
     },
     {
@@ -3901,7 +3906,7 @@
       "order": 1504,
       "milestone": "M15",
       "title": "Promote generic managed exits and retire exit hash gates",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M15-03"
       ],
@@ -3920,7 +3925,7 @@
         "dual-mode exit promotion proof",
         "latest upstream compatibility canary"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T04:17:54+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7241,6 +7246,38 @@
         "objective": "compile every managed-short exit with directional target-cache and compound-tag semantics into generic IR",
         "sign_flipped_long_approximation_allowed": false,
         "unproven_compound_tag_widening_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 131,
+      "timestamp": "2026-08-02T04:17:54+09:00",
+      "task_id": "M15-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "09c6f5243f821a6892b47b0e8f5c8c49d93f96e0",
+        "trade_manager_schema": "0.20.0",
+        "source_compiled_managed_short_routes": 8,
+        "independent_short_ast_compilation": true,
+        "compound_scalp_shadow_exact": true,
+        "target_state_mismatch_fails_closed": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 132,
+      "timestamp": "2026-08-02T04:17:54+09:00",
+      "task_id": "M15-04",
+      "event": "task_started",
+      "details": {
+        "objective": "promote source-compiled managed exits to the generic primary and retire redundant exit wrapper hash gates",
+        "promotion_without_changed_branch_proof_allowed": false,
+        "fallback_removal_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
