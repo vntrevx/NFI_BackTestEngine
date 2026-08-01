@@ -52,20 +52,22 @@ terminal values are source data. Rust returns the generic result and independent
 the legacy route as a shadow, comparing both the decision and complete target-cache state.
 Any disagreement fails closed. An unknown companion tag still fails before simulation.
 
-The long system-v3.2 position-adjustment callback is also source-compiled. Its de-risk
-and Grind action order, level set, exact tags, order scan, retry windows, wallet guards,
-stake scaling, partial exits, and required dataframe columns are serialized as
-`system-adjustment-program-v1`. The generic Rust evaluator is the primary lane while the
-handwritten implementation remains an independent shadow during migration. Both the
-returned stake/tag and all custom-state writes must match exactly. Levels and tags are IR
-data; the runtime has no fixed five-level table or strategy-SHA selector.
+Both system-v3.2 position-adjustment callbacks are independently source-compiled. Their
+de-risk and Grind action order, level sets, exact tags, directional order scans, retry
+windows, wallet guards, stake scaling, partial exits, and required dataframe columns are
+serialized as `system-adjustment-program-v1`. Short behavior is compiled from the short
+AST, never derived by sign-flipping the long program. The generic Rust evaluator is the
+primary lane while the handwritten implementation remains an independent shadow during
+migration. Both the returned stake/tag and all custom-state writes must match exactly.
+Levels and tags are IR data; the runtime has no fixed five-level table or strategy-SHA
+selector.
 
 ## Proof level
 
 The source analyzer pins the whole strategy SHA for cache/evidence identity. Managed route
-wrappers, `custom_exit`, and the long system-v3 adjustment actions are structurally
-compiled, so their runtime method-hash gates are gone. The short system-v3 adjustment and
-residual stop/target helpers remain identity-bound until their own staged promotion. A
+wrappers, `custom_exit`, and both system-v3 adjustment action sets are structurally
+compiled, so their runtime method-hash gates are gone. Residual stop/target helpers remain
+identity-bound until their own staged promotion. A
 changed compiled callback therefore recompiles into the same generic opcode set or fails
 structurally before inheriting unrelated Rust behavior.
 It also inventories literal condition-index branches and the effective strategy

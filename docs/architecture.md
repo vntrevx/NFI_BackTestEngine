@@ -291,13 +291,14 @@ both the decision and complete target cache must agree. Managed route-wrapper ha
 are retired because those wrappers are structurally lowered. Residual helpers that are not
 yet wholly represented by IR remain identity-bound.
 
-The system-v3.2 long adjustment follows the same migration contract. Python extracts the
-actual de-risk and Grind source order, dynamic level set, order directions, tag strings,
-retry policy, stake scaling, wallet guards, partial-exit formula, and callback dataframe
-projection into `system-adjustment-program-v1`. Rust evaluates that program first and
-compares its stake, tag, and complete custom-state mutation with the retained legacy
-implementation. A mismatch invalidates the Native run; no Signal number, strategy SHA, or
-fixed Grind count selects runtime behavior.
+Both system-v3.2 adjustments follow the same migration contract. Python independently
+extracts each side's actual de-risk and Grind source order, dynamic level set, directional
+order scan, tag strings, retry policy, stake scaling, wallet guards, partial-exit formula,
+and callback dataframe projection into `system-adjustment-program-v1`. Short behavior is
+compiled from the short AST rather than inferred from long behavior. Rust evaluates the
+side-specific program first and compares its stake, tag, and complete custom-state mutation
+with the retained legacy implementation. A mismatch invalidates the Native run; no Signal
+number, strategy SHA, or fixed Grind count selects runtime behavior.
 
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized

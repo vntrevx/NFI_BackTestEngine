@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.23.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.24.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",
@@ -289,28 +289,6 @@ _REBUY_ADJUSTMENT_NUMBER_CONSTANTS = (
     "system_v3_rebuy_mode_derisk_futures",
     "system_v3_rebuy_mode_derisk_spot",
 )
-_MANAGED_SHORT_ADJUSTMENT_FEATURES = {
-    # ``short_grind_entry_v3`` is source-compiled and contributes its larger
-    # projection automatically. These fields belong to the handwritten
-    # wrapper's retry, fallback, exit, and de-risk branches.
-    "last_candle": [
-        "AROOND_14",
-        "BBL_20_2.0",
-        "BTC_RSI_14_4h",
-        "EMA_20",
-        "ROC_9_1d",
-        "RSI_3",
-        "RSI_3_15m",
-        "RSI_3_1h",
-        "RSI_3_4h",
-        "RSI_14",
-        "STOCHRSIk_14_14_3_3",
-        "WILLR_14",
-        "close",
-    ],
-    "previous_candle_1": [],
-}
-
 # X7 routes tag 120 through the independent grinding state machine.
 # Both of its backtest market-mode branches are lowered from the same reviewed
 # callback and source constants as one order-history state machine:
@@ -378,12 +356,6 @@ _ADJUSTMENT_METHOD_SHA256: dict[str, frozenset[str]] = {
     ),
     "calc_total_profit": frozenset(
         {"ba0fc031f36140bbb3b5ae5feffa70ea7a5943e0315ff630407f2f92cdd9f70b"}
-    ),
-    "short_grind_adjust_trade_position_v3": frozenset(
-        {"8cd3b5f7808f7d00c27185f74069184820e74efe948845c64b76c54cb454ec24"}
-    ),
-    "short_grind_exit_v3": frozenset(
-        {"95070109723cf8f339d6efa46a629b1302899e0704720bbb8d562a295a8a6f1e"}
     ),
     # ``long_grind_entry_v3`` is intentionally absent. Its boolean behavior is
     # compiled from the supplied source, and its only write is proven
@@ -598,6 +570,7 @@ def build_nfi_trade_manager_ir(
     adjustment_constants: dict[str, Any] | None = None
     adjustment_program: dict[str, Any] | None = None
     short_adjustment_constants: dict[str, Any] | None = None
+    short_adjustment_program: dict[str, Any] | None = None
     rebuy_adjustment_constants: dict[str, Any] | None = None
     rebuy_transition_program: dict[str, Any] | None = None
     short_rebuy_transition_program: dict[str, Any] | None = None
@@ -624,6 +597,13 @@ def build_nfi_trade_manager_ir(
             constants,
             side="long",
             retry_policy=long_policy,
+        )
+        short_adjustment_program = compile_system_adjustment_ir(
+            methods["short_grind_adjust_trade_position_v3"],
+            methods["short_grind_exit_v3"],
+            constants,
+            side="short",
+            retry_policy=short_policy,
         )
         rebuy_transition_program = compile_rebuy_transition_ir(
             methods["long_rebuy_adjust_trade_position_v3"],
@@ -736,7 +716,7 @@ def build_nfi_trade_manager_ir(
             "constants": adjustment_constants,
             "program": adjustment_program,
         }
-    if short_adjustment_constants is not None:
+    if short_adjustment_constants is not None and short_adjustment_program is not None:
         operation["short_position_adjustment"] = {
             "enabled": constants["position_adjustment_enable"],
             # Exact upstream ``short_adjust_mode_tags``. Rebuy uses its
@@ -747,10 +727,9 @@ def build_nfi_trade_manager_ir(
             "source_callback": methods["short_grind_adjust_trade_position_v3"].name,
             "decision_program": _MANAGED_SHORT_ADJUSTMENT_PROGRAM,
             "program_order": _adjustment_program_order(short_adjustment_constants),
-            "stateful_input_contract": {
-                "indexed_fields": _MANAGED_SHORT_ADJUSTMENT_FEATURES,
-            },
+            "stateful_input_contract": short_adjustment_program["input_contract"],
             "constants": short_adjustment_constants,
+            "program": short_adjustment_program,
         }
     if (
         rebuy_adjustment_constants is not None
@@ -817,6 +796,11 @@ def build_nfi_trade_manager_ir(
             ),
             "system_adjustment_ir_fingerprint": (
                 adjustment_program["fingerprint"] if adjustment_program is not None else None
+            ),
+            "short_system_adjustment_ir_fingerprint": (
+                short_adjustment_program["fingerprint"]
+                if short_adjustment_program is not None
+                else None
             ),
             "operation_sha256": hashlib.sha256(encoded).hexdigest(),
             "programs": program_proof,

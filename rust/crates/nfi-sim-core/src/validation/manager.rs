@@ -115,6 +115,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.21.0"
             | "0.22.0"
             | "0.23.0"
+            | "0.24.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -142,6 +143,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.21.0"
             | "0.22.0"
             | "0.23.0"
+            | "0.24.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -235,6 +237,7 @@ pub(crate) fn validate_nfi_trade_manager(
                             | "0.21.0"
                             | "0.22.0"
                             | "0.23.0"
+                            | "0.24.0"
                     )
                 }
                 _ => false,
@@ -334,7 +337,7 @@ pub(crate) fn validate_nfi_trade_manager(
                     && adjustment.constants.policy.is_none()
             }
             "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
-            | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" => {
+            | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -363,6 +366,7 @@ pub(crate) fn validate_nfi_trade_manager(
                 &manager.schema_version,
                 adjustment.program.as_ref(),
                 adjustment,
+                CompiledSystemAdjustmentSide::Long,
             )
             && versioned_rebuy_multiplier
             && valid_nfi_adjustment_constants(&adjustment.constants)
@@ -393,6 +397,12 @@ pub(crate) fn validate_nfi_trade_manager(
                     && adjustment.decision_program == "short_grind_entry_v3"
                     && adjustment.program_order == adjustment_program_order(&adjustment.constants)
                     && adjustment.stateful_input_contract.is_object()
+                    && valid_versioned_system_adjustment_program(
+                        &manager.schema_version,
+                        adjustment.program.as_ref(),
+                        adjustment,
+                        CompiledSystemAdjustmentSide::Short,
+                    )
                     && adjustment
                         .constants
                         .rebuy_stake_multiplier
@@ -511,8 +521,11 @@ fn valid_versioned_system_adjustment_program(
     schema_version: &str,
     program: Option<&CompiledSystemAdjustmentProgram>,
     adjustment: &NfiX7PositionAdjustment,
+    expected_side: CompiledSystemAdjustmentSide,
 ) -> bool {
-    if schema_version != "0.23.0" {
+    let required = schema_version == "0.24.0"
+        || (schema_version == "0.23.0" && expected_side == CompiledSystemAdjustmentSide::Long);
+    if !required {
         return program.is_none();
     }
     let Some(program) = program else {
@@ -554,11 +567,19 @@ fn valid_versioned_system_adjustment_program(
         .collect::<Vec<_>>();
     program.schema_version == "system-adjustment-program-v1"
         && program.execution_mode == CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
-        && program.side == CompiledSystemAdjustmentSide::Long
+        && program.side == expected_side
         && program.source_callback == adjustment.source_callback.as_deref().unwrap_or("")
         && !program.source_callback.is_empty()
-        && program.order_scan.entry_order_side == CompiledOrderSide::Buy
-        && program.order_scan.exit_order_side == CompiledOrderSide::Sell
+        && match expected_side {
+            CompiledSystemAdjustmentSide::Long => {
+                program.order_scan.entry_order_side == CompiledOrderSide::Buy
+                    && program.order_scan.exit_order_side == CompiledOrderSide::Sell
+            }
+            CompiledSystemAdjustmentSide::Short => {
+                program.order_scan.entry_order_side == CompiledOrderSide::Sell
+                    && program.order_scan.exit_order_side == CompiledOrderSide::Buy
+            }
+        }
         && program.order_scan.exclude_first_entry
         && !program.order_scan.global_exit_tag.is_empty()
         && grind_levels == constant_grind_levels
@@ -652,7 +673,7 @@ fn valid_versioned_rebuy_program(
     delegate_policy: Option<&NfiX7AdjustmentPolicy>,
     delegate_source_callback: Option<&str>,
 ) -> bool {
-    if !matches!(schema_version, "0.22.0" | "0.23.0") {
+    if !matches!(schema_version, "0.22.0" | "0.23.0" | "0.24.0") {
         return program.is_none();
     }
     let Some(program) = program else {
@@ -683,7 +704,7 @@ fn valid_versioned_rebuy_program(
 }
 
 fn valid_adjustment_source_callback(schema_version: &str, callback: Option<&str>) -> bool {
-    if matches!(schema_version, "0.22.0" | "0.23.0") {
+    if matches!(schema_version, "0.22.0" | "0.23.0" | "0.24.0") {
         callback.is_some_and(|value| !value.is_empty())
     } else {
         callback.is_none()
@@ -712,7 +733,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
     }
     if matches!(
         manager.schema_version.as_str(),
-        "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0"
+        "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -781,12 +802,12 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                     &known_tags,
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0"
+                        "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0"
                     ),
                 ),
                 None => !matches!(
                     manager.schema_version.as_str(),
-                    "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0"
+                    "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0"
                 ),
             }
             && valid_managed_exit_terminal(route, &matcher_tags)
@@ -798,7 +819,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
 fn managed_exit_program_required(schema_version: &str) -> bool {
     matches!(
         schema_version,
-        "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0"
+        "0.17.0" | "0.18.0" | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0"
     )
 }
 
@@ -821,7 +842,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_short_exit_program.as_ref() else {
         return !matches!(
             manager.schema_version.as_str(),
-            "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0"
+            "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0"
         );
     };
     if program.schema_version != "managed-exit-program-v1"
@@ -898,7 +919,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                     &known_tags,
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0"
+                        "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0"
                     ),
                 )
             })
@@ -909,7 +930,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
 }
 
 fn valid_managed_exit_execution_mode(schema_version: &str, mode: ManagedExitExecutionMode) -> bool {
-    if matches!(schema_version, "0.21.0" | "0.22.0" | "0.23.0") {
+    if matches!(schema_version, "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0") {
         mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
     } else {
         mode == ManagedExitExecutionMode::Shadow

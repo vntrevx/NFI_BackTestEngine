@@ -208,15 +208,25 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.21.0",
         "0.22.0",
         "0.23.0",
+        "0.24.0",
     }
     requires_managed_short_exit_program = operation.get("schema_version") in {
         "0.20.0",
         "0.21.0",
         "0.22.0",
         "0.23.0",
+        "0.24.0",
     }
-    requires_rebuy_program = operation.get("schema_version") in {"0.22.0", "0.23.0"}
-    requires_long_adjustment_program = operation.get("schema_version") == "0.23.0"
+    requires_rebuy_program = operation.get("schema_version") in {
+        "0.22.0",
+        "0.23.0",
+        "0.24.0",
+    }
+    requires_long_adjustment_program = operation.get("schema_version") in {
+        "0.23.0",
+        "0.24.0",
+    }
+    requires_short_adjustment_program = operation.get("schema_version") == "0.24.0"
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)
@@ -264,8 +274,17 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
                 != "system-adjustment-program-v1"
             )
         )
+        or (
+            requires_short_adjustment_program
+            and (
+                not isinstance(short_adjustment, dict)
+                or not isinstance(short_adjustment.get("program"), dict)
+                or short_adjustment["program"].get("schema_version")
+                != "system-adjustment-program-v1"
+            )
+        )
     ):
-        raise StrategyAnalysisError("NFI managed-long operation is incomplete")
+        raise StrategyAnalysisError("NFI managed operation is incomplete")
     managed_routes: list[dict[str, Any]] = []
     for key in route_order:
         route = routes.get(key)

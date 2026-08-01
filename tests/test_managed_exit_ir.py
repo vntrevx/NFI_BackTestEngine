@@ -460,7 +460,7 @@ def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) 
 
     assert manager is not None
     operation = manager["operation"]
-    assert operation["schema_version"] == "0.23.0"
+    assert operation["schema_version"] == "0.24.0"
     assert operation["managed_short_exit_program"]["execution_mode"] == (
         "primary-with-legacy-shadow"
     )

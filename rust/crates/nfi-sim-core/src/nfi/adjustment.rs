@@ -243,9 +243,12 @@ fn evaluate_compiled_system_adjustment(
     initial_stake_multiplier: f64,
     rebuy_mode: bool,
 ) -> Option<Option<AdjustmentSignal>> {
+    let program_side = match expected_side {
+        TradeSide::Long => CompiledSystemAdjustmentSide::Long,
+        TradeSide::Short => CompiledSystemAdjustmentSide::Short,
+    };
     if program.execution_mode != CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
-        || program.side != CompiledSystemAdjustmentSide::Long
-        || expected_side != TradeSide::Long
+        || program.side != program_side
         || trade.side != expected_side
     {
         return None;
@@ -1558,15 +1561,25 @@ mod tests {
 
     use super::{
         derisk_level_index, evaluate_compiled_system_action, grind_callback_maximum_stake,
-        grind_callback_minimum_stake, grind_entry_index, grind_exit_index, AdjustmentContext,
-        AdjustmentState, CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
+        grind_callback_minimum_stake, grind_entry_index, grind_exit_index,
+        rebuild_compiled_adjustment_state, AdjustmentContext, AdjustmentState,
+        CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
     };
 
     fn compiled_action_program(result: &serde_json::Value) -> CompiledSystemAdjustmentProgram {
+        compiled_directional_action_program(result, "long", "buy", "sell")
+    }
+
+    fn compiled_directional_action_program(
+        result: &serde_json::Value,
+        side: &str,
+        entry_order_side: &str,
+        exit_order_side: &str,
+    ) -> CompiledSystemAdjustmentProgram {
         serde_json::from_value(json!({
             "schema_version": "system-adjustment-program-v1",
             "execution_mode": "primary-with-legacy-shadow",
-            "side": "long",
+            "side": side,
             "source_callback": "source_adjustment",
             "source_order": [{
                 "kind": "grind-exit",
@@ -1583,8 +1596,8 @@ mod tests {
             }],
             "order_scan": {
                 "sequence": "reverse",
-                "entry_order_side": "buy",
-                "exit_order_side": "sell",
+                "entry_order_side": entry_order_side,
+                "exit_order_side": exit_order_side,
                 "exclude_first_entry": true,
                 "global_exit_tag": "source_global_exit",
                 "derisk_tags": [],
@@ -1888,5 +1901,84 @@ mod tests {
             ),
             Some(CompiledActionOutcome::ReturnNone)
         ));
+    }
+
+    #[test]
+    fn compiled_short_order_scan_and_partial_exit_use_directional_program_data() {
+        let scalar_program = json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["min_stake", "tag"],
+            "expressions": [
+                ["variable", "min_stake"],
+                ["literal", -2.0],
+                ["multiply", 0, 1],
+                ["variable", "tag"],
+                ["tuple", [2, 3]]
+            ],
+            "statements": [["return", 4]]
+        });
+        let program = compiled_directional_action_program(&scalar_program, "short", "sell", "buy");
+        let adjustment = test_adjustment();
+        let mut trade = test_trade();
+        trade.side = TradeSide::Short;
+        trade.orders[0].side = OrderSide::Sell;
+        trade.orders.push(FilledOrder {
+            id: 7,
+            funding_fee: 0.0,
+            sequence: 1,
+            side: OrderSide::Sell,
+            is_entry: true,
+            filled_timestamp_ms: 60_000,
+            amount: 0.5,
+            price: 105.0,
+            cost: 52.5,
+            tag: Some("source_entry".to_owned()),
+        });
+        let state = rebuild_compiled_adjustment_state(&trade, &program)
+            .expect("short sell entries reconstruct through program order sides");
+        assert_eq!(state.clusters[0].count, 1);
+        assert_eq!(state.clusters[0].entry_ids, vec![7]);
+
+        let (pair, config) = pair_and_config();
+        let candle = pair.candles.get(0).expect("one candle").into_owned();
+        let context = AdjustmentContext {
+            adjustment: &adjustment,
+            pair: &pair,
+            candle_index: 0,
+            candle: &candle,
+            config: &config,
+            available_balance: 1_000.0,
+            minimum_stake: 5.0,
+            snapshot: NfiProfitSnapshot {
+                stake: 0.0,
+                ratio: 0.0,
+                current_stake_ratio: 0.0,
+                initial_stake_ratio: 0.0,
+            },
+            slice_amount: 100.0,
+            slice_profit: 0.05,
+            slice_profit_entry: 0.05,
+            current_stake_amount: 157.5,
+            rebuy_mode: false,
+            is_grind_entry: false,
+            extra_entry_checks: false,
+        };
+        let outcome = evaluate_compiled_system_action(
+            &program.source_order[0],
+            &program,
+            &context,
+            &trade,
+            &state,
+            &[(0.0, 0.0)],
+            1,
+        )
+        .expect("valid short generic action");
+
+        let CompiledActionOutcome::Signal(signal) = outcome else {
+            panic!("short source action must emit a partial exit");
+        };
+        assert!((signal.stake_amount + 10.0).abs() < f64::EPSILON);
+        assert_eq!(signal.tag, "source_exit 7");
     }
 }

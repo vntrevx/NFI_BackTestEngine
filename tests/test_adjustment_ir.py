@@ -50,6 +50,23 @@ def _compile(
     )
 
 
+def _compile_short(
+    method: ast.FunctionDef | None = None,
+    exit_method: ast.FunctionDef | None = None,
+) -> dict[str, object]:
+    methods, constants = _inputs()
+    method = method or methods["short_grind_adjust_trade_position_v3"]
+    exit_method = exit_method or methods["short_grind_exit_v3"]
+    descriptor = _build_adjustment_constants(constants, method, side="short")
+    return compile_system_adjustment_ir(
+        method,
+        exit_method,
+        constants,
+        side="short",
+        retry_policy=descriptor["policy"],
+    )
+
+
 def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None:
     program = _compile()
     actions = program["source_order"]
@@ -86,6 +103,8 @@ def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None
     ]
     assert actions[4]["tag"] == "grind_1_entry"
     assert actions[5]["append_entry_ids"] is True
+    assert ["literal", "return-none"] in actions[4]["decision_program"]["expressions"]
+    assert ["literal", None] not in actions[4]["decision_program"]["expressions"]
     assert "RSI_3" in program["input_contract"]["indexed_fields"]["last_candle"]
 
 
@@ -162,5 +181,41 @@ def test_long_adjustment_changed_source_order_fails_closed() -> None:
 def test_long_adjustment_runtime_hash_gates_are_retired() -> None:
     assert "long_grind_adjust_trade_position_v3" not in _ADJUSTMENT_METHOD_SHA256
     assert "long_grind_exit_v3" not in _ADJUSTMENT_METHOD_SHA256
-    assert "short_grind_adjust_trade_position_v3" in _ADJUSTMENT_METHOD_SHA256
-    assert "short_grind_exit_v3" in _ADJUSTMENT_METHOD_SHA256
+    assert "short_grind_adjust_trade_position_v3" not in _ADJUSTMENT_METHOD_SHA256
+    assert "short_grind_exit_v3" not in _ADJUSTMENT_METHOD_SHA256
+
+
+def test_short_adjustment_is_compiled_from_its_independent_directional_ast() -> None:
+    long_program = _compile()
+    short_program = _compile_short()
+
+    assert short_program["side"] == "short"
+    assert len(short_program["source_order"]) == 18
+    assert short_program["order_scan"]["entry_order_side"] == "sell"
+    assert short_program["order_scan"]["exit_order_side"] == "buy"
+    assert [
+        record["level"] for record in short_program["order_scan"]["derisk_tags"]
+    ] == [1, 2, 3]
+    assert [
+        record["level"] for record in short_program["order_scan"]["grind_levels"]
+    ] == [1, 2, 3, 4, 5]
+    assert short_program["fingerprint"] != long_program["fingerprint"]
+    assert "BBL_20_2.0" in short_program["input_contract"]["indexed_fields"]["last_candle"]
+    assert "BBU_20_2.0" not in short_program["input_contract"]["indexed_fields"]["last_candle"]
+
+
+def test_short_exit_mutation_recompiles_without_changing_long_program() -> None:
+    methods, _constants = _inputs()
+    long_fingerprint = _compile()["fingerprint"]
+    changed_exit = copy.deepcopy(methods["short_grind_exit_v3"])
+    threshold = next(
+        node
+        for node in ast.walk(changed_exit)
+        if isinstance(node, ast.Constant) and node.value == 1.0
+    )
+    threshold.value = 2.0
+
+    original_short = _compile_short()
+    mutated_short = _compile_short(exit_method=changed_exit)
+    assert mutated_short["fingerprint"] != original_short["fingerprint"]
+    assert _compile()["fingerprint"] == long_fingerprint

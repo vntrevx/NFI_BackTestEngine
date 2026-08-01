@@ -99,10 +99,7 @@ def _build_adjustment_constants(
                 )
         grinds.append(record)
 
-    derisk_levels = _numbered_constant_levels(
-        constants,
-        r"system_v3_2_derisk_level_(\d+)_enable",
-    )
+    derisk_levels = _method_derisk_levels(method)
     derisk_records = []
     for level in derisk_levels:
         prefix = f"system_v3_2_derisk_level_{level}_"
@@ -155,6 +152,27 @@ def _numbered_constant_levels(constants: dict[str, Any], pattern: str) -> list[i
     )
     if not levels or levels != list(range(levels[0], levels[-1] + 1)) or levels[0] != 1:
         raise StrategyAnalysisError(f"NFI adjustment levels are not contiguous: {pattern}")
+    return levels
+
+
+def _method_derisk_levels(method: ast.FunctionDef) -> list[int]:
+    levels = sorted(
+        {
+            int(match.group(1))
+            for node in ast.walk(method)
+            if isinstance(node, ast.Return)
+            and isinstance(node.value, ast.Tuple)
+            and len(node.value.elts) == 2
+            and isinstance(node.value.elts[1], ast.Constant)
+            and isinstance(node.value.elts[1].value, str)
+            and (
+                match := re.fullmatch(r"derisk_level_(\d+)", node.value.elts[1].value)
+            )
+            is not None
+        }
+    )
+    if not levels or levels != list(range(1, levels[-1] + 1)):
+        raise StrategyAnalysisError("NFI adjustment de-risk action levels are not contiguous")
     return levels
 
 

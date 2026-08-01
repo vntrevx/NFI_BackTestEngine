@@ -131,3 +131,32 @@ def test_trade_manager_binds_rebuy_delegates_to_compiled_adjustment_callbacks() 
     stateful_methods = manager["proof"]["stateful_methods"]
     assert "long_rebuy_adjust_trade_position_v3" not in stateful_methods
     assert "short_rebuy_adjust_trade_position_v3" not in stateful_methods
+
+
+def test_trade_manager_binds_independent_long_and_short_adjustment_programs() -> None:
+    analysis = analyze_strategy(_SOURCE, class_name="NostalgiaForInfinityX7")
+    manager = build_nfi_trade_manager_ir(analysis, build_trade_dependency_ir(analysis))
+    assert manager is not None
+    operation = manager["operation"]
+    long_adjustment = operation["position_adjustment"]
+    short_adjustment = operation["short_position_adjustment"]
+
+    assert operation["schema_version"] == "0.24.0"
+    assert long_adjustment["program"]["side"] == "long"
+    assert short_adjustment["program"]["side"] == "short"
+    assert long_adjustment["program"]["order_scan"]["entry_order_side"] == "buy"
+    assert short_adjustment["program"]["order_scan"]["entry_order_side"] == "sell"
+    assert [row["level"] for row in long_adjustment["constants"]["derisk_levels"]] == [
+        1,
+        2,
+        3,
+        4,
+    ]
+    assert [row["level"] for row in short_adjustment["constants"]["derisk_levels"]] == [
+        1,
+        2,
+        3,
+    ]
+    assert manager["proof"]["system_adjustment_ir_fingerprint"] != manager["proof"][
+        "short_system_adjustment_ir_fingerprint"
+    ]

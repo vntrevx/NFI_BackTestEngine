@@ -33,6 +33,8 @@ _COMMON_BINDINGS = {
     "is_futures_mode": "is-futures-mode",
     "is_long_extra_checks_entry": "extra-entry-checks",
     "is_long_grind_entry": "grind-entry-signal",
+    "is_short_extra_checks_entry": "extra-entry-checks",
+    "is_short_grind_entry": "grind-entry-signal",
     "is_not_trade_max_stake_v3": "below-maximum-stake",
     "is_rebuy_mode": "is-rebuy-mode",
     "is_system_v3": "is-system-v3",
@@ -91,14 +93,14 @@ def compile_system_adjustment_ir(
 ) -> dict[str, Any]:
     """Lower one source callback into source-ordered generic action programs."""
 
-    if side != "long":
-        raise StrategyAnalysisError(f"system adjustment side is not compiled yet: {side}")
+    if side not in {"long", "short"}:
+        raise StrategyAnalysisError(f"system adjustment side is unsupported: {side}")
     actions = _source_actions(method, exit_method.name)
     levels = sorted({action.level for action in actions if action.kind.startswith("grind-")})
     if not levels:
         raise StrategyAnalysisError("system adjustment has no Grind levels")
     _validate_action_coverage(actions, levels)
-    order_scan = _compile_order_scan(method, actions, levels)
+    order_scan = _compile_order_scan(method, actions, levels, side=side)
     exit_program = _compile_exit_program(exit_method, constants)
     compiled_actions = []
     for action in actions:
@@ -237,6 +239,8 @@ def _compile_order_scan(
     method: ast.FunctionDef,
     actions: list[_SourceAction],
     levels: list[int],
+    *,
+    side: str,
 ) -> dict[str, Any]:
     loops = [
         node
@@ -265,7 +269,8 @@ def _compile_order_scan(
         and node.comparators[0].value in {"buy", "sell"}
     ]
     unique_sides = list(dict.fromkeys(sides))
-    if unique_sides != ["buy", "sell"]:
+    expected_sides = ["buy", "sell"] if side == "long" else ["sell", "buy"]
+    if unique_sides != expected_sides:
         raise StrategyAnalysisError("system adjustment order directions changed")
     constants = {
         str(node.value)
@@ -466,7 +471,7 @@ class _ActionLowerer(ast.NodeTransformer):
 
     def visit_Return(self, node: ast.Return) -> ast.Return:
         value = node.value
-        if value is None or (
+        if value is None or (isinstance(value, ast.Constant) and value.value is None) or (
             isinstance(value, ast.Tuple)
             and value.elts
             and all(isinstance(item, ast.Constant) and item.value is None for item in value.elts)
