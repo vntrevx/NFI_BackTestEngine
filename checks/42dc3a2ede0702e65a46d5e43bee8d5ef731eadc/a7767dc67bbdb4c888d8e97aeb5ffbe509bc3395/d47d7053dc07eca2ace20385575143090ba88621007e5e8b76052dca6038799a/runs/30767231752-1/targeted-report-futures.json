@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "source_sha256": "ae9f1d17393a21f80c1cd01361300a0a6cfd8626a003b304b1f3b19440e3775c",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 1,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "target_ids": [
+        "f6441ec3443383856fea9d10811532d8c104ad00669665233b6803043281672c"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short-targeted-ae9f1d17393a",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/official-fixture/manifest.json",
+        "manifest_sha256": "92efb293e0f3922628e5f8d58c62dd3ae7368ae0598deba9bd93d4be7b3a6c2b",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "f6441ec3443383856fea9d10811532d8c104ad00669665233b6803043281672c"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "f6441ec3443383856fea9d10811532d8c104ad00669665233b6803043281672c",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  ],
+  "proof": {
+    "complete": true,
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "ae9f1d17393a21f80c1cd01361300a0a6cfd8626a003b304b1f3b19440e3775c",
+    "classification": "ir-compatible",
+    "verification_state": "quick_verified",
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "blockers": []
+  },
+  "blockers": [],
+  "verification_state": "quick_verified",
+  "complete": true
+}
