@@ -15,10 +15,10 @@ from nfi_backtest_engine.x7.managed_exit_ir import (
 )
 from nfi_backtest_engine.x7.managed_short_exit_ir import compile_managed_short_exit_ir
 from nfi_backtest_engine.x7.trade_manager import (
-    _MANAGED_LONG_METHOD_SHA256,
     _MANAGED_LONG_ROUTE_SPECS,
-    _MANAGED_SHORT_METHOD_SHA256,
+    _MANAGED_LONG_STATEFUL_STEPS,
     _MANAGED_SHORT_ROUTE_SPECS,
+    _MANAGED_SHORT_STATEFUL_STEPS,
     build_nfi_trade_manager_ir,
 )
 
@@ -155,7 +155,7 @@ def _compile(**kwargs: bool):
 def test_basic_exit_ir_reads_route_and_decision_source_order() -> None:
     compiled = _compile()
 
-    assert compiled.program["execution_mode"] == "primary-with-legacy-shadow"
+    assert compiled.program["execution_mode"] == "primary"
     assert compiled.long_route_order == ("normal", "pump", "quick", "profit")
     routes = compiled.program["routes"]
     assert [route["id"] for route in routes] == ["normal", "pump", "quick", "profit"]
@@ -182,20 +182,29 @@ def test_basic_exit_ir_changes_as_source_order_changes() -> None:
     assert changed.program["fingerprint"] != original.program["fingerprint"]
 
 
-def test_exit_wrapper_hash_gates_are_retired_after_structural_lowering() -> None:
+def test_exit_runtime_uses_structural_helpers_without_hash_gates() -> None:
+    import nfi_backtest_engine.x7.trade_manager as trade_manager
+
     long_wrappers = {spec.method for spec in _MANAGED_LONG_ROUTE_SPECS}
     short_wrappers = {spec.method for spec in _MANAGED_SHORT_ROUTE_SPECS}
 
-    assert long_wrappers.isdisjoint(_MANAGED_LONG_METHOD_SHA256)
-    assert short_wrappers.isdisjoint(_MANAGED_SHORT_METHOD_SHA256)
-    assert set(_MANAGED_LONG_METHOD_SHA256) == {
+    assert long_wrappers.isdisjoint(_MANAGED_LONG_STATEFUL_STEPS)
+    assert short_wrappers.isdisjoint(_MANAGED_SHORT_STATEFUL_STEPS)
+    assert set(_MANAGED_LONG_STATEFUL_STEPS) == {
         "long_exit_stoploss",
         "exit_profit_target",
         "mark_profit_target",
         "_set_profit_target",
         "_remove_profit_target",
     }
-    assert set(_MANAGED_SHORT_METHOD_SHA256) == {"short_exit_stoploss"}
+    assert set(_MANAGED_SHORT_STATEFUL_STEPS) == {"short_exit_stoploss"}
+    for name in (
+        "_MANAGED_LONG_METHOD_SHA256",
+        "_MANAGED_SHORT_METHOD_SHA256",
+        "_LONG_GRIND_METHOD_SHA256",
+        "_LONG_BTC_METHOD_SHA256",
+    ):
+        assert not hasattr(trade_manager, name)
 
 
 def test_basic_exit_ir_rejects_an_unknown_long_route() -> None:
@@ -369,7 +378,7 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
     )
     routes = {route["id"]: route for route in compiled.program["routes"]}
 
-    assert compiled.program["execution_mode"] == "primary-with-legacy-shadow"
+    assert compiled.program["execution_mode"] == "primary"
     assert compiled.short_route_order == (
         "short_normal",
         "short_pump",
@@ -461,10 +470,8 @@ def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) 
 
     assert manager is not None
     operation = manager["operation"]
-    assert operation["schema_version"] == "0.28.0"
-    assert operation["managed_short_exit_program"]["execution_mode"] == (
-        "primary-with-legacy-shadow"
-    )
+    assert operation["schema_version"] == "0.29.0"
+    assert operation["managed_short_exit_program"]["execution_mode"] == "primary"
 
 
 def test_new_uncompiled_short_exit_result_fails_closed() -> None:

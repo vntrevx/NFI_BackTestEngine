@@ -45,7 +45,7 @@ def _method_record(
     source_lines: list[bytes],
 ) -> dict[str, Any]:
     segment = _node_source_bytes(node, source_lines)
-    # Method identities protect handwritten lowering against behavior changes,
+    # Method identities make semantic diffs and evidence attribution precise,
     # but a Windows checkout may convert LF to CRLF without changing Python
     # semantics. Keep the whole-file bundle hash byte exact while making this
     # narrower callback identity independent of the checkout platform.

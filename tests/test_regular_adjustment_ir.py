@@ -35,7 +35,7 @@ def test_regular_adjustment_ir_compiles_source_tags_order_and_continuation() -> 
     program = compile_regular_adjustment_ir(_method(), _constants())
 
     assert program["schema_version"] == "regular-transition-program-v1"
-    assert program["execution_mode"] == "primary-with-legacy-shadow"
+    assert program["execution_mode"] == "primary"
     assert [transition["kind"] for transition in program["source_order"]] == [
         "rebuy",
         "grind",

@@ -11,32 +11,10 @@ from ..errors import StrategyAnalysisError
 from .trade_manager import (
     _ADJUSTMENT_BOOL_CONSTANTS,
     _ADJUSTMENT_GRIND_FIELDS,
-    _ADJUSTMENT_METHOD_SHA256,
     _ADJUSTMENT_NUMBER_CONSTANTS,
     _REBUY_ADJUSTMENT_LIST_CONSTANTS,
     _REBUY_ADJUSTMENT_NUMBER_CONSTANTS,
 )
-
-
-def _validate_adjustment_method_identity(
-    methods: dict[str, dict[str, Any]],
-) -> None:
-    """Reject an unreviewed stateful adjustment implementation.
-
-    Pure entry predicates are still compiled from the supplied strategy. The
-    surrounding order walk and stake-return logic are handwritten because they
-    mutate trade state; every method that can affect that contract is pinned.
-    """
-    changed = [
-        name
-        for name, expected in _ADJUSTMENT_METHOD_SHA256.items()
-        if methods.get(name, {}).get("source_sha256") not in expected
-    ]
-    if changed:
-        raise StrategyAnalysisError(
-            "NFI X7 position adjustment changed; exact lowering requires review: "
-            + ", ".join(changed)
-        )
 
 
 def _build_adjustment_constants(

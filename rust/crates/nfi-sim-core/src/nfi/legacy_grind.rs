@@ -9,9 +9,9 @@ use super::adjustment::evaluate_grind_entry_program;
 use super::dispatch::nfi_long_grind_supports_trade;
 use crate::calculations::{fee_close, fee_open};
 use crate::domain::{
-    AdjustmentSignal, Candle, CompiledLegacyGrindProgram, CompiledLegacyGrindTransition,
-    FilledOrder, NfiLegacyGrindCluster, NfiLongGrindRoute, NfiX7TradeManager, PairSeries,
-    PortfolioConfig,
+    AdjustmentSignal, Candle, CompiledLegacyGrindExecutionMode, CompiledLegacyGrindProgram,
+    CompiledLegacyGrindTransition, FilledOrder, NfiLegacyGrindCluster, NfiLongGrindRoute,
+    NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::portfolio::{OpenTrade, TradeSide};
@@ -187,6 +187,27 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     config: &PortfolioConfig,
     available_balance: f64,
 ) -> Option<Option<AdjustmentSignal>> {
+    if let Some(program) = route
+        .program
+        .as_ref()
+        .filter(|program| program.execution_mode == CompiledLegacyGrindExecutionMode::Primary)
+    {
+        return match evaluate_compiled_grind(
+            manager,
+            route,
+            program,
+            trade,
+            pair,
+            candle_index,
+            candle,
+            config,
+            available_balance,
+        )? {
+            CompiledGrindOutcome::Reached(signal) => Some(signal),
+            CompiledGrindOutcome::NoTransition => Some(None),
+            CompiledGrindOutcome::ResidualPrecedes => None,
+        };
+    }
     let legacy = evaluate_nfi_legacy_grind_shadow(
         manager,
         route,

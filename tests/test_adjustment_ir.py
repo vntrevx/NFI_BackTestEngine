@@ -10,7 +10,6 @@ from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 from nfi_backtest_engine.x7.adjustment_ir import compile_system_adjustment_ir
 from nfi_backtest_engine.x7.adjustments import _build_adjustment_constants
-from nfi_backtest_engine.x7.trade_manager import _ADJUSTMENT_METHOD_SHA256
 
 _SOURCE = Path(
     "benchmarks/fixtures/captured/"
@@ -73,7 +72,7 @@ def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None
 
     assert program["schema_version"] == "system-adjustment-program-v1"
     assert program["side"] == "long"
-    assert program["execution_mode"] == "primary-with-legacy-shadow"
+    assert program["execution_mode"] == "primary"
     assert len(actions) == 19
     assert [record["level"] for record in program["order_scan"]["grind_levels"]] == [
         1,
@@ -179,10 +178,9 @@ def test_long_adjustment_changed_source_order_fails_closed() -> None:
 
 
 def test_long_adjustment_runtime_hash_gates_are_retired() -> None:
-    assert "long_grind_adjust_trade_position_v3" not in _ADJUSTMENT_METHOD_SHA256
-    assert "long_grind_exit_v3" not in _ADJUSTMENT_METHOD_SHA256
-    assert "short_grind_adjust_trade_position_v3" not in _ADJUSTMENT_METHOD_SHA256
-    assert "short_grind_exit_v3" not in _ADJUSTMENT_METHOD_SHA256
+    import nfi_backtest_engine.x7.trade_manager as trade_manager
+
+    assert not hasattr(trade_manager, "_ADJUSTMENT_METHOD_SHA256")
 
 
 def test_short_adjustment_is_compiled_from_its_independent_directional_ast() -> None:

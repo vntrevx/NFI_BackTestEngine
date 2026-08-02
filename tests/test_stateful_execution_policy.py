@@ -33,16 +33,16 @@ def _manager() -> dict:
         "schema_version": "contract-under-test",
         "managed_exit_program": _program(
             "managed-exit-program-v1",
-            "primary-with-legacy-shadow",
+            "primary",
         ),
         "managed_short_exit_program": _program(
             "managed-exit-program-v1",
-            "primary-with-legacy-shadow",
+            "primary",
         ),
         "position_adjustment": {
             "program": _program(
                 "system-adjustment-program-v1",
-                "primary-with-legacy-shadow",
+                "primary",
             )
         },
         "rebuy_adjustment": {
@@ -52,7 +52,7 @@ def _manager() -> dict:
             "source_defined_route": {
                 "program": _program(
                     "grind-transition-program-v3",
-                    "primary-with-legacy-shadow",
+                    "primary",
                 )
             }
         },
@@ -93,11 +93,11 @@ def test_x7_generic_stateful_programs_are_the_default_native_lane(
     assert policy["blockers"] == []
     assert len(policy["programs"]) == 5
     assert policy["legacy_shadow"] == {
-        "enabled": True,
-        "program_count": 4,
-        "comparison": "decision-and-state-exact",
-        "mismatch_action": "fail-closed",
-        "removal_gate": "independent-exact-proof",
+        "enabled": False,
+        "program_count": 0,
+        "comparison": None,
+        "mismatch_action": None,
+        "removal_gate": None,
     }
 
 
@@ -106,7 +106,7 @@ def test_x7_policy_discovers_source_defined_route_keys_as_data() -> None:
     manager["supported_routes"]["new_upstream_route"] = {
         "regular_program": _program(
             "regular-transition-program-v1",
-            "primary-with-legacy-shadow",
+            "primary",
         )
     }
 
@@ -135,9 +135,9 @@ def test_x7_policy_fails_closed_when_a_generic_primary_mode_is_missing() -> None
     ]
 
 
-def test_x7_policy_rejects_a_legacy_only_primary_without_removing_the_shadow() -> None:
+def test_x7_policy_rejects_a_retired_legacy_shadow_mode() -> None:
     manager = copy.deepcopy(_manager())
-    manager["managed_exit_program"]["execution_mode"] = "legacy"
+    manager["managed_exit_program"]["execution_mode"] = "primary-with-legacy-shadow"
 
     policy = build_x7_generic_stateful_policy(manager)
 
@@ -219,8 +219,5 @@ def test_captured_x7_contract_selects_nine_generic_stateful_roots() -> None:
     assert policy["adapter_lane"] == X7_GENERIC_STATEFUL_LANE
     assert policy["native_ready"] is True
     assert len(policy["programs"]) == 9
-    assert policy["legacy_shadow"]["program_count"] == 7
-    assert {program["execution_mode"] for program in policy["programs"]} == {
-        "primary",
-        "primary-with-legacy-shadow",
-    }
+    assert policy["legacy_shadow"]["program_count"] == 0
+    assert {program["execution_mode"] for program in policy["programs"]} == {"primary"}

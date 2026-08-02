@@ -285,20 +285,20 @@ recursive tag/side matchers, profit basis and gate, decision-call order, inline 
 IR, stop policy, target-cache policy, and terminal exits into separate
 `managed-exit-program-v1` programs. Short conditions come from short AST; they are never
 sign-flipped long rules. The target helper's narrower pure-scalp matcher is also kept
-separate from the wider compound route matcher. Rust uses each generic state machine as
-the primary result while independently executing the legacy route as a fail-closed shadow;
-both the decision and complete target cache must agree. Managed route-wrapper hash gates
-are retired because those wrappers are structurally lowered. Residual helpers that are not
-yet wholly represented by IR remain identity-bound.
+separate from the wider compound route matcher. Rust executes each source-compiled state
+machine as the sole current result. Independent shadow proofs were completed before
+promotion; current payloads no longer execute the handwritten route. Managed route and
+helper method-hash gates are retired because executable behavior is structurally lowered.
+Strategy SHA remains evidence and cache identity only.
 
 Both system-v3.2 adjustments follow the same migration contract. Python independently
 extracts each side's actual de-risk and Grind source order, dynamic level set, directional
 order scan, tag strings, retry policy, stake scaling, wallet guards, partial-exit formula,
 and callback dataframe projection into `system-adjustment-program-v1`. Short behavior is
 compiled from the short AST rather than inferred from long behavior. Rust evaluates the
-side-specific program first and compares its stake, tag, and complete custom-state mutation
-with the retained legacy implementation. A mismatch invalidates the Native run; no Signal
-number, strategy SHA, or fixed Grind count selects runtime behavior.
+side-specific program directly. Prior independent proofs compared stake, tag, and complete
+custom-state mutation before handwritten execution was retired from the current lane; no
+Signal number, strategy SHA, or fixed Grind count selects runtime behavior.
 
 The public research-run contract names this default `x7-generic-stateful`. Its versioned
 policy inventories serialized stateful program roots structurally, requires every root to
@@ -315,8 +315,8 @@ source-ordered post-de-risk and ordinary clusters, every cluster stop, the Futur
 drawdown fallback, and the bounded Derisk/Buyback restoration cycle into
 `grind-transition-program-v3`. The d1 tag, feature guards, mode thresholds, retry
 comparisons, wallet rejection, stake restoration, leverage divisor, and partial-exit
-basis are source data. Rust evaluates these transitions from the payload and requires
-an exact stake/tag match from the retained legacy shadow. On an entry fill, NFI's
+basis are source data. Rust evaluates these transitions from the payload after an exact
+stake/tag independent shadow proof. On an entry fill, NFI's
 position-adjustment callback runs at the same timestamp after the fill and wallet
 refresh, while still reading the previous analyzed dataframe row. A captured official
 Freqtrade fixture reaches this same-candle d1 exit and repeated d1 restoration cycle;
@@ -325,8 +325,8 @@ its trade surface and full state match at zero tolerance.
 The tag-121 regular prelude is separately compiled into
 `regular-transition-program-v1`. Its reverse order scan, rebuy exclusions, dynamic
 Grind tag pairs, de-risk classification, leverage-scaled Futures drawdown fallback,
-and amount-based transfer into the legacy Grind machine are strategy data. Rust runs
-that program first and compares the callback result with the retained reviewed shadow.
+and amount-based transfer into the Grind machine are strategy data. Rust runs that program
+directly after its reviewed shadow proof completed.
 The official Spot and isolated-Futures tag-121 fixtures both match all 288 projected
 state events and their complete trade surfaces at zero tolerance.
 

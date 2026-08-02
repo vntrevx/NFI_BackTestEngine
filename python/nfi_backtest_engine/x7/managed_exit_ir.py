@@ -141,7 +141,7 @@ def compile_managed_exit_ir(
 
     program: dict[str, Any] = {
         "schema_version": MANAGED_EXIT_PROGRAM_VERSION,
-        "execution_mode": "primary-with-legacy-shadow",
+        "execution_mode": "primary",
         "routes": routes,
     }
     encoded = json.dumps(

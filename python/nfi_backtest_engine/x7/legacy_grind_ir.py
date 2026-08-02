@@ -125,7 +125,7 @@ def compile_legacy_grind_ir(
     )
     program: dict[str, Any] = {
         "schema_version": LEGACY_GRIND_PROGRAM_VERSION,
-        "execution_mode": "primary-with-legacy-shadow",
+        "execution_mode": "primary",
         "source_callback": method.name,
         "source_order": source_order,
         "order_scan": {

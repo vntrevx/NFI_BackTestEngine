@@ -73,6 +73,11 @@ pub(crate) fn evaluate_nfi_exit(
     for step in &dispatch.long_steps {
         if let NfiLongDispatchStep::Managed(step) = step {
             let route = manager.managed_long_routes.get(step.route_index)?;
+            let source_route = manager.managed_exit_program.as_ref().and_then(|program| {
+                step.source_route_index
+                    .and_then(|index| program.routes.get(index))
+                    .map(|route| (program.execution_mode, route))
+            });
             let legacy_matches = nfi_managed_route_supports_tags(manager, route, tags.words);
             let source_matches = step
                 .source_matcher
@@ -80,7 +85,9 @@ pub(crate) fn evaluate_nfi_exit(
                 .map_or(legacy_matches, |matcher| {
                     interned_matcher_matches(matcher, &tags, trade.side)
                 });
-            if source_matches != legacy_matches {
+            if !matches!(source_route, Some((ManagedExitExecutionMode::Primary, _)))
+                && source_matches != legacy_matches
+            {
                 return None;
             }
             if !source_matches {
@@ -88,11 +95,7 @@ pub(crate) fn evaluate_nfi_exit(
             }
             match evaluate_nfi_managed_long_exit(
                 manager,
-                manager.managed_exit_program.as_ref().and_then(|program| {
-                    step.source_route_index
-                        .and_then(|index| program.routes.get(index))
-                        .map(|route| (program.execution_mode, route))
-                }),
+                source_route,
                 route,
                 nfi_profile_program_order(route.profile),
                 &step.legacy_program_handles,
@@ -169,6 +172,14 @@ fn evaluate_nfi_short_exit(
     let tags = dispatch.intern_trade_tags(trade);
     for step in &dispatch.short_steps {
         let route = manager.managed_short_routes.get(step.route_index)?;
+        let source_route = manager
+            .managed_short_exit_program
+            .as_ref()
+            .and_then(|program| {
+                step.source_route_index
+                    .and_then(|index| program.routes.get(index))
+                    .map(|route| (program.execution_mode, route))
+            });
         let legacy_matches = nfi_managed_short_route_supports_tags(manager, route, tags.words);
         let source_matches = step
             .source_matcher
@@ -176,7 +187,9 @@ fn evaluate_nfi_short_exit(
             .map_or(legacy_matches, |matcher| {
                 interned_matcher_matches(matcher, &tags, trade.side)
             });
-        if source_matches != legacy_matches {
+        if !matches!(source_route, Some((ManagedExitExecutionMode::Primary, _)))
+            && source_matches != legacy_matches
+        {
             return None;
         }
         if !source_matches {
@@ -184,14 +197,7 @@ fn evaluate_nfi_short_exit(
         }
         match evaluate_nfi_managed_long_exit(
             manager,
-            manager
-                .managed_short_exit_program
-                .as_ref()
-                .and_then(|program| {
-                    step.source_route_index
-                        .and_then(|index| program.routes.get(index))
-                        .map(|route| (program.execution_mode, route))
-                }),
+            source_route,
             route,
             NFI_SHORT_EXIT_PROGRAMS,
             &step.legacy_program_handles,
@@ -236,6 +242,20 @@ fn evaluate_nfi_managed_long_exit(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Option<CustomExitDecision> {
+    if let Some((ManagedExitExecutionMode::Primary, generic_route)) = source_route {
+        return evaluate_generic_managed_long_exit(
+            manager,
+            generic_route,
+            source_program_handles,
+            dispatch,
+            trade,
+            pair,
+            candle_index,
+            candle,
+            config,
+            profit_targets,
+        );
+    }
     let initial_targets = profit_targets.clone();
     let mut legacy_targets = initial_targets.clone();
     let legacy = evaluate_nfi_managed_long_exit_legacy(
@@ -256,53 +276,24 @@ fn evaluate_nfi_managed_long_exit(
         return Some(legacy);
     };
     if generic_route.state_program.is_none() {
-        if execution_mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow {
-            return None;
-        }
-        let enter_tags = trade
-            .entry_tag
-            .as_deref()
-            .unwrap_or("")
-            .split_whitespace()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>();
-        let snapshot = nfi_profit_snapshot(
-            trade,
-            candle.open,
-            fee_open(config),
-            fee_close(config),
-            config.is_futures,
-        )?;
-        let legacy_signals = nfi_managed_long_signals(
+        return evaluate_legacy_managed_exit_signal_shadow(
             manager,
+            execution_mode,
+            generic_route,
             route,
             program_order,
             legacy_program_handles,
-            dispatch,
-            trade,
-            pair,
-            candle_index,
-            candle,
-            snapshot,
-            &enter_tags,
-        )?;
-        let generic_signals = generic_managed_exit_signals(
-            manager,
-            generic_route,
             source_program_handles,
             dispatch,
             trade,
             pair,
             candle_index,
             candle,
-            snapshot,
-            &enter_tags,
-        )?;
-        if generic_signals != legacy_signals {
-            return None;
-        }
-        *profit_targets = legacy_targets;
-        return Some(legacy);
+            config,
+            legacy,
+            legacy_targets,
+            profit_targets,
+        );
     }
     let mut generic_targets = initial_targets;
     let generic = evaluate_generic_managed_long_exit(
@@ -329,7 +320,77 @@ fn evaluate_nfi_managed_long_exit(
             *profit_targets = generic_targets;
             Some(generic)
         }
+        ManagedExitExecutionMode::Primary => None,
     }
+}
+
+/// Replay the pre-state-program shadow contract used by sealed historical inputs.
+#[allow(clippy::too_many_arguments)]
+fn evaluate_legacy_managed_exit_signal_shadow(
+    manager: &NfiX7TradeManager,
+    execution_mode: ManagedExitExecutionMode,
+    generic_route: &ManagedExitRoute,
+    route: &NfiManagedLongRoute,
+    program_order: &[&str],
+    legacy_program_handles: &[NfiProgramHandle],
+    source_program_handles: &[NfiProgramHandle],
+    dispatch: &NfiDispatchPlan,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    config: &PortfolioConfig,
+    legacy: CustomExitDecision,
+    legacy_targets: BTreeMap<String, ProfitTarget>,
+    profit_targets: &mut BTreeMap<String, ProfitTarget>,
+) -> Option<CustomExitDecision> {
+    if execution_mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow {
+        return None;
+    }
+    let enter_tags = trade
+        .entry_tag
+        .as_deref()
+        .unwrap_or("")
+        .split_whitespace()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    let snapshot = nfi_profit_snapshot(
+        trade,
+        candle.open,
+        fee_open(config),
+        fee_close(config),
+        config.is_futures,
+    )?;
+    let legacy_signals = nfi_managed_long_signals(
+        manager,
+        route,
+        program_order,
+        legacy_program_handles,
+        dispatch,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        snapshot,
+        &enter_tags,
+    )?;
+    let generic_signals = generic_managed_exit_signals(
+        manager,
+        generic_route,
+        source_program_handles,
+        dispatch,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        snapshot,
+        &enter_tags,
+    )?;
+    if generic_signals != legacy_signals {
+        return None;
+    }
+    *profit_targets = legacy_targets;
+    Some(legacy)
 }
 
 #[allow(clippy::too_many_arguments)]

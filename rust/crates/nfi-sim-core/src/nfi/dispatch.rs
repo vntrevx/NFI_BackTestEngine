@@ -211,7 +211,7 @@ fn evaluate_nfi_long_btc_adjustment(
         available_balance,
     )? {
         RegularAdjustmentOutcome::Return(signal) => Some(signal),
-        RegularAdjustmentOutcome::ContinueLegacy => evaluate_nfi_legacy_grind_adjustment(
+        RegularAdjustmentOutcome::ContinueGrind => evaluate_nfi_legacy_grind_adjustment(
             manager,
             route,
             trade,

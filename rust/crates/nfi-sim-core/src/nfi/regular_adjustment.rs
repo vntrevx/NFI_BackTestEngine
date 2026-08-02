@@ -13,9 +13,9 @@ use crate::calculations::{fee_close, fee_open};
 use crate::callbacks::insert_projected_feature_window;
 use crate::domain::{
     AdjustmentSignal, Candle, CompiledOrderSequence, CompiledOrderSide,
-    CompiledRegularAdjustmentProgram, CompiledRegularOrderScan, CompiledRegularTransition,
-    FilledOrder, NfiLongGrindRoute, NfiRegularAdjustmentConstants, NfiRegularAdjustmentPolicy,
-    NfiRegularGrind, NfiX7TradeManager, PairSeries, PortfolioConfig,
+    CompiledRegularAdjustmentProgram, CompiledRegularExecutionMode, CompiledRegularOrderScan,
+    CompiledRegularTransition, FilledOrder, NfiLongGrindRoute, NfiRegularAdjustmentConstants,
+    NfiRegularAdjustmentPolicy, NfiRegularGrind, NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::portfolio::{OpenTrade, TradeSide};
@@ -25,10 +25,10 @@ use super::dispatch::nfi_long_grind_supports_trade;
 use super::state::nfi_profit_snapshot;
 
 /// The regular helper either returns from the outer callback or deliberately
-/// transfers a de-risked trade to the legacy continuation below it.
+/// transfers a de-risked trade to the source-compiled Grind continuation below it.
 pub(crate) enum RegularAdjustmentOutcome {
     Return(Option<AdjustmentSignal>),
-    ContinueLegacy,
+    ContinueGrind,
 }
 
 #[derive(Debug)]
@@ -189,8 +189,8 @@ fn outcomes_match(
 ) -> bool {
     match (left, right) {
         (
-            Some(RegularAdjustmentOutcome::ContinueLegacy),
-            Some(RegularAdjustmentOutcome::ContinueLegacy),
+            Some(RegularAdjustmentOutcome::ContinueGrind),
+            Some(RegularAdjustmentOutcome::ContinueGrind),
         )
         | (
             Some(RegularAdjustmentOutcome::Return(None)),
@@ -228,22 +228,7 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
     }
     let constants = route.regular_constants.as_ref()?;
     let program = route.regular_decision_program.as_deref()?;
-    let legacy_contract = reviewed_legacy_contract(route, constants);
-    let legacy = evaluate_regular_adjustment_with_contract(
-        manager,
-        trade,
-        pair,
-        candle_index,
-        candle,
-        config,
-        available_balance,
-        constants,
-        program,
-        &legacy_contract,
-    );
-    let Some(compiled) = route.regular_program.as_ref() else {
-        return legacy;
-    };
+    let compiled = route.regular_program.as_ref()?;
     let primary_contract = compiled_runtime_contract(compiled, constants)?;
     let primary = evaluate_regular_adjustment_with_contract(
         manager,
@@ -256,6 +241,22 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
         constants,
         program,
         &primary_contract,
+    );
+    if compiled.execution_mode == CompiledRegularExecutionMode::Primary {
+        return primary;
+    }
+    let legacy_contract = reviewed_legacy_contract(route, constants);
+    let legacy = evaluate_regular_adjustment_with_contract(
+        manager,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        config,
+        available_balance,
+        constants,
+        program,
+        &legacy_contract,
     );
     outcomes_match(primary.as_ref(), legacy.as_ref()).then_some(primary?)
 }
@@ -279,7 +280,7 @@ fn evaluate_regular_adjustment_with_contract(
     // The helper returns this flag to `long_grind_adjust_trade_position()`.
     // Only this outcome continues into the legacy post-de-risk clusters.
     if state.is_derisk {
-        return Some(RegularAdjustmentOutcome::ContinueLegacy);
+        return Some(RegularAdjustmentOutcome::ContinueGrind);
     }
 
     let snapshot = nfi_profit_snapshot(

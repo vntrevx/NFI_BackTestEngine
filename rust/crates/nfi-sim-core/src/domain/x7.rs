@@ -143,6 +143,7 @@ pub struct ManagedExitProgram {
 pub enum ManagedExitExecutionMode {
     Shadow,
     PrimaryWithLegacyShadow,
+    Primary,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -471,6 +472,7 @@ pub struct CompiledRegularAdjustmentProgram {
 #[serde(rename_all = "kebab-case")]
 pub enum CompiledRegularExecutionMode {
     PrimaryWithLegacyShadow,
+    Primary,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -548,6 +550,7 @@ pub struct CompiledLegacyGrindProgram {
 #[serde(rename_all = "kebab-case")]
 pub enum CompiledLegacyGrindExecutionMode {
     PrimaryWithLegacyShadow,
+    Primary,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -721,6 +724,7 @@ pub struct CompiledSystemAdjustmentProgram {
 #[serde(rename_all = "kebab-case")]
 pub enum CompiledSystemAdjustmentExecutionMode {
     PrimaryWithLegacyShadow,
+    Primary,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]

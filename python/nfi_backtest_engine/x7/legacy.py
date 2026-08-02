@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import math
 import re
 from typing import Any
 
@@ -11,10 +12,8 @@ from .legacy_grind_ir import compile_legacy_grind_ir, extract_legacy_futures_fal
 from .regular_adjustment_ir import compile_regular_adjustment_ir
 from .trade_manager import (
     _LONG_BTC_ADJUSTMENT_SCOPE,
-    _LONG_BTC_METHOD_SHA256,
     _LONG_BTC_STATEFUL_METHODS,
     _LONG_GRIND_ADJUSTMENT_SCOPE,
-    _LONG_GRIND_METHOD_SHA256,
     _LONG_GRIND_STATEFUL_METHODS,
     _LONG_REGULAR_ADJUSTMENT_PROGRAM,
     _MANAGED_LONG_ADJUSTMENT_PROGRAM,
@@ -31,9 +30,8 @@ def _build_long_grind_route(
     X7 keeps this route beside the system-v3.2 adjustment machinery and selects
     its stake, threshold, and precision behavior from ``is_futures_mode``.
     We publish the dual-mode scope only when both stateful methods and every
-    spot and futures constant are present. Once the shape is recognizable, a
-    changed method hash is a hard error: silently falling back to a handwritten
-    state machine would turn a source update into an undetected parity bug.
+    Spot and Futures constant are present. Every executable branch is validated
+    structurally while building the transition program.
     """
     return _build_legacy_grind_route(
         constants,
@@ -43,7 +41,6 @@ def _build_long_grind_route(
         mode_constant="long_grind_mode_name",
         tags_constant="long_grind_mode_tags",
         stateful_methods=_LONG_GRIND_STATEFUL_METHODS,
-        method_sha256=_LONG_GRIND_METHOD_SHA256,
         adjustment_scope=_LONG_GRIND_ADJUSTMENT_SCOPE,
         grind_mode=True,
     )
@@ -63,7 +60,6 @@ def _build_long_btc_route(
         mode_constant="long_btc_mode_name",
         tags_constant="long_btc_mode_tags",
         stateful_methods=_LONG_BTC_STATEFUL_METHODS,
-        method_sha256=_LONG_BTC_METHOD_SHA256,
         adjustment_scope=_LONG_BTC_ADJUSTMENT_SCOPE,
         grind_mode=False,
         regular_mode=True,
@@ -92,12 +88,11 @@ def _build_legacy_grind_route(
     mode_constant: str,
     tags_constant: str,
     stateful_methods: tuple[str, ...],
-    method_sha256: dict[str, str],
     adjustment_scope: str,
     grind_mode: bool,
     regular_mode: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Validate one source-pinned route into X7's legacy grind state machine."""
+    """Compile one structurally validated route into the generic Grind program."""
     if not isinstance(constants, dict):
         return None, {}
     mode_name = constants.get(mode_constant)
@@ -128,17 +123,6 @@ def _build_legacy_grind_route(
         if isinstance(method_records, list)
         else {}
     )
-    changed = [
-        name
-        for name, expected in method_sha256.items()
-        if records.get(name, {}).get("source_sha256") != expected
-    ]
-    if changed:
-        raise StrategyAnalysisError(
-            f"NFI X7 {route_name} route changed; exact lowering requires review: "
-            + ", ".join(changed)
-        )
-
     numeric_names = (
         "grind_mode_first_entry_profit_threshold_spot",
         "grind_mode_first_entry_stop_threshold_spot",
@@ -167,8 +151,10 @@ def _build_legacy_grind_route(
     route = {
         "mode_name": mode_name,
         "entry_tags": sorted(set(entry_tags)),
-        # The 25% literal is protected by the route-specific exit-method hash.
-        "exit_profit_threshold": 0.25,
+        "exit_profit_threshold": _route_exit_profit_threshold(
+            methods[stateful_methods[0]],
+            mode_constant=mode_constant,
+        ),
         "adjustment_scope": adjustment_scope,
         "grind_mode": grind_mode,
         "decision_program": _MANAGED_LONG_ADJUSTMENT_PROGRAM,
@@ -206,6 +192,73 @@ def _build_legacy_grind_route(
         "entry_feature_columns"
     ]
     return route, identity
+
+
+def _route_exit_profit_threshold(
+    method: ast.FunctionDef,
+    *,
+    mode_constant: str,
+) -> float:
+    """Compile the pure Grind/BTC exit wrapper without a version or hash table."""
+
+    if len(method.body) != 2:
+        raise StrategyAnalysisError(f"NFI {method.name} exit wrapper changed")
+    branch, fallback = method.body
+    if (
+        not isinstance(branch, ast.If)
+        or branch.orelse
+        or not isinstance(branch.test, ast.Compare)
+        or not isinstance(branch.test.left, ast.Name)
+        or branch.test.left.id != "profit_init_ratio"
+        or len(branch.test.ops) != 1
+        or not isinstance(branch.test.ops[0], ast.Gt)
+        or len(branch.test.comparators) != 1
+        or len(branch.body) != 1
+        or not _route_exit_return(branch.body[0], mode_constant=mode_constant, expected=True)
+        or not _route_exit_return(fallback, mode_constant=mode_constant, expected=False)
+    ):
+        raise StrategyAnalysisError(f"NFI {method.name} exit wrapper changed")
+    threshold = branch.test.comparators[0]
+    if (
+        not isinstance(threshold, ast.Constant)
+        or isinstance(threshold.value, bool)
+        or not isinstance(threshold.value, int | float)
+        or not math.isfinite(float(threshold.value))
+    ):
+        raise StrategyAnalysisError(f"NFI {method.name} exit threshold changed")
+    return float(threshold.value)
+
+
+def _route_exit_return(
+    statement: ast.stmt,
+    *,
+    mode_constant: str,
+    expected: bool,
+) -> bool:
+    if (
+        not isinstance(statement, ast.Return)
+        or not isinstance(statement.value, ast.Tuple)
+        or len(statement.value.elts) != 2
+        or not isinstance(statement.value.elts[0], ast.Constant)
+        or statement.value.elts[0].value is not expected
+    ):
+        return False
+    reason = statement.value.elts[1]
+    if not expected:
+        return isinstance(reason, ast.Constant) and reason.value is None
+    return (
+        isinstance(reason, ast.JoinedStr)
+        and len(reason.values) == 3
+        and isinstance(reason.values[0], ast.Constant)
+        and reason.values[0].value == "exit_"
+        and isinstance(reason.values[1], ast.FormattedValue)
+        and isinstance(reason.values[1].value, ast.Attribute)
+        and isinstance(reason.values[1].value.value, ast.Name)
+        and reason.values[1].value.value.id == "self"
+        and reason.values[1].value.attr == mode_constant
+        and isinstance(reason.values[2], ast.Constant)
+        and reason.values[2].value == "_g"
+    )
 
 
 def _legacy_futures_fallback_loss_threshold(method: ast.FunctionDef) -> float:
@@ -414,7 +467,7 @@ def _regular_adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, int
     These values are part of the reviewed Python method, not engine tuning.
     Extracting them into the typed IR keeps Rust free of strategy-version
     literals and makes the effective policy visible in a certification bundle.
-    The surrounding method hash still rejects a structural source change.
+    The compiler rejects any structural policy change it cannot represent.
     """
 
     def numeric(node: ast.AST) -> float | None:

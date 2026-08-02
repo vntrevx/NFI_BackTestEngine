@@ -7,6 +7,7 @@ import pytest
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 from nfi_backtest_engine.trade_ir import build_trade_dependency_ir
+from nfi_backtest_engine.x7.legacy import _route_exit_profit_threshold
 from nfi_backtest_engine.x7.legacy_grind_ir import compile_legacy_grind_ir
 from nfi_backtest_engine.x7.trade_manager import build_nfi_trade_manager_ir
 
@@ -133,6 +134,44 @@ def _constants() -> dict[str, object]:
             {"entry_tag": "post-a", "stop_tag": "post-a-stop", "post_derisk": True},
         ],
     }
+
+
+def _exit_wrapper(*, threshold: float = 0.25) -> ast.FunctionDef:
+    node = ast.parse(
+        f"""
+def long_exit_grind(self, profit_init_ratio):
+    if profit_init_ratio > {threshold!r}:
+        return True, f"exit_{{self.long_grind_mode_name}}_g"
+    return False, None
+"""
+    ).body[0]
+    assert isinstance(node, ast.FunctionDef)
+    return node
+
+
+def test_route_exit_profit_threshold_is_compiled_from_source() -> None:
+    assert (
+        _route_exit_profit_threshold(
+            _exit_wrapper(),
+            mode_constant="long_grind_mode_name",
+        )
+        == 0.25
+    )
+    assert (
+        _route_exit_profit_threshold(
+            _exit_wrapper(threshold=0.31),
+            mode_constant="long_grind_mode_name",
+        )
+        == 0.31
+    )
+
+
+def test_route_exit_profit_threshold_rejects_changed_wrapper_control_flow() -> None:
+    method = _exit_wrapper()
+    method.body.insert(0, ast.parse("record_exit_attempt()").body[0])
+
+    with pytest.raises(StrategyAnalysisError, match="exit wrapper changed"):
+        _route_exit_profit_threshold(method, mode_constant="long_grind_mode_name")
 
 
 def test_legacy_grind_ir_uses_source_tags_and_policy_as_data() -> None:
@@ -315,7 +354,7 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert manager is not None
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
-    assert operation["schema_version"] == "0.28.0"
+    assert operation["schema_version"] == "0.29.0"
     assert manager["remaining_steps"] == []
     assert manager["backtest_exclusions"] == [
         {

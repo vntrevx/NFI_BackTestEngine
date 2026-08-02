@@ -142,7 +142,7 @@ def compile_system_adjustment_ir(
         )
     program: dict[str, Any] = {
         "schema_version": SYSTEM_ADJUSTMENT_PROGRAM_VERSION,
-        "execution_mode": "primary-with-legacy-shadow",
+        "execution_mode": "primary",
         "side": side,
         "source_callback": method.name,
         "source_order": compiled_actions,

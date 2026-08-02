@@ -206,9 +206,10 @@ or auto-merged.
 
 For supported X7 stateful callbacks, `run.json` records the
 `x7-generic-stateful` Native lane and every source-compiled primary program. The
-specialized X7 vector transport remains only an input contract; retained handwritten
-logic runs as a fail-closed exact shadow during migration. A missing primary mode blocks
-Native before simulation and leaves the visible official fallback available.
+specialized X7 vector transport remains only an input contract. Current manager payloads
+execute generic programs without a handwritten X7 shadow; a missing or retired execution
+mode blocks Native before simulation and leaves the visible official fallback available.
+Historical schema readers remain available for sealed evidence replay.
 
 ## Confirm with official Freqtrade
 

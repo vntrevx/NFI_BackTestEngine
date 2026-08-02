@@ -89,8 +89,8 @@ def check_strategy_compatibility(
                 config=selected_config,
             )
         except StrategyAnalysisError as exc:
-            # Source-bound handwritten state machines intentionally raise here when a
-            # future NFI patch changes observable callback behavior. Convert that
+            # Source-bound structural compilers intentionally raise here when a future
+            # NFI patch introduces behavior outside the generic opcode set. Convert that
             # exception into a durable report instead of losing the upstream source
             # identity in a generic CLI error.
             state_machine_summary = _state_machine_summary(

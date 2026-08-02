@@ -9,7 +9,7 @@ from typing import Any
 from .errors import StrategyAnalysisError
 from .x7.serialization import _nfi_trade_manager_config
 
-STATEFUL_EXECUTION_POLICY_VERSION = "1.0.0"
+STATEFUL_EXECUTION_POLICY_VERSION = "1.1.0"
 X7_GENERIC_STATEFUL_LANE = "x7-generic-stateful"
 X7_VECTOR_TRANSPORT = "x7-vector-manifest"
 GENERIC_VECTOR_TRANSPORT = "generic-vector-manifest"
@@ -21,7 +21,7 @@ _STATEFUL_PROGRAM_SCHEMA_PREFIXES = (
     "regular-transition-program-",
     "system-adjustment-program-",
 )
-_PRIMARY_EXECUTION_MODES = frozenset({"primary", "primary-with-legacy-shadow"})
+_PRIMARY_EXECUTION_MODES = frozenset({"primary"})
 
 
 def build_native_execution_policy(

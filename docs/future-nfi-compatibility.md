@@ -63,11 +63,11 @@ rollback한다. Signal 번호와 Grind 단계 수는 opcode가 아니라 IR 데�
 
 지원되는 X7 stateful 실행은 공개 실행 계약에서 `x7-generic-stateful` lane으로
 기록된다. `native_execution.programs`는 전략 소스에서 직렬화된 stateful root와
-각 `execution_mode`를 경로별로 보존한다. 모든 root가 `primary` 또는
-`primary-with-legacy-shadow`여야 Native가 시작되며, 빠진 mode나 legacy-only mode는
-시뮬레이션 전에 차단된다. X7 전용 vector manifest는 운송 계약일 뿐 기본 동작의
-선택 기준이 아니다. 기존 Rust 경로는 독립 exact shadow 및 과거 evidence replay를
-위해 유지하고, 불일치하면 fail-closed한다. fallback은 계속 사용자 동의 또는
+각 `execution_mode`를 경로별로 보존한다. 현재 contract의 모든 root가 `primary`여야
+Native가 시작되며, 빠진 mode나 폐기된 shadow mode는 시뮬레이션 전에 차단된다. X7
+전용 vector manifest는 운송 계약일 뿐 기본 동작의 선택 기준이 아니다. 이전 schema
+reader는 과거 evidence replay를 위해 유지하지만 현재 실행에는 참여하지 않는다.
+fallback은 계속 사용자 동의 또는
 `--fallback official`로만 시작하며 실행 전에 반드시 전환 사실을 알린다.
 
 `state-machine-program-v2`는 v1 프로그램도 계속 실행하면서, 동기식

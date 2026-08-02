@@ -11,11 +11,11 @@ from typing import Any, cast
 
 from ..errors import StrategyAnalysisError
 from .trade_manager import (
-    _MANAGED_LONG_METHOD_SHA256,
     _MANAGED_LONG_ROUTE_SPECS,
     _MANAGED_LONG_STATEFUL_FEATURES,
-    _MANAGED_SHORT_METHOD_SHA256,
+    _MANAGED_LONG_STATEFUL_STEPS,
     _MANAGED_SHORT_ROUTE_SPECS,
+    _MANAGED_SHORT_STATEFUL_STEPS,
     _QUICK_RAPID_STATEFUL_FEATURES,
     _ROUTE_STOP_CONSTANTS,
 )
@@ -28,7 +28,7 @@ def _require_managed_long_methods(methods: Mapping[str, ast.FunctionDef]) -> Non
         [
             "custom_exit",
             *(spec.method for spec in _MANAGED_LONG_ROUTE_SPECS),
-            *_MANAGED_LONG_METHOD_SHA256,
+            *_MANAGED_LONG_STATEFUL_STEPS,
         ]
     )
     missing = [name for name in required if name not in methods]
@@ -38,32 +38,12 @@ def _require_managed_long_methods(methods: Mapping[str, ast.FunctionDef]) -> Non
         )
 
 
-def _validate_managed_long_method_identity(
-    methods: dict[str, ast.FunctionDef],
-    method_records: dict[str, dict[str, Any]],
-) -> None:
-    """Pin only residual helpers that generic managed-exit IR still calls."""
-
-    _require_managed_long_methods(methods)
-    changed = [
-        name
-        for name, expected in _MANAGED_LONG_METHOD_SHA256.items()
-        if method_records.get(name, {}).get("source_sha256") != expected
-    ]
-    if changed:
-        raise StrategyAnalysisError(
-            "NFI X7 managed-exit helper changed; exact lowering requires review: "
-            + ", ".join(changed)
-        )
-
-
 def _extract_rebuy_terminal_exit(
     method: ast.FunctionDef,
 ) -> tuple[dict[str, Any] | None, int | None]:
     """Extract the optional pure terminal exit appended to `long_exit_rebuy`.
 
-    The stateful portion of the method remains pinned by its masked AST hash.
-    Only this closed expression shape is dynamic: exact entry tags, elapsed
+    Only this closed expression shape is accepted: exact entry tags, elapsed
     trade age, initial-basis profit, and a literal exit reason.
     """
 
@@ -252,25 +232,13 @@ def _method_ast_sha256(
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _validate_managed_short_method_identity(
-    methods: dict[str, ast.FunctionDef],
-    method_records: dict[str, dict[str, Any]],
-) -> None:
-    """Pin only residual short helpers that generic exit IR still calls."""
-    missing = [name for name in _MANAGED_SHORT_METHOD_SHA256 if name not in methods]
+def _require_managed_short_methods(methods: Mapping[str, ast.FunctionDef]) -> None:
+    """Require every helper consumed by structural short-exit lowering."""
+
+    missing = [name for name in _MANAGED_SHORT_STATEFUL_STEPS if name not in methods]
     if missing:
         raise StrategyAnalysisError(
             "NFI X7 managed-short state machine is missing: " + ", ".join(missing)
-        )
-    changed = [
-        name
-        for name, expected in _MANAGED_SHORT_METHOD_SHA256.items()
-        if method_records.get(name, {}).get("source_sha256") != expected
-    ]
-    if changed:
-        raise StrategyAnalysisError(
-            "NFI X7 managed-exit helper changed; exact lowering requires review: "
-            + ", ".join(changed)
         )
 
 

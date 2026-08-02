@@ -124,6 +124,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.26.0"
             | "0.27.0"
             | "0.28.0"
+            | "0.29.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -156,6 +157,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.26.0"
             | "0.27.0"
             | "0.28.0"
+            | "0.29.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -254,6 +256,7 @@ pub(crate) fn validate_nfi_trade_manager(
                             | "0.26.0"
                             | "0.27.0"
                             | "0.28.0"
+                            | "0.29.0"
                     )
                 }
                 _ => false,
@@ -302,7 +305,10 @@ pub(crate) fn validate_nfi_trade_manager(
                 .regular_constants
                 .as_ref()
                 .is_some_and(valid_nfi_regular_adjustment_constants)
-            && if matches!(manager.schema_version.as_str(), "0.27.0" | "0.28.0") {
+            && if matches!(
+                manager.schema_version.as_str(),
+                "0.27.0" | "0.28.0" | "0.29.0"
+            ) {
                 valid_versioned_legacy_grind_program(&manager.schema_version, route)
             } else {
                 route.program.is_none()
@@ -362,7 +368,7 @@ pub(crate) fn validate_nfi_trade_manager(
             }
             "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
             | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0"
-            | "0.26.0" | "0.27.0" | "0.28.0" => {
+            | "0.26.0" | "0.27.0" | "0.28.0" | "0.29.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -548,7 +554,7 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
     let required_program_version = match schema_version {
         "0.25.0" => Some("grind-transition-program-v1"),
         "0.26.0" => Some("grind-transition-program-v2"),
-        "0.27.0" | "0.28.0" => Some("grind-transition-program-v3"),
+        "0.27.0" | "0.28.0" | "0.29.0" => Some("grind-transition-program-v3"),
         _ => None,
     };
     let Some(program) = route.program.as_ref() else {
@@ -777,7 +783,12 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
     } else {
         scan.known_clusters.len() + 2
     };
-    program.execution_mode == CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow
+    program.execution_mode
+        == if schema_version == "0.29.0" {
+            CompiledLegacyGrindExecutionMode::Primary
+        } else {
+            CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow
+        }
         && program.source_callback == "long_grind_adjust_trade_position"
         && matches!(scan.sequence, CompiledOrderSequence::Reverse)
         && scan.entry_order_side == CompiledOrderSide::Buy
@@ -848,7 +859,7 @@ fn valid_versioned_regular_adjustment_program(
     schema_version: &str,
     route: &NfiLongGrindRoute,
 ) -> bool {
-    let required = schema_version == "0.28.0";
+    let required = matches!(schema_version, "0.28.0" | "0.29.0");
     let Some(program) = route.regular_program.as_ref() else {
         return !required;
     };
@@ -990,7 +1001,12 @@ fn valid_versioned_regular_adjustment_program(
         });
     let continuation = &program.continuation;
     program.schema_version == "regular-transition-program-v1"
-        && program.execution_mode == CompiledRegularExecutionMode::PrimaryWithLegacyShadow
+        && program.execution_mode
+            == if schema_version == "0.29.0" {
+                CompiledRegularExecutionMode::Primary
+            } else {
+                CompiledRegularExecutionMode::PrimaryWithLegacyShadow
+            }
         && program.source_callback == "long_adjust_trade_position_no_derisk"
         && !rebuy_tag.is_empty()
         && valid_location(rebuy_location)
@@ -1031,7 +1047,7 @@ fn valid_versioned_system_adjustment_program(
 ) -> bool {
     let required = matches!(
         schema_version,
-        "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
+        "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0" | "0.29.0"
     ) || (schema_version == "0.23.0"
         && expected_side == CompiledSystemAdjustmentSide::Long);
     if !required {
@@ -1075,7 +1091,12 @@ fn valid_versioned_system_adjustment_program(
         .map(String::as_str)
         .collect::<Vec<_>>();
     program.schema_version == "system-adjustment-program-v1"
-        && program.execution_mode == CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
+        && program.execution_mode
+            == if schema_version == "0.29.0" {
+                CompiledSystemAdjustmentExecutionMode::Primary
+            } else {
+                CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
+            }
         && program.side == expected_side
         && program.source_callback == adjustment.source_callback.as_deref().unwrap_or("")
         && !program.source_callback.is_empty()
@@ -1184,7 +1205,7 @@ fn valid_versioned_rebuy_program(
 ) -> bool {
     if !matches!(
         schema_version,
-        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
+        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0" | "0.29.0"
     ) {
         return program.is_none();
     }
@@ -1218,7 +1239,7 @@ fn valid_versioned_rebuy_program(
 fn valid_adjustment_source_callback(schema_version: &str, callback: Option<&str>) -> bool {
     if matches!(
         schema_version,
-        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
+        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0" | "0.29.0"
     ) {
         callback.is_some_and(|value| !value.is_empty())
     } else {
@@ -1259,6 +1280,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
             | "0.26.0"
             | "0.27.0"
             | "0.28.0"
+            | "0.29.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -1336,6 +1358,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                             | "0.26.0"
                             | "0.27.0"
                             | "0.28.0"
+                            | "0.29.0"
                     ),
                 ),
                 None => !matches!(
@@ -1350,6 +1373,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                         | "0.26.0"
                         | "0.27.0"
                         | "0.28.0"
+                        | "0.29.0"
                 ),
             }
             && valid_managed_exit_terminal(route, &matcher_tags)
@@ -1373,6 +1397,7 @@ fn managed_exit_program_required(schema_version: &str) -> bool {
             | "0.26.0"
             | "0.27.0"
             | "0.28.0"
+            | "0.29.0"
     )
 }
 
@@ -1405,6 +1430,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                 | "0.26.0"
                 | "0.27.0"
                 | "0.28.0"
+                | "0.29.0"
         );
     };
     if program.schema_version != "managed-exit-program-v1"
@@ -1490,6 +1516,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                             | "0.26.0"
                             | "0.27.0"
                             | "0.28.0"
+                            | "0.29.0"
                     ),
                 )
             })
@@ -1502,9 +1529,21 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
 fn valid_managed_exit_execution_mode(schema_version: &str, mode: ManagedExitExecutionMode) -> bool {
     if matches!(
         schema_version,
-        "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
+        "0.21.0"
+            | "0.22.0"
+            | "0.23.0"
+            | "0.24.0"
+            | "0.25.0"
+            | "0.26.0"
+            | "0.27.0"
+            | "0.28.0"
+            | "0.29.0"
     ) {
-        mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
+        mode == if schema_version == "0.29.0" {
+            ManagedExitExecutionMode::Primary
+        } else {
+            ManagedExitExecutionMode::PrimaryWithLegacyShadow
+        }
     } else {
         mode == ManagedExitExecutionMode::Shadow
     }

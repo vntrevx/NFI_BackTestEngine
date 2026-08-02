@@ -3,9 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::domain::{
-    ManagedExitTagMatcher, ManagedExitTagOperator, NfiDispatchPlan, NfiInternedTagMatcher,
-    NfiLongDispatchStep, NfiManagedDispatchStep, NfiManagedLongProfile, NfiProgramHandle, NfiTagId,
-    NfiX7TradeManager, ScalarDecisionProgram,
+    ManagedExitExecutionMode, ManagedExitTagMatcher, ManagedExitTagOperator, NfiDispatchPlan,
+    NfiInternedTagMatcher, NfiLongDispatchStep, NfiManagedDispatchStep, NfiManagedLongProfile,
+    NfiProgramHandle, NfiTagId, NfiX7TradeManager, ScalarDecisionProgram,
 };
 use crate::portfolio::{OpenTrade, TradeSide};
 
@@ -191,10 +191,21 @@ fn build_program_handles(
     manager: &NfiX7TradeManager,
 ) -> Option<(Vec<String>, HashMap<String, NfiProgramHandle>)> {
     let mut required = BTreeSet::new();
-    for route in &manager.managed_long_routes {
-        required.extend(legacy_long_programs(route.profile));
+    if manager
+        .managed_exit_program
+        .as_ref()
+        .is_none_or(|program| program.execution_mode != ManagedExitExecutionMode::Primary)
+    {
+        for route in &manager.managed_long_routes {
+            required.extend(legacy_long_programs(route.profile));
+        }
     }
-    if !manager.managed_short_routes.is_empty() {
+    if !manager.managed_short_routes.is_empty()
+        && manager
+            .managed_short_exit_program
+            .as_ref()
+            .is_none_or(|program| program.execution_mode != ManagedExitExecutionMode::Primary)
+    {
         required.extend(NFI_SHORT_EXIT_PROGRAMS);
     }
     for program in [
@@ -249,10 +260,18 @@ fn build_long_steps(
                 || Some(Vec::new()),
                 |route| handles(&route.decision_program_order, program_handles),
             )?;
-            let legacy_program_handles = handles(
-                legacy_long_programs(manager.managed_long_routes[route_index].profile),
-                program_handles,
-            )?;
+            let legacy_program_handles = if manager
+                .managed_exit_program
+                .as_ref()
+                .is_some_and(|program| program.execution_mode == ManagedExitExecutionMode::Primary)
+            {
+                Vec::new()
+            } else {
+                handles(
+                    legacy_long_programs(manager.managed_long_routes[route_index].profile),
+                    program_handles,
+                )?
+            };
             steps.push(NfiLongDispatchStep::Managed(NfiManagedDispatchStep {
                 route_index,
                 source_route_index,
@@ -303,7 +322,13 @@ fn build_short_steps(
                     || Some(Vec::new()),
                     |route| handles(&route.decision_program_order, program_handles),
                 )?,
-                legacy_program_handles: handles(NFI_SHORT_EXIT_PROGRAMS, program_handles)?,
+                legacy_program_handles: if manager.managed_short_exit_program.as_ref().is_some_and(
+                    |program| program.execution_mode == ManagedExitExecutionMode::Primary,
+                ) {
+                    Vec::new()
+                } else {
+                    handles(NFI_SHORT_EXIT_PROGRAMS, program_handles)?
+                },
             })
         })
         .collect()

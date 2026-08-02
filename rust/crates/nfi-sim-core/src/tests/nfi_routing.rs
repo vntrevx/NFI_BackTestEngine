@@ -4,6 +4,32 @@ use super::*;
 use crate::nfi::NFI_LONG_EXIT_PROGRAMS;
 
 #[test]
+fn retired_execution_modes_still_deserialize_for_evidence_replay() {
+    let managed: ManagedExitExecutionMode =
+        serde_json::from_str("\"primary-with-legacy-shadow\"").expect("managed mode");
+    let regular: CompiledRegularExecutionMode =
+        serde_json::from_str("\"primary-with-legacy-shadow\"").expect("regular mode");
+    let grind: CompiledLegacyGrindExecutionMode =
+        serde_json::from_str("\"primary-with-legacy-shadow\"").expect("grind mode");
+    let adjustment: CompiledSystemAdjustmentExecutionMode =
+        serde_json::from_str("\"primary-with-legacy-shadow\"").expect("adjustment mode");
+
+    assert_eq!(managed, ManagedExitExecutionMode::PrimaryWithLegacyShadow);
+    assert_eq!(
+        regular,
+        CompiledRegularExecutionMode::PrimaryWithLegacyShadow
+    );
+    assert_eq!(
+        grind,
+        CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow
+    );
+    assert_eq!(
+        adjustment,
+        CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
+    );
+}
+
+#[test]
 fn nfi_dispatch_plan_derives_tag_ids_route_indexes_and_program_handles() {
     let mut manager = nfi_top_coins_manager(nfi_false_program());
     let source_tag = "source-defined-tag".to_owned();
@@ -46,6 +72,31 @@ fn nfi_dispatch_plan_derives_tag_ids_route_indexes_and_program_handles() {
         .legacy_program_handles
         .iter()
         .all(|handle| dispatch.program(*handle, &manager.programs).is_some()));
+}
+
+#[test]
+fn primary_managed_exit_dispatch_does_not_register_legacy_program_handles() {
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_basic_exit_shadow(&mut manager, "long_top_coins", None);
+    manager
+        .route_order
+        .retain(|route| route == "long_top_coins");
+    manager
+        .managed_long_routes
+        .retain(|route| route.key == "long_top_coins");
+    manager
+        .managed_exit_program
+        .as_mut()
+        .expect("source-compiled managed exit")
+        .execution_mode = ManagedExitExecutionMode::Primary;
+
+    let dispatch = manager.runtime_dispatch().expect("primary dispatch plan");
+    let NfiLongDispatchStep::Managed(step) = &dispatch.long_steps[0] else {
+        panic!("first source route must remain managed");
+    };
+
+    assert!(step.legacy_program_handles.is_empty());
+    assert!(!step.source_program_handles.is_empty());
 }
 
 #[test]

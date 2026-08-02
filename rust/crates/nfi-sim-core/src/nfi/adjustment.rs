@@ -139,6 +139,18 @@ pub(crate) fn evaluate_nfi_position_adjustment(
             rebuy_mode,
         );
     };
+    if program.execution_mode == CompiledSystemAdjustmentExecutionMode::Primary {
+        return evaluate_compiled_system_adjustment(
+            manager,
+            adjustment,
+            program,
+            expected_side,
+            trade,
+            request,
+            initial_stake_multiplier,
+            rebuy_mode,
+        );
+    }
     let mut primary_trade = trade.clone();
     let primary = evaluate_compiled_system_adjustment(
         manager,
@@ -247,8 +259,11 @@ fn evaluate_compiled_system_adjustment(
         TradeSide::Long => CompiledSystemAdjustmentSide::Long,
         TradeSide::Short => CompiledSystemAdjustmentSide::Short,
     };
-    if program.execution_mode != CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
-        || program.side != program_side
+    if !matches!(
+        program.execution_mode,
+        CompiledSystemAdjustmentExecutionMode::Primary
+            | CompiledSystemAdjustmentExecutionMode::PrimaryWithLegacyShadow
+    ) || program.side != program_side
         || trade.side != expected_side
     {
         return None;

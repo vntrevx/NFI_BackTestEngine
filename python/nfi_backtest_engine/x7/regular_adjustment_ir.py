@@ -89,7 +89,7 @@ def compile_regular_adjustment_ir(
 
     program: dict[str, Any] = {
         "schema_version": REGULAR_ADJUSTMENT_PROGRAM_VERSION,
-        "execution_mode": "primary-with-legacy-shadow",
+        "execution_mode": "primary",
         "source_callback": method.name,
         "source_order": actions,
         "order_scan": {
