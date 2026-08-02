@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "fingerprint": "6a53fb1b4fe599e2d1b17e227ad524c40c9f8b233b3e70c65431c4701f77b653",
+  "next_shard": 0,
+  "shard_count": 20,
+  "complete": true,
+  "status": "no_gap"
+}
