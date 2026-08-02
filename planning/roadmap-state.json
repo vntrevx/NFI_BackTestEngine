@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 111,
-  "updated_at": "2026-08-02T11:23:32+09:00",
+  "revision": 112,
+  "updated_at": "2026-08-02T12:08:23+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M17-05",
+  "active_task_id": "M18-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4237,7 +4237,7 @@
       "order": 1705,
       "milestone": "M17",
       "title": "Audit all latest-NFI stateful route coverage",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M17-04"
       ],
@@ -4257,9 +4257,18 @@
         "latest-upstream dual-mode qualification"
       ],
       "started_at": "2026-08-02T11:23:32+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T12:08:23+09:00",
+      "commit_sha": "346b962319bb7982abc5739290c418992e6a81f1",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/NostalgiaForInfinityX7.py",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/coverage-spot.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/coverage-futures.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/compatibility-spot.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/compatibility-futures.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/23-dual_mode_qualification.log"
+      ],
       "blocker": null
     },
     {
@@ -4267,7 +4276,7 @@
       "order": 1801,
       "milestone": "M18",
       "title": "Make generic stateful execution the default Native lane",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M17-05"
       ],
@@ -4286,7 +4295,7 @@
         "default-lane contract tests",
         "legacy and generic shadow exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T12:08:23+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7647,6 +7656,47 @@
         "objective": "close every latest-NFI stateful backtest route in Spot and Futures with explicit live-only exclusions",
         "branch_proof_required": true,
         "live_only_code_is_backtest_evidence": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 151,
+      "timestamp": "2026-08-02T12:08:23+09:00",
+      "task_id": "M17-05",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "346b962319bb7982abc5739290c418992e6a81f1",
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_source_sha256": "f3082e90d62da29bf56b8c44e11e79db33f70f45d846dc2b7a4bff7f1e39b418",
+        "spot_emitted_entry_tag_count": 31,
+        "futures_emitted_entry_tag_count": 35,
+        "spot_callback_graph_method_count": 84,
+        "futures_callback_graph_method_count": 85,
+        "spot_reachable_stateful_gap_count": 0,
+        "futures_reachable_stateful_gap_count": 0,
+        "dormant_unsupported_tag_count_per_mode": 1,
+        "dormant_routes_count_as_native_coverage": false,
+        "live_only_source_predicate_count": 12,
+        "live_only_native_policy_path_count": 6,
+        "live_only_code_counted_as_backtest_evidence": false,
+        "latest_spot_native_compatible": true,
+        "latest_futures_native_compatible": true,
+        "latest_full_state_certified_by_this_task": false,
+        "acceptance_command_count": 23,
+        "python_test_count": 668,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 152,
+      "timestamp": "2026-08-02T12:08:23+09:00",
+      "task_id": "M18-01",
+      "event": "task_started",
+      "details": {
+        "objective": "make generic stateful execution the default Native lane while preserving an exact legacy shadow and visible official fallback",
+        "legacy_removal_before_exact_proof_allowed": false,
+        "silent_official_fallback_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
