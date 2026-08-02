@@ -300,6 +300,14 @@ side-specific program first and compares its stake, tag, and complete custom-sta
 with the retained legacy implementation. A mismatch invalidates the Native run; no Signal
 number, strategy SHA, or fixed Grind count selects runtime behavior.
 
+The public research-run contract names this default `x7-generic-stateful`. Its versioned
+policy inventories serialized stateful program roots structurally, requires every root to
+declare a generic primary execution mode, and binds that policy into the immutable run
+identity. X7's Feather/manifest adapter remains the transport because it carries the
+specialized input projection; it no longer labels the execution lane as legacy. A policy
+gap blocks before simulation, while the separately announced official Freqtrade fallback
+remains available and does not mutate Native evidence.
+
 The legacy Grind migration uses the same contract without imposing a level ceiling.
 Python extracts the reverse filled-order walk, order directions, complete cluster-tag
 inventory, first-entry profit and stop, retry/age gates, minimum-stake multipliers,

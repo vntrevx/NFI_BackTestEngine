@@ -52,6 +52,12 @@ terminal values are source data. Rust returns the generic result and independent
 the legacy route as a shadow, comparing both the decision and complete target-cache state.
 Any disagreement fails closed. An unknown companion tag still fails before simulation.
 
+Research runs expose this as the `x7-generic-stateful` adapter lane. The immutable run
+identity lists every stateful program root and its primary/shadow mode, so a source update
+cannot silently fall back to a legacy-only Native path. The X7 adapter name now describes
+the vector transport only; official Freqtrade fallback remains separate and visibly
+announced when the generic contract cannot be proven.
+
 Both system-v3.2 position-adjustment callbacks are independently source-compiled. Their
 de-risk and Grind action order, level sets, exact tags, directional order scans, retry
 windows, wallet guards, stake scaling, partial exits, and required dataframe columns are

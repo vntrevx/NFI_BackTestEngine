@@ -45,6 +45,12 @@ from .state_machine_ir import (
     STATE_MACHINE_PROGRAM_V3_VERSION,
     compile_state_machine_program,
 )
+from .stateful_execution_policy import (
+    GENERIC_VECTOR_TRANSPORT,
+    STATEFUL_EXECUTION_POLICY_VERSION,
+    X7_VECTOR_TRANSPORT,
+    build_native_execution_policy,
+)
 from .strategy_ir import STRATEGY_IR_VERSION
 from .strategy_overrides import effective_stoploss_ratio
 from .vector_runtime import (
@@ -58,7 +64,8 @@ from .x7_adapter import (
     x7_adapter_blockers,
 )
 
-RESEARCH_RUN_VERSION = "1.5.0"
+RESEARCH_RUN_VERSION = "1.6.0"
+PREVIOUS_RESEARCH_RUN_VERSION = "1.5.0"
 LEGACY_RESEARCH_RUN_VERSION = "1.4.0"
 SIMULATION_CHECKPOINT_VERSION = "1.0.0"
 
@@ -149,19 +156,12 @@ def run_research_backtest(
     )
     state_machine_ready = state_machine_program is not None
     native_callbacks_ready = hot_ir["hot_loop_ready"] or state_machine_ready
-    adapter_lane = (
-        "generic-state-machine"
-        if state_machine_ready and not hot_ir["hot_loop_ready"]
-        else "x7-legacy"
-        if hot_ir["hot_loop_ready"]
-        and bool(
-            analysis["strategies"][0].get(
-                "strategy_callbacks",
-                analysis["strategies"][0].get("hot_callbacks", []),
-            )
-        )
-        else "generic-signal"
+    native_execution = build_native_execution_policy(
+        hot_ir,
+        state_machine_program=state_machine_program,
     )
+    adapter_lane = native_execution["adapter_lane"]
+    vector_transport = native_execution["transport"]
     if execution_profile is None:
         profile = ensure_execution_profile(profile_path, workspace=output)
     else:
@@ -233,6 +233,7 @@ def run_research_backtest(
             "market_snapshot_version": MARKET_SNAPSHOT_VERSION,
             "generic_adapter_version": GENERIC_ADAPTER_VERSION,
             "x7_adapter_version": X7_ADAPTER_VERSION,
+            "stateful_execution_policy_version": STATEFUL_EXECUTION_POLICY_VERSION,
         },
         "strategy": {
             "path": str(source),
@@ -258,6 +259,7 @@ def run_research_backtest(
         "output_options": {
             "trace_engine_events": trace_engine_events,
         },
+        "native_execution": native_execution,
         "market_metadata": (
             {
                 "path": str(selected_market_metadata),
@@ -284,19 +286,21 @@ def run_research_backtest(
             existing_identity_document.get("run_id") != run_id
             or existing_identity_document.get("identity") != identity
         ):
-            legacy_identity = _legacy_resume_identity(identity)
-            if legacy_identity is None:
+            legacy_match = next(
+                (
+                    (candidate, _identity_sha256(candidate))
+                    for candidate in _resume_identity_candidates(identity)
+                    if existing_identity_document.get("run_id")
+                    == _identity_sha256(candidate)
+                    and existing_identity_document.get("identity") == candidate
+                ),
+                None,
+            )
+            if legacy_match is None:
                 raise BenchmarkError(
                     "resume identity differs from the existing research run"
                 )
-            legacy_run_id = _identity_sha256(legacy_identity)
-            if (
-                existing_identity_document.get("run_id") != legacy_run_id
-                or existing_identity_document.get("identity") != legacy_identity
-            ):
-                raise BenchmarkError(
-                    "resume identity differs from the existing research run"
-                )
+            legacy_identity, legacy_run_id = legacy_match
             legacy_run = _load_existing_run(
                 output,
                 run_id=legacy_run_id,
@@ -310,7 +314,9 @@ def run_research_backtest(
             _validate_completed_run_artifacts(
                 legacy_run,
                 output,
-                require_simulation_checkpoint=False,
+                require_simulation_checkpoint=(
+                    legacy_identity["schema_version"] != LEGACY_RESEARCH_RUN_VERSION
+                ),
             )
             return legacy_run
         existing_run = _load_existing_run(output, run_id=run_id, identity=identity)
@@ -467,8 +473,9 @@ def run_research_backtest(
         return existing_run
 
     blockers = [] if state_machine_ready else list(hot_ir["blockers"])
+    blockers.extend(native_execution["blockers"])
     if not blockers and not prepare_only:
-        if adapter_lane == "x7-legacy":
+        if vector_transport == X7_VECTOR_TRANSPORT:
             blockers.extend(
                 x7_adapter_blockers(
                     analysis,
@@ -486,7 +493,7 @@ def run_research_backtest(
                     state_machine_program=state_machine_program,
                 )
             )
-    if not blockers and not prepare_only and adapter_lane != "x7-legacy":
+    if not blockers and not prepare_only and vector_transport == GENERIC_VECTOR_TRANSPORT:
         blockers.extend(generic_data_blockers(analysis, vector_report))
     capability_seconds = _elapsed_seconds(stage_started_ns)
     manifest_seconds = 0.0
@@ -540,7 +547,7 @@ def run_research_backtest(
         else:
             _require_absent(simulation_input_path, label="simulation input")
             stage_started_ns = time.perf_counter_ns()
-            if adapter_lane == "x7-legacy":
+            if vector_transport == X7_VECTOR_TRANSPORT:
                 build_x7_vector_manifest(
                     analysis=analysis,
                     hot_ir=hot_ir,
@@ -727,10 +734,11 @@ def run_research_backtest(
             "strategy_static_safe": analysis["static_safe"],
             "hot_ir_fingerprint": hot_ir["fingerprint"],
             "hot_loop_ready": native_callbacks_ready,
+            "adapter_lane": adapter_lane,
+            "native_execution": native_execution,
             **(
                 {
                     "legacy_hot_loop_ready": hot_ir["hot_loop_ready"],
-                    "adapter_lane": adapter_lane,
                     "state_machine_schema_version": state_machine_program[
                         "schema_version"
                     ],
@@ -1153,18 +1161,44 @@ def _identity_sha256(value: dict[str, Any]) -> str:
     ).hexdigest()
 
 
-def _legacy_resume_identity(identity: dict[str, Any]) -> dict[str, Any] | None:
-    """Project default v1.5 inputs onto the immutable v1.4 identity contract."""
-    if identity.get("data_policy") != {"history_coverage_policy": "strict"}:
-        return None
-    if identity.get("output_options") != {"trace_engine_events": False}:
-        return None
+def _resume_identity_candidates(identity: dict[str, Any]) -> list[dict[str, Any]]:
+    previous = _previous_resume_identity(identity)
+    candidates = [previous] if previous is not None else []
+    legacy = _legacy_resume_identity(identity)
+    if legacy is not None:
+        candidates.append(legacy)
+    return candidates
+
+
+def _previous_resume_identity(identity: dict[str, Any]) -> dict[str, Any] | None:
+    """Project v1.6 inputs onto the immutable v1.5 identity contract."""
     pipeline = identity.get("pipeline")
+    if not isinstance(pipeline, dict):
+        return None
+    previous_pipeline = dict(pipeline)
+    previous_pipeline.pop("stateful_execution_policy_version", None)
+    previous_identity = dict(identity)
+    previous_identity["schema_version"] = PREVIOUS_RESEARCH_RUN_VERSION
+    previous_identity["pipeline"] = previous_pipeline
+    previous_identity.pop("native_execution", None)
+    return previous_identity
+
+
+def _legacy_resume_identity(identity: dict[str, Any]) -> dict[str, Any] | None:
+    """Project default v1.6 inputs onto the immutable v1.4 identity contract."""
+    previous_identity = _previous_resume_identity(identity)
+    if previous_identity is None:
+        return None
+    if previous_identity.get("data_policy") != {"history_coverage_policy": "strict"}:
+        return None
+    if previous_identity.get("output_options") != {"trace_engine_events": False}:
+        return None
+    pipeline = previous_identity.get("pipeline")
     if not isinstance(pipeline, dict):
         return None
     legacy_pipeline = dict(pipeline)
     legacy_pipeline.pop("simulation_checkpoint_version", None)
-    legacy_identity = dict(identity)
+    legacy_identity = dict(previous_identity)
     legacy_identity["schema_version"] = LEGACY_RESEARCH_RUN_VERSION
     legacy_identity["pipeline"] = legacy_pipeline
     legacy_identity.pop("data_policy", None)

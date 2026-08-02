@@ -105,6 +105,15 @@
       "availability": "available",
       "mutates_external_state": false
     },
+    "stateful_default_lane_tests": {
+      "command": "uv run pytest -q tests/test_stateful_execution_policy.py tests/test_official_fallback.py tests/test_managed_exit_ir.py tests/test_adjustment_ir.py tests/test_regular_adjustment_ir.py tests/test_legacy_grind_ir.py && cargo test --manifest-path rust/Cargo.toml -p nfi-sim-core --locked generic_managed_exit_shadow",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
     "futures_discovery_tests": {
       "command": "uv run pytest -q tests/test_futures_discovery.py tests/test_futures_candidate_pr.py tests/test_futures_discovery_issue.py tests/test_futures_discovery_health_issue.py tests/test_select_discovery_cursor.py tests/test_futures_discovery_workflow.py tests/test_clean.py",
       "working_directory": ".",
@@ -579,6 +588,7 @@
       "ruff",
       "basedpyright",
       "future_nfi_compatibility_tests",
+      "stateful_default_lane_tests",
       "python_all",
       "rust_fmt",
       "rust_test",

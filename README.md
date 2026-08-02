@@ -204,6 +204,12 @@ missing-branch searches nightly across listing-aware calendar shards. An exact,
 size-bounded hit opens a Draft fixture PR and required CI; it is never auto-approved
 or auto-merged.
 
+For supported X7 stateful callbacks, `run.json` records the
+`x7-generic-stateful` Native lane and every source-compiled primary program. The
+specialized X7 vector transport remains only an input contract; retained handwritten
+logic runs as a fail-closed exact shadow during migration. A missing primary mode blocks
+Native before simulation and leaves the visible official fallback available.
+
 ## Confirm with official Freqtrade
 
 Run the pinned official reference from a completed native result:
