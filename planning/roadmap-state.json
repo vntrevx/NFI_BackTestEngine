@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 116,
-  "updated_at": "2026-08-02T14:54:16+09:00",
+  "revision": 117,
+  "updated_at": "2026-08-02T15:54:07+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M18-05",
+  "active_task_id": "M19-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4426,7 +4426,7 @@
       "order": 1805,
       "milestone": "M18",
       "title": "Remove handwritten X7 stateful runtime behavior",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M18-04"
       ],
@@ -4446,9 +4446,19 @@
         "all exact fixtures pass without legacy"
       ],
       "started_at": "2026-08-02T14:54:16+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T15:54:07+09:00",
+      "commit_sha": "2928d4e3c051001961ef4f9fcbe39c629132a63e",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/native-runtime-retirement-report.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/08-python_all.log",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/10-rust_test.log",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/11-rust_clippy.log",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/18-managed_exit_shadow_tests.log"
+      ],
       "blocker": null
     },
     {
@@ -4456,7 +4466,7 @@
       "order": 1901,
       "milestone": "M19",
       "title": "Upgrade the upstream watcher for generic Native identities",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M18-05"
       ],
@@ -4474,7 +4484,7 @@
         "four-identity watcher contract",
         "dual-mode hosted canary"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T15:54:07+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7898,6 +7908,47 @@
         "certificate_or_oracle_deletion_allowed": false,
         "backward_schema_reader_removal_allowed": false,
         "runtime_signal_or_tag_value_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 161,
+      "timestamp": "2026-08-02T15:54:07+09:00",
+      "task_id": "M18-05",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "2928d4e3c051001961ef4f9fcbe39c629132a63e",
+        "current_manager_schema": "0.29.0",
+        "current_execution_mode_primary_only": true,
+        "current_stateful_program_count": 9,
+        "current_legacy_shadow_program_count": 0,
+        "current_legacy_program_handles_registered": false,
+        "runtime_method_hash_gates_removed": true,
+        "source_exit_profit_threshold_compiled": true,
+        "backward_schema_readers_preserved": true,
+        "legacy_evidence_replay_tested": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "generic_state_machine_exact": true,
+        "generic_state_machine_v3_exact": true,
+        "acceptance_command_count": 18,
+        "python_test_count": 684,
+        "rust_test_count": 145,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 162,
+      "timestamp": "2026-08-02T15:54:07+09:00",
+      "task_id": "M19-01",
+      "event": "task_started",
+      "details": {
+        "objective": "upgrade the upstream watcher around NFI, engine, Freqtrade, and semantic-profile identities with independent Spot and Futures checks",
+        "identity_advancement_after_incomplete_checks_allowed": false,
+        "duplicate_alerts_allowed": false,
+        "independent_spot_and_futures_checks_required": true
       }
     }
   ]
