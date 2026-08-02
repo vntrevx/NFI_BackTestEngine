@@ -1,0 +1,328 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "source_sha256": "6f6bce1376c0b4309cd94f31053508ae566bb6d2389be606f298eef5a4993b90",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 1,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "target_ids": [
+        "021762f64b4e1350e0822dc04411b230ea85482150068085e656a2123d119b54",
+        "0950567ec8a30bee991ce6f9e3e6dfb3ef9015865cec5a9f358aa47b24e6a49c",
+        "117e533d5b7bf8e4292a9665d982992b2510a7899bd7f1c318c0db0ac709ea91",
+        "24738fd8efe6b452555db781e52aa77bd63cb43e7c0076da7a0af99fa1da9475",
+        "26199c07bea82ee8beab61418e43357b6df1b68d3efa85483a01c1da98491dec",
+        "2c98290fdf0e200820a4cb5b1074a91580d8c5fe123297e14ecd4a253af5ad13",
+        "2e4f356e4d9b850c381a9ad9c8bed0473ff0909a5ad46a279350b2c8591e9997",
+        "3dda226f84b1cfb352994d1f90faca09d867c8fb5841373fabbab08f27857ad1",
+        "3e5e7cb494085a21fb5911e2c29a38f9279ab1b6a2c0023b769d9d2274ed73e6",
+        "41c2ed28029287635c5592d1eeb88f178a866ceddafe5d0546280ec98fc74b19",
+        "577426b278d572934ea1789f7cec1ea45891137e8a33b46b90097ee5ccb57e76",
+        "68fa7fdde35731f63b8da6d909985a5dd68c9966d9b45fd0df774a60fd7220b4",
+        "79699dafa3daf65bfda0777508663c9e9a333fac60fbde9a429fe001fcc9c2a6",
+        "7dcec20b343882f058eabce0dc13122eddf12ad782837e61e964b6274b3033e5",
+        "8c1c7167fc2d55049f4728d425fdc9fa5c900c8265e4a65717f0e1efa80dab9d",
+        "90bc2da1375e6d8640d17281cdc1b5218bc52b4feb387e9f0a2cc61a0ae804e9",
+        "a13c7945b26aa99dbd0f644d2000b6a5562de0ae023395e32d66384c4f1b77c0",
+        "af368ee407a4e25b2dd1a3ce73c25b0ddeaeb492d029ad64ddfe74b03fcf307d",
+        "bbc60b872ab2e987039325b4e6db46e41d97836c9b5ce13e0103f7a49b32f8cc",
+        "c787ed18ef152c7c2206f1d11cadfc755fd5633d65e676cceef27c1c117f77bc",
+        "c8ec12a5baa75621f582b1ff10b879235d8a4c1465ebae2efd0bf8409d654f7d",
+        "cd05b558fb6d9124d8f0258bd367b31d5d25110b7d159e5b952b7b89c5ea74f7",
+        "dba681313dfdf5f51e61bbce7d76cc7707a7ddff7fe03128d7c47969ebe89070",
+        "df8ac6388be592285cdaf7a3a7092bc05edf77f763bca221a171827d2a990e56",
+        "eed07fbaa52b5a1824305830d9cd9b4a7ae5e7038143d23815873f249d214fec",
+        "f435862bf096d6dfac1661af8aa1dad36c4046685e36e05753f67fab9cdb11ee",
+        "f7ca88944e53818b43c31823c3a150829713eb057914e081f12f173b59d0b30c",
+        "fcedd4bc2d64512893546e7fbc0b47ed2056002e7c24ddc4822b1fcbfedd2527"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short-targeted-6f6bce1376c0",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/official-fixture/manifest.json",
+        "manifest_sha256": "4875a7647ff857eeabda0ec43ec8bb41689b6a670762b1d1ed9522fb1c46a26a",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/native-exact/run.json",
+      "coverage": {
+        "complete": false,
+        "changed_branch_reached": false,
+        "reached_target_ids": [
+          "8c1c7167fc2d55049f4728d425fdc9fa5c900c8265e4a65717f0e1efa80dab9d"
+        ],
+        "missing_target_ids": [
+          "021762f64b4e1350e0822dc04411b230ea85482150068085e656a2123d119b54",
+          "0950567ec8a30bee991ce6f9e3e6dfb3ef9015865cec5a9f358aa47b24e6a49c",
+          "117e533d5b7bf8e4292a9665d982992b2510a7899bd7f1c318c0db0ac709ea91",
+          "24738fd8efe6b452555db781e52aa77bd63cb43e7c0076da7a0af99fa1da9475",
+          "26199c07bea82ee8beab61418e43357b6df1b68d3efa85483a01c1da98491dec",
+          "2c98290fdf0e200820a4cb5b1074a91580d8c5fe123297e14ecd4a253af5ad13",
+          "2e4f356e4d9b850c381a9ad9c8bed0473ff0909a5ad46a279350b2c8591e9997",
+          "3dda226f84b1cfb352994d1f90faca09d867c8fb5841373fabbab08f27857ad1",
+          "3e5e7cb494085a21fb5911e2c29a38f9279ab1b6a2c0023b769d9d2274ed73e6",
+          "41c2ed28029287635c5592d1eeb88f178a866ceddafe5d0546280ec98fc74b19",
+          "577426b278d572934ea1789f7cec1ea45891137e8a33b46b90097ee5ccb57e76",
+          "68fa7fdde35731f63b8da6d909985a5dd68c9966d9b45fd0df774a60fd7220b4",
+          "79699dafa3daf65bfda0777508663c9e9a333fac60fbde9a429fe001fcc9c2a6",
+          "7dcec20b343882f058eabce0dc13122eddf12ad782837e61e964b6274b3033e5",
+          "90bc2da1375e6d8640d17281cdc1b5218bc52b4feb387e9f0a2cc61a0ae804e9",
+          "a13c7945b26aa99dbd0f644d2000b6a5562de0ae023395e32d66384c4f1b77c0",
+          "af368ee407a4e25b2dd1a3ce73c25b0ddeaeb492d029ad64ddfe74b03fcf307d",
+          "bbc60b872ab2e987039325b4e6db46e41d97836c9b5ce13e0103f7a49b32f8cc",
+          "c787ed18ef152c7c2206f1d11cadfc755fd5633d65e676cceef27c1c117f77bc",
+          "c8ec12a5baa75621f582b1ff10b879235d8a4c1465ebae2efd0bf8409d654f7d",
+          "cd05b558fb6d9124d8f0258bd367b31d5d25110b7d159e5b952b7b89c5ea74f7",
+          "dba681313dfdf5f51e61bbce7d76cc7707a7ddff7fe03128d7c47969ebe89070",
+          "df8ac6388be592285cdaf7a3a7092bc05edf77f763bca221a171827d2a990e56",
+          "eed07fbaa52b5a1824305830d9cd9b4a7ae5e7038143d23815873f249d214fec",
+          "f435862bf096d6dfac1661af8aa1dad36c4046685e36e05753f67fab9cdb11ee",
+          "f7ca88944e53818b43c31823c3a150829713eb057914e081f12f173b59d0b30c",
+          "fcedd4bc2d64512893546e7fbc0b47ed2056002e7c24ddc4822b1fcbfedd2527"
+        ],
+        "target_proofs": [
+          {
+            "target_id": "021762f64b4e1350e0822dc04411b230ea85482150068085e656a2123d119b54",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "0950567ec8a30bee991ce6f9e3e6dfb3ef9015865cec5a9f358aa47b24e6a49c",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "117e533d5b7bf8e4292a9665d982992b2510a7899bd7f1c318c0db0ac709ea91",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "24738fd8efe6b452555db781e52aa77bd63cb43e7c0076da7a0af99fa1da9475",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "26199c07bea82ee8beab61418e43357b6df1b68d3efa85483a01c1da98491dec",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "2c98290fdf0e200820a4cb5b1074a91580d8c5fe123297e14ecd4a253af5ad13",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "2e4f356e4d9b850c381a9ad9c8bed0473ff0909a5ad46a279350b2c8591e9997",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "3dda226f84b1cfb352994d1f90faca09d867c8fb5841373fabbab08f27857ad1",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "3e5e7cb494085a21fb5911e2c29a38f9279ab1b6a2c0023b769d9d2274ed73e6",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "41c2ed28029287635c5592d1eeb88f178a866ceddafe5d0546280ec98fc74b19",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "577426b278d572934ea1789f7cec1ea45891137e8a33b46b90097ee5ccb57e76",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "68fa7fdde35731f63b8da6d909985a5dd68c9966d9b45fd0df774a60fd7220b4",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "79699dafa3daf65bfda0777508663c9e9a333fac60fbde9a429fe001fcc9c2a6",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "7dcec20b343882f058eabce0dc13122eddf12ad782837e61e964b6274b3033e5",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "8c1c7167fc2d55049f4728d425fdc9fa5c900c8265e4a65717f0e1efa80dab9d",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "90bc2da1375e6d8640d17281cdc1b5218bc52b4feb387e9f0a2cc61a0ae804e9",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "a13c7945b26aa99dbd0f644d2000b6a5562de0ae023395e32d66384c4f1b77c0",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "af368ee407a4e25b2dd1a3ce73c25b0ddeaeb492d029ad64ddfe74b03fcf307d",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "bbc60b872ab2e987039325b4e6db46e41d97836c9b5ce13e0103f7a49b32f8cc",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "c787ed18ef152c7c2206f1d11cadfc755fd5633d65e676cceef27c1c117f77bc",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "c8ec12a5baa75621f582b1ff10b879235d8a4c1465ebae2efd0bf8409d654f7d",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "cd05b558fb6d9124d8f0258bd367b31d5d25110b7d159e5b952b7b89c5ea74f7",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "dba681313dfdf5f51e61bbce7d76cc7707a7ddff7fe03128d7c47969ebe89070",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "df8ac6388be592285cdaf7a3a7092bc05edf77f763bca221a171827d2a990e56",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "eed07fbaa52b5a1824305830d9cd9b4a7ae5e7038143d23815873f249d214fec",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "f435862bf096d6dfac1661af8aa1dad36c4046685e36e05753f67fab9cdb11ee",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "f7ca88944e53818b43c31823c3a150829713eb057914e081f12f173b59d0b30c",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          },
+          {
+            "target_id": "fcedd4bc2d64512893546e7fbc0b47ed2056002e7c24ddc4822b1fcbfedd2527",
+            "proof_mode": "absence",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": false
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  ],
+  "proof": {
+    "complete": false,
+    "changed_branch_reached": false,
+    "trade_surface_exact": true,
+    "full_state_exact": true
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "6f6bce1376c0b4309cd94f31053508ae566bb6d2389be606f298eef5a4993b90",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "blockers": [
+      {
+        "code": "COMPLETE_REQUIRED",
+        "message": "branch proof requires complete=true"
+      },
+      {
+        "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+        "message": "branch proof requires changed_branch_reached=true"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+      "message": "branch proof requires changed_branch_reached=true"
+    },
+    {
+      "code": "COMPLETE_REQUIRED",
+      "message": "branch proof requires complete=true"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
