@@ -335,23 +335,7 @@ pub(super) fn nfi_legacy_grind_program(
                 location: location(),
             }),
     );
-    source_order.push(CompiledLegacyGrindTransition::DeriskBuyback {
-        tag: "d1".to_owned(),
-        entry_threshold_futures: constants.derisk_1_reentry_futures,
-        entry_threshold_spot: constants.derisk_1_reentry_spot,
-        entry_feature_columns: vec![
-            "global_protections_long_dump".to_owned(),
-            "global_protections_long_pump".to_owned(),
-        ],
-        entry_retry_policy: CompiledLegacyRetryPolicy::BoundedGrindPolicy,
-        entry_stake_basis: CompiledLegacyEntryStakeBasis::DeriskExitCost,
-        entry_minimum_multiplier: 1.5,
-        entry_wallet_guard: CompiledLegacyWalletGuard::ReturnNone,
-        exit_threshold_divisor: CompiledLegacyThresholdDivisor::ModeLeverage,
-        exit_stake_basis: CompiledLegacyExitStakeBasis::ReentryAmountAtCurrentRate,
-        exit_minimum_remaining_multiplier: 1.55,
-        location: location(),
-    });
+    source_order.push(nfi_derisk_buyback_transition(constants, location()));
     CompiledLegacyGrindProgram {
         schema_version: "grind-transition-program-v3".to_owned(),
         execution_mode: CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow,
@@ -396,6 +380,29 @@ pub(super) fn nfi_legacy_grind_program(
         },
         location: location(),
         fingerprint: "d".repeat(64),
+    }
+}
+
+fn nfi_derisk_buyback_transition(
+    constants: &NfiLegacyGrindConstants,
+    location: ManagedExitSourceLocation,
+) -> CompiledLegacyGrindTransition {
+    CompiledLegacyGrindTransition::DeriskBuyback {
+        tag: "d1".to_owned(),
+        entry_threshold_futures: constants.derisk_1_reentry_futures,
+        entry_threshold_spot: constants.derisk_1_reentry_spot,
+        entry_feature_columns: vec![
+            "global_protections_long_dump".to_owned(),
+            "global_protections_long_pump".to_owned(),
+        ],
+        entry_retry_policy: CompiledLegacyRetryPolicy::BoundedGrindPolicy,
+        entry_stake_basis: CompiledLegacyEntryStakeBasis::DeriskExitCost,
+        entry_minimum_multiplier: 1.5,
+        entry_wallet_guard: CompiledLegacyWalletGuard::ReturnNone,
+        exit_threshold_divisor: CompiledLegacyThresholdDivisor::ModeLeverage,
+        exit_stake_basis: CompiledLegacyExitStakeBasis::ReentryAmountAtCurrentRate,
+        exit_minimum_remaining_multiplier: 1.55,
+        location,
     }
 }
 
