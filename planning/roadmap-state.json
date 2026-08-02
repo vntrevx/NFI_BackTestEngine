@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 114,
-  "updated_at": "2026-08-02T13:46:38+09:00",
+  "revision": 115,
+  "updated_at": "2026-08-02T14:27:03+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M18-03",
+  "active_task_id": "M18-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4352,7 +4352,7 @@
       "order": 1803,
       "milestone": "M18",
       "title": "Optimize compiled programs and runtime aggregates",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M18-02"
       ],
@@ -4373,9 +4373,16 @@
         "full-state parity"
       ],
       "started_at": "2026-08-02T13:46:38+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T14:27:03+09:00",
+      "commit_sha": "d63b74714edc06ade36b397ae8eb9621379def5a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/optimization-report.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/benchmark/dispatch-performance-report.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -4383,7 +4390,7 @@
       "order": 1804,
       "milestone": "M18",
       "title": "Benchmark generic stateful Native performance",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M18-03"
       ],
@@ -4402,7 +4409,7 @@
         "three-run benchmark report",
         "result SHA identity"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T14:27:03+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7797,6 +7804,50 @@
         "result_specialized_folding_allowed": false,
         "stale_state_caching_allowed": false,
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 157,
+      "timestamp": "2026-08-02T14:27:03+09:00",
+      "task_id": "M18-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "d63b74714edc06ade36b397ae8eb9621379def5a",
+        "constant_folding": true,
+        "dead_branch_removal": true,
+        "live_column_projection": true,
+        "source_projection_union_precomputed": true,
+        "filled_order_aggregates_incremental": true,
+        "compiled_grind_state_shared": true,
+        "compiled_grind_program_identity_guard": true,
+        "order_append_invalidation_tested": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "before_after_spot_result_sha_exact": true,
+        "before_after_futures_result_sha_exact": true,
+        "diagnostic_event_loop_speedup_ratio": 1.0948273799619057,
+        "diagnostic_fresh_process_wall_material_change": false,
+        "benchmark_repetitions": 3,
+        "benchmark_inner_iterations_per_mode": 100,
+        "acceptance_command_count": 12,
+        "python_test_count": 679,
+        "rust_test_count": 143,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 158,
+      "timestamp": "2026-08-02T14:27:03+09:00",
+      "task_id": "M18-04",
+      "event": "task_started",
+      "details": {
+        "objective": "benchmark generic stateful Native with fresh-process, event-loop, peak-RSS, cold, and warm diagnostics",
+        "diagnostic_timings_may_be_claimed_as_certification": false,
+        "hard_coded_benchmark_paths_allowed": false,
+        "result_sha_identity_required": true
       }
     }
   ]
