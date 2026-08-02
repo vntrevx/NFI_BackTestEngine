@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 110,
-  "updated_at": "2026-08-02T10:32:37+09:00",
+  "revision": 111,
+  "updated_at": "2026-08-02T11:23:32+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M17-04",
+  "active_task_id": "M17-05",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4198,7 +4198,7 @@
       "order": 1704,
       "milestone": "M17",
       "title": "Compile tag-121 regular-to-Grind continuation",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M17-03"
       ],
@@ -4218,9 +4218,18 @@
         "dual-mode full-state exact"
       ],
       "started_at": "2026-08-02T10:32:37+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T11:23:32+09:00",
+      "commit_sha": "a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/13-x7_spot_full.log",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/18-tag121_futures_full.log",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/19-regular_adjustment_compiler_tests.log",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/20-regular_adjustment_shadow_tests.log",
+        "benchmarks/fixtures/captured/x7-tag121-spot-v17.4.435-2023-01-01_02/manifest.json",
+        "benchmarks/fixtures/captured/x7-tag-121-futures-v17.4.435-2023-01-01_02/manifest.json"
+      ],
       "blocker": null
     },
     {
@@ -4228,7 +4237,7 @@
       "order": 1705,
       "milestone": "M17",
       "title": "Audit all latest-NFI stateful route coverage",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M17-04"
       ],
@@ -4247,7 +4256,7 @@
         "zero reachable stateful gaps",
         "latest-upstream dual-mode qualification"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T11:23:32+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7602,6 +7611,42 @@
       "details": {
         "objective": "compile tag-121 regular-to-Grind continuation without a tag-121 runtime selector",
         "legacy_fallthrough_without_proof_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 149,
+      "timestamp": "2026-08-02T11:23:32+09:00",
+      "task_id": "M17-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b",
+        "trade_manager_schema": "0.28.0",
+        "regular_transition_program": "regular-transition-program-v1",
+        "reverse_order_scan_is_program_data": true,
+        "dynamic_grind_tags_are_program_data": true,
+        "derisk_classification_is_program_data": true,
+        "futures_drawdown_fallback_is_program_data": true,
+        "legacy_grind_continuation_is_program_data": true,
+        "legacy_shadow_exact": true,
+        "official_spot_trade_surface_exact": true,
+        "official_spot_full_state_exact": true,
+        "official_futures_trade_surface_exact": true,
+        "official_futures_full_state_exact": true,
+        "official_state_event_count_per_mode": 288,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 150,
+      "timestamp": "2026-08-02T11:23:32+09:00",
+      "task_id": "M17-05",
+      "event": "task_started",
+      "details": {
+        "objective": "close every latest-NFI stateful backtest route in Spot and Futures with explicit live-only exclusions",
+        "branch_proof_required": true,
+        "live_only_code_is_backtest_evidence": false,
         "runtime_hardcoding_allowed": false
       }
     }
