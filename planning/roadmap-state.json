@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 112,
-  "updated_at": "2026-08-02T12:08:23+09:00",
+  "revision": 113,
+  "updated_at": "2026-08-02T12:37:50+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M18-01",
+  "active_task_id": "M18-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4276,7 +4276,7 @@
       "order": 1801,
       "milestone": "M18",
       "title": "Make generic stateful execution the default Native lane",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M17-05"
       ],
@@ -4296,9 +4296,18 @@
         "legacy and generic shadow exact"
       ],
       "started_at": "2026-08-02T12:08:23+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T12:37:50+09:00",
+      "commit_sha": "8071628b76d60656c4163da1178bf5903161e98e",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/07-stateful_default_lane_tests.log",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/x7-spot/research/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/x7-futures/research/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/generic-state-machine/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/generic-state-machine-v3/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/18-managed_exit_shadow_tests.log"
+      ],
       "blocker": null
     },
     {
@@ -4306,7 +4315,7 @@
       "order": 1802,
       "milestone": "M18",
       "title": "Optimize tag and callback dispatch structurally",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M18-01"
       ],
@@ -4325,7 +4334,7 @@
         "dispatch identity tests",
         "pre/post optimization parity"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T12:37:50+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7697,6 +7706,47 @@
         "objective": "make generic stateful execution the default Native lane while preserving an exact legacy shadow and visible official fallback",
         "legacy_removal_before_exact_proof_allowed": false,
         "silent_official_fallback_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 153,
+      "timestamp": "2026-08-02T12:37:50+09:00",
+      "task_id": "M18-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "8071628b76d60656c4163da1178bf5903161e98e",
+        "research_run_schema": "1.6.0",
+        "default_native_lane": "x7-generic-stateful",
+        "source_compiled_stateful_root_count": 9,
+        "exact_legacy_shadow_root_count": 7,
+        "stateful_primary_mode_required": true,
+        "legacy_only_native_mode_allowed": false,
+        "official_fallback_visible_before_execution": true,
+        "official_fallback_mutates_native_evidence": false,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "generic_state_machine_v2_exact": true,
+        "generic_state_machine_v3_exact": true,
+        "legacy_runtime_removed": false,
+        "acceptance_command_count": 18,
+        "python_test_count": 677,
+        "rust_test_count": 140,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 154,
+      "timestamp": "2026-08-02T12:37:50+09:00",
+      "task_id": "M18-02",
+      "event": "task_started",
+      "details": {
+        "objective": "optimize tag and callback dispatch by IR structure while preserving original public tag strings",
+        "tag_value_specialization_allowed": false,
+        "public_tag_string_changes_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
