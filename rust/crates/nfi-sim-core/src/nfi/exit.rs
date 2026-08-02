@@ -11,17 +11,18 @@ use crate::callbacks::{
 };
 use crate::domain::{
     Candle, ManagedExitComparison, ManagedExitExecutionMode, ManagedExitProfitBasis,
-    ManagedExitProgram, ManagedExitRoute, ManagedExitStateOperation, ManagedExitStopPolicy,
-    ManagedExitTagMatcher, ManagedExitTagOperator, NfiManagedLongProfile, NfiManagedLongRoute,
-    NfiX7TradeManager, PairSeries, PortfolioConfig,
+    ManagedExitRoute, ManagedExitStateOperation, ManagedExitStopPolicy, ManagedExitTagMatcher,
+    ManagedExitTagOperator, NfiDispatchPlan, NfiLongDispatchStep, NfiManagedLongProfile,
+    NfiManagedLongRoute, NfiProgramHandle, NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{
-    evaluate_scalar_decision_program, evaluate_scalar_program_bundle_from_base, number_value,
+    evaluate_scalar_decision_program, evaluate_scalar_program_handle_from_base, number_value,
 };
 use crate::validation::{nfi_managed_route_supports_tags, nfi_managed_short_route_supports_tags};
 
 use super::dispatch::nfi_long_grind_supports_trade;
+use super::dispatch_plan::interned_matcher_matches;
 use super::state::{
     nfi_profit_bucket, nfi_profit_snapshot, nfi_trade_is_derisked, set_profit_target,
     NfiProfitSnapshot, ProfitTarget,
@@ -67,30 +68,17 @@ pub(crate) fn evaluate_nfi_exit(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Option<CustomExitDecision> {
-    let words = trade
-        .entry_tag
-        .as_deref()
-        .unwrap_or("")
-        .split_whitespace()
-        .collect::<Vec<_>>();
-    for key in &manager.route_order {
-        if let Some(route) = manager
-            .managed_long_routes
-            .iter()
-            .find(|route| &route.key == key)
-        {
-            let legacy_matches = nfi_managed_route_supports_tags(manager, route, &words);
-            let source_matches = manager
-                .managed_exit_program
+    let dispatch = manager.runtime_dispatch()?;
+    let tags = dispatch.intern_trade_tags(trade);
+    for step in &dispatch.long_steps {
+        if let NfiLongDispatchStep::Managed(step) = step {
+            let route = manager.managed_long_routes.get(step.route_index)?;
+            let legacy_matches = nfi_managed_route_supports_tags(manager, route, tags.words);
+            let source_matches = step
+                .source_matcher
                 .as_ref()
-                .and_then(|program| {
-                    program
-                        .routes
-                        .iter()
-                        .find(|candidate| candidate.id == route.key)
-                })
-                .map_or(legacy_matches, |candidate| {
-                    managed_exit_matcher_matches(&candidate.matcher, &words, trade.side)
+                .map_or(legacy_matches, |matcher| {
+                    interned_matcher_matches(matcher, &tags, trade.side)
                 });
             if source_matches != legacy_matches {
                 return None;
@@ -100,9 +88,16 @@ pub(crate) fn evaluate_nfi_exit(
             }
             match evaluate_nfi_managed_long_exit(
                 manager,
-                manager.managed_exit_program.as_ref(),
+                manager.managed_exit_program.as_ref().and_then(|program| {
+                    step.source_route_index
+                        .and_then(|index| program.routes.get(index))
+                        .map(|route| (program.execution_mode, route))
+                }),
                 route,
                 nfi_profile_program_order(route.profile),
+                &step.legacy_program_handles,
+                &step.source_program_handles,
+                dispatch,
                 trade,
                 pair,
                 candle_index,
@@ -117,10 +112,10 @@ pub(crate) fn evaluate_nfi_exit(
             }
         }
 
-        let legacy = match key.as_str() {
-            "long_grind" => manager.long_grind.as_ref(),
-            "long_btc" => manager.long_btc.as_ref(),
-            _ => None,
+        let legacy = match step {
+            NfiLongDispatchStep::LongGrind => manager.long_grind.as_ref(),
+            NfiLongDispatchStep::LongBtc => manager.long_btc.as_ref(),
+            NfiLongDispatchStep::Managed(_) => None,
         };
         if let Some(route) = legacy.filter(|route| nfi_long_grind_supports_trade(route, trade)) {
             let snapshot = nfi_profit_snapshot(
@@ -170,29 +165,16 @@ fn evaluate_nfi_short_exit(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Option<CustomExitDecision> {
-    let words = trade
-        .entry_tag
-        .as_deref()
-        .unwrap_or("")
-        .split_whitespace()
-        .collect::<Vec<_>>();
-    for key in &manager.short_route_order {
-        let route = manager
-            .managed_short_routes
-            .iter()
-            .find(|route| &route.key == key)?;
-        let legacy_matches = nfi_managed_short_route_supports_tags(manager, route, &words);
-        let source_matches = manager
-            .managed_short_exit_program
+    let dispatch = manager.runtime_dispatch()?;
+    let tags = dispatch.intern_trade_tags(trade);
+    for step in &dispatch.short_steps {
+        let route = manager.managed_short_routes.get(step.route_index)?;
+        let legacy_matches = nfi_managed_short_route_supports_tags(manager, route, tags.words);
+        let source_matches = step
+            .source_matcher
             .as_ref()
-            .and_then(|program| {
-                program
-                    .routes
-                    .iter()
-                    .find(|candidate| candidate.id == route.key)
-            })
-            .map_or(legacy_matches, |candidate| {
-                managed_exit_matcher_matches(&candidate.matcher, &words, trade.side)
+            .map_or(legacy_matches, |matcher| {
+                interned_matcher_matches(matcher, &tags, trade.side)
             });
         if source_matches != legacy_matches {
             return None;
@@ -202,9 +184,19 @@ fn evaluate_nfi_short_exit(
         }
         match evaluate_nfi_managed_long_exit(
             manager,
-            manager.managed_short_exit_program.as_ref(),
+            manager
+                .managed_short_exit_program
+                .as_ref()
+                .and_then(|program| {
+                    step.source_route_index
+                        .and_then(|index| program.routes.get(index))
+                        .map(|route| (program.execution_mode, route))
+                }),
             route,
             NFI_SHORT_EXIT_PROGRAMS,
+            &step.legacy_program_handles,
+            &step.source_program_handles,
+            dispatch,
             trade,
             pair,
             candle_index,
@@ -231,9 +223,12 @@ fn evaluate_nfi_short_exit(
 #[allow(clippy::too_many_arguments)]
 fn evaluate_nfi_managed_long_exit(
     manager: &NfiX7TradeManager,
-    source_program: Option<&ManagedExitProgram>,
+    source_route: Option<(ManagedExitExecutionMode, &ManagedExitRoute)>,
     route: &NfiManagedLongRoute,
     program_order: &[&str],
+    legacy_program_handles: &[NfiProgramHandle],
+    source_program_handles: &[NfiProgramHandle],
+    dispatch: &NfiDispatchPlan,
     trade: &OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
@@ -247,6 +242,8 @@ fn evaluate_nfi_managed_long_exit(
         manager,
         route,
         program_order,
+        legacy_program_handles,
+        dispatch,
         trade,
         pair,
         candle_index,
@@ -254,20 +251,12 @@ fn evaluate_nfi_managed_long_exit(
         config,
         &mut legacy_targets,
     )?;
-    let generic_route = source_program.and_then(|program| {
-        program
-            .routes
-            .iter()
-            .find(|candidate| candidate.id == route.key)
-    });
-    let Some(generic_route) = generic_route else {
+    let Some((execution_mode, generic_route)) = source_route else {
         *profit_targets = legacy_targets;
         return Some(legacy);
     };
     if generic_route.state_program.is_none() {
-        if source_program.is_some_and(|program| {
-            program.execution_mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
-        }) {
+        if execution_mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow {
             return None;
         }
         let enter_tags = trade
@@ -288,6 +277,8 @@ fn evaluate_nfi_managed_long_exit(
             manager,
             route,
             program_order,
+            legacy_program_handles,
+            dispatch,
             trade,
             pair,
             candle_index,
@@ -298,6 +289,8 @@ fn evaluate_nfi_managed_long_exit(
         let generic_signals = generic_managed_exit_signals(
             manager,
             generic_route,
+            source_program_handles,
+            dispatch,
             trade,
             pair,
             candle_index,
@@ -315,6 +308,8 @@ fn evaluate_nfi_managed_long_exit(
     let generic = evaluate_generic_managed_long_exit(
         manager,
         generic_route,
+        source_program_handles,
+        dispatch,
         trade,
         pair,
         candle_index,
@@ -325,7 +320,7 @@ fn evaluate_nfi_managed_long_exit(
     if generic != legacy || generic_targets != legacy_targets {
         return None;
     }
-    match source_program?.execution_mode {
+    match execution_mode {
         ManagedExitExecutionMode::Shadow => {
             *profit_targets = legacy_targets;
             Some(legacy)
@@ -342,6 +337,8 @@ fn evaluate_nfi_managed_long_exit_legacy(
     manager: &NfiX7TradeManager,
     route: &NfiManagedLongRoute,
     program_order: &[&str],
+    program_handles: &[NfiProgramHandle],
+    dispatch: &NfiDispatchPlan,
     trade: &OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
@@ -365,6 +362,8 @@ fn evaluate_nfi_managed_long_exit_legacy(
         manager,
         route,
         program_order,
+        program_handles,
+        dispatch,
         trade,
         pair,
         candle_index,
@@ -451,6 +450,8 @@ fn evaluate_nfi_managed_long_exit_legacy(
 fn evaluate_generic_managed_long_exit(
     manager: &NfiX7TradeManager,
     route: &ManagedExitRoute,
+    program_handles: &[NfiProgramHandle],
+    dispatch: &NfiDispatchPlan,
     trade: &OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
@@ -474,6 +475,8 @@ fn evaluate_generic_managed_long_exit(
     let (mut sell, mut signal_name) = generic_managed_exit_signals(
         manager,
         route,
+        program_handles,
+        dispatch,
         trade,
         pair,
         candle_index,
@@ -559,6 +562,8 @@ fn evaluate_generic_managed_long_exit(
 fn generic_managed_exit_signals(
     manager: &NfiX7TradeManager,
     route: &ManagedExitRoute,
+    program_handles: &[NfiProgramHandle],
+    dispatch: &NfiDispatchPlan,
     trade: &OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
@@ -566,10 +571,6 @@ fn generic_managed_exit_signals(
     snapshot: NfiProfitSnapshot,
     enter_tags: &[String],
 ) -> Option<(bool, Option<String>)> {
-    let route_matches = managed_exit_matcher_matches(&route.matcher, enter_tags, trade.side);
-    if !route_matches {
-        return Some((false, None));
-    }
     if route
         .initial_profit_gate
         .as_ref()
@@ -604,10 +605,10 @@ fn generic_managed_exit_signals(
     let projection = manager.dynamic_feature_projection_union(&route.decision_program_order)?;
     insert_projected_feature_window(&mut base_variables, pair, candle_index, &projection)?;
     let mut result = (false, None);
-    for program_name in &route.decision_program_order {
-        let value = evaluate_scalar_program_bundle_from_base(
+    for handle in program_handles {
+        let value = evaluate_scalar_program_handle_from_base(
+            dispatch.program(*handle)?,
             &manager.programs,
-            program_name,
             &base_variables,
         )?;
         let fields = value.as_array()?;
@@ -660,6 +661,8 @@ fn nfi_managed_long_signals(
     manager: &NfiX7TradeManager,
     route: &NfiManagedLongRoute,
     program_order: &[&str],
+    program_handles: &[NfiProgramHandle],
+    dispatch: &NfiDispatchPlan,
     trade: &OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
@@ -706,10 +709,10 @@ fn nfi_managed_long_signals(
         manager.feature_projection_union(program_order)?,
     )?;
     let mut result = (false, None);
-    for program_name in program_order {
-        let value = evaluate_scalar_program_bundle_from_base(
+    for handle in program_handles {
+        let value = evaluate_scalar_program_handle_from_base(
+            dispatch.program(*handle)?,
             &manager.programs,
-            program_name,
             &base_variables,
         )?;
         let fields = value.as_array()?;

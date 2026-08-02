@@ -2,6 +2,7 @@
 
 mod adjustment;
 mod dispatch;
+mod dispatch_plan;
 mod exit;
 mod legacy_grind;
 mod rebuy;

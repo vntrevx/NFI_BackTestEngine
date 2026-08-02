@@ -481,6 +481,7 @@ mod tests {
             first_entry_cost_with_fees: 100.1,
             adjustment_count: 0,
             entry_tag: Some("source_route".to_owned()),
+            entry_tag_cache: OnceLock::new(),
             funding_fees: 0.0,
             funding_fees_total: 0.0,
             funding_sum_high: 0.0,

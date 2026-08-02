@@ -810,6 +810,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
         ]),
         feature_projections: OnceLock::new(),
         feature_projection_unions: OnceLock::new(),
+        dispatch_plan: OnceLock::new(),
     }
 }
 

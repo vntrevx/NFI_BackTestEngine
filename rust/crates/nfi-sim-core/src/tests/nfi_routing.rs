@@ -1,6 +1,52 @@
 //! Compiled NFI manager routing, exits, and validation contracts.
 
 use super::*;
+use crate::nfi::NFI_LONG_EXIT_PROGRAMS;
+
+#[test]
+fn nfi_dispatch_plan_derives_tag_ids_route_indexes_and_program_handles() {
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    let source_tag = "source-defined-tag".to_owned();
+    manager.managed_long_routes[0].entry_tags = vec![source_tag.clone()];
+    let original_route_order = manager.route_order.clone();
+
+    let dispatch = manager.runtime_dispatch().expect("derived dispatch plan");
+    let entry_tag = format!("{source_tag} unknown-companion");
+    let parsed = dispatch.intern_tag_ids(&entry_tag);
+
+    assert!(parsed[0].is_some());
+    assert!(parsed[1].is_none());
+    assert_eq!(manager.managed_long_routes[0].entry_tags, [source_tag]);
+    let dispatched_keys = dispatch
+        .long_steps
+        .iter()
+        .map(|step| match step {
+            NfiLongDispatchStep::Managed(step) => {
+                manager.managed_long_routes[step.route_index].key.as_str()
+            }
+            NfiLongDispatchStep::LongGrind => "long_grind",
+            NfiLongDispatchStep::LongBtc => "long_btc",
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        dispatched_keys,
+        original_route_order
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+    );
+    let NfiLongDispatchStep::Managed(first) = &dispatch.long_steps[0] else {
+        panic!("first source route must remain managed");
+    };
+    assert_eq!(
+        first.legacy_program_handles.len(),
+        NFI_LONG_EXIT_PROGRAMS.len()
+    );
+    assert!(first
+        .legacy_program_handles
+        .iter()
+        .all(|handle| dispatch.program(*handle).is_some()));
+}
 
 #[test]
 fn nfi_top_coins_pure_decision_exits_with_the_original_entry_tag() {

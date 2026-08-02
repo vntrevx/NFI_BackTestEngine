@@ -1,6 +1,6 @@
 //! Source-compiled NFI X7 route and adjustment contracts.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -72,6 +72,55 @@ pub struct NfiX7TradeManager {
     /// scalar arenas and cannot be supplied by an input document.
     #[serde(skip)]
     pub(crate) feature_projection_unions: OnceLock<BTreeMap<String, FeatureProjection>>,
+    /// Runtime-only, source-order dispatch indexes derived from this payload.
+    ///
+    /// Route keys, tag IDs, and scalar program handles are never accepted from
+    /// JSON. Keeping the derived plan out of the wire contract preserves old
+    /// evidence replay and prevents an input from redirecting behavior.
+    #[serde(skip)]
+    pub(crate) dispatch_plan: OnceLock<Option<NfiDispatchPlan>>,
+}
+
+pub(crate) type NfiTagId = usize;
+pub(crate) type NfiProgramHandle = usize;
+
+#[derive(Debug, Clone)]
+pub(crate) struct NfiDispatchPlan {
+    pub tag_ids: HashMap<String, NfiTagId>,
+    pub long_scope: Vec<NfiTagId>,
+    pub short_scope: Vec<NfiTagId>,
+    pub long_regular_scope: Vec<NfiTagId>,
+    pub short_regular_scope: Vec<NfiTagId>,
+    pub long_steps: Vec<NfiLongDispatchStep>,
+    pub short_steps: Vec<NfiManagedDispatchStep>,
+    pub long_rebuy_route: Option<usize>,
+    pub short_rebuy_route: Option<usize>,
+    pub long_grind_tags: Vec<NfiTagId>,
+    pub long_btc_tags: Vec<NfiTagId>,
+    pub programs: Vec<ScalarDecisionProgram>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum NfiLongDispatchStep {
+    Managed(NfiManagedDispatchStep),
+    LongGrind,
+    LongBtc,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct NfiManagedDispatchStep {
+    pub route_index: usize,
+    pub source_route_index: Option<usize>,
+    pub source_matcher: Option<NfiInternedTagMatcher>,
+    pub source_program_handles: Vec<NfiProgramHandle>,
+    pub legacy_program_handles: Vec<NfiProgramHandle>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct NfiInternedTagMatcher {
+    pub operator: ManagedExitTagOperator,
+    pub entry_tags: Vec<NfiTagId>,
+    pub operands: Vec<NfiInternedTagMatcher>,
 }
 
 /// Generic, source-ordered managed-exit prefix.

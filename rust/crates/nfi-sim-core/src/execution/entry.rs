@@ -185,7 +185,6 @@ pub(crate) fn attempt_entry(
             order_id_consumed: true,
         });
     }
-    let tag = signal.tag.clone();
     let order = FilledOrder {
         id: order_id,
         funding_fee: 0.0,
@@ -196,7 +195,7 @@ pub(crate) fn attempt_entry(
         amount,
         price: candle.open,
         cost: order_cost,
-        tag: tag.clone(),
+        tag: signal.tag.clone(),
     };
     let amount_step = pair.amount_step.unwrap_or(config.amount_step);
     let price_step = pair_price_step(pair, candle, config.price_step);
@@ -223,7 +222,8 @@ pub(crate) fn attempt_entry(
         entry_cost_with_fees: precise_cost,
         first_entry_cost_with_fees: precise_cost,
         adjustment_count: 0,
-        entry_tag: tag,
+        entry_tag: signal.tag.clone(),
+        entry_tag_cache: std::sync::OnceLock::new(),
         funding_fees: 0.0,
         funding_fees_total: 0.0,
         funding_sum_high: 0.0,
