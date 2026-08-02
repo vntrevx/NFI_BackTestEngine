@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 108,
-  "updated_at": "2026-08-02T08:42:41+09:00",
+  "revision": 109,
+  "updated_at": "2026-08-02T09:22:14+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M17-02",
+  "active_task_id": "M17-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4124,7 +4124,7 @@
       "order": 1702,
       "milestone": "M17",
       "title": "Compile all source-defined Grind levels",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M17-01"
       ],
@@ -4144,9 +4144,16 @@
         "all reachable level branch proofs"
       ],
       "started_at": "2026-08-02T08:42:41+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T09:22:14+09:00",
+      "commit_sha": "cc6250f23e87c975159ddee900fc2424e6dd9b67",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/18-dynamic-grind-branch-tests.log",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/latest-upstream/report-futures.json",
+        "benchmarks/evidence/x7-zec-legacy-grind-v17.4.413.json"
+      ],
       "blocker": null
     },
     {
@@ -4154,7 +4161,7 @@
       "order": 1703,
       "milestone": "M17",
       "title": "Compile Derisk and Buyback transitions into generic IR",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M17-02"
       ],
@@ -4173,7 +4180,7 @@
         "Derisk and Buyback official fixture",
         "atomic state transition proof"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T09:22:14+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7517,6 +7524,41 @@
         "objective": "compile every source-defined Grind level plus profit, stop, and Futures fallback transitions into generic IR",
         "fixed_level_count_allowed": false,
         "signal_or_tag_result_specialization_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 145,
+      "timestamp": "2026-08-02T09:22:14+09:00",
+      "task_id": "M17-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "cc6250f23e87c975159ddee900fc2424e6dd9b67",
+        "trade_manager_schema": "0.26.0",
+        "grind_transition_program": "grind-transition-program-v2",
+        "source_defined_cluster_count": 8,
+        "dynamic_additional_level_compiler_and_runtime_proof": true,
+        "first_entry_profit_and_stop_compiled": true,
+        "post_derisk_and_ordinary_clusters_compiled": true,
+        "cluster_profit_and_stop_compiled": true,
+        "futures_fallback_compiled": true,
+        "legacy_shadow_exact": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_and_futures_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 146,
+      "timestamp": "2026-08-02T09:22:14+09:00",
+      "task_id": "M17-03",
+      "event": "task_started",
+      "details": {
+        "objective": "compile the d1 Derisk and Buyback restoration cycle into bounded generic IR",
+        "hard_coded_buyback_outcomes_allowed": false,
+        "unbounded_retry_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
