@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 113,
-  "updated_at": "2026-08-02T12:37:50+09:00",
+  "revision": 114,
+  "updated_at": "2026-08-02T13:46:38+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M18-02",
+  "active_task_id": "M18-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4315,7 +4315,7 @@
       "order": 1802,
       "milestone": "M18",
       "title": "Optimize tag and callback dispatch structurally",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M18-01"
       ],
@@ -4335,9 +4335,16 @@
         "pre/post optimization parity"
       ],
       "started_at": "2026-08-02T12:37:50+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T13:46:38+09:00",
+      "commit_sha": "0530ab0943f314cc3ca22cf86e49542d80ac1238",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/08-rust_test.log",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/benchmark/dispatch-performance-report.json",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -4345,7 +4352,7 @@
       "order": 1803,
       "milestone": "M18",
       "title": "Optimize compiled programs and runtime aggregates",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M18-02"
       ],
@@ -4365,7 +4372,7 @@
         "cache invalidation tests",
         "full-state parity"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T13:46:38+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7747,6 +7754,48 @@
         "objective": "optimize tag and callback dispatch by IR structure while preserving original public tag strings",
         "tag_value_specialization_allowed": false,
         "public_tag_string_changes_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 155,
+      "timestamp": "2026-08-02T13:46:38+09:00",
+      "task_id": "M18-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "0530ab0943f314cc3ca22cf86e49542d80ac1238",
+        "interned_tag_ids": true,
+        "trade_tag_cache_shared_across_shadows": true,
+        "source_order_route_jump_table": true,
+        "scalar_program_handles": true,
+        "public_tag_strings_unchanged": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "before_after_spot_result_sha_exact": true,
+        "before_after_futures_result_sha_exact": true,
+        "diagnostic_event_loop_speedup_ratio": 1.0434271514744955,
+        "diagnostic_fresh_process_wall_speedup_ratio": 0.8882021001666754,
+        "fresh_process_startup_tradeoff_deferred_to_m18_04": true,
+        "benchmark_repetitions": 3,
+        "benchmark_inner_iterations_per_mode": 100,
+        "acceptance_command_count": 12,
+        "python_test_count": 677,
+        "rust_test_count": 141,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 156,
+      "timestamp": "2026-08-02T13:46:38+09:00",
+      "task_id": "M18-03",
+      "event": "task_started",
+      "details": {
+        "objective": "optimize compiled programs, live columns, and order-derived aggregates without result specialization or stale state",
+        "result_specialized_folding_allowed": false,
+        "stale_state_caching_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
