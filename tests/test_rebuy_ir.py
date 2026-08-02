@@ -141,7 +141,7 @@ def test_trade_manager_binds_independent_long_and_short_adjustment_programs() ->
     long_adjustment = operation["position_adjustment"]
     short_adjustment = operation["short_position_adjustment"]
 
-    assert operation["schema_version"] == "0.25.0"
+    assert operation["schema_version"] == "0.26.0"
     assert long_adjustment["program"]["side"] == "long"
     assert short_adjustment["program"]["side"] == "short"
     assert long_adjustment["program"]["order_scan"]["entry_order_side"] == "buy"

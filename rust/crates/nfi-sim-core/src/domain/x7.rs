@@ -419,16 +419,29 @@ pub enum CompiledLegacyGrindExecutionMode {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum CompiledLegacyGrindTransition {
+    /// Historical v1 profit-only transition retained for sealed-input replay.
     FirstEntryProfit {
         tag: String,
         append_entry_ids_from: String,
         profit_threshold: f64,
         location: ManagedExitSourceLocation,
     },
+    FirstEntry {
+        profit_tag: String,
+        stop_tag: String,
+        append_entry_ids_from: String,
+        profit_threshold: f64,
+        stop_threshold: f64,
+        location: ManagedExitSourceLocation,
+    },
     Cluster {
         entry_tag: String,
         stop_tag: String,
+        #[serde(default)]
+        post_derisk: bool,
         append_entry_ids: bool,
+        #[serde(default)]
+        futures_fallback_loss_threshold: Option<f64>,
         location: ManagedExitSourceLocation,
     },
 }

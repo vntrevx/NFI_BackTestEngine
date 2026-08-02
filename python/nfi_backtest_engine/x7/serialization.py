@@ -200,6 +200,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
     programs = operation.get("programs")
     constants = operation.get("constants")
     source_sha256 = operation.get("source_sha256")
+    operation_schema = operation.get("schema_version")
     requires_managed_exit_program = operation.get("schema_version") in {
         "0.17.0",
         "0.18.0",
@@ -210,6 +211,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.23.0",
         "0.24.0",
         "0.25.0",
+        "0.26.0",
     }
     requires_managed_short_exit_program = operation.get("schema_version") in {
         "0.20.0",
@@ -218,23 +220,31 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.23.0",
         "0.24.0",
         "0.25.0",
+        "0.26.0",
     }
     requires_rebuy_program = operation.get("schema_version") in {
         "0.22.0",
         "0.23.0",
         "0.24.0",
         "0.25.0",
+        "0.26.0",
     }
     requires_long_adjustment_program = operation.get("schema_version") in {
         "0.23.0",
         "0.24.0",
         "0.25.0",
+        "0.26.0",
     }
     requires_short_adjustment_program = operation.get("schema_version") in {
         "0.24.0",
         "0.25.0",
+        "0.26.0",
     }
-    requires_legacy_grind_program = operation.get("schema_version") == "0.25.0"
+    legacy_grind_program_version = {
+        "0.25.0": "grind-transition-program-v1",
+        "0.26.0": "grind-transition-program-v2",
+    }.get(operation_schema if isinstance(operation_schema, str) else "")
+    requires_legacy_grind_program = legacy_grind_program_version is not None
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)
@@ -297,7 +307,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
                 not isinstance(long_grind, dict)
                 or not isinstance(long_grind.get("program"), dict)
                 or long_grind["program"].get("schema_version")
-                != "grind-transition-program-v1"
+                != legacy_grind_program_version
             )
         )
     ):

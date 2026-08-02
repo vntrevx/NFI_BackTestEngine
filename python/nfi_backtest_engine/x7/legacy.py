@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import ast
-import math
 import re
 from typing import Any
 
 from ..errors import StrategyAnalysisError
-from .adjustments import _ast_number
-from .legacy_grind_ir import compile_legacy_grind_base_ir
+from .legacy_grind_ir import compile_legacy_grind_ir, extract_legacy_futures_fallback
 from .trade_manager import (
     _LONG_BTC_ADJUSTMENT_SCOPE,
     _LONG_BTC_METHOD_SHA256,
@@ -187,12 +185,15 @@ def _build_legacy_grind_route(
         "constants": legacy_constants,
     }
     if grind_mode:
-        route["program"] = compile_legacy_grind_base_ir(
+        route["program"] = compile_legacy_grind_ir(
             methods["long_grind_adjust_trade_position"],
             {
                 **legacy_constants,
                 "first_entry_profit_threshold_spot": route[
                     "first_entry_profit_threshold_spot"
+                ],
+                "first_entry_stop_threshold_spot": route[
+                    "first_entry_stop_threshold_spot"
                 ],
             },
         )
@@ -200,69 +201,9 @@ def _build_legacy_grind_route(
 
 
 def _legacy_futures_fallback_loss_threshold(method: ast.FunctionDef) -> float:
-    """Extract the leverage-scaled futures-only ``gd1`` loss fallback.
+    """Return the compiler-extracted leverage-scaled Futures loss threshold."""
 
-    Upstream keeps this threshold inside ``long_grind_adjust_trade_position``
-    rather than as a strategy class constant. The branch deliberately bypasses
-    the ordinary indicator and order-age gates after a sufficiently sharp
-    futures drawdown. Its literal therefore belongs in the source-bound IR,
-    not in the simulator implementation.
-    """
-
-    candidates: list[float] = []
-    for branch in method.body:
-        if not isinstance(branch, ast.If) or not isinstance(branch.test, ast.BoolOp):
-            continue
-        names = {node.id for node in ast.walk(branch.test) if isinstance(node, ast.Name)}
-        required_names = {
-            "is_futures",
-            "has_order_tags",
-            "partial_sell",
-            "slice_profit",
-            "trade_leverage",
-            "is_derisk",
-            "is_derisk_calc",
-            "is_grind_mode",
-            "grind_1_sub_grind_count",
-            "grind_1_max_sub_grinds",
-        }
-        if not required_names.issubset(names):
-            continue
-        if not any(
-            isinstance(node, ast.Constant) and node.value == "gd1"
-            for statement in branch.body
-            for node in ast.walk(statement)
-        ):
-            continue
-        comparisons = [
-            node
-            for node in ast.walk(branch.test)
-            if isinstance(node, ast.Compare)
-            and isinstance(node.left, ast.Name)
-            and node.left.id == "slice_profit"
-            and len(node.ops) == 1
-            and isinstance(node.ops[0], ast.Lt)
-            and len(node.comparators) == 1
-        ]
-        if len(comparisons) != 1:
-            continue
-        threshold = comparisons[0].comparators[0]
-        if (
-            not isinstance(threshold, ast.BinOp)
-            or not isinstance(threshold.op, ast.Div)
-            or not isinstance(threshold.right, ast.Name)
-            or threshold.right.id != "trade_leverage"
-            or (value := _ast_number(threshold.left)) is None
-            or not math.isfinite(value)
-            or value >= 0.0
-        ):
-            continue
-        candidates.append(value)
-    if len(candidates) != 1:
-        raise StrategyAnalysisError(
-            "NFI legacy futures drawdown fallback changed; exact lowering requires review"
-        )
-    return candidates[0]
+    return float(extract_legacy_futures_fallback(method)["loss_threshold"])
 
 
 def _build_legacy_grind_constants(

@@ -7,7 +7,7 @@ import pytest
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 from nfi_backtest_engine.trade_ir import build_trade_dependency_ir
-from nfi_backtest_engine.x7.legacy_grind_ir import compile_legacy_grind_base_ir
+from nfi_backtest_engine.x7.legacy_grind_ir import compile_legacy_grind_ir
 from nfi_backtest_engine.x7.trade_manager import build_nfi_trade_manager_ir
 
 _SOURCE = Path(
@@ -51,11 +51,40 @@ def route(self, current_time):
     if first_entry_distance > first_entry_profit:
         sell_amount = min_stake * 1.55
         order_tag = "recover"
+    if first_entry_distance < first_entry_stop:
+        order_tag = "recover-stop"
+    if should_open_post:
+        order_tag = "post-a"
+    if should_close_post:
+        order_tag = "post-a"
+    if should_stop_post:
+        order_tag = "post-a-stop"
     if should_open_first:
         buy_amount = min_stake * 1.5
         order_tag = "lane-a"
+    if (
+        is_futures and has_order_tags and not partial_sell
+        and (is_derisk or is_derisk_calc or is_grind_mode)
+        and grind_1_sub_grind_count < grind_1_max_sub_grinds
+        and slice_profit < -0.65 / trade_leverage
+    ):
+        order_tag = "lane-a"
+    if should_close_first:
+        order_tag = "lane-a"
+    if should_stop_first:
+        order_tag = "lane-a-stop"
     if should_open_second:
         order_tag = "lane-b"
+    if should_close_second:
+        order_tag = "lane-b"
+    if should_stop_second:
+        order_tag = "lane-b-stop"
+    if should_open_third:
+        order_tag = "lane-c"
+    if should_close_third:
+        order_tag = "lane-c"
+    if should_stop_third:
+        order_tag = "lane-c-stop"
 """
     ).body[0]
     assert isinstance(node, ast.FunctionDef)
@@ -65,6 +94,7 @@ def route(self, current_time):
 def _constants() -> dict[str, object]:
     return {
         "first_entry_profit_threshold_spot": 0.018,
+        "first_entry_stop_threshold_spot": -0.2,
         "clusters": [
             {"entry_tag": "lane-a", "stop_tag": "lane-a-stop", "post_derisk": False},
             {"entry_tag": "lane-b", "stop_tag": "lane-b-stop", "post_derisk": False},
@@ -74,20 +104,29 @@ def _constants() -> dict[str, object]:
     }
 
 
-def test_legacy_grind_base_ir_uses_source_tags_and_policy_as_data() -> None:
-    program = compile_legacy_grind_base_ir(_method(), _constants())
+def test_legacy_grind_ir_uses_source_tags_and_policy_as_data() -> None:
+    program = compile_legacy_grind_ir(_method(), _constants())
 
-    assert program["schema_version"] == "grind-transition-program-v1"
+    assert program["schema_version"] == "grind-transition-program-v2"
     assert [transition["kind"] for transition in program["source_order"]] == [
-        "first-entry-profit",
+        "first-entry",
+        "cluster",
+        "cluster",
         "cluster",
         "cluster",
     ]
-    assert program["source_order"][0]["tag"] == "recover"
+    assert program["source_order"][0]["profit_tag"] == "recover"
+    assert program["source_order"][0]["stop_tag"] == "recover-stop"
     assert [transition["entry_tag"] for transition in program["source_order"][1:]] == [
+        "post-a",
         "lane-a",
         "lane-b",
+        "lane-c",
     ]
+    assert [
+        transition["futures_fallback_loss_threshold"]
+        for transition in program["source_order"][1:]
+    ] == [None, -0.65, None, None]
     assert program["order_scan"]["entry_order_side"] == "buy"
     assert program["order_scan"]["exit_order_side"] == "sell"
     assert program["order_scan"]["derisk_entry_tag"] == "risk-one"
@@ -102,21 +141,78 @@ def test_legacy_grind_base_ir_uses_source_tags_and_policy_as_data() -> None:
     }
 
 
-def test_legacy_grind_base_ir_fingerprint_tracks_source_policy_changes() -> None:
-    base = compile_legacy_grind_base_ir(_method(), _constants())
-    changed = compile_legacy_grind_base_ir(_method(retry_minutes=12), _constants())
+def test_legacy_grind_ir_fingerprint_tracks_source_policy_changes() -> None:
+    base = compile_legacy_grind_ir(_method(), _constants())
+    changed = compile_legacy_grind_ir(_method(retry_minutes=12), _constants())
 
     assert changed["policy"]["entry_retry_ms"] == 720_000
     assert changed["fingerprint"] != base["fingerprint"]
 
 
-def test_legacy_grind_base_ir_rejects_a_non_reversed_order_scan() -> None:
+def test_legacy_grind_ir_compiles_an_additional_source_defined_level() -> None:
+    method = _method()
+    reverse_loop = next(
+        node
+        for node in method.body
+        if isinstance(node, ast.For)
+        and isinstance(node.iter, ast.Call)
+        and isinstance(node.iter.func, ast.Name)
+        and node.iter.func.id == "reversed"
+    )
+    for container in (
+        node
+        for node in ast.walk(reverse_loop)
+        if isinstance(node, ast.List)
+        and any(
+            isinstance(item, ast.Constant) and item.value == "lane-c"
+            for item in node.elts
+        )
+    ):
+        container.elts.extend(
+            [ast.Constant(value="future-lane"), ast.Constant(value="future-lane-stop")]
+        )
+    extra_actions = ast.parse(
+        """
+if should_open_future:
+    order_tag = "future-lane"
+if should_close_future:
+    order_tag = "future-lane"
+if should_stop_future:
+    order_tag = "future-lane-stop"
+"""
+    ).body
+    for statement in extra_actions:
+        ast.increment_lineno(statement, 1_000)
+    method.body.extend(extra_actions)
+    constants = _constants()
+    clusters = constants["clusters"]
+    assert isinstance(clusters, list)
+    clusters.append(
+        {
+            "entry_tag": "future-lane",
+            "stop_tag": "future-lane-stop",
+            "post_derisk": False,
+        }
+    )
+
+    program = compile_legacy_grind_ir(method, constants)
+
+    cluster_tags = [
+        transition["entry_tag"]
+        for transition in program["source_order"]
+        if transition["kind"] == "cluster"
+    ]
+    assert cluster_tags[-1] == "future-lane"
+    assert len(cluster_tags) == len(clusters)
+
+
+def test_legacy_grind_ir_rejects_a_non_reversed_order_scan() -> None:
     method = _method()
     loop = next(node for node in method.body if isinstance(node, ast.For))
     loop.iter = ast.Name(id="filled_orders", ctx=ast.Load())
 
     with pytest.raises(StrategyAnalysisError, match="reverse filled-order scan changed"):
-        compile_legacy_grind_base_ir(method, _constants())
+        compile_legacy_grind_ir(method, _constants())
 
 
 def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> None:
@@ -126,17 +222,31 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert manager is not None
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
-    assert operation["schema_version"] == "0.25.0"
-    assert program["schema_version"] == "grind-transition-program-v1"
+    assert operation["schema_version"] == "0.26.0"
+    assert program["schema_version"] == "grind-transition-program-v2"
     transition_tags = [
-        transition.get("tag", transition.get("entry_tag"))
+        transition.get("profit_tag", transition.get("entry_tag"))
         for transition in program["source_order"]
     ]
     assert transition_tags == [
         "gm0",
+        "dl1",
+        "dl2",
         "gd1",
         "gd2",
+        "gd3",
+        "gd4",
+        "gd5",
+        "gd6",
     ]
+    assert program["source_order"][0]["stop_tag"] == "gmd0"
+    fallback = next(
+        transition
+        for transition in program["source_order"]
+        if transition.get("futures_fallback_loss_threshold") is not None
+    )
+    assert fallback["entry_tag"] == "gd1"
+    assert fallback["futures_fallback_loss_threshold"] == -0.65
     assert program["order_scan"]["known_clusters"][0]["post_derisk"] is False
     assert program["order_scan"]["known_clusters"][-1]["post_derisk"] is True
     assert manager["proof"]["legacy_grind_ir_fingerprint"] == program["fingerprint"]

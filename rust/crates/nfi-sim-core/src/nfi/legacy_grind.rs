@@ -161,7 +161,7 @@ enum LegacyClusterOutcome {
     Signal(AdjustmentSignal),
 }
 
-enum CompiledBaseOutcome {
+enum CompiledGrindOutcome {
     /// No compiled transition fired; the residual callback may still act.
     NoTransition,
     /// An earlier, intentionally uncompiled branch has precedence.
@@ -200,7 +200,7 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     let Some(program) = route.program.as_ref() else {
         return Some(legacy);
     };
-    match evaluate_compiled_grind_base(
+    match evaluate_compiled_grind(
         manager,
         route,
         program,
@@ -211,22 +211,17 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
         config,
         available_balance,
     )? {
-        CompiledBaseOutcome::ResidualPrecedes => Some(legacy),
-        CompiledBaseOutcome::Reached(compiled) => {
+        CompiledGrindOutcome::ResidualPrecedes => Some(legacy),
+        CompiledGrindOutcome::Reached(compiled) => {
             compiled_adjustments_match(compiled.as_ref(), legacy.as_ref()).then_some(legacy)
         }
-        CompiledBaseOutcome::NoTransition => {
+        CompiledGrindOutcome::NoTransition => {
             let legacy_is_compiled = legacy.as_ref().is_some_and(|signal| {
                 let head = signal.tag.split_whitespace().next().unwrap_or("");
                 program
                     .source_order
                     .iter()
-                    .any(|transition| match transition {
-                        CompiledLegacyGrindTransition::FirstEntryProfit { tag, .. } => tag == head,
-                        CompiledLegacyGrindTransition::Cluster { entry_tag, .. } => {
-                            entry_tag == head
-                        }
-                    })
+                    .any(|transition| compiled_transition_owns_tag(transition, head))
             });
             (!legacy_is_compiled).then_some(legacy)
         }
@@ -348,7 +343,7 @@ fn evaluate_nfi_legacy_grind_shadow(
 }
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
-fn evaluate_compiled_grind_base(
+fn evaluate_compiled_grind(
     manager: &NfiX7TradeManager,
     route: &NfiLongGrindRoute,
     program: &CompiledLegacyGrindProgram,
@@ -358,7 +353,7 @@ fn evaluate_compiled_grind_base(
     candle: &Candle,
     config: &PortfolioConfig,
     available_balance: f64,
-) -> Option<CompiledBaseOutcome> {
+) -> Option<CompiledGrindOutcome> {
     if trade.side != TradeSide::Long
         || !route.grind_mode
         || !nfi_long_grind_supports_trade(route, trade)
@@ -378,13 +373,31 @@ fn evaluate_compiled_grind_base(
     }
 
     let first_transition = program.source_order.first()?;
-    let CompiledLegacyGrindTransition::FirstEntryProfit {
-        tag,
-        append_entry_ids_from,
-        profit_threshold,
-        ..
-    } = first_transition
-    else {
+    let (profit_tag, stop_action, append_entry_ids_from, profit_threshold) = match first_transition
+    {
+        CompiledLegacyGrindTransition::FirstEntryProfit {
+            tag,
+            append_entry_ids_from,
+            profit_threshold,
+            ..
+        } => (tag, None, append_entry_ids_from, *profit_threshold),
+        CompiledLegacyGrindTransition::FirstEntry {
+            profit_tag,
+            stop_tag,
+            append_entry_ids_from,
+            profit_threshold,
+            stop_threshold,
+            ..
+        } => (
+            profit_tag,
+            Some((stop_tag, *stop_threshold)),
+            append_entry_ids_from,
+            *profit_threshold,
+        ),
+        CompiledLegacyGrindTransition::Cluster { .. } => return None,
+    };
+    let complete_program = program.schema_version == "grind-transition-program-v2";
+    if complete_program != stop_action.is_some() {
         return None;
     };
     let first_entry_closed = trade
@@ -411,7 +424,16 @@ fn evaluate_compiled_grind_base(
     if !first_entry_closed && first_entry_has_room {
         let distance = price_distance(candle.open, state.first_entry.price)?;
         let requested_exit = state.first_entry.amount * candle.open / trade.leverage;
-        if distance > profit_threshold + fee_open(config) + fee_close(config) {
+        let action_tag = if distance > profit_threshold + fee_open(config) + fee_close(config) {
+            Some(profit_tag)
+        } else if route.derisk_use_grind_stops
+            && stop_action.is_some_and(|(_, threshold)| distance < threshold)
+        {
+            stop_action.map(|(tag, _)| tag)
+        } else {
+            None
+        };
+        if let Some(action_tag) = action_tag {
             if let Some(stake_amount) = compiled_partial_exit_stake(
                 trade,
                 candle.open,
@@ -420,12 +442,13 @@ fn evaluate_compiled_grind_base(
                 program.policy.minimum_remaining_multiplier,
             ) {
                 let cluster = compiled_cluster_by_tag(program, &state, append_entry_ids_from)?;
-                return Some(CompiledBaseOutcome::Reached(Some(AdjustmentSignal {
+                return Some(CompiledGrindOutcome::Reached(Some(AdjustmentSignal {
                     stake_amount: -stake_amount,
-                    tag: order_id_tag(tag, &cluster.entry_ids),
+                    tag: order_id_tag(action_tag, &cluster.entry_ids),
                 })));
             }
-        } else if route.derisk_use_grind_stops
+        } else if !complete_program
+            && route.derisk_use_grind_stops
             && distance < route.first_entry_stop_threshold_spot
             && compiled_partial_exit_stake(
                 trade,
@@ -436,22 +459,22 @@ fn evaluate_compiled_grind_base(
             )
             .is_some()
         {
-            return Some(CompiledBaseOutcome::ResidualPrecedes);
+            return Some(CompiledGrindOutcome::ResidualPrecedes);
         }
     }
 
-    // Post-de-risk branches execute before every ordinary Grind transition.
-    // M17-01 does not promote them, so any reconstructed activity keeps the
-    // residual callback authoritative for this invocation.
-    if state.is_derisk_1 && state.derisk_1_reentry.is_none()
-        || program
-            .order_scan
-            .known_clusters
-            .iter()
-            .zip(&state.clusters)
-            .any(|(definition, cluster)| definition.post_derisk && cluster.count > 0)
+    // Historical v1 programs left post-de-risk actions to the handwritten
+    // implementation. V2 carries every cluster in source order below.
+    if !complete_program
+        && (state.is_derisk_1 && state.derisk_1_reentry.is_none()
+            || program
+                .order_scan
+                .known_clusters
+                .iter()
+                .zip(&state.clusters)
+                .any(|(definition, cluster)| definition.post_derisk && cluster.count > 0))
     {
-        return Some(CompiledBaseOutcome::ResidualPrecedes);
+        return Some(CompiledGrindOutcome::ResidualPrecedes);
     }
 
     let slice_amount = state.first_entry.amount * state.first_entry.price / first_multiplier;
@@ -497,6 +520,8 @@ fn evaluate_compiled_grind_base(
         let CompiledLegacyGrindTransition::Cluster {
             entry_tag,
             stop_tag,
+            post_derisk,
+            futures_fallback_loss_threshold,
             ..
         } = transition
         else {
@@ -513,6 +538,15 @@ fn evaluate_compiled_grind_base(
             .iter()
             .find(|cluster| cluster.entry_tag == *entry_tag && cluster.stop_tag == *stop_tag)?;
         let cluster = state.clusters.get(compiled_index)?;
+        if *post_derisk
+            != program
+                .order_scan
+                .known_clusters
+                .get(compiled_index)?
+                .post_derisk
+        {
+            return None;
+        }
         let (stakes, thresholds, profit_threshold, stop_threshold, stake_leverage) =
             legacy_cluster_mode(definition, config, trade.leverage);
         let scaled_stakes = scale_stakes_for_minimum(
@@ -522,14 +556,25 @@ fn evaluate_compiled_grind_base(
             stake_leverage,
             trade.leverage,
         )?;
-        let distance_allows = if cluster.count == 0 {
+        let first_entry_condition = if *post_derisk {
+            is_derisk
+        } else {
             is_derisk || route.grind_mode
+        };
+        let distance_allows = if cluster.count == 0 {
+            first_entry_condition
         } else if cluster.count < scaled_stakes.len() {
             cluster.latest_distance(candle.open) < *thresholds.get(cluster.count)?
         } else {
             false
         };
-        if cluster.count < scaled_stakes.len()
+        let route_allows = if *post_derisk {
+            state.is_derisk_1 && state.derisk_1_reentry.is_none()
+        } else {
+            true
+        };
+        if route_allows
+            && cluster.count < scaled_stakes.len()
             && distance_allows
             && entry_age_allows
             && is_long_grind_entry
@@ -537,7 +582,7 @@ fn evaluate_compiled_grind_base(
         {
             let requested = (slice_amount * scaled_stakes[cluster.count] / stake_leverage)
                 .max(minimum_stake * program.policy.minimum_entry_multiplier);
-            return Some(CompiledBaseOutcome::Reached(
+            return Some(CompiledGrindOutcome::Reached(
                 (requested <= available_balance).then(|| AdjustmentSignal {
                     stake_amount: requested,
                     tag: entry_tag.clone(),
@@ -545,9 +590,25 @@ fn evaluate_compiled_grind_base(
             ));
         }
 
-        // The futures drawdown fallback follows the ordinary gd1 entry in
-        // source order. It remains residual until M17-02 compiles the branch.
-        if source_index == 0
+        if futures_fallback_loss_threshold.is_some_and(|threshold| {
+            config.is_futures
+                && first_entry_condition
+                && cluster.count < scaled_stakes.len()
+                && slice_profit < threshold / trade.leverage
+        }) {
+            let requested = (slice_amount * scaled_stakes[cluster.count] / stake_leverage)
+                .max(minimum_stake * program.policy.minimum_entry_multiplier);
+            return Some(CompiledGrindOutcome::Reached(
+                (requested <= available_balance).then(|| AdjustmentSignal {
+                    stake_amount: requested,
+                    tag: entry_tag.clone(),
+                }),
+            ));
+        }
+        // Historical v1 programs left this source-ordered branch to the
+        // handwritten shadow. The index applies only to that sealed schema.
+        if !complete_program
+            && source_index == 0
             && config.is_futures
             && (is_derisk || route.grind_mode)
             && cluster.count < scaled_stakes.len()
@@ -555,7 +616,7 @@ fn evaluate_compiled_grind_base(
                 .futures_fallback_loss_threshold
                 .is_some_and(|threshold| slice_profit < threshold / trade.leverage)
         {
-            return Some(CompiledBaseOutcome::ResidualPrecedes);
+            return Some(CompiledGrindOutcome::ResidualPrecedes);
         }
         if cluster.count > 0
             && cluster.profit_rate > profit_threshold + fee_open(config) + fee_close(config)
@@ -568,7 +629,7 @@ fn evaluate_compiled_grind_base(
                 requested,
                 program.policy.minimum_remaining_multiplier,
             ) {
-                return Some(CompiledBaseOutcome::Reached(Some(AdjustmentSignal {
+                return Some(CompiledGrindOutcome::Reached(Some(AdjustmentSignal {
                     stake_amount: -stake_amount,
                     tag: order_id_tag(entry_tag, &cluster.entry_ids),
                 })));
@@ -578,19 +639,25 @@ fn evaluate_compiled_grind_base(
             && cluster.count > 0
             && cluster.profit_stake < slice_amount * stop_threshold
             && (is_derisk || route.grind_mode)
-            && compiled_partial_exit_stake(
+        {
+            if let Some(stake_amount) = compiled_partial_exit_stake(
                 trade,
                 candle.open,
                 minimum_stake,
                 cluster.total_amount * candle.open / trade.leverage,
                 program.policy.minimum_remaining_multiplier,
-            )
-            .is_some()
-        {
-            return Some(CompiledBaseOutcome::ResidualPrecedes);
+            ) {
+                if complete_program {
+                    return Some(CompiledGrindOutcome::Reached(Some(AdjustmentSignal {
+                        stake_amount: -stake_amount,
+                        tag: order_id_tag(stop_tag, &cluster.entry_ids),
+                    })));
+                }
+                return Some(CompiledGrindOutcome::ResidualPrecedes);
+            }
         }
     }
-    Some(CompiledBaseOutcome::NoTransition)
+    Some(CompiledGrindOutcome::NoTransition)
 }
 
 fn rebuild_compiled_grind_state(
@@ -733,6 +800,24 @@ fn compiled_adjustments_match(
                 && compiled.tag == legacy.tag
         }
         _ => false,
+    }
+}
+
+fn compiled_transition_owns_tag(transition: &CompiledLegacyGrindTransition, tag: &str) -> bool {
+    match transition {
+        CompiledLegacyGrindTransition::FirstEntryProfit {
+            tag: profit_tag, ..
+        } => profit_tag == tag,
+        CompiledLegacyGrindTransition::FirstEntry {
+            profit_tag,
+            stop_tag,
+            ..
+        } => profit_tag == tag || stop_tag == tag,
+        CompiledLegacyGrindTransition::Cluster {
+            entry_tag,
+            stop_tag,
+            ..
+        } => entry_tag == tag || stop_tag == tag,
     }
 }
 

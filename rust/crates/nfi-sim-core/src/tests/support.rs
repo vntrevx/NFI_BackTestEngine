@@ -299,30 +299,47 @@ pub(super) fn nfi_legacy_grind_program(
             post_derisk: cluster.post_derisk,
         })
         .collect();
+    let first_ordinary_tag = constants
+        .clusters
+        .iter()
+        .find(|cluster| !cluster.post_derisk)
+        .expect("ordinary Grind cluster")
+        .entry_tag
+        .clone();
+    let mut source_order = vec![CompiledLegacyGrindTransition::FirstEntry {
+        profit_tag: "gm0".to_owned(),
+        stop_tag: "gmd0".to_owned(),
+        append_entry_ids_from: first_ordinary_tag.clone(),
+        profit_threshold: 0.018,
+        stop_threshold: -0.2,
+        location: location(),
+    }];
+    source_order.extend(
+        constants
+            .clusters
+            .iter()
+            .filter(|cluster| cluster.post_derisk)
+            .chain(
+                constants
+                    .clusters
+                    .iter()
+                    .filter(|cluster| !cluster.post_derisk),
+            )
+            .map(|cluster| CompiledLegacyGrindTransition::Cluster {
+                entry_tag: cluster.entry_tag.clone(),
+                stop_tag: cluster.stop_tag.clone(),
+                post_derisk: cluster.post_derisk,
+                append_entry_ids: true,
+                futures_fallback_loss_threshold: (cluster.entry_tag == first_ordinary_tag)
+                    .then_some(-0.65),
+                location: location(),
+            }),
+    );
     CompiledLegacyGrindProgram {
-        schema_version: "grind-transition-program-v1".to_owned(),
+        schema_version: "grind-transition-program-v2".to_owned(),
         execution_mode: CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow,
         source_callback: "long_grind_adjust_trade_position".to_owned(),
-        source_order: vec![
-            CompiledLegacyGrindTransition::FirstEntryProfit {
-                tag: "gm0".to_owned(),
-                append_entry_ids_from: "gd1".to_owned(),
-                profit_threshold: 0.018,
-                location: location(),
-            },
-            CompiledLegacyGrindTransition::Cluster {
-                entry_tag: "gd1".to_owned(),
-                stop_tag: "dd1".to_owned(),
-                append_entry_ids: true,
-                location: location(),
-            },
-            CompiledLegacyGrindTransition::Cluster {
-                entry_tag: "gd2".to_owned(),
-                stop_tag: "dd2".to_owned(),
-                append_entry_ids: true,
-                location: location(),
-            },
-        ],
+        source_order,
         order_scan: CompiledLegacyGrindOrderScan {
             sequence: CompiledOrderSequence::Reverse,
             entry_order_side: CompiledOrderSide::Buy,
@@ -363,6 +380,34 @@ pub(super) fn nfi_legacy_grind_program(
         location: location(),
         fingerprint: "d".repeat(64),
     }
+}
+
+pub(super) fn enable_test_compiled_legacy_grind(
+    manager: &mut NfiX7TradeManager,
+    constants: NfiLegacyGrindConstants,
+) {
+    let program = nfi_legacy_grind_program(&constants);
+    manager
+        .programs
+        .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+    manager.long_grind = Some(NfiLongGrindRoute {
+        mode_name: "long_grind".to_owned(),
+        entry_tags: vec!["120".to_owned()],
+        exit_profit_threshold: 0.25,
+        adjustment_scope: "spot-grind-backtest-v1".to_owned(),
+        grind_mode: true,
+        decision_program: "long_grind_entry_v3".to_owned(),
+        first_entry_profit_threshold_spot: 0.018,
+        first_entry_stop_threshold_spot: -0.2,
+        futures_fallback_loss_threshold: Some(-0.65),
+        derisk_use_grind_stops: true,
+        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        constants,
+        program: Some(program),
+        regular_decision_program: None,
+        regular_constants: None,
+    });
+    manager.route_order.insert(6, "long_grind".to_owned());
 }
 
 pub(super) fn nfi_regular_adjustment_constants() -> NfiRegularAdjustmentConstants {

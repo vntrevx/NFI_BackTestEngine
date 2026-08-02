@@ -1,36 +1,32 @@
-"""Compile the reached legacy Grind prefix into strategy-neutral transition data."""
+"""Compile X7's legacy Grind callback into strategy-neutral transition data."""
 
 from __future__ import annotations
 
 import ast
 import hashlib
 import json
+import math
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ..errors import StrategyAnalysisError
 
-LEGACY_GRIND_PROGRAM_VERSION = "grind-transition-program-v1"
+LEGACY_GRIND_PROGRAM_VERSION = "grind-transition-program-v2"
 
 
-def compile_legacy_grind_base_ir(
+def compile_legacy_grind_ir(
     method: ast.FunctionDef,
     constants: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Compile first-entry recovery and the first two ordinary Grind clusters.
-
-    The compiler deliberately publishes only the branch surface reached by the
-    sealed tag-120 fixture.  The remaining callback stays behind the legacy
-    shadow until later roadmap tasks compile and prove those branches.
-    """
+    """Compile every source-defined Grind cluster and its ordered actions."""
 
     clusters = constants.get("clusters")
     if not isinstance(clusters, Sequence) or isinstance(clusters, str | bytes):
         raise StrategyAnalysisError("legacy Grind IR has no cluster descriptors")
     cluster_records = [_cluster_record(record) for record in clusters]
     ordinary = [record for record in cluster_records if not record["post_derisk"]]
-    if len(ordinary) < 2:
-        raise StrategyAnalysisError("legacy Grind base requires two ordinary clusters")
+    if not ordinary:
+        raise StrategyAnalysisError("legacy Grind requires an ordinary cluster")
 
     loop = _reverse_order_loop(method)
     entry_side, exit_side, entry_branch, exit_branch = _order_sides(loop)
@@ -41,6 +37,8 @@ def compile_legacy_grind_base_ir(
         required={"partial_exit", "force_exit"},
     )
     first_entry_closed = _first_entry_closed_tags(method, loop)
+    if len(first_entry_closed) != 2:
+        raise StrategyAnalysisError("legacy Grind first-entry action set changed")
     entry_excluded = _largest_membership(entry_memberships, contains=first_entry_closed)
     exit_excluded = _largest_membership(
         exit_memberships,
@@ -69,21 +67,36 @@ def compile_legacy_grind_base_ir(
         )
 
     source_tags = _assigned_order_tags(method)
-    base_clusters = ordinary[:2]
-    required_actions = {first_entry_closed[0], *(record["entry_tag"] for record in base_clusters)}
+    required_actions = {
+        *first_entry_closed,
+        *(record["entry_tag"] for record in cluster_records),
+        *(record["stop_tag"] for record in cluster_records),
+    }
     if missing_actions := sorted(required_actions - source_tags):
         raise StrategyAnalysisError(
-            "legacy Grind base transition changed: " + ", ".join(missing_actions)
+            "legacy Grind transition changed: " + ", ".join(missing_actions)
         )
 
     policy = _literal_policy(method)
+    fallback = extract_legacy_futures_fallback(method)
+    if fallback["entry_tag"] not in {record["entry_tag"] for record in ordinary}:
+        raise StrategyAnalysisError("legacy Grind Futures fallback targets an unknown cluster")
+    ordered_clusters = sorted(
+        cluster_records,
+        key=lambda record: _location_key(_tag_location(method, record["entry_tag"])),
+    )
     source_order: list[dict[str, Any]] = [
         {
-            "kind": "first-entry-profit",
-            "tag": first_entry_closed[0],
-            "append_entry_ids_from": base_clusters[0]["entry_tag"],
+            "kind": "first-entry",
+            "profit_tag": first_entry_closed[0],
+            "stop_tag": first_entry_closed[1],
+            "append_entry_ids_from": ordinary[0]["entry_tag"],
             "profit_threshold": _number(constants, "first_entry_profit_threshold_spot"),
-            "location": _tag_location(method, first_entry_closed[0]),
+            "stop_threshold": _number(constants, "first_entry_stop_threshold_spot"),
+            "location": _covering_location(
+                _tag_location(method, first_entry_closed[0]),
+                _tag_location(method, first_entry_closed[1]),
+            ),
         }
     ]
     source_order.extend(
@@ -91,10 +104,16 @@ def compile_legacy_grind_base_ir(
             "kind": "cluster",
             "entry_tag": record["entry_tag"],
             "stop_tag": record["stop_tag"],
+            "post_derisk": record["post_derisk"],
             "append_entry_ids": True,
+            "futures_fallback_loss_threshold": (
+                fallback["loss_threshold"]
+                if record["entry_tag"] == fallback["entry_tag"]
+                else None
+            ),
             "location": _tag_location(method, record["entry_tag"]),
         }
-        for record in base_clusters
+        for record in ordered_clusters
     )
     program: dict[str, Any] = {
         "schema_version": LEGACY_GRIND_PROGRAM_VERSION,
@@ -126,6 +145,89 @@ def compile_legacy_grind_base_ir(
     ).encode()
     program["fingerprint"] = hashlib.sha256(encoded).hexdigest()
     return program
+
+
+def extract_legacy_futures_fallback(method: ast.FunctionDef) -> dict[str, Any]:
+    """Extract the source-ordered Futures drawdown entry action."""
+
+    candidates: list[dict[str, Any]] = []
+    required_names = {
+        "is_futures",
+        "has_order_tags",
+        "partial_sell",
+        "slice_profit",
+        "trade_leverage",
+        "is_derisk",
+        "is_derisk_calc",
+        "is_grind_mode",
+    }
+    for branch in method.body:
+        if not isinstance(branch, ast.If) or not isinstance(branch.test, ast.BoolOp):
+            continue
+        names = {node.id for node in ast.walk(branch.test) if isinstance(node, ast.Name)}
+        if not required_names.issubset(names):
+            continue
+        assigned_tags = {
+            str(node.value.value)
+            for statement in branch.body
+            for node in ast.walk(statement)
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "order_tag"
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+            and node.value.value
+        }
+        comparisons = [
+            node
+            for node in ast.walk(branch.test)
+            if isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id == "slice_profit"
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.Lt)
+            and len(node.comparators) == 1
+        ]
+        level_bounds = [
+            node
+            for node in ast.walk(branch.test)
+            if isinstance(node, ast.Compare)
+            and isinstance(node.left, ast.Name)
+            and node.left.id.endswith("_sub_grind_count")
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.Lt)
+            and len(node.comparators) == 1
+            and isinstance(node.comparators[0], ast.Name)
+            and node.comparators[0].id.endswith("_max_sub_grinds")
+            and node.left.id.removesuffix("_sub_grind_count")
+            == node.comparators[0].id.removesuffix("_max_sub_grinds")
+        ]
+        if len(assigned_tags) != 1 or len(comparisons) != 1 or len(level_bounds) != 1:
+            continue
+        threshold = comparisons[0].comparators[0]
+        if (
+            not isinstance(threshold, ast.BinOp)
+            or not isinstance(threshold.op, ast.Div)
+            or not isinstance(threshold.right, ast.Name)
+            or threshold.right.id != "trade_leverage"
+            or (value := _ast_number(threshold.left)) is None
+            or not math.isfinite(value)
+            or value >= 0.0
+        ):
+            continue
+        candidates.append(
+            {
+                "entry_tag": next(iter(assigned_tags)),
+                "loss_threshold": value,
+                "location": _location(branch),
+            }
+        )
+    if len(candidates) != 1:
+        raise StrategyAnalysisError(
+            "NFI legacy futures drawdown fallback changed; exact lowering requires review"
+        )
+    return candidates[0]
 
 
 def _cluster_record(value: object) -> dict[str, Any]:
@@ -443,6 +545,24 @@ def _tag_location(method: ast.FunctionDef, tag: str) -> dict[str, int]:
     if not matches:
         raise StrategyAnalysisError(f"legacy Grind action {tag} has no source location")
     return _location(matches[0])
+
+
+def _location_key(location: Mapping[str, int]) -> tuple[int, int]:
+    return location["line"], location["column"]
+
+
+def _covering_location(
+    first: Mapping[str, int],
+    second: Mapping[str, int],
+) -> dict[str, int]:
+    start = min((first, second), key=_location_key)
+    end = max((first, second), key=lambda value: (value["end_line"], value["end_column"]))
+    return {
+        "line": start["line"],
+        "column": start["column"],
+        "end_line": end["end_line"],
+        "end_column": end["end_column"],
+    }
 
 
 def _location(node: ast.AST) -> dict[str, int]:

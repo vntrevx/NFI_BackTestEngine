@@ -300,14 +300,14 @@ side-specific program first and compares its stake, tag, and complete custom-sta
 with the retained legacy implementation. A mismatch invalidates the Native run; no Signal
 number, strategy SHA, or fixed Grind count selects runtime behavior.
 
-The legacy Grind migration now uses the same contract for its first certified prefix.
+The legacy Grind migration uses the same contract without imposing a level ceiling.
 Python extracts the reverse filled-order walk, order directions, complete cluster-tag
-inventory, first-entry recovery tag, retry/age gates, minimum-stake multipliers, and the
-first two ordinary cluster transitions into `grind-transition-program-v1`. Rust evaluates
-the reached `gm0`, `gd1`, and `gd2` transitions from that payload and requires an exact
-stake/tag match from the retained legacy shadow. Post-de-risk clusters, stops, the Futures
-drawdown fallback, and deeper levels deliberately remain residual until their own staged
-proofs; encountering one does not silently promote it into the generic claim.
+inventory, first-entry profit and stop, retry/age gates, minimum-stake multipliers,
+source-ordered post-de-risk and ordinary clusters, every cluster stop, and the Futures
+drawdown fallback into `grind-transition-program-v2`. Rust evaluates these actions from
+the payload and requires an exact stake/tag match from the retained legacy shadow. The
+`d1` restoration cycle remains residual until its separate atomic-transition proof;
+encountering it does not silently widen the generic claim.
 
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized
@@ -316,9 +316,9 @@ funded trades. It reaches derisk levels 1-3 and grind levels 1-5 and protects
 Freqtrade's no-fallthrough stop-loss/liquidation collision order. The APE spot
 top-coins path, a separate tag-62 rebuy exit, and a ZEC tag-120 grind path also have
 captured official final-surface certificates. The rebuy fixture does not reach an
-adjustment order. The ZEC fixture reaches `gm0`, `gd1`, and `gd2`; deeper legacy
-branches have source hashes and focused native tests, not a branch-reaching Freqtrade
-differential certificate.
+adjustment order. The ZEC fixture reaches `gm0`, `gd1`, and `gd2`; dynamic deeper,
+post-de-risk, stop, and Futures-fallback paths have focused generic-versus-legacy tests,
+not a branch-reaching Freqtrade differential certificate.
 
 The newer v17.4.435 bounded Futures portfolio differential covers ten pairs and six
 months. It proves byte-identical final surfaces for 63 trades and 296 orders, including

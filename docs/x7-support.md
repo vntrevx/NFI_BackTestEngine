@@ -150,15 +150,17 @@ The full-year APE/USDT spot fixture separately proves exact final trade-surface 
 for the top-coins path: 12 trades, 232 orders, and a byte-identical normalized surface.
 A ZEC/USDT fixture proves the tag-120 legacy route through `gm0`, repeated `gd1`, and
 `gd2`: one trade and 13 orders are byte-identical to an offline Freqtrade 2026.5.1
-run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, and `d1` branches are executable and have
-focused Rust tests, but do not yet have branch-reaching official fixtures.
+run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, Futures-fallback, and `d1` branches are
+executable and have focused Rust tests, but do not yet have branch-reaching official
+fixtures.
 
-Those reached base transitions are now source-compiled rather than selected by tag-120
-runtime code. `grind-transition-program-v1` carries the source tags, reverse order scan,
-cluster inventory, retry/age gates, and stake constraints. The generic result is compared
-with the independent legacy callback implementation on every reached `gm0`, `gd1`, or
-`gd2` action; a mismatch invalidates the Native run. Deeper and post-de-risk transitions
-remain on the legacy residual path pending the next branch-specific certificates.
+The whole Grind cluster set is source-compiled rather than selected by tag-120 runtime
+code. `grind-transition-program-v2` carries first-entry profit and stop, source-ordered
+post-de-risk and ordinary clusters, arbitrary source-defined level counts, each stop tag,
+retry/age and stake policy, and the Futures drawdown fallback. Every reached compiled
+action is compared with the independent legacy callback implementation; a mismatch
+invalidates the Native run. The `d1` restoration cycle remains on the residual path until
+its separate atomic-transition proof.
 
 A separate mid-day Unix-timerange fixture proves the tag-62 rebuy entry, generic
 confirmation path, and rebuy custom exit with one exact trade. That trade did not
