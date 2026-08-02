@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 115,
-  "updated_at": "2026-08-02T14:27:03+09:00",
+  "revision": 116,
+  "updated_at": "2026-08-02T14:54:16+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M18-04",
+  "active_task_id": "M18-05",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4390,7 +4390,7 @@
       "order": 1804,
       "milestone": "M18",
       "title": "Benchmark generic stateful Native performance",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M18-03"
       ],
@@ -4410,9 +4410,15 @@
         "result SHA identity"
       ],
       "started_at": "2026-08-02T14:27:03+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T14:54:16+09:00",
+      "commit_sha": "2f9e1b9a5818367026f79ff85b87503b20fc0b9a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/native-runtime-benchmark.json",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -4420,7 +4426,7 @@
       "order": 1805,
       "milestone": "M18",
       "title": "Remove handwritten X7 stateful runtime behavior",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M18-04"
       ],
@@ -4439,7 +4445,7 @@
         "zero X7 runtime behavior branches",
         "all exact fixtures pass without legacy"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T14:54:16+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7848,6 +7854,50 @@
         "diagnostic_timings_may_be_claimed_as_certification": false,
         "hard_coded_benchmark_paths_allowed": false,
         "result_sha_identity_required": true
+      }
+    },
+    {
+      "sequence": 159,
+      "timestamp": "2026-08-02T14:54:16+09:00",
+      "task_id": "M18-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "2f9e1b9a5818367026f79ff85b87503b20fc0b9a",
+        "benchmark_runner_generic_paths": true,
+        "fresh_process_per_invocation": true,
+        "cold_and_warm_recorded": true,
+        "benchmark_repetitions": 3,
+        "benchmark_inner_iterations_per_mode": 100,
+        "maximum_wall_spread": 0.0055477609770662175,
+        "before_after_result_sha_exact": true,
+        "fresh_process_wall_ratio": 0.9760024288088235,
+        "event_loop_ratio": 0.9092087531553079,
+        "peak_rss_ratio": 1.001293847038528,
+        "fresh_process_wall_gate_met": true,
+        "event_loop_gate_met": true,
+        "peak_rss_gate_met": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "diagnostic_only": true,
+        "acceptance_command_count": 12,
+        "python_test_count": 682,
+        "rust_test_count": 143,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 160,
+      "timestamp": "2026-08-02T14:54:16+09:00",
+      "task_id": "M18-05",
+      "event": "task_started",
+      "details": {
+        "objective": "remove handwritten X7 stateful runtime behavior after generic exact proof while preserving legacy evidence replay",
+        "certificate_or_oracle_deletion_allowed": false,
+        "backward_schema_reader_removal_allowed": false,
+        "runtime_signal_or_tag_value_hardcoding_allowed": false
       }
     }
   ]
