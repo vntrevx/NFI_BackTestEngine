@@ -535,6 +535,7 @@ pub(crate) fn validate_nfi_trade_manager(
         || !valid_constants
         || !has_system_write
         || config.custom_exit_program.is_some()
+        || !manager.initialize_feature_projection_caches()
         || manager.runtime_dispatch().is_none()
     {
         return Err(SimError::InvalidNfiTradeManager);

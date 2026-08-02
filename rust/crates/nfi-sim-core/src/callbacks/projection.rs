@@ -97,18 +97,59 @@ impl NfiX7TradeManager {
     pub(crate) fn dynamic_feature_projection_union(
         &self,
         program_order: &[String],
-    ) -> Option<FeatureProjection> {
-        let mut union = FeatureProjection::new();
-        for program in program_order {
-            let projection = self.feature_projection(program)?;
-            for (variable, columns) in projection {
-                union
-                    .entry(variable.clone())
-                    .or_default()
-                    .extend(columns.iter().cloned());
-            }
+    ) -> Option<&FeatureProjection> {
+        self.source_feature_projection_unions
+            .get_or_init(|| {
+                let mut unions = BTreeMap::new();
+                let programs = self
+                    .managed_exit_program
+                    .iter()
+                    .chain(&self.managed_short_exit_program);
+                for route in programs.flat_map(|program| &program.routes) {
+                    let mut union = FeatureProjection::new();
+                    let mut valid = true;
+                    for program in &route.decision_program_order {
+                        let Some(projection) = self.feature_projection(program) else {
+                            valid = false;
+                            break;
+                        };
+                        for (variable, columns) in projection {
+                            union
+                                .entry(variable.clone())
+                                .or_default()
+                                .extend(columns.iter().cloned());
+                        }
+                    }
+                    if valid {
+                        unions.insert(route.decision_program_order.clone(), union);
+                    }
+                }
+                unions
+            })
+            .get(program_order)
+    }
+
+    /// Precompute runtime-only projections during validation, before callbacks.
+    pub(crate) fn initialize_feature_projection_caches(&self) -> bool {
+        let fixed = [
+            NFI_LONG_EXIT_PROGRAMS,
+            NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING,
+            NFI_SHORT_EXIT_PROGRAMS,
+        ];
+        if fixed
+            .iter()
+            .any(|program_order| self.feature_projection_union(program_order).is_none())
+        {
+            return false;
         }
-        Some(union)
+        self.managed_exit_program
+            .iter()
+            .chain(&self.managed_short_exit_program)
+            .flat_map(|program| &program.routes)
+            .all(|route| {
+                self.dynamic_feature_projection_union(&route.decision_program_order)
+                    .is_some()
+            })
     }
 }
 

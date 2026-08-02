@@ -603,7 +603,7 @@ fn generic_managed_exit_signals(
         ),
     ]);
     let projection = manager.dynamic_feature_projection_union(&route.decision_program_order)?;
-    insert_projected_feature_window(&mut base_variables, pair, candle_index, &projection)?;
+    insert_projected_feature_window(&mut base_variables, pair, candle_index, projection)?;
     let mut result = (false, None);
     for handle in program_handles {
         let value = evaluate_scalar_program_handle_from_base(

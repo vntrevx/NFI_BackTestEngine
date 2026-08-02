@@ -309,7 +309,8 @@ def test_managed_exit_state_is_source_compiled_for_all_long_routes() -> None:
 
     assert quick["inline_exit"]["position"] == "after-stop"
     assert quick["inline_exit"]["minimum_profit"] == 0.02
-    assert len(quick["inline_exit"]["program"]["expressions"]) == 89
+    # Literal-only arithmetic is folded before the managed-exit program is sealed.
+    assert len(quick["inline_exit"]["program"]["expressions"]) == 86
     assert rapid["inline_exit"]["position"] == "before-stop"
     assert rapid["inline_exit"]["minimum_profit"] == 0.005
     assert rebuy["stop"] == {

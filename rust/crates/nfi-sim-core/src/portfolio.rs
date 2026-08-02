@@ -73,7 +73,7 @@ pub(crate) struct OpenTrade {
     /// callback. Caching the exact derived projection is behavior-preserving:
     /// adjustments only append orders, and the cache records the order count
     /// used to build it so the next callback invalidates it automatically.
-    pub(crate) nfi_adjustment_state: Option<AdjustmentState>,
+    pub(crate) nfi_adjustment_state: Option<Arc<AdjustmentState>>,
 }
 
 impl OpenTrade {
@@ -99,8 +99,10 @@ impl OpenTrade {
     }
 
     pub(crate) fn push_filled_order(&mut self, order: FilledOrder) {
+        if let Some(aggregates) = self.filled_order_aggregates.get_mut() {
+            aggregates.push(&order);
+        }
         self.orders.push(order);
-        self.filled_order_aggregates.take();
         self.nfi_adjustment_state = None;
     }
 

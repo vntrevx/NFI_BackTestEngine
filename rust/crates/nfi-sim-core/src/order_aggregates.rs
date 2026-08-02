@@ -43,7 +43,7 @@ impl FilledOrderSummary {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 struct FilledOrderGroup {
     all: FilledOrderSummary,
     entries: FilledOrderSummary,
@@ -69,7 +69,7 @@ impl FilledOrderGroup {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct FilledOrderAggregates {
     order_count: usize,
     totals: FilledOrderGroup,
@@ -80,15 +80,19 @@ impl FilledOrderAggregates {
     pub(crate) fn from_orders(orders: &[FilledOrder]) -> Self {
         let mut aggregates = Self::default();
         for order in orders {
-            aggregates.totals.observe(order);
-            aggregates
-                .by_tag
-                .entry(order.tag.clone())
-                .or_default()
-                .observe(order);
+            aggregates.push(order);
         }
-        aggregates.order_count = orders.len();
         aggregates
+    }
+
+    /// Extend an initialized projection after the immutable order log appends.
+    pub(crate) fn push(&mut self, order: &FilledOrder) {
+        self.totals.observe(order);
+        self.by_tag
+            .entry(order.tag.clone())
+            .or_default()
+            .observe(order);
+        self.order_count += 1;
     }
 
     pub(crate) const fn order_count(&self) -> usize {
@@ -193,5 +197,20 @@ mod tests {
                 .map(|order| order.id),
             Some(3)
         );
+    }
+
+    #[test]
+    fn incremental_append_matches_a_complete_rebuild() {
+        let mut orders = vec![
+            order(1, 0, true, 2.0, 100.0, Some("entry-a")),
+            order(2, 1, true, 1.0, 90.0, Some("entry-a")),
+        ];
+        let mut incremental = FilledOrderAggregates::from_orders(&orders);
+        let appended = order(3, 2, false, 0.5, 110.0, Some("exit-a"));
+
+        incremental.push(&appended);
+        orders.push(appended);
+
+        assert_eq!(incremental, FilledOrderAggregates::from_orders(&orders));
     }
 }

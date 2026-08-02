@@ -7,6 +7,7 @@
 //! input or source-order decision.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use serde_json::Value;
 
@@ -68,6 +69,9 @@ impl GrindCluster {
 #[derive(Debug, Clone)]
 pub(crate) struct AdjustmentState {
     order_count: usize,
+    /// A compiled state may only be reused by the exact structural program.
+    /// `None` identifies the independently reconstructed legacy shadow.
+    program_fingerprint: Option<String>,
     clusters: Vec<GrindCluster>,
     derisk_found: Vec<bool>,
     first_entry_amount: f64,
@@ -196,11 +200,7 @@ fn evaluate_nfi_position_adjustment_legacy(
         return None;
     }
 
-    let state = trade
-        .nfi_adjustment_state
-        .take()
-        .filter(|state| state.order_count == trade.orders.len())
-        .or_else(|| rebuild_adjustment_state(trade, adjustment))?;
+    let state = legacy_adjustment_state(trade, adjustment)?;
     let result = evaluate_nfi_position_adjustment_with_state(
         manager,
         adjustment,
@@ -265,7 +265,7 @@ fn evaluate_compiled_system_adjustment(
     if !initial_stake_multiplier.is_finite() || initial_stake_multiplier <= 0.0 {
         return None;
     }
-    let state = rebuild_compiled_adjustment_state(trade, program)?;
+    let state = compiled_adjustment_state(trade, program)?;
     let exchange_minimum_stake =
         adjustment_minimum_stake(request.pair, request.candle, trade, request.config)?;
     let minimum_stake =
@@ -801,6 +801,33 @@ fn adjustment_minimum_stake(
         .then(|| adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent))
 }
 
+fn legacy_adjustment_state(
+    trade: &mut OpenTrade,
+    adjustment: &NfiX7PositionAdjustment,
+) -> Option<Arc<AdjustmentState>> {
+    trade
+        .nfi_adjustment_state
+        .take()
+        .filter(|state| {
+            state.order_count == trade.orders.len() && state.program_fingerprint.is_none()
+        })
+        .or_else(|| rebuild_adjustment_state(trade, adjustment).map(Arc::new))
+}
+
+fn compiled_adjustment_state(
+    trade: &mut OpenTrade,
+    program: &CompiledSystemAdjustmentProgram,
+) -> Option<Arc<AdjustmentState>> {
+    trade
+        .nfi_adjustment_state
+        .take()
+        .filter(|state| {
+            state.order_count == trade.orders.len()
+                && state.program_fingerprint.as_deref() == Some(program.fingerprint.as_str())
+        })
+        .or_else(|| rebuild_compiled_adjustment_state(trade, program).map(Arc::new))
+}
+
 fn rebuild_adjustment_state(
     trade: &OpenTrade,
     adjustment: &NfiX7PositionAdjustment,
@@ -865,6 +892,7 @@ fn rebuild_adjustment_state(
     }
     Some(AdjustmentState {
         order_count: trade.orders.len(),
+        program_fingerprint: None,
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
@@ -963,6 +991,7 @@ fn rebuild_compiled_adjustment_state(
     }
     Some(AdjustmentState {
         order_count: trade.orders.len(),
+        program_fingerprint: Some(program.fingerprint.clone()),
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
@@ -1549,7 +1578,7 @@ fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use std::sync::OnceLock;
+    use std::sync::{Arc, OnceLock};
 
     use serde_json::json;
 
@@ -1560,9 +1589,9 @@ mod tests {
     use crate::portfolio::{OpenTrade, TradeSide};
 
     use super::{
-        derisk_level_index, evaluate_compiled_system_action, grind_callback_maximum_stake,
-        grind_callback_minimum_stake, grind_entry_index, grind_exit_index,
-        rebuild_compiled_adjustment_state, AdjustmentContext, AdjustmentState,
+        compiled_adjustment_state, derisk_level_index, evaluate_compiled_system_action,
+        grind_callback_maximum_stake, grind_callback_minimum_stake, grind_entry_index,
+        grind_exit_index, rebuild_compiled_adjustment_state, AdjustmentContext, AdjustmentState,
         CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
     };
 
@@ -1763,6 +1792,50 @@ mod tests {
     }
 
     #[test]
+    fn compiled_state_cache_reuses_only_matching_order_and_program_identity() {
+        let scalar_program = json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": [],
+            "expressions": [["literal", null]],
+            "statements": [["return", 0]]
+        });
+        let program = compiled_action_program(&scalar_program);
+        let mut trade = test_trade();
+        let first = compiled_adjustment_state(&mut trade, &program).expect("initial state");
+        trade.nfi_adjustment_state = Some(Arc::clone(&first));
+
+        let reused = compiled_adjustment_state(&mut trade, &program).expect("cached state");
+        assert!(Arc::ptr_eq(&first, &reused));
+
+        trade.nfi_adjustment_state = Some(Arc::clone(&reused));
+        let mut different_program = program.clone();
+        different_program.fingerprint = "b".repeat(64);
+        let different = compiled_adjustment_state(&mut trade, &different_program)
+            .expect("program-specific rebuild");
+        assert!(!Arc::ptr_eq(&reused, &different));
+
+        trade.nfi_adjustment_state = Some(Arc::clone(&different));
+        trade.push_filled_order(FilledOrder {
+            id: 2,
+            funding_fee: 0.0,
+            sequence: 1,
+            side: OrderSide::Buy,
+            is_entry: true,
+            filled_timestamp_ms: 60_000,
+            amount: 0.5,
+            price: 90.0,
+            cost: 45.0,
+            tag: Some("source_entry".to_owned()),
+        });
+        assert!(trade.nfi_adjustment_state.is_none());
+        let rebuilt = compiled_adjustment_state(&mut trade, &different_program)
+            .expect("order append rebuild");
+        assert!(!Arc::ptr_eq(&different, &rebuilt));
+        assert_eq!(rebuilt.order_count, 2);
+    }
+
+    #[test]
     fn compiled_action_uses_payload_stake_tag_and_dynamic_entry_ids() {
         let scalar_program = json!({
             "schema_version": "1.2.0",
@@ -1784,6 +1857,7 @@ mod tests {
         let candle = pair.candles.get(0).expect("one candle").into_owned();
         let state = AdjustmentState {
             order_count: 1,
+            program_fingerprint: None,
             clusters: vec![GrindCluster {
                 count: 2,
                 total_amount: 0.5,
@@ -1857,6 +1931,7 @@ mod tests {
         let candle = pair.candles.get(0).expect("one candle").into_owned();
         let state = AdjustmentState {
             order_count: 1,
+            program_fingerprint: None,
             clusters: vec![GrindCluster::default()],
             derisk_found: Vec::new(),
             first_entry_amount: 1.0,

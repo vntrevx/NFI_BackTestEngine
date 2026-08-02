@@ -72,6 +72,9 @@ pub struct NfiX7TradeManager {
     /// scalar arenas and cannot be supplied by an input document.
     #[serde(skip)]
     pub(crate) feature_projection_unions: OnceLock<BTreeMap<String, FeatureProjection>>,
+    /// Source-provided managed-exit sequences keyed by their exact program order.
+    #[serde(skip)]
+    pub(crate) source_feature_projection_unions: OnceLock<BTreeMap<Vec<String>, FeatureProjection>>,
     /// Runtime-only, source-order dispatch indexes derived from this payload.
     ///
     /// Route keys, tag IDs, and scalar program handles are never accepted from
