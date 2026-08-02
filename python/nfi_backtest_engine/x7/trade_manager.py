@@ -339,9 +339,12 @@ _LONG_BTC_IMPLEMENTED_STEPS = (
     "tag-121 regular-mode de-risk levels",
     "tag-121 post-de-risk legacy grind continuation",
 )
-_LONG_GRIND_REMAINING_STEPS = (
-    "live partial-fill retry",
-    "legacy futures adjustment",
+_BACKTEST_EXCLUSIONS = (
+    {
+        "code": "filled-order-partial-remainder",
+        "runtime_scope": "live-only",
+        "policy": "filled-orders-have-zero-remaining",
+    },
 )
 
 # These methods contain the stateful part of the handwritten Rust lowering.
@@ -821,9 +824,8 @@ def build_nfi_trade_manager_ir(
             *(_LONG_GRIND_IMPLEMENTED_STEPS if long_grind_route is not None else ()),
             *(_LONG_BTC_IMPLEMENTED_STEPS if long_btc_route is not None else ()),
         ],
-        "remaining_steps": (
-            [*_LONG_GRIND_REMAINING_STEPS, "legacy short-grind tag 620"]
-            if long_grind_route is not None or long_btc_route is not None
-            else ["legacy short-grind tag 620"]
-        ),
+        # Reachability is source data and is audited separately. Do not turn a
+        # currently disabled Signal/tag into a version-specific manager rule.
+        "backtest_exclusions": [dict(item) for item in _BACKTEST_EXCLUSIONS],
+        "remaining_steps": [],
     }

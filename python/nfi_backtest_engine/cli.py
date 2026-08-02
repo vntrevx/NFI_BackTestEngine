@@ -688,6 +688,21 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
     )
     strategy_callback_ir.add_argument("--output", "-o", type=Path, required=True)
+    strategy_stateful_coverage = strategy_commands.add_parser(
+        "stateful-coverage",
+        help="prove backtest-reachable stateful routes have sealed Native programs",
+    )
+    strategy_stateful_coverage.add_argument("source", type=Path)
+    strategy_stateful_coverage.add_argument("--class", dest="class_name")
+    strategy_stateful_coverage.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        required=True,
+    )
+    strategy_stateful_coverage.add_argument("--config", type=Path)
+    strategy_stateful_coverage.add_argument("--upstream-repository")
+    strategy_stateful_coverage.add_argument("--upstream-commit")
+    strategy_stateful_coverage.add_argument("--output", "-o", type=Path, required=True)
     strategy_check = strategy_commands.add_parser(
         "check",
         help="check whether a new strategy revision has exact native callback lowerings",

@@ -289,6 +289,30 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             f"columns={len(program['required_columns'])} -> {args.output}"
         )
         return 0
+    if args.strategy_command == "stateful-coverage":
+        from ..stateful_coverage import build_stateful_coverage
+
+        report = build_stateful_coverage(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            config_path=args.config,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            output_path=args.output,
+        )
+        summary = report["summary"]
+        print(
+            "stateful coverage: "
+            f"class={report['selected_class']}, mode={report['trading_mode']}, "
+            f"callbacks={summary['active_callback_count']}, "
+            f"tags={summary['emitted_entry_tag_count']}, "
+            f"dormant={summary['dormant_unsupported_tag_count']}, "
+            f"reachable_gaps={summary['reachable_stateful_gap_count']}, "
+            f"complete={summary['closure_complete']}"
+        )
+        print(f"stateful coverage report: {args.output}")
+        return 0 if summary["closure_complete"] else 1
     if args.strategy_command == "check":
         from ..strategy_compatibility import check_strategy_compatibility
         from ..verification_ledger import (

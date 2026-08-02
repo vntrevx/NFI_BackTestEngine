@@ -213,12 +213,26 @@ before a four-to-five-year run consumes resources. Missing Futures branches are 
 to a separate nightly, two-hour, resumable discovery lane. Only a minimized independent
 official/Native exact fixture may open a Draft candidate PR.
 
+For a source-reachability audit, run:
+
+```bash
+nfi-bte strategy stateful-coverage NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 --trading-mode futures \
+  --output .nfi/stateful-coverage-futures.json
+```
+
+Run it once per mode. The report derives enabled entry tags from the source, refreshes
+the callback call graph, and verifies that every reachable tag has sealed Native exit
+and adjustment programs. Disabled or non-emitted source routes remain visible as
+dormant evidence and do not qualify as implemented behavior.
+
 ## Still blocked
 
 The engine rejects rather than approximates:
 
-- the live-only partial-fill retry in the tag-120 route;
-- the separate legacy short-grind tag 620 route;
+- live-only partial-fill retries, which are outside Freqtrade backtest reachability;
+- any currently dormant route that a future source revision makes reachable before a
+  sealed Native program exists (the current upstream short-grind route is one example);
 - dynamic or structurally new leverage callback programs;
 - dynamic protection properties, unsupported protection methods, and direct live
   pair-lock mutation outside the compiled protection program;

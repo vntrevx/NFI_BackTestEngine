@@ -356,11 +356,21 @@ official and Native runs match the final trade surface and all 286 projected can
 states exactly; no strategy name, tag value, timerange, or expected result selects the
 runtime behavior.
 
+`nfi-bte strategy stateful-coverage` closes the remaining static-proof gap between
+entry signals and stateful callbacks. It proves the source loop that turns enabled
+entry parameters into tags, intersects those tags with the callback route graph, and
+requires a sealed Native exit and adjustment program for every reachable tag. Spot and
+Futures are audited independently. Source-defined but disabled routes are reported as
+dormant and never count as Native coverage; enabling one without a contract makes the
+command fail. Filled-order `safe_remaining` branches are listed separately as live-only
+exclusions only when the serialized IR contains the matching Freqtrade backtest policy.
+
 ## Explicitly unsupported
 
 The engine fails before simulation instead of approximating:
 
-- live-only tag-120 partial-fill retry;
+- live-only partial-fill retry branches (excluded by the filled-order backtest
+  invariant, not counted as covered behavior);
 - leverage programs outside the compiled source-ordered X7 callback shape;
 - arbitrary long-range liquidation behavior outside the bounded
   branch-reaching liquidation fixture;

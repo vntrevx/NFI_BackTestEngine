@@ -1,0 +1,434 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/stateful-coverage-v1.schema.json",
+  "title": "Stateful callback reachability and Native coverage report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "selected_class",
+    "trading_mode",
+    "run_mode",
+    "config",
+    "upstream",
+    "callback_source_ir",
+    "native_runtime",
+    "entry_signals",
+    "callbacks",
+    "source_routes",
+    "native_contracts",
+    "dormant_stateful_routes",
+    "live_only_exclusions",
+    "reachable_stateful_gaps",
+    "summary",
+    "qualification",
+    "compilation_errors",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "stateful-coverage-v1"},
+    "source": {"$ref": "#/$defs/source"},
+    "selected_class": {"$ref": "#/$defs/non_empty_string"},
+    "trading_mode": {"enum": ["spot", "futures"]},
+    "run_mode": {"const": "backtest"},
+    "config": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/config"}
+      ]
+    },
+    "upstream": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/upstream"}
+      ]
+    },
+    "callback_source_ir": {"$ref": "#/$defs/callback_source_ir"},
+    "native_runtime": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/native_runtime"}
+      ]
+    },
+    "entry_signals": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entry_signal"},
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "callbacks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/callback"}
+    },
+    "source_routes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source_route"}
+    },
+    "native_contracts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/native_contract"}
+    },
+    "dormant_stateful_routes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/dormant_route"}
+    },
+    "live_only_exclusions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/live_exclusion"}
+    },
+    "reachable_stateful_gaps": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/gap"}
+    },
+    "summary": {"$ref": "#/$defs/summary"},
+    "qualification": {"$ref": "#/$defs/qualification"},
+    "compilation_errors": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/compilation_error"}
+    },
+    "fingerprint": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "non_empty_string": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_sha256": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "nullable_string": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/non_empty_string"}
+      ]
+    },
+    "strings": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/non_empty_string"},
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/non_empty_string"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit"],
+      "properties": {
+        "repository": {"$ref": "#/$defs/non_empty_string"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "column", "end_line", "end_column"],
+      "properties": {
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 0},
+        "end_line": {"type": "integer", "minimum": 1},
+        "end_column": {"type": "integer", "minimum": 0}
+      }
+    },
+    "callback_source_ir": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "fingerprint", "call_edge_count"],
+      "properties": {
+        "schema_version": {"const": "callback-source-ir-v1"},
+        "fingerprint": {"$ref": "#/$defs/sha256"},
+        "call_edge_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "native_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hot_ir_schema_version",
+        "hot_ir_fingerprint",
+        "manager_schema_version",
+        "manager_backend",
+        "operation_sha256",
+        "hot_loop_ready"
+      ],
+      "properties": {
+        "hot_ir_schema_version": {"$ref": "#/$defs/nullable_string"},
+        "hot_ir_fingerprint": {"$ref": "#/$defs/nullable_sha256"},
+        "manager_schema_version": {"$ref": "#/$defs/nullable_string"},
+        "manager_backend": {"$ref": "#/$defs/nullable_string"},
+        "operation_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "hot_loop_ready": {"type": "boolean"}
+      }
+    },
+    "entry_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side",
+        "parameter_constant",
+        "parameters",
+        "enabled_tags",
+        "disabled_tags",
+        "proof"
+      ],
+      "properties": {
+        "side": {"enum": ["long", "short"]},
+        "parameter_constant": {"$ref": "#/$defs/non_empty_string"},
+        "parameters": {"$ref": "#/$defs/strings"},
+        "enabled_tags": {"$ref": "#/$defs/strings"},
+        "disabled_tags": {"$ref": "#/$defs/strings"},
+        "proof": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/entry_proof"}
+          ]
+        }
+      }
+    },
+    "entry_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compiler",
+        "loop",
+        "index_extraction",
+        "enabled_guard",
+        "tag_emission"
+      ],
+      "properties": {
+        "compiler": {"const": "enabled-entry-parameter-loop-v1"},
+        "loop": {"$ref": "#/$defs/location"},
+        "index_extraction": {"$ref": "#/$defs/location"},
+        "enabled_guard": {"$ref": "#/$defs/location"},
+        "tag_emission": {"$ref": "#/$defs/location"}
+      }
+    },
+    "callback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "source_order",
+        "active_for_mode",
+        "reachable_methods",
+        "route_keys",
+        "backend",
+        "executable_in_rust",
+        "stateful",
+        "location"
+      ],
+      "properties": {
+        "name": {"$ref": "#/$defs/non_empty_string"},
+        "source_order": {"type": "integer", "minimum": 0},
+        "active_for_mode": {"type": "boolean"},
+        "reachable_methods": {"$ref": "#/$defs/strings"},
+        "route_keys": {"$ref": "#/$defs/strings"},
+        "backend": {"$ref": "#/$defs/non_empty_string"},
+        "executable_in_rust": {"type": "boolean"},
+        "stateful": {"type": "boolean"},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "nullable_side": {
+      "oneOf": [
+        {"type": "null"},
+        {"enum": ["long", "short"]}
+      ]
+    },
+    "source_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "side",
+        "entrypoints",
+        "declared_tags",
+        "reachable_tags",
+        "dormant_tags",
+        "native_exit_covered_tags",
+        "native_adjustment_covered_tags",
+        "unsupported_reachable_tags",
+        "location"
+      ],
+      "properties": {
+        "key": {"$ref": "#/$defs/non_empty_string"},
+        "side": {"$ref": "#/$defs/nullable_side"},
+        "entrypoints": {"$ref": "#/$defs/strings"},
+        "declared_tags": {"$ref": "#/$defs/strings"},
+        "reachable_tags": {"$ref": "#/$defs/strings"},
+        "dormant_tags": {"$ref": "#/$defs/strings"},
+        "native_exit_covered_tags": {"$ref": "#/$defs/strings"},
+        "native_adjustment_covered_tags": {"$ref": "#/$defs/strings"},
+        "unsupported_reachable_tags": {"$ref": "#/$defs/strings"},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "native_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "callback",
+        "side",
+        "entry_tags",
+        "program_path",
+        "program_schema_version",
+        "program_fingerprint",
+        "status"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/non_empty_string"},
+        "callback": {"enum": ["custom_exit", "adjust_trade_position"]},
+        "side": {"enum": ["long", "short"]},
+        "entry_tags": {"$ref": "#/$defs/strings"},
+        "program_path": {"$ref": "#/$defs/nullable_string"},
+        "program_schema_version": {"$ref": "#/$defs/nullable_string"},
+        "program_fingerprint": {"$ref": "#/$defs/nullable_sha256"},
+        "status": {"enum": ["exact", "missing-or-unsealed"]}
+      }
+    },
+    "dormant_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side",
+        "tag",
+        "route_keys",
+        "reason",
+        "qualifies_as_native_coverage"
+      ],
+      "properties": {
+        "side": {"enum": ["long", "short"]},
+        "tag": {"$ref": "#/$defs/non_empty_string"},
+        "route_keys": {"$ref": "#/$defs/strings"},
+        "reason": {
+          "enum": [
+            "side-inactive-in-spot",
+            "source-signal-disabled",
+            "not-emitted-by-entry-compiler"
+          ]
+        },
+        "qualifies_as_native_coverage": {"const": false}
+      }
+    },
+    "source_predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "expression", "location"],
+      "properties": {
+        "method": {"$ref": "#/$defs/non_empty_string"},
+        "expression": {"$ref": "#/$defs/non_empty_string"},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "live_exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "runtime_scope",
+        "source_predicates",
+        "native_policy",
+        "native_contract_paths",
+        "backtest_invariant",
+        "qualifies_as_backtest_coverage"
+      ],
+      "properties": {
+        "code": {"const": "FILLED_ORDER_PARTIAL_REMAINDER"},
+        "runtime_scope": {"const": "live-only"},
+        "source_predicates": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/source_predicate"},
+          "minItems": 1
+        },
+        "native_policy": {"const": "filled-orders-have-zero-remaining"},
+        "native_contract_paths": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/non_empty_string"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "backtest_invariant": {"$ref": "#/$defs/non_empty_string"},
+        "qualifies_as_backtest_coverage": {"const": false}
+      }
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "callback", "side", "tags", "message"],
+      "properties": {
+        "code": {"$ref": "#/$defs/non_empty_string"},
+        "callback": {"$ref": "#/$defs/nullable_string"},
+        "side": {"$ref": "#/$defs/nullable_side"},
+        "tags": {"$ref": "#/$defs/strings"},
+        "message": {"$ref": "#/$defs/non_empty_string"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_callback_count",
+        "callback_graph_method_count",
+        "source_route_tag_count",
+        "emitted_entry_tag_count",
+        "native_exit_tag_count",
+        "native_adjustment_tag_count",
+        "dormant_unsupported_tag_count",
+        "live_only_exclusion_count",
+        "reachable_stateful_gap_count",
+        "closure_complete"
+      ],
+      "properties": {
+        "active_callback_count": {"type": "integer", "minimum": 0},
+        "callback_graph_method_count": {"type": "integer", "minimum": 0},
+        "source_route_tag_count": {"type": "integer", "minimum": 0},
+        "emitted_entry_tag_count": {"type": "integer", "minimum": 0},
+        "native_exit_tag_count": {"type": "integer", "minimum": 0},
+        "native_adjustment_tag_count": {"type": "integer", "minimum": 0},
+        "dormant_unsupported_tag_count": {"type": "integer", "minimum": 0},
+        "live_only_exclusion_count": {"type": "integer", "minimum": 0},
+        "reachable_stateful_gap_count": {"type": "integer", "minimum": 0},
+        "closure_complete": {"type": "boolean"}
+      }
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "native_compatible", "full_state_certified", "basis"],
+      "properties": {
+        "level": {"const": "latest-checked-native-closure"},
+        "native_compatible": {"type": "boolean"},
+        "full_state_certified": {"const": false},
+        "basis": {"const": "static-reachability-and-serialized-native-contracts"}
+      }
+    },
+    "compilation_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"$ref": "#/$defs/non_empty_string"},
+        "message": {"$ref": "#/$defs/non_empty_string"}
+      }
+    }
+  }
+}

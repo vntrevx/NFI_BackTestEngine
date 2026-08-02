@@ -316,6 +316,14 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
     assert operation["schema_version"] == "0.28.0"
+    assert manager["remaining_steps"] == []
+    assert manager["backtest_exclusions"] == [
+        {
+            "code": "filled-order-partial-remainder",
+            "runtime_scope": "live-only",
+            "policy": "filled-orders-have-zero-remaining",
+        }
+    ]
     assert program["schema_version"] == "grind-transition-program-v3"
     transition_tags = [
         transition.get("profit_tag", transition.get("entry_tag", transition.get("tag")))
