@@ -1,0 +1,4395 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "fingerprint": "798b3204a9fda196f1e07e2dd67d77a5f3ad1e811593475bdeb783680ebbfc3e",
+  "identity": {
+    "upstream_commit": "df1b1a6407467d88ddc4a4d452f3702e7a9467cc",
+    "baseline_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+    "engine_commit": "a7767dc67bbdb4c888d8e97aeb5ffbe509bc3395",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "6f6bce1376c0b4309cd94f31053508ae566bb6d2389be606f298eef5a4993b90",
+    "baseline_strategy_sha256": "f3082e90d62da29bf56b8c44e11e79db33f70f45d846dc2b7a4bff7f1e39b418",
+    "trading_mode": "spot",
+    "policy_sha256": "17d7bae69dc578b435c6a220f3fdfb93c7d9b24487bf47fbc54c15696aec07cc",
+    "target_ids": [
+      "021762f64b4e1350e0822dc04411b230ea85482150068085e656a2123d119b54",
+      "0950567ec8a30bee991ce6f9e3e6dfb3ef9015865cec5a9f358aa47b24e6a49c",
+      "117e533d5b7bf8e4292a9665d982992b2510a7899bd7f1c318c0db0ac709ea91",
+      "24738fd8efe6b452555db781e52aa77bd63cb43e7c0076da7a0af99fa1da9475",
+      "26199c07bea82ee8beab61418e43357b6df1b68d3efa85483a01c1da98491dec",
+      "2c98290fdf0e200820a4cb5b1074a91580d8c5fe123297e14ecd4a253af5ad13",
+      "2e4f356e4d9b850c381a9ad9c8bed0473ff0909a5ad46a279350b2c8591e9997",
+      "3dda226f84b1cfb352994d1f90faca09d867c8fb5841373fabbab08f27857ad1",
+      "3e5e7cb494085a21fb5911e2c29a38f9279ab1b6a2c0023b769d9d2274ed73e6",
+      "41c2ed28029287635c5592d1eeb88f178a866ceddafe5d0546280ec98fc74b19",
+      "577426b278d572934ea1789f7cec1ea45891137e8a33b46b90097ee5ccb57e76",
+      "68fa7fdde35731f63b8da6d909985a5dd68c9966d9b45fd0df774a60fd7220b4",
+      "79699dafa3daf65bfda0777508663c9e9a333fac60fbde9a429fe001fcc9c2a6",
+      "7dcec20b343882f058eabce0dc13122eddf12ad782837e61e964b6274b3033e5",
+      "8c1c7167fc2d55049f4728d425fdc9fa5c900c8265e4a65717f0e1efa80dab9d",
+      "90bc2da1375e6d8640d17281cdc1b5218bc52b4feb387e9f0a2cc61a0ae804e9",
+      "a13c7945b26aa99dbd0f644d2000b6a5562de0ae023395e32d66384c4f1b77c0",
+      "af368ee407a4e25b2dd1a3ce73c25b0ddeaeb492d029ad64ddfe74b03fcf307d",
+      "bbc60b872ab2e987039325b4e6db46e41d97836c9b5ce13e0103f7a49b32f8cc",
+      "c787ed18ef152c7c2206f1d11cadfc755fd5633d65e676cceef27c1c117f77bc",
+      "c8ec12a5baa75621f582b1ff10b879235d8a4c1465ebae2efd0bf8409d654f7d",
+      "cd05b558fb6d9124d8f0258bd367b31d5d25110b7d159e5b952b7b89c5ea74f7",
+      "dba681313dfdf5f51e61bbce7d76cc7707a7ddff7fe03128d7c47969ebe89070",
+      "df8ac6388be592285cdaf7a3a7092bc05edf77f763bca221a171827d2a990e56",
+      "eed07fbaa52b5a1824305830d9cd9b4a7ae5e7038143d23815873f249d214fec",
+      "f435862bf096d6dfac1661af8aa1dad36c4046685e36e05753f67fab9cdb11ee",
+      "f7ca88944e53818b43c31823c3a150829713eb057914e081f12f173b59d0b30c",
+      "fcedd4bc2d64512893546e7fbc0b47ed2056002e7c24ddc4822b1fcbfedd2527"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "021762f64b4e1350e0822dc04411b230ea85482150068085e656a2123d119b54",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "0950567ec8a30bee991ce6f9e3e6dfb3ef9015865cec5a9f358aa47b24e6a49c",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "117e533d5b7bf8e4292a9665d982992b2510a7899bd7f1c318c0db0ac709ea91",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "24738fd8efe6b452555db781e52aa77bd63cb43e7c0076da7a0af99fa1da9475",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_15m",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "26199c07bea82ee8beab61418e43357b6df1b68d3efa85483a01c1da98491dec",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_12",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "2c98290fdf0e200820a4cb5b1074a91580d8c5fe123297e14ecd4a253af5ad13",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "ROC_9_1d",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "2e4f356e4d9b850c381a9ad9c8bed0473ff0909a5ad46a279350b2c8591e9997",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14_15m",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "3dda226f84b1cfb352994d1f90faca09d867c8fb5841373fabbab08f27857ad1",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "3e5e7cb494085a21fb5911e2c29a38f9279ab1b6a2c0023b769d9d2274ed73e6",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_12_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "41c2ed28029287635c5592d1eeb88f178a866ceddafe5d0546280ec98fc74b19",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "577426b278d572934ea1789f7cec1ea45891137e8a33b46b90097ee5ccb57e76",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_1d",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "68fa7fdde35731f63b8da6d909985a5dd68c9966d9b45fd0df774a60fd7220b4",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "WILLR_14_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "79699dafa3daf65bfda0777508663c9e9a333fac60fbde9a429fe001fcc9c2a6",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "OBV_change_pct",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "7dcec20b343882f058eabce0dc13122eddf12ad782837e61e964b6274b3033e5",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "BBP_20_2.0_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "8c1c7167fc2d55049f4728d425fdc9fa5c900c8265e4a65717f0e1efa80dab9d",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "3",
+        "47",
+        "562",
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "90bc2da1375e6d8640d17281cdc1b5218bc52b4feb387e9f0a2cc61a0ae804e9",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "close_min_48",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "a13c7945b26aa99dbd0f644d2000b6a5562de0ae023395e32d66384c4f1b77c0",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_200_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "af368ee407a4e25b2dd1a3ce73c25b0ddeaeb492d029ad64ddfe74b03fcf307d",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_26",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "bbc60b872ab2e987039325b4e6db46e41d97836c9b5ce13e0103f7a49b32f8cc",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "STOCHRSIk_14_14_3_3",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "c787ed18ef152c7c2206f1d11cadfc755fd5633d65e676cceef27c1c117f77bc",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14_15m",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "c8ec12a5baa75621f582b1ff10b879235d8a4c1465ebae2efd0bf8409d654f7d",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "CMF_20_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "cd05b558fb6d9124d8f0258bd367b31d5d25110b7d159e5b952b7b89c5ea74f7",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "num_empty_288",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "dba681313dfdf5f51e61bbce7d76cc7707a7ddff7fe03128d7c47969ebe89070",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "df8ac6388be592285cdaf7a3a7092bc05edf77f763bca221a171827d2a990e56",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "eed07fbaa52b5a1824305830d9cd9b4a7ae5e7038143d23815873f249d214fec",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "CMF_20_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "f435862bf096d6dfac1661af8aa1dad36c4046685e36e05753f67fab9cdb11ee",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "f7ca88944e53818b43c31823c3a150829713eb057914e081f12f173b59d0b30c",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "close_max_48",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "fcedd4bc2d64512893546e7fbc0b47ed2056002e7c24ddc4822b1fcbfedd2527",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "8c1c7167fc2d55049f4728d425fdc9fa5c900c8265e4a65717f0e1efa80dab9d",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "3",
+        "47",
+        "562",
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [
+    {
+      "id": "021762f64b4e1350e0822dc04411b230ea85482150068085e656a2123d119b54",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "0950567ec8a30bee991ce6f9e3e6dfb3ef9015865cec5a9f358aa47b24e6a49c",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "117e533d5b7bf8e4292a9665d982992b2510a7899bd7f1c318c0db0ac709ea91",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "24738fd8efe6b452555db781e52aa77bd63cb43e7c0076da7a0af99fa1da9475",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_15m",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "26199c07bea82ee8beab61418e43357b6df1b68d3efa85483a01c1da98491dec",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_12",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "2c98290fdf0e200820a4cb5b1074a91580d8c5fe123297e14ecd4a253af5ad13",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "ROC_9_1d",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "2e4f356e4d9b850c381a9ad9c8bed0473ff0909a5ad46a279350b2c8591e9997",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14_15m",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "3dda226f84b1cfb352994d1f90faca09d867c8fb5841373fabbab08f27857ad1",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "3e5e7cb494085a21fb5911e2c29a38f9279ab1b6a2c0023b769d9d2274ed73e6",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_12_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "41c2ed28029287635c5592d1eeb88f178a866ceddafe5d0546280ec98fc74b19",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "577426b278d572934ea1789f7cec1ea45891137e8a33b46b90097ee5ccb57e76",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_1d",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "68fa7fdde35731f63b8da6d909985a5dd68c9966d9b45fd0df774a60fd7220b4",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "WILLR_14_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "79699dafa3daf65bfda0777508663c9e9a333fac60fbde9a429fe001fcc9c2a6",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "OBV_change_pct",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "7dcec20b343882f058eabce0dc13122eddf12ad782837e61e964b6274b3033e5",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "BBP_20_2.0_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "90bc2da1375e6d8640d17281cdc1b5218bc52b4feb387e9f0a2cc61a0ae804e9",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "close_min_48",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "a13c7945b26aa99dbd0f644d2000b6a5562de0ae023395e32d66384c4f1b77c0",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_200_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "af368ee407a4e25b2dd1a3ce73c25b0ddeaeb492d029ad64ddfe74b03fcf307d",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "EMA_26",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "bbc60b872ab2e987039325b4e6db46e41d97836c9b5ce13e0103f7a49b32f8cc",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "STOCHRSIk_14_14_3_3",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "c787ed18ef152c7c2206f1d11cadfc755fd5633d65e676cceef27c1c117f77bc",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14_15m",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "c8ec12a5baa75621f582b1ff10b879235d8a4c1465ebae2efd0bf8409d654f7d",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "CMF_20_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "cd05b558fb6d9124d8f0258bd367b31d5d25110b7d159e5b952b7b89c5ea74f7",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "num_empty_288",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "dba681313dfdf5f51e61bbce7d76cc7707a7ddff7fe03128d7c47969ebe89070",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "df8ac6388be592285cdaf7a3a7092bc05edf77f763bca221a171827d2a990e56",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "AROONU_14_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "eed07fbaa52b5a1824305830d9cd9b4a7ae5e7038143d23815873f249d214fec",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "CMF_20_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "f435862bf096d6dfac1661af8aa1dad36c4046685e36e05753f67fab9cdb11ee",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_3_1h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "f7ca88944e53818b43c31823c3a150829713eb057914e081f12f173b59d0b30c",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "close_max_48",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "fcedd4bc2d64512893546e7fbc0b47ed2056002e7c24ddc4822b1fcbfedd2527",
+      "kind": "dataframe_column",
+      "change": "removed",
+      "value": "RSI_14_4h",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "561",
+        "562",
+        "563",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "absence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27584,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27598,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}
