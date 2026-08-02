@@ -607,7 +607,7 @@ fn generic_managed_exit_signals(
     let mut result = (false, None);
     for handle in program_handles {
         let value = evaluate_scalar_program_handle_from_base(
-            dispatch.program(*handle)?,
+            dispatch.program(*handle, &manager.programs)?,
             &manager.programs,
             &base_variables,
         )?;
@@ -711,7 +711,7 @@ fn nfi_managed_long_signals(
     let mut result = (false, None);
     for handle in program_handles {
         let value = evaluate_scalar_program_handle_from_base(
-            dispatch.program(*handle)?,
+            dispatch.program(*handle, &manager.programs)?,
             &manager.programs,
             &base_variables,
         )?;

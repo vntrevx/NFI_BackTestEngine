@@ -1,6 +1,6 @@
 //! Derived X7 tag, route, and scalar-program dispatch indexes.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::domain::{
     ManagedExitTagMatcher, ManagedExitTagOperator, NfiDispatchPlan, NfiInternedTagMatcher,
@@ -49,8 +49,12 @@ impl NfiDispatchPlan {
             .collect()
     }
 
-    pub(crate) fn program(&self, handle: NfiProgramHandle) -> Option<&ScalarDecisionProgram> {
-        self.programs.get(handle)
+    pub(crate) fn program<'a>(
+        &self,
+        handle: NfiProgramHandle,
+        programs: &'a BTreeMap<String, ScalarDecisionProgram>,
+    ) -> Option<&'a ScalarDecisionProgram> {
+        programs.get(self.program_names.get(handle)?)
     }
 }
 
@@ -140,7 +144,7 @@ fn build_dispatch_plan(manager: &NfiX7TradeManager) -> Option<NfiDispatchPlan> {
         }
     }
 
-    let (programs, program_handles) = build_program_arena(manager)?;
+    let (program_names, program_handles) = build_program_handles(manager)?;
 
     let long_rebuy_route = manager
         .managed_long_routes
@@ -179,16 +183,13 @@ fn build_dispatch_plan(manager: &NfiX7TradeManager) -> Option<NfiDispatchPlan> {
         short_rebuy_route,
         long_grind_tags,
         long_btc_tags,
-        programs,
+        program_names,
     })
 }
 
-fn build_program_arena(
+fn build_program_handles(
     manager: &NfiX7TradeManager,
-) -> Option<(
-    Vec<ScalarDecisionProgram>,
-    HashMap<String, NfiProgramHandle>,
-)> {
+) -> Option<(Vec<String>, HashMap<String, NfiProgramHandle>)> {
     let mut required = BTreeSet::new();
     for route in &manager.managed_long_routes {
         required.extend(legacy_long_programs(route.profile));
@@ -208,16 +209,21 @@ fn build_program_arena(
         }
     }
 
-    let programs = required
+    let program_names = required
         .iter()
-        .map(|name| manager.programs.get(*name).cloned())
+        .map(|name| {
+            manager
+                .programs
+                .contains_key(*name)
+                .then(|| (*name).to_owned())
+        })
         .collect::<Option<Vec<_>>>()?;
     let handles = required
         .into_iter()
         .enumerate()
         .map(|(handle, name)| (name.to_owned(), handle))
         .collect();
-    Some((programs, handles))
+    Some((program_names, handles))
 }
 
 fn build_long_steps(

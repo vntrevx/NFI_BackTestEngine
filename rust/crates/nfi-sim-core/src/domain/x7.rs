@@ -100,7 +100,9 @@ pub(crate) struct NfiDispatchPlan {
     pub short_rebuy_route: Option<usize>,
     pub long_grind_tags: Vec<NfiTagId>,
     pub long_btc_tags: Vec<NfiTagId>,
-    pub programs: Vec<ScalarDecisionProgram>,
+    /// Sorted names behind scalar handles; executable programs remain owned
+    /// by the manager so startup never deep-clones immutable bytecode.
+    pub program_names: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

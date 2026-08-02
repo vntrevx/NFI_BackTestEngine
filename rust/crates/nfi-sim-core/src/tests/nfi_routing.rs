@@ -45,7 +45,7 @@ fn nfi_dispatch_plan_derives_tag_ids_route_indexes_and_program_handles() {
     assert!(first
         .legacy_program_handles
         .iter()
-        .all(|handle| dispatch.program(*handle).is_some()));
+        .all(|handle| dispatch.program(*handle, &manager.programs).is_some()));
 }
 
 #[test]
