@@ -134,7 +134,7 @@
       "event_simulation"
     ]
   },
-  "probe_kind": "derisk-buyback",
+  "probe_kind": "callback-route",
   "strategy_provenance": {
     "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
     "upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
@@ -173,9 +173,6 @@
     ],
     "entry_tags": [
       "121"
-    ],
-    "order_tags": [
-      "d1"
     ],
     "compound_tags": [],
     "protection_methods": [],

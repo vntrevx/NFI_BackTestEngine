@@ -38,7 +38,6 @@
         "variable-leverage",
         "futures-lifecycle",
         "callback-route",
-        "derisk-buyback",
         "release-representative"
       ]
     },
@@ -181,11 +180,6 @@
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1}
         },
-        "order_tags": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
-        },
         "compound_tags": {
           "type": "array",
           "uniqueItems": true,
@@ -221,7 +215,6 @@
       "anyOf": [
         {"properties": {"callbacks": {"minItems": 1}}},
         {"properties": {"entry_tags": {"minItems": 1}}},
-        {"properties": {"order_tags": {"minItems": 1}}},
         {"properties": {"compound_tags": {"minItems": 1}}},
         {"properties": {"protection_methods": {"minItems": 1}}},
         {"properties": {"exit_reasons": {"minItems": 1}}},

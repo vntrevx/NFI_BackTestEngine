@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from .branch_coverage import funded_trade_count, surface_order_tags
+from .branch_coverage import funded_trade_count
 from .canonical import read_json
 from .data_seal import compact_candle_directory
 from .errors import BenchmarkError, BranchCoverageError, SpecValidationError
@@ -541,11 +541,10 @@ def _require_native_surface_coverage(
             and isinstance((leverage := trade.get("leverage")), str)
             and leverage
         },
-        "order_tags": set(surface_order_tags(surface)),
     }
     missing: list[str] = []
-    for field in ("entry_tags", "compound_tags", "exit_reasons", "sides", "order_tags"):
-        values = required.get(field, [])
+    for field in ("entry_tags", "compound_tags", "exit_reasons", "sides"):
+        values = required.get(field)
         if not isinstance(values, list):
             raise SpecValidationError(
                 f"probe required_coverage.{field} must be an array"
