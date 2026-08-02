@@ -314,6 +314,14 @@ refresh, while still reading the previous analyzed dataframe row. A captured off
 Freqtrade fixture reaches this same-candle d1 exit and repeated d1 restoration cycle;
 its trade surface and full state match at zero tolerance.
 
+The tag-121 regular prelude is separately compiled into
+`regular-transition-program-v1`. Its reverse order scan, rebuy exclusions, dynamic
+Grind tag pairs, de-risk classification, leverage-scaled Futures drawdown fallback,
+and amount-based transfer into the legacy Grind machine are strategy data. Rust runs
+that program first and compares the callback result with the retained reviewed shadow.
+The official Spot and isolated-Futures tag-121 fixtures both match all 288 projected
+state events and their complete trade surfaces at zero tolerance.
+
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized
 surface: 11 trades, 164 orders, 142 adjustment orders, one short trade, and eight

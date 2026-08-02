@@ -414,6 +414,7 @@ fn nfi_long_grind_recovers_the_first_entry_once_with_gm0() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
     let mut manager_config = config(1);
@@ -506,6 +507,7 @@ fn nfi_long_grind_dual_mode_scope_accepts_a_futures_trade() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
     let mut manager_config = config(1);
@@ -563,6 +565,7 @@ fn nfi_long_grind_uses_the_source_bound_futures_drawdown_fallback() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
     let mut manager_config = config(1);
@@ -876,6 +879,7 @@ fn nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
 
@@ -939,6 +943,7 @@ fn nfi_long_grind_opens_and_closes_a_gd1_cluster_in_source_order() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
     let mut manager_config = config(1);
@@ -1005,6 +1010,7 @@ fn compiled_legacy_grind_reconstructs_gd1_before_reaching_gd2() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
     let mut manager_config = config(1);
@@ -1063,6 +1069,7 @@ fn compiled_legacy_grind_shadow_rejects_a_policy_disagreement() {
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
     let mut manager_config = config(1);
@@ -1258,6 +1265,104 @@ fn nfi_long_btc_futures_selects_the_futures_regular_branch() {
     assert_eq!(trade.orders[1].tag.as_deref(), Some("r"));
     assert!(trade.orders[1].is_entry);
     assert_eq!(trade.exit_reason, "force_exit");
+}
+
+#[test]
+fn nfi_long_btc_futures_uses_the_source_compiled_drawdown_fallback() {
+    const HOUR: i64 = 60 * 60 * 1_000;
+    let mut entry = candle(0, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("121".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut force_exit = candle(4 * HOUR, 70.0, 70.0);
+    force_exit.exit_long = Some(ExitSignal {
+        reason: "force_exit".to_owned(),
+    });
+    let mut constants = nfi_regular_adjustment_constants();
+    constants.rebuy_thresholds_futures.fill(-1.0);
+    constants.derisk_threshold_futures = -1.0;
+    constants.derisk_level_1_threshold_futures = -1.0;
+    for grind in &mut constants.grinds {
+        grind.thresholds_futures.fill(-1.0);
+    }
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_long_btc(&mut manager, constants, nfi_false_program());
+    let mut manager_config = config(1);
+    manager_config.is_futures = true;
+    manager_config.leverage = Some(3.0);
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(
+        vec![entry, candle(3 * HOUR, 70.0, 70.0), force_exit],
+        BTreeMap::new(),
+    );
+    pair.minimum_cost = Some(5.0);
+
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .expect("source-compiled regular Futures fallback");
+
+    assert_eq!(result.trades[0].orders[1].tag.as_deref(), Some("g1"));
+    assert!(result.trades[0].orders[1].is_entry);
+}
+
+#[test]
+fn compiled_regular_adjustment_shadow_rejects_a_tag_disagreement() {
+    let warmup = candle(1, 100.0, 100.0);
+    let mut entry = candle(2, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("121".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut force_exit = candle(3, 100.0, 100.0);
+    force_exit.exit_long = Some(ExitSignal {
+        reason: "force_exit".to_owned(),
+    });
+    let mut constants = nfi_regular_adjustment_constants();
+    constants.rebuy_thresholds_spot.fill(-1.0);
+    for grind in &mut constants.grinds {
+        grind.thresholds_spot.fill(-1.0);
+    }
+    constants.derisk_threshold_spot = -10.0;
+    constants.derisk_level_1_threshold_spot = 1.0;
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_long_btc(&mut manager, constants, nfi_boolean_true_program());
+    let route = manager.long_btc.as_mut().expect("regular route");
+    let program = route.regular_program.as_mut().expect("compiled program");
+    for transition in &mut program.source_order {
+        if let CompiledRegularTransition::Derisk {
+            tag,
+            level_one: true,
+            ..
+        } = transition
+        {
+            *tag = "source-level-one".to_owned();
+        }
+    }
+    program.order_scan.derisk_level_one_tag = "source-level-one".to_owned();
+    let level_one = program
+        .order_scan
+        .derisk_exit_tags
+        .iter_mut()
+        .find(|tag| tag.as_str() == "d1")
+        .expect("level-one classification");
+    *level_one = "source-level-one".to_owned();
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(vec![warmup, entry, force_exit], BTreeMap::new());
+    pair.minimum_cost = Some(5.0);
+
+    assert!(simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .is_err());
 }
 
 #[test]

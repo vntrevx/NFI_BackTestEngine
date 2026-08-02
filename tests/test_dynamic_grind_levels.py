@@ -61,10 +61,20 @@ def test_regular_grind_constant_families_have_no_fixed_level_ceiling(
     result = legacy._build_regular_adjustment_constants(
         constants,
         method,
+        {
+            "source_order": [
+                {
+                    "kind": "grind",
+                    "level": 12,
+                    "entry_tag": "future-lane",
+                    "stop_tag": "future-lane-stop",
+                }
+            ]
+        },
     )
 
     assert [(item["entry_tag"], item["stop_tag"]) for item in result["grinds"]] == [
-        ("g12", "sg12")
+        ("future-lane", "future-lane-stop")
     ]
 
 

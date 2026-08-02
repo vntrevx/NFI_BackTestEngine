@@ -81,10 +81,12 @@ Static exact lowering also passes for X7 v17.4.435 at upstream commit
 The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
 de-risk state dependencies, and late grind predicates as typed operands and
 comparisons. Rust therefore does not carry release-specific grind 4/5 thresholds.
-The tag-121 regular-adjustment compiler likewise extracts separate spot and futures
-stake ladders, thresholds, stop levels, and de-risk levels. Funding is included in the
-futures callback profit snapshot before branch selection, matching Freqtrade's
-callback boundary.
+The tag-121 regular-adjustment compiler likewise extracts its reverse order scan,
+rebuy exclusions, dynamic Grind and de-risk tags, separate spot/futures stake ladders,
+thresholds and stops, the leverage-scaled Futures drawdown fallback, and the
+amount-based legacy-Grind continuation. Funding is included in the futures callback
+profit snapshot before branch selection. The generic program remains guarded by an
+independent reviewed shadow; disagreement stops Native execution.
 
 A narrow v17.4.435 runtime check additionally records exact final-surface parity for
 one spot interval and one isolated-futures interval in

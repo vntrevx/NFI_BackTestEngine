@@ -442,6 +442,7 @@ pub(super) fn enable_test_compiled_legacy_grind(
         program: Some(program),
         regular_decision_program: None,
         regular_constants: None,
+        regular_program: None,
     });
     manager.route_order.insert(6, "long_grind".to_owned());
 }
@@ -486,11 +487,93 @@ pub(super) fn nfi_regular_adjustment_constants() -> NfiRegularAdjustmentConstant
     }
 }
 
+pub(super) fn nfi_regular_adjustment_program(
+    constants: &NfiRegularAdjustmentConstants,
+) -> CompiledRegularAdjustmentProgram {
+    let location = || ManagedExitSourceLocation {
+        line: 1,
+        column: 0,
+        end_line: 1,
+        end_column: 1,
+    };
+    let mut source_order = vec![CompiledRegularTransition::Rebuy {
+        tag: "r".to_owned(),
+        location: location(),
+    }];
+    source_order.extend(constants.grinds.iter().enumerate().map(|(index, grind)| {
+        CompiledRegularTransition::Grind {
+            level: index + 1,
+            entry_tag: grind.entry_tag.clone(),
+            stop_tag: grind.stop_tag.clone(),
+            futures_fallback_loss_threshold: (index == 0).then_some(-0.65),
+            location: location(),
+        }
+    }));
+    source_order.extend([
+        CompiledRegularTransition::Derisk {
+            tag: "d".to_owned(),
+            level_one: false,
+            location: location(),
+        },
+        CompiledRegularTransition::Derisk {
+            tag: "d1".to_owned(),
+            level_one: true,
+            location: location(),
+        },
+    ]);
+    let mut rebuy_entry_excluded_tags = constants
+        .grinds
+        .iter()
+        .flat_map(|grind| [grind.entry_tag.clone(), grind.stop_tag.clone()])
+        .collect::<Vec<_>>();
+    rebuy_entry_excluded_tags.extend(
+        [
+            "dl1", "ddl1", "dl2", "ddl2", "gd1", "dd1", "gd2", "dd2", "gd3", "dd3", "gd4", "dd4",
+            "gd5", "dd5", "gd6", "dd6", "gm0", "gmd0",
+        ]
+        .into_iter()
+        .map(ToOwned::to_owned),
+    );
+    let mut rebuy_exit_excluded_tags = vec!["p".to_owned()];
+    rebuy_exit_excluded_tags.extend(rebuy_entry_excluded_tags.iter().cloned());
+    CompiledRegularAdjustmentProgram {
+        schema_version: "regular-transition-program-v1".to_owned(),
+        execution_mode: CompiledRegularExecutionMode::PrimaryWithLegacyShadow,
+        source_callback: "long_adjust_trade_position_no_derisk".to_owned(),
+        source_order,
+        order_scan: CompiledRegularOrderScan {
+            sequence: CompiledOrderSequence::Reverse,
+            entry_order_side: CompiledOrderSide::Buy,
+            exit_order_side: CompiledOrderSide::Sell,
+            exclude_first_entry: true,
+            rebuy_entry_excluded_tags,
+            rebuy_exit_excluded_tags,
+            derisk_exit_tags: [
+                "d", "d1", "dd0", "ddl1", "ddl2", "dd1", "dd2", "dd3", "dd4", "dd5", "dd6",
+            ]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+            derisk_level_one_tag: "d1".to_owned(),
+            partial_fill_tag: "p".to_owned(),
+        },
+        continuation: CompiledRegularContinuation {
+            kind: CompiledRegularContinuationKind::LegacyGrind,
+            guard: CompiledRegularContinuationGuard::PositionAmountBelowFirstEntryRatio,
+            amount_ratio: 0.95,
+            location: location(),
+        },
+        location: location(),
+        fingerprint: "e".repeat(64),
+    }
+}
+
 pub(super) fn enable_test_long_btc(
     manager: &mut NfiX7TradeManager,
     constants: NfiRegularAdjustmentConstants,
     regular_program: ScalarDecisionProgram,
 ) {
+    let compiled_regular_program = nfi_regular_adjustment_program(&constants);
     manager
         .programs
         .insert("long_grind_entry".to_owned(), regular_program);
@@ -503,13 +586,14 @@ pub(super) fn enable_test_long_btc(
         decision_program: "long_grind_entry_v3".to_owned(),
         first_entry_profit_threshold_spot: 0.018,
         first_entry_stop_threshold_spot: -0.2,
-        futures_fallback_loss_threshold: None,
+        futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
         constants: nfi_legacy_grind_constants(),
         program: None,
         regular_decision_program: Some("long_grind_entry".to_owned()),
         regular_constants: Some(constants),
+        regular_program: Some(compiled_regular_program),
     });
     manager.route_order.insert(6, "long_btc".to_owned());
 }

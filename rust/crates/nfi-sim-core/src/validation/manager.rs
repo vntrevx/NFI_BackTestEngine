@@ -7,13 +7,14 @@ use crate::domain::{
     CompiledLegacyEntryStakeBasis, CompiledLegacyExitStakeBasis, CompiledLegacyGrindExecutionMode,
     CompiledLegacyGrindTransition, CompiledLegacyRetryPolicy, CompiledLegacyThresholdDivisor,
     CompiledLegacyWalletGuard, CompiledOrderSequence, CompiledOrderSide, CompiledPartialFillPolicy,
-    CompiledSystemAdjustmentActionKind, CompiledSystemAdjustmentExecutionMode,
-    CompiledSystemAdjustmentInputKind, CompiledSystemAdjustmentProgram,
-    CompiledSystemAdjustmentSide, ManagedExitExecutionMode, ManagedExitInlinePosition,
-    ManagedExitRoute, ManagedExitStateOperation, ManagedExitStateProgram, ManagedExitStopPolicy,
-    ManagedExitTagMatcher, ManagedExitTagOperator, NfiLongGrindRoute, NfiManagedLongProfile,
-    NfiManagedLongRoute, NfiX7AdjustmentConstants, NfiX7AdjustmentPolicy, NfiX7PositionAdjustment,
-    NfiX7TradeManager, PortfolioConfig, SimError,
+    CompiledRegularContinuationGuard, CompiledRegularContinuationKind,
+    CompiledRegularExecutionMode, CompiledRegularTransition, CompiledSystemAdjustmentActionKind,
+    CompiledSystemAdjustmentExecutionMode, CompiledSystemAdjustmentInputKind,
+    CompiledSystemAdjustmentProgram, CompiledSystemAdjustmentSide, ManagedExitExecutionMode,
+    ManagedExitInlinePosition, ManagedExitRoute, ManagedExitStateOperation,
+    ManagedExitStateProgram, ManagedExitStopPolicy, ManagedExitTagMatcher, ManagedExitTagOperator,
+    NfiLongGrindRoute, NfiManagedLongProfile, NfiManagedLongRoute, NfiX7AdjustmentConstants,
+    NfiX7AdjustmentPolicy, NfiX7PositionAdjustment, NfiX7TradeManager, PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -122,6 +123,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.25.0"
             | "0.26.0"
             | "0.27.0"
+            | "0.28.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -153,6 +155,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.25.0"
             | "0.26.0"
             | "0.27.0"
+            | "0.28.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -250,6 +253,7 @@ pub(crate) fn validate_nfi_trade_manager(
                             | "0.25.0"
                             | "0.26.0"
                             | "0.27.0"
+                            | "0.28.0"
                     )
                 }
                 _ => false,
@@ -264,6 +268,7 @@ pub(crate) fn validate_nfi_trade_manager(
             && route.stateful_input_contract.is_object()
             && route.regular_decision_program.is_none()
             && route.regular_constants.is_none()
+            && route.regular_program.is_none()
             && valid_versioned_legacy_grind_program(&manager.schema_version, route)
             && valid_nfi_legacy_grind_constants(&route.constants)
     });
@@ -297,11 +302,12 @@ pub(crate) fn validate_nfi_trade_manager(
                 .regular_constants
                 .as_ref()
                 .is_some_and(valid_nfi_regular_adjustment_constants)
-            && if manager.schema_version == "0.27.0" {
+            && if matches!(manager.schema_version.as_str(), "0.27.0" | "0.28.0") {
                 valid_versioned_legacy_grind_program(&manager.schema_version, route)
             } else {
                 route.program.is_none()
             }
+            && valid_versioned_regular_adjustment_program(&manager.schema_version, route)
             && valid_nfi_legacy_grind_constants(&route.constants)
     });
     let valid_programs = manager.programs.len()
@@ -356,7 +362,7 @@ pub(crate) fn validate_nfi_trade_manager(
             }
             "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
             | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0"
-            | "0.26.0" | "0.27.0" => {
+            | "0.26.0" | "0.27.0" | "0.28.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -540,7 +546,7 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
     let required_program_version = match schema_version {
         "0.25.0" => Some("grind-transition-program-v1"),
         "0.26.0" => Some("grind-transition-program-v2"),
-        "0.27.0" => Some("grind-transition-program-v3"),
+        "0.27.0" | "0.28.0" => Some("grind-transition-program-v3"),
         _ => None,
     };
     let Some(program) = route.program.as_ref() else {
@@ -835,6 +841,177 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
         && valid_sha256(&program.fingerprint)
 }
 
+#[allow(clippy::too_many_lines)] // Keep every source-compiled regular-route invariant together.
+fn valid_versioned_regular_adjustment_program(
+    schema_version: &str,
+    route: &NfiLongGrindRoute,
+) -> bool {
+    let required = schema_version == "0.28.0";
+    let Some(program) = route.regular_program.as_ref() else {
+        return !required;
+    };
+    let Some(constants) = route.regular_constants.as_ref() else {
+        return false;
+    };
+    let valid_location = |location: &crate::domain::ManagedExitSourceLocation| {
+        location.line > 0 && location.end_line >= location.line
+    };
+    let transition_location = |transition: &CompiledRegularTransition| match transition {
+        CompiledRegularTransition::Rebuy { location, .. }
+        | CompiledRegularTransition::Grind { location, .. }
+        | CompiledRegularTransition::Derisk { location, .. } => (location.line, location.column),
+    };
+    let source_locations_are_ordered = program
+        .source_order
+        .windows(2)
+        .all(|window| transition_location(&window[0]) <= transition_location(&window[1]));
+    let Some(CompiledRegularTransition::Rebuy {
+        tag: rebuy_tag,
+        location: rebuy_location,
+    }) = program.source_order.first()
+    else {
+        return false;
+    };
+    let grind_transitions = program
+        .source_order
+        .iter()
+        .skip(1)
+        .take(constants.grinds.len())
+        .collect::<Vec<_>>();
+    let grinds_are_valid = grind_transitions.len() == constants.grinds.len()
+        && grind_transitions
+            .iter()
+            .zip(&constants.grinds)
+            .enumerate()
+            .all(|(index, (transition, constant))| {
+                matches!(
+                    transition,
+                    CompiledRegularTransition::Grind {
+                        level,
+                        entry_tag,
+                        stop_tag,
+                        futures_fallback_loss_threshold,
+                        location,
+                    } if *level == index + 1
+                        && !entry_tag.is_empty()
+                        && !stop_tag.is_empty()
+                        && entry_tag != stop_tag
+                        && entry_tag == &constant.entry_tag
+                        && stop_tag == &constant.stop_tag
+                        && futures_fallback_loss_threshold
+                            .is_none_or(|threshold| threshold.is_finite() && threshold < 0.0)
+                        && valid_location(location)
+                )
+            });
+    let fallback_thresholds = grind_transitions
+        .iter()
+        .filter_map(|transition| match transition {
+            CompiledRegularTransition::Grind {
+                futures_fallback_loss_threshold,
+                ..
+            } => *futures_fallback_loss_threshold,
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let derisk_transitions = program
+        .source_order
+        .iter()
+        .skip(1 + constants.grinds.len())
+        .collect::<Vec<_>>();
+    let derisk_tags = derisk_transitions
+        .iter()
+        .filter_map(|transition| match transition {
+            CompiledRegularTransition::Derisk { tag, .. } => Some(tag.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let level_one_tags = derisk_transitions
+        .iter()
+        .filter_map(|transition| match transition {
+            CompiledRegularTransition::Derisk {
+                tag,
+                level_one: true,
+                ..
+            } => Some(tag.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let derisk_transitions_are_valid = derisk_transitions.len() == 2
+        && derisk_tags.len() == 2
+        && derisk_tags.iter().all(|tag| !tag.is_empty())
+        && derisk_tags.iter().collect::<BTreeSet<_>>().len() == derisk_tags.len()
+        && level_one_tags.as_slice() == [program.order_scan.derisk_level_one_tag.as_str()]
+        && derisk_transitions.iter().all(|transition| {
+            matches!(
+                transition,
+                CompiledRegularTransition::Derisk { location, .. }
+                    if valid_location(location)
+            )
+        });
+    let scan = &program.order_scan;
+    let action_tags = program
+        .source_order
+        .iter()
+        .flat_map(|transition| match transition {
+            CompiledRegularTransition::Rebuy { tag, .. }
+            | CompiledRegularTransition::Derisk { tag, .. } => vec![tag.as_str()],
+            CompiledRegularTransition::Grind {
+                entry_tag,
+                stop_tag,
+                ..
+            } => vec![entry_tag.as_str(), stop_tag.as_str()],
+        })
+        .collect::<Vec<_>>();
+    let action_tags_are_unique =
+        action_tags.iter().collect::<BTreeSet<_>>().len() == action_tags.len();
+    let scan_is_valid = scan.sequence == CompiledOrderSequence::Reverse
+        && scan.entry_order_side == CompiledOrderSide::Buy
+        && scan.exit_order_side == CompiledOrderSide::Sell
+        && scan.exclude_first_entry
+        && lists_are_unique_and_non_empty([
+            &scan.rebuy_entry_excluded_tags,
+            &scan.rebuy_exit_excluded_tags,
+            &scan.derisk_exit_tags,
+        ])
+        && !scan.partial_fill_tag.is_empty()
+        && scan
+            .rebuy_entry_excluded_tags
+            .iter()
+            .all(|tag| scan.rebuy_exit_excluded_tags.contains(tag))
+        && scan
+            .rebuy_exit_excluded_tags
+            .contains(&scan.partial_fill_tag)
+        && derisk_tags.iter().all(|tag| {
+            scan.derisk_exit_tags
+                .iter()
+                .any(|candidate| candidate == tag)
+        });
+    let continuation = &program.continuation;
+    program.schema_version == "regular-transition-program-v1"
+        && program.execution_mode == CompiledRegularExecutionMode::PrimaryWithLegacyShadow
+        && program.source_callback == "long_adjust_trade_position_no_derisk"
+        && !rebuy_tag.is_empty()
+        && valid_location(rebuy_location)
+        && grinds_are_valid
+        && fallback_thresholds.len() == 1
+        && route
+            .futures_fallback_loss_threshold
+            .is_some_and(|threshold| threshold.to_bits() == fallback_thresholds[0].to_bits())
+        && derisk_transitions_are_valid
+        && program.source_order.len() == constants.grinds.len() + 3
+        && action_tags_are_unique
+        && scan_is_valid
+        && continuation.kind == CompiledRegularContinuationKind::LegacyGrind
+        && continuation.guard
+            == CompiledRegularContinuationGuard::PositionAmountBelowFirstEntryRatio
+        && continuation.amount_ratio.is_finite()
+        && (0.0..1.0).contains(&continuation.amount_ratio)
+        && valid_location(&continuation.location)
+        && source_locations_are_ordered
+        && valid_location(&program.location)
+        && valid_sha256(&program.fingerprint)
+}
+
 fn lists_are_unique_and_non_empty<const N: usize>(lists: [&Vec<String>; N]) -> bool {
     lists.iter().all(|values| {
         !values.is_empty()
@@ -850,8 +1027,11 @@ fn valid_versioned_system_adjustment_program(
     adjustment: &NfiX7PositionAdjustment,
     expected_side: CompiledSystemAdjustmentSide,
 ) -> bool {
-    let required = matches!(schema_version, "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0")
-        || (schema_version == "0.23.0" && expected_side == CompiledSystemAdjustmentSide::Long);
+    let required = matches!(
+        schema_version,
+        "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
+    ) || (schema_version == "0.23.0"
+        && expected_side == CompiledSystemAdjustmentSide::Long);
     if !required {
         return program.is_none();
     }
@@ -1002,7 +1182,7 @@ fn valid_versioned_rebuy_program(
 ) -> bool {
     if !matches!(
         schema_version,
-        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
+        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
     ) {
         return program.is_none();
     }
@@ -1036,7 +1216,7 @@ fn valid_versioned_rebuy_program(
 fn valid_adjustment_source_callback(schema_version: &str, callback: Option<&str>) -> bool {
     if matches!(
         schema_version,
-        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
+        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
     ) {
         callback.is_some_and(|value| !value.is_empty())
     } else {
@@ -1076,6 +1256,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
             | "0.25.0"
             | "0.26.0"
             | "0.27.0"
+            | "0.28.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -1152,6 +1333,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                             | "0.25.0"
                             | "0.26.0"
                             | "0.27.0"
+                            | "0.28.0"
                     ),
                 ),
                 None => !matches!(
@@ -1165,6 +1347,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                         | "0.25.0"
                         | "0.26.0"
                         | "0.27.0"
+                        | "0.28.0"
                 ),
             }
             && valid_managed_exit_terminal(route, &matcher_tags)
@@ -1187,6 +1370,7 @@ fn managed_exit_program_required(schema_version: &str) -> bool {
             | "0.25.0"
             | "0.26.0"
             | "0.27.0"
+            | "0.28.0"
     )
 }
 
@@ -1205,11 +1389,20 @@ fn managed_long_exit_tags(manager: &NfiX7TradeManager) -> BTreeSet<&str> {
     tags
 }
 
+#[allow(clippy::too_many_lines)] // One audit keeps the entire short exit contract fail-closed.
 fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_short_exit_program.as_ref() else {
         return !matches!(
             manager.schema_version.as_str(),
-            "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
+            "0.20.0"
+                | "0.21.0"
+                | "0.22.0"
+                | "0.23.0"
+                | "0.24.0"
+                | "0.25.0"
+                | "0.26.0"
+                | "0.27.0"
+                | "0.28.0"
         );
     };
     if program.schema_version != "managed-exit-program-v1"
@@ -1294,6 +1487,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                             | "0.25.0"
                             | "0.26.0"
                             | "0.27.0"
+                            | "0.28.0"
                     ),
                 )
             })
@@ -1306,7 +1500,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
 fn valid_managed_exit_execution_mode(schema_version: &str, mode: ManagedExitExecutionMode) -> bool {
     if matches!(
         schema_version,
-        "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
+        "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0" | "0.28.0"
     ) {
         mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
     } else {

@@ -12,8 +12,10 @@ use serde_json::Value;
 use crate::calculations::{fee_close, fee_open};
 use crate::callbacks::insert_projected_feature_window;
 use crate::domain::{
-    AdjustmentSignal, Candle, FilledOrder, NfiLongGrindRoute, NfiRegularAdjustmentConstants,
-    NfiRegularAdjustmentPolicy, NfiRegularGrind, NfiX7TradeManager, PairSeries, PortfolioConfig,
+    AdjustmentSignal, Candle, CompiledOrderSequence, CompiledOrderSide,
+    CompiledRegularAdjustmentProgram, CompiledRegularOrderScan, CompiledRegularTransition,
+    FilledOrder, NfiLongGrindRoute, NfiRegularAdjustmentConstants, NfiRegularAdjustmentPolicy,
+    NfiRegularGrind, NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::portfolio::{OpenTrade, TradeSide};
@@ -27,6 +29,29 @@ use super::state::nfi_profit_snapshot;
 pub(crate) enum RegularAdjustmentOutcome {
     Return(Option<AdjustmentSignal>),
     ContinueLegacy,
+}
+
+#[derive(Debug)]
+struct RegularGrindContract<'a> {
+    entry_tag: &'a str,
+    stop_tag: &'a str,
+    futures_fallback_loss_threshold: Option<f64>,
+}
+
+#[derive(Debug)]
+enum RegularOrderContract<'a> {
+    Compiled(&'a CompiledRegularOrderScan),
+    ReviewedLegacy,
+}
+
+#[derive(Debug)]
+struct RegularRuntimeContract<'a> {
+    rebuy_tag: &'a str,
+    grinds: Vec<RegularGrindContract<'a>>,
+    derisk_tag: &'a str,
+    derisk_level_one_tag: &'a str,
+    order_scan: RegularOrderContract<'a>,
+    continuation_amount_ratio: f64,
 }
 
 #[derive(Debug, Default)]
@@ -76,6 +101,109 @@ struct RegularState {
     latest_order_timestamp_ms: i64,
 }
 
+fn compiled_runtime_contract<'a>(
+    program: &'a CompiledRegularAdjustmentProgram,
+    constants: &'a NfiRegularAdjustmentConstants,
+) -> Option<RegularRuntimeContract<'a>> {
+    let scan = &program.order_scan;
+    (scan.sequence == CompiledOrderSequence::Reverse
+        && scan.entry_order_side == CompiledOrderSide::Buy
+        && scan.exit_order_side == CompiledOrderSide::Sell
+        && scan.exclude_first_entry)
+        .then_some(())?;
+    let mut rebuy_tag = None;
+    let mut grinds = Vec::with_capacity(constants.grinds.len());
+    let mut derisk_tag = None;
+    let mut derisk_level_one_tag = None;
+    for transition in &program.source_order {
+        match transition {
+            CompiledRegularTransition::Rebuy { tag, .. } => {
+                (rebuy_tag.is_none()).then_some(())?;
+                rebuy_tag = Some(tag.as_str());
+            }
+            CompiledRegularTransition::Grind {
+                level,
+                entry_tag,
+                stop_tag,
+                futures_fallback_loss_threshold,
+                ..
+            } => {
+                (*level == grinds.len() + 1).then_some(())?;
+                grinds.push(RegularGrindContract {
+                    entry_tag,
+                    stop_tag,
+                    futures_fallback_loss_threshold: *futures_fallback_loss_threshold,
+                });
+            }
+            CompiledRegularTransition::Derisk { tag, level_one, .. } => {
+                let slot = if *level_one {
+                    &mut derisk_level_one_tag
+                } else {
+                    &mut derisk_tag
+                };
+                (slot.is_none()).then_some(())?;
+                *slot = Some(tag.as_str());
+            }
+        }
+    }
+    (grinds.len() == constants.grinds.len()).then_some(())?;
+    Some(RegularRuntimeContract {
+        rebuy_tag: rebuy_tag?,
+        grinds,
+        derisk_tag: derisk_tag?,
+        derisk_level_one_tag: derisk_level_one_tag?,
+        order_scan: RegularOrderContract::Compiled(&program.order_scan),
+        continuation_amount_ratio: program.continuation.amount_ratio,
+    })
+}
+
+fn reviewed_legacy_contract<'a>(
+    route: &'a NfiLongGrindRoute,
+    constants: &'a NfiRegularAdjustmentConstants,
+) -> RegularRuntimeContract<'a> {
+    let grinds = constants
+        .grinds
+        .iter()
+        .enumerate()
+        .map(|(index, grind)| RegularGrindContract {
+            entry_tag: &grind.entry_tag,
+            stop_tag: &grind.stop_tag,
+            futures_fallback_loss_threshold: (index == 0)
+                .then_some(route.futures_fallback_loss_threshold)
+                .flatten(),
+        })
+        .collect();
+    RegularRuntimeContract {
+        rebuy_tag: "r",
+        grinds,
+        derisk_tag: "d",
+        derisk_level_one_tag: "d1",
+        order_scan: RegularOrderContract::ReviewedLegacy,
+        continuation_amount_ratio: 0.95,
+    }
+}
+
+fn outcomes_match(
+    left: Option<&RegularAdjustmentOutcome>,
+    right: Option<&RegularAdjustmentOutcome>,
+) -> bool {
+    match (left, right) {
+        (
+            Some(RegularAdjustmentOutcome::ContinueLegacy),
+            Some(RegularAdjustmentOutcome::ContinueLegacy),
+        )
+        | (
+            Some(RegularAdjustmentOutcome::Return(None)),
+            Some(RegularAdjustmentOutcome::Return(None)),
+        ) => true,
+        (
+            Some(RegularAdjustmentOutcome::Return(Some(left))),
+            Some(RegularAdjustmentOutcome::Return(Some(right))),
+        ) => left.tag == right.tag && left.stake_amount.to_bits() == right.stake_amount.to_bits(),
+        _ => false,
+    }
+}
+
 /// Evaluate the source-bound tag-121 regular adjustment prelude.
 ///
 /// `None` is reserved for an invalid or broader-than-certified input. A valid
@@ -100,8 +228,53 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
     }
     let constants = route.regular_constants.as_ref()?;
     let program = route.regular_decision_program.as_deref()?;
+    let legacy_contract = reviewed_legacy_contract(route, constants);
+    let legacy = evaluate_regular_adjustment_with_contract(
+        manager,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        config,
+        available_balance,
+        constants,
+        program,
+        &legacy_contract,
+    );
+    let Some(compiled) = route.regular_program.as_ref() else {
+        return legacy;
+    };
+    let primary_contract = compiled_runtime_contract(compiled, constants)?;
+    let primary = evaluate_regular_adjustment_with_contract(
+        manager,
+        trade,
+        pair,
+        candle_index,
+        candle,
+        config,
+        available_balance,
+        constants,
+        program,
+        &primary_contract,
+    );
+    outcomes_match(primary.as_ref(), legacy.as_ref()).then_some(primary?)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_regular_adjustment_with_contract(
+    manager: &NfiX7TradeManager,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    config: &PortfolioConfig,
+    available_balance: f64,
+    constants: &NfiRegularAdjustmentConstants,
+    program: &str,
+    contract: &RegularRuntimeContract<'_>,
+) -> Option<RegularAdjustmentOutcome> {
     let minimum_stake = regular_adjustment_minimum_stake(pair, candle, config)?;
-    let state = rebuild_regular_state(trade, candle.open, constants)?;
+    let state = rebuild_regular_state(trade, candle.open, constants, contract)?;
 
     // The helper returns this flag to `long_grind_adjust_trade_position()`.
     // Only this outcome continues into the legacy post-de-risk clusters.
@@ -138,6 +311,7 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
         slice_profit_entry,
         entry_program_allows,
         &state,
+        contract.rebuy_tag,
     )? {
         BranchOutcome::Continue => {}
         BranchOutcome::ReturnNone => {
@@ -164,6 +338,7 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
             index,
             constants.use_grind_stops,
             &constants.policy,
+            contract.grinds.get(index)?,
         )? {
             BranchOutcome::Continue => {}
             BranchOutcome::ReturnNone => {
@@ -183,6 +358,8 @@ pub(crate) fn evaluate_nfi_regular_adjustment(
         minimum_stake,
         snapshot.stake,
         &state,
+        contract.derisk_tag,
+        contract.derisk_level_one_tag,
     ) {
         return Some(RegularAdjustmentOutcome::Return(Some(signal)));
     }
@@ -208,6 +385,7 @@ fn evaluate_rebuy(
     slice_profit_entry: f64,
     entry_program_allows: bool,
     state: &RegularState,
+    tag: &str,
 ) -> Option<BranchOutcome> {
     let cluster = &state.rebuy;
     let (stakes, thresholds) = if config.is_futures {
@@ -263,11 +441,12 @@ fn evaluate_rebuy(
     }
     Some(BranchOutcome::Signal(AdjustmentSignal {
         stake_amount: requested,
-        tag: "r".to_owned(),
+        tag: tag.to_owned(),
     }))
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)] // Preserve the callback's source-ordered branch priority.
 fn evaluate_grind(
     definition: &NfiRegularGrind,
     trade: &OpenTrade,
@@ -283,6 +462,7 @@ fn evaluate_grind(
     index: usize,
     use_grind_stops: bool,
     policy: &NfiRegularAdjustmentPolicy,
+    contract: &RegularGrindContract<'_>,
 ) -> Option<BranchOutcome> {
     let cluster = state.grinds.get(index)?;
     let (stakes, thresholds, profit_threshold, stop_threshold) = if config.is_futures {
@@ -336,9 +516,34 @@ fn evaluate_grind(
             }
             return Some(BranchOutcome::Signal(AdjustmentSignal {
                 stake_amount: requested,
-                tag: definition.entry_tag.clone(),
+                tag: contract.entry_tag.to_owned(),
             }));
         }
+    }
+
+    if contract
+        .futures_fallback_loss_threshold
+        .is_some_and(|threshold| {
+            config.is_futures
+                && cluster.count < stakes.len()
+                && slice_profit < threshold / trade.leverage
+        })
+    {
+        let scaled = scale_stakes_for_minimum(
+            stakes,
+            state.first_entry_cost,
+            minimum_stake,
+            trade.leverage,
+        )?;
+        let requested = (state.first_entry_cost * scaled[cluster.count] / trade.leverage)
+            .max(minimum_stake * policy.minimum_entry_multiplier);
+        if requested > available_balance {
+            return Some(BranchOutcome::ReturnNone);
+        }
+        return Some(BranchOutcome::Signal(AdjustmentSignal {
+            stake_amount: requested,
+            tag: contract.entry_tag.to_owned(),
+        }));
     }
 
     if cluster.count > 0
@@ -354,7 +559,7 @@ fn evaluate_grind(
         ) {
             return Some(BranchOutcome::Signal(AdjustmentSignal {
                 stake_amount: -stake_amount,
-                tag: order_id_tag(&definition.entry_tag, &cluster.entry_ids),
+                tag: order_id_tag(contract.entry_tag, &cluster.entry_ids),
             }));
         }
     }
@@ -370,7 +575,7 @@ fn evaluate_grind(
         ) {
             return Some(BranchOutcome::Signal(AdjustmentSignal {
                 stake_amount: -stake_amount,
-                tag: order_id_tag(&definition.stop_tag, &cluster.entry_ids),
+                tag: order_id_tag(contract.stop_tag, &cluster.entry_ids),
             }));
         }
     }
@@ -381,6 +586,7 @@ fn rebuild_regular_state(
     trade: &OpenTrade,
     rate: f64,
     constants: &NfiRegularAdjustmentConstants,
+    contract: &RegularRuntimeContract<'_>,
 ) -> Option<RegularState> {
     let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
@@ -397,11 +603,11 @@ fn rebuild_regular_state(
     for order in trade.orders.iter().rev() {
         let full_tag = order.tag.as_deref().unwrap_or("");
         if order.is_entry && order.id != first_entry.id {
-            if let Some(index) = regular_grind_entry_index(full_tag, &constants.grinds) {
+            if let Some(index) = regular_grind_entry_index(full_tag, &contract.grinds) {
                 if !grind_closed.get(index).copied()? {
                     grinds.get_mut(index)?.add_entry(order);
                 }
-            } else if !rebuy_closed && !regular_rebuy_entry_excluded(full_tag) {
+            } else if !rebuy_closed && !contract.rebuy_entry_excluded(full_tag) {
                 rebuy.add_entry(order);
             }
             continue;
@@ -411,14 +617,14 @@ fn rebuild_regular_state(
         }
 
         let head = full_tag.split_whitespace().next().unwrap_or("");
-        if let Some(index) = regular_grind_exit_index(head, &constants.grinds) {
+        if let Some(index) = regular_grind_exit_index(head, &contract.grinds) {
             *grind_closed.get_mut(index)? = true;
-        } else if regular_derisk_exit(head) {
+        } else if contract.derisk_exit(head) {
             is_derisk = true;
-            is_derisk_1 |= head == "d1";
+            is_derisk_1 |= head == contract.derisk_level_one_tag;
             grind_closed.fill(true);
             rebuy_closed = true;
-        } else if !regular_rebuy_exit_excluded(head) {
+        } else if !contract.rebuy_exit_excluded(head) {
             rebuy_closed = true;
         }
 
@@ -433,7 +639,7 @@ fn rebuild_regular_state(
                     amount -= replay.amount;
                 }
                 if replay.id == order.id {
-                    if amount < first_entry.amount * 0.95 {
+                    if amount < first_entry.amount * contract.continuation_amount_ratio {
                         is_derisk = true;
                     }
                     break;
@@ -545,6 +751,7 @@ fn derisk_signal(
     })
 }
 
+#[allow(clippy::too_many_arguments)] // The source branch needs trade, mode, state, and IR tags.
 fn evaluate_derisk(
     constants: &NfiRegularAdjustmentConstants,
     trade: &OpenTrade,
@@ -553,6 +760,8 @@ fn evaluate_derisk(
     minimum_stake: f64,
     profit_stake: f64,
     state: &RegularState,
+    tag: &str,
+    level_one_tag: &str,
 ) -> Option<AdjustmentSignal> {
     if !constants.derisk_enable {
         return None;
@@ -576,7 +785,7 @@ fn evaluate_derisk(
             rate,
             minimum_stake,
             minimum_remaining_multiplier,
-            "d",
+            tag,
         ) {
             return Some(signal);
         }
@@ -587,7 +796,7 @@ fn evaluate_derisk(
             rate,
             minimum_stake,
             minimum_remaining_multiplier,
-            "d1",
+            level_one_tag,
         );
     }
     None
@@ -601,11 +810,42 @@ fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
     })
 }
 
-fn regular_grind_entry_index(tag: &str, grinds: &[NfiRegularGrind]) -> Option<usize> {
+impl RegularRuntimeContract<'_> {
+    fn rebuy_entry_excluded(&self, tag: &str) -> bool {
+        match &self.order_scan {
+            RegularOrderContract::Compiled(scan) => scan
+                .rebuy_entry_excluded_tags
+                .iter()
+                .any(|excluded| excluded == tag),
+            RegularOrderContract::ReviewedLegacy => regular_rebuy_entry_excluded(tag),
+        }
+    }
+
+    fn rebuy_exit_excluded(&self, tag: &str) -> bool {
+        match &self.order_scan {
+            RegularOrderContract::Compiled(scan) => scan
+                .rebuy_exit_excluded_tags
+                .iter()
+                .any(|excluded| excluded == tag),
+            RegularOrderContract::ReviewedLegacy => regular_rebuy_exit_excluded(tag),
+        }
+    }
+
+    fn derisk_exit(&self, tag: &str) -> bool {
+        match &self.order_scan {
+            RegularOrderContract::Compiled(scan) => {
+                scan.derisk_exit_tags.iter().any(|derisk| derisk == tag)
+            }
+            RegularOrderContract::ReviewedLegacy => regular_derisk_exit(tag),
+        }
+    }
+}
+
+fn regular_grind_entry_index(tag: &str, grinds: &[RegularGrindContract<'_>]) -> Option<usize> {
     grinds.iter().position(|grind| grind.entry_tag == tag)
 }
 
-fn regular_grind_exit_index(tag: &str, grinds: &[NfiRegularGrind]) -> Option<usize> {
+fn regular_grind_exit_index(tag: &str, grinds: &[RegularGrindContract<'_>]) -> Option<usize> {
     grinds
         .iter()
         .position(|grind| grind.entry_tag == tag || grind.stop_tag == tag)

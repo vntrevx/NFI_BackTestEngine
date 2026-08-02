@@ -213,6 +213,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.25.0",
         "0.26.0",
         "0.27.0",
+        "0.28.0",
     }
     requires_managed_short_exit_program = operation.get("schema_version") in {
         "0.20.0",
@@ -223,6 +224,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.25.0",
         "0.26.0",
         "0.27.0",
+        "0.28.0",
     }
     requires_rebuy_program = operation.get("schema_version") in {
         "0.22.0",
@@ -231,6 +233,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.25.0",
         "0.26.0",
         "0.27.0",
+        "0.28.0",
     }
     requires_long_adjustment_program = operation.get("schema_version") in {
         "0.23.0",
@@ -238,17 +241,20 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "0.25.0",
         "0.26.0",
         "0.27.0",
+        "0.28.0",
     }
     requires_short_adjustment_program = operation.get("schema_version") in {
         "0.24.0",
         "0.25.0",
         "0.26.0",
         "0.27.0",
+        "0.28.0",
     }
     legacy_grind_program_version = {
         "0.25.0": "grind-transition-program-v1",
         "0.26.0": "grind-transition-program-v2",
         "0.27.0": "grind-transition-program-v3",
+        "0.28.0": "grind-transition-program-v3",
     }.get(operation_schema if isinstance(operation_schema, str) else "")
     requires_legacy_grind_program = legacy_grind_program_version is not None
     if (
@@ -317,12 +323,21 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
             )
         )
         or (
-            operation_schema == "0.27.0"
+            operation_schema in {"0.27.0", "0.28.0"}
             and (
                 not isinstance(long_btc, dict)
                 or not isinstance(long_btc.get("program"), dict)
                 or long_btc["program"].get("schema_version")
                 != legacy_grind_program_version
+            )
+        )
+        or (
+            operation_schema == "0.28.0"
+            and (
+                not isinstance(long_btc, dict)
+                or not isinstance(long_btc.get("regular_program"), dict)
+                or long_btc["regular_program"].get("schema_version")
+                != "regular-transition-program-v1"
             )
         )
     ):
@@ -403,7 +418,7 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         if any(name not in route for name in names):
             raise StrategyAnalysisError("NFI legacy route is incomplete")
         record = {name: route[name] for name in names}
-        for name in ("regular_decision_program", "regular_constants"):
+        for name in ("regular_decision_program", "regular_constants", "regular_program"):
             if name in route:
                 record[name] = route[name]
         if "program" in route:

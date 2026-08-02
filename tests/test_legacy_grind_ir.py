@@ -315,7 +315,7 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert manager is not None
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
-    assert operation["schema_version"] == "0.27.0"
+    assert operation["schema_version"] == "0.28.0"
     assert program["schema_version"] == "grind-transition-program-v3"
     transition_tags = [
         transition.get("profit_tag", transition.get("entry_tag", transition.get("tag")))
@@ -334,6 +334,18 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
         "d1",
     ]
     assert program["source_order"][0]["stop_tag"] == "gmd0"
+    regular_program = operation["supported_routes"]["long_btc"]["regular_program"]
+    assert regular_program["schema_version"] == "regular-transition-program-v1"
+    regular_grinds = [
+        transition
+        for transition in regular_program["source_order"]
+        if transition["kind"] == "grind"
+    ]
+    assert [transition["entry_tag"] for transition in regular_grinds] == [
+        f"g{level}" for level in range(1, 7)
+    ]
+    assert regular_grinds[0]["futures_fallback_loss_threshold"] == -0.65
+    assert regular_program["continuation"]["amount_ratio"] == 0.95
     fallback = next(
         transition
         for transition in program["source_order"]

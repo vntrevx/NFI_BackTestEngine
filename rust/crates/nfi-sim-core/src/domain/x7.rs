@@ -394,6 +394,86 @@ pub struct NfiLongGrindRoute {
     pub regular_decision_program: Option<String>,
     #[serde(default)]
     pub regular_constants: Option<NfiRegularAdjustmentConstants>,
+    #[serde(default)]
+    pub regular_program: Option<CompiledRegularAdjustmentProgram>,
+}
+
+/// Source-compiled regular-mode prelude that transfers a de-risked trade into
+/// the shared legacy Grind state machine without selecting a Signal value.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledRegularAdjustmentProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledRegularExecutionMode,
+    pub source_callback: String,
+    pub source_order: Vec<CompiledRegularTransition>,
+    pub order_scan: CompiledRegularOrderScan,
+    pub continuation: CompiledRegularContinuation,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledRegularExecutionMode {
+    PrimaryWithLegacyShadow,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum CompiledRegularTransition {
+    Rebuy {
+        tag: String,
+        location: ManagedExitSourceLocation,
+    },
+    Grind {
+        level: usize,
+        entry_tag: String,
+        stop_tag: String,
+        #[serde(default)]
+        futures_fallback_loss_threshold: Option<f64>,
+        location: ManagedExitSourceLocation,
+    },
+    Derisk {
+        tag: String,
+        level_one: bool,
+        location: ManagedExitSourceLocation,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledRegularOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub entry_order_side: CompiledOrderSide,
+    pub exit_order_side: CompiledOrderSide,
+    pub exclude_first_entry: bool,
+    pub rebuy_entry_excluded_tags: Vec<String>,
+    pub rebuy_exit_excluded_tags: Vec<String>,
+    pub derisk_exit_tags: Vec<String>,
+    pub derisk_level_one_tag: String,
+    pub partial_fill_tag: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledRegularContinuation {
+    pub kind: CompiledRegularContinuationKind,
+    pub guard: CompiledRegularContinuationGuard,
+    pub amount_ratio: f64,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledRegularContinuationKind {
+    LegacyGrind,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledRegularContinuationGuard {
+    PositionAmountBelowFirstEntryRatio,
 }
 
 /// Strategy-neutral source program for a proven prefix of a Grind callback.

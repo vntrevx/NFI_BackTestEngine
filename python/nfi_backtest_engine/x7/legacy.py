@@ -8,6 +8,7 @@ from typing import Any
 
 from ..errors import StrategyAnalysisError
 from .legacy_grind_ir import compile_legacy_grind_ir, extract_legacy_futures_fallback
+from .regular_adjustment_ir import compile_regular_adjustment_ir
 from .trade_manager import (
     _LONG_BTC_ADJUSTMENT_SCOPE,
     _LONG_BTC_METHOD_SHA256,
@@ -68,10 +69,16 @@ def _build_long_btc_route(
         regular_mode=True,
     )
     if route is not None:
+        regular_program = compile_regular_adjustment_ir(
+            methods["long_adjust_trade_position_no_derisk"],
+            constants,
+        )
         route["regular_decision_program"] = _LONG_REGULAR_ADJUSTMENT_PROGRAM
+        route["regular_program"] = regular_program
         route["regular_constants"] = _build_regular_adjustment_constants(
             constants,
             methods["long_adjust_trade_position_no_derisk"],
+            regular_program,
         )
     return route, identity
 
@@ -299,6 +306,7 @@ def _build_legacy_grind_constants(
 def _build_regular_adjustment_constants(
     constants: dict[str, Any],
     method: ast.FunctionDef,
+    program: dict[str, Any],
 ) -> dict[str, Any]:
     """Freeze both market-mode branches before tag 121 reaches legacy grind.
 
@@ -342,6 +350,11 @@ def _build_regular_adjustment_constants(
             )
         rebuy[mode] = (stakes, thresholds)
 
+    grind_actions = {
+        action["level"]: action
+        for action in program["source_order"]
+        if action["kind"] == "grind"
+    }
     grinds: list[dict[str, Any]] = []
     levels = sorted(
         {
@@ -358,11 +371,13 @@ def _build_regular_adjustment_constants(
     )
     if not levels:
         raise StrategyAnalysisError("NFI regular adjustment contains no grind levels")
+    if set(grind_actions) != set(levels):
+        raise StrategyAnalysisError("NFI regular adjustment program level set differs")
     for level in levels:
         prefix = f"regular_mode_grind_{level}"
         grind: dict[str, Any] = {
-            "entry_tag": f"g{level}",
-            "stop_tag": f"sg{level}",
+            "entry_tag": grind_actions[level]["entry_tag"],
+            "stop_tag": grind_actions[level]["stop_tag"],
         }
         for mode in ("futures", "spot"):
             stakes = number_list(f"{prefix}_stakes_{mode}")
