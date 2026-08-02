@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 109,
-  "updated_at": "2026-08-02T09:22:14+09:00",
+  "revision": 110,
+  "updated_at": "2026-08-02T10:32:37+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M17-03",
+  "active_task_id": "M17-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4161,7 +4161,7 @@
       "order": 1703,
       "milestone": "M17",
       "title": "Compile Derisk and Buyback transitions into generic IR",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M17-02"
       ],
@@ -4181,9 +4181,16 @@
         "atomic state transition proof"
       ],
       "started_at": "2026-08-02T09:22:14+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-02T10:32:37+09:00",
+      "commit_sha": "90d518646e57406eaab267195c932df97644e48a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/18-derisk-buyback-full.log",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/19-atomic-derisk-buyback.log",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/20-legacy-grind-compiler.log",
+        "benchmarks/fixtures/captured/x7-derisk-buyback-spot-v17.4.488-2023-01-01_16/manifest.json"
+      ],
       "blocker": null
     },
     {
@@ -4191,7 +4198,7 @@
       "order": 1704,
       "milestone": "M17",
       "title": "Compile tag-121 regular-to-Grind continuation",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M17-03"
       ],
@@ -4210,7 +4217,7 @@
         "tag-121 transition fixture",
         "dual-mode full-state exact"
       ],
-      "started_at": null,
+      "started_at": "2026-08-02T10:32:37+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7559,6 +7566,42 @@
         "objective": "compile the d1 Derisk and Buyback restoration cycle into bounded generic IR",
         "hard_coded_buyback_outcomes_allowed": false,
         "unbounded_retry_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 147,
+      "timestamp": "2026-08-02T10:32:37+09:00",
+      "task_id": "M17-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "90d518646e57406eaab267195c932df97644e48a",
+        "trade_manager_schema": "0.27.0",
+        "grind_transition_program": "grind-transition-program-v3",
+        "derisk_buyback_is_program_data": true,
+        "bounded_retry_ast_proof": true,
+        "stake_formula_ast_proof": true,
+        "wallet_guard_ast_proof": true,
+        "same_candle_entry_adjustment_exact": true,
+        "official_fixture_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "official_trade_surface_exact": true,
+        "official_full_state_exact": true,
+        "official_state_event_count": 4320,
+        "official_d1_filled_order_count": 29,
+        "hard_coded_buyback_outcomes_added": false,
+        "unbounded_retry_added": false,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 148,
+      "timestamp": "2026-08-02T10:32:37+09:00",
+      "task_id": "M17-04",
+      "event": "task_started",
+      "details": {
+        "objective": "compile tag-121 regular-to-Grind continuation without a tag-121 runtime selector",
+        "legacy_fallthrough_without_proof_allowed": false,
         "runtime_hardcoding_allowed": false
       }
     }
