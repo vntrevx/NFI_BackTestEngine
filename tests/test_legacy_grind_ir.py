@@ -85,6 +85,35 @@ def route(self, current_time):
         order_tag = "lane-c"
     if should_stop_third:
         order_tag = "lane-c-stop"
+    if (
+        is_derisk_1 and not derisk_1_reentry_found and derisk_1_order is not None
+        and distance < (
+            self.regular_mode_derisk_1_reentry_futures
+            if is_futures else self.regular_mode_derisk_1_reentry_spot
+        )
+    ):
+        if (
+            grind_entry_retry_time > last_filled_entry.order_filled_utc
+            and grind_force_order_age_time > last_filled_order.order_filled_utc
+            and grind_order_age_time > last_filled_order.order_filled_utc
+            and last_candle["guard-b"] == True
+            and last_candle["guard-a"] == True
+            and is_long_grind_entry
+        ):
+            buy_amount = derisk_1_order.safe_filled * derisk_1_order.safe_price
+            if buy_amount > max_stake:
+                return None
+            order_tag = "risk-one"
+    if (
+        derisk_1_reentry_found and derisk_1_reentry_order is not None
+        and distance < (
+            (self.regular_mode_derisk_1_reentry_futures
+             if is_futures else self.regular_mode_derisk_1_reentry_spot)
+            / stake_scale_leverage
+        )
+    ):
+        sell_amount = derisk_1_reentry_order.safe_filled * exit_rate / trade_leverage
+        return -sell_amount, "risk-one"
 """
     ).body[0]
     assert isinstance(node, ast.FunctionDef)
@@ -95,6 +124,8 @@ def _constants() -> dict[str, object]:
     return {
         "first_entry_profit_threshold_spot": 0.018,
         "first_entry_stop_threshold_spot": -0.2,
+        "derisk_1_reentry_futures": -0.08,
+        "derisk_1_reentry_spot": -0.07,
         "clusters": [
             {"entry_tag": "lane-a", "stop_tag": "lane-a-stop", "post_derisk": False},
             {"entry_tag": "lane-b", "stop_tag": "lane-b-stop", "post_derisk": False},
@@ -107,17 +138,18 @@ def _constants() -> dict[str, object]:
 def test_legacy_grind_ir_uses_source_tags_and_policy_as_data() -> None:
     program = compile_legacy_grind_ir(_method(), _constants())
 
-    assert program["schema_version"] == "grind-transition-program-v2"
+    assert program["schema_version"] == "grind-transition-program-v3"
     assert [transition["kind"] for transition in program["source_order"]] == [
         "first-entry",
         "cluster",
         "cluster",
         "cluster",
         "cluster",
+        "derisk-buyback",
     ]
     assert program["source_order"][0]["profit_tag"] == "recover"
     assert program["source_order"][0]["stop_tag"] == "recover-stop"
-    assert [transition["entry_tag"] for transition in program["source_order"][1:]] == [
+    assert [transition["entry_tag"] for transition in program["source_order"][1:-1]] == [
         "post-a",
         "lane-a",
         "lane-b",
@@ -125,8 +157,23 @@ def test_legacy_grind_ir_uses_source_tags_and_policy_as_data() -> None:
     ]
     assert [
         transition["futures_fallback_loss_threshold"]
-        for transition in program["source_order"][1:]
+        for transition in program["source_order"][1:-1]
     ] == [None, -0.65, None, None]
+    assert program["source_order"][-1] == {
+        "kind": "derisk-buyback",
+        "tag": "risk-one",
+        "entry_threshold_futures": -0.08,
+        "entry_threshold_spot": -0.07,
+        "entry_feature_columns": ["guard-a", "guard-b"],
+        "entry_retry_policy": "bounded-grind-policy",
+        "entry_stake_basis": "derisk-exit-cost",
+        "entry_minimum_multiplier": 1.5,
+        "entry_wallet_guard": "return-none",
+        "exit_threshold_divisor": "mode-leverage",
+        "exit_stake_basis": "reentry-amount-at-current-rate",
+        "exit_minimum_remaining_multiplier": 1.55,
+        "location": program["source_order"][-1]["location"],
+    }
     assert program["order_scan"]["entry_order_side"] == "buy"
     assert program["order_scan"]["exit_order_side"] == "sell"
     assert program["order_scan"]["derisk_entry_tag"] == "risk-one"
@@ -147,6 +194,52 @@ def test_legacy_grind_ir_fingerprint_tracks_source_policy_changes() -> None:
 
     assert changed["policy"]["entry_retry_ms"] == 720_000
     assert changed["fingerprint"] != base["fingerprint"]
+
+
+def test_legacy_grind_ir_rejects_an_unbounded_derisk_buyback_retry() -> None:
+    method = _method()
+    retry_guard = next(
+        node
+        for node in ast.walk(method)
+        if isinstance(node, ast.Compare)
+        and isinstance(node.left, ast.Name)
+        and node.left.id == "grind_entry_retry_time"
+    )
+    retry_guard.ops = [ast.Lt()]
+
+    with pytest.raises(StrategyAnalysisError, match="retry guard changed"):
+        compile_legacy_grind_ir(method, _constants())
+
+
+@pytest.mark.parametrize(
+    ("target", "source_owner", "message"),
+    [
+        ("buy_amount", "derisk_1_order", "entry stake expression changed"),
+        ("sell_amount", "derisk_1_reentry_order", "exit stake expression changed"),
+    ],
+)
+def test_legacy_grind_ir_rejects_changed_derisk_buyback_stake_expressions(
+    target: str,
+    source_owner: str,
+    message: str,
+) -> None:
+    method = _method()
+    assignment = next(
+        node
+        for node in ast.walk(method)
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == target
+        and any(
+            isinstance(child, ast.Name) and child.id == source_owner
+            for child in ast.walk(node.value)
+        )
+    )
+    assignment.value = ast.Constant(value=42.0)
+
+    with pytest.raises(StrategyAnalysisError, match=message):
+        compile_legacy_grind_ir(method, _constants())
 
 
 def test_legacy_grind_ir_compiles_an_additional_source_defined_level() -> None:
@@ -222,10 +315,10 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert manager is not None
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
-    assert operation["schema_version"] == "0.26.0"
-    assert program["schema_version"] == "grind-transition-program-v2"
+    assert operation["schema_version"] == "0.27.0"
+    assert program["schema_version"] == "grind-transition-program-v3"
     transition_tags = [
-        transition.get("profit_tag", transition.get("entry_tag"))
+        transition.get("profit_tag", transition.get("entry_tag", transition.get("tag")))
         for transition in program["source_order"]
     ]
     assert transition_tags == [
@@ -238,6 +331,7 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
         "gd4",
         "gd5",
         "gd6",
+        "d1",
     ]
     assert program["source_order"][0]["stop_tag"] == "gmd0"
     fallback = next(
@@ -250,3 +344,6 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert program["order_scan"]["known_clusters"][0]["post_derisk"] is False
     assert program["order_scan"]["known_clusters"][-1]["post_derisk"] is True
     assert manager["proof"]["legacy_grind_ir_fingerprint"] == program["fingerprint"]
+    assert operation["supported_routes"]["long_btc"]["program"]["schema_version"] == (
+        "grind-transition-program-v3"
+    )

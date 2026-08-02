@@ -66,9 +66,7 @@ pub(crate) fn valid_nfi_legacy_grind_constants(constants: &NfiLegacyGrindConstan
     constants.max_stake_multiplier.is_finite()
         && constants.max_stake_multiplier > 0.0
         && constants.derisk_1_reentry_futures.is_finite()
-        && constants.derisk_1_reentry_futures < 0.0
         && constants.derisk_1_reentry_spot.is_finite()
-        && constants.derisk_1_reentry_spot < 0.0
         && multipliers_are_valid
         && clusters_are_valid
 }
@@ -136,13 +134,9 @@ pub(crate) fn valid_nfi_regular_adjustment_constants(
                 && grind.profit_threshold_spot.is_finite()
         });
     constants.derisk_threshold_futures.is_finite()
-        && constants.derisk_threshold_futures < 0.0
         && constants.derisk_threshold_spot.is_finite()
-        && constants.derisk_threshold_spot < 0.0
         && constants.derisk_level_1_threshold_futures.is_finite()
-        && constants.derisk_level_1_threshold_futures < 0.0
         && constants.derisk_level_1_threshold_spot.is_finite()
-        && constants.derisk_level_1_threshold_spot < 0.0
         && policy_is_valid
         && rebuy_is_valid
         && grinds_are_valid

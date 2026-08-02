@@ -198,6 +198,56 @@ pub(super) fn simulate_internal(
                                 wallet_free(config.starting_balance, &open_trades, &closed_trades);
                         }
                     }
+                } else if let (Some(manager), Some(feature_index)) =
+                    (&config.nfi_x7_trade_manager, callback_feature_index(cursor))
+                {
+                    let trade_index = open_trades
+                        .iter()
+                        .position(|trade| trade.pair_index == pair_index)
+                        .ok_or_else(|| SimError::InvalidPositionAdjustment {
+                            pair: pair.pair.clone(),
+                            timestamp_ms: candle.timestamp_ms,
+                        })?;
+                    let tied_up_stake = open_trades
+                        .iter()
+                        .map(|trade| trade.stake_amount)
+                        .sum::<f64>();
+                    let adjustment_available = available_stake_amount(
+                        available_balance,
+                        tied_up_stake,
+                        config.tradable_balance_ratio,
+                    );
+                    let adjustment = evaluate_nfi_position_adjustment(
+                        manager,
+                        &mut open_trades[trade_index],
+                        &PositionAdjustmentRequest {
+                            pair,
+                            candle_index: feature_index,
+                            candle,
+                            config,
+                            available_balance: adjustment_available,
+                        },
+                    )
+                    .ok_or_else(|| SimError::InvalidPositionAdjustment {
+                        pair: pair.pair.clone(),
+                        timestamp_ms: candle.timestamp_ms,
+                    })?;
+                    if let Some(adjustment) = adjustment {
+                        let order_count = open_trades[trade_index].orders.len();
+                        apply_adjustment(
+                            &mut open_trades[trade_index],
+                            candle,
+                            &adjustment,
+                            config,
+                            adjustment_available,
+                            next_order_id,
+                        )?;
+                        if open_trades[trade_index].orders.len() > order_count {
+                            next_order_id += 1;
+                        }
+                        available_balance =
+                            wallet_free(config.starting_balance, &open_trades, &closed_trades);
+                    }
                 }
             }
 

@@ -11,7 +11,7 @@ from typing import Any
 
 from ..errors import StrategyAnalysisError
 
-LEGACY_GRIND_PROGRAM_VERSION = "grind-transition-program-v2"
+LEGACY_GRIND_PROGRAM_VERSION = "grind-transition-program-v3"
 
 
 def compile_legacy_grind_ir(
@@ -115,6 +115,14 @@ def compile_legacy_grind_ir(
         }
         for record in ordered_clusters
     )
+    source_order.append(
+        _derisk_buyback_transition(
+            method,
+            loop,
+            constants,
+            policy,
+        )
+    )
     program: dict[str, Any] = {
         "schema_version": LEGACY_GRIND_PROGRAM_VERSION,
         "execution_mode": "primary-with-legacy-shadow",
@@ -145,6 +153,238 @@ def compile_legacy_grind_ir(
     ).encode()
     program["fingerprint"] = hashlib.sha256(encoded).hexdigest()
     return program
+
+
+def _derisk_buyback_transition(
+    method: ast.FunctionDef,
+    reverse_loop: ast.For,
+    constants: Mapping[str, Any],
+    policy: Mapping[str, int | float],
+) -> dict[str, Any]:
+    """Compile the bounded de-risk restoration cycle from callback structure."""
+
+    tag = _derisk_tag(reverse_loop)
+    threshold_names = {
+        "regular_mode_derisk_1_reentry_futures",
+        "regular_mode_derisk_1_reentry_spot",
+    }
+    entry_required_names = {
+        "is_derisk_1",
+        "derisk_1_reentry_found",
+        "derisk_1_order",
+        "grind_entry_retry_time",
+        "grind_order_age_time",
+        "grind_force_order_age_time",
+        "is_long_grind_entry",
+        "max_stake",
+    }
+    entry_candidates: list[ast.If] = []
+    exit_candidates: list[ast.If] = []
+    for branch in (node for node in method.body if isinstance(node, ast.If)):
+        names = {node.id for node in ast.walk(branch) if isinstance(node, ast.Name)}
+        attributes = {
+            node.attr for node in ast.walk(branch) if isinstance(node, ast.Attribute)
+        }
+        assigned_tags = _assigned_tags(branch)
+        returned_tags = _returned_string_tags(branch)
+        if (
+            assigned_tags == {tag}
+            and entry_required_names.issubset(names)
+            and threshold_names.issubset(attributes)
+        ):
+            entry_candidates.append(branch)
+        if (
+            tag in returned_tags
+            and {"derisk_1_reentry_found", "derisk_1_reentry_order"}.issubset(names)
+            and threshold_names.issubset(attributes)
+            and "stake_scale_leverage" in names
+        ):
+            exit_candidates.append(branch)
+    if len(entry_candidates) != 1 or len(exit_candidates) != 1:
+        raise StrategyAnalysisError(
+            "NFI legacy de-risk Buyback routing changed; exact lowering requires review"
+        )
+    entry_branch = entry_candidates[0]
+    exit_branch = exit_candidates[0]
+    if _location_key(_location(entry_branch)) >= _location_key(_location(exit_branch)):
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback source order changed")
+
+    feature_columns = sorted(
+        {
+            str(node.slice.value)
+            for node in ast.walk(entry_branch)
+            if isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "last_candle"
+            and isinstance(node.slice, ast.Constant)
+            and isinstance(node.slice.value, str)
+        }
+    )
+    if not feature_columns:
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback has no feature guards")
+    if not _has_strict_retry_guards(entry_branch):
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback retry guard changed")
+    if not _has_derisk_entry_stake_assignment(entry_branch):
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback entry stake expression changed")
+    if not _has_wallet_return_none(entry_branch):
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback wallet guard changed")
+    if not _has_derisk_exit_stake_assignment(exit_branch):
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback exit stake expression changed")
+    if not _has_mode_leverage_threshold(exit_branch):
+        raise StrategyAnalysisError("NFI legacy de-risk Buyback exit threshold changed")
+
+    return {
+        "kind": "derisk-buyback",
+        "tag": tag,
+        "entry_threshold_futures": _number(constants, "derisk_1_reentry_futures"),
+        "entry_threshold_spot": _number(constants, "derisk_1_reentry_spot"),
+        "entry_feature_columns": feature_columns,
+        "entry_retry_policy": "bounded-grind-policy",
+        "entry_stake_basis": "derisk-exit-cost",
+        "entry_minimum_multiplier": policy["minimum_entry_multiplier"],
+        "entry_wallet_guard": "return-none",
+        "exit_threshold_divisor": "mode-leverage",
+        "exit_stake_basis": "reentry-amount-at-current-rate",
+        "exit_minimum_remaining_multiplier": policy["minimum_remaining_multiplier"],
+        "location": _covering_location(_location(entry_branch), _location(exit_branch)),
+    }
+
+
+def _assigned_tags(root: ast.AST) -> set[str]:
+    return {
+        str(node.value.value)
+        for node in ast.walk(root)
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "order_tag"
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+        and node.value.value
+    }
+
+
+def _returned_string_tags(root: ast.AST) -> set[str]:
+    return {
+        str(item.value)
+        for node in ast.walk(root)
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Tuple)
+        for item in node.value.elts
+        if isinstance(item, ast.Constant) and isinstance(item.value, str) and item.value
+    }
+
+
+def _has_wallet_return_none(root: ast.AST) -> bool:
+    for branch in (node for node in ast.walk(root) if isinstance(node, ast.If)):
+        if not _is_name_comparison(branch.test, "buy_amount", ast.Gt, "max_stake"):
+            continue
+        if any(
+            isinstance(statement, ast.Return)
+            and isinstance(statement.value, ast.Constant)
+            and statement.value.value is None
+            for statement in branch.body
+        ):
+            return True
+    return False
+
+
+def _has_strict_retry_guards(root: ast.AST) -> bool:
+    required = {
+        ("grind_entry_retry_time", "last_filled_entry", "order_filled_utc"),
+        ("grind_force_order_age_time", "last_filled_order", "order_filled_utc"),
+        ("grind_order_age_time", "last_filled_order", "order_filled_utc"),
+    }
+    observed = {
+        (comparison.left.id, comparator.value.id, comparator.attr)
+        for comparison in ast.walk(root)
+        if isinstance(comparison, ast.Compare)
+        and isinstance(comparison.left, ast.Name)
+        and len(comparison.ops) == 1
+        and isinstance(comparison.ops[0], ast.Gt)
+        and len(comparison.comparators) == 1
+        and isinstance((comparator := comparison.comparators[0]), ast.Attribute)
+        and isinstance(comparator.value, ast.Name)
+    }
+    return required.issubset(observed)
+
+
+def _has_derisk_entry_stake_assignment(root: ast.AST) -> bool:
+    return any(
+        isinstance(node, ast.Assign)
+        and _assigns_name(node, "buy_amount")
+        and isinstance(node.value, ast.BinOp)
+        and isinstance(node.value.op, ast.Mult)
+        and _is_attribute(node.value.left, "derisk_1_order", "safe_filled")
+        and _is_attribute(node.value.right, "derisk_1_order", "safe_price")
+        for node in ast.walk(root)
+    )
+
+
+def _has_derisk_exit_stake_assignment(root: ast.AST) -> bool:
+    return any(
+        isinstance(node, ast.Assign)
+        and _assigns_name(node, "sell_amount")
+        and isinstance(node.value, ast.BinOp)
+        and isinstance(node.value.op, ast.Div)
+        and isinstance(node.value.left, ast.BinOp)
+        and isinstance(node.value.left.op, ast.Mult)
+        and _is_attribute(
+            node.value.left.left,
+            "derisk_1_reentry_order",
+            "safe_filled",
+        )
+        and isinstance(node.value.left.right, ast.Name)
+        and node.value.left.right.id == "exit_rate"
+        and isinstance(node.value.right, ast.Name)
+        and node.value.right.id == "trade_leverage"
+        for node in ast.walk(root)
+    )
+
+
+def _has_mode_leverage_threshold(root: ast.AST) -> bool:
+    return any(
+        isinstance(node, ast.BinOp)
+        and isinstance(node.op, ast.Div)
+        and isinstance(node.left, ast.IfExp)
+        and isinstance(node.right, ast.Name)
+        and node.right.id == "stake_scale_leverage"
+        for node in ast.walk(root)
+    )
+
+
+def _assigns_name(node: ast.Assign, name: str) -> bool:
+    return (
+        len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == name
+    )
+
+
+def _is_attribute(node: ast.AST, owner: str, attribute: str) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == attribute
+        and isinstance(node.value, ast.Name)
+        and node.value.id == owner
+    )
+
+
+def _is_name_comparison(
+    node: ast.AST,
+    left: str,
+    operator: type[ast.cmpop],
+    right: str,
+) -> bool:
+    return (
+        isinstance(node, ast.Compare)
+        and isinstance(node.left, ast.Name)
+        and node.left.id == left
+        and len(node.ops) == 1
+        and isinstance(node.ops[0], operator)
+        and len(node.comparators) == 1
+        and isinstance(node.comparators[0], ast.Name)
+        and node.comparators[0].id == right
+    )
 
 
 def extract_legacy_futures_fallback(method: ast.FunctionDef) -> dict[str, Any]:

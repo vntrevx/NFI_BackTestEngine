@@ -83,6 +83,7 @@ def validate_fixture_coverage(
 
     assessed_observed = {
         **observed,
+        "order_tags": surface_order_tags(surface),
         "funded_trades": funded_trade_count(surface),
     }
     assessment = assess_required_coverage(
@@ -112,8 +113,9 @@ def assess_required_coverage(
         "protection_methods",
         "exit_reasons",
         "sides",
+        "order_tags",
     ):
-        absent = sorted(set(required[field]) - set(observed[field]))
+        absent = sorted(set(required.get(field, [])) - set(observed.get(field, [])))
         missing.extend(f"{field}:{value}" for value in absent)
     if observed["lock_count"] < required["minimum_lock_count"]:
         missing.append(
@@ -157,6 +159,22 @@ def funded_trade_count(surface: dict[str, Any]) -> int:
             ) from exc
         funded += funding != 0
     return funded
+
+
+def surface_order_tags(surface: dict[str, Any]) -> list[str]:
+    """Return source action tags reached by filled official orders."""
+
+    return sorted(
+        {
+            head
+            for trade in surface.get("trades", [])
+            if isinstance(trade, dict)
+            for order in trade.get("orders", [])
+            if isinstance(order, dict)
+            and isinstance((tag := order.get("tag")), str)
+            and (head := tag.split(maxsplit=1)[0] if tag.split() else "")
+        }
+    )
 
 
 def derive_fixture_observed(

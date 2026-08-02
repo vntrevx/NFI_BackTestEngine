@@ -335,8 +335,25 @@ pub(super) fn nfi_legacy_grind_program(
                 location: location(),
             }),
     );
+    source_order.push(CompiledLegacyGrindTransition::DeriskBuyback {
+        tag: "d1".to_owned(),
+        entry_threshold_futures: constants.derisk_1_reentry_futures,
+        entry_threshold_spot: constants.derisk_1_reentry_spot,
+        entry_feature_columns: vec![
+            "global_protections_long_dump".to_owned(),
+            "global_protections_long_pump".to_owned(),
+        ],
+        entry_retry_policy: CompiledLegacyRetryPolicy::BoundedGrindPolicy,
+        entry_stake_basis: CompiledLegacyEntryStakeBasis::DeriskExitCost,
+        entry_minimum_multiplier: 1.5,
+        entry_wallet_guard: CompiledLegacyWalletGuard::ReturnNone,
+        exit_threshold_divisor: CompiledLegacyThresholdDivisor::ModeLeverage,
+        exit_stake_basis: CompiledLegacyExitStakeBasis::ReentryAmountAtCurrentRate,
+        exit_minimum_remaining_multiplier: 1.55,
+        location: location(),
+    });
     CompiledLegacyGrindProgram {
-        schema_version: "grind-transition-program-v2".to_owned(),
+        schema_version: "grind-transition-program-v3".to_owned(),
         execution_mode: CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow,
         source_callback: "long_grind_adjust_trade_position".to_owned(),
         source_order,
@@ -382,6 +399,18 @@ pub(super) fn nfi_legacy_grind_program(
     }
 }
 
+pub(super) fn nfi_legacy_stateful_input_contract() -> serde_json::Value {
+    serde_json::json!({
+        "indexed_fields": {
+            "last_candle": [
+                "global_protections_long_dump",
+                "global_protections_long_pump"
+            ],
+            "previous_candle": []
+        }
+    })
+}
+
 pub(super) fn enable_test_compiled_legacy_grind(
     manager: &mut NfiX7TradeManager,
     constants: NfiLegacyGrindConstants,
@@ -401,7 +430,7 @@ pub(super) fn enable_test_compiled_legacy_grind(
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,

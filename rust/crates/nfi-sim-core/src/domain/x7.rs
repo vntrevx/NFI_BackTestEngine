@@ -444,6 +444,55 @@ pub enum CompiledLegacyGrindTransition {
         futures_fallback_loss_threshold: Option<f64>,
         location: ManagedExitSourceLocation,
     },
+    /// One bounded de-risk exit -> Buyback -> partial de-risk cycle.
+    ///
+    /// Tags, thresholds, feature guards, stake bases, and retry behavior are
+    /// source-compiled data. The runtime dispatches this opcode without
+    /// knowing an NFI Signal number or a concrete tag value.
+    DeriskBuyback {
+        tag: String,
+        entry_threshold_futures: f64,
+        entry_threshold_spot: f64,
+        entry_feature_columns: Vec<String>,
+        entry_retry_policy: CompiledLegacyRetryPolicy,
+        entry_stake_basis: CompiledLegacyEntryStakeBasis,
+        entry_minimum_multiplier: f64,
+        entry_wallet_guard: CompiledLegacyWalletGuard,
+        exit_threshold_divisor: CompiledLegacyThresholdDivisor,
+        exit_stake_basis: CompiledLegacyExitStakeBasis,
+        exit_minimum_remaining_multiplier: f64,
+        location: ManagedExitSourceLocation,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyRetryPolicy {
+    BoundedGrindPolicy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyEntryStakeBasis {
+    DeriskExitCost,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyWalletGuard {
+    ReturnNone,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyThresholdDivisor {
+    ModeLeverage,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyExitStakeBasis {
+    ReentryAmountAtCurrentRate,
 }
 
 #[derive(Debug, Clone, Deserialize)]

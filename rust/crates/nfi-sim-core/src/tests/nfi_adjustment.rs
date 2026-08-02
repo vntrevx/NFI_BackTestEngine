@@ -409,7 +409,7 @@ fn nfi_long_grind_recovers_the_first_entry_once_with_gm0() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -501,7 +501,7 @@ fn nfi_long_grind_dual_mode_scope_accepts_a_futures_trade() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -558,7 +558,7 @@ fn nfi_long_grind_uses_the_source_bound_futures_drawdown_fallback() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: false,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -627,6 +627,99 @@ fn compiled_legacy_grind_enters_a_post_derisk_cluster_before_ordinary_levels() {
     assert!(!orders[1].is_entry);
     assert_eq!(orders[2].tag.as_deref(), Some("dl1"));
     assert!(orders[2].is_entry);
+}
+
+#[test]
+fn compiled_legacy_grind_executes_one_bounded_derisk_buyback_cycle_atomically() {
+    const MINUTE: i64 = 60 * 1_000;
+    const HOUR: i64 = 60 * MINUTE;
+    let mut entry = candle(0, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("120 ".to_owned()),
+        leverage: Some(3.0),
+        liquidation_price: None,
+    });
+    let mut derisk = candle(HOUR, 100.0, 100.0);
+    derisk.adjustment = Some(AdjustmentSignal {
+        stake_amount: -30.0,
+        tag: "d1".to_owned(),
+    });
+
+    let mut constants = nfi_legacy_grind_constants();
+    for cluster in &mut constants.clusters {
+        cluster.stakes_futures.truncate(1);
+        cluster.thresholds_futures.truncate(1);
+        cluster.stakes_spot.truncate(1);
+        cluster.thresholds_spot.truncate(1);
+    }
+    let cluster_tags = constants
+        .clusters
+        .iter()
+        .map(|cluster| cluster.entry_tag.clone())
+        .collect::<Vec<_>>();
+    let mut candles = vec![entry, derisk];
+    for (index, tag) in cluster_tags.iter().enumerate() {
+        let mut seed = candle(
+            HOUR + i64::try_from(index + 1).unwrap() * MINUTE,
+            100.0,
+            100.0,
+        );
+        seed.adjustment = Some(AdjustmentSignal {
+            stake_amount: 10.0,
+            tag: tag.clone(),
+        });
+        candles.push(seed);
+    }
+    candles.push(candle(26 * HOUR, 90.0, 90.0));
+    candles.push(candle(27 * HOUR, 80.0, 80.0));
+    let mut force_exit = candle(28 * HOUR, 80.0, 80.0);
+    force_exit.exit_long = Some(ExitSignal {
+        reason: "force_exit".to_owned(),
+    });
+    candles.push(force_exit);
+
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    manager.schema_version = "0.14.0".to_owned();
+    enable_test_compiled_legacy_grind(&mut manager, constants);
+    let route = manager.long_grind.as_mut().expect("compiled Grind route");
+    route.adjustment_scope = "grind-backtest-v2".to_owned();
+    route.derisk_use_grind_stops = false;
+    let mut manager_config = config(1);
+    manager_config.starting_balance = 10_000.0;
+    manager_config.is_futures = true;
+    enable_nfi_manager(&mut manager_config, manager);
+    let feature_values = vec![serde_json::json!(true); candles.len()];
+    let mut pair = nfi_pair(
+        candles,
+        BTreeMap::from([
+            (
+                "global_protections_long_dump".to_owned(),
+                feature_values.clone(),
+            ),
+            ("global_protections_long_pump".to_owned(), feature_values),
+        ]),
+    );
+    pair.minimum_cost = Some(5.0);
+
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .expect("compiled Derisk and Buyback cycle agrees exactly with the source shadow");
+    let d1_orders = result.trades[0]
+        .orders
+        .iter()
+        .filter(|order| order.tag.as_deref() == Some("d1"))
+        .collect::<Vec<_>>();
+
+    assert_eq!(d1_orders.len(), 3);
+    assert!(!d1_orders[0].is_entry);
+    assert!(d1_orders[1].is_entry);
+    assert!(!d1_orders[2].is_entry);
+    assert_eq!(d1_orders[1].filled_timestamp_ms, 26 * HOUR);
+    assert_eq!(d1_orders[2].filled_timestamp_ms, 27 * HOUR);
+    assert!(d1_orders[1].cost > d1_orders[0].cost * 2.9);
 }
 
 #[test]
@@ -778,7 +871,7 @@ fn nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -841,7 +934,7 @@ fn nfi_long_grind_opens_and_closes_a_gd1_cluster_in_source_order() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -907,7 +1000,7 @@ fn compiled_legacy_grind_reconstructs_gd1_before_reaching_gd2() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -965,7 +1058,7 @@ fn compiled_legacy_grind_shadow_rejects_a_policy_disagreement() {
         first_entry_stop_threshold_spot: -0.2,
         futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
-        stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
         constants,
         program: Some(program),
         regular_decision_program: None,
@@ -1017,6 +1110,48 @@ fn nfi_long_btc_uses_its_source_ordered_profit_exit() {
     assert_eq!(result.trades.len(), 1);
     assert_eq!(result.trades[0].close_timestamp_ms, 2);
     assert_eq!(result.trades[0].exit_reason, "exit_long_btc_g ( 121)");
+}
+
+#[test]
+fn nfi_long_btc_adjustment_runs_on_the_entry_fill_candle() {
+    // Callback-visible analyzed data is shifted by one candle, so keep one
+    // warmup row before the entry just as the real vector input does.
+    let warmup = candle(1, 100.0, 100.0);
+    let mut entry = candle(2, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("121".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut force_exit = candle(3, 100.0, 100.0);
+    force_exit.exit_long = Some(ExitSignal {
+        reason: "force_exit".to_owned(),
+    });
+    let mut constants = nfi_regular_adjustment_constants();
+    constants.rebuy_thresholds_spot.fill(-1.0);
+    for grind in &mut constants.grinds {
+        grind.thresholds_spot.fill(-1.0);
+    }
+    constants.derisk_threshold_spot = -10.0;
+    constants.derisk_level_1_threshold_spot = 1.0;
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_long_btc(&mut manager, constants, nfi_boolean_true_program());
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+    let mut pair = nfi_pair(vec![warmup, entry, force_exit], BTreeMap::new());
+    pair.minimum_cost = Some(5.0);
+
+    let result = simulate(&SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![pair],
+    })
+    .expect("Freqtrade invokes NFI adjust_trade_position on the entry candle");
+    let trade = &result.trades[0];
+
+    assert_eq!(trade.orders[1].tag.as_deref(), Some("d1"));
+    assert_eq!(trade.orders[1].filled_timestamp_ms, 2);
+    assert!(!trade.orders[1].is_entry);
 }
 
 #[test]

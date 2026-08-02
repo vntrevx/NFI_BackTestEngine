@@ -4,14 +4,16 @@ use std::collections::BTreeSet;
 
 use crate::domain::{
     CompiledAdjustmentExecutionMode, CompiledAdjustmentOperation, CompiledAdjustmentProgram,
-    CompiledLegacyGrindExecutionMode, CompiledLegacyGrindTransition, CompiledOrderSequence,
-    CompiledOrderSide, CompiledPartialFillPolicy, CompiledSystemAdjustmentActionKind,
-    CompiledSystemAdjustmentExecutionMode, CompiledSystemAdjustmentInputKind,
-    CompiledSystemAdjustmentProgram, CompiledSystemAdjustmentSide, ManagedExitExecutionMode,
-    ManagedExitInlinePosition, ManagedExitRoute, ManagedExitStateOperation,
-    ManagedExitStateProgram, ManagedExitStopPolicy, ManagedExitTagMatcher, ManagedExitTagOperator,
-    NfiLongGrindRoute, NfiManagedLongProfile, NfiManagedLongRoute, NfiX7AdjustmentConstants,
-    NfiX7AdjustmentPolicy, NfiX7PositionAdjustment, NfiX7TradeManager, PortfolioConfig, SimError,
+    CompiledLegacyEntryStakeBasis, CompiledLegacyExitStakeBasis, CompiledLegacyGrindExecutionMode,
+    CompiledLegacyGrindTransition, CompiledLegacyRetryPolicy, CompiledLegacyThresholdDivisor,
+    CompiledLegacyWalletGuard, CompiledOrderSequence, CompiledOrderSide, CompiledPartialFillPolicy,
+    CompiledSystemAdjustmentActionKind, CompiledSystemAdjustmentExecutionMode,
+    CompiledSystemAdjustmentInputKind, CompiledSystemAdjustmentProgram,
+    CompiledSystemAdjustmentSide, ManagedExitExecutionMode, ManagedExitInlinePosition,
+    ManagedExitRoute, ManagedExitStateOperation, ManagedExitStateProgram, ManagedExitStopPolicy,
+    ManagedExitTagMatcher, ManagedExitTagOperator, NfiLongGrindRoute, NfiManagedLongProfile,
+    NfiManagedLongRoute, NfiX7AdjustmentConstants, NfiX7AdjustmentPolicy, NfiX7PositionAdjustment,
+    NfiX7TradeManager, PortfolioConfig, SimError,
 };
 
 use super::adjustment::{
@@ -119,6 +121,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.24.0"
             | "0.25.0"
             | "0.26.0"
+            | "0.27.0"
     ) && manager.source_sha256.len() == 64
         && manager
             .source_sha256
@@ -149,6 +152,7 @@ pub(crate) fn validate_nfi_trade_manager(
             | "0.24.0"
             | "0.25.0"
             | "0.26.0"
+            | "0.27.0"
     ) || manager
         .managed_long_routes
         .iter()
@@ -245,6 +249,7 @@ pub(crate) fn validate_nfi_trade_manager(
                             | "0.24.0"
                             | "0.25.0"
                             | "0.26.0"
+                            | "0.27.0"
                     )
                 }
                 _ => false,
@@ -292,7 +297,11 @@ pub(crate) fn validate_nfi_trade_manager(
                 .regular_constants
                 .as_ref()
                 .is_some_and(valid_nfi_regular_adjustment_constants)
-            && route.program.is_none()
+            && if manager.schema_version == "0.27.0" {
+                valid_versioned_legacy_grind_program(&manager.schema_version, route)
+            } else {
+                route.program.is_none()
+            }
             && valid_nfi_legacy_grind_constants(&route.constants)
     });
     let valid_programs = manager.programs.len()
@@ -347,7 +356,7 @@ pub(crate) fn validate_nfi_trade_manager(
             }
             "0.12.0" | "0.13.0" | "0.14.0" | "0.15.0" | "0.16.0" | "0.17.0" | "0.18.0"
             | "0.19.0" | "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0"
-            | "0.26.0" => {
+            | "0.26.0" | "0.27.0" => {
                 adjustment
                     .constants
                     .rebuy_stake_multiplier
@@ -531,6 +540,7 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
     let required_program_version = match schema_version {
         "0.25.0" => Some("grind-transition-program-v1"),
         "0.26.0" => Some("grind-transition-program-v2"),
+        "0.27.0" => Some("grind-transition-program-v3"),
         _ => None,
     };
     let Some(program) = route.program.as_ref() else {
@@ -541,7 +551,8 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
     }
     let is_v1 = program.schema_version == "grind-transition-program-v1";
     let is_v2 = program.schema_version == "grind-transition-program-v2";
-    if !is_v1 && !is_v2 {
+    let is_v3 = program.schema_version == "grind-transition-program-v3";
+    if !is_v1 && !is_v2 && !is_v3 {
         return false;
     }
     let scan = &program.order_scan;
@@ -562,16 +573,24 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
         .iter()
         .filter(|cluster| !cluster.post_derisk)
         .collect::<Vec<_>>();
-    let mut transitions = program.source_order.iter();
-    let first = transitions.next();
-    let compiled_clusters = transitions.collect::<Vec<_>>();
+    let first = program.source_order.first();
+    let compiled_clusters = program
+        .source_order
+        .iter()
+        .skip(1)
+        .take(if is_v1 { 2 } else { scan.known_clusters.len() })
+        .collect::<Vec<_>>();
+    let derisk_buyback = is_v3
+        .then(|| program.source_order.get(scan.known_clusters.len() + 1))
+        .flatten();
     let valid_location = |location: &crate::domain::ManagedExitSourceLocation| {
         location.line > 0 && location.end_line >= location.line
     };
     let transition_location = |transition: &CompiledLegacyGrindTransition| match transition {
         CompiledLegacyGrindTransition::FirstEntryProfit { location, .. }
         | CompiledLegacyGrindTransition::FirstEntry { location, .. }
-        | CompiledLegacyGrindTransition::Cluster { location, .. } => {
+        | CompiledLegacyGrindTransition::Cluster { location, .. }
+        | CompiledLegacyGrindTransition::DeriskBuyback { location, .. } => {
             (location.line, location.column)
         }
     };
@@ -601,7 +620,7 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
             profit_threshold,
             stop_threshold,
             location,
-        }) if is_v2 => {
+        }) if is_v2 || is_v3 => {
             profit_tag != stop_tag
                 && scan.first_entry_closed_tags.first() == Some(profit_tag)
                 && scan.first_entry_closed_tags.get(1) == Some(stop_tag)
@@ -685,6 +704,71 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
                 .find(|cluster| cluster.entry_tag == *fallback_transitions[0].0)
                 .is_some_and(|cluster| !cluster.post_derisk)
     };
+    let indexed_features = route
+        .stateful_input_contract
+        .get("indexed_fields")
+        .and_then(|value| value.get("last_candle"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|values| {
+            values
+                .iter()
+                .map(serde_json::Value::as_str)
+                .collect::<Option<Vec<_>>>()
+        });
+    let derisk_buyback_is_valid = match derisk_buyback {
+        Some(CompiledLegacyGrindTransition::DeriskBuyback {
+            tag,
+            entry_threshold_futures,
+            entry_threshold_spot,
+            entry_feature_columns,
+            entry_retry_policy,
+            entry_stake_basis,
+            entry_minimum_multiplier,
+            entry_wallet_guard,
+            exit_threshold_divisor,
+            exit_stake_basis,
+            exit_minimum_remaining_multiplier,
+            location,
+        }) if is_v3 => {
+            tag == &scan.derisk_entry_tag
+                && entry_threshold_futures.to_bits()
+                    == route.constants.derisk_1_reentry_futures.to_bits()
+                && entry_threshold_spot.to_bits() == route.constants.derisk_1_reentry_spot.to_bits()
+                && entry_threshold_futures.is_finite()
+                && entry_threshold_spot.is_finite()
+                && !entry_feature_columns.is_empty()
+                && entry_feature_columns
+                    .iter()
+                    .all(|column| !column.is_empty())
+                && entry_feature_columns.iter().collect::<BTreeSet<_>>().len()
+                    == entry_feature_columns.len()
+                && indexed_features.is_some_and(|features| {
+                    features
+                        == entry_feature_columns
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                })
+                && *entry_retry_policy == CompiledLegacyRetryPolicy::BoundedGrindPolicy
+                && *entry_stake_basis == CompiledLegacyEntryStakeBasis::DeriskExitCost
+                && entry_minimum_multiplier.to_bits() == policy.minimum_entry_multiplier.to_bits()
+                && *entry_wallet_guard == CompiledLegacyWalletGuard::ReturnNone
+                && *exit_threshold_divisor == CompiledLegacyThresholdDivisor::ModeLeverage
+                && *exit_stake_basis == CompiledLegacyExitStakeBasis::ReentryAmountAtCurrentRate
+                && exit_minimum_remaining_multiplier.to_bits()
+                    == policy.minimum_remaining_multiplier.to_bits()
+                && valid_location(location)
+        }
+        None if !is_v3 => true,
+        _ => false,
+    };
+    let expected_transition_count = if is_v1 {
+        3
+    } else if is_v2 {
+        scan.known_clusters.len() + 1
+    } else {
+        scan.known_clusters.len() + 2
+    };
     program.execution_mode == CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow
         && program.source_callback == "long_grind_adjust_trade_position"
         && matches!(scan.sequence, CompiledOrderSequence::Reverse)
@@ -743,6 +827,8 @@ fn valid_versioned_legacy_grind_program(schema_version: &str, route: &NfiLongGri
         && (0.0..1.0).contains(&policy.derisk_amount_ratio)
         && first_is_valid
         && cluster_transitions_are_valid
+        && derisk_buyback_is_valid
+        && program.source_order.len() == expected_transition_count
         && source_locations_are_ordered
         && program.location.line > 0
         && program.location.end_line >= program.location.line
@@ -764,7 +850,7 @@ fn valid_versioned_system_adjustment_program(
     adjustment: &NfiX7PositionAdjustment,
     expected_side: CompiledSystemAdjustmentSide,
 ) -> bool {
-    let required = matches!(schema_version, "0.24.0" | "0.25.0" | "0.26.0")
+    let required = matches!(schema_version, "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0")
         || (schema_version == "0.23.0" && expected_side == CompiledSystemAdjustmentSide::Long);
     if !required {
         return program.is_none();
@@ -916,7 +1002,7 @@ fn valid_versioned_rebuy_program(
 ) -> bool {
     if !matches!(
         schema_version,
-        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0"
+        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
     ) {
         return program.is_none();
     }
@@ -950,7 +1036,7 @@ fn valid_versioned_rebuy_program(
 fn valid_adjustment_source_callback(schema_version: &str, callback: Option<&str>) -> bool {
     if matches!(
         schema_version,
-        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0"
+        "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
     ) {
         callback.is_some_and(|value| !value.is_empty())
     } else {
@@ -989,6 +1075,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
             | "0.24.0"
             | "0.25.0"
             | "0.26.0"
+            | "0.27.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -1057,7 +1144,14 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                     &known_tags,
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0"
+                        "0.20.0"
+                            | "0.21.0"
+                            | "0.22.0"
+                            | "0.23.0"
+                            | "0.24.0"
+                            | "0.25.0"
+                            | "0.26.0"
+                            | "0.27.0"
                     ),
                 ),
                 None => !matches!(
@@ -1070,6 +1164,7 @@ fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
                         | "0.24.0"
                         | "0.25.0"
                         | "0.26.0"
+                        | "0.27.0"
                 ),
             }
             && valid_managed_exit_terminal(route, &matcher_tags)
@@ -1091,6 +1186,7 @@ fn managed_exit_program_required(schema_version: &str) -> bool {
             | "0.24.0"
             | "0.25.0"
             | "0.26.0"
+            | "0.27.0"
     )
 }
 
@@ -1113,7 +1209,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
     let Some(program) = manager.managed_short_exit_program.as_ref() else {
         return !matches!(
             manager.schema_version.as_str(),
-            "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0"
+            "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
         );
     };
     if program.schema_version != "managed-exit-program-v1"
@@ -1190,7 +1286,14 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
                     &known_tags,
                     matches!(
                         manager.schema_version.as_str(),
-                        "0.20.0" | "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0"
+                        "0.20.0"
+                            | "0.21.0"
+                            | "0.22.0"
+                            | "0.23.0"
+                            | "0.24.0"
+                            | "0.25.0"
+                            | "0.26.0"
+                            | "0.27.0"
                     ),
                 )
             })
@@ -1203,7 +1306,7 @@ fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> bool {
 fn valid_managed_exit_execution_mode(schema_version: &str, mode: ManagedExitExecutionMode) -> bool {
     if matches!(
         schema_version,
-        "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0"
+        "0.21.0" | "0.22.0" | "0.23.0" | "0.24.0" | "0.25.0" | "0.26.0" | "0.27.0"
     ) {
         mode == ManagedExitExecutionMode::PrimaryWithLegacyShadow
     } else {

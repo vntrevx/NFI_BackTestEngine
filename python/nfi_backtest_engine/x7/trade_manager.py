@@ -20,7 +20,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import build_trade_dependency_ir
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.26.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.27.0"
 
 _MANAGED_LONG_PROGRAM_ORDER = (
     "long_exit_signals",

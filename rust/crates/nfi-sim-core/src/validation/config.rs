@@ -284,6 +284,7 @@ pub(crate) fn uses_full_futures_manager_contract(schema_version: &str) -> bool {
             | "0.24.0"
             | "0.25.0"
             | "0.26.0"
+            | "0.27.0"
     )
 }
 
@@ -307,5 +308,6 @@ pub(crate) fn valid_legacy_futures_fallback(
                 | "0.24.0"
                 | "0.25.0"
                 | "0.26.0"
+                | "0.27.0"
         ) && route.futures_fallback_loss_threshold.is_none())
 }

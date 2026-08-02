@@ -1,0 +1,191 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "x7-latest-derisk-buyback-btc-spot",
+  "description": "Official Freqtrade probe for the source-defined X7 Derisk and Buyback restoration cycle.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-08-02T01:02:09.543748Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20230101-20230116",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20230101-20230116",
+      "--pairs",
+      "BTC/USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "cb0eacaa3706cfbeda5efd8b032734fb98f058fd367ed162c7bc194e7d9df594",
+      "bytes": 3249745
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "62c4fc0f08a6325f11d3723ff18d7e718f0da122b0cbfd2a90ab72502ff941fe",
+      "bytes": 1834
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-15m.feather",
+      "sha256": "46ffdc6db64bb6dd8be32245e828f9a8446d30f9c1980c64d5cfe97ba38eb044",
+      "bytes": 109103
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1d.feather",
+      "sha256": "68a264bea5e2e29c5289f5e2ae78705f6d695e0f9a92303f98dd774286593e76",
+      "bytes": 40367
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1h.feather",
+      "sha256": "f752dc774ef54cd73093471997b40c81c3ab8f177200b9e39f62f82d1ee5b4b7",
+      "bytes": 57263
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-4h.feather",
+      "sha256": "b6ea0c3bf2123f00f0e9fb6f3fd54f9cf2dc15a588a80789ba5c0935b995a389",
+      "bytes": 44207
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "cb8da083e12e26d7c4e7e16b9249af7506ff5db6802b42753da22daa4ec13f4e",
+      "bytes": 247343
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/market-metadata.json",
+      "sha256": "3bc70199af12b0f068d46bb32f946e8e581ccdf7d1b3573f3ddcfec027177986",
+      "bytes": 56574
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "8d12683fdc1fbab29cc76f4b789be79510cfc6b2c2568c8ce81ffd6ce6e762a9",
+      "bytes": 484847
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "a152d82c62885f78e5c51cc40cd0598f3f7171b6b530e334561b6792ea2da3d3",
+      "bytes": 411682
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "c6ace3cf47c8c638c61b54041f242cfe6a0a10815e550f577fab4c0e515eb7e7",
+      "bytes": 10177
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "4891f84a2dac8e53c1f150b22e336a699b941636c387d94853d2b9ff57556de1",
+      "bytes": 11453599
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "4ee2a62f3e65ba1ee36c98ce2f55f06988c8f6154ee24ebacdcc4d171b206e14",
+      "bytes": 681
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "01a53c5af1598fad42e18bbfb289ea5fdb483ed386cbbd74dfb7b17f7ba11234",
+      "bytes": 2238333
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "derisk-buyback",
+  "strategy_provenance": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+    "base_source_sha256": "f3082e90d62da29bf56b8c44e11e79db33f70f45d846dc2b7a4bff7f1e39b418",
+    "effective_source_sha256": "cb0eacaa3706cfbeda5efd8b032734fb98f058fd367ed162c7bc194e7d9df594",
+    "transformations": [
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.long_entry_signal_params['long_entry_condition_121_enable'] False -> True"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.grinding_v1_max_stake 1.0 -> 0.01"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.regular_mode_derisk_spot -0.24 -> -10.0"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.regular_mode_derisk_1_spot -0.24 -> 1.0"
+      },
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.regular_mode_derisk_1_reentry_spot -0.08 -> 1.0"
+      },
+      {
+        "kind": "config-override",
+        "description": "Deterministic recursive config override: exchange.pair_whitelist, max_open_trades, pairlists"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [
+      "adjust_trade_position"
+    ],
+    "entry_tags": [
+      "121"
+    ],
+    "order_tags": [
+      "d1"
+    ],
+    "compound_tags": [],
+    "protection_methods": [],
+    "exit_reasons": [],
+    "sides": [
+      "long"
+    ],
+    "minimum_lock_count": 0,
+    "minimum_distinct_leverages": 1,
+    "minimum_funded_trades": 0,
+    "require_rejected_locked_entry": false
+  }
+}

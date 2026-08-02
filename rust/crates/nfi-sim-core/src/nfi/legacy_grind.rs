@@ -354,12 +354,10 @@ fn evaluate_compiled_grind(
     config: &PortfolioConfig,
     available_balance: f64,
 ) -> Option<CompiledGrindOutcome> {
-    if trade.side != TradeSide::Long
-        || !route.grind_mode
-        || !nfi_long_grind_supports_trade(route, trade)
-    {
+    if trade.side != TradeSide::Long || !nfi_long_grind_supports_trade(route, trade) {
         return None;
     }
+    let mode = legacy_mode_for_route(route, config)?;
     let minimum_stake = legacy_adjustment_minimum_stake(pair, candle, trade, config)?;
     let state = rebuild_compiled_grind_state(trade, candle.open, fee_close(config), program)?;
     let stake_multipliers = if config.is_futures {
@@ -394,9 +392,14 @@ fn evaluate_compiled_grind(
             append_entry_ids_from,
             *profit_threshold,
         ),
-        CompiledLegacyGrindTransition::Cluster { .. } => return None,
+        CompiledLegacyGrindTransition::Cluster { .. }
+        | CompiledLegacyGrindTransition::DeriskBuyback { .. } => return None,
     };
-    let complete_program = program.schema_version == "grind-transition-program-v2";
+    let complete_program = matches!(
+        program.schema_version.as_str(),
+        "grind-transition-program-v2" | "grind-transition-program-v3"
+    );
+    let has_derisk_buyback = program.schema_version == "grind-transition-program-v3";
     if complete_program != stop_action.is_some() {
         return None;
     };
@@ -421,7 +424,7 @@ fn evaluate_compiled_grind(
     let first_entry_has_room = original_stake_basis
         - minimum_stake * program.policy.minimum_entry_multiplier
         > minimum_stake;
-    if !first_entry_closed && first_entry_has_room {
+    if mode == LegacyMode::Grind && !first_entry_closed && first_entry_has_room {
         let distance = price_distance(candle.open, state.first_entry.price)?;
         let requested_exit = state.first_entry.amount * candle.open / trade.leverage;
         let action_tag = if distance > profit_threshold + fee_open(config) + fee_close(config) {
@@ -515,7 +518,11 @@ fn evaluate_compiled_grind(
     let below_maximum =
         current_stake_amount < first_cost * route.constants.max_stake_multiplier / first_multiplier;
 
-    let cluster_transitions = program.source_order.iter().skip(1);
+    let cluster_transitions = program
+        .source_order
+        .iter()
+        .skip(1)
+        .take(program.order_scan.known_clusters.len());
     for (source_index, transition) in cluster_transitions.enumerate() {
         let CompiledLegacyGrindTransition::Cluster {
             entry_tag,
@@ -657,7 +664,122 @@ fn evaluate_compiled_grind(
             }
         }
     }
+    if has_derisk_buyback {
+        let transition = program
+            .source_order
+            .get(program.order_scan.known_clusters.len() + 1)?;
+        match evaluate_compiled_derisk_buyback(
+            transition,
+            &state,
+            pair,
+            candle_index,
+            candle,
+            trade,
+            config,
+            available_balance,
+            minimum_stake,
+            entry_age_allows,
+            is_long_grind_entry,
+        )? {
+            LegacyClusterOutcome::Continue => {}
+            LegacyClusterOutcome::ReturnNone => {
+                return Some(CompiledGrindOutcome::Reached(None));
+            }
+            LegacyClusterOutcome::Signal(signal) => {
+                return Some(CompiledGrindOutcome::Reached(Some(signal)));
+            }
+        }
+    }
     Some(CompiledGrindOutcome::NoTransition)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_compiled_derisk_buyback(
+    transition: &CompiledLegacyGrindTransition,
+    state: &LegacyState,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    trade: &OpenTrade,
+    config: &PortfolioConfig,
+    available_balance: f64,
+    minimum_stake: f64,
+    entry_age_allows: bool,
+    is_long_grind_entry: bool,
+) -> Option<LegacyClusterOutcome> {
+    let CompiledLegacyGrindTransition::DeriskBuyback {
+        tag,
+        entry_threshold_futures,
+        entry_threshold_spot,
+        entry_feature_columns,
+        entry_minimum_multiplier,
+        exit_minimum_remaining_multiplier,
+        ..
+    } = transition
+    else {
+        return None;
+    };
+    let threshold = if config.is_futures {
+        *entry_threshold_futures
+    } else {
+        *entry_threshold_spot
+    };
+    if state.is_derisk_1 && state.derisk_1_reentry.is_none() {
+        let exit = state.derisk_1_exit?;
+        if price_distance(candle.open, exit.price)? < threshold
+            && entry_age_allows
+            && is_long_grind_entry
+        {
+            let features_allow =
+                entry_feature_columns
+                    .iter()
+                    .try_fold(true, |allowed, column| {
+                        crate::callbacks::feature_bool_at(pair, candle_index, column)
+                            .map(|value| allowed && value)
+                    })?;
+            if !features_allow {
+                return Some(LegacyClusterOutcome::Continue);
+            }
+            // The source restores the filled de-risk notional directly. This
+            // deliberately does not divide by leverage; the serialized stake
+            // basis is validated before execution.
+            let requested =
+                (exit.amount * exit.price).max(minimum_stake * entry_minimum_multiplier);
+            if requested > available_balance {
+                return Some(LegacyClusterOutcome::ReturnNone);
+            }
+            return Some(LegacyClusterOutcome::Signal(AdjustmentSignal {
+                stake_amount: requested,
+                tag: tag.clone(),
+            }));
+        }
+    }
+
+    let Some(reentry) = state.derisk_1_reentry else {
+        return Some(LegacyClusterOutcome::Continue);
+    };
+    let mode_leverage = if config.is_futures {
+        trade.leverage
+    } else {
+        1.0
+    };
+    if price_distance(candle.open, reentry.price)? >= threshold / mode_leverage {
+        return Some(LegacyClusterOutcome::Continue);
+    }
+    let requested = reentry.amount * candle.open / trade.leverage;
+    let Some(stake_amount) = compiled_partial_exit_stake(
+        trade,
+        candle.open,
+        minimum_stake,
+        requested,
+        *exit_minimum_remaining_multiplier,
+    ) else {
+        return Some(LegacyClusterOutcome::Continue);
+    };
+    Some(LegacyClusterOutcome::Signal(AdjustmentSignal {
+        stake_amount: -stake_amount,
+        tag: tag.clone(),
+    }))
 }
 
 fn rebuild_compiled_grind_state(
@@ -818,6 +940,10 @@ fn compiled_transition_owns_tag(transition: &CompiledLegacyGrindTransition, tag:
             stop_tag,
             ..
         } => entry_tag == tag || stop_tag == tag,
+        CompiledLegacyGrindTransition::DeriskBuyback {
+            tag: transition_tag,
+            ..
+        } => transition_tag == tag,
     }
 }
 
@@ -1165,13 +1291,7 @@ fn evaluate_derisk_one_reentry(
             )?
             && context.is_long_grind_entry
         {
-            let stake_leverage = if context.config.is_futures {
-                context.trade.leverage
-            } else {
-                1.0
-            };
-            let requested =
-                (exit.amount * exit.price / stake_leverage).max(context.minimum_stake * 1.5);
+            let requested = (exit.amount * exit.price).max(context.minimum_stake * 1.5);
             if requested > context.available_balance {
                 return Some(None);
             }
@@ -1185,7 +1305,12 @@ fn evaluate_derisk_one_reentry(
     let Some(reentry) = state.derisk_1_reentry else {
         return Some(None);
     };
-    if price_distance(context.candle.open, reentry.price)? >= threshold / context.trade.leverage {
+    let mode_leverage = if context.config.is_futures {
+        context.trade.leverage
+    } else {
+        1.0
+    };
+    if price_distance(context.candle.open, reentry.price)? >= threshold / mode_leverage {
         return Some(None);
     }
     let requested = reentry.amount * context.candle.open / context.trade.leverage;

@@ -107,6 +107,8 @@ def test_v3_fixture_binds_provenance_and_reached_branches(tmp_path: Path) -> Non
 def test_real_tag_121_fixture_is_fully_sealed_and_branch_reaching() -> None:
     manifest_path = TAG_121_FIXTURE / "manifest.json"
     manifest = validate_fixture(manifest_path)
+    manifest["required_coverage"]["order_tags"] = ["121", "force_exit"]
+    validate_fixture_manifest(manifest)
     coverage = validate_fixture_coverage(manifest_path, manifest)
 
     assert manifest["schema_version"] == "3.0.0"
@@ -116,6 +118,7 @@ def test_real_tag_121_fixture_is_fully_sealed_and_branch_reaching() -> None:
     )
     assert coverage["met"] is True
     assert coverage["observed"]["entry_tags"] == ["121"]
+    assert coverage["observed"]["order_tags"] == ["121", "force_exit"]
     assert coverage["observed"]["callbacks"] == [
         "adjust_trade_position",
         "confirm_trade_entry",
@@ -134,6 +137,13 @@ def test_futures_lifecycle_contract_counts_funding_from_the_official_surface() -
 
     assert coverage["met"] is True
     assert coverage["observed"]["funded_trades"] == 2
+
+
+def test_v3_schema_accepts_a_derisk_buyback_branch_probe() -> None:
+    manifest = read_json(TAG_121_FIXTURE / "manifest.json")
+    manifest["probe_kind"] = "derisk-buyback"
+
+    validate_fixture_manifest(manifest)
 
 
 def test_v3_provenance_must_match_effective_strategy_hash(tmp_path: Path) -> None:

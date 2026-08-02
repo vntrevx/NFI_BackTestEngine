@@ -150,17 +150,23 @@ The full-year APE/USDT spot fixture separately proves exact final trade-surface 
 for the top-coins path: 12 trades, 232 orders, and a byte-identical normalized surface.
 A ZEC/USDT fixture proves the tag-120 legacy route through `gm0`, repeated `gd1`, and
 `gd2`: one trade and 13 orders are byte-identical to an offline Freqtrade 2026.5.1
-run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, Futures-fallback, and `d1` branches are
-executable and have focused Rust tests, but do not yet have branch-reaching official
-fixtures.
+run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, and Futures-fallback branches are executable
+and have focused Rust tests, but do not yet have branch-reaching official fixtures.
+The separate latest-source Spot Derisk/Buyback fixture reaches tag 121 and 29 filled
+`d1` adjustments, including the first d1 exit on the entry-fill timestamp. Its one
+trade, 31 orders, final balance, trade surface, and full state exactly match pinned
+Freqtrade 2026.5.1. The fixture is an AST-bound branch probe, not a continuous release
+certificate.
 
 The whole Grind cluster set is source-compiled rather than selected by tag-120 runtime
-code. `grind-transition-program-v2` carries first-entry profit and stop, source-ordered
+code. `grind-transition-program-v3` carries first-entry profit and stop, source-ordered
 post-de-risk and ordinary clusters, arbitrary source-defined level counts, each stop tag,
-retry/age and stake policy, and the Futures drawdown fallback. Every reached compiled
-action is compared with the independent legacy callback implementation; a mismatch
-invalidates the Native run. The `d1` restoration cycle remains on the residual path until
-its separate atomic-transition proof.
+retry/age and stake policy, the Futures drawdown fallback, and the bounded Derisk/Buyback
+restoration transition. Its tag, thresholds, dataframe guards, wallet policy, stake
+formulas, and leverage behavior are extracted from the strategy AST. Every reached
+compiled action is compared with the independent legacy callback implementation; a
+mismatch invalidates the Native run. The official proof is preserved in
+[`benchmarks/fixtures/captured/x7-derisk-buyback-spot-v17.4.488-2023-01-01_16`](../benchmarks/fixtures/captured/x7-derisk-buyback-spot-v17.4.488-2023-01-01_16/manifest.json).
 
 A separate mid-day Unix-timerange fixture proves the tag-62 rebuy entry, generic
 confirmation path, and rebuy custom exit with one exact trade. That trade did not

@@ -174,29 +174,30 @@ def _build_legacy_grind_route(
         ),
         "derisk_use_grind_stops": derisk,
         "stateful_input_contract": {
-            "indexed_fields": {
-                "last_candle": [
-                    "global_protections_long_dump",
-                    "global_protections_long_pump",
-                ],
-                "previous_candle": [],
-            }
+            "indexed_fields": {"last_candle": [], "previous_candle": []}
         },
         "constants": legacy_constants,
     }
-    if grind_mode:
-        route["program"] = compile_legacy_grind_ir(
-            methods["long_grind_adjust_trade_position"],
-            {
-                **legacy_constants,
-                "first_entry_profit_threshold_spot": route[
-                    "first_entry_profit_threshold_spot"
-                ],
-                "first_entry_stop_threshold_spot": route[
-                    "first_entry_stop_threshold_spot"
-                ],
-            },
-        )
+    route["program"] = compile_legacy_grind_ir(
+        methods["long_grind_adjust_trade_position"],
+        {
+            **legacy_constants,
+            "first_entry_profit_threshold_spot": route[
+                "first_entry_profit_threshold_spot"
+            ],
+            "first_entry_stop_threshold_spot": route[
+                "first_entry_stop_threshold_spot"
+            ],
+        },
+    )
+    buyback = next(
+        transition
+        for transition in route["program"]["source_order"]
+        if transition["kind"] == "derisk-buyback"
+    )
+    route["stateful_input_contract"]["indexed_fields"]["last_candle"] = buyback[
+        "entry_feature_columns"
+    ]
     return route, identity
 
 

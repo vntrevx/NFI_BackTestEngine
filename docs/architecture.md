@@ -303,11 +303,16 @@ number, strategy SHA, or fixed Grind count selects runtime behavior.
 The legacy Grind migration uses the same contract without imposing a level ceiling.
 Python extracts the reverse filled-order walk, order directions, complete cluster-tag
 inventory, first-entry profit and stop, retry/age gates, minimum-stake multipliers,
-source-ordered post-de-risk and ordinary clusters, every cluster stop, and the Futures
-drawdown fallback into `grind-transition-program-v2`. Rust evaluates these actions from
-the payload and requires an exact stake/tag match from the retained legacy shadow. The
-`d1` restoration cycle remains residual until its separate atomic-transition proof;
-encountering it does not silently widen the generic claim.
+source-ordered post-de-risk and ordinary clusters, every cluster stop, the Futures
+drawdown fallback, and the bounded Derisk/Buyback restoration cycle into
+`grind-transition-program-v3`. The d1 tag, feature guards, mode thresholds, retry
+comparisons, wallet rejection, stake restoration, leverage divisor, and partial-exit
+basis are source data. Rust evaluates these transitions from the payload and requires
+an exact stake/tag match from the retained legacy shadow. On an entry fill, NFI's
+position-adjustment callback runs at the same timestamp after the fill and wallet
+refresh, while still reading the previous analyzed dataframe row. A captured official
+Freqtrade fixture reaches this same-candle d1 exit and repeated d1 restoration cycle;
+its trade surface and full state match at zero tolerance.
 
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized
