@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "source_sha256": "7209667113775419f4a68ac12fdbf42cec24bc87ef652423c318ff63516b3920",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 1,
+    "missing_target_count": 0
+  },
+  "runs": [],
+  "proof": null,
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "7209667113775419f4a68ac12fdbf42cec24bc87ef652423c318ff63516b3920",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "blockers": [
+      {
+        "code": "NATIVE_COMPATIBILITY_BLOCKED",
+        "message": "static Native compatibility did not pass"
+      },
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "NFI X7 managed-long route changed; exact lowering requires review: long_rebuy_adjust_trade_position_v3"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
