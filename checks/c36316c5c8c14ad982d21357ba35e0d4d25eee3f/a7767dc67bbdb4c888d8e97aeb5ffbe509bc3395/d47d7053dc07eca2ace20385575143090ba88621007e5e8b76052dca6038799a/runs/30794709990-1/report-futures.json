@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0.0",
+  "checked_at": "2026-08-03T07:46:02.932708Z",
+  "source": {
+    "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/NostalgiaForInfinityX7.py",
+    "bytes": 3251529,
+    "sha256": "c26c0cf906a5db7207593bda3ea58a5cb36ee211cc50047d67f7ee2cee6e1191"
+  },
+  "selected_class": "NostalgiaForInfinityX7",
+  "trading_mode": "futures",
+  "config": null,
+  "static_safe": true,
+  "native_compatible": true,
+  "blockers": [],
+  "callback_ir": {
+    "schema_version": "1.10.0",
+    "fingerprint": "6babe71ebeb53fcb8a266738f35815935bd726fe4707e1419400d343993112c5",
+    "hot_loop_ready": true,
+    "callbacks": [
+      {
+        "name": "adjust_trade_position",
+        "active_for_run": true,
+        "backend": "rust-nfi-x7-position-adjustment",
+        "executable_in_rust": true
+      },
+      {
+        "name": "bot_loop_start",
+        "active_for_run": true,
+        "backend": "rust-noop",
+        "executable_in_rust": true
+      },
+      {
+        "name": "check_entry_timeout",
+        "active_for_run": true,
+        "backend": "rust-immediate-fill-open-order-proof",
+        "executable_in_rust": true
+      },
+      {
+        "name": "check_exit_timeout",
+        "active_for_run": true,
+        "backend": "rust-immediate-fill-open-order-proof",
+        "executable_in_rust": true
+      },
+      {
+        "name": "confirm_trade_entry",
+        "active_for_run": true,
+        "backend": "rust-entry-confirm-vm",
+        "executable_in_rust": true
+      },
+      {
+        "name": "confirm_trade_exit",
+        "active_for_run": true,
+        "backend": "rust-exit-confirm-vm",
+        "executable_in_rust": true
+      },
+      {
+        "name": "custom_exit",
+        "active_for_run": true,
+        "backend": "rust-nfi-x7-trade-manager",
+        "executable_in_rust": true
+      },
+      {
+        "name": "custom_stake_amount",
+        "active_for_run": true,
+        "backend": "rust-stake-vm",
+        "executable_in_rust": true
+      },
+      {
+        "name": "leverage",
+        "active_for_run": true,
+        "backend": "rust-nfi-x7-leverage",
+        "executable_in_rust": true
+      },
+      {
+        "name": "order_filled",
+        "active_for_run": true,
+        "backend": "rust-order-state",
+        "executable_in_rust": true
+      }
+    ]
+  },
+  "state_machine_ir": null
+}
