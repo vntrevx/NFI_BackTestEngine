@@ -1,0 +1,625 @@
+{
+  "schema_version": "1.3.0",
+  "selected_class": "NostalgiaForInfinityX7",
+  "old": {
+    "name": "old.py",
+    "bytes": 3251529,
+    "sha256": "c26c0cf906a5db7207593bda3ea58a5cb36ee211cc50047d67f7ee2cee6e1191"
+  },
+  "new": {
+    "name": "new.py",
+    "bytes": 3254128,
+    "sha256": "ece285b07c6b5a5296ffa276adb3046ff6a07a9c48758474fb37bfe34b533507"
+  },
+  "classification": "ir-compatible",
+  "changes": {
+    "signals": {
+      "added": [],
+      "removed": []
+    },
+    "tags": {
+      "added": [],
+      "removed": []
+    },
+    "callbacks": {
+      "added": [],
+      "removed": [],
+      "changed": [
+        "base_tf_5m_indicators",
+        "informative_15m_indicators",
+        "long_rebuy_adjust_trade_position_v3",
+        "populate_entry_trend",
+        "short_rebuy_adjust_trade_position_v3",
+        "version"
+      ],
+      "locations": {
+        "base_tf_5m_indicators": {
+          "line": 4018,
+          "column": 2,
+          "end_line": 4267,
+          "end_column": 13
+        },
+        "informative_15m_indicators": {
+          "line": 3859,
+          "column": 2,
+          "end_line": 4014,
+          "end_column": 26
+        },
+        "long_rebuy_adjust_trade_position_v3": {
+          "line": 51516,
+          "column": 2,
+          "end_line": 51705,
+          "end_column": 15
+        },
+        "populate_entry_trend": {
+          "line": 12859,
+          "column": 2,
+          "end_line": 27656,
+          "end_column": 13
+        },
+        "short_rebuy_adjust_trade_position_v3": {
+          "line": 74987,
+          "column": 2,
+          "end_line": 75176,
+          "end_column": 15
+        },
+        "version": {
+          "line": 73,
+          "column": 2,
+          "end_line": 74,
+          "end_column": 22
+        }
+      }
+    },
+    "dataframe_columns": {
+      "added": [],
+      "removed": []
+    },
+    "custom_state_keys": {
+      "added": [],
+      "removed": []
+    },
+    "grind_levels": {
+      "added": [],
+      "removed": []
+    },
+    "opcodes": {
+      "added": [],
+      "removed": []
+    },
+    "boolean_mappings": []
+  },
+  "behavior_targets": [
+    {
+      "id": "447e9ccdf8953a661f8b492a564acd8ba65ecb52027d4e43f70dfc59618029ed",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "103",
+        "562",
+        "6",
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12834,
+            "column": 2,
+            "end_line": 27612,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12859,
+            "column": 2,
+            "end_line": 27656,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "7312edd6beb51e4b9fe6635a0a71a1052ad2dae91392ed59142bcaf734d7ad17",
+      "kind": "callback",
+      "change": "changed",
+      "value": "informative_15m_indicators",
+      "methods": [
+        "informative_15m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "informative_15m_indicators",
+            "line": 3859,
+            "column": 2,
+            "end_line": 4008,
+            "end_column": 26
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "informative_15m_indicators",
+            "line": 3859,
+            "column": 2,
+            "end_line": 4014,
+            "end_column": 26
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "value": "base_tf_5m_indicators",
+      "methods": [
+        "base_tf_5m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4012,
+            "column": 2,
+            "end_line": 4242,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4018,
+            "column": 2,
+            "end_line": 4267,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "b44f0d55b4a6e59ea6ce2f0a1b30cd53be3cc3e97a9e94e49c3eaa7e753e9e46",
+      "kind": "callback",
+      "change": "changed",
+      "value": "long_rebuy_adjust_trade_position_v3",
+      "methods": [
+        "long_rebuy_adjust_trade_position_v3"
+      ],
+      "tags": [
+        "0",
+        "1",
+        "10",
+        "12",
+        "13",
+        "16",
+        "18",
+        "2",
+        "2024",
+        "2025",
+        "2026",
+        "3",
+        "4",
+        "5",
+        "6",
+        "8",
+        "9",
+        "AROOND_14",
+        "AROOND_14_15m",
+        "AROOND_14_1h",
+        "AROOND_14_4h",
+        "AROONU_14",
+        "AROONU_14_15m",
+        "AROONU_14_1h",
+        "AROONU_14_4h",
+        "BBL_20_2.0",
+        "EMA_16",
+        "EMA_20",
+        "EMA_26",
+        "KST_10_15_20_30_10_10_10_15",
+        "KSTs_9",
+        "ROC_2",
+        "RSI_14",
+        "RSI_3",
+        "RSI_3_15m",
+        "STOCHRSIk_14_14_3_3_15m",
+        "STOCHRSIk_14_14_3_3_1h",
+        "STOCHRSIk_14_14_3_3_4h",
+        "buyback_1_derisk",
+        "buyback_1_entry",
+        "buyback_1_exit",
+        "buyback_2_derisk",
+        "buyback_2_entry",
+        "buyback_2_exit",
+        "buyback_3_derisk",
+        "buyback_3_entry",
+        "buyback_3_exit",
+        "close",
+        "d",
+        "d1",
+        "dd0",
+        "dd1",
+        "dd2",
+        "dd3",
+        "dd4",
+        "dd5",
+        "dd6",
+        "ddl1",
+        "ddl2",
+        "derisk_global",
+        "derisk_level_1",
+        "derisk_level_2",
+        "derisk_level_3",
+        "derisk_level_4",
+        "dl1",
+        "dl2",
+        "empty",
+        "enter_long",
+        "enter_short",
+        "force_exit",
+        "ft_order_tag",
+        "g0",
+        "g1",
+        "g10",
+        "g11",
+        "g12",
+        "g13",
+        "g14",
+        "g15",
+        "g16",
+        "g17",
+        "g18",
+        "g19",
+        "g2",
+        "g20",
+        "g21",
+        "g22",
+        "g23",
+        "g24",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+        "g7",
+        "g8",
+        "g9",
+        "gd1",
+        "gd2",
+        "gd3",
+        "gd4",
+        "gd5",
+        "gd6",
+        "gdr",
+        "global_protections_long_dump",
+        "global_protections_long_pump",
+        "global_protections_short_dump",
+        "global_protections_short_pump",
+        "gm0",
+        "gmd0",
+        "grind_1_derisk",
+        "grind_1_entry",
+        "grind_1_exit",
+        "grind_2_derisk",
+        "grind_2_entry",
+        "grind_2_exit",
+        "grind_3_derisk",
+        "grind_3_entry",
+        "grind_3_exit",
+        "grind_4_derisk",
+        "grind_4_entry",
+        "grind_4_exit",
+        "grind_5_derisk",
+        "grind_5_entry",
+        "grind_5_exit",
+        "grinding_v2_derisk_level_1_flag",
+        "grinding_v2_derisk_level_2_flag",
+        "grinding_v2_derisk_level_3_flag",
+        "p",
+        "partial_exit",
+        "protections_long_global",
+        "protections_long_rebuy",
+        "protections_short_global",
+        "protections_short_rebuy",
+        "r",
+        "rebuy_derisk",
+        "rebuy_entry",
+        "rebuy_exit",
+        "sg1",
+        "sg2",
+        "sg3",
+        "sg4",
+        "sg5",
+        "sg6"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "long_rebuy_adjust_trade_position_v3",
+            "line": 51472,
+            "column": 2,
+            "end_line": 51661,
+            "end_column": 15
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "long_rebuy_adjust_trade_position_v3",
+            "line": 51516,
+            "column": 2,
+            "end_line": 51705,
+            "end_column": 15
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "eb007cc43f460164b3badc055816186f1e9fb5f625ce92e57f63a5603a6d20bb",
+      "kind": "callback",
+      "change": "changed",
+      "value": "short_rebuy_adjust_trade_position_v3",
+      "methods": [
+        "short_rebuy_adjust_trade_position_v3"
+      ],
+      "tags": [
+        "0",
+        "1",
+        "10",
+        "12",
+        "13",
+        "16",
+        "18",
+        "2",
+        "2024",
+        "2025",
+        "2026",
+        "3",
+        "4",
+        "5",
+        "6",
+        "8",
+        "9",
+        "AROOND_14",
+        "AROOND_14_15m",
+        "AROOND_14_1h",
+        "AROOND_14_4h",
+        "AROONU_14",
+        "AROONU_14_15m",
+        "AROONU_14_1h",
+        "AROONU_14_4h",
+        "BBL_20_2.0",
+        "EMA_16",
+        "EMA_20",
+        "EMA_26",
+        "KST_10_15_20_30_10_10_10_15",
+        "KSTs_9",
+        "ROC_2",
+        "RSI_14",
+        "RSI_3",
+        "RSI_3_15m",
+        "STOCHRSIk_14_14_3_3_15m",
+        "STOCHRSIk_14_14_3_3_1h",
+        "STOCHRSIk_14_14_3_3_4h",
+        "buyback_1_derisk",
+        "buyback_1_entry",
+        "buyback_1_exit",
+        "buyback_2_derisk",
+        "buyback_2_entry",
+        "buyback_2_exit",
+        "buyback_3_derisk",
+        "buyback_3_entry",
+        "buyback_3_exit",
+        "close",
+        "d",
+        "d1",
+        "dd0",
+        "dd1",
+        "dd2",
+        "dd3",
+        "dd4",
+        "dd5",
+        "dd6",
+        "ddl1",
+        "ddl2",
+        "derisk_global",
+        "derisk_level_1",
+        "derisk_level_2",
+        "derisk_level_3",
+        "derisk_level_4",
+        "dl1",
+        "dl2",
+        "empty",
+        "enter_long",
+        "enter_short",
+        "force_exit",
+        "ft_order_tag",
+        "g0",
+        "g1",
+        "g10",
+        "g11",
+        "g12",
+        "g13",
+        "g14",
+        "g15",
+        "g16",
+        "g17",
+        "g18",
+        "g19",
+        "g2",
+        "g20",
+        "g21",
+        "g22",
+        "g23",
+        "g24",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+        "g7",
+        "g8",
+        "g9",
+        "gd1",
+        "gd2",
+        "gd3",
+        "gd4",
+        "gd5",
+        "gd6",
+        "gdr",
+        "global_protections_long_dump",
+        "global_protections_long_pump",
+        "global_protections_short_dump",
+        "global_protections_short_pump",
+        "gm0",
+        "gmd0",
+        "grind_1_derisk",
+        "grind_1_entry",
+        "grind_1_exit",
+        "grind_2_derisk",
+        "grind_2_entry",
+        "grind_2_exit",
+        "grind_3_derisk",
+        "grind_3_entry",
+        "grind_3_exit",
+        "grind_4_derisk",
+        "grind_4_entry",
+        "grind_4_exit",
+        "grind_5_derisk",
+        "grind_5_entry",
+        "grind_5_exit",
+        "grinding_v2_derisk_level_1_flag",
+        "grinding_v2_derisk_level_2_flag",
+        "grinding_v2_derisk_level_3_flag",
+        "p",
+        "partial_exit",
+        "protections_long_global",
+        "protections_long_rebuy",
+        "protections_short_global",
+        "protections_short_rebuy",
+        "r",
+        "rebuy_derisk",
+        "rebuy_entry",
+        "rebuy_exit",
+        "sg1",
+        "sg2",
+        "sg3",
+        "sg4",
+        "sg5",
+        "sg6"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "short_rebuy_adjust_trade_position_v3",
+            "line": 74943,
+            "column": 2,
+            "end_line": 75132,
+            "end_column": 15
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "short_rebuy_adjust_trade_position_v3",
+            "line": 74987,
+            "column": 2,
+            "end_line": 75176,
+            "end_column": 15
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "diagnostics": {
+    "old": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1027,
+          "column": 51,
+          "end_line": 1027,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1029,
+          "column": 10,
+          "end_line": 1029,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1038,
+          "column": 8,
+          "end_line": 1038,
+          "end_column": 60
+        }
+      }
+    ],
+    "new": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1027,
+          "column": 51,
+          "end_line": 1027,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1029,
+          "column": 10,
+          "end_line": 1029,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1038,
+          "column": 8,
+          "end_line": 1038,
+          "end_column": 60
+        }
+      }
+    ]
+  }
+}
