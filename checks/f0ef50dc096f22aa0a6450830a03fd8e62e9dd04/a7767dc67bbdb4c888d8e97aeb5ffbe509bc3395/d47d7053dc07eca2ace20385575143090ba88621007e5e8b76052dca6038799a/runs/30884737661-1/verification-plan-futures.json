@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "coverage-gap",
+  "targets": [
+    {
+      "id": "5f81f8e2421a586d4864466efdd4945fe52390e7f12c9b756fd32a45844f133e",
+      "kind": "callback",
+      "change": "changed",
+      "value": "long_grind_adjust_trade_position_v3",
+      "methods": [
+        "long_grind_adjust_trade_position_v3"
+      ],
+      "tags": [
+        "0",
+        "AROONU_14",
+        "RSI_3",
+        "RSI_3_15m"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "long_grind_adjust_trade_position_v3",
+            "line": 45398,
+            "column": 2,
+            "end_line": 47035,
+            "end_column": 15
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "long_grind_adjust_trade_position_v3",
+            "line": 45398,
+            "column": 2,
+            "end_line": 47044,
+            "end_column": 15
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [],
+  "missing_targets": [
+    {
+      "id": "5f81f8e2421a586d4864466efdd4945fe52390e7f12c9b756fd32a45844f133e",
+      "kind": "callback",
+      "change": "changed",
+      "value": "long_grind_adjust_trade_position_v3",
+      "methods": [
+        "long_grind_adjust_trade_position_v3"
+      ],
+      "tags": [
+        "0",
+        "AROONU_14",
+        "RSI_3",
+        "RSI_3_15m"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "long_grind_adjust_trade_position_v3",
+            "line": 45398,
+            "column": 2,
+            "end_line": 47035,
+            "end_column": 15
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "long_grind_adjust_trade_position_v3",
+            "line": 45398,
+            "column": 2,
+            "end_line": 47044,
+            "end_column": 15
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "executable": false
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "checked_at": "2026-08-04T06:41:06.391662Z",
+  "source": {
+    "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/NostalgiaForInfinityX7.py",
+    "bytes": 3255617,
+    "sha256": "b689bc7e3bbc039fdedeed47a2cc4ad93c843e8d17da77d2d69c23c303999060"
+  },
+  "selected_class": "NostalgiaForInfinityX7",
+  "trading_mode": "spot",
+  "config": null,
+  "static_safe": true,
+  "native_compatible": false,
+  "blockers": [
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "NFI X7 managed-long route changed; exact lowering requires review: long_rebuy_adjust_trade_position_v3"
+    }
+  ],
+  "callback_ir": null,
+  "state_machine_ir": null
+}
