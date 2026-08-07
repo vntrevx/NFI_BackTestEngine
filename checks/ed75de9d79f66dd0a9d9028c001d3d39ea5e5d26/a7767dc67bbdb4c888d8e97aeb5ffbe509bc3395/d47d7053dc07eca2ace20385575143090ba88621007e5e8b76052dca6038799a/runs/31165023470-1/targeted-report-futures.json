@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "source_sha256": "8d5ccca0f25e6a5343439e385c202c1d8649662fdd94542fd20ca1d22ee62bbf",
+  "plan": {
+    "status": "no-changes",
+    "selected_fixture_count": 0,
+    "missing_target_count": 0
+  },
+  "runs": [],
+  "proof": null,
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "8d5ccca0f25e6a5343439e385c202c1d8649662fdd94542fd20ca1d22ee62bbf",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "blockers": [
+      {
+        "code": "NATIVE_COMPATIBILITY_BLOCKED",
+        "message": "static Native compatibility did not pass"
+      },
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "BASELINE_ONLY",
+      "message": "no upstream behavior difference was available to qualify"
+    },
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "NFI X7 managed-long route changed; exact lowering requires review: long_rebuy_adjust_trade_position_v3"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}

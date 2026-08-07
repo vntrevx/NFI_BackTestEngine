@@ -1,0 +1,127 @@
+{
+  "schema_version": "1.3.0",
+  "selected_class": "NostalgiaForInfinityX7",
+  "old": {
+    "name": "old.py",
+    "bytes": 3259540,
+    "sha256": "8d5ccca0f25e6a5343439e385c202c1d8649662fdd94542fd20ca1d22ee62bbf"
+  },
+  "new": {
+    "name": "new.py",
+    "bytes": 3259540,
+    "sha256": "8d5ccca0f25e6a5343439e385c202c1d8649662fdd94542fd20ca1d22ee62bbf"
+  },
+  "classification": "ir-compatible",
+  "changes": {
+    "signals": {
+      "added": [],
+      "removed": []
+    },
+    "tags": {
+      "added": [],
+      "removed": []
+    },
+    "callbacks": {
+      "added": [],
+      "removed": [],
+      "changed": [],
+      "locations": {}
+    },
+    "dataframe_columns": {
+      "added": [],
+      "removed": []
+    },
+    "custom_state_keys": {
+      "added": [],
+      "removed": []
+    },
+    "grind_levels": {
+      "added": [],
+      "removed": []
+    },
+    "opcodes": {
+      "added": [],
+      "removed": []
+    },
+    "boolean_mappings": []
+  },
+  "behavior_targets": [],
+  "diagnostics": {
+    "old": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1027,
+          "column": 51,
+          "end_line": 1027,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1029,
+          "column": 10,
+          "end_line": 1029,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1038,
+          "column": 8,
+          "end_line": 1038,
+          "end_column": 60
+        }
+      }
+    ],
+    "new": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1027,
+          "column": 51,
+          "end_line": 1027,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1029,
+          "column": 10,
+          "end_line": 1029,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1038,
+          "column": 8,
+          "end_line": 1038,
+          "end_column": 60
+        }
+      }
+    ]
+  }
+}
