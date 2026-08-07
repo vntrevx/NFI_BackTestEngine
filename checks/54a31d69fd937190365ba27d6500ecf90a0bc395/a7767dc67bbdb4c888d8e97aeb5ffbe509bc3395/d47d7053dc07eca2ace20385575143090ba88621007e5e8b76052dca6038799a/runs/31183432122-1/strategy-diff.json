@@ -1,0 +1,406 @@
+{
+  "schema_version": "1.3.0",
+  "selected_class": "NostalgiaForInfinityX7",
+  "old": {
+    "name": "old.py",
+    "bytes": 3259540,
+    "sha256": "8d5ccca0f25e6a5343439e385c202c1d8649662fdd94542fd20ca1d22ee62bbf"
+  },
+  "new": {
+    "name": "new.py",
+    "bytes": 3259572,
+    "sha256": "db50aa53394be5074d4352e392807aae0be4fbe82827834c8364b52899096aa0"
+  },
+  "classification": "ir-compatible",
+  "changes": {
+    "signals": {
+      "added": [],
+      "removed": []
+    },
+    "tags": {
+      "added": [],
+      "removed": []
+    },
+    "callbacks": {
+      "added": [],
+      "removed": [],
+      "changed": [
+        "long_grind_entry_v3",
+        "populate_entry_trend",
+        "short_grind_adjust_trade_position_v3",
+        "version"
+      ],
+      "locations": {
+        "long_grind_entry_v3": {
+          "line": 47056,
+          "column": 2,
+          "end_line": 47652,
+          "end_column": 16
+        },
+        "populate_entry_trend": {
+          "line": 12859,
+          "column": 2,
+          "end_line": 27680,
+          "end_column": 13
+        },
+        "short_grind_adjust_trade_position_v3": {
+          "line": 69482,
+          "column": 2,
+          "end_line": 70857,
+          "end_column": 15
+        },
+        "version": {
+          "line": 73,
+          "column": 2,
+          "end_line": 74,
+          "end_column": 22
+        }
+      }
+    },
+    "dataframe_columns": {
+      "added": [],
+      "removed": []
+    },
+    "custom_state_keys": {
+      "added": [],
+      "removed": []
+    },
+    "grind_levels": {
+      "added": [],
+      "removed": []
+    },
+    "opcodes": {
+      "added": [],
+      "removed": []
+    },
+    "boolean_mappings": []
+  },
+  "behavior_targets": [
+    {
+      "id": "69c6870a57ea61871d4dc877cb39eb4cc3e7314766ba436aa0786d2350f0d15a",
+      "kind": "callback",
+      "change": "changed",
+      "value": "short_grind_adjust_trade_position_v3",
+      "methods": [
+        "short_grind_adjust_trade_position_v3"
+      ],
+      "tags": [
+        "0",
+        "AROOND_14",
+        "RSI_3",
+        "RSI_3_15m"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "short_grind_adjust_trade_position_v3",
+            "line": 69465,
+            "column": 2,
+            "end_line": 70831,
+            "end_column": 15
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "short_grind_adjust_trade_position_v3",
+            "line": 69482,
+            "column": 2,
+            "end_line": 70857,
+            "end_column": 15
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "84191d51724507d5d957afc7f82253f05630859c92909be56c072c78fbd6f0f1",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "542"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12859,
+            "column": 2,
+            "end_line": 27670,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12859,
+            "column": 2,
+            "end_line": 27680,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "a0a820f6cdf06acabe2a32046a7e099569b3ec0b0483ce7c0724f41f8c28c599",
+      "kind": "callback",
+      "change": "changed",
+      "value": "long_grind_entry_v3",
+      "methods": [
+        "long_grind_entry_v3"
+      ],
+      "tags": [
+        "0",
+        "1",
+        "10",
+        "12",
+        "13",
+        "16",
+        "18",
+        "2",
+        "2024",
+        "2025",
+        "2026",
+        "3",
+        "4",
+        "5",
+        "6",
+        "8",
+        "9",
+        "AROOND_14",
+        "AROOND_14_15m",
+        "AROOND_14_1h",
+        "AROOND_14_4h",
+        "AROONU_14",
+        "AROONU_14_15m",
+        "AROONU_14_1h",
+        "AROONU_14_4h",
+        "BBL_20_2.0",
+        "EMA_16",
+        "EMA_20",
+        "EMA_26",
+        "KST_10_15_20_30_10_10_10_15",
+        "KSTs_9",
+        "ROC_2",
+        "RSI_14",
+        "RSI_3",
+        "RSI_3_15m",
+        "STOCHRSIk_14_14_3_3_15m",
+        "STOCHRSIk_14_14_3_3_1h",
+        "STOCHRSIk_14_14_3_3_4h",
+        "buyback_1_derisk",
+        "buyback_1_entry",
+        "buyback_1_exit",
+        "buyback_2_derisk",
+        "buyback_2_entry",
+        "buyback_2_exit",
+        "buyback_3_derisk",
+        "buyback_3_entry",
+        "buyback_3_exit",
+        "close",
+        "d",
+        "d1",
+        "dd0",
+        "dd1",
+        "dd2",
+        "dd3",
+        "dd4",
+        "dd5",
+        "dd6",
+        "ddl1",
+        "ddl2",
+        "derisk_global",
+        "derisk_level_1",
+        "derisk_level_2",
+        "derisk_level_3",
+        "derisk_level_4",
+        "dl1",
+        "dl2",
+        "empty",
+        "enter_long",
+        "enter_short",
+        "force_exit",
+        "ft_order_tag",
+        "g0",
+        "g1",
+        "g10",
+        "g11",
+        "g12",
+        "g13",
+        "g14",
+        "g15",
+        "g16",
+        "g17",
+        "g18",
+        "g19",
+        "g2",
+        "g20",
+        "g21",
+        "g22",
+        "g23",
+        "g24",
+        "g27",
+        "g3",
+        "g4",
+        "g5",
+        "g6",
+        "g7",
+        "g8",
+        "g9",
+        "gd1",
+        "gd2",
+        "gd3",
+        "gd4",
+        "gd5",
+        "gd6",
+        "gdr",
+        "global_protections_long_dump",
+        "global_protections_long_pump",
+        "global_protections_short_dump",
+        "global_protections_short_pump",
+        "gm0",
+        "gmd0",
+        "grind_1_derisk",
+        "grind_1_entry",
+        "grind_1_exit",
+        "grind_2_derisk",
+        "grind_2_entry",
+        "grind_2_exit",
+        "grind_3_derisk",
+        "grind_3_entry",
+        "grind_3_exit",
+        "grind_4_derisk",
+        "grind_4_entry",
+        "grind_4_exit",
+        "grind_5_derisk",
+        "grind_5_entry",
+        "grind_5_exit",
+        "grinding_v2_derisk_level_1_flag",
+        "grinding_v2_derisk_level_2_flag",
+        "grinding_v2_derisk_level_3_flag",
+        "p",
+        "partial_exit",
+        "protections_long_global",
+        "protections_long_rebuy",
+        "protections_short_global",
+        "protections_short_rebuy",
+        "r",
+        "rebuy_derisk",
+        "rebuy_entry",
+        "rebuy_exit",
+        "sg1",
+        "sg2",
+        "sg3",
+        "sg4",
+        "sg5",
+        "sg6"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "long_grind_entry_v3",
+            "line": 47046,
+            "column": 2,
+            "end_line": 47635,
+            "end_column": 16
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "long_grind_entry_v3",
+            "line": 47056,
+            "column": 2,
+            "end_line": 47652,
+            "end_column": 16
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "diagnostics": {
+    "old": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1027,
+          "column": 51,
+          "end_line": 1027,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1029,
+          "column": 10,
+          "end_line": 1029,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1038,
+          "column": 8,
+          "end_line": 1038,
+          "end_column": 60
+        }
+      }
+    ],
+    "new": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1027,
+          "column": 51,
+          "end_line": 1027,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1029,
+          "column": 10,
+          "end_line": 1029,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1038,
+          "column": 8,
+          "end_line": 1038,
+          "end_column": 60
+        }
+      }
+    ]
+  }
+}
