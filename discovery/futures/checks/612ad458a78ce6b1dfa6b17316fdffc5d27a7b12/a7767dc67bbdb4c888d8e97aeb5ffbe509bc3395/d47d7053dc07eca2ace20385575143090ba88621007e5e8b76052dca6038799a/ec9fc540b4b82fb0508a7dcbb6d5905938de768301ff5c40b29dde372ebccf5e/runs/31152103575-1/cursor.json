@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "fingerprint": "ec9fc540b4b82fb0508a7dcbb6d5905938de768301ff5c40b29dde372ebccf5e",
+  "next_shard": 0,
+  "shard_count": 20,
+  "complete": true,
+  "status": "unsupported_semantics"
+}
