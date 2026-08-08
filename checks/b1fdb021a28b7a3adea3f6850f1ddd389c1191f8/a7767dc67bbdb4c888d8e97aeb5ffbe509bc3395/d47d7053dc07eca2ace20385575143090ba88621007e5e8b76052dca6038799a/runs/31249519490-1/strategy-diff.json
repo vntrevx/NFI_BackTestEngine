@@ -1,0 +1,566 @@
+{
+  "schema_version": "1.3.0",
+  "selected_class": "NostalgiaForInfinityX7",
+  "old": {
+    "name": "old.py",
+    "bytes": 3272258,
+    "sha256": "d83f9ca3a147cef221bc5640045260b14b49c5c0468a3d5e7dd1676c4ff59939"
+  },
+  "new": {
+    "name": "new.py",
+    "bytes": 3279120,
+    "sha256": "c8dfc1ad3207ca82492af3b7fed30ac3c2d4caeb8cf256db024d6ad06800ed01"
+  },
+  "classification": "ir-compatible",
+  "changes": {
+    "signals": {
+      "added": [
+        "192",
+        "193",
+        "592",
+        "593"
+      ],
+      "removed": []
+    },
+    "tags": {
+      "added": [],
+      "removed": []
+    },
+    "callbacks": {
+      "added": [],
+      "removed": [],
+      "changed": [
+        "base_tf_5m_indicators",
+        "populate_entry_trend",
+        "version"
+      ],
+      "locations": {
+        "base_tf_5m_indicators": {
+          "line": 4025,
+          "column": 2,
+          "end_line": 4291,
+          "end_column": 13
+        },
+        "populate_entry_trend": {
+          "line": 12883,
+          "column": 2,
+          "end_line": 27874,
+          "end_column": 13
+        },
+        "version": {
+          "line": 73,
+          "column": 2,
+          "end_line": 74,
+          "end_column": 22
+        }
+      }
+    },
+    "dataframe_columns": {
+      "added": [],
+      "removed": []
+    },
+    "custom_state_keys": {
+      "added": [],
+      "removed": []
+    },
+    "grind_levels": {
+      "added": [],
+      "removed": []
+    },
+    "opcodes": {
+      "added": [],
+      "removed": []
+    },
+    "boolean_mappings": []
+  },
+  "behavior_targets": [
+    {
+      "id": "4bb3c3268b1321444a1efa3ebe27a8ff74e423196b75d7f2f2c7d3d58e675e1e",
+      "kind": "signal",
+      "change": "added",
+      "value": "593",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "192",
+        "193",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "544",
+        "545",
+        "546",
+        "561",
+        "562",
+        "563",
+        "592",
+        "593",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "presence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12883,
+            "column": 2,
+            "end_line": 27874,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "891608ce0fe792c7e5af427209e8664bcdba2c078d5dbfad8c3131a01391436c",
+      "kind": "signal",
+      "change": "added",
+      "value": "592",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "192",
+        "193",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "544",
+        "545",
+        "546",
+        "561",
+        "562",
+        "563",
+        "592",
+        "593",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "presence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12883,
+            "column": 2,
+            "end_line": 27874,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "value": "base_tf_5m_indicators",
+      "methods": [
+        "base_tf_5m_indicators"
+      ],
+      "tags": [],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4021,
+            "column": 2,
+            "end_line": 4270,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "base_tf_5m_indicators",
+            "line": 4025,
+            "column": 2,
+            "end_line": 4291,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": false
+    },
+    {
+      "id": "989d1496d5de0cccf3545301b65aab1c97af1a9dd3c4a9257d9ea9bbe5773287",
+      "kind": "signal",
+      "change": "added",
+      "value": "192",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "192",
+        "193",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "544",
+        "545",
+        "546",
+        "561",
+        "562",
+        "563",
+        "592",
+        "593",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "presence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12883,
+            "column": 2,
+            "end_line": 27874,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "d67b9024805d451e0a25cb7bec6c98cb64bb0350cdef8af3dba68273974ea195",
+      "kind": "signal",
+      "change": "added",
+      "value": "193",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "101",
+        "102",
+        "103",
+        "104",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "192",
+        "193",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "541",
+        "542",
+        "543",
+        "544",
+        "545",
+        "546",
+        "561",
+        "562",
+        "563",
+        "592",
+        "593",
+        "6",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661"
+      ],
+      "proof": {
+        "mode": "presence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12883,
+            "column": 2,
+            "end_line": 27874,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "ddc614e6b883d36481edcff404866bdd981d06cbcc3ba303e99af9c2ef9b3232",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "192",
+        "193",
+        "562",
+        "592",
+        "593"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12883,
+            "column": 2,
+            "end_line": 27874,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "diagnostics": {
+    "old": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1030,
+          "column": 51,
+          "end_line": 1030,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1032,
+          "column": 10,
+          "end_line": 1032,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1041,
+          "column": 8,
+          "end_line": 1041,
+          "end_column": 60
+        }
+      }
+    ],
+    "new": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1034,
+          "column": 51,
+          "end_line": 1034,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1036,
+          "column": 10,
+          "end_line": 1036,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1045,
+          "column": 8,
+          "end_line": 1045,
+          "end_column": 60
+        }
+      }
+    ]
+  }
+}
