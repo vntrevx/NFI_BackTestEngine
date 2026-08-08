@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "status": "unsupported_semantics",
+  "message": "Static Native compatibility is blocked; official Freqtrade fallback remains available.",
+  "complete": true,
+  "fingerprint": "09e6b2b440f2bc421469de1f065c78076dbc68ef74e8fcfb99ee75a594f80b20",
+  "upstream_commit": "b1fdb021a28b7a3adea3f6850f1ddd389c1191f8",
+  "baseline_upstream_commit": "77d37eaedf780024548e1fcb647013068b422a5a",
+  "engine_commit": "a7767dc67bbdb4c888d8e97aeb5ffbe509bc3395",
+  "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "strategy_sha256": "c8dfc1ad3207ca82492af3b7fed30ac3c2d4caeb8cf256db024d6ad06800ed01",
+  "policy_sha256": "17d7bae69dc578b435c6a220f3fdfb93c7d9b24487bf47fbc54c15696aec07cc",
+  "target_count": 6,
+  "searchable_target_count": 5,
+  "unsearchable_target_ids": [
+    "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f"
+  ],
+  "searched_shard_count": 0,
+  "next_shard": 0,
+  "shard_count": 20,
+  "elapsed_seconds": 0.003392630000007557,
+  "attempts": [],
+  "candidate": null,
+  "external_data": null,
+  "official_fallback_available": true
+}
