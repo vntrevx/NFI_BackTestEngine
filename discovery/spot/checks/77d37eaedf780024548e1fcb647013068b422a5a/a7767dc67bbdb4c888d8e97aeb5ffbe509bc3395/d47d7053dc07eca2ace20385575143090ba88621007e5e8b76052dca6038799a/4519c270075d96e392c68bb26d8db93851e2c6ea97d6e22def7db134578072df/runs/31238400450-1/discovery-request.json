@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "fingerprint": "4519c270075d96e392c68bb26d8db93851e2c6ea97d6e22def7db134578072df",
+  "identity": {
+    "upstream_commit": "77d37eaedf780024548e1fcb647013068b422a5a",
+    "baseline_upstream_commit": "f0525a66ec08d52fd1918ca472234f27278e0bdd",
+    "engine_commit": "a7767dc67bbdb4c888d8e97aeb5ffbe509bc3395",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "d83f9ca3a147cef221bc5640045260b14b49c5c0468a3d5e7dd1676c4ff59939",
+    "baseline_strategy_sha256": "81c6a4b7fa6b1b438cb57914fb06270f5ae526d7314d4706b3209d614e618f9c",
+    "trading_mode": "spot",
+    "policy_sha256": "17d7bae69dc578b435c6a220f3fdfb93c7d9b24487bf47fbc54c15696aec07cc",
+    "target_ids": [
+      "95ed5cada634a2ca8aaf188537683d088a90845bd07ae9ecf271c536684af1a5"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": false,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "95ed5cada634a2ca8aaf188537683d088a90845bd07ae9ecf271c536684af1a5",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27766,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "95ed5cada634a2ca8aaf188537683d088a90845bd07ae9ecf271c536684af1a5",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27766,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12862,
+            "column": 2,
+            "end_line": 27770,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}
