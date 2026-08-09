@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 117,
-  "updated_at": "2026-08-02T15:54:07+09:00",
+  "revision": 118,
+  "updated_at": "2026-08-10T07:55:19+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M19-01",
+  "active_task_id": "M19-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4466,7 +4466,7 @@
       "order": 1901,
       "milestone": "M19",
       "title": "Upgrade the upstream watcher for generic Native identities",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M18-05"
       ],
@@ -4485,9 +4485,19 @@
         "dual-mode hosted canary"
       ],
       "started_at": "2026-08-02T15:54:07+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-10T07:55:19+09:00",
+      "commit_sha": "44745eb6850bbfd2476fee0cf477b64acfb6cf6f",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/hosted-canary.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/compatibility-identity.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/report-spot.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/report-futures.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/06-future_nfi_compatibility_tests.log",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/07-futures_discovery_tests.log",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/08-workflow_contract_tests.log"
+      ],
       "blocker": null
     },
     {
@@ -4495,7 +4505,7 @@
       "order": 1902,
       "milestone": "M19",
       "title": "Automate generic IR qualification and fallback classification",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M19-01"
       ],
@@ -4514,7 +4524,7 @@
         "classification tests",
         "deduplicated issue and deferred-reuse canary"
       ],
-      "started_at": null,
+      "started_at": "2026-08-10T07:55:19+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -7949,6 +7959,48 @@
         "identity_advancement_after_incomplete_checks_allowed": false,
         "duplicate_alerts_allowed": false,
         "independent_spot_and_futures_checks_required": true
+      }
+    },
+    {
+      "sequence": 163,
+      "timestamp": "2026-08-10T07:55:19+09:00",
+      "task_id": "M19-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "44745eb6850bbfd2476fee0cf477b64acfb6cf6f",
+        "watcher_identity_parts": [
+          "nfi_upstream_sha",
+          "engine_sha",
+          "freqtrade_digest",
+          "semantic_profile_sha256"
+        ],
+        "atomic_dual_mode_canary": true,
+        "identity_advancement_requires_complete_spot_and_futures": true,
+        "incomplete_mode_advancement_rejected_by_test": true,
+        "duplicate_blocker_and_health_alerts_rejected_by_test": true,
+        "latest_upstream_sha": "0da6ddb0fb1f1e1f949a450f00542e519d83ab0f",
+        "latest_source_sha256": "0f74137d50acebb0cff1dff3150b36fbbdea382beb7a5d9eeb6813f2f87823a0",
+        "latest_spot_check_complete": true,
+        "latest_futures_check_complete": true,
+        "latest_spot_native_compatible": false,
+        "latest_futures_native_compatible": false,
+        "latest_blocker_code": "EXACT_LOWERING_REVIEW_REQUIRED",
+        "latest_blocker_message": "NFI adjustment grind 5 fallback condition changed",
+        "acceptance_command_count": 12,
+        "python_test_count": 692,
+        "rust_test_count": 145
+      }
+    },
+    {
+      "sequence": 164,
+      "timestamp": "2026-08-10T07:55:19+09:00",
+      "task_id": "M19-02",
+      "event": "task_started",
+      "details": {
+        "objective": "automate generic IR qualification, new-opcode Draft PR routing, bounded discovery, and official-only fallback classification",
+        "automatic_semantic_merge_allowed": false,
+        "external_deferral_may_be_treated_as_exact": false,
+        "latest_upstream_blocker_carried_forward": "NFI adjustment grind 5 fallback condition changed"
       }
     }
   ]
