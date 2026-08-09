@@ -26,6 +26,7 @@ def build_hosted_canary(
     qualifications: Mapping[str, Mapping[str, Any]],
     *,
     semantic_profile: Mapping[str, Any],
+    decisions: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Return a deterministic four-identity, dual-mode completion proof."""
 
@@ -52,6 +53,19 @@ def build_hosted_canary(
         _validate_compatibility(compatibility, mode, source_sha256)
         _validate_targeted(targeted, mode, source_sha256, qualification)
         _validate_qualification(qualification, source_sha256)
+        decision = (
+            _mode_document(decisions, mode, "automation decision")
+            if decisions is not None
+            else None
+        )
+        if decision is not None:
+            _validate_decision(
+                decision,
+                mode=mode,
+                watcher_identity=watcher_identity,
+                source_sha256=source_sha256,
+                qualification=qualification,
+            )
         mode_results.append(
             {
                 "trading_mode": mode,
@@ -60,6 +74,15 @@ def build_hosted_canary(
                 "targeted_check_complete": True,
                 "verification_state": qualification["verification_state"],
                 "quick_verified": qualification["verification_state"] == "quick_verified",
+                **(
+                    {
+                        "automation_route": decision["automation_route"],
+                        "execution_route": decision["execution_route"],
+                        "action_fingerprint": decision["action_fingerprint"],
+                    }
+                    if decision is not None
+                    else {}
+                ),
             }
         )
 
@@ -82,6 +105,7 @@ def main() -> int:
     parser.add_argument("--reports", type=Path, required=True)
     parser.add_argument("--targeted-reports", type=Path, required=True)
     parser.add_argument("--qualifications", type=Path, required=True)
+    parser.add_argument("--decisions", type=Path, required=True)
     parser.add_argument("--semantic-profile", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -101,6 +125,10 @@ def main() -> int:
             for mode in _MODES
         },
         semantic_profile=_read_object(args.semantic_profile),
+        decisions={
+            mode: _read_object(args.decisions / f"automation-decision-{mode}.json")
+            for mode in _MODES
+        },
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -178,6 +206,51 @@ def _validate_qualification(report: Mapping[str, Any], source_sha256: str) -> No
         raise ValueError("qualification has an invalid verification state")
     if not isinstance(report.get("blockers"), list):
         raise ValueError("qualification blockers must be an array")
+
+
+def _validate_decision(
+    decision: Mapping[str, Any],
+    *,
+    mode: str,
+    watcher_identity: Mapping[str, str],
+    source_sha256: str,
+    qualification: Mapping[str, Any],
+) -> None:
+    identity = decision.get("identity")
+    action = decision.get("action")
+    verification = decision.get("verification")
+    if decision.get("schema_version") != "1.0.0":
+        raise ValueError(f"{mode} automation decision schema is unsupported")
+    if decision.get("trading_mode") != mode:
+        raise ValueError(f"{mode} automation decision has the wrong trading mode")
+    if not isinstance(identity, Mapping) or identity != {
+        "upstream_sha": watcher_identity["nfi_upstream_sha"],
+        "engine_sha": watcher_identity["engine_sha"],
+        "freqtrade_digest": watcher_identity["freqtrade_digest"],
+        "semantic_profile_sha256": watcher_identity["semantic_profile_sha256"],
+        "strategy_sha256": source_sha256,
+    }:
+        raise ValueError(f"{mode} automation decision has a different identity")
+    if not isinstance(action, Mapping) or not isinstance(verification, Mapping):
+        raise ValueError(f"{mode} automation decision contract is invalid")
+    if verification.get("state") != qualification.get("verification_state"):
+        raise ValueError(f"{mode} automation decision qualification differs")
+    native_allowed = action.get("native_promotion_allowed") is True
+    if native_allowed != (
+        decision.get("automation_route") == "native_exact"
+        and decision.get("execution_route") == "native"
+        and verification.get("exact") is True
+        and qualification.get("verification_state") == "quick_verified"
+    ):
+        raise ValueError(f"{mode} automation decision Native promotion is inconsistent")
+    if (
+        action.get("automatic_semantic_merge_allowed") is not False
+        or action.get("external_data_deferred_is_exact") is not False
+    ):
+        raise ValueError(f"{mode} automation decision violates fail-closed policy")
+    for field in ("action_fingerprint", "decision_fingerprint"):
+        if _SHA256.fullmatch(str(decision.get(field))) is None:
+            raise ValueError(f"{mode} automation decision {field} is invalid")
 
 
 def _mode_document(

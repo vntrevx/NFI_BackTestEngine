@@ -197,12 +197,12 @@ upstream monitoring, and promotion contracts.
 
 The scheduled watcher checks NFI, engine, pinned Freqtrade, and semantic-profile
 identities every four hours. Spot and Futures run independently, then an atomic hosted
-canary verifies both result sets before the ledger identity can advance. Changed branches
-are promoted only after independent official/Native trade-surface and full-state equality;
-otherwise the announced official fallback remains available without claiming Native
-parity. A separate bounded Futures lane resumes missing-branch searches nightly across
-listing-aware calendar shards. An exact, size-bounded hit opens a Draft fixture PR and
-required CI; it is never auto-approved or auto-merged.
+canary verifies both result sets and their fail-closed automation decisions before the
+ledger identity can advance. Changed branches are promoted only after independent
+official/Native trade-surface and full-state equality. Missing exact coverage enters a
+bounded Spot or Futures discovery lane; blocked generic lowering opens an evidence-only
+Draft review while execution stays official-only. An exact, size-bounded discovery hit
+opens a Draft fixture PR. Neither kind is auto-approved or auto-merged.
 
 For supported X7 stateful callbacks, `run.json` records the
 `x7-generic-stateful` Native lane and every source-compiled primary program. The

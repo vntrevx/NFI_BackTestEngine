@@ -154,3 +154,83 @@ def test_canary_records_completed_blocked_checks_without_claiming_exact() -> Non
     assert canary["complete"] is True
     assert futures["native_compatible"] is False
     assert futures["quick_verified"] is False
+
+
+def test_canary_seals_fail_closed_automation_decisions() -> None:
+    identity, difference, reports, targeted, qualifications, profile = _inputs()
+    decisions = {
+        mode: {
+            "schema_version": "1.0.0",
+            "identity": {
+                "upstream_sha": identity["upstream_sha"],
+                "engine_sha": identity["engine_sha"],
+                "freqtrade_digest": identity["freqtrade_digest"],
+                "semantic_profile_sha256": identity["semantic_profile_sha256"],
+                "strategy_sha256": identity["source_sha256"],
+            },
+            "trading_mode": mode,
+            "automation_route": "native_exact",
+            "execution_route": "native",
+            "verification": {"state": "quick_verified", "exact": True},
+            "action": {
+                "native_promotion_allowed": True,
+                "automatic_semantic_merge_allowed": False,
+                "external_data_deferred_is_exact": False,
+            },
+            "action_fingerprint": "1" * 64,
+            "decision_fingerprint": "2" * 64,
+        }
+        for mode in ("spot", "futures")
+    }
+
+    canary = MODULE.build_hosted_canary(
+        identity,
+        difference,
+        reports,
+        targeted,
+        qualifications,
+        semantic_profile=profile,
+        decisions=decisions,
+    )
+
+    assert canary["modes"][0]["automation_route"] == "native_exact"
+    assert canary["modes"][1]["execution_route"] == "native"
+
+
+def test_canary_rejects_an_automation_decision_that_allows_semantic_merge() -> None:
+    identity, difference, reports, targeted, qualifications, profile = _inputs()
+    decisions = {
+        mode: {
+            "schema_version": "1.0.0",
+            "identity": {
+                "upstream_sha": identity["upstream_sha"],
+                "engine_sha": identity["engine_sha"],
+                "freqtrade_digest": identity["freqtrade_digest"],
+                "semantic_profile_sha256": identity["semantic_profile_sha256"],
+                "strategy_sha256": identity["source_sha256"],
+            },
+            "trading_mode": mode,
+            "automation_route": "native_exact",
+            "execution_route": "native",
+            "verification": {"state": "quick_verified", "exact": True},
+            "action": {
+                "native_promotion_allowed": True,
+                "automatic_semantic_merge_allowed": mode == "futures",
+                "external_data_deferred_is_exact": False,
+            },
+            "action_fingerprint": "1" * 64,
+            "decision_fingerprint": "2" * 64,
+        }
+        for mode in ("spot", "futures")
+    }
+
+    with pytest.raises(ValueError, match="violates fail-closed policy"):
+        MODULE.build_hosted_canary(
+            identity,
+            difference,
+            reports,
+            targeted,
+            qualifications,
+            semantic_profile=profile,
+            decisions=decisions,
+        )

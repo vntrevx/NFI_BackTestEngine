@@ -90,6 +90,25 @@ tag도 IR literal이므로 helper 본문이나 데이터가 바뀌면 프로그�
 trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 수정하지
 않고 같은 artifact를 양쪽 증거로 재사용할 수 없다.
 
+## 자동 분류 계약
+
+정적 검사, targeted qualification, 선택적인 discovery 결과는 mode별 결정문 하나로
+합쳐진다. 결정은 소스에서 추출한 opcode와 `behavior_targets`만 사용하며 전략 버전,
+Signal/Grind 번호, pair, timerange 또는 기대 결과를 분기값으로 사용하지 않는다.
+
+- `native_exact`: 변경 branch 도달과 trade surface/full-state exact가 모두 참일 때만 허용
+- `semantic_review_draft_pr`: 새 opcode 또는 generic lowering 검토가 필요하며 실행은 official-only
+- `bounded_discovery`: 정적 lowering은 가능하지만 exact branch fixture가 부족함
+- `exact_fixture_draft_pr`: discovery가 독립 exact 후보를 만들었으나 병합 전 검토가 필요함
+- `external_data_deferred`: 외부 데이터 재시도 보류이며 exact 증거가 아님
+- `official_only`: 탐색이 끝났거나 현재 Native exact를 증명할 수 없음
+
+semantic review Draft PR은 compact 결정문과 검토 요구사항만 추가한다. 런타임
+의미론을 추측 생성하지 않으며 자동 승인·병합하지 않는다. maintainer가 범용
+opcode/lowerer, 단위 테스트, 공식 fixture를 추가하고 Required CI와 exact 검증을
+통과해야 Native로 승격된다. 외부 데이터 보류를 재사용할 때도 저장된 결정문의
+`execution_route=official_only`, `exact=false`를 다시 검사한다.
+
 ## Managed exit의 단계적 Native 전환
 
 8개 managed-long route의 `custom_exit` 분기 순서와 재귀 any/all matcher, 수익
@@ -126,7 +145,7 @@ image digest, semantic-profile fingerprint를 함께 확인한다. 네 값이 �
 queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 아니라 검사 주기다.
 
 검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을 서로
-독립 실행한다. hosted canary가 두 mode의 schema, source, qualification과 네 identity를
+독립 실행한다. hosted canary가 두 mode의 schema, source, qualification, 자동 분류와 네 identity를
 원자적으로 검증한 경우에만 `compatibility-ledger`의
 `checks/<upstream>/<engine>/<freqtrade>/<semantic-profile>/runs/<run-attempt>`에 compact
 JSON을 추가한다. 대용량 임시 trace는 업로드하지 않으며 compact JSON artifact만

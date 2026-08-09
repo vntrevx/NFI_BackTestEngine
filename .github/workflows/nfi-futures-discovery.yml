@@ -44,6 +44,8 @@ jobs:
       semantic_profile_sha256: ${{ steps.identity.outputs.semantic_profile_sha256 }}
       oracle_key: ${{ steps.identity.outputs.oracle_key }}
       deep_search_required: ${{ steps.identity.outputs.deep_search_required }}
+      spot_search_required: ${{ steps.identity.outputs.spot_search_required }}
+      futures_search_required: ${{ steps.identity.outputs.futures_search_required }}
     steps:
       - name: Check out current main
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -100,25 +102,25 @@ jobs:
             test "${semantic_profile_sha256}" = "${local_profile_sha256}"
             ready=true
           fi
-          deep_search_required=true
+          deep_search_required=false
+          spot_search_required=false
+          futures_search_required=false
           if [ -n "${check_path}" ]; then
-            fully_qualified=true
             for mode in spot futures; do
-              qualification="${ledger_dir}/${check_path}/qualification-${mode}.json"
-              if ! jq -e '
-                .verification_state == "quick_verified"
-                and .changed_branch_reached == true
-                and .trade_surface_exact == true
-                and .full_state_exact == true
-                and (.blockers | type) == "array"
-                and (.blockers | length) == 0
-              ' "${qualification}" >/dev/null 2>&1; then
-                fully_qualified=false
+              decision="${ledger_dir}/${check_path}/automation-decision-${mode}.json"
+              if [ ! -s "${decision}" ]; then
+                deep_search_required=true
+                printf -v "${mode}_search_required" '%s' true
+              elif [ "$(jq -er .automation_route "${decision}")" \
+                = "bounded_discovery" ]; then
+                deep_search_required=true
+                printf -v "${mode}_search_required" '%s' true
               fi
             done
-            if [ "${fully_qualified}" = true ]; then
-              deep_search_required=false
-            fi
+          else
+            deep_search_required=true
+            spot_search_required=true
+            futures_search_required=true
           fi
           {
             echo "ready=${ready}"
@@ -129,6 +131,8 @@ jobs:
             echo "semantic_profile_sha256=${semantic_profile_sha256}"
             echo "oracle_key=${freqtrade_digest#sha256:}"
             echo "deep_search_required=${deep_search_required}"
+            echo "spot_search_required=${spot_search_required}"
+            echo "futures_search_required=${futures_search_required}"
           } >> "${GITHUB_OUTPUT}"
           {
             echo "ready=${ready}"
@@ -138,6 +142,8 @@ jobs:
             echo "freqtrade_digest=${freqtrade_digest}"
             echo "semantic_profile_sha256=${semantic_profile_sha256}"
             echo "deep_search_required=${deep_search_required}"
+            echo "spot_search_required=${spot_search_required}"
+            echo "futures_search_required=${futures_search_required}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   discover:
@@ -190,13 +196,22 @@ jobs:
             if [ -n "${cursor_path}" ]; then
               run_path="$(jq -er .run_path "${latest}")"
               previous_report="${ledger_dir}/${run_path}/discovery-report.json"
+              previous_decision="${ledger_dir}/${run_path}/automation-decision.json"
               if [ -s "${previous_report}" ] \
-                && [ "$(jq -r .status "${previous_report}")" = "external_data_deferred" ]; then
+                && [ "$(jq -r .status "${previous_report}")" = "external_data_deferred" ] \
+                && jq -e '
+                  .automation_route == "external_data_deferred"
+                  and .execution_route == "official_only"
+                  and .verification.exact == false
+                  and .action.external_data_deferred_is_exact == false
+                ' "${previous_decision}" >/dev/null 2>&1; then
                 if [ "${RETRY_DEFERRED}" != "true" ]; then
                   mkdir -p .discovery/result
                   for file in discovery-request.json discovery-report.json cursor.json; do
                     cp "${ledger_dir}/${run_path}/${file}" ".discovery/result/${file}"
                   done
+                  cp "${previous_decision}" \
+                    .discovery/result/automation-decision.json
                   echo "deferred=true" >> "${GITHUB_OUTPUT}"
                   jq '{
                     trading_mode,
@@ -234,6 +249,14 @@ jobs:
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
+          path: .discovery/input
+          run-id: ${{ needs.resolve.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Download checked targeted qualification and initial route
+        if: steps.restore.outputs.deferred != 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: latest-nfi-x7-${{ matrix.trading_mode }}-targeted
           path: .discovery/input
           run-id: ${{ needs.resolve.outputs.source_run_id }}
           github-token: ${{ github.token }}
@@ -354,6 +377,33 @@ jobs:
             candidate,
             external_data
           }' .discovery/result/discovery-report.json >> "${GITHUB_STEP_SUMMARY}"
+      - name: Classify final discovery and fallback route
+        if: steps.restore.outputs.deferred != 'true'
+        run: |
+          uv run python scripts/compatibility_automation.py \
+            --identity .discovery/input/compatibility-identity.json \
+            --strategy-diff .discovery/input/strategy-diff.json \
+            --compatibility \
+              .discovery/input/report-${{ matrix.trading_mode }}.json \
+            --targeted \
+              .discovery/input/targeted-report-${{ matrix.trading_mode }}.json \
+            --discovery .discovery/result/discovery-report.json \
+            --output .discovery/result/automation-decision.json
+      - name: Validate deferred reuse remains official-only
+        run: |
+          jq -e \
+            --arg mode "${{ matrix.trading_mode }}" \
+            '.trading_mode == $mode
+              and .action.automatic_semantic_merge_allowed == false
+              and .action.external_data_deferred_is_exact == false
+              and (
+                .automation_route != "external_data_deferred"
+                or (
+                  .execution_route == "official_only"
+                  and .verification.exact == false
+                )
+              )' \
+            .discovery/result/automation-decision.json
       - name: Select compact artifact retention
         id: retention
         env:
@@ -378,6 +428,7 @@ jobs:
             .discovery/result/discovery-request.json
             .discovery/result/discovery-report.json
             .discovery/result/cursor.json
+            .discovery/result/automation-decision.json
             .discovery/result/candidate-fixture
           if-no-files-found: error
           retention-days: ${{ steps.retention.outputs.days }}
@@ -473,7 +524,11 @@ jobs:
           run_path="discovery/${MODE}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${SEMANTIC_PROFILE_SHA256}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "${run_path}"
           mkdir -p "${run_path}" "discovery/${MODE}"
-          for file in discovery-request.json discovery-report.json cursor.json; do
+          for file in \
+            discovery-request.json \
+            discovery-report.json \
+            cursor.json \
+            automation-decision.json; do
             cp "${GITHUB_WORKSPACE}/.discovery/result/${file}" "${run_path}/${file}"
           done
           cursor_path="${run_path}/cursor.json"
@@ -543,9 +598,9 @@ jobs:
         id: candidate
         shell: bash
         run: |
-          if [ "$(
-            jq -r .status .discovery/result/discovery-report.json
-          )" = "candidate_found" ]; then
+          if [ "$(jq -r .automation_route \
+            .discovery/result/automation-decision.json)" \
+            = "exact_fixture_draft_pr" ]; then
             echo "found=true" >> "${GITHUB_OUTPUT}"
           else
             echo "found=false" >> "${GITHUB_OUTPUT}"

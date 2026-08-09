@@ -214,10 +214,14 @@ Freqtrade does not call `leverage()` in spot mode.
 candles. The scheduled latest-NFI workflow checks NFI, engine, pinned Freqtrade, and
 semantic-profile identities every four hours and retains compact compatibility evidence.
 Spot and Futures remain separate checks; an atomic hosted canary must validate both before
-the latest ledger identity advances. A source change outside the supported state contracts
-is visible before a four-to-five-year run consumes resources. Missing Futures branches are
-handed to a separate nightly, two-hour, resumable discovery lane. Only a minimized
-independent official/Native exact fixture may open a Draft candidate PR.
+the latest ledger identity advances. The canary also seals a deterministic automation
+decision per mode: independently exact changes may use Native, missing coverage enters
+bounded discovery, and blocked generic lowering remains official-only while an
+evidence-only Draft review is opened. A source change outside the supported state contracts
+is therefore visible before a four-to-five-year run consumes resources. Missing Spot or
+Futures branches use the separate nightly, resumable discovery lane. Only a minimized
+independent official/Native exact fixture may open a Draft candidate PR; no review or
+candidate PR is merged automatically.
 
 For a source-reachability audit, run:
 

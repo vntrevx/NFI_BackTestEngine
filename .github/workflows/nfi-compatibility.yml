@@ -378,6 +378,17 @@ jobs:
             .compatibility/verification-plan-${{ matrix.trading_mode }}.json
           echo "targeted_verification_exit_code=${status}" \
             >> "${GITHUB_STEP_SUMMARY}"
+      - name: Classify fail-closed automation route
+        run: |
+          uv run python scripts/compatibility_automation.py \
+            --identity .compatibility/compatibility-identity.json \
+            --strategy-diff .compatibility/strategy-diff.json \
+            --compatibility \
+              .compatibility/report-${{ matrix.trading_mode }}.json \
+            --targeted \
+              .compatibility/targeted-report-${{ matrix.trading_mode }}.json \
+            --output \
+              .compatibility/automation-decision-${{ matrix.trading_mode }}.json
       - name: Collect compact targeted diagnostics
         if: always()
         env:
@@ -412,6 +423,7 @@ jobs:
             .compatibility/targeted-report-${{ matrix.trading_mode }}.json
             .compatibility/qualification-${{ matrix.trading_mode }}.json
             .compatibility/verification-plan-${{ matrix.trading_mode }}.json
+            .compatibility/automation-decision-${{ matrix.trading_mode }}.json
             .compatibility/targeted-diagnostics-${{ matrix.trading_mode }}/
           if-no-files-found: warn
           retention-days: 30
@@ -449,6 +461,7 @@ jobs:
             --reports .compatibility/results \
             --targeted-reports .compatibility/results \
             --qualifications .compatibility/results \
+            --decisions .compatibility/results \
             --semantic-profile planning/freqtrade-semantic-profile.json \
             --output .compatibility/hosted-canary.json
       - name: Retain atomic hosted canary
@@ -458,6 +471,68 @@ jobs:
           path: .compatibility/hosted-canary.json
           if-no-files-found: error
           retention-days: 30
+
+  semantic-review:
+    name: Open ${{ matrix.trading_mode }} generic semantic review Draft PR
+    needs:
+      - discover
+      - targeted
+      - canary
+    if: >-
+      always()
+      && needs.discover.outputs.changed == 'true'
+      && needs.targeted.result == 'success'
+      && needs.canary.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        trading_mode:
+          - spot
+          - futures
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out checked engine identity
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.discover.outputs.engine_sha }}
+          persist-credentials: true
+      - name: Download mode automation decision
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: latest-nfi-x7-${{ matrix.trading_mode }}-targeted
+          path: .compatibility
+      - name: Select semantic review route
+        id: review
+        run: |
+          if [ "$(jq -r .automation_route \
+            .compatibility/automation-decision-${{ matrix.trading_mode }}.json)" \
+            = "semantic_review_draft_pr" ]; then
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Install locked Python environment
+        if: steps.review.outputs.required == 'true'
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Open evidence-only Draft PR
+        if: steps.review.outputs.required == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv sync --extra dev --frozen
+          uv run python scripts/compatibility_review_pr.py \
+            --decision \
+              .compatibility/automation-decision-${{ matrix.trading_mode }}.json \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --repository "${GITHUB_REPOSITORY}" \
+            --base main
 
   publish:
     name: Preserve ledger and reconcile compatibility issue
@@ -510,6 +585,7 @@ jobs:
             --reports .compatibility/results \
             --targeted-reports .compatibility/results \
             --qualifications .compatibility/results \
+            --decisions .compatibility/results \
             --semantic-profile planning/freqtrade-semantic-profile.json \
             --output .compatibility/recomputed-canary.json
           cmp .compatibility/results/hosted-canary.json \
@@ -552,6 +628,8 @@ jobs:
             targeted-report-futures.json \
             qualification-spot.json \
             qualification-futures.json \
+            automation-decision-spot.json \
+            automation-decision-futures.json \
             verification-plan-spot.json \
             verification-plan-futures.json \
             compatibility-identity.json \
@@ -601,6 +679,7 @@ jobs:
       - x7
       - targeted
       - canary
+      - semantic-review
       - publish
     if: always()
     runs-on: ubuntu-latest
@@ -628,4 +707,5 @@ jobs:
             --stage "x7=${{ needs.x7.result }}" \
             --stage "targeted=${{ needs.targeted.result }}" \
             --stage "canary=${{ needs.canary.result }}" \
+            --stage "semantic-review=${{ needs.semantic-review.result }}" \
             --stage "publish=${{ needs.publish.result }}"

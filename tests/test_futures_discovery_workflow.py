@@ -60,12 +60,13 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert 'current_status}" = "external_data_deferred"' in text
     assert 'steps.candidate.outputs.found == \'true\'' in text
     assert "deep_search_required: ${{ steps.identity.outputs.deep_search_required }}" in text
+    assert "spot_search_required: ${{ steps.identity.outputs.spot_search_required }}" in text
+    assert "futures_search_required: ${{ steps.identity.outputs.futures_search_required }}" in text
     assert 'needs.resolve.outputs.deep_search_required == \'true\'' in text
-    assert '.verification_state == "quick_verified"' in text
-    assert ".changed_branch_reached == true" in text
-    assert ".trade_surface_exact == true" in text
-    assert ".full_state_exact == true" in text
-    assert '(.blockers | length) == 0' in text
+    assert 'jq -er .automation_route "${decision}"' in text
+    assert '"bounded_discovery"' in text
+    assert "scripts/compatibility_automation.py" in text
+    assert "automation-decision.json" in text
 
 
 def test_exact_fast_lane_closes_discovery_gaps_without_running_deep_search() -> None:
@@ -87,6 +88,7 @@ def test_candidate_job_has_scoped_write_permissions_and_never_merges() -> None:
     assert "contents: write" in candidate
     assert "pull-requests: write" in candidate
     assert "uv run python scripts/futures_candidate_pr.py" in candidate
+    assert '"exact_fixture_draft_pr"' in candidate
     assert "\n          python scripts/futures_candidate_pr.py" not in candidate
     assert "gh pr merge" not in candidate
     assert "gh pr review" not in candidate
@@ -117,3 +119,19 @@ def test_discovery_binds_all_checked_runtime_identities_and_keeps_modes_independ
     assert 'run_path="discovery/${MODE}/checks/' in text
     assert "${SEMANTIC_PROFILE_SHA256}" in text
     assert 'git add "discovery/${MODE}"' in text
+
+
+def test_deferred_reuse_requires_a_fail_closed_classification_canary() -> None:
+    text = DISCOVERY.read_text(encoding="utf-8")
+    restore = text[
+        text.index("      - name: Restore same-mode matching cursor") :
+        text.index("      - name: Install uv, Python, and engine")
+    ]
+
+    assert 'previous_decision="${ledger_dir}/${run_path}/automation-decision.json"' in restore
+    assert '.automation_route == "external_data_deferred"' in restore
+    assert '.execution_route == "official_only"' in restore
+    assert '.verification.exact == false' in restore
+    assert ".action.external_data_deferred_is_exact == false" in restore
+    assert "Validate deferred reuse remains official-only" in text
+    assert ".action.automatic_semantic_merge_allowed == false" in text
