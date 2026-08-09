@@ -472,7 +472,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
 
     assert contract == {
         "schema_version": "1.0.0",
-        "package_version": "1.4.1",
+        "package_version": "1.5.0",
         "release_kind": "product",
         "combined_full_x7_certified": False,
         "distribution_policy": {
@@ -529,6 +529,31 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert 'GetEnvironmentVariable("GH_TOKEN")' in windows_installer
     assert 'os.environ.get("GITHUB_TOKEN")' in unix_installer
     assert 'os.environ.get("GH_TOKEN")' in unix_installer
+
+
+def test_native_stateful_rc_and_stable_promotion_have_separate_profiles() -> None:
+    root = Path(__file__).parents[1]
+    commands = json.loads(
+        (root / "planning/acceptance-commands.json").read_text(encoding="utf-8")
+    )
+    roadmap = json.loads(
+        (root / "planning/roadmap-state.json").read_text(encoding="utf-8")
+    )
+    tasks = {task["id"]: task for task in roadmap["tasks"]}
+    candidate = commands["profiles"]["full_native_release_candidate"]
+    promotion = commands["profiles"]["full_native_release_promotion"]
+
+    assert tasks["M19-03"]["acceptance_profile"] == "full_native_release_candidate"
+    assert tasks["M19-04"]["acceptance_profile"] == "full_native_release_promotion"
+    assert "platform_release_workflow" in candidate
+    assert "publish_product_release" in candidate
+    assert "promote_product_release" not in candidate
+    assert promotion == [
+        "planning_json",
+        "diff_check",
+        "lock_check",
+        "promote_product_release",
+    ]
 
 
 def _long_certification_module() -> ModuleType:

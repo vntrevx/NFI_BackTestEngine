@@ -2,6 +2,27 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## 1.5.0 - 2026-08-10
+
+- Promoted source-compiled generic state-machine programs to the sole current
+  Native lane for supported NFI stateful callbacks, including managed long/short
+  exits, rebuy, regular adjustments, Grind, typed custom state, and finite
+  source-ordered filled-order iteration.
+- Removed current-runtime X7 shadow backends and method-hash behavior gates after
+  independent exact proofs, while retaining backward readers for sealed evidence.
+- Added structure-driven IR optimization, live-column projection, and incremental
+  order aggregates without Signal, tag, strategy SHA, pair, timerange, or expected
+  result specialization.
+- Upgraded latest-NFI automation to bind NFI, engine, pinned Freqtrade, and semantic
+  profile identities; Spot and Futures are classified independently and sealed by
+  one atomic hosted canary.
+- Added deterministic Native-exact, generic-review, bounded-discovery,
+  exact-fixture Draft PR, external-data-deferred, and official-only routes. Unknown
+  semantics use the announced official fallback when the pinned environment supports
+  them, and are never promoted or merged automatically.
+- Kept this as a product release with `combined_full_x7_certified=false`. The
+  five-year Spot and Futures certificates remain bound to v1.0.0 and v1.1.0.
+
 ## 1.4.1 - 2026-07-30
 
 - Fixed a false `long_exit_rebuy` compatibility blocker on Python 3.13 and

@@ -643,6 +643,27 @@
       "x7_spot_full",
       "x7_futures_full"
     ],
+    "full_native_release_candidate": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "platform_release_workflow",
+      "publish_product_release"
+    ],
+    "full_native_release_promotion": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "promote_product_release"
+    ],
     "full_native_release": [
       "planning_json",
       "diff_check",

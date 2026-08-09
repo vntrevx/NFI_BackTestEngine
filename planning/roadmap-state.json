@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 119,
-  "updated_at": "2026-08-10T08:23:16+09:00",
+  "revision": 120,
+  "updated_at": "2026-08-10T08:30:14+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M19-03",
   "execution_policy": {
@@ -4561,7 +4561,7 @@
         "calling v1.5 Full Native Strategy",
         "publishing after failed Required CI"
       ],
-      "acceptance_profile": "full_native_release",
+      "acceptance_profile": "full_native_release_candidate",
       "expected_evidence": [
         "same-commit Required CI",
         "sealed product candidate",
@@ -4592,7 +4592,7 @@
         "rebuilding stable assets",
         "new five-year claim without certification"
       ],
-      "acceptance_profile": "full_native_release",
+      "acceptance_profile": "full_native_release_promotion",
       "expected_evidence": [
         "RC/stable byte identity",
         "three-OS stable installer audit"
@@ -8054,6 +8054,19 @@
         "approval_message": "좋아 남은거 계속 진행해",
         "full_native_strategy_claim_allowed": false,
         "publish_after_failed_required_ci_allowed": false
+      }
+    },
+    {
+      "sequence": 167,
+      "timestamp": "2026-08-10T08:30:14+09:00",
+      "task_id": "M19-03",
+      "event": "acceptance_profile_split",
+      "details": {
+        "release_candidate_profile": "full_native_release_candidate",
+        "stable_promotion_profile": "full_native_release_promotion",
+        "full_end_to_end_profile_preserved": "full_native_release",
+        "stable_promotion_during_m19_03_allowed": false,
+        "reason": "keep same-commit RC publication and byte-identical stable promotion in their declared roadmap tasks"
       }
     }
   ]
