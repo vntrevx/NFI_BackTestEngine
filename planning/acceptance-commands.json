@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-08-02",
+  "updated_at": "2026-08-10",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -97,7 +97,7 @@
       "mutates_external_state": false
     },
     "future_nfi_compatibility_tests": {
-      "command": "uv run pytest -q tests/test_official_fallback.py tests/test_strategy_diff.py tests/test_targeted_verification.py tests/test_compatibility_identity.py tests/test_resolve_upstream_source.py tests/test_compatibility_fixture_registry.py tests/test_compatibility_issue.py tests/test_workflow_health_issue.py tests/test_nfi_compatibility_workflow.py tests/test_compatibility_qualification.py tests/test_state_machine_ir.py tests/test_state_machine_shadow.py tests/test_dynamic_grind_levels.py tests/test_stateful_coverage.py tests/test_strategy_compatibility.py tests/test_generic_adapter.py tests/test_probe_capture.py tests/test_research_reference.py",
+      "command": "uv run pytest -q tests/test_official_fallback.py tests/test_strategy_diff.py tests/test_targeted_verification.py tests/test_compatibility_identity.py tests/test_compatibility_canary.py tests/test_resolve_upstream_source.py tests/test_compatibility_fixture_registry.py tests/test_compatibility_issue.py tests/test_workflow_health_issue.py tests/test_nfi_compatibility_workflow.py tests/test_compatibility_qualification.py tests/test_state_machine_ir.py tests/test_state_machine_shadow.py tests/test_dynamic_grind_levels.py tests/test_stateful_coverage.py tests/test_strategy_compatibility.py tests/test_generic_adapter.py tests/test_probe_capture.py tests/test_research_reference.py",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 1200,

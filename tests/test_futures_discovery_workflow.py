@@ -14,6 +14,7 @@ def test_fast_lane_exports_identity_for_separate_deep_search() -> None:
     assert "--arg upstream_sha" in text
     assert "--arg engine_sha" in text
     assert "--arg freqtrade_digest" in text
+    assert "--arg semantic_profile_sha256" in text
     assert "--arg baseline_upstream_sha" in text
     assert "--arg source_sha256" in text
     assert ".compatibility/old.py" in text
@@ -103,12 +104,16 @@ def test_discovery_semantic_and_infrastructure_issues_are_separate() -> None:
     assert "nfi-branch-discovery-health" in text
 
 
-def test_discovery_binds_checked_freqtrade_and_keeps_modes_independent() -> None:
+def test_discovery_binds_all_checked_runtime_identities_and_keeps_modes_independent() -> None:
     text = DISCOVERY.read_text(encoding="utf-8")
 
     assert "freqtrade_digest: ${{ steps.identity.outputs.freqtrade_digest }}" in text
+    assert "semantic_profile_sha256: ${{ steps.identity.outputs.semantic_profile_sha256 }}" in text
     assert 'test "${freqtrade_digest}" = "${local_digest}"' in text
+    assert 'test "${semantic_profile_sha256}" = "${local_profile_sha256}"' in text
     assert ".freqtrade_digest == $freqtrade" in text
+    assert ".semantic_profile_sha256 == $semantic_profile" in text
     assert 'name: nfi-branch-discovery-${{ matrix.trading_mode }}' in text
     assert 'run_path="discovery/${MODE}/checks/' in text
+    assert "${SEMANTIC_PROFILE_SHA256}" in text
     assert 'git add "discovery/${MODE}"' in text

@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   resolve:
-    name: Resolve checked NFI, engine, and Freqtrade identity
+    name: Resolve checked four-part compatibility identity
     if: >-
       github.event_name != 'workflow_run'
       || github.event.workflow_run.conclusion == 'success'
@@ -41,6 +41,7 @@ jobs:
       upstream_sha: ${{ steps.identity.outputs.upstream_sha }}
       engine_sha: ${{ steps.identity.outputs.engine_sha }}
       freqtrade_digest: ${{ steps.identity.outputs.freqtrade_digest }}
+      semantic_profile_sha256: ${{ steps.identity.outputs.semantic_profile_sha256 }}
       oracle_key: ${{ steps.identity.outputs.oracle_key }}
       deep_search_required: ${{ steps.identity.outputs.deep_search_required }}
     steps:
@@ -70,6 +71,9 @@ jobs:
           upstream_sha="$(jq -er .upstream_sha "${metadata}")"
           engine_sha="$(jq -er .engine_sha "${metadata}")"
           freqtrade_digest="$(jq -er .freqtrade_digest "${metadata}")"
+          semantic_profile_sha256="$(
+            jq -er .semantic_profile_sha256 "${metadata}"
+          )"
           check_path="$(jq -r '.check_path // ""' "${metadata}")"
           ledger_run_id="$(jq -er '.run_url | split("/")[-1]' "${metadata}")"
           source_run_id="${REQUESTED_RUN_ID}"
@@ -90,6 +94,10 @@ jobs:
                 'from nfi_backtest_engine.reference.contracts import REFERENCE_INDEX_DIGEST; print(REFERENCE_INDEX_DIGEST)'
             )"
             test "${freqtrade_digest}" = "${local_digest}"
+            local_profile_sha256="$(
+              jq -er .fingerprint planning/freqtrade-semantic-profile.json
+            )"
+            test "${semantic_profile_sha256}" = "${local_profile_sha256}"
             ready=true
           fi
           deep_search_required=true
@@ -118,6 +126,7 @@ jobs:
             echo "upstream_sha=${upstream_sha}"
             echo "engine_sha=${engine_sha}"
             echo "freqtrade_digest=${freqtrade_digest}"
+            echo "semantic_profile_sha256=${semantic_profile_sha256}"
             echo "oracle_key=${freqtrade_digest#sha256:}"
             echo "deep_search_required=${deep_search_required}"
           } >> "${GITHUB_OUTPUT}"
@@ -127,6 +136,7 @@ jobs:
             echo "upstream_sha=${upstream_sha}"
             echo "engine_sha=${engine_sha}"
             echo "freqtrade_digest=${freqtrade_digest}"
+            echo "semantic_profile_sha256=${semantic_profile_sha256}"
             echo "deep_search_required=${deep_search_required}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -155,6 +165,7 @@ jobs:
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
+          SEMANTIC_PROFILE_SHA256: ${{ needs.resolve.outputs.semantic_profile_sha256 }}
           MODE: ${{ matrix.trading_mode }}
           RETRY_DEFERRED: >-
             ${{ github.event_name == 'workflow_dispatch'
@@ -173,7 +184,8 @@ jobs:
           if [ -s "${latest}" ] \
             && [ "$(jq -r .upstream_sha "${latest}")" = "${UPSTREAM_SHA}" ] \
             && [ "$(jq -r .engine_sha "${latest}")" = "${ENGINE_SHA}" ] \
-            && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ]; then
+            && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ] \
+            && [ "$(jq -r .semantic_profile_sha256 "${latest}")" = "${SEMANTIC_PROFILE_SHA256}" ]; then
             cursor_path="$(jq -r '.cursor_path // ""' "${latest}")"
             if [ -n "${cursor_path}" ]; then
               run_path="$(jq -er .run_path "${latest}")"
@@ -230,6 +242,7 @@ jobs:
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
+          SEMANTIC_PROFILE_SHA256: ${{ needs.resolve.outputs.semantic_profile_sha256 }}
           MODE: ${{ matrix.trading_mode }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
@@ -238,8 +251,12 @@ jobs:
           jq -e \
             --arg engine "${ENGINE_SHA}" \
             --arg freqtrade "${FREQTRADE_DIGEST}" \
+            --arg semantic_profile "${SEMANTIC_PROFILE_SHA256}" \
             --arg upstream "${UPSTREAM_SHA}" \
-            '.engine_sha == $engine and .freqtrade_digest == $freqtrade and .upstream_sha == $upstream' \
+            '.engine_sha == $engine
+              and .freqtrade_digest == $freqtrade
+              and .semantic_profile_sha256 == $semantic_profile
+              and .upstream_sha == $upstream' \
             .discovery/input/compatibility-identity.json
           test "$(
             sha256sum .discovery/input/new.py | awk '{print $1}'
@@ -418,6 +435,7 @@ jobs:
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
+          SEMANTIC_PROFILE_SHA256: ${{ needs.resolve.outputs.semantic_profile_sha256 }}
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ matrix.trading_mode }}
           ORACLE_KEY: ${{ needs.resolve.outputs.oracle_key }}
@@ -444,6 +462,7 @@ jobs:
             && [ "$(jq -r .upstream_sha "${latest}")" = "${UPSTREAM_SHA}" ] \
             && [ "$(jq -r .engine_sha "${latest}")" = "${ENGINE_SHA}" ] \
             && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ] \
+            && [ "$(jq -r .semantic_profile_sha256 "${latest}")" = "${SEMANTIC_PROFILE_SHA256}" ] \
             && [ "$(jq -r .fingerprint "${latest}")" = "${fingerprint}" ]; then
             previous_path="$(jq -er .run_path "${latest}")"
             if [ "$(jq -r .status \
@@ -451,7 +470,7 @@ jobs:
               exit 0
             fi
           fi
-          run_path="discovery/${MODE}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          run_path="discovery/${MODE}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${SEMANTIC_PROFILE_SHA256}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           test ! -e "${run_path}"
           mkdir -p "${run_path}" "discovery/${MODE}"
           for file in discovery-request.json discovery-report.json cursor.json; do
@@ -462,16 +481,18 @@ jobs:
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
             --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
+            --arg semantic_profile_sha256 "${SEMANTIC_PROFILE_SHA256}" \
             --arg trading_mode "${MODE}" \
             --arg fingerprint "${fingerprint}" \
             --arg run_path "${run_path}" \
             --arg cursor_path "${cursor_path}" \
             --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             '{
-              schema_version: "1.0.0",
+              schema_version: "1.1.0",
               upstream_sha: $upstream_sha,
               engine_sha: $engine_sha,
               freqtrade_digest: $freqtrade_digest,
+              semantic_profile_sha256: $semantic_profile_sha256,
               trading_mode: $trading_mode,
               fingerprint: $fingerprint,
               run_path: $run_path,

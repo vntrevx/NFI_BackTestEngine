@@ -211,12 +211,13 @@ file used by a run. Context-only callbacks may be inactive for a mode; for examp
 Freqtrade does not call `leverage()` in spot mode.
 
 `nfi-bte strategy check` performs this source and callback compilation without preparing
-candles. The scheduled latest-NFI workflow checks upstream and engine identities every
-four hours and retains compact compatibility evidence. A source change outside the
-reviewed state contracts can continue immediately; a changed state contract is visible
-before a four-to-five-year run consumes resources. Missing Futures branches are handed
-to a separate nightly, two-hour, resumable discovery lane. Only a minimized independent
-official/Native exact fixture may open a Draft candidate PR.
+candles. The scheduled latest-NFI workflow checks NFI, engine, pinned Freqtrade, and
+semantic-profile identities every four hours and retains compact compatibility evidence.
+Spot and Futures remain separate checks; an atomic hosted canary must validate both before
+the latest ledger identity advances. A source change outside the supported state contracts
+is visible before a four-to-five-year run consumes resources. Missing Futures branches are
+handed to a separate nightly, two-hour, resumable discovery lane. Only a minimized
+independent official/Native exact fixture may open a Draft candidate PR.
 
 For a source-reachability audit, run:
 

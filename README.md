@@ -195,14 +195,14 @@ and is not labeled as Native parity. See
 [Future NFI Compatibility](docs/future-nfi-compatibility.md) for the compiler,
 upstream monitoring, and promotion contracts.
 
-The scheduled watcher checks both upstream and engine revisions every four hours,
-classifies generic behavior targets, and runs only matching Spot/Futures branch
-fixtures. It promotes a revision only after independent official/Native trade
-surface and full-state equality; otherwise the announced official fallback remains
-available without claiming Native parity. A separate bounded Futures lane resumes
-missing-branch searches nightly across listing-aware calendar shards. An exact,
-size-bounded hit opens a Draft fixture PR and required CI; it is never auto-approved
-or auto-merged.
+The scheduled watcher checks NFI, engine, pinned Freqtrade, and semantic-profile
+identities every four hours. Spot and Futures run independently, then an atomic hosted
+canary verifies both result sets before the ledger identity can advance. Changed branches
+are promoted only after independent official/Native trade-surface and full-state equality;
+otherwise the announced official fallback remains available without claiming Native
+parity. A separate bounded Futures lane resumes missing-branch searches nightly across
+listing-aware calendar shards. An exact, size-bounded hit opens a Draft fixture PR and
+required CI; it is never auto-approved or auto-merged.
 
 For supported X7 stateful callbacks, `run.json` records the
 `x7-generic-stateful` Native lane and every source-compiled primary program. The

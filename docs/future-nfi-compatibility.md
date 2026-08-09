@@ -98,17 +98,17 @@ basis와 gate, mode name, pure decision 호출 순서는 이제
 상수값별 Rust 분기 없이 같은 matcher evaluator가 처리한다. quick/rapid inline
 조건과 reason도 Scalar IR이며 stop 선택·threshold, target-cache 갱신 간격, 최대
 target floor, 보호 신호와 rebuy terminal을 source state program으로 컴파일한다.
-Rust는 generic 경로를 독립 실행하고 결정뿐 아니라 target-cache 전체 상태까지
-기존 경로와 비교하며, 어느 한쪽이라도 다르면 즉시 중단한다.
+Rust는 현재 contract에서 generic 경로만 실행한다. 과거 shadow 비교로 결정과
+target-cache 전체 상태의 exact를 독립 증명한 뒤 현재 실행에서 legacy 호출을
+제거했으며, 이전 schema reader는 sealed evidence 재생에만 남아 있다.
 
 managed-short도 별도 source compiler로 같은 실행 경계에 들어왔다. short quick/rapid
 조건은 long 조건의 부호 반전이 아니라 short AST에서 직접 Scalar IR로 생성된다.
 scalp compound route와 pure-scalp target matcher, top-coins normal fallback의
 `is_short AND NOT known_tags`도 서로 다른 source predicate로 보존한다. 두 방향 모두
-generic 결과가 기본이며 legacy는 비교 shadow로만 실행된다. 결정과 target-cache
-전체 상태가 다르면 즉시 중단한다. 구조적으로 컴파일되는 route wrapper와
-`custom_exit`의 runtime hash gate는 제거했으며, 아직 IR로 완전히 표현되지 않은
-공통 stop/target helper만 별도 identity gate를 유지한다.
+generic 결과가 현재 실행의 유일한 경로다. 구조적으로 컴파일되는 route wrapper,
+`custom_exit`, 공통 stop/target 정책의 runtime method-hash gate는 제거했다. 과거
+shadow mode는 새 실행에 승계되지 않으며 backward schema reader에서만 허용된다.
 
 Rebuy의 long/short 역순 주문 cluster, ladder 조건과 stake 산식, level-3 de-risk,
 결과 tag도 `adjustment-transition-program-v1`으로 소스에서 컴파일한다. dataframe
@@ -119,16 +119,19 @@ retry window도 같은 payload로 묶어 검증한다. 기존 스키마만 보�
 
 ## Upstream 감시
 
-호환성 workflow는 4시간마다 upstream SHA와 호환성 엔진 commit을 함께 확인한다.
-둘 다 같으면 즉시 종료하고, upstream이 같아도 엔진이 개선됐으면 다시 검사한다.
+호환성 workflow는 4시간마다 NFI upstream SHA, 호환성 엔진 commit, pinned Freqtrade
+image digest, semantic-profile fingerprint를 함께 확인한다. 네 값이 모두 같으면 즉시
+종료하고, 어느 하나라도 바뀌면 같은 NFI 소스도 다시 검사한다.
 수동 실행의 `force=true`는 같은 identity도 재검사한다. GitHub 예약 실행은
 queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 아니라 검사 주기다.
 
-검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을
-실행한다. 성공한 실행만 `compatibility-ledger`의
-`checks/<upstream>/<engine>/runs/<run-attempt>`에 compact JSON으로 추가하고,
-대용량 임시 trace는 업로드하지 않는다. compact JSON artifact만 30일 보존한다.
-실패한 자동화는 identity를 전진시키지 않아 다음 주기에 재시도한다.
+검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을 서로
+독립 실행한다. hosted canary가 두 mode의 schema, source, qualification과 네 identity를
+원자적으로 검증한 경우에만 `compatibility-ledger`의
+`checks/<upstream>/<engine>/<freqtrade>/<semantic-profile>/runs/<run-attempt>`에 compact
+JSON을 추가한다. 대용량 임시 trace는 업로드하지 않으며 compact JSON artifact만
+30일 보존한다. 한 mode라도 누락되거나 자동화가 실패하면 latest identity를
+전진시키지 않아 다음 주기에 재시도한다.
 
 전략 blocker는 `nfi-compatibility`, 다운로드·빌드·권한·artifact 장애는
 `nfi-automation-health`로 분리한다. 같은 canonical fingerprint는 issue와 알림을
