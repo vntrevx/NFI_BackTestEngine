@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 118,
-  "updated_at": "2026-08-10T07:55:19+09:00",
+  "revision": 119,
+  "updated_at": "2026-08-10T08:23:16+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M19-02",
+  "active_task_id": "M19-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4505,7 +4505,7 @@
       "order": 1902,
       "milestone": "M19",
       "title": "Automate generic IR qualification and fallback classification",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M19-01"
       ],
@@ -4525,9 +4525,21 @@
         "deduplicated issue and deferred-reuse canary"
       ],
       "started_at": "2026-08-10T07:55:19+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-10T08:23:16+09:00",
+      "commit_sha": "dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/routing-canary.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/latest-upstream-classification/hosted-canary.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/latest-upstream-classification/automation-decision-spot.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/latest-upstream-classification/automation-decision-futures.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/06-future_nfi_compatibility_tests.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/07-futures_discovery_tests.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/09-python_all.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/11-rust_test.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/12-rust_clippy.log"
+      ],
       "blocker": null
     },
     {
@@ -4535,7 +4547,7 @@
       "order": 1903,
       "milestone": "M19",
       "title": "Build the v1.5.0 Native Stateful Runtime release candidate",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M19-02"
       ],
@@ -4555,7 +4567,7 @@
         "sealed product candidate",
         "installer audits"
       ],
-      "started_at": null,
+      "started_at": "2026-08-10T08:23:16+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8001,6 +8013,47 @@
         "automatic_semantic_merge_allowed": false,
         "external_deferral_may_be_treated_as_exact": false,
         "latest_upstream_blocker_carried_forward": "NFI adjustment grind 5 fallback condition changed"
+      }
+    },
+    {
+      "sequence": 165,
+      "timestamp": "2026-08-10T08:23:16+09:00",
+      "task_id": "M19-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd",
+        "deterministic_mode_classification": true,
+        "native_promotion_requires_changed_branch_trade_surface_and_full_state_exact": true,
+        "generic_semantic_review_draft_pr": true,
+        "semantic_review_pr_runtime_code_generated": false,
+        "automatic_semantic_merge_allowed": false,
+        "bounded_discovery_route": true,
+        "external_deferral_reuse_requires_official_only_non_exact_decision": true,
+        "duplicate_compatibility_issue_rejected_by_test": true,
+        "latest_upstream_sha": "0da6ddb0fb1f1e1f949a450f00542e519d83ab0f",
+        "latest_spot_automation_route": "semantic_review_draft_pr",
+        "latest_futures_automation_route": "semantic_review_draft_pr",
+        "latest_spot_execution_route": "official_only",
+        "latest_futures_execution_route": "official_only",
+        "latest_review_kind": "generic_lowering",
+        "acceptance_command_count": 12,
+        "python_test_count": 707,
+        "rust_test_count": 145,
+        "next_eligible_task": "M19-03",
+        "next_task_manual_gate": true
+      }
+    },
+    {
+      "sequence": 166,
+      "timestamp": "2026-08-10T08:23:16+09:00",
+      "task_id": "M19-03",
+      "event": "task_started",
+      "details": {
+        "objective": "build the v1.5.0 Native Stateful Runtime release candidate with same-commit three-OS evidence",
+        "manual_gate_approved": true,
+        "approval_message": "좋아 남은거 계속 진행해",
+        "full_native_strategy_claim_allowed": false,
+        "publish_after_failed_required_ci_allowed": false
       }
     }
   ]
