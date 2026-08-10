@@ -1,0 +1,22 @@
+[package]
+name = "nfi-vector-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Safe, deterministic vector execution core for NFI indicator programs"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+arrow2 = "0.18"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "1"
+
+[lints]
+workspace = true

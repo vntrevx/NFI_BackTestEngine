@@ -4,7 +4,8 @@
 
 Python orchestration, contracts, schemas, and CLI code live in
 `python/nfi_backtest_engine/`. The Rust workspace is under `rust/`; its main crates
-are `nfi-sim-core`, `nfi-vector-io`, `nfi-sim-cli`, and the PyO3 bridge `nfi-py`.
+are `nfi-sim-core`, `nfi-vector-core`, `nfi-vector-io`, `nfi-sim-cli`, and the PyO3
+bridge `nfi-py`.
 Python tests are in `tests/`, with parity-focused cases in `tests/parity/`. Captured
 fixtures and published evidence belong in `benchmarks/fixtures/` and
 `benchmarks/evidence/`. Keep user documentation in `docs/` and roadmap state in

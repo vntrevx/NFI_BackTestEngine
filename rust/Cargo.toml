@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/nfi-sim-core",
+    "crates/nfi-vector-core",
     "crates/nfi-vector-io",
     "crates/nfi-sim-cli",
     "crates/nfi-py",
