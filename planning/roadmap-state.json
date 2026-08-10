@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 123,
-  "updated_at": "2026-08-10T17:06:59+09:00",
+  "revision": 124,
+  "updated_at": "2026-08-10T17:11:50+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M20-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4620,7 +4620,7 @@
       "order": 2001,
       "milestone": "M20",
       "title": "Inventory all latest-NFI indicator operations",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M19-04"
       ],
@@ -4639,7 +4639,7 @@
         "deterministic indicator inventory",
         "operation coverage matrix"
       ],
-      "started_at": null,
+      "started_at": "2026-08-10T17:11:50+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8148,6 +8148,20 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M20-01",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 171,
+      "timestamp": "2026-08-10T17:11:50+09:00",
+      "task_id": "M20-01",
+      "event": "task_started",
+      "details": {
+        "objective": "inventory every latest-NFI indicator and helper operation before defining indicator-program-v1",
+        "latest_upstream_head_at_start": "317f7c30bbfdde6d0d2d05ab99b2420331cccf05",
+        "deterministic_source_identity_required": true,
+        "informative_dependencies_may_be_omitted": false,
+        "arbitrary_pandas_implementation_allowed": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
