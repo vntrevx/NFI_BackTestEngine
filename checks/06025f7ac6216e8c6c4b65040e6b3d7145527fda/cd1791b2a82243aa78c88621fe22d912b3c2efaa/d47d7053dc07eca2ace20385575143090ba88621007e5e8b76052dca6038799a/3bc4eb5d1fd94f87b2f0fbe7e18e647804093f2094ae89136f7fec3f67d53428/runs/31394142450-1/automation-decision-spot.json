@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "06025f7ac6216e8c6c4b65040e6b3d7145527fda",
+    "engine_sha": "cd1791b2a82243aa78c88621fe22d912b3c2efaa",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "851dcf36183490fa6a84d553e41f92f3613a592ee03d724115007faadc519d94"
+  },
+  "trading_mode": "spot",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "semantic_review_draft_pr",
+  "execution_route": "official_only",
+  "review_kind": "generic_lowering",
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "19b5b52d1cc2e3a2bf6cfa8df59e2a731072b91ea1b63d2afec749581c02083f",
+      "kind": "signal",
+      "change": "removed",
+      "runtime_observable": true
+    },
+    {
+      "id": "32b4f9e284095f26379b04d35a975b03743ab998e4823539c23d5e6a8b163b40",
+      "kind": "signal",
+      "change": "removed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5e21f781a771d894389cdd51cd79863544cc6384fd1e23d512920c7c1add3b13",
+      "kind": "signal",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "6a375ea4a2f6de3083f8ae2938f26dd6f338cbf13651d025fb9a176432a81915",
+      "kind": "signal",
+      "change": "removed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9c6186e74cea7879ab4239cbd3cddc79d05d6101e3a3e72edda4dc67feee31c0",
+      "kind": "signal",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "ba0b19c7b355dbdeacd9d912a8fbc17f463411fcb23b03a82c1e06ef4a92a583",
+      "kind": "signal",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "da1c42d22b0001977b19d32e0f3e875e5f48187c04d8787e6ddd1653285e5969",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "NFI adjustment grind 5 fallback condition changed"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "7 changed behavior target(s) have no branch-reaching fixture: callback, signal"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": true,
+    "draft_pr_kind": "generic_lowering",
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "3834a6a0a30920a70348630496b61496b151a37d71e6e7565b9fa9713e014e57",
+  "decision_fingerprint": "2a11dae7e1f7c60551d3598e4864b231814db10dac3dfee04584bcfd1b008ea2",
+  "message": "Static lowering is blocked; open a generic lowering review Draft PR."
+}
