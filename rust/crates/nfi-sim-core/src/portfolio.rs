@@ -1,16 +1,24 @@
 //! Shared open-trade and wallet state for the chronological portfolio.
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, OnceLock};
 
 use serde_json::Value;
 
 use super::nfi::AdjustmentState;
+use super::order_aggregates::FilledOrderAggregates;
 use super::{ClosedTrade, FilledOrder};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TradeSide {
     Long,
     Short,
+}
+
+#[derive(Debug)]
+pub(crate) struct EntryTagCache {
+    pub(crate) words: Vec<String>,
+    pub(crate) nfi_ids: OnceLock<Vec<Option<usize>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +39,8 @@ pub(crate) struct OpenTrade {
     pub(crate) first_entry_cost_with_fees: f64,
     pub(crate) adjustment_count: usize,
     pub(crate) entry_tag: Option<String>,
+    /// Words and manager-derived IDs cached for the immutable entry tag.
+    pub(crate) entry_tag_cache: OnceLock<Arc<EntryTagCache>>,
     pub(crate) funding_fees: f64,
     pub(crate) funding_fees_total: f64,
     /// High and correction words for `CPython`'s compensated `sum(float)` path.
@@ -55,6 +65,7 @@ pub(crate) struct OpenTrade {
     pub(crate) minimum_rate: f64,
     pub(crate) maximum_rate: f64,
     pub(crate) orders: Vec<FilledOrder>,
+    pub(crate) filled_order_aggregates: OnceLock<FilledOrderAggregates>,
     pub(crate) custom_data: BTreeMap<String, Value>,
     /// Order-derived NFI grind state.
     ///
@@ -62,7 +73,43 @@ pub(crate) struct OpenTrade {
     /// callback. Caching the exact derived projection is behavior-preserving:
     /// adjustments only append orders, and the cache records the order count
     /// used to build it so the next callback invalidates it automatically.
-    pub(crate) nfi_adjustment_state: Option<AdjustmentState>,
+    pub(crate) nfi_adjustment_state: Option<Arc<AdjustmentState>>,
+}
+
+impl OpenTrade {
+    pub(crate) fn entry_tag_cache(&self) -> &EntryTagCache {
+        self.entry_tag_cache
+            .get_or_init(|| {
+                Arc::new(EntryTagCache {
+                    words: self
+                        .entry_tag
+                        .as_deref()
+                        .unwrap_or("")
+                        .split_whitespace()
+                        .map(str::to_owned)
+                        .collect(),
+                    nfi_ids: OnceLock::new(),
+                })
+            })
+            .as_ref()
+    }
+
+    pub(crate) fn entry_tag_words(&self) -> &[String] {
+        &self.entry_tag_cache().words
+    }
+
+    pub(crate) fn push_filled_order(&mut self, order: FilledOrder) {
+        if let Some(aggregates) = self.filled_order_aggregates.get_mut() {
+            aggregates.push(&order);
+        }
+        self.orders.push(order);
+        self.nfi_adjustment_state = None;
+    }
+
+    pub(crate) fn filled_order_aggregates(&self) -> &FilledOrderAggregates {
+        self.filled_order_aggregates
+            .get_or_init(|| FilledOrderAggregates::from_orders(&self.orders))
+    }
 }
 
 pub(super) fn wallet_free(

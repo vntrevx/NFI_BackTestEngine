@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 89,
-  "updated_at": "2026-07-31T05:05:34+09:00",
+  "revision": 120,
+  "updated_at": "2026-08-10T08:30:14+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M19-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -3154,6 +3154,1845 @@
         }
       ],
       "blocker": null
+    },
+    {
+      "id": "M13-01",
+      "order": 1301,
+      "milestone": "M13",
+      "title": "Inventory NFI and Freqtrade semantic ownership and reachability",
+      "status": "completed",
+      "depends_on": [
+        "M12-08"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest NFI Spot and Futures callback graph",
+        "NFI, Freqtrade, exchange, and live-only ownership classification",
+        "handwritten Rust route and exact-fixture coverage mapping"
+      ],
+      "forbidden_changes": [
+        "changing simulation behavior",
+        "runtime strategy hard-coding",
+        "claiming reachability without official evidence"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "deterministic semantic inventory",
+        "latest upstream inventory test"
+      ],
+      "started_at": "2026-08-01T20:22:04+09:00",
+      "completed_at": "2026-08-01T20:52:20+09:00",
+      "commit_sha": "506bd2e32176b8de361c138c9e22b4fc676817cf",
+      "evidence": [
+        {
+          "kind": "latest_upstream_semantic_inventory",
+          "upstream_commit": "b2c7badc19c33c550d5ee2d8f5c302314e78b667",
+          "strategy_sha256": "4c1c0dd4f1847208a10c8be8d56f516e8f09e510b121bd1972ec4b166364e92a",
+          "spot_fingerprint": "ba7e9891d5b0257c3d39908bfa52940046e72ad514eac4a5007ad7db316feb2c",
+          "futures_fingerprint": "60dc07a530ccd7e7ab14eaefcd8d03495adc971e90a1c3f9a4f00e7580d2ccd5",
+          "spot_active_rust_callbacks": "9/9",
+          "futures_active_rust_callbacks": "10/10",
+          "route_count": 18,
+          "exact_source_fixture_count": 0,
+          "exact_fixture_gap_reported_without_promotion": true
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 586,
+          "rust_tests_passed": 108,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixtures": [
+            "normal-routing-spot",
+            "stops-only-spot",
+            "x7-tag121-spot",
+            "x7-futures-lifecycle-short"
+          ],
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M13-02",
+      "order": 1302,
+      "milestone": "M13",
+      "title": "Version the Freqtrade semantic profile and official observer",
+      "status": "completed",
+      "depends_on": [
+        "M13-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "Freqtrade digest-bound semantic profile",
+        "canonical callback and state event projection"
+      ],
+      "forbidden_changes": [
+        "copying Freqtrade implementation code",
+        "widening unverified semantics"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "profile schema tests",
+        "deterministic official observer fixture"
+      ],
+      "started_at": "2026-08-01T20:52:20+09:00",
+      "completed_at": "2026-08-01T21:12:37+09:00",
+      "commit_sha": "2c75e31efc5303bcf64eda772dd0309cf4b58a8c",
+      "evidence": [
+        {
+          "kind": "freqtrade_semantic_profile",
+          "reference_version": "2026.5.1",
+          "profile_fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+          "observed_method_count": 15,
+          "event_phase_count": 7,
+          "image_index_platform_and_config_digest_bound": true,
+          "observer_source_digest_bound": true
+        },
+        {
+          "kind": "official_semantic_observer",
+          "spot_fixture_id": "x7-v17.4.435-tag-121-btc-spot",
+          "spot_event_count": 1153,
+          "spot_stream_hash": "0d5a0bc155cd9f362fd7d7869da302d45617482bb5f127d9000889cae8f13c90",
+          "futures_fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+          "futures_event_count": 5665,
+          "futures_stream_hash": "2b99c1ecdf8bdbaef37f3daf753a4586ba802906181b99d3bee8d99cb5a0b459",
+          "byte_deterministic": true,
+          "unknown_event_fail_closed": true
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 592,
+          "rust_tests_passed": 108,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M13-03",
+      "order": 1303,
+      "milestone": "M13",
+      "title": "Formalize candle, callback, and pair scheduling semantics",
+      "status": "completed",
+      "depends_on": [
+        "M13-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "candle and signal shift",
+        "callback dataframe visibility",
+        "same-timestamp pair order"
+      ],
+      "forbidden_changes": [
+        "parallel wallet mutation",
+        "result-specialized scheduling"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "scheduler event-order exact fixture",
+        "parallel preparation determinism"
+      ],
+      "started_at": "2026-08-01T21:12:37+09:00",
+      "completed_at": "2026-08-01T21:48:27+09:00",
+      "commit_sha": "a8697731ec8d9a02e3253a6ff2c3c5b5158dac76",
+      "evidence": [
+        {
+          "kind": "scheduler_contract",
+          "semantic_profile_fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+          "scheduler_contract_fingerprint": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+          "python_rust_contract_exact": true,
+          "signal_shift_contract_bound": true,
+          "callback_visibility_contract_bound": true,
+          "parallel_preparation_restores_configured_order": true,
+          "wallet_event_loop_parallelized": false
+        },
+        {
+          "kind": "official_multipair_scheduler_fixture",
+          "fixture_id": "m13-03-latest-nfi-two-pair-scheduler-spot-v2",
+          "manifest_sha256": "d3bae63767852fef2806c4bb094367100d12516f84a2293811f6781d6eddd667",
+          "official_semantic_trace_sha256": "647c7088f75e1999019617a14437ddc3c45198f722aae81f6992418335e4fc8f",
+          "native_events_sha256": "c6b386beeb9f835af5441fed03f96e26d06f828a839928840082cd21a64a66a8",
+          "verification_fingerprint": "102867c3773ee2910234cb6bcb7c02905a0c30d7b20ae0e3a72875ed8c25bcb2",
+          "event_count": 576,
+          "timestamp_batch_count": 288,
+          "same_timestamp_batch_count": 288,
+          "entry_tag_reached": "62",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "event_order_exact": true
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 598,
+          "rust_tests_passed": 111,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M13-04",
+      "order": 1304,
+      "milestone": "M13",
+      "title": "Formalize order, wallet, fee, and precision semantics",
+      "status": "completed",
+      "depends_on": [
+        "M13-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "order create, reject, and fill order",
+        "wallet, stake, slot, fee, and precision contracts"
+      ],
+      "forbidden_changes": [
+        "approximating rejected orders",
+        "relaxing full-state equality"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "order and wallet semantic fixtures",
+        "Spot full-state exact"
+      ],
+      "started_at": "2026-08-01T21:48:27+09:00",
+      "completed_at": "2026-08-01T22:10:49+09:00",
+      "commit_sha": "bf22753c5cce1786f9372fa2a22fd903254b2327",
+      "evidence": [
+        {
+          "kind": "spot_execution_contract",
+          "fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0",
+          "semantic_profile_bound": true,
+          "scheduler_contract_bound": true,
+          "python_rust_contract_exact": true,
+          "pre_order_and_post_sizing_rejection_separated": true,
+          "wallet_fee_and_precision_contract_bound": true,
+          "unknown_semantics_fail_closed": true
+        },
+        {
+          "kind": "spot_order_wallet_full_state",
+          "normal_routing_run_sha256": "5596cb3d3a633db95216ef7bffbaa4e9ad320e5ff8abf4c813e4791bca0aabe5",
+          "stops_only_run_sha256": "4f1bde24662e11db643e8950d1ced6cb5e83a766192cc5ba3608af3bf190444d",
+          "normal_routing_trade_count": 6,
+          "normal_routing_order_count": 15,
+          "stops_only_trade_count": 2,
+          "stops_only_order_count": 4,
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 604,
+          "rust_tests_passed": 112,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M13-05",
+      "order": 1305,
+      "milestone": "M13",
+      "title": "Formalize Futures, liquidation, and protection semantics",
+      "status": "completed",
+      "depends_on": [
+        "M13-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "funding and liquidation order",
+        "stop collisions",
+        "protection and pair-lock chronology"
+      ],
+      "forbidden_changes": [
+        "widening exchange scope without a fixture",
+        "reusing Spot accounting for Futures"
+      ],
+      "acceptance_profile": "full_native_kernel",
+      "expected_evidence": [
+        "Futures semantic fixtures",
+        "long and short full-state exact"
+      ],
+      "started_at": "2026-08-01T22:10:49+09:00",
+      "completed_at": "2026-08-01T22:33:41+09:00",
+      "commit_sha": "58a7f47d56f84ea0fff5021e387936d4896884ef",
+      "evidence": [
+        {
+          "kind": "binance_isolated_futures_contract",
+          "fingerprint": "d7d36fa55e652cae5d7e3a0e60b735e0a4fe3596243f436e2d106656448ac896",
+          "semantic_profile_scheduler_and_execution_bound": true,
+          "python_rust_contract_exact": true,
+          "funding_inclusive_refresh_bound": true,
+          "liquidation_recalculation_order_bound": true,
+          "stop_liquidation_no_fallthrough_bound": true,
+          "protection_chronology_bound": true,
+          "unknown_exchange_or_margin_semantics_fail_closed": true
+        },
+        {
+          "kind": "futures_full_state_fixtures",
+          "long_run_sha256": "259fe9562376e1cbcfb10601479ac600fcc2cee3303bc97f23f84a826d6a3c92",
+          "short_run_sha256": "65b5640d5c0dff79e194f636cf61d5e078830b01506d37218e88cd4da5014f0e",
+          "variable_leverage_run_sha256": "a0614a8b6addcfc58fd352cd31cc4da98b0c43543ffe8c200b8f4344d28e92d3",
+          "liquidation_stoploss_guard_run_sha256": "c13c5ab34b0fc2891810205a6d28b7ba5a855bdefcc3d63ea662313362303a57",
+          "cooldown_run_sha256": "bea7e57102e9cc931f0e9deb02030854d97c508d9b9e02d8db5c37561e75ab00",
+          "low_profit_run_sha256": "4dc3e2c69bda0d25069ddcc4323fc841f4a19d08af5de40f80a4ba00a70131c0",
+          "max_drawdown_run_sha256": "94b08958a2a85a602fbd39ff7101f7bd967bf1c8e776c2892f7bc4dba25588b8",
+          "long_and_short_exact": true,
+          "all_four_protection_methods_exact": true,
+          "liquidation_collision_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 614,
+          "rust_tests_passed": 113,
+          "regression_contract_tests_passed": 8,
+          "full_state_exact_fixture_count": 10,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M14-01",
+      "order": 1401,
+      "milestone": "M14",
+      "title": "Generalize source-driven callback IR",
+      "status": "completed",
+      "depends_on": [
+        "M13-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "tag and route-key data",
+        "source-order entrypoints",
+        "required read and column analysis"
+      ],
+      "forbidden_changes": [
+        "Signal-number opcodes",
+        "strategy-specific callback opcodes"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "callback IR schema tests",
+        "source mutation tests"
+      ],
+      "started_at": "2026-08-01T22:33:41+09:00",
+      "completed_at": "2026-08-01T23:17:22+09:00",
+      "commit_sha": "e837e74dd8b5855ad270090a88f3f679efd86aca",
+      "evidence": [
+        {
+          "kind": "callback_source_ir_contract",
+          "schema_version": "callback-source-ir-v1",
+          "latest_source_sha256": "6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a",
+          "spot_fingerprint": "22fc125a9f410edc50be8d9b593df0134f46a482cb56ca617d95cf4a8652a4ce",
+          "futures_fingerprint": "96784abb329f5daf6c549b3cc25ff68cc4e43145cf7d6d8fba0d1f082be3f946",
+          "entrypoint_count": 10,
+          "route_key_count": 30,
+          "tag_expression_count": 4387,
+          "required_read_count": 41,
+          "required_column_count": 107,
+          "source_order_preserved": true,
+          "checkout_path_independent": true,
+          "signal_number_opcodes_added": false,
+          "strategy_specific_opcodes_added": false
+        },
+        {
+          "kind": "latest_x7_callback_ir_artifacts",
+          "spot_document_sha256": "be0071ac89f1dfadb961a1b1f59ad5183f96f8ebc2c8d3105b8a5e6e5b706c6f",
+          "futures_document_sha256": "fa5f2cb6f0136efccf41754a7add0b026e0a0b780ebb1d82531e265a89a301a5",
+          "spot_active_entrypoints": 9,
+          "futures_active_entrypoints": 10,
+          "compatibility_preflight_passed": true
+        },
+        {
+          "kind": "full_state_fixture_runs",
+          "normal_routing_run_sha256": "e133fd954a4b890c3867dd3c22d8104ec015d3da677e48cf7086de123716991f",
+          "stops_only_run_sha256": "f0a8870f29c14059b9bfa5ebdb01ff2cc71f8de6eb846372d0b762635ff32ca9",
+          "x7_spot_run_sha256": "c46eaaef002e4354114aa0954597f586aeeb6a86b6c993295914c8d788e996ca",
+          "x7_futures_run_sha256": "c7507ac5dc99f5cb448cf651dc7f40646f3a841cfb4fb6e07f2def2d1744e10d",
+          "generic_state_machine_run_sha256": "510cd4baa23b32333c22c4757b3e005232e795d17ce77af43b8fa6981f79bbef",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 618,
+          "future_nfi_compatibility_tests_passed": 97,
+          "rust_tests_passed": 113,
+          "callback_ir_contract_tests_passed": 4,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M14-02",
+      "order": 1402,
+      "milestone": "M14",
+      "title": "Add state-machine-program-v3 finite order collections",
+      "status": "completed",
+      "depends_on": [
+        "M14-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "typed finite order iteration",
+        "ordered filtering and local accumulation",
+        "atomic custom state"
+      ],
+      "forbidden_changes": [
+        "unbounded iteration",
+        "arbitrary Python execution"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "v1 and v2 replay compatibility",
+        "v3 compiler contract tests"
+      ],
+      "started_at": "2026-08-01T23:17:22+09:00",
+      "completed_at": "2026-08-01T23:37:16+09:00",
+      "commit_sha": "80484afce96283016956481eacce45925eb86d1b",
+      "evidence": [
+        {
+          "kind": "state_machine_program_v3_contract",
+          "schema_version": "state-machine-program-v3",
+          "finite_order_iteration": true,
+          "trade_order_sequence_preserved": true,
+          "typed_order_fields": true,
+          "ordered_filtering": true,
+          "local_accumulation": true,
+          "custom_state_transaction": "entrypoint_atomic",
+          "caller_supplied_iteration_limit": true,
+          "unbounded_iteration_rejected": true,
+          "unknown_order_fields_rejected": true,
+          "arbitrary_python_execution_added": false
+        },
+        {
+          "kind": "replay_compatibility",
+          "default_program_version": "state-machine-program-v2",
+          "default_and_explicit_v2_byte_equivalent": true,
+          "v1_schema_readable": true,
+          "v1_and_v2_rust_execution_tests_passed": true,
+          "v3_runtime_promotion_performed": false
+        },
+        {
+          "kind": "full_state_fixture_runs",
+          "normal_routing_run_sha256": "df0d4599a3f4ace8b51804257480052a2730037fd86a08c426d7d55e53f7465b",
+          "stops_only_run_sha256": "04e2357bff2a9dedc1a1015bc60275be6bbe924d5465578505d8bafc7ee7cb95",
+          "x7_spot_run_sha256": "b4c247f755209a9a52747f8e198b334a591e14c5dcef7c6ea9af8b3b5a775b07",
+          "x7_futures_run_sha256": "2374b8570bd82e6ffd47ba87ad4591289db9993e49237ab67d367e21a4501483",
+          "generic_state_machine_run_sha256": "f5d38beff17b6800f7f842ae416dedddd7db324b23815123b07d6ee6bcf707a5",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 622,
+          "future_nfi_compatibility_tests_passed": 101,
+          "rust_tests_passed": 113,
+          "state_machine_ir_tests_passed": 10,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "simulation_behavior_changed": false,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M14-03",
+      "order": 1403,
+      "milestone": "M14",
+      "title": "Implement the generic Rust state-machine v3 VM",
+      "status": "completed",
+      "depends_on": [
+        "M14-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "finite iteration budget",
+        "typed order reads",
+        "rollback and source diagnostics"
+      ],
+      "forbidden_changes": [
+        "unsafe Rust",
+        "NFI-specific VM branches"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "Rust VM semantic tests",
+        "invalid-program fail-closed tests"
+      ],
+      "started_at": "2026-08-01T23:37:16+09:00",
+      "completed_at": "2026-08-02T00:02:49+09:00",
+      "commit_sha": "5c65472c40dbcb38f79e260f947d65f7747899a4",
+      "evidence": [
+        {
+          "kind": "generic_rust_state_machine_v3_vm",
+          "schema_version": "state-machine-program-v3",
+          "finite_order_programs_executable": true,
+          "trade_order_sequence_preserved": true,
+          "instruction_and_program_limits_enforced": true,
+          "typed_order_field_declarations_enforced": true,
+          "custom_state_error_rollback": true,
+          "source_mapped_diagnostics": true,
+          "v1_and_v2_execution_preserved": true,
+          "unsafe_rust_added": false,
+          "nfi_specific_vm_branches_added": false
+        },
+        {
+          "kind": "runtime_modularization",
+          "order_collection_module": "rust/crates/nfi-sim-core/src/state_machine_vm/orders.rs",
+          "integer_loop_action_and_order_loop_responsibilities_split": true,
+          "clippy_suppressions_added": false
+        },
+        {
+          "kind": "full_state_fixture_runs",
+          "normal_routing_run_sha256": "c03c5f6efbda12ddcedbb15d3d7d5c350dc58f85914270ee3d387f8067966030",
+          "stops_only_run_sha256": "dc5a6f94bc06ecd41266e35da636630a37bc8e9f346a34eda356b67fc4e961e7",
+          "x7_spot_run_sha256": "0f78700306a5923f09371d0e515ca18ee4145865029a5821fd7e765ff375c2f9",
+          "x7_futures_run_sha256": "a529f6fbe81ff1c7f62344c06482fee2972dd91ed552e526af6b37a96d4252df",
+          "generic_state_machine_run_sha256": "f1465669835767f0af7d3dd35b4649b634c9bda736acc816db39ea0d74ad87b0",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0
+        },
+        {
+          "kind": "acceptance",
+          "python_tests_passed": 622,
+          "rust_tests_passed": 115,
+          "state_machine_vm_tests_passed": 6,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true,
+          "runtime_hardcoding_added": false
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M14-04",
+      "order": 1404,
+      "milestone": "M14",
+      "title": "Prove state-machine v3 with a generic official fixture",
+      "status": "completed",
+      "depends_on": [
+        "M14-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "NFI-independent official fixture",
+        "trade-surface and full-state shadow proof"
+      ],
+      "forbidden_changes": [
+        "using one artifact as both sides",
+        "partial-state promotion"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "official generic v3 fixture",
+        "independent full-state exact result"
+      ],
+      "started_at": "2026-08-02T00:02:49+09:00",
+      "completed_at": "2026-08-02T00:48:47+09:00",
+      "commit_sha": "4555dbf346ced744e4c2d1e7c6e6901605cd1aff",
+      "evidence": [
+        {
+          "kind": "official_generic_state_machine_v3_fixture",
+          "path": "benchmarks/fixtures/captured/generic-state-machine-v3-orders-spot-2025-01-01_02/manifest.json",
+          "manifest_sha256": "c75ec91ec2894a2757d572a59b34b7e5789cc3008c9a1b0846c64436c26d0b69",
+          "strategy": "GenericFiniteOrderState",
+          "nfi_independent": true,
+          "schema_version": "state-machine-program-v3",
+          "max_order_iterations": 13,
+          "filled_entry_orders": 13,
+          "tagged_entry_orders": 12,
+          "exit_reason": "finite_order_exit"
+        },
+        {
+          "kind": "independent_official_native_full_state_exact",
+          "official_replay_run_sha256": "13bc27ec9853ecdf8e08b6d79c5834d30b7f894e859ffa342ddc800759854484",
+          "native_run_sha256": "800377da6e1a1551a29a30707fd56e09df38e31fc7ad3e0f8a39173e6533341e",
+          "state_machine_ir_sha256": "30cc3b835e80cdfc6365202349fbd8ff391007ce831774924891f5fd5be41610",
+          "trade_surface_sha256": "326d7ae0316996fceb4ccfa46d7a4a66b8503d4bc65706246fe4175af74f9b29",
+          "projected_event_count": 286,
+          "projected_stream_hash": "30c77fa2425a00ae4440ea565262414b555be6cfb43408e2582bd223865eeea5",
+          "trade_surface_exact": true,
+          "full_state_exact": true,
+          "numeric_tolerance": 0,
+          "separate_executions": true
+        },
+        {
+          "kind": "source_derived_finite_bound",
+          "bound_expression": "max_entry_position_adjustment + 1",
+          "filled_entry_collections_only": true,
+          "unbounded_or_exit_side_collection_promoted": false,
+          "strategy_name_branch_added": false,
+          "tag_value_branch_added": false,
+          "runtime_hardcoding_added": false
+        },
+        {
+          "kind": "acceptance",
+          "path": ".nfi/roadmap-acceptance/M14-04/4555dbf346ced744e4c2d1e7c6e6901605cd1aff/acceptance-report.json",
+          "sha256": "3c0635c50e9029119ffd735bfc444b53ec4628741caebb46f2d2e749ea39821e",
+          "commands_passed": 16,
+          "python_tests_passed": 627,
+          "future_nfi_compatibility_tests_passed": 104,
+          "rust_tests_passed": 116,
+          "full_state_fixtures_exact": 6,
+          "ruff_passed": true,
+          "basedpyright_passed": true,
+          "rustfmt_passed": true,
+          "clippy_passed": true
+        },
+        {
+          "kind": "storage_path_regression",
+          "reference_dependency_root_corrected": true,
+          "duplicate_python_artifacts_removed": true,
+          "temporary_capture_removed": true,
+          "preserved_fixture_trace_bytes": 2477654,
+          "preserved_fixture_projection_bytes": 140582
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M15-01",
+      "order": 1501,
+      "milestone": "M15",
+      "title": "Compile managed-long basic exits into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M14-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "normal, pump, quick, and high-profit routes",
+        "source-order exit dispatch"
+      ],
+      "forbidden_changes": [
+        "route method-hash selection",
+        "tag-value Rust branches"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "long exit shadow fixtures",
+        "Spot and Futures full-state exact"
+      ],
+      "started_at": "2026-08-02T00:48:47+09:00",
+      "completed_at": "2026-08-02T02:03:10+09:00",
+      "commit_sha": "806f4444bb0e9549037e2e9653e7f4853cbc34e7",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/latest-upstream-spot.json",
+        ".nfi/roadmap-acceptance/M15-01/806f4444bb0e9549037e2e9653e7f4853cbc34e7/latest-upstream-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M15-02",
+      "order": 1502,
+      "milestone": "M15",
+      "title": "Compile managed-long special exits and state into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M15-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "rebuy terminal, rapid, top-coins, and scalp",
+        "profit-target, stop, and no-fallthrough state"
+      ],
+      "forbidden_changes": [
+        "hard-coded terminal results",
+        "silent legacy fallback"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "long special-route branch proof",
+        "long_exit_rebuy source mutation proof"
+      ],
+      "started_at": "2026-08-02T02:03:10+09:00",
+      "completed_at": "2026-08-02T03:20:33+09:00",
+      "commit_sha": "f65e1db410e30b1bbbba12137cdded691db9a75a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M15-02/f65e1db410e30b1bbbba12137cdded691db9a75a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M15-02/f65e1db410e30b1bbbba12137cdded691db9a75a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M15-02/f65e1db410e30b1bbbba12137cdded691db9a75a/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M15-02/f65e1db410e30b1bbbba12137cdded691db9a75a/x7-futures-long/run.json",
+        ".nfi/roadmap-acceptance/M15-02/f65e1db410e30b1bbbba12137cdded691db9a75a/latest-upstream-spot.json",
+        ".nfi/roadmap-acceptance/M15-02/f65e1db410e30b1bbbba12137cdded691db9a75a/latest-upstream-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M15-03",
+      "order": 1503,
+      "milestone": "M15",
+      "title": "Compile managed-short exits into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M15-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "all managed-short exit routes",
+        "target-cache and compound-tag direction"
+      ],
+      "forbidden_changes": [
+        "sign-flipping long semantics",
+        "unproven compound-tag widening"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "short exit branch fixtures",
+        "Futures full-state exact"
+      ],
+      "started_at": "2026-08-02T03:20:33+09:00",
+      "completed_at": "2026-08-02T04:17:54+09:00",
+      "commit_sha": "09c6f5243f821a6892b47b0e8f5c8c49d93f96e0",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/latest-upstream-spot.json",
+        ".nfi/roadmap-acceptance/M15-03/09c6f5243f821a6892b47b0e8f5c8c49d93f96e0/latest-upstream-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M15-04",
+      "order": 1504,
+      "milestone": "M15",
+      "title": "Promote generic managed exits and retire exit hash gates",
+      "status": "completed",
+      "depends_on": [
+        "M15-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "generic custom-exit default",
+        "legacy exit shadow only",
+        "exit hash-gate retirement"
+      ],
+      "forbidden_changes": [
+        "promotion without changed-branch proof",
+        "removing fallback"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "dual-mode exit promotion proof",
+        "latest upstream compatibility canary"
+      ],
+      "started_at": "2026-08-02T04:17:54+09:00",
+      "completed_at": "2026-08-02T04:48:41+09:00",
+      "commit_sha": "cefb673aedc982bb9880184c65da1698fe2f7140",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M15-04/cefb673aedc982bb9880184c65da1698fe2f7140/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M15-04/cefb673aedc982bb9880184c65da1698fe2f7140/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M15-04/cefb673aedc982bb9880184c65da1698fe2f7140/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M15-04/cefb673aedc982bb9880184c65da1698fe2f7140/latest-upstream-spot.json",
+        ".nfi/roadmap-acceptance/M15-04/cefb673aedc982bb9880184c65da1698fe2f7140/latest-upstream-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M16-01",
+      "order": 1601,
+      "milestone": "M16",
+      "title": "Implement generic filled-order aggregates",
+      "status": "completed",
+      "depends_on": [
+        "M15-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "filled-order clusters",
+        "amount, cost, and latest-price accumulators",
+        "fill-triggered invalidation"
+      ],
+      "forbidden_changes": [
+        "NFI-tag-specific aggregate code",
+        "stale aggregate reuse"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "generic aggregate tests",
+        "official order-walk parity"
+      ],
+      "started_at": "2026-08-02T04:48:41+09:00",
+      "completed_at": "2026-08-02T05:07:00+09:00",
+      "commit_sha": "7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/generic-state-machine-v3/run.json",
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M16-01/7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4/x7-futures/run.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M16-02",
+      "order": 1602,
+      "milestone": "M16",
+      "title": "Compile rebuy state transitions into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M16-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "rebuy stake and retry window",
+        "level-three de-risk",
+        "regular Grind transition"
+      ],
+      "forbidden_changes": [
+        "fixed rebuy result tables",
+        "silent stake clipping"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "Spot and Futures rebuy branch proof",
+        "source-driven ladder mutation"
+      ],
+      "started_at": "2026-08-02T05:07:00+09:00",
+      "completed_at": "2026-08-02T06:02:12+09:00",
+      "commit_sha": "aa1a3fd6a60682f5b482b115f195c061bdf9ac7d",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M16-02/aa1a3fd6a60682f5b482b115f195c061bdf9ac7d/latest-upstream/report-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M16-03",
+      "order": 1603,
+      "milestone": "M16",
+      "title": "Compile system-v3 long adjustment into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M16-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "long de-risk and Grind entry",
+        "partial exit",
+        "wallet and stake limits"
+      ],
+      "forbidden_changes": [
+        "fixed Grind level count",
+        "approximated source return order"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "long adjustment level coverage",
+        "long full-state exact"
+      ],
+      "started_at": "2026-08-02T06:02:12+09:00",
+      "completed_at": "2026-08-02T07:03:37+09:00",
+      "commit_sha": "33b136df63af67b8d64ec110b20fda9dd71c05fd",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/x7-futures-long/run.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M16-03/33b136df63af67b8d64ec110b20fda9dd71c05fd/latest-upstream/report-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M16-04",
+      "order": 1604,
+      "milestone": "M16",
+      "title": "Compile system-v3 short adjustment and promote generic adjustment",
+      "status": "completed",
+      "depends_on": [
+        "M16-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "short directional clusters",
+        "short de-risk and partial exit",
+        "dual-mode generic promotion"
+      ],
+      "forbidden_changes": [
+        "sign-flipped long approximation",
+        "promotion without short funding proof"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "short Futures branch proof",
+        "dual-mode adjustment exact"
+      ],
+      "started_at": "2026-08-02T07:03:37+09:00",
+      "completed_at": "2026-08-02T07:51:04+09:00",
+      "commit_sha": "fd5213c98e22b50db4d804a03770bc78b79102a8",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/x7-futures-long/run.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/x7-compound-futures/run.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M16-04/fd5213c98e22b50db4d804a03770bc78b79102a8/latest-upstream/report-futures.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M17-01",
+      "order": 1701,
+      "milestone": "M17",
+      "title": "Compile tag-120 base Grind into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M16-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "first-entry recovery",
+        "reverse order reconstruction",
+        "gm0, gd1, and gd2 transitions"
+      ],
+      "forbidden_changes": [
+        "tag-120 opcode",
+        "unreached branch promotion"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "tag-120 base transition fixture",
+        "Spot and Futures full-state exact"
+      ],
+      "started_at": "2026-08-02T07:51:04+09:00",
+      "completed_at": "2026-08-02T08:42:41+09:00",
+      "commit_sha": "c12a1e8d38e3e01ca5a53b59969a094c1cf21cca",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/18-legacy-grind-base-tests.log",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M17-01/c12a1e8d38e3e01ca5a53b59969a094c1cf21cca/latest-upstream/report-futures.json",
+        "benchmarks/evidence/x7-zec-legacy-grind-v17.4.413.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M17-02",
+      "order": 1702,
+      "milestone": "M17",
+      "title": "Compile all source-defined Grind levels",
+      "status": "completed",
+      "depends_on": [
+        "M17-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "dynamic Grind levels",
+        "de-risk transitions",
+        "profit, stop, and Futures fallback"
+      ],
+      "forbidden_changes": [
+        "fixed level count",
+        "Signal or tag result specialization"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "dynamic-level mutation tests",
+        "all reachable level branch proofs"
+      ],
+      "started_at": "2026-08-02T08:42:41+09:00",
+      "completed_at": "2026-08-02T09:22:14+09:00",
+      "commit_sha": "cc6250f23e87c975159ddee900fc2424e6dd9b67",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/18-dynamic-grind-branch-tests.log",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/latest-upstream/report-spot.json",
+        ".nfi/roadmap-acceptance/M17-02/cc6250f23e87c975159ddee900fc2424e6dd9b67/latest-upstream/report-futures.json",
+        "benchmarks/evidence/x7-zec-legacy-grind-v17.4.413.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M17-03",
+      "order": 1703,
+      "milestone": "M17",
+      "title": "Compile Derisk and Buyback transitions into generic IR",
+      "status": "completed",
+      "depends_on": [
+        "M17-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "d1 buyback",
+        "stake restoration",
+        "retry and source-order transitions"
+      ],
+      "forbidden_changes": [
+        "hard-coded buyback outcomes",
+        "unbounded retry"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "Derisk and Buyback official fixture",
+        "atomic state transition proof"
+      ],
+      "started_at": "2026-08-02T09:22:14+09:00",
+      "completed_at": "2026-08-02T10:32:37+09:00",
+      "commit_sha": "90d518646e57406eaab267195c932df97644e48a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/18-derisk-buyback-full.log",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/19-atomic-derisk-buyback.log",
+        ".nfi/roadmap-acceptance/M17-03/90d518646e57406eaab267195c932df97644e48a/20-legacy-grind-compiler.log",
+        "benchmarks/fixtures/captured/x7-derisk-buyback-spot-v17.4.488-2023-01-01_16/manifest.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M17-04",
+      "order": 1704,
+      "milestone": "M17",
+      "title": "Compile tag-121 regular-to-Grind continuation",
+      "status": "completed",
+      "depends_on": [
+        "M17-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "regular-mode prelude",
+        "no-derisk adjustment",
+        "post-de-risk Grind continuation"
+      ],
+      "forbidden_changes": [
+        "tag-121 runtime selector",
+        "legacy fallthrough without proof"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "tag-121 transition fixture",
+        "dual-mode full-state exact"
+      ],
+      "started_at": "2026-08-02T10:32:37+09:00",
+      "completed_at": "2026-08-02T11:23:32+09:00",
+      "commit_sha": "a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/13-x7_spot_full.log",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/18-tag121_futures_full.log",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/19-regular_adjustment_compiler_tests.log",
+        ".nfi/roadmap-acceptance/M17-04/a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b/20-regular_adjustment_shadow_tests.log",
+        "benchmarks/fixtures/captured/x7-tag121-spot-v17.4.435-2023-01-01_02/manifest.json",
+        "benchmarks/fixtures/captured/x7-tag-121-futures-v17.4.435-2023-01-01_02/manifest.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M17-05",
+      "order": 1705,
+      "milestone": "M17",
+      "title": "Audit all latest-NFI stateful route coverage",
+      "status": "completed",
+      "depends_on": [
+        "M17-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest callback graph refresh",
+        "Spot and Futures reachability closure",
+        "live-only exclusion proof"
+      ],
+      "forbidden_changes": [
+        "closing gaps without branch proof",
+        "treating live-only code as backtest evidence"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "zero reachable stateful gaps",
+        "latest-upstream dual-mode qualification"
+      ],
+      "started_at": "2026-08-02T11:23:32+09:00",
+      "completed_at": "2026-08-02T12:08:23+09:00",
+      "commit_sha": "346b962319bb7982abc5739290c418992e6a81f1",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/NostalgiaForInfinityX7.py",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/coverage-spot.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/coverage-futures.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/compatibility-spot.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/latest-upstream/compatibility-futures.json",
+        ".nfi/roadmap-acceptance/M17-05/346b962319bb7982abc5739290c418992e6a81f1/23-dual_mode_qualification.log"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M18-01",
+      "order": 1801,
+      "milestone": "M18",
+      "title": "Make generic stateful execution the default Native lane",
+      "status": "completed",
+      "depends_on": [
+        "M17-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "generic lane default",
+        "legacy CI shadow",
+        "official fallback preservation"
+      ],
+      "forbidden_changes": [
+        "removing legacy before exact proof",
+        "silent official fallback"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "default-lane contract tests",
+        "legacy and generic shadow exact"
+      ],
+      "started_at": "2026-08-02T12:08:23+09:00",
+      "completed_at": "2026-08-02T12:37:50+09:00",
+      "commit_sha": "8071628b76d60656c4163da1178bf5903161e98e",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/07-stateful_default_lane_tests.log",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/x7-spot/research/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/x7-futures/research/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/generic-state-machine/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/generic-state-machine-v3/run.json",
+        ".nfi/roadmap-acceptance/M18-01/8071628b76d60656c4163da1178bf5903161e98e/18-managed_exit_shadow_tests.log"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M18-02",
+      "order": 1802,
+      "milestone": "M18",
+      "title": "Optimize tag and callback dispatch structurally",
+      "status": "completed",
+      "depends_on": [
+        "M18-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "interned tag IDs",
+        "program handles",
+        "route jump tables with original-tag output"
+      ],
+      "forbidden_changes": [
+        "tag-value specialization",
+        "changing public tag strings"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "dispatch identity tests",
+        "pre/post optimization parity"
+      ],
+      "started_at": "2026-08-02T12:37:50+09:00",
+      "completed_at": "2026-08-02T13:46:38+09:00",
+      "commit_sha": "0530ab0943f314cc3ca22cf86e49542d80ac1238",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/08-rust_test.log",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/benchmark/dispatch-performance-report.json",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-02/0530ab0943f314cc3ca22cf86e49542d80ac1238/x7-futures/run.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M18-03",
+      "order": 1803,
+      "milestone": "M18",
+      "title": "Optimize compiled programs and runtime aggregates",
+      "status": "completed",
+      "depends_on": [
+        "M18-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "constant folding and dead-branch removal",
+        "column liveness",
+        "order and Grind aggregate caches"
+      ],
+      "forbidden_changes": [
+        "result-specialized folding",
+        "stale state caching"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "optimization report",
+        "cache invalidation tests",
+        "full-state parity"
+      ],
+      "started_at": "2026-08-02T13:46:38+09:00",
+      "completed_at": "2026-08-02T14:27:03+09:00",
+      "commit_sha": "d63b74714edc06ade36b397ae8eb9621379def5a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/optimization-report.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/benchmark/dispatch-performance-report.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-03/d63b74714edc06ade36b397ae8eb9621379def5a/x7-futures/run.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M18-04",
+      "order": 1804,
+      "milestone": "M18",
+      "title": "Benchmark generic stateful Native performance",
+      "status": "completed",
+      "depends_on": [
+        "M18-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "fresh-process median performance",
+        "event-loop and peak-RSS gates",
+        "cold and warm diagnostics"
+      ],
+      "forbidden_changes": [
+        "claiming diagnostic timings as certification",
+        "hard-coded benchmark paths"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "three-run benchmark report",
+        "result SHA identity"
+      ],
+      "started_at": "2026-08-02T14:27:03+09:00",
+      "completed_at": "2026-08-02T14:54:16+09:00",
+      "commit_sha": "2f9e1b9a5818367026f79ff85b87503b20fc0b9a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/native-runtime-benchmark.json",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-04/2f9e1b9a5818367026f79ff85b87503b20fc0b9a/x7-futures/run.json"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M18-05",
+      "order": 1805,
+      "milestone": "M18",
+      "title": "Remove handwritten X7 stateful runtime behavior",
+      "status": "completed",
+      "depends_on": [
+        "M18-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "remove X7 stateful backends",
+        "remove runtime method-hash gates",
+        "preserve legacy evidence replay"
+      ],
+      "forbidden_changes": [
+        "deleting certificates or Oracle data",
+        "removing backward schema readers"
+      ],
+      "acceptance_profile": "full_native_runtime",
+      "expected_evidence": [
+        "zero X7 runtime behavior branches",
+        "all exact fixtures pass without legacy"
+      ],
+      "started_at": "2026-08-02T14:54:16+09:00",
+      "completed_at": "2026-08-02T15:54:07+09:00",
+      "commit_sha": "2928d4e3c051001961ef4f9fcbe39c629132a63e",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/native-runtime-retirement-report.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/08-python_all.log",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/10-rust_test.log",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/11-rust_clippy.log",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/x7-futures/run.json",
+        ".nfi/roadmap-acceptance/M18-05/2928d4e3c051001961ef4f9fcbe39c629132a63e/18-managed_exit_shadow_tests.log"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M19-01",
+      "order": 1901,
+      "milestone": "M19",
+      "title": "Upgrade the upstream watcher for generic Native identities",
+      "status": "completed",
+      "depends_on": [
+        "M18-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "NFI, engine, Freqtrade, and semantic-profile identity",
+        "independent Spot and Futures checks"
+      ],
+      "forbidden_changes": [
+        "identity advancement after incomplete checks",
+        "duplicate alerts"
+      ],
+      "acceptance_profile": "full_native_automation",
+      "expected_evidence": [
+        "four-identity watcher contract",
+        "dual-mode hosted canary"
+      ],
+      "started_at": "2026-08-02T15:54:07+09:00",
+      "completed_at": "2026-08-10T07:55:19+09:00",
+      "commit_sha": "44745eb6850bbfd2476fee0cf477b64acfb6cf6f",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/hosted-canary.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/compatibility-identity.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/report-spot.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/latest-upstream-canary/report-futures.json",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/06-future_nfi_compatibility_tests.log",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/07-futures_discovery_tests.log",
+        ".nfi/roadmap-acceptance/M19-01/44745eb6850bbfd2476fee0cf477b64acfb6cf6f/08-workflow_contract_tests.log"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M19-02",
+      "order": 1902,
+      "milestone": "M19",
+      "title": "Automate generic IR qualification and fallback classification",
+      "status": "completed",
+      "depends_on": [
+        "M19-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "IR-compatible targeted exact",
+        "new-opcode Draft PR flow",
+        "bounded discovery and official-only states"
+      ],
+      "forbidden_changes": [
+        "automatic semantic merge",
+        "treating external deferral as exact"
+      ],
+      "acceptance_profile": "full_native_automation",
+      "expected_evidence": [
+        "classification tests",
+        "deduplicated issue and deferred-reuse canary"
+      ],
+      "started_at": "2026-08-10T07:55:19+09:00",
+      "completed_at": "2026-08-10T08:23:16+09:00",
+      "commit_sha": "dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/routing-canary.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/latest-upstream-classification/hosted-canary.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/latest-upstream-classification/automation-decision-spot.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/latest-upstream-classification/automation-decision-futures.json",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/06-future_nfi_compatibility_tests.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/07-futures_discovery_tests.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/09-python_all.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/11-rust_test.log",
+        ".nfi/roadmap-acceptance/M19-02/dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd/12-rust_clippy.log"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "M19-03",
+      "order": 1903,
+      "milestone": "M19",
+      "title": "Build the v1.5.0 Native Stateful Runtime release candidate",
+      "status": "in_progress",
+      "depends_on": [
+        "M19-02"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.5.0 version and notes",
+        "generic-stateful three-OS candidate",
+        "sealed exact evidence"
+      ],
+      "forbidden_changes": [
+        "calling v1.5 Full Native Strategy",
+        "publishing after failed Required CI"
+      ],
+      "acceptance_profile": "full_native_release_candidate",
+      "expected_evidence": [
+        "same-commit Required CI",
+        "sealed product candidate",
+        "installer audits"
+      ],
+      "started_at": "2026-08-10T08:23:16+09:00",
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M19-04",
+      "order": 1904,
+      "milestone": "M19",
+      "title": "Promote the byte-identical v1.5.0 stable release",
+      "status": "pending",
+      "depends_on": [
+        "M19-03"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "byte-identical stable promotion",
+        "Native Stateful Runtime product claim",
+        "existing Oracle reuse"
+      ],
+      "forbidden_changes": [
+        "rebuilding stable assets",
+        "new five-year claim without certification"
+      ],
+      "acceptance_profile": "full_native_release_promotion",
+      "expected_evidence": [
+        "RC/stable byte identity",
+        "three-OS stable installer audit"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-01",
+      "order": 2001,
+      "milestone": "M20",
+      "title": "Inventory all latest-NFI indicator operations",
+      "status": "pending",
+      "depends_on": [
+        "M19-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "indicator and helper call graph",
+        "TA-Lib, qtpylib, pandas, rolling, and informative operations",
+        "lookback and NaN contracts"
+      ],
+      "forbidden_changes": [
+        "implementing arbitrary pandas",
+        "omitting informative dependencies"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "deterministic indicator inventory",
+        "operation coverage matrix"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-02",
+      "order": 2002,
+      "milestone": "M20",
+      "title": "Define indicator-program-v1",
+      "status": "pending",
+      "depends_on": [
+        "M20-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "typed indicator DAG",
+        "rolling, shift, EWM, condition, and informative merge",
+        "source map and lookback"
+      ],
+      "forbidden_changes": [
+        "strategy-named indicator opcodes",
+        "lookahead-capable defaults"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "indicator schema tests",
+        "source mutation and identity tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-03",
+      "order": 2003,
+      "milestone": "M20",
+      "title": "Implement the safe Rust nfi-vector-core engine",
+      "status": "pending",
+      "depends_on": [
+        "M20-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "Arrow-backed typed columns",
+        "deterministic f64 and NaN behavior",
+        "streaming rolling state"
+      ],
+      "forbidden_changes": [
+        "unsafe Rust",
+        "fast-math",
+        "materializing unused columns"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "Rust vector-kernel tests",
+        "memory-bounded column execution"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-04",
+      "order": 2004,
+      "milestone": "M20",
+      "title": "Implement all NFI-reachable indicator kernels",
+      "status": "pending",
+      "depends_on": [
+        "M20-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "moving, momentum, volatility, volume, and oscillator kernels",
+        "official Python and TA-Lib vector shadow"
+      ],
+      "forbidden_changes": [
+        "tolerance-based Native promotion",
+        "unverified numerical substitutions"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "column-exact vector fixtures",
+        "boundary-sensitive signal tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M20-05",
+      "order": 2005,
+      "milestone": "M20",
+      "title": "Implement multi-timeframe and informative data semantics",
+      "status": "pending",
+      "depends_on": [
+        "M20-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "resample anchors",
+        "no-lookahead informative visibility",
+        "missing, duplicate, and cross-pair candles"
+      ],
+      "forbidden_changes": [
+        "fabricating missing candles",
+        "forward-looking informative joins"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "informative merge exact fixtures",
+        "cross-pair dependency tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-01",
+      "order": 2101,
+      "milestone": "M21",
+      "title": "Define and compile signal-program-v1",
+      "status": "pending",
+      "depends_on": [
+        "M20-05"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "dataframe assignment and loc semantics",
+        "entry and exit long and short",
+        "source-order overwrite"
+      ],
+      "forbidden_changes": [
+        "Signal-number execution branches",
+        "unordered assignment evaluation"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "signal schema tests",
+        "entry and exit mutation tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-02",
+      "order": 2102,
+      "milestone": "M21",
+      "title": "Compile exact Native tag generation",
+      "status": "pending",
+      "depends_on": [
+        "M21-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "literal and compound tags",
+        "assignment priority",
+        "canonical route with original tag preservation"
+      ],
+      "forbidden_changes": [
+        "tag-specific Rust branches",
+        "discarding original tag strings"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "tag priority tests",
+        "compound-tag vector exactness"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-03",
+      "order": 2103,
+      "milestone": "M21",
+      "title": "Prove Python and Rust vector shadow exactness",
+      "status": "pending",
+      "depends_on": [
+        "M21-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "independent Python and Rust vector runs",
+        "indicator, signal, tag, and execution-index comparison"
+      ],
+      "forbidden_changes": [
+        "sharing one output across both lanes",
+        "ignoring numerical mismatches"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "dual-mode vector shadow",
+        "column and tag exact reports"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M21-04",
+      "order": 2104,
+      "milestone": "M21",
+      "title": "Connect the in-memory Rust vector and simulation pipeline",
+      "status": "pending",
+      "depends_on": [
+        "M21-03"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "in-memory vector transport",
+        "parallel pair DAG execution",
+        "Feather evidence and replay compatibility"
+      ],
+      "forbidden_changes": [
+        "removing sealed vector replay",
+        "parallel wallet mutation"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "end-to-end Native vector fixture",
+        "transport parity and performance report"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-01",
+      "order": 2201,
+      "milestone": "M22",
+      "title": "Qualify latest NFI as a Full Native Strategy",
+      "status": "pending",
+      "depends_on": [
+        "M21-04"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "latest upstream full pipeline",
+        "Spot and Futures changed-branch proof",
+        "indicator through full-state exactness"
+      ],
+      "forbidden_changes": [
+        "static-only promotion",
+        "partial callback coverage"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "latest dual-mode Full Native qualification",
+        "zero blockers"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-02",
+      "order": 2202,
+      "milestone": "M22",
+      "title": "Remove NFI Python execution from the Native lane",
+      "status": "pending",
+      "depends_on": [
+        "M22-01"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "remove populate methods from Native execution",
+        "retain Python AST compiler",
+        "retain official Freqtrade fallback"
+      ],
+      "forbidden_changes": [
+        "removing fallback",
+        "executing uncompiled Python in Native mode"
+      ],
+      "acceptance_profile": "full_native_vector",
+      "expected_evidence": [
+        "no-Python-execution contract tests",
+        "fallback isolation tests"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-03",
+      "order": 2203,
+      "milestone": "M22",
+      "title": "Certify Full Native performance and storage boundaries",
+      "status": "pending",
+      "depends_on": [
+        "M22-02"
+      ],
+      "manual_gate": false,
+      "scope": [
+        "cold and warm Full Native benchmarks",
+        "five-year representative workload",
+        "bounded cache and artifact lifecycle"
+      ],
+      "forbidden_changes": [
+        "unbounded local accumulation",
+        "claiming unmatched benchmark identities"
+      ],
+      "acceptance_profile": "full_native_performance",
+      "expected_evidence": [
+        "Full Native benchmark report",
+        "storage lifecycle audit",
+        "result SHA identity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    {
+      "id": "M22-04",
+      "order": 2204,
+      "milestone": "M22",
+      "title": "Publish the v1.6.0 Full Native Strategy release",
+      "status": "pending",
+      "depends_on": [
+        "M22-03"
+      ],
+      "manual_gate": true,
+      "scope": [
+        "v1.6.0 RC and stable",
+        "three-OS Full Native installers",
+        "byte-identical promotion and product documentation"
+      ],
+      "forbidden_changes": [
+        "publishing before Full Native exact proof",
+        "relabeling prior certificates"
+      ],
+      "acceptance_profile": "full_native_release",
+      "expected_evidence": [
+        "same-commit Required CI",
+        "Full Native product bundle",
+        "RC/stable byte identity"
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "evidence": [],
+      "blocker": null
     }
   ],
   "events": [
@@ -5186,6 +7025,1048 @@
         "dual_mode_workflow_succeeded": true,
         "health_issue_84_closed": true,
         "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 108,
+      "timestamp": "2026-08-01T20:22:04+09:00",
+      "task_id": "M13-01",
+      "event": "task_started",
+      "details": {
+        "program": "NFI Full Native Strategy",
+        "milestones": [
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "M17",
+          "M18",
+          "M19",
+          "M20",
+          "M21",
+          "M22"
+        ],
+        "stateful_release_target": "v1.5.0",
+        "full_native_release_target": "v1.6.0",
+        "latest_upstream_commit": "44f0d867df3cebcb35527a700fb761c9be0cb678",
+        "latest_compatibility_run_id": 30695134906,
+        "python_native_lane_role": "static compiler frontend only after M22",
+        "runtime_hardcoding_allowed": false,
+        "paid_runner_allowed": false,
+        "development_laptop_runner_allowed": false
+      }
+    },
+    {
+      "sequence": 109,
+      "timestamp": "2026-08-01T20:52:20+09:00",
+      "task_id": "M13-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "506bd2e32176b8de361c138c9e22b4fc676817cf",
+        "upstream_commit": "b2c7badc19c33c550d5ee2d8f5c302314e78b667",
+        "spot_active_rust_callbacks": "9/9",
+        "futures_active_rust_callbacks": "10/10",
+        "dynamic_route_count": 18,
+        "latest_exact_fixture_gap_reported": true,
+        "full_state_regression_exact": true,
+        "simulation_behavior_changed": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 110,
+      "timestamp": "2026-08-01T20:52:20+09:00",
+      "task_id": "M13-02",
+      "event": "task_started",
+      "details": {
+        "objective": "digest-bound Freqtrade semantic profile and canonical official observer",
+        "copy_freqtrade_implementation": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 111,
+      "timestamp": "2026-08-01T21:12:37+09:00",
+      "task_id": "M13-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "2c75e31efc5303bcf64eda772dd0309cf4b58a8c",
+        "semantic_profile_fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+        "spot_projected_events": 1153,
+        "futures_projected_events": 5665,
+        "byte_deterministic": true,
+        "unknown_events_fail_closed": true,
+        "freqtrade_implementation_copied": false,
+        "simulation_behavior_changed": false
+      }
+    },
+    {
+      "sequence": 112,
+      "timestamp": "2026-08-01T21:12:37+09:00",
+      "task_id": "M13-03",
+      "event": "task_started",
+      "details": {
+        "objective": "formal candle, callback visibility, and same-timestamp pair scheduling",
+        "parallel_wallet_mutation_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 113,
+      "timestamp": "2026-08-01T21:48:27+09:00",
+      "task_id": "M13-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "a8697731ec8d9a02e3253a6ff2c3c5b5158dac76",
+        "scheduler_contract_fingerprint": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+        "official_multipair_events": 576,
+        "same_timestamp_batches": 288,
+        "event_order_exact": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "parallel_preparation_deterministic": true,
+        "parallel_wallet_mutation_added": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 114,
+      "timestamp": "2026-08-01T21:48:27+09:00",
+      "task_id": "M13-04",
+      "event": "task_started",
+      "details": {
+        "objective": "formal order, wallet, stake, fee, and precision semantics",
+        "approximate_rejected_orders_allowed": false,
+        "full_state_tolerance": 0,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 115,
+      "timestamp": "2026-08-01T22:10:49+09:00",
+      "task_id": "M13-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "bf22753c5cce1786f9372fa2a22fd903254b2327",
+        "execution_contract_fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0",
+        "spot_order_wallet_full_state_exact": true,
+        "numeric_tolerance": 0,
+        "pre_order_and_post_sizing_rejection_separated": true,
+        "simulation_behavior_changed": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 116,
+      "timestamp": "2026-08-01T22:10:49+09:00",
+      "task_id": "M13-05",
+      "event": "task_started",
+      "details": {
+        "objective": "formal Futures funding, liquidation, stop-collision, and protection semantics",
+        "spot_accounting_reuse_allowed": false,
+        "exchange_scope_widening_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 117,
+      "timestamp": "2026-08-01T22:33:41+09:00",
+      "task_id": "M13-05",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "58a7f47d56f84ea0fff5021e387936d4896884ef",
+        "futures_contract_fingerprint": "d7d36fa55e652cae5d7e3a0e60b735e0a4fe3596243f436e2d106656448ac896",
+        "long_and_short_full_state_exact": true,
+        "liquidation_collision_exact": true,
+        "all_four_protection_methods_exact": true,
+        "numeric_tolerance": 0,
+        "simulation_behavior_changed": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 118,
+      "timestamp": "2026-08-01T22:33:41+09:00",
+      "task_id": "M14-01",
+      "event": "task_started",
+      "details": {
+        "objective": "general source-driven callback IR with tag and route-key data, source-order entrypoints, required reads and columns",
+        "signal_number_opcodes_allowed": false,
+        "strategy_specific_callback_opcodes_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 119,
+      "timestamp": "2026-08-01T23:17:22+09:00",
+      "task_id": "M14-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "e837e74dd8b5855ad270090a88f3f679efd86aca",
+        "callback_source_ir_schema": "callback-source-ir-v1",
+        "latest_x7_route_keys": 30,
+        "latest_x7_tag_expressions": 4387,
+        "latest_x7_required_columns": 107,
+        "spot_and_futures_compiled": true,
+        "source_mutation_proven": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "signal_number_opcodes_added": false,
+        "strategy_specific_opcodes_added": false
+      }
+    },
+    {
+      "sequence": 120,
+      "timestamp": "2026-08-01T23:17:22+09:00",
+      "task_id": "M14-02",
+      "event": "task_started",
+      "details": {
+        "objective": "state-machine-program-v3 with typed finite order iteration, ordered filtering and accumulation, and atomic custom state",
+        "unbounded_iteration_allowed": false,
+        "arbitrary_python_execution_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 121,
+      "timestamp": "2026-08-01T23:37:16+09:00",
+      "task_id": "M14-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "80484afce96283016956481eacce45925eb86d1b",
+        "schema_version": "state-machine-program-v3",
+        "finite_order_iteration": true,
+        "typed_order_fields": true,
+        "ordered_filter_and_accumulation": true,
+        "custom_state_entrypoint_atomic": true,
+        "v1_and_v2_replay_compatible": true,
+        "unbounded_iteration_allowed": false,
+        "arbitrary_python_execution_added": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 122,
+      "timestamp": "2026-08-01T23:37:16+09:00",
+      "task_id": "M14-03",
+      "event": "task_started",
+      "details": {
+        "objective": "generic Rust state-machine v3 VM with finite budgets, typed order reads, atomic rollback, and source diagnostics",
+        "unsafe_rust_allowed": false,
+        "nfi_specific_vm_branches_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 123,
+      "timestamp": "2026-08-02T00:02:49+09:00",
+      "task_id": "M14-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "5c65472c40dbcb38f79e260f947d65f7747899a4",
+        "v3_finite_order_execution": true,
+        "typed_order_reads": true,
+        "dual_iteration_limits": true,
+        "atomic_custom_state_rollback": true,
+        "source_mapped_diagnostics": true,
+        "v1_and_v2_execution_preserved": true,
+        "unsafe_rust_added": false,
+        "nfi_specific_vm_branches_added": false,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 124,
+      "timestamp": "2026-08-02T00:02:49+09:00",
+      "task_id": "M14-04",
+      "event": "task_started",
+      "details": {
+        "objective": "prove v3 with an NFI-independent official Freqtrade fixture and independent full-state exact comparison",
+        "same_artifact_both_sides_allowed": false,
+        "partial_state_promotion_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 125,
+      "timestamp": "2026-08-02T00:48:47+09:00",
+      "task_id": "M14-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "4555dbf346ced744e4c2d1e7c6e6901605cd1aff",
+        "official_generic_v3_fixture": true,
+        "finite_order_exit_reached": true,
+        "filled_entry_orders": 13,
+        "tagged_entry_orders": 12,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "projected_event_count": 286,
+        "separate_official_and_native_executions": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 126,
+      "timestamp": "2026-08-02T00:48:47+09:00",
+      "task_id": "M15-01",
+      "event": "task_started",
+      "details": {
+        "objective": "compile managed-long normal, pump, quick, and high-profit exits into generic source-order IR",
+        "route_method_hash_selection_allowed": false,
+        "tag_value_rust_branches_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 127,
+      "timestamp": "2026-08-02T02:03:10+09:00",
+      "task_id": "M15-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "806f4444bb0e9549037e2e9653e7f4853cbc34e7",
+        "managed_exit_ir_schema": "managed-exit-program-v1",
+        "source_compiled_basic_routes": 4,
+        "source_order_dispatch": true,
+        "shadow_mismatch_fails_closed": true,
+        "latest_upstream_commit": "2aee0295ed22a3ed2f933ea289ce03d0b229cadb",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 128,
+      "timestamp": "2026-08-02T02:03:10+09:00",
+      "task_id": "M15-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile managed-long special exits, profit targets, stops, and no-fallthrough state into generic IR",
+        "hard_coded_terminal_results_allowed": false,
+        "silent_legacy_fallback_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 129,
+      "timestamp": "2026-08-02T03:20:33+09:00",
+      "task_id": "M15-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "f65e1db410e30b1bbbba12137cdded691db9a75a",
+        "trade_manager_schema": "0.19.0",
+        "source_compiled_managed_long_routes": 8,
+        "inline_scalar_ir": true,
+        "decision_and_target_cache_shadow": true,
+        "state_mismatch_fails_closed": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 130,
+      "timestamp": "2026-08-02T03:20:33+09:00",
+      "task_id": "M15-03",
+      "event": "task_started",
+      "details": {
+        "objective": "compile every managed-short exit with directional target-cache and compound-tag semantics into generic IR",
+        "sign_flipped_long_approximation_allowed": false,
+        "unproven_compound_tag_widening_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 131,
+      "timestamp": "2026-08-02T04:17:54+09:00",
+      "task_id": "M15-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "09c6f5243f821a6892b47b0e8f5c8c49d93f96e0",
+        "trade_manager_schema": "0.20.0",
+        "source_compiled_managed_short_routes": 8,
+        "independent_short_ast_compilation": true,
+        "compound_scalp_shadow_exact": true,
+        "target_state_mismatch_fails_closed": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 132,
+      "timestamp": "2026-08-02T04:17:54+09:00",
+      "task_id": "M15-04",
+      "event": "task_started",
+      "details": {
+        "objective": "promote source-compiled managed exits to the generic primary and retire redundant exit wrapper hash gates",
+        "promotion_without_changed_branch_proof_allowed": false,
+        "fallback_removal_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 133,
+      "timestamp": "2026-08-02T04:48:41+09:00",
+      "task_id": "M15-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "cefb673aedc982bb9880184c65da1698fe2f7140",
+        "trade_manager_schema": "0.21.0",
+        "generic_managed_exit_primary": true,
+        "legacy_comparison_shadow_retained": true,
+        "managed_route_wrapper_hash_gates_retired": true,
+        "residual_helper_identity_gates_retained": true,
+        "changed_wrapper_recompiled": true,
+        "uncompiled_direct_exit_rejected": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 134,
+      "timestamp": "2026-08-02T04:48:41+09:00",
+      "task_id": "M16-01",
+      "event": "task_started",
+      "details": {
+        "objective": "implement generic filled-order clusters and fill-invalidated aggregates",
+        "nfi_tag_specific_aggregate_code_allowed": false,
+        "stale_aggregate_reuse_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 135,
+      "timestamp": "2026-08-02T05:07:00+09:00",
+      "task_id": "M16-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "7c8f2f75da1a882e6285ba1aa43f54ac6c8bfff4",
+        "generic_order_selectors": [
+          "all",
+          "entries",
+          "exits"
+        ],
+        "exact_tag_clusters_are_data": true,
+        "source_order_preserved": true,
+        "fill_invalidates_aggregate_cache": true,
+        "fill_invalidates_adjustment_cache": true,
+        "generic_order_walk_exact": true,
+        "spot_and_futures_full_state_exact": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 136,
+      "timestamp": "2026-08-02T05:07:00+09:00",
+      "task_id": "M16-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile rebuy stake, retry, level-three de-risk, and regular Grind transfer into generic IR",
+        "fixed_rebuy_result_tables_allowed": false,
+        "silent_stake_clipping_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 137,
+      "timestamp": "2026-08-02T06:02:12+09:00",
+      "task_id": "M16-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "aa1a3fd6a60682f5b482b115f195c061bdf9ac7d",
+        "trade_manager_schema": "0.22.0",
+        "rebuy_transition_program": "adjustment-transition-program-v1",
+        "source_compiled_long_and_short_order_scans": true,
+        "source_compiled_stake_derisk_and_tags": true,
+        "delegate_target_and_retry_bound": true,
+        "rebuy_method_hash_gates_retired": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "runtime_hardcoding_added": false
+      }
+    },
+    {
+      "sequence": 138,
+      "timestamp": "2026-08-02T06:02:12+09:00",
+      "task_id": "M16-03",
+      "event": "task_started",
+      "details": {
+        "objective": "compile system-v3 long adjustment, partial exits, and wallet stake limits into generic IR",
+        "fixed_grind_level_count_allowed": false,
+        "approximated_source_return_order_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 139,
+      "timestamp": "2026-08-02T07:03:37+09:00",
+      "task_id": "M16-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "33b136df63af67b8d64ec110b20fda9dd71c05fd",
+        "trade_manager_schema": "0.23.0",
+        "system_adjustment_program": "system-adjustment-program-v1",
+        "source_ordered_long_actions": 19,
+        "source_defined_derisk_levels": 4,
+        "source_defined_grind_levels": 5,
+        "stake_tag_and_custom_state_shadow_exact": true,
+        "wallet_return_none_preserved": true,
+        "long_adjustment_method_hash_gates_retired": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_and_futures_long_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 140,
+      "timestamp": "2026-08-02T07:03:37+09:00",
+      "task_id": "M16-04",
+      "event": "task_started",
+      "details": {
+        "objective": "compile the independent system-v3 short adjustment and prove dual-mode generic promotion",
+        "sign_flipped_long_approximation_allowed": false,
+        "promotion_without_short_funding_proof_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 141,
+      "timestamp": "2026-08-02T07:51:04+09:00",
+      "task_id": "M16-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "fd5213c98e22b50db4d804a03770bc78b79102a8",
+        "trade_manager_schema": "0.24.0",
+        "system_adjustment_program": "system-adjustment-program-v1",
+        "source_ordered_long_actions": 19,
+        "source_ordered_short_actions": 18,
+        "short_compiled_from_independent_ast": true,
+        "directional_order_sides_are_program_data": true,
+        "short_cluster_and_partial_exit_runtime_proof": true,
+        "long_and_short_adjustment_method_hash_gates_retired": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_futures_and_compound_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 142,
+      "timestamp": "2026-08-02T07:51:04+09:00",
+      "task_id": "M17-01",
+      "event": "task_started",
+      "details": {
+        "objective": "compile tag-120 first-entry recovery and gm0, gd1, and gd2 base transitions into generic IR",
+        "tag_120_specific_opcode_allowed": false,
+        "unreached_branch_promotion_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 143,
+      "timestamp": "2026-08-02T08:42:41+09:00",
+      "task_id": "M17-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "c12a1e8d38e3e01ca5a53b59969a094c1cf21cca",
+        "trade_manager_schema": "0.25.0",
+        "grind_transition_program": "grind-transition-program-v1",
+        "compiled_transition_tags": [
+          "gm0",
+          "gd1",
+          "gd2"
+        ],
+        "reverse_order_and_policy_are_program_data": true,
+        "official_tag120_trade_surface_evidence_preserved": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_and_futures_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 144,
+      "timestamp": "2026-08-02T08:42:41+09:00",
+      "task_id": "M17-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile every source-defined Grind level plus profit, stop, and Futures fallback transitions into generic IR",
+        "fixed_level_count_allowed": false,
+        "signal_or_tag_result_specialization_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 145,
+      "timestamp": "2026-08-02T09:22:14+09:00",
+      "task_id": "M17-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "cc6250f23e87c975159ddee900fc2424e6dd9b67",
+        "trade_manager_schema": "0.26.0",
+        "grind_transition_program": "grind-transition-program-v2",
+        "source_defined_cluster_count": 8,
+        "dynamic_additional_level_compiler_and_runtime_proof": true,
+        "first_entry_profit_and_stop_compiled": true,
+        "post_derisk_and_ordinary_clusters_compiled": true,
+        "cluster_profit_and_stop_compiled": true,
+        "futures_fallback_compiled": true,
+        "legacy_shadow_exact": true,
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_spot_and_futures_compatible": true,
+        "spot_and_futures_full_state_exact": true,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 146,
+      "timestamp": "2026-08-02T09:22:14+09:00",
+      "task_id": "M17-03",
+      "event": "task_started",
+      "details": {
+        "objective": "compile the d1 Derisk and Buyback restoration cycle into bounded generic IR",
+        "hard_coded_buyback_outcomes_allowed": false,
+        "unbounded_retry_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 147,
+      "timestamp": "2026-08-02T10:32:37+09:00",
+      "task_id": "M17-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "90d518646e57406eaab267195c932df97644e48a",
+        "trade_manager_schema": "0.27.0",
+        "grind_transition_program": "grind-transition-program-v3",
+        "derisk_buyback_is_program_data": true,
+        "bounded_retry_ast_proof": true,
+        "stake_formula_ast_proof": true,
+        "wallet_guard_ast_proof": true,
+        "same_candle_entry_adjustment_exact": true,
+        "official_fixture_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "official_trade_surface_exact": true,
+        "official_full_state_exact": true,
+        "official_state_event_count": 4320,
+        "official_d1_filled_order_count": 29,
+        "hard_coded_buyback_outcomes_added": false,
+        "unbounded_retry_added": false,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 148,
+      "timestamp": "2026-08-02T10:32:37+09:00",
+      "task_id": "M17-04",
+      "event": "task_started",
+      "details": {
+        "objective": "compile tag-121 regular-to-Grind continuation without a tag-121 runtime selector",
+        "legacy_fallthrough_without_proof_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 149,
+      "timestamp": "2026-08-02T11:23:32+09:00",
+      "task_id": "M17-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "a9b89fa5eb3ce40597c9f1e18395649ede7b1d2b",
+        "trade_manager_schema": "0.28.0",
+        "regular_transition_program": "regular-transition-program-v1",
+        "reverse_order_scan_is_program_data": true,
+        "dynamic_grind_tags_are_program_data": true,
+        "derisk_classification_is_program_data": true,
+        "futures_drawdown_fallback_is_program_data": true,
+        "legacy_grind_continuation_is_program_data": true,
+        "legacy_shadow_exact": true,
+        "official_spot_trade_surface_exact": true,
+        "official_spot_full_state_exact": true,
+        "official_futures_trade_surface_exact": true,
+        "official_futures_full_state_exact": true,
+        "official_state_event_count_per_mode": 288,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 150,
+      "timestamp": "2026-08-02T11:23:32+09:00",
+      "task_id": "M17-05",
+      "event": "task_started",
+      "details": {
+        "objective": "close every latest-NFI stateful backtest route in Spot and Futures with explicit live-only exclusions",
+        "branch_proof_required": true,
+        "live_only_code_is_backtest_evidence": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 151,
+      "timestamp": "2026-08-02T12:08:23+09:00",
+      "task_id": "M17-05",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "346b962319bb7982abc5739290c418992e6a81f1",
+        "latest_upstream_commit": "a347023d48ad0519b090fab0ffdff4ae2351186a",
+        "latest_source_sha256": "f3082e90d62da29bf56b8c44e11e79db33f70f45d846dc2b7a4bff7f1e39b418",
+        "spot_emitted_entry_tag_count": 31,
+        "futures_emitted_entry_tag_count": 35,
+        "spot_callback_graph_method_count": 84,
+        "futures_callback_graph_method_count": 85,
+        "spot_reachable_stateful_gap_count": 0,
+        "futures_reachable_stateful_gap_count": 0,
+        "dormant_unsupported_tag_count_per_mode": 1,
+        "dormant_routes_count_as_native_coverage": false,
+        "live_only_source_predicate_count": 12,
+        "live_only_native_policy_path_count": 6,
+        "live_only_code_counted_as_backtest_evidence": false,
+        "latest_spot_native_compatible": true,
+        "latest_futures_native_compatible": true,
+        "latest_full_state_certified_by_this_task": false,
+        "acceptance_command_count": 23,
+        "python_test_count": 668,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 152,
+      "timestamp": "2026-08-02T12:08:23+09:00",
+      "task_id": "M18-01",
+      "event": "task_started",
+      "details": {
+        "objective": "make generic stateful execution the default Native lane while preserving an exact legacy shadow and visible official fallback",
+        "legacy_removal_before_exact_proof_allowed": false,
+        "silent_official_fallback_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 153,
+      "timestamp": "2026-08-02T12:37:50+09:00",
+      "task_id": "M18-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "8071628b76d60656c4163da1178bf5903161e98e",
+        "research_run_schema": "1.6.0",
+        "default_native_lane": "x7-generic-stateful",
+        "source_compiled_stateful_root_count": 9,
+        "exact_legacy_shadow_root_count": 7,
+        "stateful_primary_mode_required": true,
+        "legacy_only_native_mode_allowed": false,
+        "official_fallback_visible_before_execution": true,
+        "official_fallback_mutates_native_evidence": false,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "generic_state_machine_v2_exact": true,
+        "generic_state_machine_v3_exact": true,
+        "legacy_runtime_removed": false,
+        "acceptance_command_count": 18,
+        "python_test_count": 677,
+        "rust_test_count": 140,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 154,
+      "timestamp": "2026-08-02T12:37:50+09:00",
+      "task_id": "M18-02",
+      "event": "task_started",
+      "details": {
+        "objective": "optimize tag and callback dispatch by IR structure while preserving original public tag strings",
+        "tag_value_specialization_allowed": false,
+        "public_tag_string_changes_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 155,
+      "timestamp": "2026-08-02T13:46:38+09:00",
+      "task_id": "M18-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "0530ab0943f314cc3ca22cf86e49542d80ac1238",
+        "interned_tag_ids": true,
+        "trade_tag_cache_shared_across_shadows": true,
+        "source_order_route_jump_table": true,
+        "scalar_program_handles": true,
+        "public_tag_strings_unchanged": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "before_after_spot_result_sha_exact": true,
+        "before_after_futures_result_sha_exact": true,
+        "diagnostic_event_loop_speedup_ratio": 1.0434271514744955,
+        "diagnostic_fresh_process_wall_speedup_ratio": 0.8882021001666754,
+        "fresh_process_startup_tradeoff_deferred_to_m18_04": true,
+        "benchmark_repetitions": 3,
+        "benchmark_inner_iterations_per_mode": 100,
+        "acceptance_command_count": 12,
+        "python_test_count": 677,
+        "rust_test_count": 141,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 156,
+      "timestamp": "2026-08-02T13:46:38+09:00",
+      "task_id": "M18-03",
+      "event": "task_started",
+      "details": {
+        "objective": "optimize compiled programs, live columns, and order-derived aggregates without result specialization or stale state",
+        "result_specialized_folding_allowed": false,
+        "stale_state_caching_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 157,
+      "timestamp": "2026-08-02T14:27:03+09:00",
+      "task_id": "M18-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "d63b74714edc06ade36b397ae8eb9621379def5a",
+        "constant_folding": true,
+        "dead_branch_removal": true,
+        "live_column_projection": true,
+        "source_projection_union_precomputed": true,
+        "filled_order_aggregates_incremental": true,
+        "compiled_grind_state_shared": true,
+        "compiled_grind_program_identity_guard": true,
+        "order_append_invalidation_tested": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "before_after_spot_result_sha_exact": true,
+        "before_after_futures_result_sha_exact": true,
+        "diagnostic_event_loop_speedup_ratio": 1.0948273799619057,
+        "diagnostic_fresh_process_wall_material_change": false,
+        "benchmark_repetitions": 3,
+        "benchmark_inner_iterations_per_mode": 100,
+        "acceptance_command_count": 12,
+        "python_test_count": 679,
+        "rust_test_count": 143,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 158,
+      "timestamp": "2026-08-02T14:27:03+09:00",
+      "task_id": "M18-04",
+      "event": "task_started",
+      "details": {
+        "objective": "benchmark generic stateful Native with fresh-process, event-loop, peak-RSS, cold, and warm diagnostics",
+        "diagnostic_timings_may_be_claimed_as_certification": false,
+        "hard_coded_benchmark_paths_allowed": false,
+        "result_sha_identity_required": true
+      }
+    },
+    {
+      "sequence": 159,
+      "timestamp": "2026-08-02T14:54:16+09:00",
+      "task_id": "M18-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "2f9e1b9a5818367026f79ff85b87503b20fc0b9a",
+        "benchmark_runner_generic_paths": true,
+        "fresh_process_per_invocation": true,
+        "cold_and_warm_recorded": true,
+        "benchmark_repetitions": 3,
+        "benchmark_inner_iterations_per_mode": 100,
+        "maximum_wall_spread": 0.0055477609770662175,
+        "before_after_result_sha_exact": true,
+        "fresh_process_wall_ratio": 0.9760024288088235,
+        "event_loop_ratio": 0.9092087531553079,
+        "peak_rss_ratio": 1.001293847038528,
+        "fresh_process_wall_gate_met": true,
+        "event_loop_gate_met": true,
+        "peak_rss_gate_met": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "diagnostic_only": true,
+        "acceptance_command_count": 12,
+        "python_test_count": 682,
+        "rust_test_count": 143,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 160,
+      "timestamp": "2026-08-02T14:54:16+09:00",
+      "task_id": "M18-05",
+      "event": "task_started",
+      "details": {
+        "objective": "remove handwritten X7 stateful runtime behavior after generic exact proof while preserving legacy evidence replay",
+        "certificate_or_oracle_deletion_allowed": false,
+        "backward_schema_reader_removal_allowed": false,
+        "runtime_signal_or_tag_value_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 161,
+      "timestamp": "2026-08-02T15:54:07+09:00",
+      "task_id": "M18-05",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "2928d4e3c051001961ef4f9fcbe39c629132a63e",
+        "current_manager_schema": "0.29.0",
+        "current_execution_mode_primary_only": true,
+        "current_stateful_program_count": 9,
+        "current_legacy_shadow_program_count": 0,
+        "current_legacy_program_handles_registered": false,
+        "runtime_method_hash_gates_removed": true,
+        "source_exit_profit_threshold_compiled": true,
+        "backward_schema_readers_preserved": true,
+        "legacy_evidence_replay_tested": true,
+        "spot_trade_surface_exact": true,
+        "spot_full_state_exact": true,
+        "futures_trade_surface_exact": true,
+        "futures_full_state_exact": true,
+        "generic_state_machine_exact": true,
+        "generic_state_machine_v3_exact": true,
+        "acceptance_command_count": 18,
+        "python_test_count": 684,
+        "rust_test_count": 145,
+        "runtime_signal_or_tag_value_branches_added": false,
+        "runtime_strategy_sha_branches_added": false
+      }
+    },
+    {
+      "sequence": 162,
+      "timestamp": "2026-08-02T15:54:07+09:00",
+      "task_id": "M19-01",
+      "event": "task_started",
+      "details": {
+        "objective": "upgrade the upstream watcher around NFI, engine, Freqtrade, and semantic-profile identities with independent Spot and Futures checks",
+        "identity_advancement_after_incomplete_checks_allowed": false,
+        "duplicate_alerts_allowed": false,
+        "independent_spot_and_futures_checks_required": true
+      }
+    },
+    {
+      "sequence": 163,
+      "timestamp": "2026-08-10T07:55:19+09:00",
+      "task_id": "M19-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "44745eb6850bbfd2476fee0cf477b64acfb6cf6f",
+        "watcher_identity_parts": [
+          "nfi_upstream_sha",
+          "engine_sha",
+          "freqtrade_digest",
+          "semantic_profile_sha256"
+        ],
+        "atomic_dual_mode_canary": true,
+        "identity_advancement_requires_complete_spot_and_futures": true,
+        "incomplete_mode_advancement_rejected_by_test": true,
+        "duplicate_blocker_and_health_alerts_rejected_by_test": true,
+        "latest_upstream_sha": "0da6ddb0fb1f1e1f949a450f00542e519d83ab0f",
+        "latest_source_sha256": "0f74137d50acebb0cff1dff3150b36fbbdea382beb7a5d9eeb6813f2f87823a0",
+        "latest_spot_check_complete": true,
+        "latest_futures_check_complete": true,
+        "latest_spot_native_compatible": false,
+        "latest_futures_native_compatible": false,
+        "latest_blocker_code": "EXACT_LOWERING_REVIEW_REQUIRED",
+        "latest_blocker_message": "NFI adjustment grind 5 fallback condition changed",
+        "acceptance_command_count": 12,
+        "python_test_count": 692,
+        "rust_test_count": 145
+      }
+    },
+    {
+      "sequence": 164,
+      "timestamp": "2026-08-10T07:55:19+09:00",
+      "task_id": "M19-02",
+      "event": "task_started",
+      "details": {
+        "objective": "automate generic IR qualification, new-opcode Draft PR routing, bounded discovery, and official-only fallback classification",
+        "automatic_semantic_merge_allowed": false,
+        "external_deferral_may_be_treated_as_exact": false,
+        "latest_upstream_blocker_carried_forward": "NFI adjustment grind 5 fallback condition changed"
+      }
+    },
+    {
+      "sequence": 165,
+      "timestamp": "2026-08-10T08:23:16+09:00",
+      "task_id": "M19-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "dc3adc8892d30ffe1fbcd7f8be8343e3b6665ddd",
+        "deterministic_mode_classification": true,
+        "native_promotion_requires_changed_branch_trade_surface_and_full_state_exact": true,
+        "generic_semantic_review_draft_pr": true,
+        "semantic_review_pr_runtime_code_generated": false,
+        "automatic_semantic_merge_allowed": false,
+        "bounded_discovery_route": true,
+        "external_deferral_reuse_requires_official_only_non_exact_decision": true,
+        "duplicate_compatibility_issue_rejected_by_test": true,
+        "latest_upstream_sha": "0da6ddb0fb1f1e1f949a450f00542e519d83ab0f",
+        "latest_spot_automation_route": "semantic_review_draft_pr",
+        "latest_futures_automation_route": "semantic_review_draft_pr",
+        "latest_spot_execution_route": "official_only",
+        "latest_futures_execution_route": "official_only",
+        "latest_review_kind": "generic_lowering",
+        "acceptance_command_count": 12,
+        "python_test_count": 707,
+        "rust_test_count": 145,
+        "next_eligible_task": "M19-03",
+        "next_task_manual_gate": true
+      }
+    },
+    {
+      "sequence": 166,
+      "timestamp": "2026-08-10T08:23:16+09:00",
+      "task_id": "M19-03",
+      "event": "task_started",
+      "details": {
+        "objective": "build the v1.5.0 Native Stateful Runtime release candidate with same-commit three-OS evidence",
+        "manual_gate_approved": true,
+        "approval_message": "좋아 남은거 계속 진행해",
+        "full_native_strategy_claim_allowed": false,
+        "publish_after_failed_required_ci_allowed": false
+      }
+    },
+    {
+      "sequence": 167,
+      "timestamp": "2026-08-10T08:30:14+09:00",
+      "task_id": "M19-03",
+      "event": "acceptance_profile_split",
+      "details": {
+        "release_candidate_profile": "full_native_release_candidate",
+        "stable_promotion_profile": "full_native_release_promotion",
+        "full_end_to_end_profile_preserved": "full_native_release",
+        "stable_promotion_during_m19_03_allowed": false,
+        "reason": "keep same-commit RC publication and byte-identical stable promotion in their declared roadmap tasks"
       }
     }
   ]

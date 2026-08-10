@@ -2,6 +2,7 @@
 
 mod adjustment;
 mod dispatch;
+mod dispatch_plan;
 mod exit;
 mod legacy_grind;
 mod rebuy;
@@ -19,7 +20,9 @@ pub(crate) use exit::{
     NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING, NFI_SHORT_EXIT_PROGRAMS,
 };
 pub(crate) use legacy_grind::evaluate_nfi_legacy_grind_adjustment;
-pub(crate) use rebuy::{evaluate_nfi_rebuy_adjustment, evaluate_nfi_short_rebuy_adjustment};
+pub(crate) use rebuy::{
+    compiled_rebuy_delegates, evaluate_nfi_rebuy_adjustment, evaluate_nfi_short_rebuy_adjustment,
+};
 pub(crate) use regular_adjustment::{evaluate_nfi_regular_adjustment, RegularAdjustmentOutcome};
 #[cfg(test)]
 pub(crate) use state::NfiProfitSnapshot;

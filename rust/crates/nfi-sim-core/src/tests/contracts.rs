@@ -1,6 +1,7 @@
 //! Focused execution-boundary and NFI cashflow contracts.
 
 use super::*;
+use crate::order_aggregates::FilledOrderSelector;
 
 #[test]
 fn nfi_profit_snapshot_uses_filled_order_cashflows_and_first_entry_basis() {
@@ -42,9 +43,18 @@ fn nfi_profit_snapshot_uses_filled_order_cashflows_and_first_entry_basis() {
     )
     .expect("valid entry")
     .expect("sized entry");
+    let initial_aggregates = trade.filled_order_aggregates();
+    assert_eq!(initial_aggregates.order_count(), 1);
+    assert_eq!(
+        initial_aggregates
+            .select_tag(FilledOrderSelector::Entries, Some("141"))
+            .expect("initial tagged entry")
+            .order_ids,
+        [1]
+    );
     let first = trade.orders[0].clone();
     let exit_amount = first.amount * 0.25;
-    trade.orders.push(FilledOrder {
+    trade.push_filled_order(FilledOrder {
         id: 2,
         funding_fee: 0.0,
         sequence: 1,
@@ -56,6 +66,16 @@ fn nfi_profit_snapshot_uses_filled_order_cashflows_and_first_entry_basis() {
         cost: exit_amount * 110.0,
         tag: Some("d1".to_owned()),
     });
+    let updated_aggregates = trade.filled_order_aggregates();
+    assert_eq!(updated_aggregates.order_count(), 2);
+    assert_eq!(
+        updated_aggregates
+            .select(FilledOrderSelector::Exits)
+            .latest
+            .as_ref()
+            .map(|order| (order.id, order.price)),
+        Some((2, 110.0))
+    );
 
     let snapshot = nfi_profit_snapshot(&trade, 105.0, fee_open(&config), fee_close(&config), false)
         .expect("open amount remains");

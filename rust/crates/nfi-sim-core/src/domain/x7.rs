@@ -1,6 +1,6 @@
 //! Source-compiled NFI X7 route and adjustment contracts.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -26,6 +26,18 @@ pub struct NfiX7TradeManager {
     /// may mutate the pair-level profit target even when it does not exit.
     pub route_order: Vec<String>,
     pub managed_long_routes: Vec<NfiManagedLongRoute>,
+    /// Source-compiled basic exit prefixes evaluated beside the legacy lane.
+    ///
+    /// The program is optional for historical sealed inputs. Schema 0.17 and
+    /// later require it and reject any disagreement at the reached callback.
+    #[serde(default)]
+    pub managed_exit_program: Option<ManagedExitProgram>,
+    /// Independently source-compiled short router and callback state.
+    ///
+    /// This is separate from the long program so no direction-sensitive
+    /// predicate can be synthesized by sign-flipping a long route.
+    #[serde(default)]
+    pub managed_short_exit_program: Option<ManagedExitProgram>,
     /// Source order for the separately bounded short-side router.
     pub short_route_order: Vec<String>,
     /// The route type is shared because exit/target policy fields are
@@ -60,6 +72,215 @@ pub struct NfiX7TradeManager {
     /// scalar arenas and cannot be supplied by an input document.
     #[serde(skip)]
     pub(crate) feature_projection_unions: OnceLock<BTreeMap<String, FeatureProjection>>,
+    /// Source-provided managed-exit sequences keyed by their exact program order.
+    #[serde(skip)]
+    pub(crate) source_feature_projection_unions: OnceLock<BTreeMap<Vec<String>, FeatureProjection>>,
+    /// Runtime-only, source-order dispatch indexes derived from this payload.
+    ///
+    /// Route keys, tag IDs, and scalar program handles are never accepted from
+    /// JSON. Keeping the derived plan out of the wire contract preserves old
+    /// evidence replay and prevents an input from redirecting behavior.
+    #[serde(skip)]
+    pub(crate) dispatch_plan: OnceLock<Option<NfiDispatchPlan>>,
+}
+
+pub(crate) type NfiTagId = usize;
+pub(crate) type NfiProgramHandle = usize;
+
+#[derive(Debug, Clone)]
+pub(crate) struct NfiDispatchPlan {
+    pub tag_ids: HashMap<String, NfiTagId>,
+    pub long_scope: Vec<NfiTagId>,
+    pub short_scope: Vec<NfiTagId>,
+    pub long_regular_scope: Vec<NfiTagId>,
+    pub short_regular_scope: Vec<NfiTagId>,
+    pub long_steps: Vec<NfiLongDispatchStep>,
+    pub short_steps: Vec<NfiManagedDispatchStep>,
+    pub long_rebuy_route: Option<usize>,
+    pub short_rebuy_route: Option<usize>,
+    pub long_grind_tags: Vec<NfiTagId>,
+    pub long_btc_tags: Vec<NfiTagId>,
+    /// Sorted names behind scalar handles; executable programs remain owned
+    /// by the manager so startup never deep-clones immutable bytecode.
+    pub program_names: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum NfiLongDispatchStep {
+    Managed(NfiManagedDispatchStep),
+    LongGrind,
+    LongBtc,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct NfiManagedDispatchStep {
+    pub route_index: usize,
+    pub source_route_index: Option<usize>,
+    pub source_matcher: Option<NfiInternedTagMatcher>,
+    pub source_program_handles: Vec<NfiProgramHandle>,
+    pub legacy_program_handles: Vec<NfiProgramHandle>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct NfiInternedTagMatcher {
+    pub operator: ManagedExitTagOperator,
+    pub entry_tags: Vec<NfiTagId>,
+    pub operands: Vec<NfiInternedTagMatcher>,
+}
+
+/// Generic, source-ordered managed-exit prefix.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitProgram {
+    pub schema_version: String,
+    pub execution_mode: ManagedExitExecutionMode,
+    pub routes: Vec<ManagedExitRoute>,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitExecutionMode {
+    Shadow,
+    PrimaryWithLegacyShadow,
+    Primary,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitRoute {
+    pub id: String,
+    pub source_order: usize,
+    #[serde(rename = "match")]
+    pub matcher: ManagedExitTagMatcher,
+    #[serde(default)]
+    pub initial_profit_gate: Option<ManagedExitProfitGate>,
+    #[serde(default)]
+    pub profit_basis: ManagedExitProfitBasis,
+    pub mode_name: String,
+    pub decision_program_order: Vec<String>,
+    #[serde(default)]
+    pub state_program: Option<ManagedExitStateProgram>,
+    #[serde(default)]
+    pub terminal_exit: Option<NfiManagedTerminalExit>,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitStateProgram {
+    pub stateful_order: Vec<ManagedExitStateOperation>,
+    #[serde(default)]
+    pub inline_exit: Option<ManagedExitInlineExit>,
+    pub stop: ManagedExitStopPolicy,
+    pub target: ManagedExitTargetPolicy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitStateOperation {
+    InlineExit,
+    Stop,
+    ExistingTarget,
+    TargetUpdate,
+    FinalFilter,
+    TerminalExit,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitInlineExit {
+    pub position: ManagedExitInlinePosition,
+    pub minimum_profit: f64,
+    pub minimum_inclusive: bool,
+    pub maximum_profit: f64,
+    pub maximum_inclusive: bool,
+    pub program: ScalarDecisionProgram,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitInlinePosition {
+    BeforeStop,
+    AfterStop,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum ManagedExitStopPolicy {
+    SourceHelper {
+        helper: String,
+    },
+    StakeThreshold {
+        enabled: bool,
+        futures_threshold: f64,
+        spot_threshold: f64,
+        divide_by_leverage: bool,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitTargetPolicy {
+    pub u_e_raise_delta: f64,
+    pub profit_raise_delta: f64,
+    pub max_target_floor: f64,
+    pub protected_reentry_guard: bool,
+    pub suppress_protected_exit: bool,
+    pub pure_scalp_trailing: bool,
+    #[serde(default)]
+    pub pure_scalp_matcher: Option<ManagedExitTagMatcher>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitTagMatcher {
+    pub operator: ManagedExitTagOperator,
+    #[serde(default)]
+    pub entry_tags: Vec<String>,
+    #[serde(default)]
+    pub operands: Vec<ManagedExitTagMatcher>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitTagOperator {
+    Any,
+    All,
+    AnyOf,
+    AllOf,
+    Not,
+    IsShort,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitProfitBasis {
+    #[default]
+    InitialStake,
+    CurrentStake,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitProfitGate {
+    pub operator: ManagedExitComparison,
+    pub value: f64,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ManagedExitComparison {
+    GreaterThan,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedExitSourceLocation {
+    pub line: usize,
+    pub column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -119,6 +340,8 @@ pub struct NfiManagedLongRoute {
 pub struct NfiLegacyGrindCluster {
     pub entry_tag: String,
     pub stop_tag: String,
+    #[serde(default)]
+    pub post_derisk: bool,
     pub stakes_futures: Vec<f64>,
     pub stakes_spot: Vec<f64>,
     pub thresholds_futures: Vec<f64>,
@@ -215,10 +438,234 @@ pub struct NfiLongGrindRoute {
     pub derisk_use_grind_stops: bool,
     pub stateful_input_contract: Value,
     pub constants: NfiLegacyGrindConstants,
+    /// Reached source-compiled prefix of the legacy Grind callback.
+    ///
+    /// Historical sealed inputs omit this field. New schema revisions require
+    /// it for the tag-agnostic generic runtime and compare it with the legacy
+    /// implementation before accepting a reached transition.
+    #[serde(default)]
+    pub program: Option<CompiledLegacyGrindProgram>,
     #[serde(default)]
     pub regular_decision_program: Option<String>,
     #[serde(default)]
     pub regular_constants: Option<NfiRegularAdjustmentConstants>,
+    #[serde(default)]
+    pub regular_program: Option<CompiledRegularAdjustmentProgram>,
+}
+
+/// Source-compiled regular-mode prelude that transfers a de-risked trade into
+/// the shared legacy Grind state machine without selecting a Signal value.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledRegularAdjustmentProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledRegularExecutionMode,
+    pub source_callback: String,
+    pub source_order: Vec<CompiledRegularTransition>,
+    pub order_scan: CompiledRegularOrderScan,
+    pub continuation: CompiledRegularContinuation,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledRegularExecutionMode {
+    PrimaryWithLegacyShadow,
+    Primary,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum CompiledRegularTransition {
+    Rebuy {
+        tag: String,
+        location: ManagedExitSourceLocation,
+    },
+    Grind {
+        level: usize,
+        entry_tag: String,
+        stop_tag: String,
+        #[serde(default)]
+        futures_fallback_loss_threshold: Option<f64>,
+        location: ManagedExitSourceLocation,
+    },
+    Derisk {
+        tag: String,
+        level_one: bool,
+        location: ManagedExitSourceLocation,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledRegularOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub entry_order_side: CompiledOrderSide,
+    pub exit_order_side: CompiledOrderSide,
+    pub exclude_first_entry: bool,
+    pub rebuy_entry_excluded_tags: Vec<String>,
+    pub rebuy_exit_excluded_tags: Vec<String>,
+    pub derisk_exit_tags: Vec<String>,
+    pub derisk_level_one_tag: String,
+    pub partial_fill_tag: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledRegularContinuation {
+    pub kind: CompiledRegularContinuationKind,
+    pub guard: CompiledRegularContinuationGuard,
+    pub amount_ratio: f64,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledRegularContinuationKind {
+    LegacyGrind,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledRegularContinuationGuard {
+    PositionAmountBelowFirstEntryRatio,
+}
+
+/// Strategy-neutral source program for a proven prefix of a Grind callback.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledLegacyGrindExecutionMode,
+    pub source_callback: String,
+    pub source_order: Vec<CompiledLegacyGrindTransition>,
+    pub order_scan: CompiledLegacyGrindOrderScan,
+    pub policy: CompiledLegacyGrindPolicy,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyGrindExecutionMode {
+    PrimaryWithLegacyShadow,
+    Primary,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum CompiledLegacyGrindTransition {
+    /// Historical v1 profit-only transition retained for sealed-input replay.
+    FirstEntryProfit {
+        tag: String,
+        append_entry_ids_from: String,
+        profit_threshold: f64,
+        location: ManagedExitSourceLocation,
+    },
+    FirstEntry {
+        profit_tag: String,
+        stop_tag: String,
+        append_entry_ids_from: String,
+        profit_threshold: f64,
+        stop_threshold: f64,
+        location: ManagedExitSourceLocation,
+    },
+    Cluster {
+        entry_tag: String,
+        stop_tag: String,
+        #[serde(default)]
+        post_derisk: bool,
+        append_entry_ids: bool,
+        #[serde(default)]
+        futures_fallback_loss_threshold: Option<f64>,
+        location: ManagedExitSourceLocation,
+    },
+    /// One bounded de-risk exit -> Buyback -> partial de-risk cycle.
+    ///
+    /// Tags, thresholds, feature guards, stake bases, and retry behavior are
+    /// source-compiled data. The runtime dispatches this opcode without
+    /// knowing an NFI Signal number or a concrete tag value.
+    DeriskBuyback {
+        tag: String,
+        entry_threshold_futures: f64,
+        entry_threshold_spot: f64,
+        entry_feature_columns: Vec<String>,
+        entry_retry_policy: CompiledLegacyRetryPolicy,
+        entry_stake_basis: CompiledLegacyEntryStakeBasis,
+        entry_minimum_multiplier: f64,
+        entry_wallet_guard: CompiledLegacyWalletGuard,
+        exit_threshold_divisor: CompiledLegacyThresholdDivisor,
+        exit_stake_basis: CompiledLegacyExitStakeBasis,
+        exit_minimum_remaining_multiplier: f64,
+        location: ManagedExitSourceLocation,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyRetryPolicy {
+    BoundedGrindPolicy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyEntryStakeBasis {
+    DeriskExitCost,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyWalletGuard {
+    ReturnNone,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyThresholdDivisor {
+    ModeLeverage,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyExitStakeBasis {
+    ReentryAmountAtCurrentRate,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub entry_order_side: CompiledOrderSide,
+    pub exit_order_side: CompiledOrderSide,
+    pub exclude_first_entry: bool,
+    pub known_clusters: Vec<CompiledLegacyGrindCluster>,
+    pub level_one_entry_excluded_tags: Vec<String>,
+    pub level_one_exit_excluded_tags: Vec<String>,
+    pub close_all_exit_tags: Vec<String>,
+    pub first_entry_closed_tags: Vec<String>,
+    pub derisk_entry_tag: String,
+    pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindCluster {
+    pub entry_tag: String,
+    pub stop_tag: String,
+    pub post_derisk: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledLegacyGrindPolicy {
+    pub entry_retry_ms: i64,
+    pub order_age_ms: i64,
+    pub force_order_age_ms: i64,
+    pub forced_entry_loss_gate: f64,
+    pub minimum_entry_multiplier: f64,
+    pub minimum_remaining_multiplier: f64,
+    pub derisk_amount_ratio: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -247,10 +694,169 @@ pub struct NfiX7PositionAdjustment {
     pub enabled: bool,
     pub entry_tags: Vec<String>,
     pub system_version: String,
+    #[serde(default)]
+    pub source_callback: Option<String>,
     pub decision_program: String,
     pub program_order: Vec<String>,
     pub stateful_input_contract: Value,
     pub constants: NfiX7AdjustmentConstants,
+    #[serde(default)]
+    pub program: Option<CompiledSystemAdjustmentProgram>,
+}
+
+/// Source-ordered, strategy-neutral system adjustment program.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemAdjustmentProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledSystemAdjustmentExecutionMode,
+    pub side: CompiledSystemAdjustmentSide,
+    pub source_callback: String,
+    pub source_order: Vec<CompiledSystemAdjustmentAction>,
+    pub order_scan: CompiledSystemOrderScan,
+    pub input_contract: Value,
+    pub retry_policy: CompiledSystemRetryPolicy,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemAdjustmentExecutionMode {
+    PrimaryWithLegacyShadow,
+    Primary,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CompiledSystemAdjustmentSide {
+    Long,
+    Short,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemAdjustmentAction {
+    pub kind: CompiledSystemAdjustmentActionKind,
+    pub level: usize,
+    pub tag: String,
+    pub append_entry_ids: bool,
+    pub decision_program: ScalarDecisionProgram,
+    pub bindings: Vec<CompiledSystemAdjustmentBinding>,
+    pub input_contract: Value,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemAdjustmentActionKind {
+    Derisk,
+    GrindEntry,
+    GrindExit,
+    GrindDerisk,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemAdjustmentBinding {
+    pub name: String,
+    pub kind: CompiledSystemAdjustmentInputKind,
+    #[serde(default)]
+    pub level: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemAdjustmentInputKind {
+    CurrentRate,
+    CurrentStakeAmount,
+    ExitRate,
+    FeeCloseRate,
+    FeeOpenRate,
+    FirstEntryAmount,
+    IsFuturesMode,
+    ExtraEntryChecks,
+    GrindEntrySignal,
+    BelowMaximumStake,
+    IsRebuyMode,
+    IsSystemV3,
+    IsSystemV31,
+    IsSystemV32,
+    LastCandle,
+    MaximumStake,
+    MinimumStake,
+    OpenGrindCount,
+    PreviousCandle,
+    ProfitRatio,
+    ProfitStake,
+    SliceAmount,
+    SliceProfit,
+    SliceProfitEntry,
+    ActionTag,
+    Trade,
+    TradeAmount,
+    TradeLeverage,
+    TradeStakeAmount,
+    DeriskFound,
+    ClusterCount,
+    ClusterMaximumCount,
+    ClusterDistance,
+    ClusterThresholds,
+    ClusterStakes,
+    ClusterTotalAmount,
+    ClusterOpenRate,
+    ClusterProfitRate,
+    ClusterProfitStake,
+    ClusterProfitThreshold,
+    ClusterDeriskThreshold,
+    ClusterMaximumProfitStake,
+    ClusterMaximumProfitRate,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub entry_order_side: CompiledOrderSide,
+    pub exit_order_side: CompiledOrderSide,
+    pub exclude_first_entry: bool,
+    pub global_exit_tag: String,
+    pub derisk_tags: Vec<CompiledSystemDeriskTag>,
+    pub grind_levels: Vec<CompiledSystemGrindTags>,
+    pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemDeriskTag {
+    pub level: usize,
+    pub tag: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemGrindTags {
+    pub level: usize,
+    pub entry_tag: String,
+    pub exit_tag: String,
+    pub derisk_tag: String,
+    pub maximum_profit_stake_key: String,
+    pub maximum_profit_rate_key: String,
+    pub minimum_scale_leverage: CompiledSystemStakeScale,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledSystemStakeScale {
+    TradeLeverage,
+    MarketModeLeverage,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledSystemRetryPolicy {
+    pub entry_retry_ms: i64,
+    pub stale_order_ms: i64,
 }
 
 /// Source-bound system-v3 rebuy ladder used only by tags 61-65.
@@ -266,6 +872,8 @@ pub struct NfiX7RebuyAdjustment {
     pub system_version: String,
     pub stateful_input_contract: Value,
     pub constants: NfiX7RebuyConstants,
+    #[serde(default)]
+    pub program: Option<CompiledAdjustmentProgram>,
 }
 
 /// Short-rebuy ladder before X7 transfers the trade to short-grind.
@@ -282,6 +890,98 @@ pub struct NfiX7ShortRebuyAdjustment {
     pub post_derisk_action: String,
     pub stateful_input_contract: Value,
     pub constants: NfiX7RebuyConstants,
+    #[serde(default)]
+    pub program: Option<CompiledAdjustmentProgram>,
+}
+
+/// Generic, source-compiled position-adjustment transition program.
+///
+/// Route tags, order direction, formulas, and callback targets are payload
+/// data. The runtime only implements the bounded operations represented here.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledAdjustmentProgram {
+    pub schema_version: String,
+    pub execution_mode: CompiledAdjustmentExecutionMode,
+    pub source_order: Vec<CompiledAdjustmentOperation>,
+    pub order_scan: CompiledOrderScan,
+    pub delegate: CompiledAdjustmentDelegate,
+    pub decision_program: ScalarDecisionProgram,
+    pub input_contract: Value,
+    pub location: ManagedExitSourceLocation,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledAdjustmentExecutionMode {
+    Primary,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledAdjustmentOperation {
+    Delegate,
+    Decision,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledOrderScan {
+    pub sequence: CompiledOrderSequence,
+    pub cluster_order_side: CompiledOrderSide,
+    pub boundary_order_side: CompiledOrderSide,
+    pub exclude_first_order: bool,
+    pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledOrderSequence {
+    Reverse,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CompiledOrderSide {
+    Buy,
+    Sell,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledPartialFillPolicy {
+    FilledOrdersHaveZeroRemaining,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledAdjustmentDelegate {
+    pub selector: CompiledOrderSelector,
+    pub tag_operator: CompiledTagOperator,
+    pub tag: String,
+    pub target: CompiledAdjustmentTarget,
+    pub source_target: String,
+    pub target_entry_retry_ms: i64,
+    pub location: ManagedExitSourceLocation,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledAdjustmentTarget {
+    PositionAdjustment,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledOrderSelector {
+    FirstExit,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledTagOperator {
+    Equal,
 }
 
 #[derive(Debug, Clone, Deserialize)]

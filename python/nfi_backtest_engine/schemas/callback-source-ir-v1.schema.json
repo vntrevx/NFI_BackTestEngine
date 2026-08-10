@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/callback-source-ir-v1.schema.json",
+  "title": "Source-driven callback routing IR",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "selected_class",
+    "trading_mode",
+    "entrypoints",
+    "call_edges",
+    "route_keys",
+    "emitted_tags",
+    "required_reads",
+    "required_columns",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "callback-source-ir-v1"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "selected_class": {"type": "string", "minLength": 1},
+    "trading_mode": {"enum": ["all", "spot", "futures"]},
+    "entrypoints": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entrypoint"}
+    },
+    "call_edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/call_edge"}
+    },
+    "route_keys": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/route_key"}
+    },
+    "emitted_tags": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/emitted_tag"}
+    },
+    "required_reads": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/required_read"}
+    },
+    "required_columns": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/required_column"}
+    },
+    "fingerprint": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "strings": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "nonempty_strings": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "line", "column", "end_line", "end_column"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 0},
+        "end_line": {"type": "integer", "minimum": 1},
+        "end_column": {"type": "integer", "minimum": 0}
+      }
+    },
+    "read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key"],
+      "properties": {
+        "source": {
+          "enum": ["candle", "wallet", "trade", "order", "orders", "custom_state"]
+        },
+        "key": {"type": "string", "minLength": 1}
+      }
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "source_order",
+        "active_for_mode",
+        "parameters",
+        "reachable_methods",
+        "route_keys",
+        "emitted_tag_ids",
+        "required_reads",
+        "required_columns",
+        "location"
+      ],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "source_order": {"type": "integer", "minimum": 0},
+        "active_for_mode": {"type": "boolean"},
+        "parameters": {"$ref": "#/$defs/nonempty_strings"},
+        "reachable_methods": {"$ref": "#/$defs/nonempty_strings"},
+        "route_keys": {"$ref": "#/$defs/nonempty_strings"},
+        "emitted_tag_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^t[1-9][0-9]*$"},
+          "uniqueItems": true
+        },
+        "required_reads": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/read"}
+        },
+        "required_columns": {"$ref": "#/$defs/nonempty_strings"},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "call_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entrypoint", "source_order", "caller", "callee", "location"],
+      "properties": {
+        "entrypoint": {"type": "string", "minLength": 1},
+        "source_order": {"type": "integer", "minimum": 0},
+        "caller": {"type": "string", "minLength": 1},
+        "callee": {"type": "string", "minLength": 1},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "route_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "values", "entrypoints", "location"],
+      "properties": {
+        "key": {"type": "string", "minLength": 1},
+        "values": {"$ref": "#/$defs/strings"},
+        "entrypoints": {"$ref": "#/$defs/nonempty_strings"},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "emitted_tag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "entrypoint",
+        "producer_method",
+        "role",
+        "kind",
+        "value",
+        "location"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^t[1-9][0-9]*$"},
+        "entrypoint": {"type": "string", "minLength": 1},
+        "producer_method": {"type": "string", "minLength": 1},
+        "role": {"enum": ["order_tag", "exit_reason"]},
+        "kind": {"enum": ["literal", "template"]},
+        "value": {"type": "string"},
+        "location": {"$ref": "#/$defs/location"}
+      }
+    },
+    "required_read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key", "entrypoints"],
+      "properties": {
+        "source": {
+          "enum": ["candle", "wallet", "trade", "order", "orders", "custom_state"]
+        },
+        "key": {"type": "string", "minLength": 1},
+        "entrypoints": {"$ref": "#/$defs/nonempty_strings"}
+      }
+    },
+    "required_column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "entrypoints"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "entrypoints": {"$ref": "#/$defs/nonempty_strings"}
+      }
+    }
+  }
+}

@@ -22,6 +22,16 @@ from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 
 ROOT = Path(__file__).parents[1]
 STOPS_FIXTURE = ROOT / "benchmarks" / "fixtures" / "captured" / "stops-only-spot-2025-01-01_04"
+FINITE_ORDER_STRATEGY = (
+    ROOT / "benchmarks" / "reference" / "strategies" / "GenericFiniteOrderState.py"
+)
+FINITE_ORDER_FIXTURE = (
+    ROOT
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "generic-state-machine-v3-orders-spot-2025-01-01_02"
+)
 
 
 def _analysis(tmp_path: Path) -> dict:
@@ -307,6 +317,57 @@ def test_public_runner_executes_a_fully_compiled_generic_state_machine_lane(
     assert "grind_level" in manifest["config"]["state_machine_program"][
         "required_state_keys"
     ]
+
+
+def test_public_runner_selects_v3_only_for_source_bounded_entry_orders(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "run"
+
+    report = run_research_backtest(
+        strategy_path=FINITE_ORDER_STRATEGY,
+        class_name="GenericFiniteOrderState",
+        config_path=STOPS_FIXTURE / "inputs" / "config.json",
+        data_directory=STOPS_FIXTURE / "inputs" / "candles",
+        timerange="20250101-20250104",
+        output_directory=output,
+        cache_directory=tmp_path / "cache",
+        profile_path=tmp_path / "profile.json",
+        market_metadata_path=(
+            STOPS_FIXTURE / "inputs" / "market_metadata" / "markets.json"
+        ),
+        download_missing=False,
+    )
+
+    program = read_json(output / "state-machine-ir.json")
+    assert report["status"] == "complete"
+    assert report["capability"]["adapter_lane"] == "generic-state-machine"
+    assert report["capability"]["state_machine_schema_version"] == (
+        "state-machine-program-v3"
+    )
+    assert program["limits"] == {"max_order_iterations": 13}
+    assert program["required_reads"][-1] == {
+        "source": "orders",
+        "key": "filled_entries",
+    }
+
+
+def test_generic_v3_official_fixture_reaches_the_finite_order_exit() -> None:
+    manifest = read_json(FINITE_ORDER_FIXTURE / "manifest.json")
+    surface = read_json(FINITE_ORDER_FIXTURE / "artifacts" / "trade-surface.json")
+    trade = surface["trades"][0]
+
+    assert manifest["evidence_status"] == "captured"
+    assert manifest["freqtrade"]["strategy"] == "GenericFiniteOrderState"
+    assert "NostalgiaForInfinity" not in (
+        FINITE_ORDER_FIXTURE / "inputs" / "strategy.py"
+    ).read_text(encoding="utf-8")
+    assert surface["summary"]["total_trades"] == 1
+    assert trade["exit_reason"] == "finite_order_exit"
+    assert len(trade["orders"]) == 14
+    assert sum(
+        order["tag"] == "generic_grind_entry" for order in trade["orders"]
+    ) == 12
 
 
 def test_public_generic_runner_rejects_tampered_completed_result(tmp_path: Path) -> None:

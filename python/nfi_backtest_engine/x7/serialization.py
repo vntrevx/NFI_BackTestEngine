@@ -195,9 +195,74 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
     short_adjustment = operation.get("short_position_adjustment")
     rebuy_adjustment = operation.get("rebuy_adjustment")
     short_rebuy_adjustment = operation.get("short_rebuy_adjustment")
+    managed_exit_program = operation.get("managed_exit_program")
+    managed_short_exit_program = operation.get("managed_short_exit_program")
     programs = operation.get("programs")
     constants = operation.get("constants")
     source_sha256 = operation.get("source_sha256")
+    operation_schema = operation.get("schema_version")
+    requires_managed_exit_program = operation.get("schema_version") in {
+        "0.17.0",
+        "0.18.0",
+        "0.19.0",
+        "0.20.0",
+        "0.21.0",
+        "0.22.0",
+        "0.23.0",
+        "0.24.0",
+        "0.25.0",
+        "0.26.0",
+        "0.27.0",
+        "0.28.0",
+        "0.29.0",
+    }
+    requires_managed_short_exit_program = operation.get("schema_version") in {
+        "0.20.0",
+        "0.21.0",
+        "0.22.0",
+        "0.23.0",
+        "0.24.0",
+        "0.25.0",
+        "0.26.0",
+        "0.27.0",
+        "0.28.0",
+        "0.29.0",
+    }
+    requires_rebuy_program = operation.get("schema_version") in {
+        "0.22.0",
+        "0.23.0",
+        "0.24.0",
+        "0.25.0",
+        "0.26.0",
+        "0.27.0",
+        "0.28.0",
+        "0.29.0",
+    }
+    requires_long_adjustment_program = operation.get("schema_version") in {
+        "0.23.0",
+        "0.24.0",
+        "0.25.0",
+        "0.26.0",
+        "0.27.0",
+        "0.28.0",
+        "0.29.0",
+    }
+    requires_short_adjustment_program = operation.get("schema_version") in {
+        "0.24.0",
+        "0.25.0",
+        "0.26.0",
+        "0.27.0",
+        "0.28.0",
+        "0.29.0",
+    }
+    legacy_grind_program_version = {
+        "0.25.0": "grind-transition-program-v1",
+        "0.26.0": "grind-transition-program-v2",
+        "0.27.0": "grind-transition-program-v3",
+        "0.28.0": "grind-transition-program-v3",
+        "0.29.0": "grind-transition-program-v3",
+    }.get(operation_schema if isinstance(operation_schema, str) else "")
+    requires_legacy_grind_program = legacy_grind_program_version is not None
     if (
         not isinstance(routes, dict)
         or not isinstance(route_order, list)
@@ -210,8 +275,79 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         or not isinstance(programs, dict)
         or not isinstance(constants, dict)
         or not isinstance(source_sha256, str)
+        or (
+            requires_managed_exit_program
+            and (
+                not isinstance(managed_exit_program, dict)
+                or managed_exit_program.get("schema_version")
+                != "managed-exit-program-v1"
+            )
+        )
+        or (
+            requires_managed_short_exit_program
+            and (
+                not isinstance(managed_short_exit_program, dict)
+                or managed_short_exit_program.get("schema_version")
+                != "managed-exit-program-v1"
+            )
+        )
+        or (
+            requires_rebuy_program
+            and any(
+                not isinstance(record, dict)
+                or not isinstance(record.get("program"), dict)
+                or record["program"].get("schema_version")
+                != "adjustment-transition-program-v1"
+                for record in (rebuy_adjustment, short_rebuy_adjustment)
+            )
+        )
+        or (
+            requires_long_adjustment_program
+            and (
+                not isinstance(adjustment, dict)
+                or not isinstance(adjustment.get("program"), dict)
+                or adjustment["program"].get("schema_version")
+                != "system-adjustment-program-v1"
+            )
+        )
+        or (
+            requires_short_adjustment_program
+            and (
+                not isinstance(short_adjustment, dict)
+                or not isinstance(short_adjustment.get("program"), dict)
+                or short_adjustment["program"].get("schema_version")
+                != "system-adjustment-program-v1"
+            )
+        )
+        or (
+            requires_legacy_grind_program
+            and (
+                not isinstance(long_grind, dict)
+                or not isinstance(long_grind.get("program"), dict)
+                or long_grind["program"].get("schema_version")
+                != legacy_grind_program_version
+            )
+        )
+        or (
+            operation_schema in {"0.27.0", "0.28.0", "0.29.0"}
+            and (
+                not isinstance(long_btc, dict)
+                or not isinstance(long_btc.get("program"), dict)
+                or long_btc["program"].get("schema_version")
+                != legacy_grind_program_version
+            )
+        )
+        or (
+            operation_schema in {"0.28.0", "0.29.0"}
+            and (
+                not isinstance(long_btc, dict)
+                or not isinstance(long_btc.get("regular_program"), dict)
+                or long_btc["regular_program"].get("schema_version")
+                != "regular-transition-program-v1"
+            )
+        )
     ):
-        raise StrategyAnalysisError("NFI managed-long operation is incomplete")
+        raise StrategyAnalysisError("NFI managed operation is incomplete")
     managed_routes: list[dict[str, Any]] = []
     for key in route_order:
         route = routes.get(key)
@@ -288,9 +424,11 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         if any(name not in route for name in names):
             raise StrategyAnalysisError("NFI legacy route is incomplete")
         record = {name: route[name] for name in names}
-        for name in ("regular_decision_program", "regular_constants"):
+        for name in ("regular_decision_program", "regular_constants", "regular_program"):
             if name in route:
                 record[name] = route[name]
+        if "program" in route:
+            record["program"] = route["program"]
         return record
 
     return {
@@ -298,6 +436,14 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
         "source_sha256": source_sha256,
         "route_order": route_order,
         "managed_long_routes": managed_routes,
+        "managed_exit_program": (
+            managed_exit_program if isinstance(managed_exit_program, dict) else None
+        ),
+        "managed_short_exit_program": (
+            managed_short_exit_program
+            if isinstance(managed_short_exit_program, dict)
+            else None
+        ),
         "short_route_order": short_route_order,
         "managed_short_routes": managed_short_routes,
         "long_grind": legacy_route_config(long_grind),
@@ -347,6 +493,9 @@ def _required_trade_features(hot_ir: dict[str, Any]) -> list[str]:
             rebuy_adjustment = operation.get("rebuy_adjustment")
             if isinstance(rebuy_adjustment, dict):
                 _collect_indexed_features(columns, [rebuy_adjustment])
+            short_rebuy_adjustment = operation.get("short_rebuy_adjustment")
+            if isinstance(short_rebuy_adjustment, dict):
+                _collect_indexed_features(columns, [short_rebuy_adjustment])
     return sorted(columns)
 
 

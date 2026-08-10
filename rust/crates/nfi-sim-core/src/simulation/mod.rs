@@ -10,7 +10,7 @@ use output::finalize_simulation;
 use crate::calculations::{
     available_stake_amount, duration_ns, logical_pair_event_count, scheduled_cursor,
 };
-use crate::callbacks::{callback_feature_index, evaluate_adjustment_bundle};
+use crate::callbacks::evaluate_adjustment_bundle;
 use crate::execution::{
     apply_adjustment, close_trade, evaluate_exit_confirm_program,
     evaluate_state_machine_adjustment, exit_decision, rule_adjustment, update_extrema,
@@ -21,6 +21,7 @@ use crate::nfi::{evaluate_nfi_position_adjustment, PositionAdjustmentRequest, Pr
 use crate::portfolio::{wallet_free, OpenTrade};
 use crate::profiling::build_simulation_profile;
 use crate::protections::ProtectionState;
+use crate::scheduler::{callback_feature_index, fill_pair_processing_order};
 use crate::validation::{freqtrade_entry_signal, validate_input};
 use crate::{SimError, SimulationEvent, SimulationInput, SimulationProfile, SimulationResult};
 
@@ -77,21 +78,12 @@ pub(super) fn simulate_internal(
         if !sparse_execution {
             timestamp_batches += 1;
         }
-        processing_order.clear();
-        for trade in &open_trades {
-            if !open_pair_flags[trade.pair_index] {
-                open_pair_flags[trade.pair_index] = true;
-                processing_order.push(trade.pair_index);
-            }
-        }
-        for (pair_index, is_open) in open_pair_flags.iter().copied().enumerate() {
-            if !is_open {
-                processing_order.push(pair_index);
-            }
-        }
-        for pair_index in processing_order.iter().copied() {
-            open_pair_flags[pair_index] = false;
-        }
+        fill_pair_processing_order(
+            open_trades.iter().map(|trade| trade.pair_index),
+            input.pairs.len(),
+            &mut processing_order,
+            &mut open_pair_flags,
+        );
 
         for pair_index in processing_order.iter().copied() {
             let pair = &input.pairs[pair_index];
@@ -205,6 +197,56 @@ pub(super) fn simulate_internal(
                             available_balance =
                                 wallet_free(config.starting_balance, &open_trades, &closed_trades);
                         }
+                    }
+                } else if let (Some(manager), Some(feature_index)) =
+                    (&config.nfi_x7_trade_manager, callback_feature_index(cursor))
+                {
+                    let trade_index = open_trades
+                        .iter()
+                        .position(|trade| trade.pair_index == pair_index)
+                        .ok_or_else(|| SimError::InvalidPositionAdjustment {
+                            pair: pair.pair.clone(),
+                            timestamp_ms: candle.timestamp_ms,
+                        })?;
+                    let tied_up_stake = open_trades
+                        .iter()
+                        .map(|trade| trade.stake_amount)
+                        .sum::<f64>();
+                    let adjustment_available = available_stake_amount(
+                        available_balance,
+                        tied_up_stake,
+                        config.tradable_balance_ratio,
+                    );
+                    let adjustment = evaluate_nfi_position_adjustment(
+                        manager,
+                        &mut open_trades[trade_index],
+                        &PositionAdjustmentRequest {
+                            pair,
+                            candle_index: feature_index,
+                            candle,
+                            config,
+                            available_balance: adjustment_available,
+                        },
+                    )
+                    .ok_or_else(|| SimError::InvalidPositionAdjustment {
+                        pair: pair.pair.clone(),
+                        timestamp_ms: candle.timestamp_ms,
+                    })?;
+                    if let Some(adjustment) = adjustment {
+                        let order_count = open_trades[trade_index].orders.len();
+                        apply_adjustment(
+                            &mut open_trades[trade_index],
+                            candle,
+                            &adjustment,
+                            config,
+                            adjustment_available,
+                            next_order_id,
+                        )?;
+                        if open_trades[trade_index].orders.len() > order_count {
+                            next_order_id += 1;
+                        }
+                        available_balance =
+                            wallet_free(config.starting_balance, &open_trades, &closed_trades);
                     }
                 }
             }

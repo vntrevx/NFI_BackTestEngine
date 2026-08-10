@@ -2,14 +2,14 @@
 #![allow(clippy::option_option)] // Outer None rejects invalid state; inner None is a valid no-op.
 
 use crate::domain::{
-    AdjustmentSignal, Candle, NfiLongGrindRoute, NfiManagedLongProfile, NfiX7TradeManager,
-    PairSeries, PortfolioConfig,
+    AdjustmentSignal, Candle, NfiLongGrindRoute, NfiX7TradeManager, PairSeries, PortfolioConfig,
 };
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::validation::{nfi_managed_route_supports_tags, nfi_managed_short_route_supports_tags};
 
+use super::dispatch_plan::{all_in_scope, any_in_scope};
 use super::{
-    evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
+    compiled_rebuy_delegates, evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
     evaluate_nfi_regular_adjustment, evaluate_nfi_short_rebuy_adjustment,
     evaluate_nfi_system_v3_adjustment, PositionAdjustmentRequest, RegularAdjustmentOutcome,
 };
@@ -19,30 +19,29 @@ pub(crate) fn evaluate_nfi_position_adjustment(
     trade: &mut OpenTrade,
     request: &PositionAdjustmentRequest<'_>,
 ) -> Option<Option<AdjustmentSignal>> {
+    let dispatch = manager.runtime_dispatch()?;
+    let tags = dispatch.intern_trade_tags(trade);
     if trade.side == TradeSide::Short {
         return evaluate_nfi_short_position_adjustment(manager, trade, request);
     }
     let mut initial_stake_multiplier = 1.0;
     let mut rebuy_mode = false;
-    if let Some(route) = manager
-        .managed_long_routes
-        .iter()
-        .find(|route| route.profile == NfiManagedLongProfile::Rebuy)
+    if let Some(route) = dispatch
+        .long_rebuy_route
+        .and_then(|index| manager.managed_long_routes.get(index))
     {
-        let words = trade
-            .entry_tag
-            .as_deref()
-            .unwrap_or("")
-            .split_whitespace()
-            .collect::<Vec<_>>();
-        if nfi_managed_route_supports_tags(manager, route, &words) {
-            let first_exit_is_level_three = trade
-                .orders
-                .iter()
-                .find(|order| !order.is_entry)
-                .and_then(|order| order.tag.as_deref())
-                == Some("derisk_level_3");
-            if !first_exit_is_level_three {
+        if nfi_managed_route_supports_tags(manager, route, tags.words) {
+            let delegates = if let Some(program) = manager.rebuy_adjustment.program.as_ref() {
+                compiled_rebuy_delegates(program, trade)
+            } else {
+                trade
+                    .orders
+                    .iter()
+                    .find(|order| !order.is_entry)
+                    .and_then(|order| order.tag.as_deref())
+                    == Some("derisk_level_3")
+            };
+            if !delegates {
                 return evaluate_nfi_rebuy_adjustment(
                     &manager.rebuy_adjustment,
                     trade,
@@ -67,7 +66,11 @@ pub(crate) fn evaluate_nfi_position_adjustment(
         }
     }
     if let Some(route) = manager.long_grind.as_ref() {
-        if nfi_long_grind_supports_trade(route, trade) {
+        let generic_match = all_in_scope(&tags, &dispatch.long_grind_tags);
+        if generic_match != nfi_long_grind_supports_trade(route, trade) {
+            return None;
+        }
+        if generic_match {
             return evaluate_nfi_legacy_grind_adjustment(
                 manager,
                 route,
@@ -81,7 +84,11 @@ pub(crate) fn evaluate_nfi_position_adjustment(
         }
     }
     if let Some(route) = manager.long_btc.as_ref() {
-        if nfi_long_grind_supports_trade(route, trade) {
+        let generic_match = all_in_scope(&tags, &dispatch.long_btc_tags);
+        if generic_match != nfi_long_grind_supports_trade(route, trade) {
+            return None;
+        }
+        if generic_match {
             return evaluate_nfi_long_btc_adjustment(
                 manager,
                 route,
@@ -94,19 +101,7 @@ pub(crate) fn evaluate_nfi_position_adjustment(
             );
         }
     }
-    let words = trade
-        .entry_tag
-        .as_deref()
-        .unwrap_or("")
-        .split_whitespace()
-        .collect::<Vec<_>>();
-    let uses_regular_adjustment = rebuy_mode
-        || manager.managed_long_routes.iter().any(|route| {
-            route.profile != NfiManagedLongProfile::Rebuy
-                && words
-                    .iter()
-                    .any(|word| route.entry_tags.iter().any(|tag| tag == word))
-        });
+    let uses_regular_adjustment = rebuy_mode || any_in_scope(&tags, &dispatch.long_regular_scope);
     if !uses_regular_adjustment {
         // This is the source's valid no-op branch for compounds such as a
         // rebuy/grind tag plus an opposite-side tag. Do not accidentally
@@ -130,24 +125,23 @@ fn evaluate_nfi_short_position_adjustment(
     trade: &mut OpenTrade,
     request: &PositionAdjustmentRequest<'_>,
 ) -> Option<Option<AdjustmentSignal>> {
-    let words = trade
-        .entry_tag
-        .as_deref()
-        .unwrap_or("")
-        .split_whitespace()
-        .collect::<Vec<_>>();
-    let rebuy_route = manager
-        .managed_short_routes
-        .iter()
-        .find(|route| route.key == "short_rebuy")?;
-    if nfi_managed_short_route_supports_tags(manager, rebuy_route, &words) {
-        let first_exit_is_level_three = trade
-            .orders
-            .iter()
-            .find(|order| !order.is_entry)
-            .and_then(|order| order.tag.as_deref())
-            == Some("derisk_level_3");
-        if !first_exit_is_level_three {
+    let dispatch = manager.runtime_dispatch()?;
+    let tags = dispatch.intern_trade_tags(trade);
+    let rebuy_route = dispatch
+        .short_rebuy_route
+        .and_then(|index| manager.managed_short_routes.get(index))?;
+    if nfi_managed_short_route_supports_tags(manager, rebuy_route, tags.words) {
+        let delegates = if let Some(program) = manager.short_rebuy_adjustment.program.as_ref() {
+            compiled_rebuy_delegates(program, trade)
+        } else {
+            trade
+                .orders
+                .iter()
+                .find(|order| !order.is_entry)
+                .and_then(|order| order.tag.as_deref())
+                == Some("derisk_level_3")
+        };
+        if !delegates {
             return evaluate_nfi_short_rebuy_adjustment(
                 &manager.short_rebuy_adjustment,
                 trade,
@@ -176,12 +170,7 @@ fn evaluate_nfi_short_position_adjustment(
         // branch for the remaining compiled cross-side compound.
         return Some(None);
     };
-    let uses_regular_adjustment = words.iter().any(|word| {
-        adjustment
-            .entry_tags
-            .iter()
-            .any(|supported| supported == word)
-    });
+    let uses_regular_adjustment = any_in_scope(&tags, &dispatch.short_regular_scope);
     if !uses_regular_adjustment {
         // A simultaneous long signal can append a long word to X7's shared
         // entry-tag column. Compounds containing only short-rebuy and long
@@ -222,7 +211,7 @@ fn evaluate_nfi_long_btc_adjustment(
         available_balance,
     )? {
         RegularAdjustmentOutcome::Return(signal) => Some(signal),
-        RegularAdjustmentOutcome::ContinueLegacy => evaluate_nfi_legacy_grind_adjustment(
+        RegularAdjustmentOutcome::ContinueGrind => evaluate_nfi_legacy_grind_adjustment(
             manager,
             route,
             trade,
@@ -236,12 +225,7 @@ fn evaluate_nfi_long_btc_adjustment(
 }
 
 pub(crate) fn nfi_long_grind_supports_trade(route: &NfiLongGrindRoute, trade: &OpenTrade) -> bool {
-    let words = trade
-        .entry_tag
-        .as_deref()
-        .unwrap_or("")
-        .split_whitespace()
-        .collect::<Vec<_>>();
+    let words = trade.entry_tag_words();
     // X7 uses ``all(c in long_grind_mode_tags for c in enter_tags)`` for
     // this route. Requiring every word matters for mixed NFI tags: top-coins
     // intentionally uses a different, any-tag routing rule.

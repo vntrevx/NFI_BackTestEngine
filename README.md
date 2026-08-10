@@ -20,7 +20,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated.
 | Latest public release | [v1.4.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.4.1) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.4.1; no new combined Full X7 certification claim |
+| Current `main` | v1.5.0 Native Stateful Runtime product release candidate; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -141,7 +141,8 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` return `nfi-bte 1.4.1`.
+The latest public installer returns `nfi-bte 1.4.1`. A source checkout of `main`
+returns the v1.5.0 Native Stateful Runtime release candidate.
 
 ## Quick start
 
@@ -195,14 +196,21 @@ and is not labeled as Native parity. See
 [Future NFI Compatibility](docs/future-nfi-compatibility.md) for the compiler,
 upstream monitoring, and promotion contracts.
 
-The scheduled watcher checks both upstream and engine revisions every four hours,
-classifies generic behavior targets, and runs only matching Spot/Futures branch
-fixtures. It promotes a revision only after independent official/Native trade
-surface and full-state equality; otherwise the announced official fallback remains
-available without claiming Native parity. A separate bounded Futures lane resumes
-missing-branch searches nightly across listing-aware calendar shards. An exact,
-size-bounded hit opens a Draft fixture PR and required CI; it is never auto-approved
-or auto-merged.
+The scheduled watcher checks NFI, engine, pinned Freqtrade, and semantic-profile
+identities every four hours. Spot and Futures run independently, then an atomic hosted
+canary verifies both result sets and their fail-closed automation decisions before the
+ledger identity can advance. Changed branches are promoted only after independent
+official/Native trade-surface and full-state equality. Missing exact coverage enters a
+bounded Spot or Futures discovery lane; blocked generic lowering opens an evidence-only
+Draft review while execution stays official-only. An exact, size-bounded discovery hit
+opens a Draft fixture PR. Neither kind is auto-approved or auto-merged.
+
+For supported X7 stateful callbacks, `run.json` records the
+`x7-generic-stateful` Native lane and every source-compiled primary program. The
+specialized X7 vector transport remains only an input contract. Current manager payloads
+execute generic programs without a handwritten X7 shadow; a missing or retired execution
+mode blocks Native before simulation and leaves the visible official fallback available.
+Historical schema readers remain available for sealed evidence replay.
 
 ## Confirm with official Freqtrade
 

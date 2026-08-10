@@ -8,6 +8,7 @@ from nfi_backtest_engine import research_runner
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.strategy_ir import analyze_strategy
 
 SURFACE_FIXTURE = (
     Path(__file__).parents[1]
@@ -65,6 +66,34 @@ def _fake_prepare_data(**kwargs) -> dict:
     }
     write_json(kwargs["destination"], seal)
     return seal
+
+
+def test_run_compiler_does_not_infer_an_entry_bound_for_exit_orders(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ExitOrders.py"
+    source.write_text(
+        '''class ExitOrders(IStrategy):
+    max_entry_position_adjustment = 2
+    def custom_exit(self, pair, trade, current_time, current_rate,
+                    current_profit, **kwargs):
+        orders = trade.select_filled_orders(trade.exit_side)
+        for order in orders:
+            if order.ft_order_tag == "partial":
+                return "exit"
+        return None
+''',
+        encoding="utf-8",
+    )
+
+    assert research_runner._compile_state_machine_for_run(
+        source,
+        class_name="ExitOrders",
+        analysis=analyze_strategy(source, class_name="ExitOrders"),
+        hot_ir={
+            "callbacks": [{"name": "custom_exit", "active_for_run": True}],
+        },
+    ) is None
 
 
 def _fake_market_snapshot(
@@ -269,7 +298,11 @@ def test_research_prepare_is_checkpointed_and_resumable(
 
     assert first["status"] == "prepared"
     assert first["pipeline_evidence"]["cold"] is True
-    assert first["schema_version"] == "1.5.0"
+    assert first["schema_version"] == "1.6.0"
+    assert first["capability"]["adapter_lane"] == "generic-signal"
+    assert first["inputs"]["native_execution"] == first["capability"][
+        "native_execution"
+    ]
     assert first["timings"]["pipeline_wall_time_seconds"] >= 0
     assert set(first["timings"]["stages"]) == {
         "input_preparation_seconds",
@@ -410,6 +443,59 @@ def test_completed_legacy_resume_validates_evidence_without_migrating_it(
     )
 
     assert resumed == legacy_report
+    assert calls["engine"] == 1
+    assert evidence_before == {
+        name: (output / name).read_bytes()
+        for name in evidence_before
+    }
+
+
+def test_completed_previous_resume_preserves_v15_checkpointed_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    arguments, calls = _resume_workspace(monkeypatch, tmp_path)
+    research_runner.run_research_backtest(**arguments)
+    output = Path(arguments["output_directory"])
+    identity_path = output / "identity.json"
+    run_path = output / "run.json"
+    identity_document = read_json(identity_path)
+    previous_identity = research_runner._previous_resume_identity(
+        identity_document["identity"]
+    )
+    assert previous_identity is not None
+    previous_run_id = research_runner._identity_sha256(previous_identity)
+    previous_report = read_json(run_path)
+    previous_report["schema_version"] = research_runner.PREVIOUS_RESEARCH_RUN_VERSION
+    previous_report["run_id"] = previous_run_id
+    previous_report["inputs"] = previous_identity
+    write_json(
+        identity_path,
+        {"run_id": previous_run_id, "identity": previous_identity},
+    )
+    write_json(run_path, previous_report)
+    checkpoint_path = output / "checkpoints" / "simulation.json"
+    checkpoint = read_json(checkpoint_path)
+    checkpoint["run_id"] = previous_run_id
+    write_json(checkpoint_path, checkpoint)
+    evidence_before = {
+        name: (output / name).read_bytes()
+        for name in (
+            "identity.json",
+            "run.json",
+            "checkpoints/simulation.json",
+            "simulation-input.manifest.json",
+            "simulation-result.json",
+            "trade-surface.json",
+        )
+    }
+
+    resumed = research_runner.run_research_backtest(
+        **arguments,
+        resume=True,
+    )
+
+    assert resumed == previous_report
     assert calls["engine"] == 1
     assert evidence_before == {
         name: (output / name).read_bytes()

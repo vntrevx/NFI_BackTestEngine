@@ -61,6 +61,15 @@ tag는 증거에 그대로 보존된다.
 추가 진입, 부분 청산과 exit를 실행한다. 실패한 실행은 custom state를 원자적으로
 rollback한다. Signal 번호와 Grind 단계 수는 opcode가 아니라 IR 데이터다.
 
+지원되는 X7 stateful 실행은 공개 실행 계약에서 `x7-generic-stateful` lane으로
+기록된다. `native_execution.programs`는 전략 소스에서 직렬화된 stateful root와
+각 `execution_mode`를 경로별로 보존한다. 현재 contract의 모든 root가 `primary`여야
+Native가 시작되며, 빠진 mode나 폐기된 shadow mode는 시뮬레이션 전에 차단된다. X7
+전용 vector manifest는 운송 계약일 뿐 기본 동작의 선택 기준이 아니다. 이전 schema
+reader는 과거 evidence replay를 위해 유지하지만 현재 실행에는 참여하지 않는다.
+fallback은 계속 사용자 동의 또는
+`--fallback official`로만 시작하며 실행 전에 반드시 전환 사실을 알린다.
+
 `state-machine-program-v2`는 v1 프로그램도 계속 실행하면서, 동기식
 `self.helper(...)`가 순수한 단일 return 계산이면 호출 그래프를 소스에서
 전이적으로 인라인한다. helper가 읽는 class mapping/sequence의 threshold와 route
@@ -69,23 +78,79 @@ tag도 IR literal이므로 helper 본문이나 데이터가 바뀌면 프로그�
 소스 위치와 함께 차단한다. 전략 버전이나 method SHA를 새 실행 의미론의 선택
 조건으로 사용하지 않는다.
 
+`state-machine-program-v3`는 `trade.select_filled_orders(trade.entry_side)`의
+소스 순서 반복, typed order field, local 누적과 원자적 custom state 변경을
+지원한다. 실행 상한은 Signal·tag가 아니라 전략의 유한한
+`max_entry_position_adjustment + 1`에서 계산한다. 공식 범용 fixture는 진입 주문
+13개 중 source tag가 일치하는 12개를 세어 `finite_order_exit` 분기에 도달하며,
+독립 Native 실행과 trade surface 및 286개 every-candle state가 exact해야 한다.
+
 `quick_verified` 승격에는 최신 전략으로 다시 만든 임시 workload, 서로 독립된
 이전 공식·최신 공식·최신 Native 실행, presence/absence/transition branch 증명,
 trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 수정하지
 않고 같은 artifact를 양쪽 증거로 재사용할 수 없다.
 
+## 자동 분류 계약
+
+정적 검사, targeted qualification, 선택적인 discovery 결과는 mode별 결정문 하나로
+합쳐진다. 결정은 소스에서 추출한 opcode와 `behavior_targets`만 사용하며 전략 버전,
+Signal/Grind 번호, pair, timerange 또는 기대 결과를 분기값으로 사용하지 않는다.
+
+- `native_exact`: 변경 branch 도달과 trade surface/full-state exact가 모두 참일 때만 허용
+- `semantic_review_draft_pr`: 새 opcode 또는 generic lowering 검토가 필요하며 실행은 official-only
+- `bounded_discovery`: 정적 lowering은 가능하지만 exact branch fixture가 부족함
+- `exact_fixture_draft_pr`: discovery가 독립 exact 후보를 만들었으나 병합 전 검토가 필요함
+- `external_data_deferred`: 외부 데이터 재시도 보류이며 exact 증거가 아님
+- `official_only`: 탐색이 끝났거나 현재 Native exact를 증명할 수 없음
+
+semantic review Draft PR은 compact 결정문과 검토 요구사항만 추가한다. 런타임
+의미론을 추측 생성하지 않으며 자동 승인·병합하지 않는다. maintainer가 범용
+opcode/lowerer, 단위 테스트, 공식 fixture를 추가하고 Required CI와 exact 검증을
+통과해야 Native로 승격된다. 외부 데이터 보류를 재사용할 때도 저장된 결정문의
+`execution_route=official_only`, `exact=false`를 다시 검사한다.
+
+## Managed exit의 단계적 Native 전환
+
+8개 managed-long route의 `custom_exit` 분기 순서와 재귀 any/all matcher, 수익
+basis와 gate, mode name, pure decision 호출 순서는 이제
+`managed-exit-program-v1` 데이터로 컴파일된다. 복합 rebuy/rapid/scalp tag도
+상수값별 Rust 분기 없이 같은 matcher evaluator가 처리한다. quick/rapid inline
+조건과 reason도 Scalar IR이며 stop 선택·threshold, target-cache 갱신 간격, 최대
+target floor, 보호 신호와 rebuy terminal을 source state program으로 컴파일한다.
+Rust는 현재 contract에서 generic 경로만 실행한다. 과거 shadow 비교로 결정과
+target-cache 전체 상태의 exact를 독립 증명한 뒤 현재 실행에서 legacy 호출을
+제거했으며, 이전 schema reader는 sealed evidence 재생에만 남아 있다.
+
+managed-short도 별도 source compiler로 같은 실행 경계에 들어왔다. short quick/rapid
+조건은 long 조건의 부호 반전이 아니라 short AST에서 직접 Scalar IR로 생성된다.
+scalp compound route와 pure-scalp target matcher, top-coins normal fallback의
+`is_short AND NOT known_tags`도 서로 다른 source predicate로 보존한다. 두 방향 모두
+generic 결과가 현재 실행의 유일한 경로다. 구조적으로 컴파일되는 route wrapper,
+`custom_exit`, 공통 stop/target 정책의 runtime method-hash gate는 제거했다. 과거
+shadow mode는 새 실행에 승계되지 않으며 backward schema reader에서만 허용된다.
+
+Rebuy의 long/short 역순 주문 cluster, ladder 조건과 stake 산식, level-3 de-risk,
+결과 tag도 `adjustment-transition-program-v1`으로 소스에서 컴파일한다. dataframe
+column은 실행 프로그램에서 유도하며, 최소 stake 배수나 threshold를 Rust 상수로
+복제하지 않는다. 첫 exit가 선택하는 다음 adjustment callback과 그 callback의
+retry window도 같은 payload로 묶어 검증한다. 기존 스키마만 보존된 legacy 실행을
+사용하고, 새 스키마에서는 이 프로그램이 Native primary다.
+
 ## Upstream 감시
 
-호환성 workflow는 4시간마다 upstream SHA와 호환성 엔진 commit을 함께 확인한다.
-둘 다 같으면 즉시 종료하고, upstream이 같아도 엔진이 개선됐으면 다시 검사한다.
+호환성 workflow는 4시간마다 NFI upstream SHA, 호환성 엔진 commit, pinned Freqtrade
+image digest, semantic-profile fingerprint를 함께 확인한다. 네 값이 모두 같으면 즉시
+종료하고, 어느 하나라도 바뀌면 같은 NFI 소스도 다시 검사한다.
 수동 실행의 `force=true`는 같은 identity도 재검사한다. GitHub 예약 실행은
 queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 아니라 검사 주기다.
 
-검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을
-실행한다. 성공한 실행만 `compatibility-ledger`의
-`checks/<upstream>/<engine>/runs/<run-attempt>`에 compact JSON으로 추가하고,
-대용량 임시 trace는 업로드하지 않는다. compact JSON artifact만 30일 보존한다.
-실패한 자동화는 identity를 전진시키지 않아 다음 주기에 재시도한다.
+검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을 서로
+독립 실행한다. hosted canary가 두 mode의 schema, source, qualification, 자동 분류와 네 identity를
+원자적으로 검증한 경우에만 `compatibility-ledger`의
+`checks/<upstream>/<engine>/<freqtrade>/<semantic-profile>/runs/<run-attempt>`에 compact
+JSON을 추가한다. 대용량 임시 trace는 업로드하지 않으며 compact JSON artifact만
+30일 보존한다. 한 mode라도 누락되거나 자동화가 실패하면 latest identity를
+전진시키지 않아 다음 주기에 재시도한다.
 
 전략 blocker는 `nfi-compatibility`, 다운로드·빌드·권한·artifact 장애는
 `nfi-automation-health`로 분리한다. 같은 canonical fingerprint는 issue와 알림을

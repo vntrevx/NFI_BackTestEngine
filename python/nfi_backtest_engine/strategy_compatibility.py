@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .callback_source_ir import compile_callback_source_ir
 from .canonical import write_json
 from .config_loader import load_effective_config
 from .errors import StrategyAnalysisError
@@ -53,9 +54,33 @@ def check_strategy_compatibility(
         selected_config.get("trading_mode", "spot")
     )
     callback_summary: dict[str, Any] | None = None
+    callback_source_summary: dict[str, Any] | None = None
     state_machine_summary: dict[str, Any] | None = None
 
     if not blockers and len(analysis["strategies"]) == 1:
+        callback_source_ir = compile_callback_source_ir(
+            source,
+            class_name=class_name,
+            trading_mode=(
+                effective_trading_mode
+                if effective_trading_mode in {"spot", "futures"}
+                else "all"
+            ),
+            analysis=analysis,
+        )
+        callback_source_summary = {
+            "schema_version": callback_source_ir["schema_version"],
+            "fingerprint": callback_source_ir["fingerprint"],
+            "entrypoints": [
+                entrypoint["name"]
+                for entrypoint in callback_source_ir["entrypoints"]
+                if entrypoint["active_for_mode"]
+            ],
+            "route_keys": [item["key"] for item in callback_source_ir["route_keys"]],
+            "emitted_tag_count": len(callback_source_ir["emitted_tags"]),
+            "required_reads": callback_source_ir["required_reads"],
+            "required_columns": callback_source_ir["required_columns"],
+        }
         try:
             callback_ir = build_hot_callback_ir(
                 analysis,
@@ -64,8 +89,8 @@ def check_strategy_compatibility(
                 config=selected_config,
             )
         except StrategyAnalysisError as exc:
-            # Source-bound handwritten state machines intentionally raise here when a
-            # future NFI patch changes observable callback behavior. Convert that
+            # Source-bound structural compilers intentionally raise here when a future
+            # NFI patch introduces behavior outside the generic opcode set. Convert that
             # exception into a durable report instead of losing the upstream source
             # identity in a generic CLI error.
             state_machine_summary = _state_machine_summary(
@@ -126,6 +151,7 @@ def check_strategy_compatibility(
         ),
         "blockers": blockers,
         "callback_ir": callback_summary,
+        "callback_source_ir": callback_source_summary,
         "state_machine_ir": state_machine_summary,
     }
     if output_path is not None:

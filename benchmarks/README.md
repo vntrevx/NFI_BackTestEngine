@@ -15,12 +15,15 @@ references.
 - `captured` is frozen from the pinned official Freqtrade reference and may support
   fixture-scoped correctness or performance evidence.
 
-The repository includes two captured Freqtrade 2026.5.1 spot fixtures:
+The repository includes captured Freqtrade 2026.5.1 semantic fixtures, including:
 
 - `stops-only-spot-2025-01-01_04`;
-- `normal-routing-spot-2025-01-01_04`.
+- `normal-routing-spot-2025-01-01_04`;
+- `generic-state-machine-v3-orders-spot-2025-01-01_02`, which reaches a
+  source-bounded 13-entry order scan and exits through the computed route.
 
-Neither is representative 80-pair, four-year X7 evidence.
+These small fixtures are semantic proofs, not representative 80-pair, five-year X7
+evidence.
 
 ## Frozen inputs
 

@@ -103,12 +103,21 @@ pub fn evaluate_scalar_program_bundle(
     evaluate_scalar_program(programs.get(entry)?, variables, Some(programs), 0)
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate_scalar_program_bundle_from_base(
     programs: &BTreeMap<String, ScalarDecisionProgram>,
     entry: &str,
     variables: &BTreeMap<String, Value>,
 ) -> Option<Value> {
     evaluate_scalar_program_from_base(programs.get(entry)?, variables, Some(programs), 0)
+}
+
+pub(crate) fn evaluate_scalar_program_handle_from_base(
+    program: &ScalarDecisionProgram,
+    programs: &BTreeMap<String, ScalarDecisionProgram>,
+    variables: &BTreeMap<String, Value>,
+) -> Option<Value> {
+    evaluate_scalar_program_from_base(program, variables, Some(programs), 0)
 }
 
 fn evaluate_scalar_program(

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/semantic-observer-report-v1.schema.json",
+  "title": "Official Freqtrade semantic observer projection report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "semantic_profile_sha256",
+    "fixture_id",
+    "trading_mode",
+    "source_trace",
+    "projected_trace",
+    "phase_counts",
+    "callback_counts",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "semantic-observer-report-v1"
+    },
+    "semantic_profile_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "fixture_id": {
+      "$ref": "#/$defs/string"
+    },
+    "trading_mode": {
+      "enum": [
+        "spot",
+        "futures"
+      ]
+    },
+    "source_trace": {
+      "$ref": "#/$defs/trace"
+    },
+    "projected_trace": {
+      "$ref": "#/$defs/trace"
+    },
+    "phase_counts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/phase_count"
+      }
+    },
+    "callback_counts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/callback_count"
+      }
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "blake3": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "stream_hash",
+        "event_count"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "stream_hash": {
+          "$ref": "#/$defs/blake3"
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "phase_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase",
+        "count"
+      ],
+      "properties": {
+        "phase": {
+          "$ref": "#/$defs/string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "callback_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callback",
+        "count"
+      ],
+      "properties": {
+        "callback": {
+          "$ref": "#/$defs/string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

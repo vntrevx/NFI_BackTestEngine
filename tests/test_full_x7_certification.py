@@ -962,7 +962,10 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
     manifests = sorted(
         path / "manifest.json"
         for path in CAPTURED.iterdir()
-        if path.name.startswith("x7-") and (path / "manifest.json").is_file()
+        if path.name.startswith("x7-")
+        and (path / "manifest.json").is_file()
+        and read_json(path / "manifest.json")["probe_kind"]
+        in SPOT_RELEASE_CONTRACT.required_probe_kinds
     )
     upstream_commits = {
         read_json(path)["strategy_provenance"]["upstream_commit"] for path in manifests

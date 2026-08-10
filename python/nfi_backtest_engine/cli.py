@@ -299,6 +299,15 @@ def build_parser() -> argparse.ArgumentParser:
     trace_compare = trace_commands.add_parser("compare", help="compare two traces exactly")
     trace_compare.add_argument("expected", type=Path)
     trace_compare.add_argument("actual", type=Path)
+    trace_verify_schedule = trace_commands.add_parser(
+        "verify-schedule",
+        help="compare official and Native chronological pair-event order",
+    )
+    trace_verify_schedule.add_argument("manifest", type=Path)
+    trace_verify_schedule.add_argument("official_semantic_trace", type=Path)
+    trace_verify_schedule.add_argument("native_events", type=Path)
+    trace_verify_schedule.add_argument("--contract", type=Path, required=True)
+    trace_verify_schedule.add_argument("--output", "-o", type=Path, required=True)
 
     profile = subcommands.add_parser("profile", help="aggregate Phase 0 profile spans")
     profile.add_argument("events", type=Path)
@@ -318,6 +327,40 @@ def build_parser() -> argparse.ArgumentParser:
         "reference", help="run the pinned official Freqtrade reference"
     )
     reference_commands = reference.add_subparsers(dest="reference_command", required=True)
+    reference_semantic_profile = reference_commands.add_parser(
+        "semantic-profile",
+        help="write the digest-bound profile for the pinned Freqtrade observer",
+    )
+    reference_semantic_profile.add_argument("--output", "-o", type=Path, required=True)
+    reference_scheduler_contract = reference_commands.add_parser(
+        "scheduler-contract",
+        help="write the Freqtrade-compatible Native scheduler contract",
+    )
+    reference_scheduler_contract.add_argument("--semantic-profile", type=Path, required=True)
+    reference_scheduler_contract.add_argument("--output", "-o", type=Path, required=True)
+    reference_execution_contract = reference_commands.add_parser(
+        "execution-contract",
+        help="write the exact Spot order, wallet, fee, and precision contract",
+    )
+    reference_execution_contract.add_argument("--semantic-profile", type=Path, required=True)
+    reference_execution_contract.add_argument("--scheduler-contract", type=Path, required=True)
+    reference_execution_contract.add_argument("--output", "-o", type=Path, required=True)
+    reference_futures_contract = reference_commands.add_parser(
+        "futures-contract",
+        help="write the Binance isolated-Futures semantic extension",
+    )
+    reference_futures_contract.add_argument("--semantic-profile", type=Path, required=True)
+    reference_futures_contract.add_argument("--scheduler-contract", type=Path, required=True)
+    reference_futures_contract.add_argument("--execution-contract", type=Path, required=True)
+    reference_futures_contract.add_argument("--output", "-o", type=Path, required=True)
+    reference_semantic_observe = reference_commands.add_parser(
+        "semantic-observe",
+        help="project captured official callback/state events canonically",
+    )
+    reference_semantic_observe.add_argument("manifest", type=Path)
+    reference_semantic_observe.add_argument("--profile", type=Path, required=True)
+    reference_semantic_observe.add_argument("--output-trace", type=Path, required=True)
+    reference_semantic_observe.add_argument("--output-report", type=Path, required=True)
     reference_run = reference_commands.add_parser(
         "run", help="run and exact-compare one sealed captured fixture"
     )
@@ -616,6 +659,50 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_inspect.add_argument("source", type=Path)
     strategy_inspect.add_argument("--class", dest="class_name")
     strategy_inspect.add_argument("--output", "-o", type=Path)
+    strategy_semantic_inventory = strategy_commands.add_parser(
+        "semantic-inventory",
+        help="map NFI/Freqtrade ownership, Native boundaries, and exact fixture coverage",
+    )
+    strategy_semantic_inventory.add_argument("source", type=Path)
+    strategy_semantic_inventory.add_argument("--class", dest="class_name")
+    strategy_semantic_inventory.add_argument("--config", type=Path)
+    strategy_semantic_inventory.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+    )
+    strategy_semantic_inventory.add_argument(
+        "--fixtures-root",
+        type=Path,
+        default=Path("benchmarks/fixtures/captured"),
+    )
+    strategy_semantic_inventory.add_argument("--output", "-o", type=Path)
+    strategy_callback_ir = strategy_commands.add_parser(
+        "callback-ir",
+        help="compile source-ordered callback routes, tags, and data dependencies",
+    )
+    strategy_callback_ir.add_argument("source", type=Path)
+    strategy_callback_ir.add_argument("--class", dest="class_name")
+    strategy_callback_ir.add_argument(
+        "--trading-mode",
+        choices=("all", "spot", "futures"),
+        default="all",
+    )
+    strategy_callback_ir.add_argument("--output", "-o", type=Path, required=True)
+    strategy_stateful_coverage = strategy_commands.add_parser(
+        "stateful-coverage",
+        help="prove backtest-reachable stateful routes have sealed Native programs",
+    )
+    strategy_stateful_coverage.add_argument("source", type=Path)
+    strategy_stateful_coverage.add_argument("--class", dest="class_name")
+    strategy_stateful_coverage.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        required=True,
+    )
+    strategy_stateful_coverage.add_argument("--config", type=Path)
+    strategy_stateful_coverage.add_argument("--upstream-repository")
+    strategy_stateful_coverage.add_argument("--upstream-commit")
+    strategy_stateful_coverage.add_argument("--output", "-o", type=Path, required=True)
     strategy_check = strategy_commands.add_parser(
         "check",
         help="check whether a new strategy revision has exact native callback lowerings",
@@ -766,6 +853,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_state_machine.add_argument("source", type=Path)
     strategy_state_machine.add_argument("--class", dest="class_name")
+    strategy_state_machine.add_argument(
+        "--schema-version",
+        choices=("state-machine-program-v2", "state-machine-program-v3"),
+        default="state-machine-program-v2",
+    )
+    strategy_state_machine.add_argument(
+        "--max-order-iterations",
+        type=int,
+        help="required finite runtime bound when a v3 program iterates orders",
+    )
     strategy_state_machine.add_argument("--output", "-o", type=Path, required=True)
     strategy_shadow_gate = strategy_commands.add_parser(
         "shadow-gate",

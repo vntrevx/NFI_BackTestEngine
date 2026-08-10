@@ -20,6 +20,8 @@ use calculations::{
     round_step,
 };
 mod domain;
+mod execution_contract;
+pub use execution_contract::contract_json as execution_contract_json;
 mod io;
 #[cfg(test)]
 use io::CALLBACK_FEATURE_LOOKBACK_ROWS;
@@ -28,8 +30,11 @@ pub use io::{
     FeatureColumn, FileBackedFeatureKind, FileBackedRows, FILE_BACKED_FEATURE_BYTES,
     FILE_BACKED_ROW_HEADER_BYTES, TRADE_SURFACE_SCHEMA_VERSION,
 };
+mod order_aggregates;
 mod portfolio;
 mod profiling;
+mod scheduler;
+pub use scheduler::contract_json as scheduler_contract_json;
 mod scalar_vm;
 mod state_machine_vm;
 mod validation;
@@ -39,12 +44,15 @@ use portfolio::TradeSide;
 use scalar_vm::evaluate_scalar_program_bundle_from_base;
 pub use scalar_vm::{evaluate_scalar_decision_program, evaluate_scalar_program_bundle};
 pub use state_machine_vm::{
-    evaluate_state_machine, validate_state_machine_program, StateMachineAction,
-    StateMachineContext, StateMachineError,
+    evaluate_state_machine, evaluate_state_machine_with_diagnostics,
+    validate_state_machine_program, StateMachineAction, StateMachineContext,
+    StateMachineDiagnostic, StateMachineError,
 };
 mod futures;
+mod futures_contract;
 #[cfg(test)]
 use futures::evaluate_nfi_leverage;
+pub use futures_contract::contract_json as futures_contract_json;
 mod execution;
 pub use domain::*;
 #[cfg(test)]
@@ -59,9 +67,11 @@ use validation::nfi_managed_short_route_supports_tags;
 
 mod nfi;
 #[cfg(test)]
-use callbacks::{callback_feature_index, insert_feature_window};
+use callbacks::insert_feature_window;
 #[cfg(test)]
 use nfi::{nfi_inline_profile_exit, nfi_profit_snapshot, NfiProfitSnapshot};
+#[cfg(test)]
+use scheduler::callback_feature_index;
 mod protections;
 #[cfg(test)]
 use protections::{PairLockState, ProtectionState};

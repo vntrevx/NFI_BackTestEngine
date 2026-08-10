@@ -31,6 +31,16 @@ RESULT_VERIFICATION_SCHEMA = "result-verification-v1.schema.json"
 RESULT_EVIDENCE_INDEX_SCHEMA = "result-evidence-index-v1.schema.json"
 STATE_MACHINE_PROGRAM_SCHEMA = "state-machine-program-v1.schema.json"
 STATE_MACHINE_PROGRAM_V2_SCHEMA = "state-machine-program-v2.schema.json"
+STATE_MACHINE_PROGRAM_V3_SCHEMA = "state-machine-program-v3.schema.json"
+SEMANTIC_INVENTORY_SCHEMA = "semantic-inventory-v1.schema.json"
+STATEFUL_COVERAGE_SCHEMA = "stateful-coverage-v1.schema.json"
+FREQTRADE_SEMANTIC_PROFILE_SCHEMA = "freqtrade-semantic-profile-v1.schema.json"
+SEMANTIC_OBSERVER_REPORT_SCHEMA = "semantic-observer-report-v1.schema.json"
+SCHEDULER_CONTRACT_SCHEMA = "scheduler-contract-v1.schema.json"
+SCHEDULER_VERIFICATION_SCHEMA = "scheduler-verification-v1.schema.json"
+EXECUTION_CONTRACT_SCHEMA = "execution-contract-v1.schema.json"
+FUTURES_CONTRACT_SCHEMA = "futures-contract-v1.schema.json"
+CALLBACK_SOURCE_IR_SCHEMA = "callback-source-ir-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",

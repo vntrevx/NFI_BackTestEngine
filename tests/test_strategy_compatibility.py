@@ -69,6 +69,11 @@ class DynamicStrategy(IStrategy):
     assert report["native_compatible"] is True
     assert report["blockers"] == []
     assert report["callback_ir"]["hot_loop_ready"] is False
+    assert report["callback_source_ir"]["schema_version"] == "callback-source-ir-v1"
+    assert report["callback_source_ir"]["entrypoints"] == [
+        "adjust_trade_position"
+    ]
+    assert len(report["callback_source_ir"]["fingerprint"]) == 64
     assert report["state_machine_ir"]["entrypoints"] == [
         "adjust_trade_position"
     ]

@@ -1,0 +1,208 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "GenericFiniteOrderState",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250101-20250102"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "1000",
+    "final_balance": "999.37852133",
+    "profit_total_abs": "-0.62147867",
+    "total_volume": "784.5688582731999",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1735691100000,
+      "close_timestamp_ms": 1735698900000,
+      "open_rate": "93734.78",
+      "close_rate": "93773.61",
+      "amount": "0.00418",
+      "stake_amount": "391.8113834",
+      "max_stake_amount": "391.8113834",
+      "leverage": "1",
+      "entry_tag": "contract_stop",
+      "exit_reason": "finite_order_exit",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-0.62147867",
+        "ratio": "-0.0015845833952046738"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "93271.3",
+      "stop_loss": "93286.46",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735691100000,
+          "amount": "0.00106",
+          "price": "93740",
+          "cost": "99.46376439999999",
+          "tag": "contract_stop"
+        },
+        {
+          "sequence": 1,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735691100000,
+          "amount": "0.00026",
+          "price": "93740",
+          "cost": "24.396772399999996",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 2,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735691400000,
+          "amount": "0.00026",
+          "price": "93761.9",
+          "cost": "24.402472093999993",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 3,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735695000000,
+          "amount": "0.00026",
+          "price": "93825.86",
+          "cost": "24.419118323599996",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 4,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735696500000,
+          "amount": "0.00026",
+          "price": "93626.1",
+          "cost": "24.367128786",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 5,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735696800000,
+          "amount": "0.00026",
+          "price": "93607.74",
+          "cost": "24.362350412399998",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 6,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735697100000,
+          "amount": "0.00026",
+          "price": "93753.2",
+          "cost": "24.400207831999992",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 7,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735697400000,
+          "amount": "0.00026",
+          "price": "93682.94",
+          "cost": "24.381921964399996",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 8,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735697700000,
+          "amount": "0.00026",
+          "price": "93800",
+          "cost": "24.412387999999996",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 9,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735698000000,
+          "amount": "0.00026",
+          "price": "93765.42",
+          "cost": "24.403388209199996",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 10,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735698300000,
+          "amount": "0.00026",
+          "price": "93716.81",
+          "cost": "24.390736970599992",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 11,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735698600000,
+          "amount": "0.00026",
+          "price": "93742.51",
+          "cost": "24.397425652599996",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 12,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735698900000,
+          "amount": "0.00026",
+          "price": "93773.61",
+          "cost": "24.405519738599995",
+          "tag": "generic_grind_entry"
+        },
+        {
+          "sequence": 13,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735698900000,
+          "amount": "0.00418",
+          "price": "93773.61",
+          "cost": "392.36566348979994",
+          "tag": "finite_order_exit"
+        }
+      ],
+      "duration_minutes": 130,
+      "is_open": false,
+      "minimum_rate": "93578.77",
+      "maximum_rate": "94509.42",
+      "initial_stop_loss_ratio": "-0.005",
+      "stop_loss_ratio": "-0.005",
+      "weekday": 2
+    }
+  ]
+}

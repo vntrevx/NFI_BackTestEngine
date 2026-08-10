@@ -208,22 +208,16 @@ def run_engine(
             _wsl_path(source),
             _wsl_path(destination),
         ]
+        engine_argument_index = len(command) - 2
     else:
-        time_executable = Path("/usr/bin/time")
-        command = (
-            [
-                str(time_executable),
-                "-f",
-                "max_rss_kib=%M\nuser_seconds=%U\nsystem_seconds=%S",
-                "-o",
-                str(resource_path),
-                str(binary),
-                str(source),
-                str(destination),
-            ]
-            if time_executable.is_file()
-            else [str(binary), str(source), str(destination)]
-        )
+        time_prefix = _gnu_time_prefix(resource_path)
+        command = [
+            *time_prefix,
+            str(binary),
+            str(source),
+            str(destination),
+        ]
+        engine_argument_index = len(time_prefix) + 1
     if vector_manifest:
         vector_arguments = ["--vector-manifest"]
         if engine_profile_destination is not None:
@@ -237,11 +231,7 @@ def run_engine(
                     ),
                 ]
             )
-        if os.name == "nt":
-            command[-2:-2] = vector_arguments
-        else:
-            time_prefix = 6 if Path("/usr/bin/time").is_file() else 1
-            command[time_prefix:time_prefix] = vector_arguments
+        command[engine_argument_index:engine_argument_index] = vector_arguments
     if event_destination is not None:
         command.append(_wsl_path(event_destination) if os.name == "nt" else str(event_destination))
 
@@ -420,6 +410,27 @@ def _read_resource_record(path: Path) -> dict[str, float | int]:
         "peak_rss_bytes": peak_rss_bytes,
         "cpu_time_seconds": cpu_time_seconds,
     }
+
+
+def _gnu_time_prefix(resource_path: Path) -> list[str]:
+    """Return GNU time arguments only where the GNU interface is guaranteed.
+
+    macOS ships a BSD ``/usr/bin/time`` whose ``-f`` option has a different
+    meaning and rejects the GNU format string. Installed wheels use the in-process
+    PyO3 path for resource reporting, so a source-checkout CLI fallback may safely
+    omit process metrics where GNU time is unavailable.
+    """
+
+    executable = Path("/usr/bin/time")
+    if platform.system() != "Linux" or not executable.is_file():
+        return []
+    return [
+        str(executable),
+        "-f",
+        "max_rss_kib=%M\nuser_seconds=%U\nsystem_seconds=%S",
+        "-o",
+        str(resource_path),
+    ]
 
 
 def _rust_source_fingerprint(rust_root: Path) -> str:

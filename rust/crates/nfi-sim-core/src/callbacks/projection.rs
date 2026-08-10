@@ -11,10 +11,6 @@ use crate::nfi::{
 };
 use crate::scalar_vm::{number_value, value_index};
 
-pub(crate) fn callback_feature_index(execution_index: usize) -> Option<usize> {
-    execution_index.checked_sub(1)
-}
-
 /// Materialize one strategy-visible dataframe row from the pair-level columns.
 ///
 /// Freqtrade callbacks see the current analyzed row plus recent predecessors,
@@ -92,6 +88,69 @@ impl NfiX7TradeManager {
             })
             .get(key)
     }
+
+    /// Derive a union for a source-provided program sequence.
+    ///
+    /// The staged managed-exit shadow may change order or add a scalar-pure
+    /// helper before the legacy profile tables are retired. Its projection
+    /// must therefore be computed from bytecode names, not a fixed route key.
+    pub(crate) fn dynamic_feature_projection_union(
+        &self,
+        program_order: &[String],
+    ) -> Option<&FeatureProjection> {
+        self.source_feature_projection_unions
+            .get_or_init(|| {
+                let mut unions = BTreeMap::new();
+                let programs = self
+                    .managed_exit_program
+                    .iter()
+                    .chain(&self.managed_short_exit_program);
+                for route in programs.flat_map(|program| &program.routes) {
+                    let mut union = FeatureProjection::new();
+                    let mut valid = true;
+                    for program in &route.decision_program_order {
+                        let Some(projection) = self.feature_projection(program) else {
+                            valid = false;
+                            break;
+                        };
+                        for (variable, columns) in projection {
+                            union
+                                .entry(variable.clone())
+                                .or_default()
+                                .extend(columns.iter().cloned());
+                        }
+                    }
+                    if valid {
+                        unions.insert(route.decision_program_order.clone(), union);
+                    }
+                }
+                unions
+            })
+            .get(program_order)
+    }
+
+    /// Precompute runtime-only projections during validation, before callbacks.
+    pub(crate) fn initialize_feature_projection_caches(&self) -> bool {
+        let fixed = [
+            NFI_LONG_EXIT_PROGRAMS,
+            NFI_LONG_EXIT_PROGRAMS_WITHOUT_DESCENDING,
+            NFI_SHORT_EXIT_PROGRAMS,
+        ];
+        if fixed
+            .iter()
+            .any(|program_order| self.feature_projection_union(program_order).is_none())
+        {
+            return false;
+        }
+        self.managed_exit_program
+            .iter()
+            .chain(&self.managed_short_exit_program)
+            .flat_map(|program| &program.routes)
+            .all(|route| {
+                self.dynamic_feature_projection_union(&route.decision_program_order)
+                    .is_some()
+            })
+    }
 }
 
 /// Derive dataframe field access directly from the immutable scalar arena.
@@ -100,7 +159,9 @@ impl NfiX7TradeManager {
 /// whose operands point at a `variable` and a literal string expression. We do
 /// not accept a serialized projection list: deriving it here prevents an input
 /// from omitting a field that executable bytecode can read.
-fn scalar_program_feature_projection(program: &ScalarDecisionProgram) -> FeatureProjection {
+pub(crate) fn scalar_program_feature_projection(
+    program: &ScalarDecisionProgram,
+) -> FeatureProjection {
     let mut projection = FeatureProjection::new();
     for expression in &program.expressions {
         let Some(fields) = expression.as_array() else {

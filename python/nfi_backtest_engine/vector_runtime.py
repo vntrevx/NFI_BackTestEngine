@@ -349,7 +349,7 @@ def prepare_vector_signals(
         if not public_requests:
             if cache is not None:
                 cache.prune()
-            records.sort(key=lambda item: pairs.index(item["pair"]))
+            _restore_configured_pair_order(records, pairs)
             return _vector_report(
                 records=records,
                 pairs=pairs,
@@ -403,7 +403,7 @@ def prepare_vector_signals(
                 )
         if cache is not None:
             cache.prune()
-    records.sort(key=lambda item: pairs.index(item["pair"]))
+    _restore_configured_pair_order(records, pairs)
     return _vector_report(
         records=records,
         pairs=pairs,
@@ -518,6 +518,25 @@ def _probe_request_index(requests: list[dict[str, Any]]) -> int:
             str(requests[index]["pair"]),
         ),
     )
+
+
+def _restore_configured_pair_order(
+    records: list[dict[str, Any]],
+    pairs: list[str],
+) -> None:
+    """Make parallel completion order invisible at the scheduler boundary."""
+    order = {pair: index for index, pair in enumerate(pairs)}
+    record_pairs = [record.get("pair") for record in records]
+    if (
+        len(order) != len(pairs)
+        or len(record_pairs) != len(pairs)
+        or any(not isinstance(pair, str) or pair not in order for pair in record_pairs)
+        or len(set(record_pairs)) != len(record_pairs)
+    ):
+        raise StrategyAnalysisError(
+            "vector workers must publish exactly one record per configured pair"
+        )
+    records.sort(key=lambda item: order[str(item["pair"])])
 
 
 def _run_isolated_probe(request: dict[str, Any]) -> dict[str, Any]:

@@ -30,6 +30,21 @@ fn source_fingerprint() -> &'static str {
 }
 
 #[pyfunction]
+fn scheduler_contract_json() -> &'static str {
+    nfi_sim_core::scheduler_contract_json()
+}
+
+#[pyfunction]
+fn execution_contract_json() -> &'static str {
+    nfi_sim_core::execution_contract_json()
+}
+
+#[pyfunction]
+fn futures_contract_json() -> &'static str {
+    nfi_sim_core::futures_contract_json()
+}
+
+#[pyfunction]
 fn simulate_json(input: &str) -> PyResult<String> {
     let document = parse_simulation_input(input.as_bytes())
         .map_err(|error| PyValueError::new_err(format!("invalid simulation input: {error}")))?;
@@ -228,6 +243,9 @@ fn _rust(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(schema_version, module)?)?;
     module.add_function(wrap_pyfunction!(simulator_available, module)?)?;
     module.add_function(wrap_pyfunction!(source_fingerprint, module)?)?;
+    module.add_function(wrap_pyfunction!(scheduler_contract_json, module)?)?;
+    module.add_function(wrap_pyfunction!(execution_contract_json, module)?)?;
+    module.add_function(wrap_pyfunction!(futures_contract_json, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_json, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_file, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_vector_file, module)?)?;

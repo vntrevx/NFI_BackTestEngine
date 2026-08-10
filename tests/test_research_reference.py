@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from nfi_backtest_engine import research_reference
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.reference_runtime import REFERENCE_CCXT_VERSION
@@ -15,6 +16,12 @@ from nfi_backtest_engine.research_reference import (
     build_research_reference_command,
     official_backtest_config,
 )
+
+ROOT = Path(__file__).parents[1]
+
+
+def test_research_reference_resolves_the_repository_root() -> None:
+    assert research_reference._project_root() == ROOT  # pyright: ignore[reportPrivateUsage]
 
 
 def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None:

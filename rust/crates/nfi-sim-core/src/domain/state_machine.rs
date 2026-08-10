@@ -15,8 +15,43 @@ pub struct StateMachineProgram {
     pub required_reads: Vec<StateMachineRead>,
     pub required_columns: Vec<String>,
     pub required_state_keys: Vec<String>,
+    #[serde(default)]
+    pub required_order_fields: Vec<StateMachineOrderFieldRequirement>,
     pub opcodes: Vec<String>,
+    #[serde(default)]
+    pub limits: Option<StateMachineLimits>,
+    #[serde(default)]
+    pub custom_state_transaction: Option<StateMachineCustomStateTransaction>,
     pub source_map: BTreeMap<String, StateMachineSourceLocation>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StateMachineLimits {
+    pub max_order_iterations: usize,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StateMachineCustomStateTransaction {
+    EntrypointAtomic,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
+pub struct StateMachineOrderFieldRequirement {
+    pub field: String,
+    pub value_type: StateMachineOrderValueType,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum StateMachineOrderValueType {
+    Number,
+    NumberOrNull,
+    String,
+    StringOrNull,
+    TimestampMs,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -45,7 +80,7 @@ pub enum StateMachineReadSource {
     Local,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct StateMachineSourceLocation {
     pub path: String,
@@ -91,6 +126,13 @@ pub enum StateMachineInstruction {
         max_iterations: usize,
         instructions: Vec<Self>,
     },
+    ForEachOrder {
+        id: String,
+        variable: String,
+        collection: StateMachineExpression,
+        max_iterations: usize,
+        instructions: Vec<Self>,
+    },
     Action {
         id: String,
         kind: StateMachineActionKind,
@@ -109,6 +151,7 @@ impl StateMachineInstruction {
             | Self::DeleteState { id, .. }
             | Self::Evaluate { id, .. }
             | Self::BoundedFor { id, .. }
+            | Self::ForEachOrder { id, .. }
             | Self::Action { id, .. } => id,
         }
     }
@@ -170,6 +213,29 @@ pub enum StateMachineExpression {
         name: StateMachineScalarCall,
         arguments: Vec<Self>,
     },
+    OrderCollection {
+        selector: StateMachineOrderSelector,
+        order: StateMachineOrderSequence,
+    },
+    OrderField {
+        order: Box<Self>,
+        field: String,
+        value_type: StateMachineOrderValueType,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StateMachineOrderSelector {
+    All,
+    EntrySide,
+    ExitSide,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StateMachineOrderSequence {
+    TradeOrderSequence,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]

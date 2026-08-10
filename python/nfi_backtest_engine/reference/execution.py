@@ -442,4 +442,4 @@ def _docker_executable() -> str:
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]

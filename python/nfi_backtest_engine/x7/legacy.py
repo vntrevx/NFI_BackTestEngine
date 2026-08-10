@@ -8,13 +8,12 @@ import re
 from typing import Any
 
 from ..errors import StrategyAnalysisError
-from .adjustments import _ast_number
+from .legacy_grind_ir import compile_legacy_grind_ir, extract_legacy_futures_fallback
+from .regular_adjustment_ir import compile_regular_adjustment_ir
 from .trade_manager import (
     _LONG_BTC_ADJUSTMENT_SCOPE,
-    _LONG_BTC_METHOD_SHA256,
     _LONG_BTC_STATEFUL_METHODS,
     _LONG_GRIND_ADJUSTMENT_SCOPE,
-    _LONG_GRIND_METHOD_SHA256,
     _LONG_GRIND_STATEFUL_METHODS,
     _LONG_REGULAR_ADJUSTMENT_PROGRAM,
     _MANAGED_LONG_ADJUSTMENT_PROGRAM,
@@ -31,9 +30,8 @@ def _build_long_grind_route(
     X7 keeps this route beside the system-v3.2 adjustment machinery and selects
     its stake, threshold, and precision behavior from ``is_futures_mode``.
     We publish the dual-mode scope only when both stateful methods and every
-    spot and futures constant are present. Once the shape is recognizable, a
-    changed method hash is a hard error: silently falling back to a handwritten
-    state machine would turn a source update into an undetected parity bug.
+    Spot and Futures constant are present. Every executable branch is validated
+    structurally while building the transition program.
     """
     return _build_legacy_grind_route(
         constants,
@@ -43,7 +41,6 @@ def _build_long_grind_route(
         mode_constant="long_grind_mode_name",
         tags_constant="long_grind_mode_tags",
         stateful_methods=_LONG_GRIND_STATEFUL_METHODS,
-        method_sha256=_LONG_GRIND_METHOD_SHA256,
         adjustment_scope=_LONG_GRIND_ADJUSTMENT_SCOPE,
         grind_mode=True,
     )
@@ -63,16 +60,21 @@ def _build_long_btc_route(
         mode_constant="long_btc_mode_name",
         tags_constant="long_btc_mode_tags",
         stateful_methods=_LONG_BTC_STATEFUL_METHODS,
-        method_sha256=_LONG_BTC_METHOD_SHA256,
         adjustment_scope=_LONG_BTC_ADJUSTMENT_SCOPE,
         grind_mode=False,
         regular_mode=True,
     )
     if route is not None:
+        regular_program = compile_regular_adjustment_ir(
+            methods["long_adjust_trade_position_no_derisk"],
+            constants,
+        )
         route["regular_decision_program"] = _LONG_REGULAR_ADJUSTMENT_PROGRAM
+        route["regular_program"] = regular_program
         route["regular_constants"] = _build_regular_adjustment_constants(
             constants,
             methods["long_adjust_trade_position_no_derisk"],
+            regular_program,
         )
     return route, identity
 
@@ -86,12 +88,11 @@ def _build_legacy_grind_route(
     mode_constant: str,
     tags_constant: str,
     stateful_methods: tuple[str, ...],
-    method_sha256: dict[str, str],
     adjustment_scope: str,
     grind_mode: bool,
     regular_mode: bool = False,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Validate one source-pinned route into X7's legacy grind state machine."""
+    """Compile one structurally validated route into the generic Grind program."""
     if not isinstance(constants, dict):
         return None, {}
     mode_name = constants.get(mode_constant)
@@ -122,17 +123,6 @@ def _build_legacy_grind_route(
         if isinstance(method_records, list)
         else {}
     )
-    changed = [
-        name
-        for name, expected in method_sha256.items()
-        if records.get(name, {}).get("source_sha256") != expected
-    ]
-    if changed:
-        raise StrategyAnalysisError(
-            f"NFI X7 {route_name} route changed; exact lowering requires review: "
-            + ", ".join(changed)
-        )
-
     numeric_names = (
         "grind_mode_first_entry_profit_threshold_spot",
         "grind_mode_first_entry_stop_threshold_spot",
@@ -154,11 +144,17 @@ def _build_legacy_grind_route(
         }
         for name in stateful_methods
     }
+    legacy_constants = _build_legacy_grind_constants(
+        constants,
+        regular_stake_multiplier=regular_mode,
+    )
     route = {
         "mode_name": mode_name,
         "entry_tags": sorted(set(entry_tags)),
-        # The 25% literal is protected by the route-specific exit-method hash.
-        "exit_profit_threshold": 0.25,
+        "exit_profit_threshold": _route_exit_profit_threshold(
+            methods[stateful_methods[0]],
+            mode_constant=mode_constant,
+        ),
         "adjustment_scope": adjustment_scope,
         "grind_mode": grind_mode,
         "decision_program": _MANAGED_LONG_ADJUSTMENT_PROGRAM,
@@ -171,86 +167,104 @@ def _build_legacy_grind_route(
         ),
         "derisk_use_grind_stops": derisk,
         "stateful_input_contract": {
-            "indexed_fields": {
-                "last_candle": [
-                    "global_protections_long_dump",
-                    "global_protections_long_pump",
-                ],
-                "previous_candle": [],
-            }
+            "indexed_fields": {"last_candle": [], "previous_candle": []}
         },
-        "constants": _build_legacy_grind_constants(
-            constants,
-            regular_stake_multiplier=regular_mode,
-        ),
+        "constants": legacy_constants,
     }
+    route["program"] = compile_legacy_grind_ir(
+        methods["long_grind_adjust_trade_position"],
+        {
+            **legacy_constants,
+            "first_entry_profit_threshold_spot": route[
+                "first_entry_profit_threshold_spot"
+            ],
+            "first_entry_stop_threshold_spot": route[
+                "first_entry_stop_threshold_spot"
+            ],
+        },
+    )
+    buyback = next(
+        transition
+        for transition in route["program"]["source_order"]
+        if transition["kind"] == "derisk-buyback"
+    )
+    route["stateful_input_contract"]["indexed_fields"]["last_candle"] = buyback[
+        "entry_feature_columns"
+    ]
     return route, identity
 
 
+def _route_exit_profit_threshold(
+    method: ast.FunctionDef,
+    *,
+    mode_constant: str,
+) -> float:
+    """Compile the pure Grind/BTC exit wrapper without a version or hash table."""
+
+    if len(method.body) != 2:
+        raise StrategyAnalysisError(f"NFI {method.name} exit wrapper changed")
+    branch, fallback = method.body
+    if (
+        not isinstance(branch, ast.If)
+        or branch.orelse
+        or not isinstance(branch.test, ast.Compare)
+        or not isinstance(branch.test.left, ast.Name)
+        or branch.test.left.id != "profit_init_ratio"
+        or len(branch.test.ops) != 1
+        or not isinstance(branch.test.ops[0], ast.Gt)
+        or len(branch.test.comparators) != 1
+        or len(branch.body) != 1
+        or not _route_exit_return(branch.body[0], mode_constant=mode_constant, expected=True)
+        or not _route_exit_return(fallback, mode_constant=mode_constant, expected=False)
+    ):
+        raise StrategyAnalysisError(f"NFI {method.name} exit wrapper changed")
+    threshold = branch.test.comparators[0]
+    if (
+        not isinstance(threshold, ast.Constant)
+        or isinstance(threshold.value, bool)
+        or not isinstance(threshold.value, int | float)
+        or not math.isfinite(float(threshold.value))
+    ):
+        raise StrategyAnalysisError(f"NFI {method.name} exit threshold changed")
+    return float(threshold.value)
+
+
+def _route_exit_return(
+    statement: ast.stmt,
+    *,
+    mode_constant: str,
+    expected: bool,
+) -> bool:
+    if (
+        not isinstance(statement, ast.Return)
+        or not isinstance(statement.value, ast.Tuple)
+        or len(statement.value.elts) != 2
+        or not isinstance(statement.value.elts[0], ast.Constant)
+        or statement.value.elts[0].value is not expected
+    ):
+        return False
+    reason = statement.value.elts[1]
+    if not expected:
+        return isinstance(reason, ast.Constant) and reason.value is None
+    return (
+        isinstance(reason, ast.JoinedStr)
+        and len(reason.values) == 3
+        and isinstance(reason.values[0], ast.Constant)
+        and reason.values[0].value == "exit_"
+        and isinstance(reason.values[1], ast.FormattedValue)
+        and isinstance(reason.values[1].value, ast.Attribute)
+        and isinstance(reason.values[1].value.value, ast.Name)
+        and reason.values[1].value.value.id == "self"
+        and reason.values[1].value.attr == mode_constant
+        and isinstance(reason.values[2], ast.Constant)
+        and reason.values[2].value == "_g"
+    )
+
+
 def _legacy_futures_fallback_loss_threshold(method: ast.FunctionDef) -> float:
-    """Extract the leverage-scaled futures-only ``gd1`` loss fallback.
+    """Return the compiler-extracted leverage-scaled Futures loss threshold."""
 
-    Upstream keeps this threshold inside ``long_grind_adjust_trade_position``
-    rather than as a strategy class constant. The branch deliberately bypasses
-    the ordinary indicator and order-age gates after a sufficiently sharp
-    futures drawdown. Its literal therefore belongs in the source-bound IR,
-    not in the simulator implementation.
-    """
-
-    candidates: list[float] = []
-    for branch in method.body:
-        if not isinstance(branch, ast.If) or not isinstance(branch.test, ast.BoolOp):
-            continue
-        names = {node.id for node in ast.walk(branch.test) if isinstance(node, ast.Name)}
-        required_names = {
-            "is_futures",
-            "has_order_tags",
-            "partial_sell",
-            "slice_profit",
-            "trade_leverage",
-            "is_derisk",
-            "is_derisk_calc",
-            "is_grind_mode",
-            "grind_1_sub_grind_count",
-            "grind_1_max_sub_grinds",
-        }
-        if not required_names.issubset(names):
-            continue
-        if not any(
-            isinstance(node, ast.Constant) and node.value == "gd1"
-            for statement in branch.body
-            for node in ast.walk(statement)
-        ):
-            continue
-        comparisons = [
-            node
-            for node in ast.walk(branch.test)
-            if isinstance(node, ast.Compare)
-            and isinstance(node.left, ast.Name)
-            and node.left.id == "slice_profit"
-            and len(node.ops) == 1
-            and isinstance(node.ops[0], ast.Lt)
-            and len(node.comparators) == 1
-        ]
-        if len(comparisons) != 1:
-            continue
-        threshold = comparisons[0].comparators[0]
-        if (
-            not isinstance(threshold, ast.BinOp)
-            or not isinstance(threshold.op, ast.Div)
-            or not isinstance(threshold.right, ast.Name)
-            or threshold.right.id != "trade_leverage"
-            or (value := _ast_number(threshold.left)) is None
-            or not math.isfinite(value)
-            or value >= 0.0
-        ):
-            continue
-        candidates.append(value)
-    if len(candidates) != 1:
-        raise StrategyAnalysisError(
-            "NFI legacy futures drawdown fallback changed; exact lowering requires review"
-        )
-    return candidates[0]
+    return float(extract_legacy_futures_fallback(method)["loss_threshold"])
 
 
 def _build_legacy_grind_constants(
@@ -298,17 +312,18 @@ def _build_legacy_grind_constants(
     cluster_specs = []
     for level, derisk_level, prefix in discovered:
         if derisk_level is None:
-            cluster_specs.append((f"gd{level}", f"dd{level}", prefix))
+            cluster_specs.append((f"gd{level}", f"dd{level}", prefix, False))
         elif derisk_level == 1:
-            cluster_specs.append((f"dl{level}", f"ddl{level}", prefix))
+            cluster_specs.append((f"dl{level}", f"ddl{level}", prefix, True))
         else:
             raise StrategyAnalysisError(
                 "NFI legacy post-de-risk tag family changed; exact lowering requires review"
             )
-    for entry_tag, stop_tag, prefix in cluster_specs:
+    for entry_tag, stop_tag, prefix, post_derisk in cluster_specs:
         record: dict[str, Any] = {
             "entry_tag": entry_tag,
             "stop_tag": stop_tag,
+            "post_derisk": post_derisk,
         }
         for mode in ("futures", "spot"):
             stakes = number_list(f"{prefix}_stakes_{mode}")
@@ -344,6 +359,7 @@ def _build_legacy_grind_constants(
 def _build_regular_adjustment_constants(
     constants: dict[str, Any],
     method: ast.FunctionDef,
+    program: dict[str, Any],
 ) -> dict[str, Any]:
     """Freeze both market-mode branches before tag 121 reaches legacy grind.
 
@@ -387,6 +403,11 @@ def _build_regular_adjustment_constants(
             )
         rebuy[mode] = (stakes, thresholds)
 
+    grind_actions = {
+        action["level"]: action
+        for action in program["source_order"]
+        if action["kind"] == "grind"
+    }
     grinds: list[dict[str, Any]] = []
     levels = sorted(
         {
@@ -403,11 +424,13 @@ def _build_regular_adjustment_constants(
     )
     if not levels:
         raise StrategyAnalysisError("NFI regular adjustment contains no grind levels")
+    if set(grind_actions) != set(levels):
+        raise StrategyAnalysisError("NFI regular adjustment program level set differs")
     for level in levels:
         prefix = f"regular_mode_grind_{level}"
         grind: dict[str, Any] = {
-            "entry_tag": f"g{level}",
-            "stop_tag": f"sg{level}",
+            "entry_tag": grind_actions[level]["entry_tag"],
+            "stop_tag": grind_actions[level]["stop_tag"],
         }
         for mode in ("futures", "spot"):
             stakes = number_list(f"{prefix}_stakes_{mode}")
@@ -444,7 +467,7 @@ def _regular_adjustment_literal_policy(method: ast.FunctionDef) -> dict[str, int
     These values are part of the reviewed Python method, not engine tuning.
     Extracting them into the typed IR keeps Rust free of strategy-version
     literals and makes the effective policy visible in a certification bundle.
-    The surrounding method hash still rejects a structural source change.
+    The compiler rejects any structural policy change it cannot represent.
     """
 
     def numeric(node: ast.AST) -> float | None:

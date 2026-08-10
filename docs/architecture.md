@@ -128,13 +128,21 @@ returns to dense every-candle execution until it closes. Full-state observer run
 use this shortcut. A timestamp-only merge pass retains the logical batch and row counts
 reported by the profile without executing skipped strategy work.
 
-Open NFI trades cache only the adjustment state derived from immutable filled-order
-history. Appending an order invalidates that cache automatically; current candle price
-and profit remain freshly evaluated. Compiled scalar callbacks keep an immutable base
-scope plus a small per-call write overlay, project the union of required features once,
-and resolve literal field/index access without cloning an entire candle or trade map.
-These are representation optimizations: program ordering and emitted values remain part
-of the exact-result regression.
+Open trades expose a strategy-neutral projection of immutable filled-order history.
+It accumulates entry, exit, and exact-tag clusters with amount, cost, source-order IDs,
+and latest-fill metadata. Every filled order enters through one append boundary that
+invalidates both this projection and the NFI adjustment cache; no callback can reuse a
+stale order view. Tag values remain ordinary data rather than runtime route names.
+Rebuy callbacks compile their reverse order scan, source-ordered delegate, complete
+stake/de-risk Scalar program, result tags, and target retry contract into a generic
+adjustment-transition payload. Rust selects order directions and actions from that
+payload; changing a supported source literal rebuilds the program instead of selecting
+a strategy-version branch.
+Current candle price and profit are always evaluated freshly. Compiled scalar callbacks
+keep an immutable base scope plus a small per-call write overlay, project the union of
+required features once, and resolve literal field/index access without cloning an entire
+candle or trade map. These are representation optimizations: program ordering and
+emitted values remain part of the exact-result regression.
 
 Completed vectors are immutable cache objects. When run output and cache share a
 filesystem, cache publication uses an atomic hard link bound to the worker-produced
@@ -255,7 +263,8 @@ The source-bound X7 adapter additionally executes:
 
 - managed long exits and shared system-v3.2 adjustment for 57 tags across normal,
   pump, quick, rebuy, high-profit, rapid, top-coins, and scalp profiles;
-- managed short-rebuy tags 561-563 with ordered short exits and adjustment;
+- all eight managed-short exit routes, including compound scalp and top-coins normal
+  fallback, plus the short-rebuy and shared short grind adjustments;
 - the separate rebuy entry/de-risk ladder before its source-defined transition
   into the shared grind-v3 adjustment;
 - ordered per-pair target-cache mutation for mixed supported tags;
@@ -271,6 +280,56 @@ The source-bound X7 adapter additionally executes:
 - the four static Freqtrade protection handlers and their chronological local/global
   pair locks.
 
+Both managed-exit sides are independently source-compiled. Python reads route order,
+recursive tag/side matchers, profit basis and gate, decision-call order, inline Scalar
+IR, stop policy, target-cache policy, and terminal exits into separate
+`managed-exit-program-v1` programs. Short conditions come from short AST; they are never
+sign-flipped long rules. The target helper's narrower pure-scalp matcher is also kept
+separate from the wider compound route matcher. Rust executes each source-compiled state
+machine as the sole current result. Independent shadow proofs were completed before
+promotion; current payloads no longer execute the handwritten route. Managed route and
+helper method-hash gates are retired because executable behavior is structurally lowered.
+Strategy SHA remains evidence and cache identity only.
+
+Both system-v3.2 adjustments follow the same migration contract. Python independently
+extracts each side's actual de-risk and Grind source order, dynamic level set, directional
+order scan, tag strings, retry policy, stake scaling, wallet guards, partial-exit formula,
+and callback dataframe projection into `system-adjustment-program-v1`. Short behavior is
+compiled from the short AST rather than inferred from long behavior. Rust evaluates the
+side-specific program directly. Prior independent proofs compared stake, tag, and complete
+custom-state mutation before handwritten execution was retired from the current lane; no
+Signal number, strategy SHA, or fixed Grind count selects runtime behavior.
+
+The public research-run contract names this default `x7-generic-stateful`. Its versioned
+policy inventories serialized stateful program roots structurally, requires every root to
+declare a generic primary execution mode, and binds that policy into the immutable run
+identity. X7's Feather/manifest adapter remains the transport because it carries the
+specialized input projection; it no longer labels the execution lane as legacy. A policy
+gap blocks before simulation, while the separately announced official Freqtrade fallback
+remains available and does not mutate Native evidence.
+
+The legacy Grind migration uses the same contract without imposing a level ceiling.
+Python extracts the reverse filled-order walk, order directions, complete cluster-tag
+inventory, first-entry profit and stop, retry/age gates, minimum-stake multipliers,
+source-ordered post-de-risk and ordinary clusters, every cluster stop, the Futures
+drawdown fallback, and the bounded Derisk/Buyback restoration cycle into
+`grind-transition-program-v3`. The d1 tag, feature guards, mode thresholds, retry
+comparisons, wallet rejection, stake restoration, leverage divisor, and partial-exit
+basis are source data. Rust evaluates these transitions from the payload after an exact
+stake/tag independent shadow proof. On an entry fill, NFI's
+position-adjustment callback runs at the same timestamp after the fill and wallet
+refresh, while still reading the previous analyzed dataframe row. A captured official
+Freqtrade fixture reaches this same-candle d1 exit and repeated d1 restoration cycle;
+its trade surface and full state match at zero tolerance.
+
+The tag-121 regular prelude is separately compiled into
+`regular-transition-program-v1`. Its reverse order scan, rebuy exclusions, dynamic
+Grind tag pairs, de-risk classification, leverage-scaled Futures drawdown fallback,
+and amount-based transfer into the Grind machine are strategy data. Rust runs that program
+directly after its reviewed shadow proof completed.
+The official Spot and isolated-Futures tag-121 fixtures both match all 288 projected
+state events and their complete trade surfaces at zero tolerance.
+
 The latest annual APE/USDT:USDT futures certificate uses X7 v17.4.418, covers
 2022-04-01 through 2023-01-01, and exactly matches Freqtrade's final normalized
 surface: 11 trades, 164 orders, 142 adjustment orders, one short trade, and eight
@@ -278,9 +337,9 @@ funded trades. It reaches derisk levels 1-3 and grind levels 1-5 and protects
 Freqtrade's no-fallthrough stop-loss/liquidation collision order. The APE spot
 top-coins path, a separate tag-62 rebuy exit, and a ZEC tag-120 grind path also have
 captured official final-surface certificates. The rebuy fixture does not reach an
-adjustment order. The ZEC fixture reaches `gm0`, `gd1`, and `gd2`; deeper legacy
-branches have source hashes and focused native tests, not a branch-reaching Freqtrade
-differential certificate.
+adjustment order. The ZEC fixture reaches `gm0`, `gd1`, and `gd2`; dynamic deeper,
+post-de-risk, stop, and Futures-fallback paths have focused generic-versus-legacy tests,
+not a branch-reaching Freqtrade differential certificate.
 
 The newer v17.4.435 bounded Futures portfolio differential covers ten pairs and six
 months. It proves byte-identical final surfaces for 63 trades and 296 orders, including
@@ -298,11 +357,28 @@ One separate cold seed binds raw inputs, source compilation, vectors, and simula
 while nine compact official probes provide every-candle full-state coverage for the
 release-critical Futures branches.
 
+The generic callback lane also has an NFI-independent v3 proof. Its source compiler
+derives a 13-order finite bound from Freqtrade's position-adjustment contract, scans
+filled entries in trade order, and reaches a computed custom-exit route. The pinned
+official and Native runs match the final trade surface and all 286 projected candle
+states exactly; no strategy name, tag value, timerange, or expected result selects the
+runtime behavior.
+
+`nfi-bte strategy stateful-coverage` closes the remaining static-proof gap between
+entry signals and stateful callbacks. It proves the source loop that turns enabled
+entry parameters into tags, intersects those tags with the callback route graph, and
+requires a sealed Native exit and adjustment program for every reachable tag. Spot and
+Futures are audited independently. Source-defined but disabled routes are reported as
+dormant and never count as Native coverage; enabling one without a contract makes the
+command fail. Filled-order `safe_remaining` branches are listed separately as live-only
+exclusions only when the serialized IR contains the matching Freqtrade backtest policy.
+
 ## Explicitly unsupported
 
 The engine fails before simulation instead of approximating:
 
-- live-only tag-120 partial-fill retry;
+- live-only partial-fill retry branches (excluded by the filled-order backtest
+  invariant, not counted as covered behavior);
 - leverage programs outside the compiled source-ordered X7 callback shape;
 - arbitrary long-range liquidation behavior outside the bounded
   branch-reaching liquidation fixture;

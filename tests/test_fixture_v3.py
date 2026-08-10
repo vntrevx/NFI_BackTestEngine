@@ -36,6 +36,13 @@ LIQUIDATION_FIXTURE = (
     / "captured"
     / "x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02"
 )
+DERISK_BUYBACK_FIXTURE = (
+    ROOT
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "x7-derisk-buyback-spot-v17.4.488-2023-01-01_16"
+)
 
 
 def _required_coverage() -> dict:
@@ -116,6 +123,7 @@ def test_real_tag_121_fixture_is_fully_sealed_and_branch_reaching() -> None:
     )
     assert coverage["met"] is True
     assert coverage["observed"]["entry_tags"] == ["121"]
+    assert coverage["observed"]["order_tags"] == ["121", "force_exit"]
     assert coverage["observed"]["callbacks"] == [
         "adjust_trade_position",
         "confirm_trade_entry",
@@ -134,6 +142,25 @@ def test_futures_lifecycle_contract_counts_funding_from_the_official_surface() -
 
     assert coverage["met"] is True
     assert coverage["observed"]["funded_trades"] == 2
+
+
+def test_derisk_buyback_fixture_is_exact_and_reaches_d1_orders() -> None:
+    manifest_path = DERISK_BUYBACK_FIXTURE / "manifest.json"
+    manifest = validate_fixture(manifest_path)
+    coverage = validate_fixture_coverage(manifest_path, manifest)
+    surface = read_json(DERISK_BUYBACK_FIXTURE / "artifacts" / "trade-surface.json")
+    d1_orders = [
+        order
+        for trade in surface["trades"]
+        for order in trade["orders"]
+        if order["tag"] == "d1"
+    ]
+
+    assert manifest["probe_kind"] == "callback-route"
+    assert coverage["met"] is True
+    assert coverage["observed"]["order_tags"] == ["121", "d1", "force_exit"]
+    assert len(d1_orders) == 29
+    assert d1_orders[0]["filled_timestamp_ms"] == surface["trades"][0]["open_timestamp_ms"]
 
 
 def test_v3_provenance_must_match_effective_strategy_hash(tmp_path: Path) -> None:

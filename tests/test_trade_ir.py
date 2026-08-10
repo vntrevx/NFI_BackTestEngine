@@ -61,9 +61,7 @@ def test_trade_dependency_compiler_preserves_crlf_source_identity(tmp_path: Path
         .encode("utf-8")
     )
 
-    report = build_trade_dependency_ir(
-        analyze_strategy(source, class_name="WindowsScalar")
-    )
+    report = build_trade_dependency_ir(analyze_strategy(source, class_name="WindowsScalar"))
 
     assert "custom_exit" in report["compiled_scalar_methods"]
 
@@ -143,6 +141,60 @@ def test_self_constants_are_frozen_inside_scalar_program(tmp_path: Path) -> None
     expressions = report["compiled_scalar_methods"]["custom_exit"]["program"]["expressions"]
 
     assert ["literal", 0.2] in expressions
+
+
+def test_scalar_optimizer_folds_constants_and_removes_dead_columns(tmp_path: Path) -> None:
+    source = tmp_path / "Optimized.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Optimized(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def custom_exit(self, pair, trade, current_time, current_rate, "
+        "current_profit, **kwargs):\n"
+        "        return self.decide(kwargs['last_candle'], current_profit > 0)\n"
+        "    def decide(self, last_candle, active):\n"
+        "        if False:\n"
+        "            return last_candle['DEAD_BRANCH']\n"
+        "        folded = 1 + 2 * 3\n"
+        "        if True:\n"
+        "            return folded\n"
+        "        return last_candle['AFTER_RETURN']\n",
+        encoding="utf-8",
+    )
+
+    report = build_trade_dependency_ir(analyze_strategy(source, class_name="Optimized"))
+    compiled = report["compiled_scalar_methods"]["decide"]
+    program = compiled["program"]
+
+    assert ["literal", 7.0] in program["expressions"]
+    assert not any(
+        expression[0] in {"add", "multiply", "index"} for expression in program["expressions"]
+    )
+    assert program["statements"][-1][0] == "return"
+    assert compiled["input_contract"]["indexed_fields"] == {}
+
+
+def test_scalar_optimizer_preserves_dynamic_branch_column_liveness(tmp_path: Path) -> None:
+    source = tmp_path / "Dynamic.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Dynamic(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def custom_exit(self, pair, trade, current_time, current_rate, "
+        "current_profit, **kwargs):\n"
+        "        return self.decide(kwargs['last_candle'], current_profit > 0)\n"
+        "    def decide(self, last_candle, active):\n"
+        "        if active:\n"
+        "            return last_candle['LIVE_COLUMN']\n"
+        "        return None\n",
+        encoding="utf-8",
+    )
+
+    report = build_trade_dependency_ir(analyze_strategy(source, class_name="Dynamic"))
+    compiled = report["compiled_scalar_methods"]["decide"]
+
+    assert compiled["program"]["statements"][0][0] == "if"
+    assert compiled["input_contract"]["indexed_fields"] == {"last_candle": ["LIVE_COLUMN"]}
 
 
 def test_observability_only_grind_tag_write_is_lowered_as_ephemeral(

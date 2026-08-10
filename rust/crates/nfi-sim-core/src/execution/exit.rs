@@ -5,13 +5,14 @@ use std::collections::BTreeMap;
 use crate::calculations::{
     exit_order_side, fee_close, fee_open, precise_product, round_eight, round_step,
 };
-use crate::callbacks::{callback_feature_index, evaluate_custom_exit_bundle};
+use crate::callbacks::evaluate_custom_exit_bundle;
 use crate::domain::{
     AdjustmentSignal, Candle, ClosedTrade, FilledOrder, PairSeries, PortfolioConfig, SimError,
 };
 use crate::futures::{recalculate_order_funding_total, take_running_funding};
 use crate::nfi::{evaluate_nfi_exit, CustomExitDecision, ProfitTarget};
 use crate::portfolio::{OpenTrade, TradeSide};
+use crate::scheduler::callback_feature_index;
 
 use super::position::{
     freqtrade_total_entry_value, is_unleveraged_spot, replay_leveraged_profit, replay_spot_profit,
@@ -229,7 +230,7 @@ pub(crate) fn close_trade(
     let (fallback_remaining_profit, fallback_remaining_profit_ratio) =
         fallback_close_profit(&trade, rate, open_fee_rate, close_fee_rate, gross_proceeds);
     let funding_fee = take_running_funding(&mut trade);
-    trade.orders.push(FilledOrder {
+    trade.push_filled_order(FilledOrder {
         id: order_id,
         funding_fee,
         sequence: trade.orders.len(),

@@ -12,6 +12,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from .errors import StrategyAnalysisError
 TRADE_IR_VERSION = "1.4.0"
 SCALAR_PROGRAM_VERSION = "1.2.0"
 _TRADE_ROOTS = ("adjust_trade_position", "custom_exit")
+_NOT_CONSTANT = object()
 
 
 class _UnsupportedTradeIr(Exception):
@@ -107,15 +109,28 @@ class _ScalarCompiler:
         }
 
     def _statements(self, nodes: list[ast.stmt]) -> list[list[Any]]:
-        return [self._statement(node) for node in nodes]
+        statements, _ = self._statement_block(nodes)
+        return statements
+
+    def _statement_block(self, nodes: list[ast.stmt]) -> tuple[list[list[Any]], bool]:
+        """Compile one block and discard paths after an unconditional return."""
+        statements: list[list[Any]] = []
+        for node in nodes:
+            if isinstance(node, ast.If):
+                compiled, terminates = self._if_statements(node)
+                statements.extend(compiled)
+            else:
+                statements.append(self._statement(node))
+                terminates = isinstance(node, ast.Return)
+            if terminates:
+                return statements, True
+        return statements, False
 
     def _statement(self, node: ast.stmt) -> list[Any]:
         if isinstance(node, ast.Assign) and len(node.targets) == 1:
             return self._assignment(node.targets[0], node.value, node)
         if isinstance(node, ast.AnnAssign) and node.value is not None:
             return self._assignment(node.target, node.value, node)
-        if isinstance(node, ast.If):
-            return self._if_statement(node)
         if isinstance(node, ast.Return):
             return ["return", self._expression(node.value)]
         if (
@@ -131,7 +146,7 @@ class _ScalarCompiler:
             f"statement {type(node).__name__} is not scalar-pure",
         )
 
-    def _if_statement(self, node: ast.If) -> list[Any]:
+    def _if_statements(self, node: ast.If) -> tuple[list[list[Any]], bool]:
         """Flatten Python's nested-AST representation of an ``elif`` chain.
 
         CPython stores every ``elif`` as the sole ``else`` child of the
@@ -141,22 +156,40 @@ class _ScalarCompiler:
         IR depth independent of the number of thresholds.
         """
         branches: list[list[Any]] = []
+        branch_terminates: list[bool] = []
         current = node
         while True:
-            branches.append(
-                [
-                    self._expression(current.test),
-                    self._statements(current.body),
-                ]
-            )
+            condition = self._constant_value(current.test)
+            if condition is not _NOT_CONSTANT:
+                if _scalar_truthy(condition):
+                    selected, selected_terminates = self._statement_block(current.body)
+                    if not branches:
+                        return selected, selected_terminates
+                    otherwise = selected
+                    otherwise_terminates = selected_terminates
+                    break
+                if len(current.orelse) == 1 and isinstance(current.orelse[0], ast.If):
+                    current = current.orelse[0]
+                    continue
+                selected, selected_terminates = self._statement_block(current.orelse)
+                if not branches:
+                    return selected, selected_terminates
+                otherwise = selected
+                otherwise_terminates = selected_terminates
+                break
+            body, body_terminates = self._statement_block(current.body)
+            branches.append([self._expression(current.test), body])
+            branch_terminates.append(body_terminates)
             if len(current.orelse) == 1 and isinstance(current.orelse[0], ast.If):
                 current = current.orelse[0]
                 continue
-            otherwise = self._statements(current.orelse)
+            otherwise, otherwise_terminates = self._statement_block(current.orelse)
             break
         if len(branches) == 1:
-            return ["if", branches[0][0], branches[0][1], otherwise]
-        return ["if-chain", branches, otherwise]
+            statement = ["if", branches[0][0], branches[0][1], otherwise]
+        else:
+            statement = ["if-chain", branches, otherwise]
+        return [statement], otherwise_terminates and all(branch_terminates)
 
     def _assignment(
         self,
@@ -194,6 +227,9 @@ class _ScalarCompiler:
     def _expression(self, node: ast.expr | None) -> int:
         if node is None:
             return self.arena.add(["literal", None])
+        constant = self._constant_value(node)
+        if constant is not _NOT_CONSTANT:
+            return self.arena.add(["literal", constant])
         if isinstance(node, ast.Constant):
             if isinstance(node.value, complex | bytes):
                 raise _UnsupportedTradeIr(node, "literal is not JSON scalar data")
@@ -322,6 +358,87 @@ class _ScalarCompiler:
             f"expression {type(node).__name__} is not scalar-pure",
         )
 
+    def _constant_value(self, node: ast.expr) -> Any:
+        """Evaluate only expressions whose result matches the Rust scalar VM.
+
+        Unsupported, exceptional, or non-finite cases stay as bytecode. This
+        is deliberately structural: strategy names, tags, and expected
+        backtest results are never inputs to the fold.
+        """
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, complex | bytes):
+                return _NOT_CONSTANT
+            return node.value
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "self"
+            and node.attr in self.constants
+        ):
+            return self.constants[node.attr]
+        if isinstance(node, ast.Tuple | ast.List):
+            values = [self._constant_value(item) for item in node.elts]
+            if any(value is _NOT_CONSTANT for value in values):
+                return _NOT_CONSTANT
+            return values
+        if isinstance(node, ast.UnaryOp):
+            value = self._constant_value(node.operand)
+            if value is _NOT_CONSTANT:
+                return _NOT_CONSTANT
+            if isinstance(node.op, ast.Not):
+                return not _scalar_truthy(value)
+            if not isinstance(node.op, ast.USub | ast.UAdd):
+                return _NOT_CONSTANT
+            number = _scalar_number(value)
+            if number is None:
+                return _NOT_CONSTANT
+            result = -number if isinstance(node.op, ast.USub) else number
+            return result if math.isfinite(result) else _NOT_CONSTANT
+        if isinstance(node, ast.BinOp):
+            left = self._constant_value(node.left)
+            right = self._constant_value(node.right)
+            if left is _NOT_CONSTANT or right is _NOT_CONSTANT:
+                return _NOT_CONSTANT
+            return _constant_binary(node.op, left, right)
+        if isinstance(node, ast.BoolOp):
+            last: Any = isinstance(node.op, ast.And)
+            for operand in node.values:
+                last = self._constant_value(operand)
+                if last is _NOT_CONSTANT:
+                    return _NOT_CONSTANT
+                if isinstance(node.op, ast.And) and not _scalar_truthy(last):
+                    return last
+                if isinstance(node.op, ast.Or) and _scalar_truthy(last):
+                    return last
+            return last
+        if isinstance(node, ast.Compare):
+            left = self._constant_value(node.left)
+            if left is _NOT_CONSTANT:
+                return _NOT_CONSTANT
+            for operation, comparator in zip(node.ops, node.comparators, strict=True):
+                if isinstance(operation, ast.Is | ast.IsNot) and not (
+                    isinstance(comparator, ast.Constant)
+                    and (comparator.value is None or isinstance(comparator.value, bool))
+                ):
+                    return _NOT_CONSTANT
+                right = self._constant_value(comparator)
+                if right is _NOT_CONSTANT:
+                    return _NOT_CONSTANT
+                result = _constant_compare(operation, left, right)
+                if result is None:
+                    return _NOT_CONSTANT
+                if not result:
+                    return False
+                left = right
+            return True
+        if isinstance(node, ast.IfExp):
+            condition = self._constant_value(node.test)
+            if condition is _NOT_CONSTANT:
+                return _NOT_CONSTANT
+            selected = node.body if _scalar_truthy(condition) else node.orelse
+            return self._constant_value(selected)
+        return _NOT_CONSTANT
+
     def _call(self, node: ast.Call) -> int:
         method_name = _called_method_name(
             node.func,
@@ -356,6 +473,119 @@ class _ScalarCompiler:
         raise _UnsupportedTradeIr(node, f"call {_call_name(node.func)!r} is not scalar-pure")
 
 
+def _scalar_number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _scalar_truthy(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value) != 0.0
+    if isinstance(value, str | list | dict):
+        return bool(value)
+    return False
+
+
+def _constant_binary(operation: ast.operator, left: Any, right: Any) -> Any:
+    if isinstance(operation, ast.Add):
+        if isinstance(left, str) and isinstance(right, str):
+            return left + right
+        if isinstance(left, list) and isinstance(right, list):
+            return [*left, *right]
+    left_number = _scalar_number(left)
+    right_number = _scalar_number(right)
+    if left_number is None or right_number is None:
+        return _NOT_CONSTANT
+    if right_number == 0.0 and isinstance(operation, ast.Div | ast.FloorDiv | ast.Mod):
+        return _NOT_CONSTANT
+    try:
+        if isinstance(operation, ast.Add):
+            result = left_number + right_number
+        elif isinstance(operation, ast.Sub):
+            result = left_number - right_number
+        elif isinstance(operation, ast.Mult):
+            result = left_number * right_number
+        elif isinstance(operation, ast.Div):
+            result = left_number / right_number
+        elif isinstance(operation, ast.FloorDiv):
+            result = math.floor(left_number / right_number)
+        elif isinstance(operation, ast.Mod):
+            result = left_number - math.floor(left_number / right_number) * right_number
+        elif isinstance(operation, ast.Pow):
+            result = math.pow(left_number, right_number)
+        else:
+            return _NOT_CONSTANT
+    except (OverflowError, ValueError, ZeroDivisionError):
+        return _NOT_CONSTANT
+    result = float(result)
+    return result if math.isfinite(result) else _NOT_CONSTANT
+
+
+def _constant_compare(operation: ast.cmpop, left: Any, right: Any) -> bool | None:
+    left_number = _scalar_number(left)
+    right_number = _scalar_number(right)
+    if isinstance(operation, ast.Eq | ast.Is):
+        return left == right
+    if isinstance(operation, ast.NotEq | ast.IsNot):
+        return left != right
+    if isinstance(operation, ast.Lt | ast.LtE | ast.Gt | ast.GtE):
+        if left_number is not None and right_number is not None:
+            comparable_left: Any = left_number
+            comparable_right: Any = right_number
+        elif isinstance(left, str) and isinstance(right, str):
+            comparable_left = left
+            comparable_right = right
+        else:
+            return None
+        if isinstance(operation, ast.Lt):
+            return comparable_left < comparable_right
+        if isinstance(operation, ast.LtE):
+            return comparable_left <= comparable_right
+        if isinstance(operation, ast.Gt):
+            return comparable_left > comparable_right
+        return comparable_left >= comparable_right
+    if isinstance(operation, ast.In | ast.NotIn):
+        if isinstance(right, list) or (isinstance(right, str | dict) and isinstance(left, str)):
+            included = left in right
+        else:
+            return None
+        return not included if isinstance(operation, ast.NotIn) else included
+    return None
+
+
+def compile_scalar_ast_program(
+    node: ast.FunctionDef,
+    *,
+    constants: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compile a synthetic, scalar-pure callback fragment into the shared VM IR.
+
+    Stateful route compilers use this small public boundary after they have
+    reduced source control flow to an independent pure fragment. Unsupported
+    expressions keep their original location and fail closed just like normal
+    trade-dependency compilation.
+    """
+
+    try:
+        return _ScalarCompiler(
+            node,
+            constants=constants or {},
+            available_methods=set(),
+        ).compile()
+    except _UnsupportedTradeIr as exc:
+        line = getattr(exc.node, "lineno", node.lineno)
+        column = getattr(exc.node, "col_offset", node.col_offset)
+        raise StrategyAnalysisError(
+            f"scalar fragment cannot be represented at {line}:{column}: {exc.message}"
+        ) from exc
+
+
 def build_trade_dependency_ir(
     analysis: dict[str, Any],
     *,
@@ -380,9 +610,7 @@ def build_trade_dependency_ir(
         source_bytes = path.read_bytes()
         text = source_bytes.decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
-        raise StrategyAnalysisError(
-            f"trade dependency source cannot be read: {path}"
-        ) from exc
+        raise StrategyAnalysisError(f"trade dependency source cannot be read: {path}") from exc
     if hashlib.sha256(source_bytes).hexdigest() != source_sha256:
         raise StrategyAnalysisError("trade dependency source hash differs from analysis")
     tree = ast.parse(text, filename=str(path), type_comments=True)
@@ -453,7 +681,7 @@ def build_trade_dependency_ir(
                     "line": node.lineno,
                     "end_line": node.end_lineno,
                     "node_count": sum(1 for _ in ast.walk(node)),
-                    "input_contract": _scalar_input_contract(node),
+                    "input_contract": _optimized_scalar_input_contract(node, compiled_program),
                     "elided_observability_writes": sorted(method_ephemeral_writes),
                     "called_methods": sorted(program.called_methods),
                     "call_locations": {
@@ -733,6 +961,61 @@ def _scalar_input_contract(node: ast.FunctionDef) -> dict[str, Any]:
             name: sorted(values) for name, values in sorted(numeric_thresholds.items())
         },
     }
+
+
+def _optimized_scalar_input_contract(
+    node: ast.FunctionDef,
+    program: dict[str, Any],
+) -> dict[str, Any]:
+    """Report only parameter inputs reachable in the optimized arena."""
+    contract = _scalar_input_contract(node)
+    expressions = program.get("expressions")
+    if not isinstance(expressions, list):
+        return contract
+    live_parameters = {
+        expression[1]
+        for expression in expressions
+        if isinstance(expression, list)
+        and len(expression) == 2
+        and expression[0] == "variable"
+        and isinstance(expression[1], str)
+    }
+    contract["parameter_loads"] = {
+        name: count
+        for name, count in contract["parameter_loads"].items()
+        if name in live_parameters
+    }
+    indexed_fields: dict[str, set[str]] = {}
+    for expression in expressions:
+        if not (isinstance(expression, list) and len(expression) == 3 and expression[0] == "index"):
+            continue
+        base = _arena_record(expressions, expression[1])
+        key = _arena_record(expressions, expression[2])
+        if (
+            base is not None
+            and key is not None
+            and len(base) == 2
+            and len(key) == 2
+            and base[0] == "variable"
+            and key[0] == "literal"
+            and isinstance(base[1], str)
+            and isinstance(key[1], str)
+            and base[1] in live_parameters
+        ):
+            indexed_fields.setdefault(base[1], set()).add(key[1])
+    contract["indexed_fields"] = {
+        name: sorted(fields) for name, fields in sorted(indexed_fields.items())
+    }
+    return contract
+
+
+def _arena_record(expressions: list[Any], index: Any) -> list[Any] | None:
+    if isinstance(index, bool) or not isinstance(index, int) or index < 0:
+        return None
+    if index >= len(expressions):
+        return None
+    record = expressions[index]
+    return record if isinstance(record, list) else None
 
 
 def _numeric_literal(node: ast.expr) -> float | None:

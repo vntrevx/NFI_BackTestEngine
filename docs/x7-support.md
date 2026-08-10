@@ -26,7 +26,8 @@ Rust:
 - managed long exits for normal (1-13), pump (21-26), quick (41-53),
   rebuy (61-65), high-profit (81-82), rapid (101-110), top-coins (141-145),
   and scalp (161-163);
-- managed short-rebuy exits and adjustment for tags 561-563;
+- managed short normal, pump, quick, rebuy, high-profit, rapid, scalp, and top-coins
+  fallback exits, plus their short adjustment routes;
 - the dedicated rebuy ladder and level-3 de-risk transition for tags 61-65;
 - the shared system-v3.2 derisk/grind adjustment used by all 57 managed tags,
   including rebuy trades after their first level-3 de-risk fill;
@@ -42,14 +43,38 @@ Rust:
 - static `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`, and `LowProfitPairs`
   definitions with side-aware local/global pair locks in the global event loop.
 
-The route table preserves X7's callback order. A mixed tag is accepted only when every
-word belongs to the compiled scope. Rebuy, rapid, and scalp combinations retain their
-source-specific dispatch order; an unknown companion word fails before simulation.
+The route table preserves X7's callback order. All managed-long and managed-short
+dispatch blocks, pure decision prefixes, and route-local state policy are compiled from
+the supplied AST into separate generic primary programs. Recursive matcher IR handles
+compound tags and the short fallback side predicate; both sides' quick/rapid conditions
+are their own Scalar IR. Stop, target-cache, protected-signal, pure-scalp, and rebuy
+terminal values are source data. Rust returns the generic result directly. The legacy route
+was retired from current payloads after independent decision and target-cache equality
+proofs. An unknown companion tag still fails before simulation.
+
+Research runs expose this as the `x7-generic-stateful` adapter lane. The immutable run
+identity lists every stateful program root and requires its `primary` mode, so a source update
+cannot silently fall back to a legacy-only Native path. The X7 adapter name now describes
+the vector transport only; official Freqtrade fallback remains separate and visibly
+announced when the generic contract cannot be proven.
+
+Both system-v3.2 position-adjustment callbacks are independently source-compiled. Their
+de-risk and Grind action order, level sets, exact tags, directional order scans, retry
+windows, wallet guards, stake scaling, partial exits, and required dataframe columns are
+serialized as `system-adjustment-program-v1`. Short behavior is compiled from the short
+AST, never derived by sign-flipping the long program. The generic Rust evaluator is the sole
+current lane. Its returned stake/tag and all custom-state writes were proven exact before
+handwritten execution was retired.
+Levels and tags are IR data; the runtime has no fixed five-level table or strategy-SHA
+selector.
 
 ## Proof level
 
-The source analyzer pins the whole strategy SHA plus each handwritten stateful callback
-method SHA. A changed callback cannot silently inherit the prior Rust policy.
+The source analyzer records the whole strategy SHA for cache/evidence identity only. Managed
+routes, stop/target policy, `custom_exit`, and both system-v3 adjustment action sets are
+structurally compiled, so runtime method-hash gates are gone. A
+changed compiled callback therefore recompiles into the same generic opcode set or fails
+structurally before inheriting unrelated Rust behavior.
 It also inventories literal condition-index branches and the effective strategy
 switches. Probe-only source changes are AST-bound to the expected class attribute and
 old literal; routine upstream edits fail closed instead of silently changing the wrong
@@ -61,10 +86,13 @@ Static exact lowering also passes for X7 v17.4.435 at upstream commit
 The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
 de-risk state dependencies, and late grind predicates as typed operands and
 comparisons. Rust therefore does not carry release-specific grind 4/5 thresholds.
-The tag-121 regular-adjustment compiler likewise extracts separate spot and futures
-stake ladders, thresholds, stop levels, and de-risk levels. Funding is included in the
-futures callback profit snapshot before branch selection, matching Freqtrade's
-callback boundary.
+The tag-121 regular-adjustment compiler likewise extracts its reverse order scan,
+rebuy exclusions, dynamic Grind and de-risk tags, separate spot/futures stake ladders,
+thresholds and stops, the leverage-scaled Futures drawdown fallback, and the
+amount-based legacy-Grind continuation. Funding is included in the futures callback
+profit snapshot before branch selection. Promotion required an independent reviewed
+shadow to agree exactly; current payloads register no legacy shadow, and the preserved
+comparison remains evidence rather than a runtime branch.
 
 A narrow v17.4.435 runtime check additionally records exact final-surface parity for
 one spot interval and one isolated-futures interval in
@@ -130,8 +158,23 @@ The full-year APE/USDT spot fixture separately proves exact final trade-surface 
 for the top-coins path: 12 trades, 232 orders, and a byte-identical normalized surface.
 A ZEC/USDT fixture proves the tag-120 legacy route through `gm0`, repeated `gd1`, and
 `gd2`: one trade and 13 orders are byte-identical to an offline Freqtrade 2026.5.1
-run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, and `d1` branches are executable and have
-focused Rust tests, but do not yet have branch-reaching official fixtures.
+run. Deeper `dl1`/`dl2`, `gd3`-`gd6`, stop, and Futures-fallback branches are executable
+and have focused Rust tests, but do not yet have branch-reaching official fixtures.
+The separate latest-source Spot Derisk/Buyback fixture reaches tag 121 and 29 filled
+`d1` adjustments, including the first d1 exit on the entry-fill timestamp. Its one
+trade, 31 orders, final balance, trade surface, and full state exactly match pinned
+Freqtrade 2026.5.1. The fixture is an AST-bound branch probe, not a continuous release
+certificate.
+
+The whole Grind cluster set is source-compiled rather than selected by tag-120 runtime
+code. `grind-transition-program-v3` carries first-entry profit and stop, source-ordered
+post-de-risk and ordinary clusters, arbitrary source-defined level counts, each stop tag,
+retry/age and stake policy, the Futures drawdown fallback, and the bounded Derisk/Buyback
+restoration transition. Its tag, thresholds, dataframe guards, wallet policy, stake
+formulas, and leverage behavior are extracted from the strategy AST. Every reached
+compiled action is compared with the independent legacy callback implementation; a
+mismatch invalidates the Native run. The official proof is preserved in
+[`benchmarks/fixtures/captured/x7-derisk-buyback-spot-v17.4.488-2023-01-01_16`](../benchmarks/fixtures/captured/x7-derisk-buyback-spot-v17.4.488-2023-01-01_16/manifest.json).
 
 A separate mid-day Unix-timerange fixture proves the tag-62 rebuy entry, generic
 confirmation path, and rebuy custom exit with one exact trade. That trade did not
@@ -169,19 +212,38 @@ file used by a run. Context-only callbacks may be inactive for a mode; for examp
 Freqtrade does not call `leverage()` in spot mode.
 
 `nfi-bte strategy check` performs this source and callback compilation without preparing
-candles. The scheduled latest-NFI workflow checks upstream and engine identities every
-four hours and retains compact compatibility evidence. A source change outside the
-reviewed state contracts can continue immediately; a changed state contract is visible
-before a four-to-five-year run consumes resources. Missing Futures branches are handed
-to a separate nightly, two-hour, resumable discovery lane. Only a minimized independent
-official/Native exact fixture may open a Draft candidate PR.
+candles. The scheduled latest-NFI workflow checks NFI, engine, pinned Freqtrade, and
+semantic-profile identities every four hours and retains compact compatibility evidence.
+Spot and Futures remain separate checks; an atomic hosted canary must validate both before
+the latest ledger identity advances. The canary also seals a deterministic automation
+decision per mode: independently exact changes may use Native, missing coverage enters
+bounded discovery, and blocked generic lowering remains official-only while an
+evidence-only Draft review is opened. A source change outside the supported state contracts
+is therefore visible before a four-to-five-year run consumes resources. Missing Spot or
+Futures branches use the separate nightly, resumable discovery lane. Only a minimized
+independent official/Native exact fixture may open a Draft candidate PR; no review or
+candidate PR is merged automatically.
+
+For a source-reachability audit, run:
+
+```bash
+nfi-bte strategy stateful-coverage NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 --trading-mode futures \
+  --output .nfi/stateful-coverage-futures.json
+```
+
+Run it once per mode. The report derives enabled entry tags from the source, refreshes
+the callback call graph, and verifies that every reachable tag has sealed Native exit
+and adjustment programs. Disabled or non-emitted source routes remain visible as
+dormant evidence and do not qualify as implemented behavior.
 
 ## Still blocked
 
 The engine rejects rather than approximates:
 
-- the live-only partial-fill retry in the tag-120 route;
-- short routes outside the compiled 561-563 family;
+- live-only partial-fill retries, which are outside Freqtrade backtest reachability;
+- any currently dormant route that a future source revision makes reachable before a
+  sealed Native program exists (the current upstream short-grind route is one example);
 - dynamic or structurally new leverage callback programs;
 - dynamic protection properties, unsupported protection methods, and direct live
   pair-lock mutation outside the compiled protection program;

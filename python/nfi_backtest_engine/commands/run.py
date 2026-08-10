@@ -249,6 +249,70 @@ def _execute_strategy(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
         return 0 if analysis["static_safe"] else 1
+    if args.strategy_command == "semantic-inventory":
+        from ..semantic_inventory import build_semantic_inventory
+
+        report = build_semantic_inventory(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            config_path=args.config,
+            fixtures_root=args.fixtures_root,
+            output_path=args.output,
+        )
+        summary = report["summary"]
+        print(
+            "semantic inventory: "
+            f"class={report['selected_class']}, mode={report['trading_mode']}, "
+            f"callbacks={summary['rust_callback_count']}/{summary['active_callback_count']} rust, "
+            f"source_bound={summary['source_bound_callback_count']}, "
+            f"exact_fixtures={summary['exact_source_fixture_count']}, "
+            f"complete={summary['inventory_complete']}"
+        )
+        if args.output:
+            print(f"semantic inventory report: {args.output}")
+        return 0
+    if args.strategy_command == "callback-ir":
+        from ..callback_source_ir import compile_callback_source_ir
+
+        program = compile_callback_source_ir(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+        )
+        write_json(args.output, program)
+        print(
+            "callback source IR: "
+            f"entrypoints={len(program['entrypoints'])}, "
+            f"routes={len(program['route_keys'])}, "
+            f"tags={len(program['emitted_tags'])}, "
+            f"columns={len(program['required_columns'])} -> {args.output}"
+        )
+        return 0
+    if args.strategy_command == "stateful-coverage":
+        from ..stateful_coverage import build_stateful_coverage
+
+        report = build_stateful_coverage(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            config_path=args.config,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            output_path=args.output,
+        )
+        summary = report["summary"]
+        print(
+            "stateful coverage: "
+            f"class={report['selected_class']}, mode={report['trading_mode']}, "
+            f"callbacks={summary['active_callback_count']}, "
+            f"tags={summary['emitted_entry_tag_count']}, "
+            f"dormant={summary['dormant_unsupported_tag_count']}, "
+            f"reachable_gaps={summary['reachable_stateful_gap_count']}, "
+            f"complete={summary['closure_complete']}"
+        )
+        print(f"stateful coverage report: {args.output}")
+        return 0 if summary["closure_complete"] else 1
     if args.strategy_command == "check":
         from ..strategy_compatibility import check_strategy_compatibility
         from ..verification_ledger import (
@@ -417,6 +481,8 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         program = compile_state_machine_program(
             args.source,
             class_name=args.class_name,
+            schema_version=args.schema_version,
+            max_order_iterations=args.max_order_iterations,
         )
         write_json(args.output, program)
         print(

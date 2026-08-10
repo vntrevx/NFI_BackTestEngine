@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-07-30",
+  "updated_at": "2026-08-10",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -97,7 +97,16 @@
       "mutates_external_state": false
     },
     "future_nfi_compatibility_tests": {
-      "command": "uv run pytest -q tests/test_official_fallback.py tests/test_strategy_diff.py tests/test_targeted_verification.py tests/test_compatibility_identity.py tests/test_resolve_upstream_source.py tests/test_compatibility_fixture_registry.py tests/test_compatibility_issue.py tests/test_workflow_health_issue.py tests/test_nfi_compatibility_workflow.py tests/test_compatibility_qualification.py tests/test_state_machine_ir.py tests/test_state_machine_shadow.py tests/test_dynamic_grind_levels.py tests/test_strategy_compatibility.py tests/test_generic_adapter.py tests/test_probe_capture.py tests/test_research_reference.py",
+      "command": "uv run pytest -q tests/test_official_fallback.py tests/test_strategy_diff.py tests/test_targeted_verification.py tests/test_compatibility_identity.py tests/test_compatibility_canary.py tests/test_compatibility_automation.py tests/test_compatibility_review_pr.py tests/test_resolve_upstream_source.py tests/test_compatibility_fixture_registry.py tests/test_compatibility_issue.py tests/test_workflow_health_issue.py tests/test_nfi_compatibility_workflow.py tests/test_compatibility_qualification.py tests/test_state_machine_ir.py tests/test_state_machine_shadow.py tests/test_dynamic_grind_levels.py tests/test_stateful_coverage.py tests/test_strategy_compatibility.py tests/test_generic_adapter.py tests/test_probe_capture.py tests/test_research_reference.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "stateful_default_lane_tests": {
+      "command": "uv run pytest -q tests/test_stateful_execution_policy.py tests/test_official_fallback.py tests/test_managed_exit_ir.py tests/test_adjustment_ir.py tests/test_regular_adjustment_ir.py tests/test_legacy_grind_ir.py && cargo test --manifest-path rust/Cargo.toml -p nfi-sim-core --locked generic_managed_exit_shadow",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 1200,
@@ -118,6 +127,24 @@
       "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/generic-state-machine-grind12-spot-2025-01-01_04/manifest.json --output-dir {artifact_dir}/generic-state-machine --level full",
       "working_directory": ".",
       "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "generic_state_machine_v3_full": {
+      "command": "uv run nfi-bte engine fixture benchmarks/fixtures/captured/generic-state-machine-v3-orders-spot-2025-01-01_02/manifest.json --output-dir {artifact_dir}/generic-state-machine-v3 --level full",
+      "working_directory": ".",
+      "platform": "linux",
+      "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "managed_exit_shadow_tests": {
+      "command": "uv run pytest -q tests/test_managed_exit_ir.py tests/test_nfi_trade_manager.py && cargo test --manifest-path rust/Cargo.toml -p nfi-sim-core --locked generic_managed_exit_shadow",
+      "working_directory": ".",
+      "platform": "any",
       "timeout_seconds": 900,
       "required": true,
       "availability": "available",
@@ -534,7 +561,124 @@
       "stops_only_full",
       "x7_spot_full",
       "x7_futures_full",
-      "generic_state_machine_full"
+      "generic_state_machine_full",
+      "generic_state_machine_v3_full",
+      "managed_exit_shadow_tests"
+    ],
+    "full_native_kernel": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "regression_contract_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "full_native_runtime": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "stateful_default_lane_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "normal_routing_full",
+      "stops_only_full",
+      "x7_spot_full",
+      "x7_futures_full",
+      "generic_state_machine_full",
+      "generic_state_machine_v3_full",
+      "managed_exit_shadow_tests"
+    ],
+    "full_native_performance": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "benchmark_repetitions"
+    ],
+    "full_native_automation": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "futures_discovery_tests",
+      "workflow_contract_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy"
+    ],
+    "full_native_vector": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "future_nfi_compatibility_tests",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full"
+    ],
+    "full_native_release_candidate": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "platform_release_workflow",
+      "publish_product_release"
+    ],
+    "full_native_release_promotion": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "promote_product_release"
+    ],
+    "full_native_release": [
+      "planning_json",
+      "diff_check",
+      "lock_check",
+      "ruff",
+      "basedpyright",
+      "python_all",
+      "rust_fmt",
+      "rust_test",
+      "rust_clippy",
+      "x7_spot_full",
+      "x7_futures_full",
+      "platform_release_workflow",
+      "publish_product_release",
+      "promote_product_release"
     ]
   }
 }

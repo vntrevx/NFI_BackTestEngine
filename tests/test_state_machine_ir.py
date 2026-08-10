@@ -6,9 +6,11 @@ import pytest
 from nfi_backtest_engine.specs import (
     STATE_MACHINE_PROGRAM_SCHEMA,
     STATE_MACHINE_PROGRAM_V2_SCHEMA,
+    STATE_MACHINE_PROGRAM_V3_SCHEMA,
     validate_schema,
 )
 from nfi_backtest_engine.state_machine_ir import (
+    STATE_MACHINE_PROGRAM_V3_VERSION,
     StateMachineCompileError,
     compile_state_machine_program,
 )
@@ -193,6 +195,157 @@ class LegacyProgram(IStrategy):
     legacy = {**program, "schema_version": "state-machine-program-v1"}
 
     validate_schema(legacy, STATE_MACHINE_PROGRAM_SCHEMA)
+
+
+def test_state_machine_v3_compiles_finite_order_filter_and_accumulation(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "FiniteOrders.py"
+    source.write_text(
+        '''class FiniteOrders(IStrategy):
+    def custom_exit(self, pair, trade, current_time, current_rate,
+                    current_profit, **kwargs):
+        filled_entries = trade.select_filled_orders(trade.entry_side)
+        tagged_cost = 0.0
+        tagged_count = 0
+        for entry_order in filled_entries:
+            if entry_order.ft_order_tag == "grind_entry":
+                tagged_cost += entry_order.safe_filled * entry_order.safe_price
+                tagged_count += 1
+        trade.set_custom_data("tagged_cost", tagged_cost)
+        if tagged_count > 1:
+            return "ordered_exit"
+        return None
+''',
+        encoding="utf-8",
+    )
+
+    program = compile_state_machine_program(
+        source,
+        class_name="FiniteOrders",
+        schema_version=STATE_MACHINE_PROGRAM_V3_VERSION,
+        max_order_iterations=32,
+    )
+    validate_schema(program, STATE_MACHINE_PROGRAM_V3_SCHEMA)
+
+    assert program["schema_version"] == "state-machine-program-v3"
+    assert program["limits"] == {"max_order_iterations": 32}
+    assert program["custom_state_transaction"] == "entrypoint_atomic"
+    assert program["required_order_fields"] == [
+        {"field": "ft_order_tag", "value_type": "string_or_null"},
+        {"field": "safe_filled", "value_type": "number"},
+        {"field": "safe_price", "value_type": "number"},
+    ]
+    assert {"for_each_order", "if", "set_local", "set_state", "action"} <= set(
+        program["opcodes"]
+    )
+    loop = _instructions(
+        program["entrypoints"]["custom_exit"]["instructions"],
+        "for_each_order",
+    )[0]
+    assert loop["variable"] == "entry_order"
+    assert loop["collection"] == {
+        "kind": "read",
+        "source": "local",
+        "key": "filled_entries",
+        "default": None,
+    }
+    assert loop["max_iterations"] == 32
+    assert _instructions(loop["instructions"], "if")[0]["condition"]["left"] == {
+        "kind": "order_field",
+        "order": {
+            "kind": "read",
+            "source": "local",
+            "key": "entry_order",
+            "default": None,
+        },
+        "field": "ft_order_tag",
+        "value_type": "string_or_null",
+    }
+    assert program["required_reads"] == [
+        {"source": "orders", "key": "filled_entries"}
+    ]
+
+
+def test_state_machine_v3_rejects_order_iteration_without_a_finite_limit(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "UnboundedOrders.py"
+    source.write_text(
+        '''class UnboundedOrders(IStrategy):
+    def custom_exit(self, pair, trade, current_time, current_rate,
+                    current_profit, **kwargs):
+        orders = trade.select_filled_orders(None)
+        for order in orders:
+            if order.safe_filled > 0:
+                return "exit"
+        return None
+''',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        StateMachineCompileError,
+        match="order loop requires max_order_iterations",
+    ):
+        compile_state_machine_program(
+            source,
+            class_name="UnboundedOrders",
+            schema_version=STATE_MACHINE_PROGRAM_V3_VERSION,
+        )
+
+
+def test_state_machine_v3_rejects_unknown_order_fields(tmp_path: Path) -> None:
+    source = tmp_path / "UnknownOrderField.py"
+    source.write_text(
+        '''class UnknownOrderField(IStrategy):
+    def custom_exit(self, pair, trade, current_time, current_rate,
+                    current_profit, **kwargs):
+        orders = trade.select_filled_orders(None)
+        for order in orders:
+            if order.future_exchange_field:
+                return "exit"
+        return None
+''',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        StateMachineCompileError,
+        match="order field future_exchange_field",
+    ):
+        compile_state_machine_program(
+            source,
+            class_name="UnknownOrderField",
+            schema_version=STATE_MACHINE_PROGRAM_V3_VERSION,
+            max_order_iterations=8,
+        )
+
+
+def test_state_machine_default_remains_byte_equivalent_to_explicit_v2(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "V2Replay.py"
+    source.write_text(
+        '''class V2Replay(IStrategy):
+    def custom_exit(self, pair, trade, current_time, current_rate,
+                    current_profit, **kwargs):
+        if current_profit > 0.1:
+            return "exit"
+        return None
+''',
+        encoding="utf-8",
+    )
+
+    default = compile_state_machine_program(source, class_name="V2Replay")
+    explicit = compile_state_machine_program(
+        source,
+        class_name="V2Replay",
+        schema_version="state-machine-program-v2",
+    )
+
+    assert default == explicit
+    validate_schema(default, STATE_MACHINE_PROGRAM_V2_SCHEMA)
 
 
 def test_state_machine_ir_rejects_unbounded_while_with_source_location(

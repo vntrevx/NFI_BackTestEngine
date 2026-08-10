@@ -247,14 +247,14 @@ pub(super) fn nfi_managed_route(
 
 pub(super) fn nfi_legacy_grind_constants() -> NfiLegacyGrindConstants {
     let tags = [
-        ("gd1", "dd1"),
-        ("gd2", "dd2"),
-        ("gd3", "dd3"),
-        ("gd4", "dd4"),
-        ("gd5", "dd5"),
-        ("gd6", "dd6"),
-        ("dl1", "ddl1"),
-        ("dl2", "ddl2"),
+        ("gd1", "dd1", false),
+        ("gd2", "dd2", false),
+        ("gd3", "dd3", false),
+        ("gd4", "dd4", false),
+        ("gd5", "dd5", false),
+        ("gd6", "dd6", false),
+        ("dl1", "ddl1", true),
+        ("dl2", "ddl2", true),
     ];
     NfiLegacyGrindConstants {
         max_stake_multiplier: 1.0,
@@ -264,9 +264,10 @@ pub(super) fn nfi_legacy_grind_constants() -> NfiLegacyGrindConstants {
         derisk_1_reentry_spot: -0.08,
         clusters: tags
             .into_iter()
-            .map(|(entry_tag, stop_tag)| NfiLegacyGrindCluster {
+            .map(|(entry_tag, stop_tag, post_derisk)| NfiLegacyGrindCluster {
                 entry_tag: entry_tag.to_owned(),
                 stop_tag: stop_tag.to_owned(),
+                post_derisk,
                 stakes_futures: vec![0.2, 0.24, 0.28],
                 stakes_spot: vec![0.2, 0.24, 0.28],
                 thresholds_futures: vec![-0.12, -0.16, -0.20],
@@ -278,6 +279,172 @@ pub(super) fn nfi_legacy_grind_constants() -> NfiLegacyGrindConstants {
             })
             .collect(),
     }
+}
+
+pub(super) fn nfi_legacy_grind_program(
+    constants: &NfiLegacyGrindConstants,
+) -> CompiledLegacyGrindProgram {
+    let location = || ManagedExitSourceLocation {
+        line: 1,
+        column: 0,
+        end_line: 1,
+        end_column: 1,
+    };
+    let known_clusters = constants
+        .clusters
+        .iter()
+        .map(|cluster| CompiledLegacyGrindCluster {
+            entry_tag: cluster.entry_tag.clone(),
+            stop_tag: cluster.stop_tag.clone(),
+            post_derisk: cluster.post_derisk,
+        })
+        .collect();
+    let first_ordinary_tag = constants
+        .clusters
+        .iter()
+        .find(|cluster| !cluster.post_derisk)
+        .expect("ordinary Grind cluster")
+        .entry_tag
+        .clone();
+    let mut source_order = vec![CompiledLegacyGrindTransition::FirstEntry {
+        profit_tag: "gm0".to_owned(),
+        stop_tag: "gmd0".to_owned(),
+        append_entry_ids_from: first_ordinary_tag.clone(),
+        profit_threshold: 0.018,
+        stop_threshold: -0.2,
+        location: location(),
+    }];
+    source_order.extend(
+        constants
+            .clusters
+            .iter()
+            .filter(|cluster| cluster.post_derisk)
+            .chain(
+                constants
+                    .clusters
+                    .iter()
+                    .filter(|cluster| !cluster.post_derisk),
+            )
+            .map(|cluster| CompiledLegacyGrindTransition::Cluster {
+                entry_tag: cluster.entry_tag.clone(),
+                stop_tag: cluster.stop_tag.clone(),
+                post_derisk: cluster.post_derisk,
+                append_entry_ids: true,
+                futures_fallback_loss_threshold: (cluster.entry_tag == first_ordinary_tag)
+                    .then_some(-0.65),
+                location: location(),
+            }),
+    );
+    source_order.push(nfi_derisk_buyback_transition(constants, location()));
+    CompiledLegacyGrindProgram {
+        schema_version: "grind-transition-program-v3".to_owned(),
+        execution_mode: CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow,
+        source_callback: "long_grind_adjust_trade_position".to_owned(),
+        source_order,
+        order_scan: CompiledLegacyGrindOrderScan {
+            sequence: CompiledOrderSequence::Reverse,
+            entry_order_side: CompiledOrderSide::Buy,
+            exit_order_side: CompiledOrderSide::Sell,
+            exclude_first_entry: true,
+            known_clusters,
+            level_one_entry_excluded_tags: [
+                "r", "d1", "dl1", "ddl1", "dl2", "ddl2", "gd2", "dd2", "gd3", "dd3", "gd4", "dd4",
+                "gd5", "dd5", "gd6", "dd6", "gm0", "gmd0", "gdr",
+            ]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+            level_one_exit_excluded_tags: [
+                "dl1", "ddl1", "dl2", "ddl2", "gd2", "dd2", "gd3", "dd3", "gd4", "dd4", "gd5",
+                "dd5", "gd6", "dd6", "gm0", "gmd0", "gdr",
+            ]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+            close_all_exit_tags: ["p", "r", "d", "dd0", "partial_exit", "force_exit", ""]
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect(),
+            first_entry_closed_tags: ["gm0", "gmd0"].into_iter().map(ToOwned::to_owned).collect(),
+            derisk_entry_tag: "d1".to_owned(),
+            partial_fill_policy: CompiledPartialFillPolicy::FilledOrdersHaveZeroRemaining,
+        },
+        policy: CompiledLegacyGrindPolicy {
+            entry_retry_ms: 10 * 60 * 1_000,
+            order_age_ms: 6 * 60 * 60 * 1_000,
+            force_order_age_ms: 24 * 60 * 60 * 1_000,
+            forced_entry_loss_gate: -0.06,
+            minimum_entry_multiplier: 1.5,
+            minimum_remaining_multiplier: 1.55,
+            derisk_amount_ratio: 0.95,
+        },
+        location: location(),
+        fingerprint: "d".repeat(64),
+    }
+}
+
+fn nfi_derisk_buyback_transition(
+    constants: &NfiLegacyGrindConstants,
+    location: ManagedExitSourceLocation,
+) -> CompiledLegacyGrindTransition {
+    CompiledLegacyGrindTransition::DeriskBuyback {
+        tag: "d1".to_owned(),
+        entry_threshold_futures: constants.derisk_1_reentry_futures,
+        entry_threshold_spot: constants.derisk_1_reentry_spot,
+        entry_feature_columns: vec![
+            "global_protections_long_dump".to_owned(),
+            "global_protections_long_pump".to_owned(),
+        ],
+        entry_retry_policy: CompiledLegacyRetryPolicy::BoundedGrindPolicy,
+        entry_stake_basis: CompiledLegacyEntryStakeBasis::DeriskExitCost,
+        entry_minimum_multiplier: 1.5,
+        entry_wallet_guard: CompiledLegacyWalletGuard::ReturnNone,
+        exit_threshold_divisor: CompiledLegacyThresholdDivisor::ModeLeverage,
+        exit_stake_basis: CompiledLegacyExitStakeBasis::ReentryAmountAtCurrentRate,
+        exit_minimum_remaining_multiplier: 1.55,
+        location,
+    }
+}
+
+pub(super) fn nfi_legacy_stateful_input_contract() -> serde_json::Value {
+    serde_json::json!({
+        "indexed_fields": {
+            "last_candle": [
+                "global_protections_long_dump",
+                "global_protections_long_pump"
+            ],
+            "previous_candle": []
+        }
+    })
+}
+
+pub(super) fn enable_test_compiled_legacy_grind(
+    manager: &mut NfiX7TradeManager,
+    constants: NfiLegacyGrindConstants,
+) {
+    let program = nfi_legacy_grind_program(&constants);
+    manager
+        .programs
+        .insert("long_grind_entry_v3".to_owned(), nfi_boolean_true_program());
+    manager.long_grind = Some(NfiLongGrindRoute {
+        mode_name: "long_grind".to_owned(),
+        entry_tags: vec!["120".to_owned()],
+        exit_profit_threshold: 0.25,
+        adjustment_scope: "spot-grind-backtest-v1".to_owned(),
+        grind_mode: true,
+        decision_program: "long_grind_entry_v3".to_owned(),
+        first_entry_profit_threshold_spot: 0.018,
+        first_entry_stop_threshold_spot: -0.2,
+        futures_fallback_loss_threshold: Some(-0.65),
+        derisk_use_grind_stops: true,
+        stateful_input_contract: nfi_legacy_stateful_input_contract(),
+        constants,
+        program: Some(program),
+        regular_decision_program: None,
+        regular_constants: None,
+        regular_program: None,
+    });
+    manager.route_order.insert(6, "long_grind".to_owned());
 }
 
 pub(super) fn nfi_regular_adjustment_constants() -> NfiRegularAdjustmentConstants {
@@ -320,11 +487,93 @@ pub(super) fn nfi_regular_adjustment_constants() -> NfiRegularAdjustmentConstant
     }
 }
 
+pub(super) fn nfi_regular_adjustment_program(
+    constants: &NfiRegularAdjustmentConstants,
+) -> CompiledRegularAdjustmentProgram {
+    let location = || ManagedExitSourceLocation {
+        line: 1,
+        column: 0,
+        end_line: 1,
+        end_column: 1,
+    };
+    let mut source_order = vec![CompiledRegularTransition::Rebuy {
+        tag: "r".to_owned(),
+        location: location(),
+    }];
+    source_order.extend(constants.grinds.iter().enumerate().map(|(index, grind)| {
+        CompiledRegularTransition::Grind {
+            level: index + 1,
+            entry_tag: grind.entry_tag.clone(),
+            stop_tag: grind.stop_tag.clone(),
+            futures_fallback_loss_threshold: (index == 0).then_some(-0.65),
+            location: location(),
+        }
+    }));
+    source_order.extend([
+        CompiledRegularTransition::Derisk {
+            tag: "d".to_owned(),
+            level_one: false,
+            location: location(),
+        },
+        CompiledRegularTransition::Derisk {
+            tag: "d1".to_owned(),
+            level_one: true,
+            location: location(),
+        },
+    ]);
+    let mut rebuy_entry_excluded_tags = constants
+        .grinds
+        .iter()
+        .flat_map(|grind| [grind.entry_tag.clone(), grind.stop_tag.clone()])
+        .collect::<Vec<_>>();
+    rebuy_entry_excluded_tags.extend(
+        [
+            "dl1", "ddl1", "dl2", "ddl2", "gd1", "dd1", "gd2", "dd2", "gd3", "dd3", "gd4", "dd4",
+            "gd5", "dd5", "gd6", "dd6", "gm0", "gmd0",
+        ]
+        .into_iter()
+        .map(ToOwned::to_owned),
+    );
+    let mut rebuy_exit_excluded_tags = vec!["p".to_owned()];
+    rebuy_exit_excluded_tags.extend(rebuy_entry_excluded_tags.iter().cloned());
+    CompiledRegularAdjustmentProgram {
+        schema_version: "regular-transition-program-v1".to_owned(),
+        execution_mode: CompiledRegularExecutionMode::PrimaryWithLegacyShadow,
+        source_callback: "long_adjust_trade_position_no_derisk".to_owned(),
+        source_order,
+        order_scan: CompiledRegularOrderScan {
+            sequence: CompiledOrderSequence::Reverse,
+            entry_order_side: CompiledOrderSide::Buy,
+            exit_order_side: CompiledOrderSide::Sell,
+            exclude_first_entry: true,
+            rebuy_entry_excluded_tags,
+            rebuy_exit_excluded_tags,
+            derisk_exit_tags: [
+                "d", "d1", "dd0", "ddl1", "ddl2", "dd1", "dd2", "dd3", "dd4", "dd5", "dd6",
+            ]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+            derisk_level_one_tag: "d1".to_owned(),
+            partial_fill_tag: "p".to_owned(),
+        },
+        continuation: CompiledRegularContinuation {
+            kind: CompiledRegularContinuationKind::LegacyGrind,
+            guard: CompiledRegularContinuationGuard::PositionAmountBelowFirstEntryRatio,
+            amount_ratio: 0.95,
+            location: location(),
+        },
+        location: location(),
+        fingerprint: "e".repeat(64),
+    }
+}
+
 pub(super) fn enable_test_long_btc(
     manager: &mut NfiX7TradeManager,
     constants: NfiRegularAdjustmentConstants,
     regular_program: ScalarDecisionProgram,
 ) {
+    let compiled_regular_program = nfi_regular_adjustment_program(&constants);
     manager
         .programs
         .insert("long_grind_entry".to_owned(), regular_program);
@@ -337,12 +586,14 @@ pub(super) fn enable_test_long_btc(
         decision_program: "long_grind_entry_v3".to_owned(),
         first_entry_profit_threshold_spot: 0.018,
         first_entry_stop_threshold_spot: -0.2,
-        futures_fallback_loss_threshold: None,
+        futures_fallback_loss_threshold: Some(-0.65),
         derisk_use_grind_stops: true,
         stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
         constants: nfi_legacy_grind_constants(),
+        program: None,
         regular_decision_program: Some("long_grind_entry".to_owned()),
         regular_constants: Some(constants),
+        regular_program: Some(compiled_regular_program),
     });
     manager.route_order.insert(6, "long_btc".to_owned());
 }
@@ -438,6 +689,8 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
         .map(ToOwned::to_owned)
         .collect(),
         managed_long_routes,
+        managed_exit_program: None,
+        managed_short_exit_program: None,
         short_route_order: vec!["short_rebuy".to_owned()],
         managed_short_routes: vec![short_rebuy_route],
         long_grind: None,
@@ -451,6 +704,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
             system_version: "system_v3_2".to_owned(),
             stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
             constants: rebuy_constants.clone(),
+            program: None,
         },
         short_rebuy_adjustment: NfiX7ShortRebuyAdjustment {
             enabled: true,
@@ -463,11 +717,13 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
             post_derisk_action: "fail-simulation".to_owned(),
             stateful_input_contract: serde_json::json!({"indexed_fields": {}}),
             constants: rebuy_constants,
+            program: None,
         },
         position_adjustment: Some(NfiX7PositionAdjustment {
             enabled: false,
             entry_tags: adjustment_tags,
             system_version: "system_v3_2".to_owned(),
+            source_callback: None,
             decision_program: "long_grind_entry_v3".to_owned(),
             program_order: [
                 "derisk_level_1",
@@ -524,6 +780,7 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
                     .collect(),
                 policy: Some(nfi_adjustment_policy()),
             },
+            program: None,
         }),
         short_position_adjustment: None,
         constants: NfiManagedLongConstants {
@@ -553,6 +810,8 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
         ]),
         feature_projections: OnceLock::new(),
         feature_projection_unions: OnceLock::new(),
+        source_feature_projection_unions: OnceLock::new(),
+        dispatch_plan: OnceLock::new(),
     }
 }
 
@@ -635,6 +894,327 @@ pub(super) fn enable_test_full_short_manager(manager: &mut NfiX7TradeManager) {
         "short_grind_entry_v3".to_owned(),
         nfi_boolean_false_program(),
     );
+}
+
+pub(super) fn enable_test_basic_exit_shadow(
+    manager: &mut NfiX7TradeManager,
+    route_key: &str,
+    initial_profit_gate: Option<ManagedExitProfitGate>,
+) {
+    let route = manager
+        .managed_long_routes
+        .iter()
+        .find(|route| route.key == route_key)
+        .expect("test manager has the shadowed route");
+    let mut decision_program_order = vec![
+        "long_exit_signals".to_owned(),
+        "long_exit_main".to_owned(),
+        "long_exit_williams_r".to_owned(),
+    ];
+    if route.profile != NfiManagedLongProfile::HighProfit {
+        decision_program_order.push("long_exit_dec".to_owned());
+    }
+    manager.managed_exit_program = Some(ManagedExitProgram {
+        schema_version: "managed-exit-program-v1".to_owned(),
+        execution_mode: ManagedExitExecutionMode::Shadow,
+        routes: vec![ManagedExitRoute {
+            id: route.key.clone(),
+            source_order: 0,
+            matcher: ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::Any,
+                entry_tags: route.entry_tags.clone(),
+                operands: Vec::new(),
+            },
+            initial_profit_gate,
+            profit_basis: if route.profile == NfiManagedLongProfile::Rebuy {
+                ManagedExitProfitBasis::CurrentStake
+            } else {
+                ManagedExitProfitBasis::InitialStake
+            },
+            mode_name: route.mode_name.clone(),
+            decision_program_order,
+            state_program: Some(test_managed_exit_state(route, "long_exit_stoploss")),
+            terminal_exit: route.terminal_exit.clone(),
+            location: ManagedExitSourceLocation {
+                line: 1,
+                column: 0,
+                end_line: 1,
+                end_column: 1,
+            },
+        }],
+        fingerprint: "b".repeat(64),
+    });
+}
+
+fn test_managed_exit_state(
+    route: &NfiManagedLongRoute,
+    source_helper: &str,
+) -> ManagedExitStateProgram {
+    let special_stop = matches!(
+        route.profile,
+        NfiManagedLongProfile::Rebuy | NfiManagedLongProfile::Rapid | NfiManagedLongProfile::Scalp
+    );
+    ManagedExitStateProgram {
+        stateful_order: vec![
+            ManagedExitStateOperation::Stop,
+            ManagedExitStateOperation::ExistingTarget,
+            ManagedExitStateOperation::TargetUpdate,
+            ManagedExitStateOperation::FinalFilter,
+            ManagedExitStateOperation::TerminalExit,
+        ],
+        inline_exit: None,
+        stop: if special_stop {
+            ManagedExitStopPolicy::StakeThreshold {
+                enabled: true,
+                futures_threshold: route.stop_threshold_futures.unwrap_or(0.35),
+                spot_threshold: route.stop_threshold_spot.unwrap_or(0.12),
+                divide_by_leverage: true,
+            }
+        } else {
+            ManagedExitStopPolicy::SourceHelper {
+                helper: source_helper.to_owned(),
+            }
+        },
+        target: test_managed_exit_target(route),
+    }
+}
+
+fn test_managed_exit_target(route: &NfiManagedLongRoute) -> ManagedExitTargetPolicy {
+    ManagedExitTargetPolicy {
+        u_e_raise_delta: if matches!(
+            route.profile,
+            NfiManagedLongProfile::Normal
+                | NfiManagedLongProfile::Pump
+                | NfiManagedLongProfile::TopCoins
+                | NfiManagedLongProfile::Scalp
+        ) {
+            0.005
+        } else {
+            0.001
+        },
+        profit_raise_delta: 0.001,
+        max_target_floor: if route.profile == NfiManagedLongProfile::HighProfit {
+            0.03
+        } else {
+            0.005
+        },
+        protected_reentry_guard: matches!(
+            route.profile,
+            NfiManagedLongProfile::Normal
+                | NfiManagedLongProfile::Quick
+                | NfiManagedLongProfile::Rapid
+                | NfiManagedLongProfile::TopCoins
+        ),
+        suppress_protected_exit: route.profile != NfiManagedLongProfile::HighProfit,
+        pure_scalp_trailing: route.profile == NfiManagedLongProfile::Scalp,
+        pure_scalp_matcher: (route.profile == NfiManagedLongProfile::Scalp).then(|| {
+            ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::All,
+                entry_tags: route.entry_tags.clone(),
+                operands: Vec::new(),
+            }
+        }),
+    }
+}
+
+pub(super) fn enable_test_short_exit_shadow(manager: &mut NfiX7TradeManager) {
+    let known_explicit_tags = manager
+        .managed_short_routes
+        .iter()
+        .filter(|route| route.key != "short_top_coins_fallback")
+        .flat_map(|route| route.entry_tags.clone())
+        .chain(["620".to_owned()])
+        .collect::<Vec<_>>();
+    let rebuy_tags = manager
+        .managed_short_routes
+        .iter()
+        .find(|route| route.key == "short_rebuy")
+        .expect("test manager has short rebuy")
+        .entry_tags
+        .clone();
+    let routes = manager
+        .managed_short_routes
+        .iter()
+        .enumerate()
+        .map(|(source_order, route)| ManagedExitRoute {
+            id: route.key.clone(),
+            source_order,
+            matcher: test_short_exit_matcher(route, &known_explicit_tags, &rebuy_tags),
+            initial_profit_gate: matches!(
+                route.profile,
+                NfiManagedLongProfile::Normal
+                    | NfiManagedLongProfile::Pump
+                    | NfiManagedLongProfile::Quick
+                    | NfiManagedLongProfile::Rapid
+            )
+            .then_some(ManagedExitProfitGate {
+                operator: ManagedExitComparison::GreaterThan,
+                value: 0.0,
+            }),
+            profit_basis: if route.profile == NfiManagedLongProfile::Rebuy {
+                ManagedExitProfitBasis::CurrentStake
+            } else {
+                ManagedExitProfitBasis::InitialStake
+            },
+            mode_name: route.mode_name.clone(),
+            decision_program_order: test_short_program_order(route.profile),
+            state_program: Some(test_managed_exit_state(route, "short_exit_stoploss")),
+            terminal_exit: None,
+            location: ManagedExitSourceLocation {
+                line: source_order + 1,
+                column: 0,
+                end_line: source_order + 1,
+                end_column: 1,
+            },
+        })
+        .collect();
+    manager.managed_short_exit_program = Some(ManagedExitProgram {
+        schema_version: "managed-exit-program-v1".to_owned(),
+        execution_mode: ManagedExitExecutionMode::Shadow,
+        routes,
+        fingerprint: "c".repeat(64),
+    });
+}
+
+fn test_short_program_order(profile: NfiManagedLongProfile) -> Vec<String> {
+    let mut order = [
+        "short_exit_signals",
+        "short_exit_main",
+        "short_exit_williams_r",
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect::<Vec<_>>();
+    if profile != NfiManagedLongProfile::HighProfit {
+        order.push("short_exit_dec".to_owned());
+    }
+    order
+}
+
+fn test_short_exit_matcher(
+    route: &NfiManagedLongRoute,
+    known_explicit_tags: &[String],
+    rebuy_tags: &[String],
+) -> ManagedExitTagMatcher {
+    match route.key.as_str() {
+        "short_rebuy" => test_tag_matcher(ManagedExitTagOperator::All, &route.entry_tags),
+        "short_scalp" => test_short_scalp_matcher(route, rebuy_tags),
+        "short_top_coins_fallback" => ManagedExitTagMatcher {
+            operator: ManagedExitTagOperator::AllOf,
+            entry_tags: Vec::new(),
+            operands: vec![
+                ManagedExitTagMatcher {
+                    operator: ManagedExitTagOperator::IsShort,
+                    entry_tags: Vec::new(),
+                    operands: Vec::new(),
+                },
+                ManagedExitTagMatcher {
+                    operator: ManagedExitTagOperator::Not,
+                    entry_tags: Vec::new(),
+                    operands: vec![test_tag_matcher(
+                        ManagedExitTagOperator::Any,
+                        known_explicit_tags,
+                    )],
+                },
+            ],
+        },
+        _ => test_tag_matcher(ManagedExitTagOperator::Any, &route.entry_tags),
+    }
+}
+
+fn test_short_scalp_matcher(
+    route: &NfiManagedLongRoute,
+    rebuy_tags: &[String],
+) -> ManagedExitTagMatcher {
+    let compound_tags = route
+        .entry_tags
+        .iter()
+        .cloned()
+        .chain(rebuy_tags.iter().cloned())
+        .chain(["620".to_owned()])
+        .collect::<Vec<_>>();
+    ManagedExitTagMatcher {
+        operator: ManagedExitTagOperator::AnyOf,
+        entry_tags: Vec::new(),
+        operands: vec![
+            test_tag_matcher(ManagedExitTagOperator::All, &route.entry_tags),
+            ManagedExitTagMatcher {
+                operator: ManagedExitTagOperator::AllOf,
+                entry_tags: Vec::new(),
+                operands: vec![
+                    test_tag_matcher(ManagedExitTagOperator::Any, &route.entry_tags),
+                    test_tag_matcher(ManagedExitTagOperator::All, &compound_tags),
+                ],
+            },
+        ],
+    }
+}
+
+fn test_tag_matcher(
+    operator: ManagedExitTagOperator,
+    entry_tags: &[String],
+) -> ManagedExitTagMatcher {
+    ManagedExitTagMatcher {
+        operator,
+        entry_tags: entry_tags.to_vec(),
+        operands: Vec::new(),
+    }
+}
+
+pub(super) fn enable_test_quick_inline_shadow(manager: &mut NfiX7TradeManager) {
+    enable_test_basic_exit_shadow(
+        manager,
+        "long_quick",
+        Some(ManagedExitProfitGate {
+            operator: ManagedExitComparison::GreaterThan,
+            value: 0.0,
+        }),
+    );
+    let route = &mut manager
+        .managed_exit_program
+        .as_mut()
+        .expect("shadow program")
+        .routes[0];
+    let state = route.state_program.as_mut().expect("shadow state program");
+    state.stateful_order = vec![
+        ManagedExitStateOperation::Stop,
+        ManagedExitStateOperation::InlineExit,
+        ManagedExitStateOperation::ExistingTarget,
+        ManagedExitStateOperation::TargetUpdate,
+        ManagedExitStateOperation::FinalFilter,
+        ManagedExitStateOperation::TerminalExit,
+    ];
+    state.inline_exit = Some(ManagedExitInlineExit {
+        position: ManagedExitInlinePosition::AfterStop,
+        minimum_profit: 0.02,
+        minimum_inclusive: false,
+        maximum_profit: 0.09,
+        maximum_inclusive: true,
+        program: serde_json::from_value(serde_json::json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": ["mode_name", "profit_init_ratio", "last_candle"],
+            "expressions": [
+                ["variable", "last_candle"],
+                ["literal", "RSI_14"],
+                ["index", 0, 1],
+                ["literal", 78.0],
+                ["compare", 2, [["greater", 3]]],
+                ["literal", true],
+                ["variable", "mode_name"],
+                ["format", [["text", "exit_"], ["value", 6], ["text", "_q_1"]]],
+                ["tuple", [5, 7]],
+                ["literal", false],
+                ["literal", null],
+                ["tuple", [9, 10]]
+            ],
+            "statements": [
+                ["if", 4, [["return", 8]], []],
+                ["return", 11]
+            ]
+        }))
+        .expect("valid inline scalar program"),
+    });
 }
 
 pub(super) fn nfi_adjustment_policy() -> NfiX7AdjustmentPolicy {

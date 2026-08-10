@@ -28,6 +28,10 @@ MANIFEST = (
 )
 
 
+def test_reference_runtime_resolves_the_repository_root() -> None:
+    assert reference_execution._project_root() == ROOT  # pyright: ignore[reportPrivateUsage]
+
+
 def test_reference_image_identity_accepts_both_docker_store_projections() -> None:
     assert {
         REFERENCE_PLATFORM_DIGEST,

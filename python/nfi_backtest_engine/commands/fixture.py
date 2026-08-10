@@ -112,9 +112,25 @@ def execute(
                 f"state trace valid: {summary['event_count']} events, "
                 f"stream {summary['stream_hash']}"
             )
-        else:
+        elif args.trace_command == "compare":
             compare_state_traces(args.expected, args.actual)
             print(f"exact state parity: {args.expected} == {args.actual}")
+        else:
+            from ..scheduler_verification import verify_scheduler_events
+
+            report = verify_scheduler_events(
+                args.manifest,
+                args.official_semantic_trace,
+                args.native_events,
+                args.contract,
+                output_path=args.output,
+            )
+            print(
+                "scheduler event order: "
+                f"exact={report['event_order_exact']}, "
+                f"events={report['event_count']} -> {args.output}"
+            )
+            return 0 if report["event_order_exact"] else 1
         return 0
 
     if args.command_name == "profile":

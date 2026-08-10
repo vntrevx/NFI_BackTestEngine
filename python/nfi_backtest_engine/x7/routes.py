@@ -6,57 +6,36 @@ import ast
 import copy
 import hashlib
 import math
+from collections.abc import Mapping
 from typing import Any, cast
 
 from ..errors import StrategyAnalysisError
 from .trade_manager import (
-    _LONG_EXIT_REBUY_BASE_AST_SHA256,
-    _MANAGED_LONG_METHOD_SHA256,
     _MANAGED_LONG_ROUTE_SPECS,
     _MANAGED_LONG_STATEFUL_FEATURES,
-    _MANAGED_SHORT_METHOD_SHA256,
+    _MANAGED_LONG_STATEFUL_STEPS,
     _MANAGED_SHORT_ROUTE_SPECS,
+    _MANAGED_SHORT_STATEFUL_STEPS,
     _QUICK_RAPID_STATEFUL_FEATURES,
     _ROUTE_STOP_CONSTANTS,
 )
 
 
-def _validate_managed_long_method_identity(
-    methods: dict[str, ast.FunctionDef],
-    method_records: dict[str, dict[str, Any]],
-) -> dict[str, Any] | None:
-    """Reject a missing or changed stateful managed-long callback.
+def _require_managed_long_methods(methods: Mapping[str, ast.FunctionDef]) -> None:
+    """Keep the established incomplete-router diagnostic ahead of IR lowering."""
 
-    Scalar predicates remain source-compiled, but routing, target-cache writes,
-    stop order, and the quick/rapid inline predicates are implemented directly
-    in Rust. All of those observable bodies must match the reviewed snapshot.
-    """
-    missing = [name for name in _MANAGED_LONG_METHOD_SHA256 if name not in methods]
+    required = dict.fromkeys(
+        [
+            "custom_exit",
+            *(spec.method for spec in _MANAGED_LONG_ROUTE_SPECS),
+            *_MANAGED_LONG_STATEFUL_STEPS,
+        ]
+    )
+    missing = [name for name in required if name not in methods]
     if missing:
         raise StrategyAnalysisError(
             "NFI X7 managed-long state machine is missing: " + ", ".join(missing)
         )
-    changed = [
-        name
-        for name, expected in _MANAGED_LONG_METHOD_SHA256.items()
-        if name != "long_exit_rebuy"
-        if method_records.get(name, {}).get("source_sha256") != expected
-    ]
-    rebuy_terminal_exit, terminal_index = _extract_rebuy_terminal_exit(methods["long_exit_rebuy"])
-    if (
-        _method_ast_sha256(
-            methods["long_exit_rebuy"],
-            remove_statement_index=terminal_index,
-        )
-        != _LONG_EXIT_REBUY_BASE_AST_SHA256
-    ):
-        changed.append("long_exit_rebuy")
-    if changed:
-        raise StrategyAnalysisError(
-            "NFI X7 managed-long route changed; exact lowering requires review: "
-            + ", ".join(changed)
-        )
-    return rebuy_terminal_exit
 
 
 def _extract_rebuy_terminal_exit(
@@ -64,8 +43,7 @@ def _extract_rebuy_terminal_exit(
 ) -> tuple[dict[str, Any] | None, int | None]:
     """Extract the optional pure terminal exit appended to `long_exit_rebuy`.
 
-    The stateful portion of the method remains pinned by its masked AST hash.
-    Only this closed expression shape is dynamic: exact entry tags, elapsed
+    Only this closed expression shape is accepted: exact entry tags, elapsed
     trade age, initial-basis profit, and a literal exit reason.
     """
 
@@ -226,11 +204,17 @@ def _numeric_expression(node: ast.AST) -> float | None:
 def _method_ast_sha256(
     method: ast.FunctionDef,
     *,
-    remove_statement_index: int | None,
+    remove_statement_indices: frozenset[int] = frozenset(),
+    remove_statement_index: int | None = None,
 ) -> str:
     normalized = copy.deepcopy(method)
     if remove_statement_index is not None:
-        del normalized.body[remove_statement_index]
+        remove_statement_indices = remove_statement_indices | {remove_statement_index}
+    normalized.body = [
+        statement
+        for index, statement in enumerate(normalized.body)
+        if index not in remove_statement_indices
+    ]
     # Python 3.13 changed ``ast.dump`` to omit empty optional fields by
     # default.  The fields are still part of the same AST, so relying on that
     # default made a reviewed callback appear different solely because the
@@ -248,25 +232,13 @@ def _method_ast_sha256(
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _validate_managed_short_method_identity(
-    methods: dict[str, ast.FunctionDef],
-    method_records: dict[str, dict[str, Any]],
-) -> None:
-    """Pin the stateful wrapper for the first executable short route."""
-    missing = [name for name in _MANAGED_SHORT_METHOD_SHA256 if name not in methods]
+def _require_managed_short_methods(methods: Mapping[str, ast.FunctionDef]) -> None:
+    """Require every helper consumed by structural short-exit lowering."""
+
+    missing = [name for name in _MANAGED_SHORT_STATEFUL_STEPS if name not in methods]
     if missing:
         raise StrategyAnalysisError(
             "NFI X7 managed-short state machine is missing: " + ", ".join(missing)
-        )
-    changed = [
-        name
-        for name, expected in _MANAGED_SHORT_METHOD_SHA256.items()
-        if method_records.get(name, {}).get("source_sha256") != expected
-    ]
-    if changed:
-        raise StrategyAnalysisError(
-            "NFI X7 managed-short route changed; exact lowering requires review: "
-            + ", ".join(changed)
         )
 
 
