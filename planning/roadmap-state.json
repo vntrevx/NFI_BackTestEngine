@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 124,
-  "updated_at": "2026-08-10T17:11:50+09:00",
+  "revision": 125,
+  "updated_at": "2026-08-10T17:47:42+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M20-01",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4620,7 +4620,7 @@
       "order": 2001,
       "milestone": "M20",
       "title": "Inventory all latest-NFI indicator operations",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M19-04"
       ],
@@ -4640,9 +4640,15 @@
         "operation coverage matrix"
       ],
       "started_at": "2026-08-10T17:11:50+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-10T17:47:42+09:00",
+      "commit_sha": "6c044fa59fdc30dcd50f1a7cd00320568580deb3",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M20-01/317f7c30bbfdde6d0d2d05ab99b2420331cccf05/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M20-01/317f7c30bbfdde6d0d2d05ab99b2420331cccf05/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M20-01/317f7c30bbfdde6d0d2d05ab99b2420331cccf05/indicator-inventory.json",
+        ".nfi/roadmap-acceptance/M20-01/317f7c30bbfdde6d0d2d05ab99b2420331cccf05/operation-coverage-matrix.json",
+        ".nfi/roadmap-acceptance/M20-01/317f7c30bbfdde6d0d2d05ab99b2420331cccf05/latest-upstream/NostalgiaForInfinityX7.py"
+      ],
       "blocker": null
     },
     {
@@ -8162,6 +8168,31 @@
         "informative_dependencies_may_be_omitted": false,
         "arbitrary_pandas_implementation_allowed": false,
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 172,
+      "timestamp": "2026-08-10T17:47:42+09:00",
+      "task_id": "M20-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "6c044fa59fdc30dcd50f1a7cd00320568580deb3",
+        "latest_upstream_commit": "317f7c30bbfdde6d0d2d05ab99b2420331cccf05",
+        "latest_strategy_sha256": "27cf2f9cbecaa2d14786e4d178b4c46474ec46acf76a284fa32d71550bfea85c",
+        "inventory_fingerprint": "2d8e40950d57ab19af5e36e9cdf0c25058447940e82b76f168ed48e5143e9721",
+        "deterministic_repeat_byte_exact": true,
+        "reachable_node_count": 19,
+        "operation_count": 98,
+        "unresolved_call_site_count": 0,
+        "informative_dependency_complete": true,
+        "python_test_count": 717,
+        "rust_test_count": 145,
+        "spot_trade_surface_and_full_state_exact": true,
+        "futures_trade_surface_and_full_state_exact": true,
+        "runtime_hardcoding_added": false,
+        "native_indicator_kernel_claim": false,
+        "next_eligible_task": "M20-02",
+        "next_task_manual_gate": false
       }
     }
   ]
