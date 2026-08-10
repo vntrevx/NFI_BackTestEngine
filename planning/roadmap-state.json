@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 125,
-  "updated_at": "2026-08-10T17:47:42+09:00",
+  "revision": 126,
+  "updated_at": "2026-08-10T20:46:10+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M20-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4656,7 +4656,7 @@
       "order": 2002,
       "milestone": "M20",
       "title": "Define indicator-program-v1",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M20-01"
       ],
@@ -4675,7 +4675,7 @@
         "indicator schema tests",
         "source mutation and identity tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-10T20:46:10+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8193,6 +8193,20 @@
         "native_indicator_kernel_claim": false,
         "next_eligible_task": "M20-02",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 173,
+      "timestamp": "2026-08-10T20:46:10+09:00",
+      "task_id": "M20-02",
+      "event": "task_started",
+      "details": {
+        "objective": "define indicator-program-v1 as a typed causal DAG compiled from source",
+        "latest_upstream_head_at_start": "06025f7ac6216e8c6c4b65040e6b3d7145527fda",
+        "input_inventory_task": "M20-01",
+        "strategy_named_opcodes_allowed": false,
+        "lookahead_capable_defaults_allowed": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
