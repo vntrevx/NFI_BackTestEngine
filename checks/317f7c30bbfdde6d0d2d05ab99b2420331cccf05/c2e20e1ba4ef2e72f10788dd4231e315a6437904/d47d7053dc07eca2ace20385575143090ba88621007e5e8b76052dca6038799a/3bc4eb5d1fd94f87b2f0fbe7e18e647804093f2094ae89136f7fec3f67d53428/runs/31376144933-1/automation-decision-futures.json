@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "317f7c30bbfdde6d0d2d05ab99b2420331cccf05",
+    "engine_sha": "c2e20e1ba4ef2e72f10788dd4231e315a6437904",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "27cf2f9cbecaa2d14786e4d178b4c46474ec46acf76a284fa32d71550bfea85c"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "semantic_review_draft_pr",
+  "execution_route": "official_only",
+  "review_kind": "generic_lowering",
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "972c2d85959e4844658eb79f15fdfb97e27e5fb000cc39ae443adb790f61b082",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "NFI adjustment grind 5 fallback condition changed"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "1 changed behavior target(s) have no branch-reaching fixture: callback"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": true,
+    "draft_pr_kind": "generic_lowering",
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "805a5c5f167ae391179930e6366b57c6b9702b9fd232cf57505c2cdbe3ea28a6",
+  "decision_fingerprint": "f5258249ab267a257416a1a78d52712da59a6fe8390e9ccab395fb88999f92d0",
+  "message": "Static lowering is blocked; open a generic lowering review Draft PR."
+}
