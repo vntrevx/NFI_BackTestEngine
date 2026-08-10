@@ -97,6 +97,8 @@ class CiContractTests(unittest.TestCase):
         self.assertIn("needs.changes.outputs.policy_changes == 'true'", workflow)
         self.assertIn("needs.changes.outputs.code_changes == 'true'", workflow)
         self.assertNotIn("pull_request_target:", workflow)
+        self.assertIn('paths-ignore:', workflow)
+        self.assertIn('- "planning/compatibility-reviews/**"', workflow)
         for path in self.contract["push"]["release_paths"]:
             self.assertIn(f'- "{path}"', workflow)
 
@@ -115,6 +117,14 @@ class CiContractTests(unittest.TestCase):
             target.write_text('{"complete": }\n', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "changed JSON is invalid"):
                 self.module.validate_text_paths(root, ["planning/state.json"])
+
+    def test_dependabot_avoids_known_noisy_update_shapes(self) -> None:
+        dependabot = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+
+        self.assertIn('update-types:\n          - "patch"', dependabot)
+        self.assertIn('- "version-update:semver-major"', dependabot)
+        self.assertIn('- "version-update:semver-minor"', dependabot)
+        self.assertIn('- dependency-name: "ta-lib"', dependabot)
 
 
 if __name__ == "__main__":

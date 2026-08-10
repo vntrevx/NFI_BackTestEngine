@@ -31,6 +31,12 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert "cancel-in-progress: false" in text
     assert "timeout-minutes: 125" in text
     assert "github.event.workflow_run.conclusion == 'success'" in text
+    assert "stale_trigger: ${{ steps.identity.outputs.stale_trigger }}" in text
+    assert 'EVENT_NAME: ${{ github.event_name }}' in text
+    assert '[ "${EVENT_NAME}" = "workflow_run" ]' in text
+    assert "A newer successful compatibility run owns discovery" in text
+    assert 'echo "stale_trigger=true"' in text
+    assert 'echo "stale_trigger=false"' in text
     assert 'test "${source_run_id}" = "${ledger_run_id}"' in text
     assert "trading_mode:\n          - spot\n          - futures" in text
     assert 'strategy discover \\' in text
