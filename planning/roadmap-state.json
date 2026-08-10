@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 133,
-  "updated_at": "2026-08-11T02:31:11+09:00",
+  "revision": 134,
+  "updated_at": "2026-08-11T03:03:16+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M21-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4804,7 +4804,7 @@
       "order": 2101,
       "milestone": "M21",
       "title": "Define and compile signal-program-v1",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M20-05"
       ],
@@ -4823,7 +4823,7 @@
         "signal schema tests",
         "entry and exit mutation tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-11T03:03:16+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8400,6 +8400,20 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M21-01",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 181,
+      "timestamp": "2026-08-11T03:03:16+09:00",
+      "task_id": "M21-01",
+      "event": "task_started",
+      "details": {
+        "objective": "define and compile signal-program-v1 with exact dataframe assignment and source-order overwrite semantics",
+        "signal_number_execution_branches_allowed": false,
+        "unordered_assignment_evaluation_allowed": false,
+        "entry_and_exit_long_short_required": true,
+        "original_source_order_must_be_preserved": true,
+        "latest_upstream_commit": "897a1523391b8222ee711eba9714b59a3e77265a"
       }
     }
   ]
