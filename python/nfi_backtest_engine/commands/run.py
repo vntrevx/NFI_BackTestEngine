@@ -272,6 +272,28 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         if args.output:
             print(f"semantic inventory report: {args.output}")
         return 0
+    if args.strategy_command == "indicator-inventory":
+        from ..indicator_inventory import build_indicator_inventory
+
+        report = build_indicator_inventory(
+            args.source,
+            class_name=args.class_name,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            output_path=args.output,
+        )
+        summary = report["summary"]
+        print(
+            "indicator inventory: "
+            f"class={report['selected_class']}, "
+            f"nodes={summary['reachable_node_count']}, "
+            f"operations={summary['operation_count']}, "
+            f"unresolved={summary['unresolved_call_site_count']}, "
+            f"complete={summary['inventory_complete']}"
+        )
+        if args.output:
+            print(f"indicator inventory report: {args.output}")
+        return 0
     if args.strategy_command == "callback-ir":
         from ..callback_source_ir import compile_callback_source_ir
 
