@@ -123,6 +123,8 @@ class CiContractTests(unittest.TestCase):
 
         self.assertEqual(dependabot.count('interval: "quarterly"'), 3)
         self.assertNotIn('interval: "monthly"', dependabot)
+        self.assertEqual(dependabot.count("open-pull-requests-limit: 0"), 3)
+        self.assertNotIn("open-pull-requests-limit: 1", dependabot)
         self.assertIn('update-types:\n          - "patch"', dependabot)
         self.assertIn('- "version-update:semver-major"', dependabot)
         self.assertIn('- "version-update:semver-minor"', dependabot)
