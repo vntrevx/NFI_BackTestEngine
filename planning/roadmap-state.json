@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 121,
-  "updated_at": "2026-08-10T11:37:05+09:00",
+  "revision": 122,
+  "updated_at": "2026-08-10T16:57:27+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M19-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4584,7 +4584,7 @@
       "order": 1904,
       "milestone": "M19",
       "title": "Promote the byte-identical v1.5.0 stable release",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M19-03"
       ],
@@ -4603,7 +4603,7 @@
         "RC/stable byte identity",
         "three-OS stable installer audit"
       ],
-      "started_at": null,
+      "started_at": "2026-08-10T16:57:27+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8101,6 +8101,23 @@
         "next_eligible_task": "M19-04",
         "next_task_manual_gate": true,
         "full_native_strategy_claim": false
+      }
+    },
+    {
+      "sequence": 169,
+      "timestamp": "2026-08-10T16:57:27+09:00",
+      "task_id": "M19-04",
+      "event": "task_started",
+      "details": {
+        "objective": "promote v1.5.0-rc.1 assets byte-identically to stable v1.5.0",
+        "manual_gate_approved": true,
+        "approval_message": "그래 계속 진행 하자",
+        "candidate_tag": "v1.5.0-rc.1",
+        "candidate_commit": "7e0b6054db230eda958aa14aa8772aa70470a42a",
+        "stable_tag": "v1.5.0",
+        "rebuild_allowed": false,
+        "new_five_year_claim_allowed": false,
+        "full_native_strategy_claim_allowed": false
       }
     }
   ]
