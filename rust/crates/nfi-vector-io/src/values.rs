@@ -143,6 +143,9 @@ pub(crate) fn is_numeric_type(data_type: &DataType) -> bool {
     )
 }
 
+#[allow(clippy::float_cmp)]
+// Freqtrade intentionally activates a signal only for exact numeric 1. An
+// epsilon comparison would incorrectly turn nearby strategy outputs into orders.
 pub(crate) fn enabled(
     array: &dyn Array,
     row: usize,
@@ -154,7 +157,7 @@ pub(crate) fn enabled(
         return Ok(false);
     }
     let value = required_number(array, row, pair, column, absolute_row)?;
-    Ok(!value.is_nan() && value != 0.0)
+    Ok(value == 1.0)
 }
 
 pub(crate) fn optional_number(
@@ -201,4 +204,31 @@ pub(crate) fn optional_text(
         }
     };
     Ok((!value.is_empty() && value != EMPTY_TAG_TRANSPORT_SENTINEL).then(|| value.to_owned()))
+}
+
+#[cfg(test)]
+mod tests {
+    use arrow2::array::PrimitiveArray;
+
+    use super::enabled;
+
+    #[test]
+    fn freqtrade_signal_enablement_requires_exact_numeric_one() {
+        let values = PrimitiveArray::<f64>::from([
+            Some(1.0),
+            Some(0.0),
+            Some(2.0),
+            Some(-1.0),
+            Some(f64::NAN),
+            None,
+        ]);
+        let expected = [true, false, false, false, false, false];
+
+        for (row, expected) in expected.into_iter().enumerate() {
+            assert_eq!(
+                enabled(&values, row, "ETH/USDT", "enter_long", row).unwrap(),
+                expected
+            );
+        }
+    }
 }

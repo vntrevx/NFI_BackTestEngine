@@ -250,7 +250,7 @@ def _scalar_feature_value(value: Any, column: str) -> Any:
 
 
 def _enabled(value: Any) -> bool:
-    return not pd.isna(value) and float(value) != 0.0
+    return not pd.isna(value) and bool(value == 1)
 
 
 def _optional_text(value: Any) -> str | None:

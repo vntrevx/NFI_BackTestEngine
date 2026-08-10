@@ -311,6 +311,24 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         )
         print(f"indicator program report: {args.output}")
         return 0
+    if args.strategy_command == "signal-program":
+        from ..signal_program import compile_signal_program
+
+        program = compile_signal_program(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+        )
+        write_json(args.output, program)
+        print(
+            "signal program: "
+            f"class={program['selected_class']}, "
+            f"mode={program['compile_context']['trading_mode']}, "
+            f"nodes={len(program['nodes'])}, "
+            f"mutations={len(program['mutation_nodes'])}"
+        )
+        print(f"signal program report: {args.output}")
+        return 0
     if args.strategy_command == "callback-ir":
         from ..callback_source_ir import compile_callback_source_ir
 

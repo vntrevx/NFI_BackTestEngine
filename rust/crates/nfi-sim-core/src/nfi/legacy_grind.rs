@@ -423,7 +423,7 @@ fn evaluate_compiled_grind(
     let has_derisk_buyback = program.schema_version == "grind-transition-program-v3";
     if complete_program != stop_action.is_some() {
         return None;
-    };
+    }
     let first_entry_closed = trade
         .orders
         .iter()

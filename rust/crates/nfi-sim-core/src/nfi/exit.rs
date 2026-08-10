@@ -599,19 +599,19 @@ fn evaluate_generic_managed_long_exit(
                     }
                 }
             }
-            ManagedExitStateOperation::TerminalExit => {
+            ManagedExitStateOperation::TerminalExit
                 if route.terminal_exit.as_ref().is_some_and(|terminal| {
                     enter_tags == terminal.entry_tags
                         && candle.timestamp_ms - trade.open_timestamp_ms >= terminal.minimum_age_ms
                         && snapshot.initial_stake_ratio >= terminal.minimum_profit_ratio
-                }) {
-                    let reason = &route
-                        .terminal_exit
-                        .as_ref()
-                        .expect("terminal exit was checked immediately above")
-                        .reason;
-                    return Some(CustomExitDecision::Exit(nfi_exit_reason(reason, entry_tag)));
-                }
+                }) =>
+            {
+                let reason = &route
+                    .terminal_exit
+                    .as_ref()
+                    .expect("terminal exit was checked immediately above")
+                    .reason;
+                return Some(CustomExitDecision::Exit(nfi_exit_reason(reason, entry_tag)));
             }
             _ => {}
         }
