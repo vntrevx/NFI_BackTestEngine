@@ -120,6 +120,39 @@ def test_indicator_program_compiles_typed_causal_dag_and_helpers(tmp_path: Path)
     assert len(program["fingerprint"]) == 64
 
 
+def test_indicator_program_compiles_generic_talib_multi_outputs(tmp_path: Path) -> None:
+    source = tmp_path / "MultiOutputStrategy.py"
+    source.write_text(
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class MultiOutputStrategy(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        high = dataframe['high']\n"
+        "        low = dataframe['low']\n"
+        "        close = dataframe['close']\n"
+        "        aroon_down, aroon_up = ta.AROON(high, low, timeperiod=14)\n"
+        "        fast_k = ta.STOCHF(high, low, close, fastk_period=9)[0]\n"
+        "        dataframe['aroon_down'] = aroon_down\n"
+        "        dataframe['aroon_up'] = aroon_up\n"
+        "        dataframe['fast_k'] = fast_k\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="MultiOutputStrategy")
+
+    calls = [node for node in program["nodes"] if node["op"] == "indicator-call"]
+    assert [(node["parameters"]["name"], node["parameters"]["output"]) for node in calls] == [
+        ("AROON", "aroondown"),
+        ("AROON", "aroonup"),
+        ("STOCHF", "fastk"),
+    ]
+    assert all(node["parameters"]["family"] == "ta" for node in calls)
+    assert program["required_input_columns"] == ["close", "high", "low"]
+    validate_indicator_program(program)
+
+
 def test_committed_indicator_program_contract_remains_schema_valid() -> None:
     program = compile_indicator_program(
         CONTRACT,

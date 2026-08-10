@@ -14,6 +14,7 @@ use self::operations::column_type;
 use self::runtime::{NodeValue, RuntimeColumn};
 use crate::batch::{BatchView, ColumnRequest};
 use crate::error::VectorCoreError;
+use crate::kernels::{RollingStream, TalibStream};
 use crate::program::{ExecutionPlan, IndicatorProgram, ProgramNode};
 use crate::sink::{BatchSink, OutputBatch};
 use crate::state::ShiftState;
@@ -38,6 +39,8 @@ pub struct VectorEngine<'program> {
     plan: ExecutionPlan<'program>,
     input_requests: Vec<ColumnRequest>,
     shift_states: BTreeMap<String, ShiftState>,
+    indicator_states: BTreeMap<String, TalibStream>,
+    rolling_states: BTreeMap<String, RollingStream>,
     profile: EngineProfile,
 }
 
@@ -88,6 +91,8 @@ impl<'program> VectorEngine<'program> {
             plan,
             input_requests,
             shift_states: BTreeMap::new(),
+            indicator_states: BTreeMap::new(),
+            rolling_states: BTreeMap::new(),
             profile: EngineProfile::default(),
         })
     }
@@ -134,12 +139,36 @@ impl<'program> VectorEngine<'program> {
             .shift_states
             .values()
             .map(|state| state.profile().retained)
-            .sum::<usize>();
+            .sum::<usize>()
+            .saturating_add(
+                self.indicator_states
+                    .values()
+                    .map(TalibStream::retained)
+                    .sum::<usize>(),
+            )
+            .saturating_add(
+                self.rolling_states
+                    .values()
+                    .map(RollingStream::retained)
+                    .sum::<usize>(),
+            );
         let peak_state_values = self
             .shift_states
             .values()
             .map(|state| state.profile().peak)
-            .sum::<usize>();
+            .sum::<usize>()
+            .saturating_add(
+                self.indicator_states
+                    .values()
+                    .map(TalibStream::retained)
+                    .sum::<usize>(),
+            )
+            .saturating_add(
+                self.rolling_states
+                    .values()
+                    .map(RollingStream::retained)
+                    .sum::<usize>(),
+            );
         let projected_columns = batch.profile().projected_columns;
         let batch_live_values = batch.len().saturating_mul(
             projected_columns

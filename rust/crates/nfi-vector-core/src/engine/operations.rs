@@ -269,7 +269,7 @@ pub(super) fn to_owned_column(
     }
 }
 
-fn numeric_at(
+pub(super) fn numeric_at(
     values: &BTreeMap<String, NodeValue<'_>>,
     node: &str,
     row: usize,
