@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 130,
-  "updated_at": "2026-08-11T00:08:20+09:00",
+  "revision": 131,
+  "updated_at": "2026-08-11T00:55:12+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M20-04",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4730,7 +4730,7 @@
       "order": 2004,
       "milestone": "M20",
       "title": "Implement all NFI-reachable indicator kernels",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M20-03"
       ],
@@ -4749,9 +4749,17 @@
         "boundary-sensitive signal tests"
       ],
       "started_at": "2026-08-11T00:08:20+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-11T00:55:12+09:00",
+      "commit_sha": "d589e53b71681c01f2b487a4bbfa5d9c5617d036",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M20-04/d589e53b71681c01f2b487a4bbfa5d9c5617d036/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M20-04/d589e53b71681c01f2b487a4bbfa5d9c5617d036/kernel-oracle-report.json",
+        ".nfi/roadmap-acceptance/M20-04/d589e53b71681c01f2b487a4bbfa5d9c5617d036/latest-program-gap.json",
+        ".nfi/roadmap-acceptance/M20-04/d589e53b71681c01f2b487a4bbfa5d9c5617d036/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M20-04/d589e53b71681c01f2b487a4bbfa5d9c5617d036/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M20-04/d589e53b71681c01f2b487a4bbfa5d9c5617d036/x7-futures/run.json",
+        "benchmarks/reference/indicator-kernels/nfi-x7-e857f9b6-talib-v0.6.4.json"
+      ],
       "blocker": null
     },
     {
@@ -8305,6 +8313,40 @@
         "unverified_numerical_substitutions_allowed": false,
         "strategy_or_signal_hardcoding_allowed": false,
         "kernel_dispatch_must_be_operation_driven": true
+      }
+    },
+    {
+      "sequence": 178,
+      "timestamp": "2026-08-11T00:55:12+09:00",
+      "task_id": "M20-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "d589e53b71681c01f2b487a4bbfa5d9c5617d036",
+        "latest_upstream_commit": "e857f9b687189b5a4634abbb02b257c1d70df84a",
+        "latest_strategy_sha256": "3c9a27500ee8cb01d3bc35903a3bd44b5892383b1eafb0f10a3d332e3c5a5974",
+        "inventory_fingerprint": "f09bc6b043f160058f21a2b638a37de5fa056b94595271664ce61ac601fd10fb",
+        "oracle_fingerprint": "f1fc94e7f1496e21258fb94907194135870ace2fc144660160b6904a64ccf321",
+        "oracle_rows": 2200,
+        "talib_operation_count": 19,
+        "talib_parameter_variant_count": 56,
+        "pandas_rolling_variant_count": 24,
+        "column_and_warmup_exact": true,
+        "tolerance_used": false,
+        "streaming_chunk_exact": true,
+        "bounded_state": true,
+        "python_test_count": 732,
+        "future_compatibility_test_count": 134,
+        "rust_workspace_test_count": 195,
+        "spot_trade_surface_and_full_state_exact": true,
+        "futures_trade_surface_and_full_state_exact": true,
+        "runtime_hardcoding_added": false,
+        "unsafe_rust_added": false,
+        "latest_x7_fully_compiled": false,
+        "latest_x7_fail_closed_source": "strategy.py:3168:21",
+        "all_latest_nfi_reachable_indicator_kernels_exact": true,
+        "full_native_strategy_claim": false,
+        "next_eligible_task": "M20-05",
+        "next_task_manual_gate": false
       }
     }
   ]
