@@ -14,6 +14,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+AUTOMATION_CLASSIFICATION = "automation-only"
 CODE_CLASSIFICATION = "code"
 DOCS_CLASSIFICATION = "docs-only"
 POLICY_CLASSIFICATION = "policy-only"
@@ -33,6 +34,7 @@ def load_contract(path: str | Path) -> dict[str, Any]:
         raise ValueError("CI contract schema_version must be 1.1.0")
     docs = document.get("docs_only")
     policy = document.get("policy_only")
+    automation = document.get("automation_only")
     jobs = document.get("jobs")
     conditional_jobs = document.get("conditional_job_ids")
     classifications = document.get("classifications")
@@ -49,11 +51,23 @@ def load_contract(path: str | Path) -> dict[str, Any]:
         or not isinstance(policy, dict)
         or not _string_list(policy.get("prefixes"))
         or not _string_list(policy.get("files"))
+        or not isinstance(automation, dict)
+        or not isinstance(automation.get("prefixes"), list)
+        or any(
+            not isinstance(prefix, str) or not prefix
+            for prefix in automation.get("prefixes", [])
+        )
+        or not _string_list(automation.get("files"))
         or not isinstance(jobs, dict)
         or not _string_list(conditional_jobs)
         or not isinstance(classifications, dict)
         or set(classifications)
-        != {DOCS_CLASSIFICATION, POLICY_CLASSIFICATION, CODE_CLASSIFICATION}
+        != {
+            AUTOMATION_CLASSIFICATION,
+            DOCS_CLASSIFICATION,
+            POLICY_CLASSIFICATION,
+            CODE_CLASSIFICATION,
+        }
         or any(not isinstance(value, list) for value in classifications.values())
         or any(
             set(value) - set(conditional_jobs)
@@ -124,6 +138,13 @@ def classify_paths(paths: Sequence[str], contract: Mapping[str, Any]) -> str:
         for path in normalized
     ):
         return POLICY_CLASSIFICATION
+    if all(
+        _path_matches(path, contract["docs_only"])
+        or _path_matches(path, contract["policy_only"])
+        or _path_matches(path, contract["automation_only"])
+        for path in normalized
+    ):
+        return AUTOMATION_CLASSIFICATION
     return CODE_CLASSIFICATION
 
 
@@ -138,6 +159,7 @@ def required_results_pass(
     """Evaluate all component jobs behind the stable Required CI check."""
     if (
         classification not in {
+            AUTOMATION_CLASSIFICATION,
             CODE_CLASSIFICATION,
             DOCS_CLASSIFICATION,
             POLICY_CLASSIFICATION,
@@ -726,8 +748,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         result = {
             "classification": classification,
+            "automation_changes": str(
+                classification == AUTOMATION_CLASSIFICATION
+            ).lower(),
             "policy_changes": str(
-                classification == POLICY_CLASSIFICATION
+                classification
+                in {AUTOMATION_CLASSIFICATION, POLICY_CLASSIFICATION}
             ).lower(),
             "code_changes": str(classification == CODE_CLASSIFICATION).lower(),
             "changed_paths_json": json.dumps(

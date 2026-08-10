@@ -129,7 +129,7 @@ def test_workflow_routes_blocked_generic_semantics_to_evidence_only_draft_pr() -
     assert "automation-decision-${{ matrix.trading_mode }}.json" in targeted
     assert "semantic_review_draft_pr" in review
     assert "scripts/compatibility_review_pr.py" in review
-    assert "actions: write" in review
+    assert "actions: write" not in review
     assert "pull-requests: write" in review
     assert "gh pr merge" not in review
     assert "gh pr review" not in review

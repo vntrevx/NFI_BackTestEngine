@@ -13,6 +13,8 @@ The classifier selects the cheapest lane that covers every changed path:
 - `policy-only`: documentation plus explicitly listed repository metadata and the
   required-CI implementation itself; a dependency-free policy self-test runs on
   Ubuntu;
+- `automation-only`: the allowlisted NFI semantic-review workflow, publisher, and
+  focused tests; one Ubuntu job runs only their tests, lint, and type check;
 - `code`: every unlisted path, runtime source, tests, schemas, fixtures, build
   inputs, and installers; the full Python matrix on Linux, Windows, and macOS,
   static/Rust checks, and native full-parity fixtures run.

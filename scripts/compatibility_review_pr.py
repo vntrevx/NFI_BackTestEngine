@@ -100,6 +100,16 @@ def publish_review(
 
     root = Path(repository_root).resolve()
     branch = str(plan["branch"])
+    pending = _existing_pending_review(repository, plan)
+    if pending is not None:
+        return {
+            "branch": pending["headRefName"],
+            "pull_request_url": pending["url"],
+            "created": False,
+            "state": pending["state"],
+            "ci_dispatched": False,
+            "deduplicated": True,
+        }
     existing = _existing_pr(repository, branch)
     if existing is not None:
         return {
@@ -176,25 +186,13 @@ def publish_review(
         ],
         cwd=root,
     ).strip()
-    _run(
-        [
-            "gh",
-            "workflow",
-            "run",
-            "ci.yml",
-            "--repo",
-            repository,
-            "--ref",
-            branch,
-        ],
-        cwd=root,
-    )
     return {
         "branch": branch,
         "pull_request_url": url,
         "created": True,
         "state": "OPEN",
-        "ci_dispatched": True,
+        "ci_dispatched": False,
+        "deduplicated": False,
     }
 
 
@@ -241,6 +239,57 @@ def _existing_pr(repository: str, branch: str) -> dict[str, Any] | None:
         raise ValueError("GitHub returned an invalid semantic review PR list")
     record = records[0] if records else None
     return dict(record) if isinstance(record, Mapping) else None
+
+
+def _existing_pending_review(
+    repository: str,
+    plan: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    records = json.loads(
+        _run(
+            [
+                "gh",
+                "pr",
+                "list",
+                "--repo",
+                repository,
+                "--state",
+                "open",
+                "--limit",
+                "100",
+                "--json",
+                "body,headRefName,state,url",
+            ]
+        )
+    )
+    if not isinstance(records, list):
+        raise ValueError("GitHub returned an invalid open semantic review PR list")
+    return find_pending_review(records, plan)
+
+
+def find_pending_review(
+    records: list[object],
+    plan: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    """Find an already-open review for the same upstream semantic gap."""
+
+    marker = f"<!-- nfi-semantic-review:{plan['trading_mode']}:"
+    upstream = f"- Upstream: `{plan['upstream_sha']}`"
+    review_kind = f"- Review kind: `{plan['review_kind']}`"
+    for record in records:
+        if not isinstance(record, Mapping):
+            continue
+        body = record.get("body")
+        if (
+            isinstance(body, str)
+            and marker in body
+            and upstream in body
+            and review_kind in body
+            and isinstance(record.get("headRefName"), str)
+            and isinstance(record.get("url"), str)
+        ):
+            return dict(record)
+    return None
 
 
 def _run(arguments: list[str], *, cwd: Path | None = None) -> str:

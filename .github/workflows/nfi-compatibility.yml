@@ -492,7 +492,6 @@ jobs:
           - spot
           - futures
     permissions:
-      actions: write
       contents: write
       pull-requests: write
     steps:

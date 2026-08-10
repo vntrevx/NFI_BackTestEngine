@@ -44,12 +44,30 @@ class CiContractTests(unittest.TestCase):
             self.module.POLICY_CLASSIFICATION,
         )
 
+    def test_compatibility_automation_uses_focused_lane(self) -> None:
+        paths = [
+            ".github/workflows/nfi-compatibility.yml",
+            "scripts/compatibility_review_pr.py",
+            "tests/test_compatibility_review_pr.py",
+            "tests/test_nfi_compatibility_workflow.py",
+            ".github/workflows/ci.yml",
+        ]
+
+        self.assertEqual(
+            self.module.classify_paths(paths, self.contract),
+            self.module.AUTOMATION_CLASSIFICATION,
+        )
+
     def test_runtime_or_unknown_paths_fail_closed_to_code(self) -> None:
         for paths in (
             ["python/nfi_backtest_engine/cli.py"],
             ["docs/ci-policy.md", "rust/crates/nfi-sim-core/Cargo.toml"],
             ["planning/futures-discovery-policy.json"],
             [".github/workflows/release.yml"],
+            [
+                "scripts/compatibility_review_pr.py",
+                "rust/crates/nfi-sim-core/Cargo.toml",
+            ],
             [],
         ):
             with self.subTest(paths=paths):
@@ -95,7 +113,10 @@ class CiContractTests(unittest.TestCase):
 
         self.assertIn("name: Required CI", workflow)
         self.assertIn("needs.changes.outputs.policy_changes == 'true'", workflow)
+        self.assertIn("needs.changes.outputs.automation_changes == 'true'", workflow)
         self.assertIn("needs.changes.outputs.code_changes == 'true'", workflow)
+        self.assertIn("name: Compatibility automation checks", workflow)
+        self.assertIn('--job-result "automation=$AUTOMATION_RESULT"', workflow)
         self.assertNotIn("pull_request_target:", workflow)
         self.assertIn('paths-ignore:', workflow)
         self.assertIn('- "planning/compatibility-reviews/**"', workflow)
