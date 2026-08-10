@@ -95,32 +95,25 @@ jobs:
           persist-credentials: false
       - name: Validate CI policy without project build
         run: python .github/scripts/test_ci_contract.py
-
-  automation:
-    name: Compatibility automation checks
-    needs: changes
-    if: needs.changes.outputs.automation_changes == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
       - name: Install uv and Python
+        if: needs.changes.outputs.automation_changes == 'true'
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Install locked test environment
+        if: needs.changes.outputs.automation_changes == 'true'
         run: uv sync --extra dev --frozen
       - name: Run focused compatibility automation tests
+        if: needs.changes.outputs.automation_changes == 'true'
         run: >-
           uv run pytest -q
           tests/test_compatibility_review_pr.py
           tests/test_nfi_compatibility_workflow.py
+          tests/test_release_contract.py
       - name: Lint and type-check the focused automation surface
+        if: needs.changes.outputs.automation_changes == 'true'
         run: |
           uv run ruff check \
             scripts/compatibility_review_pr.py \
@@ -256,7 +249,7 @@ jobs:
   required:
     name: Required CI
     if: always()
-    needs: [changes, documentation, policy, automation, python, quality, parity]
+    needs: [changes, documentation, policy, python, quality, parity]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -270,7 +263,6 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           POLICY_RESULT: ${{ needs.policy.result }}
-          AUTOMATION_RESULT: ${{ needs.automation.result }}
           PYTHON_RESULT: ${{ needs.python.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           PARITY_RESULT: ${{ needs.parity.result }}
@@ -282,7 +274,6 @@ jobs:
             --changes-result "$CHANGES_RESULT" \
             --documentation-result "$DOCUMENTATION_RESULT" \
             --job-result "policy=$POLICY_RESULT" \
-            --job-result "automation=$AUTOMATION_RESULT" \
             --job-result "python=$PYTHON_RESULT" \
             --job-result "quality=$QUALITY_RESULT" \
             --job-result "parity=$PARITY_RESULT"

@@ -60,10 +60,6 @@
       "name": "CI policy checks",
       "timeout_minutes": 5
     },
-    "automation": {
-      "name": "Compatibility automation checks",
-      "timeout_minutes": 15
-    },
     "python": {
       "name": "Python ${{ matrix.os }} / ${{ matrix.python-version }}",
       "timeout_minutes": 30,
@@ -91,7 +87,6 @@
   },
   "conditional_job_ids": [
     "policy",
-    "automation",
     "python",
     "quality",
     "parity"
@@ -102,8 +97,7 @@
       "policy"
     ],
     "automation-only": [
-      "policy",
-      "automation"
+      "policy"
     ],
     "code": [
       "python",
@@ -114,7 +108,7 @@
   "coverage": {
     "text_integrity": "documentation",
     "ci_policy": "policy",
-    "compatibility_automation": "automation",
+    "compatibility_automation": "policy",
     "quality": "quality",
     "python_linux": "python",
     "rust_tests": "quality",
