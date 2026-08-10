@@ -32,3 +32,22 @@ This inventory is not a Native-support claim. `native_status=inventory-only` mea
 operation is required by the observed source but still needs a typed opcode, an exact
 kernel, and independent Python/TA-Lib comparison in later M20 tasks. The upstream commit
 is evidence identity only and is never used for runtime dispatch.
+
+## Typed indicator program
+
+`indicator-program-v1` is the causal execution contract built from a supported source
+subset. It uses generic nodes for parameters, column reads and writes, arithmetic,
+comparisons, selection, TA-Lib/qtpylib calls, rolling/shift/EWM, helper calls, and
+informative merges.
+
+```bash
+nfi-bte strategy indicator-program NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 \
+  --output .nfi/indicator-program.json
+```
+
+Every node has a value type, source-order index, source location, inputs, and causal
+lookback. Function and node IDs are structural data; strategy and Signal names never
+become opcodes. Negative shifts, centered rolling windows, backward fill, dynamic
+window sizes, and prefilled informative merges fail closed. An unsupported source
+construct must be generalized deliberately before it can enter the Native lane.

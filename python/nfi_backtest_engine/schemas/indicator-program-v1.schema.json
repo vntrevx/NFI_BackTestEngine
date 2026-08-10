@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/indicator-program-v1.schema.json",
+  "title": "Indicator Program v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "selected_class",
+    "entrypoint",
+    "functions",
+    "nodes",
+    "required_input_columns",
+    "produced_columns",
+    "informative_nodes",
+    "opcodes",
+    "max_lookback",
+    "source_map",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "indicator-program-v1"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "selected_class": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "entrypoint": {
+      "$ref": "#/$defs/function_id"
+    },
+    "functions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/function"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "required_input_columns": {
+      "$ref": "#/$defs/strings"
+    },
+    "produced_columns": {
+      "$ref": "#/$defs/strings"
+    },
+    "informative_nodes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/node_id"
+      }
+    },
+    "opcodes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/opcode"
+      }
+    },
+    "max_lookback": {
+      "$ref": "#/$defs/lookback"
+    },
+    "source_map": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^n[1-9][0-9]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/location"
+      }
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "function_id": {
+      "type": "string",
+      "pattern": "^f[1-9][0-9]*$"
+    },
+    "node_id": {
+      "type": "string",
+      "pattern": "^n[1-9][0-9]*$"
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "value_type": {
+      "enum": [
+        "dataframe",
+        "metadata",
+        "dynamic",
+        "null",
+        "bool-scalar",
+        "int-scalar",
+        "f64-scalar",
+        "string-scalar",
+        "json-scalar",
+        "bool-column",
+        "f64-column",
+        "timestamp-column"
+      ]
+    },
+    "opcode": {
+      "enum": [
+        "parameter",
+        "literal",
+        "column-read",
+        "metadata-read",
+        "column-write",
+        "binary",
+        "compare",
+        "logical",
+        "unary",
+        "select",
+        "indicator-call",
+        "array-call",
+        "scalar-call",
+        "cast",
+        "window",
+        "shift",
+        "fill",
+        "informative-merge",
+        "function-call",
+        "instrumentation",
+        "return"
+      ]
+    },
+    "lookback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "candles",
+        "expression",
+        "causal"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "finite",
+            "recursive",
+            "library-defined",
+            "function-defined",
+            "mixed"
+          ]
+        },
+        "candles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "expression": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "causal": {
+          "const": true
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "line",
+        "column",
+        "end_line",
+        "end_column"
+      ],
+      "properties": {
+        "path": {
+          "const": "strategy.py"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "node",
+        "value_type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "node": {
+          "$ref": "#/$defs/node_id"
+        },
+        "value_type": {
+          "$ref": "#/$defs/value_type"
+        }
+      }
+    },
+    "function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_name",
+        "kind",
+        "parameters",
+        "node_ids",
+        "return_node"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/function_id"
+        },
+        "source_name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "kind": {
+          "enum": [
+            "entrypoint",
+            "helper"
+          ]
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/node_id"
+          }
+        },
+        "return_node": {
+          "$ref": "#/$defs/node_id"
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "function",
+        "source_order",
+        "op",
+        "value_type",
+        "inputs",
+        "parameters",
+        "lookback"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/node_id"
+        },
+        "function": {
+          "$ref": "#/$defs/function_id"
+        },
+        "source_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "op": {
+          "$ref": "#/$defs/opcode"
+        },
+        "value_type": {
+          "$ref": "#/$defs/value_type"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node_id"
+          }
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "lookback": {
+          "$ref": "#/$defs/lookback"
+        }
+      }
+    }
+  }
+}
