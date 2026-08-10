@@ -191,3 +191,39 @@ def test_failed_cli_attempt_cleans_private_resource_capture(
     # legacy filename cannot block resume and is not silently overwritten.
     assert stale_legacy_capture.is_file()
     assert sorted(tmp_path.glob(".result.json.*.resources")) == []
+
+
+def test_macos_cli_fallback_never_uses_gnu_time_options(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "vectors.manifest.json"
+    output = tmp_path / "result.json"
+    binary = tmp_path / "nfi-sim"
+    write_json(source, {"schema_version": "fixture"})
+    binary.write_bytes(b"fixture")
+    observed: list[str] = []
+
+    def run(command: list[str], **_kwargs) -> SimpleNamespace:
+        observed.extend(command)
+        write_json(output, {"trades": []})
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(
+        engine_runtime,
+        "build_engine",
+        lambda: {"kind": "standalone-cli", "binary_path": str(binary)},
+    )
+    monkeypatch.setattr(engine_runtime, "_gnu_time_prefix", lambda _path: [])
+    monkeypatch.setattr(engine_runtime.subprocess, "run", run)
+
+    report = engine_runtime.run_engine(source, output, vector_manifest=True)
+
+    assert observed == [
+        str(binary),
+        "--vector-manifest",
+        str(source),
+        str(output),
+    ]
+    assert report["peak_rss_bytes"] is None
+    assert report["cpu_time_seconds"] is None
