@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.3.0",
+  "selected_class": "NostalgiaForInfinityX7",
+  "old": {
+    "name": "old.py",
+    "bytes": 3315768,
+    "sha256": "851dcf36183490fa6a84d553e41f92f3613a592ee03d724115007faadc519d94"
+  },
+  "new": {
+    "name": "new.py",
+    "bytes": 3316745,
+    "sha256": "8e95604fbad51e44ce958bf32403d909765d13478f6c846a0bc68b9aed7af528"
+  },
+  "classification": "ir-compatible",
+  "changes": {
+    "signals": {
+      "added": [],
+      "removed": []
+    },
+    "tags": {
+      "added": [],
+      "removed": []
+    },
+    "callbacks": {
+      "added": [],
+      "removed": [],
+      "changed": [
+        "populate_entry_trend",
+        "version"
+      ],
+      "locations": {
+        "populate_entry_trend": {
+          "line": 13030,
+          "column": 2,
+          "end_line": 28527,
+          "end_column": 13
+        },
+        "version": {
+          "line": 73,
+          "column": 2,
+          "end_line": 74,
+          "end_column": 22
+        }
+      }
+    },
+    "dataframe_columns": {
+      "added": [],
+      "removed": []
+    },
+    "custom_state_keys": {
+      "added": [],
+      "removed": []
+    },
+    "grind_levels": {
+      "added": [],
+      "removed": []
+    },
+    "opcodes": {
+      "added": [],
+      "removed": []
+    },
+    "boolean_mappings": []
+  },
+  "behavior_targets": [
+    {
+      "id": "d1a457119b61afb0f134b660e49c9e125f160a894ea973c2842f7a26567e09aa",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "3",
+        "41",
+        "44",
+        "47",
+        "562",
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28513,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28527,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "diagnostics": {
+    "old": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1062,
+          "column": 51,
+          "end_line": 1062,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1064,
+          "column": 10,
+          "end_line": 1064,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1073,
+          "column": 8,
+          "end_line": 1073,
+          "end_column": 60
+        }
+      }
+    ],
+    "new": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1062,
+          "column": 51,
+          "end_line": 1062,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1064,
+          "column": 10,
+          "end_line": 1064,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1073,
+          "column": 8,
+          "end_line": 1073,
+          "end_column": 60
+        }
+      }
+    ]
+  }
+}
