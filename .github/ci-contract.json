@@ -38,6 +38,15 @@
       ".python-version"
     ]
   },
+  "automation_only": {
+    "prefixes": [],
+    "files": [
+      ".github/workflows/nfi-compatibility.yml",
+      "scripts/compatibility_review_pr.py",
+      "tests/test_compatibility_review_pr.py",
+      "tests/test_nfi_compatibility_workflow.py"
+    ]
+  },
   "jobs": {
     "changes": {
       "name": "Classify changes",
@@ -50,6 +59,10 @@
     "policy": {
       "name": "CI policy checks",
       "timeout_minutes": 5
+    },
+    "automation": {
+      "name": "Compatibility automation checks",
+      "timeout_minutes": 15
     },
     "python": {
       "name": "Python ${{ matrix.os }} / ${{ matrix.python-version }}",
@@ -78,6 +91,7 @@
   },
   "conditional_job_ids": [
     "policy",
+    "automation",
     "python",
     "quality",
     "parity"
@@ -86,6 +100,10 @@
     "docs-only": [],
     "policy-only": [
       "policy"
+    ],
+    "automation-only": [
+      "policy",
+      "automation"
     ],
     "code": [
       "python",
@@ -96,6 +114,7 @@
   "coverage": {
     "text_integrity": "documentation",
     "ci_policy": "policy",
+    "compatibility_automation": "automation",
     "quality": "quality",
     "python_linux": "python",
     "rust_tests": "quality",
@@ -118,6 +137,11 @@
       "policy-only": [
         "text_integrity",
         "ci_policy"
+      ],
+      "automation-only": [
+        "text_integrity",
+        "ci_policy",
+        "compatibility_automation"
       ],
       "code": [
         "text_integrity",

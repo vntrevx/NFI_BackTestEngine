@@ -81,13 +81,35 @@ def test_review_plan_rejects_existing_base_destination(tmp_path: Path) -> None:
         MODULE.build_review_plan(_decision(), tmp_path)
 
 
-def test_publisher_opens_only_a_draft_and_dispatches_required_ci() -> None:
+def test_publisher_opens_only_a_draft_without_evidence_only_ci() -> None:
     source = (ROOT / "scripts" / "compatibility_review_pr.py").read_text(
         encoding="utf-8"
     )
 
     assert '"--draft"' in source
-    assert '"workflow"' in source
-    assert '"ci.yml"' in source
+    assert '"workflow"' not in source
+    assert '"ci.yml"' not in source
     assert '"pr", "merge"' not in source
     assert '"pr", "review"' not in source
+
+
+def test_pending_review_deduplicates_engine_only_identity_changes() -> None:
+    plan = MODULE.build_review_plan(_decision(), Path.cwd())
+    body = (
+        "<!-- nfi-semantic-review:futures:" + "1" * 64 + " -->\n\n"
+        "- Upstream: `" + "a" * 40 + "`\n"
+        "- Engine: `" + "2" * 40 + "`\n"
+        "- Review kind: `new_opcode`\n"
+    )
+    record = {
+        "body": body,
+        "headRefName": "automation/futures-semantic-review-existing",
+        "state": "OPEN",
+        "url": "https://example.invalid/pull/1",
+    }
+
+    assert MODULE.find_pending_review([record], plan) == record
+
+    changed_upstream = dict(plan)
+    changed_upstream["upstream_sha"] = "9" * 40
+    assert MODULE.find_pending_review([record], changed_upstream) is None
