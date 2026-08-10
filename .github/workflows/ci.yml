@@ -134,8 +134,13 @@ jobs:
         if: matrix.suite == 'full'
         run: uv run maturin develop --locked
       - name: Run Python tests
-        if: matrix.suite == 'full'
+        if: matrix.suite == 'full' && matrix.os != 'windows-latest'
         run: uv run pytest -q
+      - name: Run Python tests (Windows fail-fast)
+        if: matrix.suite == 'full' && matrix.os == 'windows-latest'
+        # Passing still executes the complete suite. On failure, stop at the
+        # first traceback instead of losing every diagnostic to the job limit.
+        run: uv run pytest -q -x
       - name: Check version-stable AST identity
         if: matrix.suite == 'ast-compat'
         run: python .github/scripts/test_python_ast_identity.py
