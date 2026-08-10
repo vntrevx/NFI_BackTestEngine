@@ -48,6 +48,30 @@ fn batch(values: Vec<f64>) -> (Schema, Chunk<Box<dyn Array>>) {
     )
 }
 
+fn operation_program(op: &str, parameters: Value) -> IndicatorProgram {
+    let program = shift_program();
+    let mut encoded = serde_json::to_value(program).expect("program serializes");
+    encoded["nodes"][2]["op"] = Value::String(op.to_owned());
+    encoded["nodes"][2]["parameters"] = parameters;
+    let lookback = json!({
+        "kind":"library-defined","candles":null,"expression":op,"causal":true
+    });
+    for index in 2..=4 {
+        encoded["nodes"][index]["lookback"] = lookback.clone();
+    }
+    encoded["max_lookback"] = json!({
+        "kind":"mixed","candles":null,"expression":"finite+library-defined","causal":true
+    });
+    let mut opcodes = vec!["column-read", "column-write", op, "parameter", "return"];
+    opcodes.sort_unstable();
+    encoded["opcodes"] = json!(opcodes);
+    encoded["fingerprint"] = Value::String(
+        crate::program::validation::canonical_fingerprint(&encoded)
+            .expect("mutated test program identity is serializable"),
+    );
+    IndicatorProgram::from_json(&encoded.to_string()).expect("valid operation program")
+}
+
 #[test]
 fn shift_state_crosses_batch_boundaries_and_memory_stays_bounded() {
     let program = shift_program();
@@ -105,27 +129,11 @@ fn long_discarded_execution_is_bounded_by_batch_and_shift_state() {
 }
 
 #[test]
-fn unimplemented_kernel_fails_closed_with_source_location() {
-    let program = shift_program();
-    let mut encoded = serde_json::to_value(program).expect("program serializes");
-    encoded["nodes"][2]["op"] = Value::String("indicator-call".to_owned());
-    encoded["nodes"][2]["parameters"] = Value::Object(serde_json::Map::from_iter([(
-        "name".to_owned(),
-        Value::String("RSI".to_owned()),
-    )]));
-    encoded["opcodes"] = json!([
-        "column-read",
-        "column-write",
+fn unsupported_indicator_family_fails_closed_with_source_location() {
+    let program = operation_program(
         "indicator-call",
-        "parameter",
-        "return"
-    ]);
-    encoded["fingerprint"] = Value::String(
-        crate::program::validation::canonical_fingerprint(&encoded)
-            .expect("mutated test program identity is serializable"),
+        json!({"family":"qtpylib","name":"RSI","arguments":{"timeperiod":3}}),
     );
-    let program = IndicatorProgram::from_json(&encoded.to_string())
-        .expect("mutated program remains structurally valid");
     let mut engine = VectorEngine::new(&program, &["previous".to_owned()])
         .expect("structurally valid unimplemented program");
     let (schema, source) = batch(vec![1.0]);
@@ -136,4 +144,78 @@ fn unimplemented_kernel_fails_closed_with_source_location() {
         Err(VectorCoreError::UnsupportedOpcode { opcode, location })
             if opcode == "indicator-call" && location == "strategy.py:7:4"
     ));
+}
+
+#[test]
+fn talib_indicator_state_is_exact_across_engine_batches() {
+    let program = operation_program(
+        "indicator-call",
+        json!({"family":"ta","name":"RSI","arguments":{"timeperiod":3}}),
+    );
+    let mut engine = VectorEngine::new(&program, &["previous".to_owned()]).expect("RSI engine");
+    let source = [1.0, 2.0, 3.0, 4.0, 3.0, 5.0, 8.0];
+    let expected = crate::kernels::execute_talib(
+        "RSI",
+        &[&source],
+        json!({"timeperiod":3}).as_object().expect("arguments"),
+    )
+    .expect("batch RSI")
+    .column("real")
+    .expect("RSI output")
+    .to_vec();
+    let mut actual = Vec::new();
+    for values in [
+        source[..2].to_vec(),
+        source[2..4].to_vec(),
+        source[4..].to_vec(),
+    ] {
+        let (schema, source) = batch(values);
+        let projected = BatchView::project(&schema, &source, engine.input_requests())
+            .expect("project RSI input");
+        let output = engine.execute_batch(&projected).expect("execute RSI batch");
+        let column = output.columns()["previous"].as_view();
+        actual.extend((0..column.len()).map(|row| column.f64_at(row).expect("present NaN/value")));
+    }
+    assert_eq!(actual.len(), expected.len());
+    for (actual, expected) in actual.iter().zip(expected) {
+        assert_eq!(actual.to_bits(), expected.to_bits());
+    }
+    assert!(engine.profile().retained_state_values <= 4);
+}
+
+#[test]
+fn pandas_rolling_state_is_exact_across_engine_batches() {
+    let program = operation_program(
+        "window",
+        json!({"kind":"rolling","reducer":"mean","window":4,"center":false,"min_periods":null}),
+    );
+    let mut engine = VectorEngine::new(&program, &["previous".to_owned()]).expect("rolling engine");
+    let source = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0];
+    let expected = crate::kernels::execute_rolling(
+        "mean",
+        &source,
+        json!({"window":4,"center":false,"min_periods":null})
+            .as_object()
+            .expect("arguments"),
+    )
+    .expect("batch rolling mean");
+    let mut actual = Vec::new();
+    for values in [
+        source[..1].to_vec(),
+        source[1..5].to_vec(),
+        source[5..].to_vec(),
+    ] {
+        let (schema, source) = batch(values);
+        let projected = BatchView::project(&schema, &source, engine.input_requests())
+            .expect("project rolling input");
+        let output = engine
+            .execute_batch(&projected)
+            .expect("execute rolling batch");
+        let column = output.columns()["previous"].as_view();
+        actual.extend((0..column.len()).map(|row| column.f64_at(row).expect("present NaN/value")));
+    }
+    for (actual, expected) in actual.iter().zip(expected) {
+        assert_eq!(actual.to_bits(), expected.to_bits());
+    }
+    assert!(engine.profile().retained_state_values <= 4);
 }

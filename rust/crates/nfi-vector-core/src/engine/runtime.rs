@@ -5,12 +5,13 @@ use std::collections::BTreeMap;
 use crate::batch::BatchView;
 use crate::column::{ColumnView, OwnedColumn, ValueType};
 use crate::error::VectorCoreError;
+use crate::kernels::{rolling_stream, TalibStream};
 use crate::program::ProgramNode;
 
 use super::operations::{
     collect_numeric, execute_binary, execute_compare, execute_logical, execute_select,
-    execute_unary, literal_value, node_error, single_input, string_parameter, to_owned_column,
-    unsigned_parameter,
+    execute_unary, literal_value, node_error, numeric_at, single_input, string_parameter,
+    to_owned_column, unsigned_parameter,
 };
 use super::VectorEngine;
 
@@ -123,6 +124,8 @@ impl VectorEngine<'_> {
             "logical" => execute_logical(node, values, batch.len()),
             "unary" => execute_unary(node, values, batch.len()),
             "select" => execute_select(node, values, batch.len()),
+            "indicator-call" => self.execute_indicator(node, values, batch.len()),
+            "window" => self.execute_window(node, values, batch.len()),
             _ => Err(self.unsupported(node)),
         }
     }
@@ -154,6 +157,65 @@ impl VectorEngine<'_> {
         ))))
     }
 
+    fn execute_indicator<'batch>(
+        &mut self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, NodeValue<'batch>>,
+        rows: usize,
+    ) -> Result<NodeValue<'batch>, VectorCoreError> {
+        let family = string_parameter(node, "family")?;
+        if !matches!(family, "ta" | "talib") {
+            return Err(self.unsupported(node));
+        }
+        let name = string_parameter(node, "name")?;
+        let arguments = node
+            .parameters
+            .get("arguments")
+            .and_then(serde_json::Value::as_object)
+            .ok_or_else(|| node_error(node, "indicator-call arguments must be an object"))?;
+        let owned_inputs = numeric_inputs(node, values, rows)?;
+        let input_slices = owned_inputs.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let state = match self.indicator_states.entry(node.id.clone()) {
+            std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(TalibStream::new(name, arguments)?)
+            }
+        };
+        let output = state.execute(&input_slices)?;
+        let selected = select_indicator_output(node, &output)?;
+        Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
+            selected.iter().copied().map(Some).collect(),
+        ))))
+    }
+
+    fn execute_window<'batch>(
+        &mut self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, NodeValue<'batch>>,
+        rows: usize,
+    ) -> Result<NodeValue<'batch>, VectorCoreError> {
+        if string_parameter(node, "kind")? != "rolling" {
+            return Err(self.unsupported(node));
+        }
+        let reducer = string_parameter(node, "reducer")?;
+        let input = single_input(node)?;
+        let column = (0..rows)
+            .map(|row| {
+                numeric_at(values, input, row)?
+                    .ok_or_else(|| node_error(node, "pandas rolling input contains an Arrow null"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let state = match self.rolling_states.entry(node.id.clone()) {
+            std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(rolling_stream(reducer, &node.parameters)?)
+            }
+        };
+        Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
+            state.execute(&column).into_iter().map(Some).collect(),
+        ))))
+    }
+
     pub(super) fn collect_outputs(
         &self,
         values: &BTreeMap<String, NodeValue<'_>>,
@@ -177,6 +239,47 @@ impl VectorEngine<'_> {
                 ))
             })
             .collect()
+    }
+}
+
+fn numeric_inputs(
+    node: &ProgramNode,
+    values: &BTreeMap<String, NodeValue<'_>>,
+    rows: usize,
+) -> Result<Vec<Vec<f64>>, VectorCoreError> {
+    node.inputs
+        .iter()
+        .map(|input| {
+            (0..rows)
+                .map(|row| {
+                    numeric_at(values, input, row)?
+                        .ok_or_else(|| node_error(node, "TA-Lib input contains an Arrow null"))
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn select_indicator_output<'output>(
+    node: &ProgramNode,
+    output: &'output crate::kernels::KernelOutput,
+) -> Result<&'output [f64], VectorCoreError> {
+    if let Some(name) = node
+        .parameters
+        .get("output")
+        .and_then(serde_json::Value::as_str)
+    {
+        return output
+            .column(name)
+            .ok_or_else(|| node_error(node, format!("indicator has no output named {name}")));
+    }
+    if output.columns().len() == 1 {
+        Ok(&output.columns()[0])
+    } else {
+        Err(node_error(
+            node,
+            "multi-output indicator requires an explicit output name",
+        ))
     }
 }
 

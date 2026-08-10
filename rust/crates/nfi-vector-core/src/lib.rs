@@ -12,6 +12,7 @@ pub mod column;
 pub mod engine;
 pub mod error;
 pub mod float;
+pub mod kernels;
 pub mod program;
 pub mod sink;
 pub mod state;

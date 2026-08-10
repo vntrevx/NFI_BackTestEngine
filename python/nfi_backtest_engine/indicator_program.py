@@ -8,8 +8,9 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
-from typing import Any, Never
+from typing import Any, Never, cast
 
 from .errors import SpecValidationError, StrategyAnalysisError
 from .specs import INDICATOR_PROGRAM_SCHEMA, validate_schema
@@ -316,6 +317,9 @@ class _Compiler:
             if isinstance(target, ast.Subscript):
                 self.column_write(target, node.value, node)
                 return
+            if isinstance(target, ast.Tuple | ast.List) and isinstance(node.value, ast.Call):
+                self.multi_output_assignment(target, node.value)
+                return
             self.unsupported(node, "indicator assignment target")
         if isinstance(node, ast.AnnAssign) and node.value is not None:
             if not isinstance(node.target, ast.Name):
@@ -427,6 +431,13 @@ class _Compiler:
         self.unsupported(node, f"indicator expression {type(node).__name__}")
 
     def subscript(self, node: ast.Subscript) -> str:
+        if (
+            isinstance(node.value, ast.Call)
+            and isinstance(node.slice, ast.Constant)
+            and isinstance(node.slice.value, int)
+            and not isinstance(node.slice.value, bool)
+        ):
+            return self.indicator_output(node.value, node.slice.value, node)
         base = self.expression(node.value)
         base_type = self.node_types[base]
         key = _literal_string(node.slice)
@@ -612,22 +623,7 @@ class _Compiler:
                 lookback=self.lookback(value),
             )
         if callable_name.startswith("ta.") or callable_name.startswith("qtpylib."):
-            family, _, name = callable_name.partition(".")
-            inputs = [self.expression(argument) for argument in node.args]
-            parameters = _literal_keyword_arguments(node, self)
-            return self.emit(
-                node,
-                "indicator-call",
-                "f64-column",
-                inputs=inputs,
-                parameters={"family": family, "name": name, "arguments": parameters},
-                lookback={
-                    "kind": "library-defined",
-                    "candles": None,
-                    "expression": _safe_expression(node),
-                    "causal": True,
-                },
-            )
+            return self.indicator_call(node)
         if callable_name.startswith("np."):
             inputs = [self.expression(argument) for argument in node.args]
             parameters = _literal_keyword_arguments(node, self)
@@ -658,6 +654,88 @@ class _Compiler:
         if isinstance(node.func, ast.Attribute):
             return self.method_call(node, callable_name)
         self.unsupported(node, f"indicator call {callable_name}")
+
+    def multi_output_assignment(self, target: ast.Tuple | ast.List, node: ast.Call) -> None:
+        callable_name = self.resolved_callable(node.func)
+        output_names = _indicator_output_names(callable_name)
+        if output_names is None or len(output_names) != len(target.elts):
+            self.unsupported(node, "indicator tuple output contract")
+        inputs, parameters = self.indicator_call_parts(node, callable_name)
+        for element, output_name in zip(target.elts, output_names, strict=True):
+            if not isinstance(element, ast.Name):
+                self.unsupported(element, "indicator tuple assignment target")
+            self.bindings[element.id] = self.emit_indicator_call(
+                node,
+                callable_name,
+                inputs,
+                parameters,
+                output=output_name,
+            )
+
+    def indicator_output(self, call: ast.Call, index: int, source_node: ast.AST) -> str:
+        callable_name = self.resolved_callable(call.func)
+        output_names = _indicator_output_names(callable_name)
+        if output_names is None or index < 0 or index >= len(output_names):
+            self.unsupported(source_node, "indicator output index")
+        inputs, parameters = self.indicator_call_parts(call, callable_name)
+        return self.emit_indicator_call(
+            source_node,
+            callable_name,
+            inputs,
+            parameters,
+            output=output_names[index],
+        )
+
+    def indicator_call(self, node: ast.Call) -> str:
+        callable_name = self.resolved_callable(node.func)
+        output_names = _indicator_output_names(callable_name)
+        if output_names is not None and len(output_names) != 1:
+            self.unsupported(node, "multi-output indicator requires tuple assignment or subscript")
+        inputs, parameters = self.indicator_call_parts(node, callable_name)
+        return self.emit_indicator_call(node, callable_name, inputs, parameters)
+
+    def indicator_call_parts(
+        self,
+        node: ast.Call,
+        callable_name: str,
+    ) -> tuple[list[str], dict[str, Any]]:
+        if not callable_name.startswith(("ta.", "qtpylib.")):
+            self.unsupported(node, "indexed value is not an indicator call")
+        return (
+            [self.expression(argument) for argument in node.args],
+            _literal_keyword_arguments(node, self),
+        )
+
+    def emit_indicator_call(
+        self,
+        source_node: ast.AST,
+        callable_name: str,
+        inputs: Sequence[str],
+        arguments: Mapping[str, Any],
+        *,
+        output: str | None = None,
+    ) -> str:
+        family, _, name = callable_name.partition(".")
+        parameters: dict[str, Any] = {
+            "family": family,
+            "name": name,
+            "arguments": dict(arguments),
+        }
+        if output is not None:
+            parameters["output"] = output
+        return self.emit(
+            source_node,
+            "indicator-call",
+            "f64-column",
+            inputs=inputs,
+            parameters=parameters,
+            lookback={
+                "kind": "library-defined",
+                "candles": None,
+                "expression": _safe_expression(source_node),
+                "causal": True,
+            },
+        )
 
     def method_call(self, node: ast.Call, callable_name: str) -> str:
         if not isinstance(node.func, ast.Attribute):  # pragma: no cover - caller guards it
@@ -959,6 +1037,20 @@ def _is_json_value(value: Any) -> bool:
 
 def _literal_string(node: ast.expr) -> str | None:
     return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
+
+
+@cache
+def _indicator_output_names(callable_name: str) -> tuple[str, ...] | None:
+    if not callable_name.startswith("ta."):
+        return None
+    from talib import abstract
+
+    try:
+        function = abstract.Function(callable_name.removeprefix("ta."))
+    except Exception:  # TA-Lib exposes invalid-function errors through a generic wrapper exception.
+        return None
+    names = cast(Sequence[object], function.output_names)
+    return tuple(str(name) for name in names)
 
 
 def _qualified_name(node: ast.AST) -> str | None:
