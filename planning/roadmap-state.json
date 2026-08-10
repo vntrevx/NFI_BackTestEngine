@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 127,
-  "updated_at": "2026-08-10T21:17:45+09:00",
+  "revision": 128,
+  "updated_at": "2026-08-10T22:16:20+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M20-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4693,7 +4693,7 @@
       "order": 2003,
       "milestone": "M20",
       "title": "Implement the safe Rust nfi-vector-core engine",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M20-02"
       ],
@@ -4713,7 +4713,7 @@
         "Rust vector-kernel tests",
         "memory-bounded column execution"
       ],
-      "started_at": null,
+      "started_at": "2026-08-10T22:16:20+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8242,6 +8242,22 @@
         "native_indicator_kernel_claim": false,
         "next_eligible_task": "M20-03",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 175,
+      "timestamp": "2026-08-10T22:16:20+09:00",
+      "task_id": "M20-03",
+      "event": "task_started",
+      "details": {
+        "objective": "implement a safe memory-bounded Rust execution core for indicator-program-v1",
+        "new_crate": "nfi-vector-core",
+        "arrow_version_must_match_transport": true,
+        "whole_nfi_indicator_kernel_claim": false,
+        "unused_column_materialization_allowed": false,
+        "unsafe_rust_allowed": false,
+        "fast_math_allowed": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
