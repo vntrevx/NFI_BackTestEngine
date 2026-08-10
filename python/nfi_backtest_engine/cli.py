@@ -676,6 +676,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("benchmarks/fixtures/captured"),
     )
     strategy_semantic_inventory.add_argument("--output", "-o", type=Path)
+    strategy_indicator_inventory = strategy_commands.add_parser(
+        "indicator-inventory",
+        help="inventory the indicator/helper DAG, lookbacks, NaN rules, and informative data",
+    )
+    strategy_indicator_inventory.add_argument("source", type=Path)
+    strategy_indicator_inventory.add_argument("--class", dest="class_name")
+    strategy_indicator_inventory.add_argument("--upstream-repository")
+    strategy_indicator_inventory.add_argument("--upstream-commit")
+    strategy_indicator_inventory.add_argument("--output", "-o", type=Path)
     strategy_callback_ir = strategy_commands.add_parser(
         "callback-ir",
         help="compile source-ordered callback routes, tags, and data dependencies",

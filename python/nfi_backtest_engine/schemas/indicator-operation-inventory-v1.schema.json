@@ -1,0 +1,725 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/indicator-operation-inventory-v1.schema.json",
+  "title": "Indicator Operation Inventory v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "upstream",
+    "selected_class",
+    "roots",
+    "required_timeframes",
+    "call_graph",
+    "call_sites",
+    "operations",
+    "coverage_matrix",
+    "dataframe_access",
+    "informative_dependencies",
+    "summary",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "indicator-operation-inventory-v1"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "upstream": {
+      "$ref": "#/$defs/upstream"
+    },
+    "selected_class": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "roots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/root"
+      }
+    },
+    "required_timeframes": {
+      "$ref": "#/$defs/strings"
+    },
+    "call_graph": {
+      "$ref": "#/$defs/call_graph"
+    },
+    "call_sites": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/call_site"
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/operation"
+      }
+    },
+    "coverage_matrix": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/coverage"
+      }
+    },
+    "dataframe_access": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dataframe_access"
+      }
+    },
+    "informative_dependencies": {
+      "$ref": "#/$defs/informative_dependencies"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "commit"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "commit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          ]
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "column",
+        "end_line",
+        "end_column"
+      ],
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node",
+        "role"
+      ],
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "role": {
+          "enum": [
+            "indicator-program",
+            "informative-dependency-registration"
+          ]
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "root_role",
+        "location",
+        "parameters",
+        "source_sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "kind": {
+          "enum": [
+            "strategy-method",
+            "module-helper",
+            "lambda-helper"
+          ]
+        },
+        "root_role": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "parameters": {
+          "$ref": "#/$defs/strings"
+        },
+        "source_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caller",
+        "callee",
+        "locations"
+      ],
+      "properties": {
+        "caller": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "callee": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "locations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/location"
+          }
+        }
+      }
+    },
+    "call_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "edges"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edge"
+          }
+        }
+      }
+    },
+    "argument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "expression",
+        "literal"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "expression": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "literal": true
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "name"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "local",
+            "external"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "family": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "native_requirement": {
+          "enum": [
+            "required",
+            "review",
+            "not-required"
+          ]
+        }
+      }
+    },
+    "call_site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "caller",
+        "location",
+        "expression",
+        "resolution",
+        "targets",
+        "arguments"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "caller": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "expression": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "resolution": {
+          "enum": [
+            "local-helper",
+            "external",
+            "bound-callable-parameter",
+            "unresolved"
+          ]
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        }
+      }
+    },
+    "lookback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "parameters",
+        "causal"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "bounded-parameters",
+            "none-recorded"
+          ]
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        },
+        "causal": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "call_site",
+        "caller",
+        "location",
+        "arguments",
+        "lookback"
+      ],
+      "properties": {
+        "call_site": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "caller": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        },
+        "lookback": {
+          "$ref": "#/$defs/lookback"
+        }
+      }
+    },
+    "nan_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semantic_source",
+        "behavior",
+        "exact_capture_required"
+      ],
+      "properties": {
+        "semantic_source": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "behavior": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "exact_capture_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "family",
+        "callable",
+        "current_lane",
+        "native_requirement",
+        "nan_contract",
+        "occurrences"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "family": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "callable": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "current_lane": {
+          "const": "python-vector-worker"
+        },
+        "native_requirement": {
+          "enum": [
+            "required",
+            "review",
+            "not-required"
+          ]
+        },
+        "nan_contract": {
+          "$ref": "#/$defs/nan_contract"
+        },
+        "occurrences": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/occurrence"
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "present",
+        "operation_count",
+        "call_site_count",
+        "native_required",
+        "native_status"
+      ],
+      "properties": {
+        "family": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "present": {
+          "type": "boolean"
+        },
+        "operation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "call_site_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_required": {
+          "type": "boolean"
+        },
+        "native_status": {
+          "enum": [
+            "inventory-only",
+            "not-applicable"
+          ]
+        }
+      }
+    },
+    "dataframe_access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node",
+        "literal_reads",
+        "literal_writes",
+        "dynamic_read_count",
+        "dynamic_write_count"
+      ],
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "literal_reads": {
+          "$ref": "#/$defs/strings"
+        },
+        "literal_writes": {
+          "$ref": "#/$defs/strings"
+        },
+        "dynamic_read_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dynamic_write_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "dependency_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "call_site",
+        "caller",
+        "location",
+        "arguments"
+      ],
+      "properties": {
+        "call_site": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "caller": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        }
+      }
+    },
+    "timeframe_constant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "values"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "values": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "informative_dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_timeframe",
+        "required_timeframes",
+        "informative_timeframes",
+        "timeframe_constants",
+        "dependency_registration_present",
+        "dataframe_requests",
+        "merge_operations",
+        "fill_operations",
+        "complete"
+      ],
+      "properties": {
+        "base_timeframe": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "required_timeframes": {
+          "$ref": "#/$defs/strings"
+        },
+        "informative_timeframes": {
+          "$ref": "#/$defs/strings"
+        },
+        "timeframe_constants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeframe_constant"
+          }
+        },
+        "dependency_registration_present": {
+          "type": "boolean"
+        },
+        "dataframe_requests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency_call"
+          }
+        },
+        "merge_operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency_call"
+          }
+        },
+        "fill_operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency_call"
+          }
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reachable_node_count",
+        "call_graph_edge_count",
+        "call_site_count",
+        "local_call_site_count",
+        "external_call_site_count",
+        "unresolved_call_site_count",
+        "operation_count",
+        "informative_dependency_complete",
+        "inventory_complete"
+      ],
+      "properties": {
+        "reachable_node_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "call_graph_edge_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "call_site_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "local_call_site_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "external_call_site_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unresolved_call_site_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "informative_dependency_complete": {
+          "type": "boolean"
+        },
+        "inventory_complete": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
