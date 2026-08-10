@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 127,
-  "updated_at": "2026-08-10T21:17:45+09:00",
+  "revision": 129,
+  "updated_at": "2026-08-10T23:08:02+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
   "execution_policy": {
@@ -4693,7 +4693,7 @@
       "order": 2003,
       "milestone": "M20",
       "title": "Implement the safe Rust nfi-vector-core engine",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "M20-02"
       ],
@@ -4713,10 +4713,16 @@
         "Rust vector-kernel tests",
         "memory-bounded column execution"
       ],
-      "started_at": null,
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "started_at": "2026-08-10T22:16:20+09:00",
+      "completed_at": "2026-08-10T23:08:02+09:00",
+      "commit_sha": "248d0a9a335a127df5da3d9b15da510e5fbbd386",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M20-03/248d0a9a335a127df5da3d9b15da510e5fbbd386/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M20-03/248d0a9a335a127df5da3d9b15da510e5fbbd386/memory-bound-report.json",
+        ".nfi/roadmap-acceptance/M20-03/248d0a9a335a127df5da3d9b15da510e5fbbd386/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M20-03/248d0a9a335a127df5da3d9b15da510e5fbbd386/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M20-03/248d0a9a335a127df5da3d9b15da510e5fbbd386/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -8241,6 +8247,49 @@
         "latest_x7_fail_closed_source": "strategy.py:3168:21",
         "native_indicator_kernel_claim": false,
         "next_eligible_task": "M20-03",
+        "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 175,
+      "timestamp": "2026-08-10T22:16:20+09:00",
+      "task_id": "M20-03",
+      "event": "task_started",
+      "details": {
+        "objective": "implement a safe memory-bounded Rust execution core for indicator-program-v1",
+        "new_crate": "nfi-vector-core",
+        "arrow_version_must_match_transport": true,
+        "whole_nfi_indicator_kernel_claim": false,
+        "unused_column_materialization_allowed": false,
+        "unsafe_rust_allowed": false,
+        "fast_math_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 176,
+      "timestamp": "2026-08-10T23:08:02+09:00",
+      "task_id": "M20-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "248d0a9a335a127df5da3d9b15da510e5fbbd386",
+        "crate": "nfi-vector-core",
+        "python_contract_fingerprint": "cb278c7294995c0a8c018d44485990612e8370ba4fff7e5d71df0c3c862fc8ca",
+        "python_contract_validated_by_rust": true,
+        "future_compatibility_test_count": 134,
+        "python_test_count": 729,
+        "rust_workspace_test_count": 169,
+        "memory_bound_input_rows": 32000,
+        "memory_bound_peak_live_value_upper_bound": 98,
+        "unused_input_columns_materialized": 0,
+        "spot_trade_surface_and_full_state_exact": true,
+        "futures_trade_surface_and_full_state_exact": true,
+        "unsafe_rust_added": false,
+        "fast_math_added": false,
+        "runtime_hardcoding_added": false,
+        "all_nfi_indicator_kernels_claim": false,
+        "full_native_strategy_claim": false,
+        "next_eligible_task": "M20-04",
         "next_task_manual_gate": false
       }
     }

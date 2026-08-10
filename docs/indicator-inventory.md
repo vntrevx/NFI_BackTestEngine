@@ -51,3 +51,6 @@ lookback. Function and node IDs are structural data; strategy and Signal names n
 become opcodes. Negative shifts, centered rolling windows, backward fill, dynamic
 window sizes, and prefilled informative merges fail closed. An unsupported source
 construct must be generalized deliberately before it can enter the Native lane.
+
+The safe Rust execution boundary and its memory/accuracy claim are documented in
+[Native Vector Core](native-vector-core.md).

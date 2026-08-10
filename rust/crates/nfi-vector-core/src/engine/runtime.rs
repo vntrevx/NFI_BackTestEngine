@@ -1,0 +1,189 @@
+//! Per-batch runtime values and stateful plan execution.
+
+use std::collections::BTreeMap;
+
+use crate::batch::BatchView;
+use crate::column::{ColumnView, OwnedColumn, ValueType};
+use crate::error::VectorCoreError;
+use crate::program::ProgramNode;
+
+use super::operations::{
+    collect_numeric, execute_binary, execute_compare, execute_logical, execute_select,
+    execute_unary, literal_value, node_error, single_input, string_parameter, to_owned_column,
+    unsigned_parameter,
+};
+use super::VectorEngine;
+
+#[derive(Debug)]
+pub(super) enum RuntimeColumn<'batch> {
+    Borrowed(ColumnView<'batch>),
+    Owned(OwnedColumn),
+}
+
+impl RuntimeColumn<'_> {
+    pub(super) fn value_type(&self) -> ValueType {
+        match self {
+            Self::Borrowed(column) => column.value_type(),
+            Self::Owned(column) => column.as_view().value_type(),
+        }
+    }
+
+    pub(super) fn f64_at(&self, row: usize) -> Option<f64> {
+        match self {
+            Self::Borrowed(column) => column.f64_at(row),
+            Self::Owned(column) => column.as_view().f64_at(row),
+        }
+    }
+
+    pub(super) fn bool_at(&self, row: usize) -> Option<bool> {
+        match self {
+            Self::Borrowed(column) => column.bool_at(row),
+            Self::Owned(column) => column.as_view().bool_at(row),
+        }
+    }
+
+    pub(super) fn timestamp_ms_at(&self, row: usize) -> Option<i64> {
+        match self {
+            Self::Borrowed(column) => column.timestamp_ms_at(row),
+            Self::Owned(column) => column.as_view().timestamp_ms_at(row),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) enum NodeValue<'batch> {
+    DataFrame,
+    Metadata,
+    Unbound,
+    Null,
+    Bool(bool),
+    Integer(i64),
+    Float(f64),
+    Text,
+    Json,
+    Column(RuntimeColumn<'batch>),
+    Alias(String),
+}
+
+pub(super) type RuntimeBatch<'batch> = (
+    BTreeMap<String, NodeValue<'batch>>,
+    BTreeMap<String, String>,
+);
+
+impl VectorEngine<'_> {
+    pub(super) fn execute_nodes<'batch>(
+        &mut self,
+        batch: &BatchView<'batch>,
+    ) -> Result<RuntimeBatch<'batch>, VectorCoreError> {
+        let nodes = self.plan.nodes.clone();
+        let mut values = BTreeMap::new();
+        let mut written_columns = BTreeMap::new();
+        for node in nodes {
+            let value = self.execute_node(node, batch, &values, &mut written_columns)?;
+            values.insert(node.id.clone(), value);
+        }
+        Ok((values, written_columns))
+    }
+
+    fn execute_node<'batch>(
+        &mut self,
+        node: &ProgramNode,
+        batch: &BatchView<'batch>,
+        values: &BTreeMap<String, NodeValue<'batch>>,
+        written_columns: &mut BTreeMap<String, String>,
+    ) -> Result<NodeValue<'batch>, VectorCoreError> {
+        match node.op.as_str() {
+            "parameter" => Ok(parameter_value(node)),
+            "literal" => literal_value(node),
+            "column-read" => {
+                let column = string_parameter(node, "column")?;
+                written_columns.get(column).map_or_else(
+                    || {
+                        batch
+                            .column(column)
+                            .map(|column| NodeValue::Column(RuntimeColumn::Borrowed(column)))
+                            .ok_or_else(|| VectorCoreError::MissingColumn(column.to_owned()))
+                    },
+                    |value_node| Ok(NodeValue::Alias(value_node.clone())),
+                )
+            }
+            "column-write" => {
+                let column = string_parameter(node, "column")?;
+                let value_node = node.inputs.get(1).ok_or_else(|| {
+                    node_error(node, "column-write requires dataframe and value inputs")
+                })?;
+                super::operations::resolve_value(values, value_node)?;
+                written_columns.insert(column.to_owned(), value_node.clone());
+                Ok(NodeValue::DataFrame)
+            }
+            "cast" | "return" => Ok(NodeValue::Alias(single_input(node)?.to_owned())),
+            "shift" => self.execute_shift(node, values, batch.len()),
+            "binary" => execute_binary(node, values, batch.len()),
+            "compare" => execute_compare(node, values, batch.len()),
+            "logical" => execute_logical(node, values, batch.len()),
+            "unary" => execute_unary(node, values, batch.len()),
+            "select" => execute_select(node, values, batch.len()),
+            _ => Err(self.unsupported(node)),
+        }
+    }
+
+    fn execute_shift<'batch>(
+        &mut self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, NodeValue<'batch>>,
+        rows: usize,
+    ) -> Result<NodeValue<'batch>, VectorCoreError> {
+        let input = single_input(node)?;
+        let periods = unsigned_parameter(node, "periods")?;
+        if periods == 0 {
+            return Err(node_error(node, "shift periods must be positive"));
+        }
+        let source = collect_numeric(values, input, rows)?;
+        let state = self
+            .shift_states
+            .entry(node.id.clone())
+            .or_insert(super::ShiftState::new(periods)?);
+        if state.lag() != periods {
+            return Err(node_error(
+                node,
+                "shift state bound changed during execution",
+            ));
+        }
+        Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
+            source.into_iter().map(|value| state.push(value)).collect(),
+        ))))
+    }
+
+    pub(super) fn collect_outputs(
+        &self,
+        values: &BTreeMap<String, NodeValue<'_>>,
+        written_columns: &BTreeMap<String, String>,
+        rows: usize,
+    ) -> Result<BTreeMap<String, OwnedColumn>, VectorCoreError> {
+        self.plan
+            .requested_outputs
+            .iter()
+            .map(|output| {
+                let value_node =
+                    written_columns
+                        .get(output)
+                        .ok_or_else(|| VectorCoreError::Execution {
+                            node: output.clone(),
+                            message: "requested output was not written in this plan".to_owned(),
+                        })?;
+                Ok((
+                    output.clone(),
+                    to_owned_column(super::operations::resolve_value(values, value_node)?, rows)?,
+                ))
+            })
+            .collect()
+    }
+}
+
+fn parameter_value(node: &ProgramNode) -> NodeValue<'static> {
+    match node.value_type.as_str() {
+        "dataframe" => NodeValue::DataFrame,
+        "metadata" => NodeValue::Metadata,
+        _ => NodeValue::Unbound,
+    }
+}
