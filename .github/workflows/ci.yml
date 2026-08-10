@@ -9,6 +9,10 @@ on:
       - ".github/product-release-contract.json"
       - ".github/release-candidate-contract.json"
   pull_request:
+    paths-ignore:
+      # Evidence-only semantic review PRs dispatch this workflow explicitly after
+      # creation. Ignoring their PR event prevents a redundant action_required run.
+      - "planning/compatibility-reviews/**"
   workflow_dispatch:
 
 permissions:

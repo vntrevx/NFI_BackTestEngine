@@ -37,6 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.identity.outputs.ready }}
+      stale_trigger: ${{ steps.identity.outputs.stale_trigger }}
       source_run_id: ${{ steps.identity.outputs.source_run_id }}
       upstream_sha: ${{ steps.identity.outputs.upstream_sha }}
       engine_sha: ${{ steps.identity.outputs.engine_sha }}
@@ -56,6 +57,7 @@ jobs:
         id: identity
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
           REQUESTED_RUN_ID: >-
             ${{ github.event_name == 'workflow_dispatch'
                 && inputs.compatibility_run_id
@@ -81,6 +83,29 @@ jobs:
           source_run_id="${REQUESTED_RUN_ID}"
           if [ -z "${source_run_id}" ]; then
             source_run_id="${ledger_run_id}"
+          fi
+          if [ "${source_run_id}" != "${ledger_run_id}" ] \
+            && [ "${EVENT_NAME}" = "workflow_run" ]; then
+            {
+              echo "ready=false"
+              echo "stale_trigger=true"
+              echo "source_run_id=${source_run_id}"
+              echo "upstream_sha=${upstream_sha}"
+              echo "engine_sha=${engine_sha}"
+              echo "freqtrade_digest=${freqtrade_digest}"
+              echo "semantic_profile_sha256=${semantic_profile_sha256}"
+              echo "oracle_key=${freqtrade_digest#sha256:}"
+              echo "deep_search_required=false"
+              echo "spot_search_required=false"
+              echo "futures_search_required=false"
+            } >> "${GITHUB_OUTPUT}"
+            {
+              echo "stale_trigger=true"
+              echo "requested_run_id=${source_run_id}"
+              echo "latest_ledger_run_id=${ledger_run_id}"
+              echo "A newer successful compatibility run owns discovery; skipping this stale trigger."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
           fi
           test "${source_run_id}" = "${ledger_run_id}"
           run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${source_run_id}")"
@@ -124,6 +149,7 @@ jobs:
           fi
           {
             echo "ready=${ready}"
+            echo "stale_trigger=false"
             echo "source_run_id=${source_run_id}"
             echo "upstream_sha=${upstream_sha}"
             echo "engine_sha=${engine_sha}"

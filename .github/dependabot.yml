@@ -18,6 +18,15 @@ updates:
       rust-maintenance:
         patterns:
           - "*"
+        update-types:
+          - "patch"
+    ignore:
+      # Rust 0.x minor bumps and normal major bumps can change public APIs. Review
+      # them deliberately instead of combining them into an automatically failing PR.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
@@ -27,3 +36,7 @@ updates:
       python-maintenance:
         patterns:
           - "*"
+    ignore:
+      # Dependabot cannot rewrite this case-sensitive pinned spelling and reports
+      # dependency_file_content_not_changed after successfully updating the group.
+      - dependency-name: "ta-lib"
