@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "quarterly"
     open-pull-requests-limit: 1
     groups:
       workflow-maintenance:
@@ -12,7 +12,7 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/rust"
     schedule:
-      interval: "monthly"
+      interval: "quarterly"
     open-pull-requests-limit: 1
     groups:
       rust-maintenance:
@@ -30,7 +30,7 @@ updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "quarterly"
     open-pull-requests-limit: 1
     groups:
       python-maintenance:

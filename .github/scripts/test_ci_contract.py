@@ -121,6 +121,8 @@ class CiContractTests(unittest.TestCase):
     def test_dependabot_avoids_known_noisy_update_shapes(self) -> None:
         dependabot = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
 
+        self.assertEqual(dependabot.count('interval: "quarterly"'), 3)
+        self.assertNotIn('interval: "monthly"', dependabot)
         self.assertIn('update-types:\n          - "patch"', dependabot)
         self.assertIn('- "version-update:semver-major"', dependabot)
         self.assertIn('- "version-update:semver-minor"', dependabot)
