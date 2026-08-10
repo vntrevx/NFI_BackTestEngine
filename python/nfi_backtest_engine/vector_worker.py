@@ -23,6 +23,7 @@ from .strategy_compat import (
     load_strategy_class,
     prepare_worker_config,
     timeframe_minutes,
+    timeframe_seconds,
 )
 from .timerange import parse_timerange_milliseconds
 from .vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
@@ -424,15 +425,30 @@ def _clean_ohlcv_like_freqtrade(
 
 def _freqtrade_resample_frequency(timeframe: str) -> str:
     """Return the resample anchor used by pinned Freqtrade 2026.5.1."""
-    if timeframe.endswith("w"):
+    if timeframe == "1y":
+        return "1YS"
+
+    calendar_seconds = {"M": 2_592_000, "y": 31_536_000}
+    unit = timeframe[-1:] if timeframe else ""
+    if unit in calendar_seconds:
         try:
-            weeks = int(timeframe[:-1])
+            count = int(timeframe[:-1])
         except ValueError as exc:
             raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}") from exc
-        if weeks <= 0:
+        if count <= 0:
             raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}")
-        return f"{weeks}W-MON"
-    return f"{timeframe_minutes(timeframe) * 60}s"
+        seconds = count * calendar_seconds[unit]
+    else:
+        seconds = timeframe_seconds(timeframe)
+
+    minutes = seconds // 60
+    if 10_000 < minutes < 43_200:
+        return "1W-MON"
+    if 43_200 <= minutes < 525_600:
+        return f"{timeframe}S"
+    if minutes > 43_200:
+        return timeframe
+    return f"{seconds}s"
 
 
 def _trim_timerange(

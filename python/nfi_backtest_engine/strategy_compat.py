@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import ccxt
 import pandas as pd
 
 from .errors import StrategyAnalysisError
@@ -152,59 +153,86 @@ def merge_informative_pair(
     informative: pd.DataFrame,
     timeframe: str,
     timeframe_inf: str,
-    *,
-    ffill: bool = False,
+    ffill: bool = True,
     append_timeframe: bool = True,
     date_column: str = "date",
+    suffix: str | None = None,
 ) -> pd.DataFrame:
-    """Align an informative candle to base candles without lookahead."""
-    if date_column not in dataframe or date_column not in informative:
-        raise StrategyAnalysisError("informative merge requires date columns")
+    """Mirror Freqtrade's informative merge without exposing future candles."""
     base_minutes = timeframe_minutes(timeframe)
     informative_minutes = timeframe_minutes(timeframe_inf)
-    if informative_minutes < base_minutes:
-        raise StrategyAnalysisError("informative timeframe cannot be smaller than base timeframe")
     prepared = informative.copy(deep=True)
-    merge_column = "__nfi_merge_date"
+    merge_column = "date_merge"
     if informative_minutes == base_minutes:
         prepared[merge_column] = prepared[date_column]
+    elif base_minutes < informative_minutes:
+        if prepared.empty:
+            prepared[merge_column] = prepared[date_column]
+        elif timeframe_inf == "1M":
+            prepared[merge_column] = (
+                prepared[date_column] + pd.offsets.MonthBegin(1)
+            ) - pd.to_timedelta(base_minutes, "m")
+        else:
+            prepared[merge_column] = (
+                prepared[date_column]
+                + pd.to_timedelta(informative_minutes, "m")
+                - pd.to_timedelta(base_minutes, "m")
+            )
     else:
-        prepared[merge_column] = prepared[date_column] + pd.to_timedelta(
-            informative_minutes - base_minutes,
-            unit="m",
+        raise ValueError(
+            "Tried to merge a faster timeframe to a slower timeframe."
+            "This would create new rows, and can throw off your regular indicators."
         )
+
+    if suffix and append_timeframe:
+        raise ValueError("You can not specify `append_timeframe` as True and a `suffix`.")
     if append_timeframe:
-        prepared.rename(
-            columns={
-                column: f"{column}_{timeframe_inf}"
-                for column in prepared.columns
-                if column != merge_column
-            },
-            inplace=True,
+        merge_column = f"date_merge_{timeframe_inf}"
+        prepared.columns = [f"{column}_{timeframe_inf}" for column in prepared.columns]
+    elif suffix:
+        merge_column = f"date_merge_{suffix}"
+        prepared.columns = [f"{column}_{suffix}" for column in prepared.columns]
+
+    if not ffill:
+        result = pd.merge(
+            dataframe,
+            prepared,
+            left_on="date",
+            right_on=merge_column,
+            how="left",
         )
+        return result.drop(merge_column, axis=1)
+
     result = pd.merge_ordered(
         dataframe,
         prepared,
-        left_on=date_column,
+        fill_method="ffill",
+        left_on="date",
         right_on=merge_column,
-        fill_method="ffill" if ffill else None,
         how="left",
     )
-    result.drop(columns=[merge_column], inplace=True)
-    return result
+    if len(result) > 1 and len(prepared) > 0 and pd.isnull(result.at[0, merge_column]):
+        first_valid_index = result[merge_column].first_valid_index()
+        if isinstance(first_valid_index, int) and first_valid_index > 0:
+            first_valid_date = result.at[first_valid_index, merge_column]
+            historical = prepared[prepared[merge_column] < first_valid_date]
+            if not historical.empty:
+                result.loc[: first_valid_index - 1] = result.loc[
+                    : first_valid_index - 1
+                ].fillna(historical.iloc[-1])
+    return result.drop(merge_column, axis=1)
 
 
 def timeframe_minutes(timeframe: str) -> int:
-    units = {"m": 1, "h": 60, "d": 1440, "w": 10080}
-    if len(timeframe) < 2 or timeframe[-1] not in units:
-        raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}")
+    return timeframe_seconds(timeframe) // 60
+
+
+def timeframe_seconds(timeframe: str) -> int:
+    """Use the same CCXT timeframe parser as pinned Freqtrade."""
     try:
-        count = int(timeframe[:-1])
-    except ValueError as exc:
+        return ccxt.Exchange.parse_timeframe(timeframe)
+    except (TypeError, ValueError) as exc:
         raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}") from exc
-    if count <= 0:
-        raise StrategyAnalysisError(f"unsupported timeframe: {timeframe}")
-    return count * units[timeframe[-1]]
 
 
 def _copy_json(value: Any) -> Any:
