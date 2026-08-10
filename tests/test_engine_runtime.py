@@ -67,6 +67,17 @@ def test_build_engine_uses_native_only_when_checkout_source_matches(
     assert record["source_fingerprint"] == fingerprint
 
 
+def test_developed_native_fingerprint_matches_checkout() -> None:
+    root = engine_runtime._project_root_or_none()
+    native = engine_runtime._native_module()
+
+    assert root is not None
+    assert native is not None
+    assert engine_runtime._native_source_fingerprint(native) == (
+        engine_runtime._rust_source_fingerprint(root / "rust")
+    )
+
+
 def test_build_engine_falls_back_to_fresh_cli_when_imported_native_is_stale(
     monkeypatch, tmp_path: Path
 ) -> None:

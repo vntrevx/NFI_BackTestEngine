@@ -17,11 +17,7 @@ fn main() {
 
     for path in files {
         println!("cargo:rerun-if-changed={}", path.display());
-        let relative = path
-            .strip_prefix(&rust_root)
-            .expect("source file belongs to Rust workspace")
-            .to_string_lossy()
-            .replace('\\', "/");
+        let relative = normalized_relative_path(&rust_root, &path);
         let encoded = relative.as_bytes();
         let length = u32::try_from(encoded.len()).expect("source path fits into u32");
         hasher.update(length.to_be_bytes());
@@ -56,14 +52,17 @@ fn source_files(root: &Path) -> Vec<PathBuf> {
             }
         }
     }
-    files.sort_by(|left, right| {
-        left.strip_prefix(root)
-            .expect("left source belongs to workspace")
-            .cmp(
-                right
-                    .strip_prefix(root)
-                    .expect("right source belongs to workspace"),
-            )
-    });
+    // Path ordering follows host semantics. In particular, Windows compares
+    // case-insensitively and otherwise places `build.rs` before `Cargo.toml`,
+    // while the Python runtime fingerprint is intentionally byte-stable. Sort
+    // the same normalized, case-sensitive text on every build host.
+    files.sort_by_cached_key(|path| normalized_relative_path(root, path));
     files
+}
+
+fn normalized_relative_path(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .expect("source file belongs to Rust workspace")
+        .to_string_lossy()
+        .replace('\\', "/")
 }
