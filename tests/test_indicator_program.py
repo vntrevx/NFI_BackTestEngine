@@ -231,9 +231,13 @@ def test_indicator_program_records_informative_merge_before_forward_fill(tmp_pat
         "base_timeframe": "5m",
         "informative_timeframe": "1h",
         "ffill": False,
+        "append_timeframe": True,
+        "date_column": "date",
+        "suffix": None,
     }
     assert fill["parameters"] == {"direction": "forward"}
     assert fill["inputs"] == [merge["id"]]
+    assert fill["lookback"]["kind"] == "recursive"
     assert merge["source_order"] < fill["source_order"]
 
 
@@ -265,25 +269,143 @@ def test_indicator_program_rejects_lookahead_capable_source(
         compile_indicator_program(source, class_name="Lookahead")
 
 
-def test_indicator_program_rejects_prefilled_informative_merge(tmp_path: Path) -> None:
-    source = tmp_path / "Prefilled.py"
+def test_indicator_program_preserves_informative_merge_defaults(tmp_path: Path) -> None:
+    source = tmp_path / "Defaults.py"
     source.write_text(
         "from freqtrade.strategy import IStrategy, merge_informative_pair\n"
-        "class Prefilled(IStrategy):\n"
+        "class Defaults(IStrategy):\n"
         "    timeframe = '5m'\n"
         "    def populate_indicators(self, dataframe, metadata, informative):\n"
         "        dataframe = merge_informative_pair(\n"
-        "            dataframe, informative, self.timeframe, '1h', ffill=True\n"
+        "            dataframe, informative, self.timeframe, '1h'\n"
         "        )\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="Defaults")
+    merge = next(node for node in program["nodes"] if node["op"] == "informative-merge")
+
+    assert merge["parameters"] == {
+        "base_timeframe": "5m",
+        "informative_timeframe": "1h",
+        "ffill": True,
+        "append_timeframe": True,
+        "date_column": "date",
+        "suffix": None,
+    }
+    assert merge["lookback"]["kind"] == "recursive"
+
+
+def test_indicator_program_binds_mixed_informative_merge_arguments(tmp_path: Path) -> None:
+    source = tmp_path / "MixedArguments.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy, merge_informative_pair\n"
+        "class MixedArguments(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def populate_indicators(self, dataframe, metadata, informative):\n"
+        "        dataframe = merge_informative_pair(\n"
+        "            dataframe, informative=informative, timeframe=self.timeframe,\n"
+        "            timeframe_inf='1h', ffill=False, append_timeframe=False,\n"
+        "            date_column='opened_at', suffix='btc',\n"
+        "        )\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="MixedArguments")
+    merge = next(node for node in program["nodes"] if node["op"] == "informative-merge")
+
+    assert merge["parameters"] == {
+        "base_timeframe": "5m",
+        "informative_timeframe": "1h",
+        "ffill": False,
+        "append_timeframe": False,
+        "date_column": "opened_at",
+        "suffix": "btc",
+    }
+
+
+def test_indicator_program_normalizes_falsy_suffix_like_freqtrade(tmp_path: Path) -> None:
+    source = tmp_path / "FalsySuffix.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy, merge_informative_pair\n"
+        "class FalsySuffix(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata, informative):\n"
+        "        return merge_informative_pair(\n"
+        "            dataframe, informative, '5m', '1h', suffix=''\n"
+        "        )\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="FalsySuffix")
+    merge = next(node for node in program["nodes"] if node["op"] == "informative-merge")
+
+    assert merge["parameters"]["suffix"] is None
+
+
+@pytest.mark.parametrize(
+    ("call", "message"),
+    [
+        (
+            "merge_informative_pair(dataframe, informative, '5m', '1h', False, ffill=False)",
+            "duplicate informative merge argument ffill",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '5m', '1h', unknown=False)",
+            "unknown informative merge keyword unknown",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '5m', '1h', "
+            "ffill=metadata['ffill'])",
+            "dynamic indicator parameter",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '5m', '1h', "
+            "append_timeframe=True, suffix='btc')",
+            "suffix conflicts with append_timeframe",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '5m', '1h', "
+            "append_timeframe=False)",
+            "informative merge without an output suffix",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '1h', '5m', ffill=False)",
+            "faster informative timeframe would create rows",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '5m', 'nonsense')",
+            "invalid informative merge timeframe 'nonsense'",
+        ),
+        (
+            "merge_informative_pair(dataframe, informative, '5m', '1h', "
+            "False, True, 'date', None, 'extra')",
+            "informative merge signature",
+        ),
+    ],
+)
+def test_indicator_program_rejects_ambiguous_informative_merge_calls(
+    tmp_path: Path,
+    call: str,
+    message: str,
+) -> None:
+    source = tmp_path / "Rejected.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy, merge_informative_pair\n"
+        "class Rejected(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def populate_indicators(self, dataframe, metadata, informative):\n"
+        f"        dataframe = {call}\n"
         "        return dataframe\n",
         encoding="utf-8",
     )
 
     with pytest.raises(
         IndicatorProgramCompileError,
-        match="informative merge must not fill before source-ordered fill",
+        match=rf"strategy\.py:5:\d+:.*{message}",
     ):
-        compile_indicator_program(source, class_name="Prefilled")
+        compile_indicator_program(source, class_name="Rejected")
 
 
 def test_indicator_program_constant_folds_static_control_without_lookahead(tmp_path: Path) -> None:

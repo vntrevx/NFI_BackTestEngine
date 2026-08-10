@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::module_name_repetitions)] // Public names stay explicit across crate boundaries.
 
+pub mod alignment;
 pub mod batch;
 pub mod column;
 pub mod engine;
