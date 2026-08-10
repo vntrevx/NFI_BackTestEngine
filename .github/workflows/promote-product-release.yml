@@ -30,7 +30,7 @@ jobs:
       stable_tag: ${{ inputs.stable_tag }}
     steps:
       - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -111,7 +111,7 @@ jobs:
           test ! -e candidate/release-gate.json
           test "$(find candidate -maxdepth 1 -type f -name '*certification*' | wc -l)" -eq 0
       - name: Install candidate before promotion
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Verify installed version and exact fixture
@@ -182,7 +182,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.promote.outputs.candidate_sha }}
           persist-credentials: false
@@ -198,7 +198,7 @@ jobs:
     runs-on: macos-14
     steps:
       - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.promote.outputs.candidate_sha }}
           persist-credentials: false

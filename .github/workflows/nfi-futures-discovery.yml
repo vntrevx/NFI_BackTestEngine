@@ -49,7 +49,7 @@ jobs:
       futures_search_required: ${{ steps.identity.outputs.futures_search_required }}
     steps:
       - name: Check out current main
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -188,7 +188,7 @@ jobs:
           - futures
     steps:
       - name: Check out checked engine identity
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: false
@@ -254,7 +254,7 @@ jobs:
           fi
       - name: Install uv, Python, and engine
         if: steps.restore.outputs.deferred != 'true'
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Build locked engine
@@ -264,7 +264,7 @@ jobs:
           uv run maturin develop --release --locked
       - name: Download checked strategy difference
         if: steps.restore.outputs.deferred != 'true'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: latest-nfi-x7-strategy-diff
           path: .discovery/input
@@ -272,7 +272,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Download checked mode compatibility
         if: steps.restore.outputs.deferred != 'true'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .discovery/input
@@ -280,7 +280,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Download checked targeted qualification and initial route
         if: steps.restore.outputs.deferred != 'true'
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-targeted
           path: .discovery/input
@@ -447,7 +447,7 @@ jobs:
           fi
           echo "days=${days}" >> "${GITHUB_OUTPUT}"
       - name: Retain compact report and optional size-bounded candidate
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: |
@@ -488,12 +488,12 @@ jobs:
       issues: write
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: false
       - name: Download compact mode result
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: .discovery/result
@@ -611,12 +611,12 @@ jobs:
       pull-requests: write
     steps:
       - name: Check out protected main identity
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: true
       - name: Download exact candidate result
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: .discovery/result
@@ -633,7 +633,7 @@ jobs:
           fi
       - name: Install locked Python environment
         if: steps.candidate.outputs.found == 'true'
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Sync locked Python environment
@@ -670,7 +670,7 @@ jobs:
       issues: write
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Reconcile gaps already proven exact by the fast lane

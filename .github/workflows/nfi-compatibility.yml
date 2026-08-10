@@ -35,7 +35,7 @@ jobs:
       semantic_profile_sha256: ${{ steps.revision.outputs.semantic_profile_sha256 }}
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -121,11 +121,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Install locked Python environment
@@ -212,7 +212,7 @@ jobs:
               source_sha256: $source_sha256
             }' > .compatibility/compatibility-identity.json
       - name: Retain strategy difference and source
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: latest-nfi-x7-strategy-diff
           path: |
@@ -237,11 +237,11 @@ jobs:
           - futures
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Install engine
@@ -273,7 +273,7 @@ jobs:
           test -s .compatibility/report-${{ matrix.trading_mode }}.json
           echo "native_compatibility_exit_code=${status}" >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain compatibility report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .compatibility/report-${{ matrix.trading_mode }}.json
@@ -297,23 +297,23 @@ jobs:
           - futures
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Install uv, Python, and engine
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - run: |
           uv sync --extra dev --frozen
           uv run maturin develop --release --locked
       - name: Download strategy difference
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: latest-nfi-x7-strategy-diff
           path: .compatibility
       - name: Download static compatibility report
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-compatibility
           path: .compatibility
@@ -416,7 +416,7 @@ jobs:
           fi
       - name: Retain compact targeted-verification evidence
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-targeted
           path: |
@@ -444,11 +444,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Download both mode results
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: latest-nfi-x7-*
           path: .compatibility/results
@@ -465,7 +465,7 @@ jobs:
             --semantic-profile planning/freqtrade-semantic-profile.json \
             --output .compatibility/hosted-canary.json
       - name: Retain atomic hosted canary
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: latest-nfi-x7-hosted-canary
           path: .compatibility/hosted-canary.json
@@ -497,12 +497,12 @@ jobs:
       pull-requests: write
     steps:
       - name: Check out checked engine identity
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.discover.outputs.engine_sha }}
           persist-credentials: true
       - name: Download mode automation decision
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: latest-nfi-x7-${{ matrix.trading_mode }}-targeted
           path: .compatibility
@@ -518,7 +518,7 @@ jobs:
           fi
       - name: Install locked Python environment
         if: steps.review.outputs.required == 'true'
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Open evidence-only Draft PR
@@ -555,11 +555,11 @@ jobs:
       issues: write
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Download compact compatibility artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: latest-nfi-x7-*
           path: .compatibility/results
@@ -687,7 +687,7 @@ jobs:
       issues: write
     steps:
       - name: Check out engine
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Reconcile deduplicated health issue
