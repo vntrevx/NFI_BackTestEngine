@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 129,
-  "updated_at": "2026-08-10T23:08:02+09:00",
+  "revision": 130,
+  "updated_at": "2026-08-11T00:08:20+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M20-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4730,7 +4730,7 @@
       "order": 2004,
       "milestone": "M20",
       "title": "Implement all NFI-reachable indicator kernels",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M20-03"
       ],
@@ -4748,7 +4748,7 @@
         "column-exact vector fixtures",
         "boundary-sensitive signal tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-11T00:08:20+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8291,6 +8291,20 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M20-04",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 177,
+      "timestamp": "2026-08-11T00:08:20+09:00",
+      "task_id": "M20-04",
+      "event": "task_started",
+      "details": {
+        "objective": "implement every latest-NFI-reachable indicator kernel with column-exact Python and TA-Lib shadow evidence",
+        "latest_upstream_must_be_frozen": true,
+        "zero_tolerance_native_promotion": true,
+        "unverified_numerical_substitutions_allowed": false,
+        "strategy_or_signal_hardcoding_allowed": false,
+        "kernel_dispatch_must_be_operation_driven": true
       }
     }
   ]
