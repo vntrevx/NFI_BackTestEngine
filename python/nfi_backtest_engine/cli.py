@@ -685,6 +685,13 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_indicator_inventory.add_argument("--upstream-repository")
     strategy_indicator_inventory.add_argument("--upstream-commit")
     strategy_indicator_inventory.add_argument("--output", "-o", type=Path)
+    strategy_indicator_program = strategy_commands.add_parser(
+        "indicator-program",
+        help="compile the bounded causal indicator DAG into indicator-program-v1",
+    )
+    strategy_indicator_program.add_argument("source", type=Path)
+    strategy_indicator_program.add_argument("--class", dest="class_name")
+    strategy_indicator_program.add_argument("--output", "-o", type=Path, required=True)
     strategy_callback_ir = strategy_commands.add_parser(
         "callback-ir",
         help="compile source-ordered callback routes, tags, and data dependencies",

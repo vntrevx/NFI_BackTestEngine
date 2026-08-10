@@ -294,6 +294,23 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         if args.output:
             print(f"indicator inventory report: {args.output}")
         return 0
+    if args.strategy_command == "indicator-program":
+        from ..indicator_program import compile_indicator_program
+
+        program = compile_indicator_program(
+            args.source,
+            class_name=args.class_name,
+        )
+        write_json(args.output, program)
+        print(
+            "indicator program: "
+            f"class={program['selected_class']}, "
+            f"functions={len(program['functions'])}, "
+            f"nodes={len(program['nodes'])}, "
+            f"inputs={len(program['required_input_columns'])}"
+        )
+        print(f"indicator program report: {args.output}")
+        return 0
     if args.strategy_command == "callback-ir":
         from ..callback_source_ir import compile_callback_source_ir
 
