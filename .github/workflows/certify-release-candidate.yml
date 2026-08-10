@@ -49,7 +49,7 @@ jobs:
       EVIDENCE_BUCKET: ${{ vars.NFI_EVIDENCE_BUCKET }}
     steps:
       - name: Check out candidate source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Validate candidate run identity
@@ -69,14 +69,14 @@ jobs:
           [[ "$(jq -r .head_sha <<<"$run_json")" == "$WORKFLOW_COMMIT" ]] \
             || { echo "candidate and certification commits differ" >&2; exit 1; }
       - name: Download exact candidate bundle
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-bundle-${{ github.sha }}
           path: candidate
           run-id: ${{ inputs.candidate_run_id }}
           github-token: ${{ github.token }}
       - name: Install frozen candidate
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: "3.12"
       - name: Plan exact immutable Oracle reuse
@@ -174,7 +174,7 @@ jobs:
           cp .long-certification-plan.json host-certificate/
 
       - name: Configure short-lived immutable-storage credentials
-        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: ${{ vars.NFI_EVIDENCE_AWS_ROLE }}
           aws-region: ${{ vars.NFI_EVIDENCE_AWS_REGION }}
@@ -265,7 +265,7 @@ jobs:
               status: $status
             }' > host-certificate/immutable-upload.json
       - name: Upload same-commit host certificate
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: host-certificate-${{ inputs.mode }}-${{ github.sha }}
           path: host-certificate/*
