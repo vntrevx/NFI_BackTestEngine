@@ -4,8 +4,12 @@ use std::collections::BTreeSet;
 
 use crate::domain::{
     NfiLegacyGrindConstants, NfiRegularAdjustmentConstants, NfiX7AdjustmentCondition,
-    NfiX7AdjustmentConstants, NfiX7AdjustmentOperand, NfiX7AdjustmentPolicy, NfiX7RebuyConstants,
+    NfiX7AdjustmentConstants, NfiX7AdjustmentExpression, NfiX7AdjustmentOperand,
+    NfiX7AdjustmentPolicy, NfiX7RebuyConstants,
 };
+
+const MAX_ADJUSTMENT_EXPRESSION_DEPTH: usize = 16;
+const MAX_ADJUSTMENT_EXPRESSION_ARITY: usize = 32;
 
 pub(crate) fn valid_nfi_rebuy_constants(constants: &NfiX7RebuyConstants) -> bool {
     let vectors = [
@@ -215,13 +219,19 @@ pub(crate) fn valid_nfi_adjustment_policy(
     };
     let fallbacks_are_valid = policy.grind_entry_fallbacks.iter().all(|fallback| {
         fallback.predicates.iter().all(|predicate| {
-            (predicate.any_derisk_levels.is_empty()
-                || valid_derisk_levels(&predicate.any_derisk_levels))
-                && !predicate.conditions.is_empty()
-                && predicate
-                    .conditions
-                    .iter()
-                    .all(valid_nfi_adjustment_condition)
+            if let Some(expression) = &predicate.expression {
+                predicate.any_derisk_levels.is_empty()
+                    && predicate.conditions.is_empty()
+                    && valid_nfi_adjustment_expression(expression, derisk_level_count, 1)
+            } else {
+                (predicate.any_derisk_levels.is_empty()
+                    || valid_derisk_levels(&predicate.any_derisk_levels))
+                    && !predicate.conditions.is_empty()
+                    && predicate
+                        .conditions
+                        .iter()
+                        .all(valid_nfi_adjustment_condition)
+            }
         })
     });
 
@@ -250,10 +260,11 @@ fn unique_cluster_tags<'a>(mut tags: impl Iterator<Item = (&'a String, &'a Strin
 }
 
 pub(crate) fn valid_nfi_adjustment_condition(condition: &NfiX7AdjustmentCondition) -> bool {
-    valid_nfi_adjustment_operand(&condition.left) && valid_nfi_adjustment_operand(&condition.right)
+    valid_nfi_legacy_adjustment_operand(&condition.left)
+        && valid_nfi_legacy_adjustment_operand(&condition.right)
 }
 
-pub(crate) fn valid_nfi_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> bool {
+fn valid_nfi_legacy_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> bool {
     match operand {
         NfiX7AdjustmentOperand::Literal { value } => value.is_finite(),
         NfiX7AdjustmentOperand::Variable { name } => matches!(
@@ -263,5 +274,130 @@ pub(crate) fn valid_nfi_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> 
         NfiX7AdjustmentOperand::Feature { name, multiplier } => {
             !name.is_empty() && multiplier.is_finite()
         }
+        NfiX7AdjustmentOperand::Trade { .. } => false,
+    }
+}
+
+pub(crate) fn valid_nfi_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> bool {
+    match operand {
+        NfiX7AdjustmentOperand::Literal { value } => value.is_finite(),
+        NfiX7AdjustmentOperand::Variable { name } => matches!(
+            name.as_str(),
+            "current_rate" | "slice_profit" | "slice_profit_entry" | "num_open_grinds_and_buybacks"
+        ),
+        NfiX7AdjustmentOperand::Feature { name, multiplier } => {
+            !name.is_empty() && multiplier.is_finite()
+        }
+        NfiX7AdjustmentOperand::Trade { name, multiplier } => {
+            name == "liquidation_price" && multiplier.is_finite()
+        }
+    }
+}
+
+fn valid_nfi_adjustment_expression(
+    expression: &NfiX7AdjustmentExpression,
+    derisk_level_count: usize,
+    depth: usize,
+) -> bool {
+    if depth > MAX_ADJUSTMENT_EXPRESSION_DEPTH {
+        return false;
+    }
+    let valid_values = |values: &[NfiX7AdjustmentExpression]| {
+        !values.is_empty()
+            && values.len() <= MAX_ADJUSTMENT_EXPRESSION_ARITY
+            && values
+                .iter()
+                .all(|value| valid_nfi_adjustment_expression(value, derisk_level_count, depth + 1))
+    };
+    match expression {
+        NfiX7AdjustmentExpression::All { values } | NfiX7AdjustmentExpression::Any { values } => {
+            valid_values(values)
+        }
+        NfiX7AdjustmentExpression::Not { value } => {
+            valid_nfi_adjustment_expression(value, derisk_level_count, depth + 1)
+        }
+        NfiX7AdjustmentExpression::Flag { name } => {
+            matches!(name.as_str(), "is_futures_mode" | "trade_is_short")
+        }
+        NfiX7AdjustmentExpression::DeriskFound { level } => {
+            (1..=derisk_level_count).contains(level)
+        }
+        NfiX7AdjustmentExpression::Present { operand } => valid_nfi_adjustment_operand(operand),
+        NfiX7AdjustmentExpression::Comparison { left, right, .. } => {
+            valid_nfi_adjustment_operand(left) && valid_nfi_adjustment_operand(right)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::domain::{NfiX7AdjustmentExpression, NfiX7AdjustmentPredicate};
+
+    use super::{
+        valid_nfi_adjustment_expression, MAX_ADJUSTMENT_EXPRESSION_ARITY,
+        MAX_ADJUSTMENT_EXPRESSION_DEPTH,
+    };
+
+    #[test]
+    fn legacy_adjustment_predicate_deserializes_without_expression() {
+        let predicate: NfiX7AdjustmentPredicate = serde_json::from_value(json!({
+            "any_derisk_levels": [1],
+            "conditions": [{
+                "left": {"kind": "variable", "name": "slice_profit"},
+                "operator": "lt",
+                "right": {"kind": "literal", "value": -0.03}
+            }]
+        }))
+        .expect("legacy predicate remains compatible");
+
+        assert!(predicate.expression.is_none());
+    }
+
+    #[test]
+    fn adjustment_expression_rejects_invalid_names_and_shapes() {
+        let invalid = [
+            json!({"op": "flag", "name": "strategy_specific_mode"}),
+            json!({
+                "op": "comparison",
+                "left": {"kind": "variable", "name": "unknown_rate"},
+                "operator": "lt",
+                "right": {"kind": "literal", "value": 1.0}
+            }),
+            json!({
+                "op": "present",
+                "operand": {"kind": "trade", "name": "open_rate", "multiplier": 1.0}
+            }),
+            json!({"op": "derisk_found", "level": 4}),
+            json!({"op": "all", "values": []}),
+        ];
+        for value in invalid {
+            let expression: NfiX7AdjustmentExpression =
+                serde_json::from_value(value).expect("structurally valid expression");
+            assert!(!valid_nfi_adjustment_expression(&expression, 3, 1));
+        }
+    }
+
+    #[test]
+    fn adjustment_expression_rejects_excessive_depth_and_arity() {
+        let wide = NfiX7AdjustmentExpression::All {
+            values: (0..=MAX_ADJUSTMENT_EXPRESSION_ARITY)
+                .map(|_| NfiX7AdjustmentExpression::Flag {
+                    name: "is_futures_mode".to_owned(),
+                })
+                .collect(),
+        };
+        assert!(!valid_nfi_adjustment_expression(&wide, 3, 1));
+
+        let mut deep = NfiX7AdjustmentExpression::Flag {
+            name: "is_futures_mode".to_owned(),
+        };
+        for _ in 0..MAX_ADJUSTMENT_EXPRESSION_DEPTH {
+            deep = NfiX7AdjustmentExpression::Not {
+                value: Box::new(deep),
+            };
+        }
+        assert!(!valid_nfi_adjustment_expression(&deep, 3, 1));
     }
 }

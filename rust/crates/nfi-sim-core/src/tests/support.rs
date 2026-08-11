@@ -1261,6 +1261,7 @@ pub(super) fn nfi_adjustment_policy() -> NfiX7AdjustmentPolicy {
                 feature("EMA_20", 0.98),
             ),
         ],
+        expression: None,
     }];
     fallbacks[4].predicates = vec![NfiX7AdjustmentPredicate {
         any_derisk_levels: vec![1, 2, 3],
@@ -1286,6 +1287,7 @@ pub(super) fn nfi_adjustment_policy() -> NfiX7AdjustmentPolicy {
                 literal(50.0),
             ),
         ],
+        expression: None,
     }];
     NfiX7AdjustmentPolicy {
         entry_retry_ms: 5 * 60 * 1_000,

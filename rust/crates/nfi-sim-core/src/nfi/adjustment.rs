@@ -21,8 +21,8 @@ use crate::domain::{
     CompiledSystemAdjustmentExecutionMode, CompiledSystemAdjustmentInputKind,
     CompiledSystemAdjustmentProgram, CompiledSystemAdjustmentSide, CompiledSystemGrindTags,
     CompiledSystemStakeScale, NfiX7AdjustmentComparison, NfiX7AdjustmentCondition,
-    NfiX7AdjustmentOperand, NfiX7AdjustmentPredicate, NfiX7GrindLevel, NfiX7PositionAdjustment,
-    NfiX7TradeManager, OrderSide, PairSeries, PortfolioConfig,
+    NfiX7AdjustmentExpression, NfiX7AdjustmentOperand, NfiX7AdjustmentPredicate, NfiX7GrindLevel,
+    NfiX7PositionAdjustment, NfiX7TradeManager, OrderSide, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::order_aggregates::FilledOrderSelector;
@@ -1271,7 +1271,7 @@ fn evaluate_grind_level(
         },
         trade.leverage,
     )?;
-    let entry_signal = grind_entry_signal(context, state, index)?;
+    let entry_signal = grind_entry_signal(context, trade, state, index)?;
     let below_maximum = context.current_stake_amount
         < context.slice_amount * context.adjustment.constants.max_stake_multiplier;
     let distance_allows_entry = if cluster.count == 0 {
@@ -1357,6 +1357,7 @@ fn scale_stakes_for_minimum(
 
 fn grind_entry_signal(
     context: &AdjustmentContext<'_>,
+    trade: &OpenTrade,
     state: &AdjustmentState,
     index: usize,
 ) -> Option<bool> {
@@ -1386,8 +1387,11 @@ fn grind_entry_signal(
                 adjustment_predicate_matches(
                     predicate,
                     state,
+                    context.config,
+                    trade,
                     context.pair,
                     context.candle_index,
+                    context.candle.open,
                     context.slice_profit,
                     context.slice_profit_entry,
                     num_open_grinds,
@@ -1400,12 +1404,29 @@ fn grind_entry_signal(
 fn adjustment_predicate_matches(
     predicate: &NfiX7AdjustmentPredicate,
     state: &AdjustmentState,
+    config: &PortfolioConfig,
+    trade: &OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
+    current_rate: f64,
     slice_profit: f64,
     slice_profit_entry: f64,
     num_open_grinds: usize,
 ) -> Option<bool> {
+    if let Some(expression) = &predicate.expression {
+        return adjustment_expression_matches(
+            expression,
+            state,
+            config,
+            trade,
+            pair,
+            candle_index,
+            current_rate,
+            slice_profit,
+            slice_profit_entry,
+            num_open_grinds,
+        );
+    }
     if !predicate.any_derisk_levels.is_empty()
         && !any_derisk_level(state, &predicate.any_derisk_levels)?
     {
@@ -1430,6 +1451,111 @@ fn adjustment_predicate_matches(
         })
 }
 
+#[allow(clippy::too_many_arguments)]
+fn adjustment_expression_matches(
+    expression: &NfiX7AdjustmentExpression,
+    state: &AdjustmentState,
+    config: &PortfolioConfig,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    current_rate: f64,
+    slice_profit: f64,
+    slice_profit_entry: f64,
+    num_open_grinds: usize,
+) -> Option<bool> {
+    match expression {
+        NfiX7AdjustmentExpression::All { values } => {
+            for value in values {
+                if !adjustment_expression_matches(
+                    value,
+                    state,
+                    config,
+                    trade,
+                    pair,
+                    candle_index,
+                    current_rate,
+                    slice_profit,
+                    slice_profit_entry,
+                    num_open_grinds,
+                )? {
+                    return Some(false);
+                }
+            }
+            Some(true)
+        }
+        NfiX7AdjustmentExpression::Any { values } => {
+            for value in values {
+                if adjustment_expression_matches(
+                    value,
+                    state,
+                    config,
+                    trade,
+                    pair,
+                    candle_index,
+                    current_rate,
+                    slice_profit,
+                    slice_profit_entry,
+                    num_open_grinds,
+                )? {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        }
+        NfiX7AdjustmentExpression::Not { value } => adjustment_expression_matches(
+            value,
+            state,
+            config,
+            trade,
+            pair,
+            candle_index,
+            current_rate,
+            slice_profit,
+            slice_profit_entry,
+            num_open_grinds,
+        )
+        .map(|value| !value),
+        NfiX7AdjustmentExpression::Flag { name } => match name.as_str() {
+            "is_futures_mode" => Some(config.is_futures),
+            "trade_is_short" => Some(trade.side == TradeSide::Short),
+            _ => None,
+        },
+        NfiX7AdjustmentExpression::DeriskFound { level } => {
+            any_derisk_level(state, std::slice::from_ref(level))
+        }
+        NfiX7AdjustmentExpression::Present { operand } => Some(
+            adjustment_expression_operand_value(
+                operand,
+                trade,
+                pair,
+                candle_index,
+                current_rate,
+                slice_profit,
+                slice_profit_entry,
+                num_open_grinds,
+            )
+            .is_some(),
+        ),
+        NfiX7AdjustmentExpression::Comparison {
+            left,
+            operator,
+            right,
+        } => adjustment_comparison_matches(
+            left,
+            *operator,
+            right,
+            trade,
+            pair,
+            candle_index,
+            current_rate,
+            slice_profit,
+            slice_profit_entry,
+            num_open_grinds,
+        ),
+    }
+}
+
 fn any_derisk_level(state: &AdjustmentState, levels: &[usize]) -> Option<bool> {
     levels.iter().try_fold(false, |found, level| {
         let index = level.checked_sub(1)?;
@@ -1445,7 +1571,7 @@ fn adjustment_condition_matches(
     slice_profit_entry: f64,
     num_open_grinds: usize,
 ) -> Option<bool> {
-    let left = adjustment_operand_value(
+    let left = adjustment_legacy_operand_value(
         &condition.left,
         pair,
         candle_index,
@@ -1453,7 +1579,7 @@ fn adjustment_condition_matches(
         slice_profit_entry,
         num_open_grinds,
     )?;
-    let right = adjustment_operand_value(
+    let right = adjustment_legacy_operand_value(
         &condition.right,
         pair,
         candle_index,
@@ -1461,16 +1587,56 @@ fn adjustment_condition_matches(
         slice_profit_entry,
         num_open_grinds,
     )?;
-    Some(match condition.operator {
+    Some(adjustment_values_match(left, condition.operator, right))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn adjustment_comparison_matches(
+    left: &NfiX7AdjustmentOperand,
+    operator: NfiX7AdjustmentComparison,
+    right: &NfiX7AdjustmentOperand,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    current_rate: f64,
+    slice_profit: f64,
+    slice_profit_entry: f64,
+    num_open_grinds: usize,
+) -> Option<bool> {
+    let left = adjustment_expression_operand_value(
+        left,
+        trade,
+        pair,
+        candle_index,
+        current_rate,
+        slice_profit,
+        slice_profit_entry,
+        num_open_grinds,
+    )?;
+    let right = adjustment_expression_operand_value(
+        right,
+        trade,
+        pair,
+        candle_index,
+        current_rate,
+        slice_profit,
+        slice_profit_entry,
+        num_open_grinds,
+    )?;
+    Some(adjustment_values_match(left, operator, right))
+}
+
+fn adjustment_values_match(left: f64, operator: NfiX7AdjustmentComparison, right: f64) -> bool {
+    match operator {
         NfiX7AdjustmentComparison::Lt => left < right,
         NfiX7AdjustmentComparison::Gt => left > right,
         NfiX7AdjustmentComparison::Eq => {
             matches!(left.partial_cmp(&right), Some(std::cmp::Ordering::Equal))
         }
-    })
+    }
 }
 
-fn adjustment_operand_value(
+fn adjustment_legacy_operand_value(
     operand: &NfiX7AdjustmentOperand,
     pair: &PairSeries,
     candle_index: usize,
@@ -1489,6 +1655,38 @@ fn adjustment_operand_value(
         NfiX7AdjustmentOperand::Feature { name, multiplier } => {
             feature_number_at(pair, candle_index, name)? * multiplier
         }
+        NfiX7AdjustmentOperand::Trade { .. } => return None,
+    };
+    value.is_finite().then_some(value)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn adjustment_expression_operand_value(
+    operand: &NfiX7AdjustmentOperand,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    current_rate: f64,
+    slice_profit: f64,
+    slice_profit_entry: f64,
+    num_open_grinds: usize,
+) -> Option<f64> {
+    let value = match operand {
+        NfiX7AdjustmentOperand::Literal { value } => *value,
+        NfiX7AdjustmentOperand::Variable { name } => match name.as_str() {
+            "current_rate" => current_rate,
+            "slice_profit" => slice_profit,
+            "slice_profit_entry" => slice_profit_entry,
+            "num_open_grinds_and_buybacks" => f64::from(u32::try_from(num_open_grinds).ok()?),
+            _ => return None,
+        },
+        NfiX7AdjustmentOperand::Feature { name, multiplier } => {
+            feature_number_at(pair, candle_index, name)? * multiplier
+        }
+        NfiX7AdjustmentOperand::Trade { name, multiplier } => match name.as_str() {
+            "liquidation_price" => trade.liquidation_price? * multiplier,
+            _ => return None,
+        },
     };
     value.is_finite().then_some(value)
 }
@@ -1598,15 +1796,17 @@ mod tests {
     use serde_json::json;
 
     use crate::domain::{
-        CompiledSystemAdjustmentProgram, FilledOrder, NfiX7AdjustmentConstants, NfiX7GrindLevel,
+        CompiledSystemAdjustmentProgram, FilledOrder, NfiX7AdjustmentConstants,
+        NfiX7AdjustmentExpression, NfiX7AdjustmentPredicate, NfiX7GrindLevel,
         NfiX7PositionAdjustment, OrderSide, PairSeries, PortfolioConfig,
     };
     use crate::portfolio::{OpenTrade, TradeSide};
 
     use super::{
-        compiled_adjustment_state, derisk_level_index, evaluate_compiled_system_action,
-        grind_callback_maximum_stake, grind_callback_minimum_stake, grind_entry_index,
-        grind_exit_index, rebuild_compiled_adjustment_state, AdjustmentContext, AdjustmentState,
+        adjustment_predicate_matches, compiled_adjustment_state, derisk_level_index,
+        evaluate_compiled_system_action, grind_callback_maximum_stake,
+        grind_callback_minimum_stake, grind_entry_index, grind_exit_index,
+        rebuild_compiled_adjustment_state, AdjustmentContext, AdjustmentState,
         CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
     };
 
@@ -1772,6 +1972,158 @@ mod tests {
         }))
         .expect("valid config");
         (pair, config)
+    }
+
+    fn liquidation_proximity_predicate() -> NfiX7AdjustmentPredicate {
+        let expression: NfiX7AdjustmentExpression = serde_json::from_value(json!({
+            "op": "all",
+            "values": [
+                {"op": "flag", "name": "is_futures_mode"},
+                {
+                    "op": "present",
+                    "operand": {
+                        "kind": "trade",
+                        "name": "liquidation_price",
+                        "multiplier": 1.0
+                    }
+                },
+                {
+                    "op": "any",
+                    "values": [
+                        {
+                            "op": "all",
+                            "values": [
+                                {"op": "flag", "name": "trade_is_short"},
+                                {
+                                    "op": "comparison",
+                                    "left": {"kind": "variable", "name": "current_rate"},
+                                    "operator": "gt",
+                                    "right": {
+                                        "kind": "trade",
+                                        "name": "liquidation_price",
+                                        "multiplier": 0.9
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "op": "all",
+                            "values": [
+                                {
+                                    "op": "not",
+                                    "value": {"op": "flag", "name": "trade_is_short"}
+                                },
+                                {
+                                    "op": "comparison",
+                                    "left": {"kind": "variable", "name": "current_rate"},
+                                    "operator": "lt",
+                                    "right": {
+                                        "kind": "trade",
+                                        "name": "liquidation_price",
+                                        "multiplier": 1.1
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }))
+        .expect("valid liquidation-proximity expression");
+        NfiX7AdjustmentPredicate {
+            any_derisk_levels: Vec::new(),
+            conditions: Vec::new(),
+            expression: Some(expression),
+        }
+    }
+
+    fn empty_adjustment_state() -> AdjustmentState {
+        AdjustmentState {
+            order_count: 1,
+            program_fingerprint: None,
+            clusters: Vec::new(),
+            derisk_found: vec![false; 3],
+            first_entry_amount: 1.0,
+            first_entry_cost: 100.0,
+            latest_entry_price: 100.0,
+            latest_entry_timestamp_ms: 0,
+            latest_exit_price: None,
+            latest_order_price: 100.0,
+            latest_order_timestamp_ms: 0,
+        }
+    }
+
+    #[test]
+    fn liquidation_proximity_expression_matches_long_futures() {
+        let (pair, mut config) = pair_and_config();
+        config.is_futures = true;
+        let mut trade = test_trade();
+        trade.liquidation_price = Some(95.0);
+        let predicate = liquidation_proximity_predicate();
+        let state = empty_adjustment_state();
+        {
+            let matches = |current_rate| {
+                adjustment_predicate_matches(
+                    &predicate,
+                    &state,
+                    &config,
+                    &trade,
+                    &pair,
+                    0,
+                    current_rate,
+                    -0.04,
+                    -0.04,
+                    0,
+                )
+            };
+
+            assert_eq!(matches(100.0), Some(true));
+            assert_eq!(matches(105.0), Some(false));
+        }
+        trade.liquidation_price = None;
+        assert_eq!(
+            adjustment_predicate_matches(
+                &predicate, &state, &config, &trade, &pair, 0, 100.0, -0.04, -0.04, 0,
+            ),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn liquidation_proximity_expression_matches_short_futures() {
+        let (pair, mut config) = pair_and_config();
+        config.is_futures = true;
+        let mut trade = test_trade();
+        trade.side = TradeSide::Short;
+        trade.liquidation_price = Some(110.0);
+        let predicate = liquidation_proximity_predicate();
+        let state = empty_adjustment_state();
+        {
+            let matches = |current_rate| {
+                adjustment_predicate_matches(
+                    &predicate,
+                    &state,
+                    &config,
+                    &trade,
+                    &pair,
+                    0,
+                    current_rate,
+                    0.04,
+                    0.04,
+                    0,
+                )
+            };
+
+            assert_eq!(matches(100.0), Some(true));
+            assert_eq!(matches(98.0), Some(false));
+        }
+        config.is_futures = false;
+        assert_eq!(
+            adjustment_predicate_matches(
+                &predicate, &state, &config, &trade, &pair, 0, 100.0, 0.04, 0.04, 0,
+            ),
+            Some(false)
+        );
     }
 
     #[test]
