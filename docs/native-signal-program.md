@@ -45,5 +45,6 @@ source location. Signal numbers, strategy names, pairs, timeranges, and source h
 never runtime branches; the source hash is evidence identity only.
 
 The independent Rust execution and exact raw-signal comparison are documented in
-[`native-vector-shadow.md`](native-vector-shadow.md). Production in-memory simulator transport
-remains the separate M21-04 boundary.
+[`native-vector-shadow.md`](native-vector-shadow.md). The completed
+[`native-in-memory-vector.md`](native-in-memory-vector.md) transport carries its shifted output into
+the simulator without changing the Signal contract.

@@ -114,11 +114,15 @@ pub(crate) fn required_columns(pair: &VectorPair) -> BTreeSet<String> {
         "close".to_owned(),
         "volume".to_owned(),
         "nfi_exec_enter_long".to_owned(),
-        "nfi_exec_exit_long".to_owned(),
     ]);
+    if pair.use_exit_signal.enabled() {
+        columns.insert("nfi_exec_exit_long".to_owned());
+    }
     if pair.can_short.enabled() {
         columns.insert("nfi_exec_enter_short".to_owned());
-        columns.insert("nfi_exec_exit_short".to_owned());
+        if pair.use_exit_signal.enabled() {
+            columns.insert("nfi_exec_exit_short".to_owned());
+        }
     }
     if pair.include_funding.enabled() {
         columns.insert("nfi_exec_funding_rate".to_owned());

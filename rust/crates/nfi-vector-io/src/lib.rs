@@ -7,12 +7,19 @@
 
 mod decode;
 mod failures;
+#[allow(clippy::module_name_repetitions)] // Public API distinguishes direct and Feather profiles.
+mod in_memory;
 mod loader;
 mod row;
 mod schema;
 mod values;
 
 pub use failures::VectorInputError;
+pub use in_memory::{
+    assemble_in_memory_vectors, assemble_in_memory_vectors_profiled,
+    execute_in_memory_pair_dag_profiled, InMemoryVectorPair, InMemoryVectorProfile,
+    VectorPairOptions,
+};
 pub use loader::{load_vector_manifest, load_vector_manifest_profiled, VectorLoadProfile};
 
 /// Version of the compact manifest consumed by this crate.

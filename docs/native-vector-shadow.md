@@ -35,8 +35,9 @@ unsupported helper behavior, and any exact-value difference.
 
 ## Claim boundary
 
-This proves independent Rust vector semantics for the committed reachable contract. M21-04 still
-owns the production in-memory connection from Rust vector output to the simulator and retained
-Feather replay. The latest X7 source also remains fail-closed at its separately recorded dynamic
-configuration boundary until the remaining source compiler lowering is complete. Full Native
-latest-NFI qualification therefore remains M22-01, not an M21-03 claim.
+This proves independent Rust vector semantics for the committed reachable contract. The M21-04
+[in-memory transport](native-in-memory-vector.md) now connects that typed output to the simulator
+and proves exact equality with retained Feather replay. The latest X7 source still remains
+fail-closed at its separately recorded dynamic configuration boundary until the remaining source
+compiler lowering is complete. Full Native latest-NFI qualification therefore remains M22-01, not
+an M21-03 or transport-only claim.
