@@ -4,9 +4,11 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from nfi_backtest_engine.signal_fixture import (
     CONTRACT_PATH,
     FIXTURE_PATH,
+    PINNED_SOURCE,
     canonical_sha256,
     decode_frame,
     encode_signal_columns,
@@ -43,5 +45,8 @@ def test_signal_program_matches_pinned_freqtrade_raw_signal_columns() -> None:
 
 def test_signal_fixture_regeneration_is_deterministic() -> None:
     stored = json.loads((ROOT / FIXTURE_PATH).read_text(encoding="utf-8"))
+    source = ROOT / PINNED_SOURCE
+    if not source.is_dir():
+        pytest.skip("pinned Freqtrade source checkout is required for regeneration")
 
-    assert generate_fixture() == stored
+    assert generate_fixture(source) == stored
