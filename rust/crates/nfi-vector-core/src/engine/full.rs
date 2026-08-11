@@ -873,14 +873,7 @@ fn execute_cast<'catalog>(
             location: format!("{}:{}:{}", source.path, source.line, source.column),
         });
     }
-    if node.parameters.len() != 2
-        || node
-            .parameters
-            .get("arguments")
-            .is_some_and(|arguments| !arguments.is_null())
-    {
-        return Err(source.error("float cast parameters are not exact"));
-    }
+    validate_float_cast_parameters(node, source)?;
     let value = scope
         .runtime(input)
         .map_err(|error| located(source, error))?;
@@ -904,6 +897,16 @@ fn execute_cast<'catalog>(
     Ok(BoundValue::Runtime(NodeValue::Column(
         RuntimeColumn::Owned(OwnedColumn::f64(output)),
     )))
+}
+
+fn validate_float_cast_parameters(
+    node: &ProgramNode,
+    source: &SourceLocation,
+) -> Result<(), VectorCoreError> {
+    match (node.parameters.len(), node.parameters.get("arguments")) {
+        (1, None) | (2, Some(Value::Null)) => Ok(()),
+        _ => Err(source.error("float cast parameters are not exact")),
+    }
 }
 
 fn validate_identity_cast(
@@ -1257,6 +1260,29 @@ mod tests {
                 .expect("canonical fingerprint"),
         );
         IndicatorProgram::from_json(&encoded.to_string()).expect("valid recursive program")
+    }
+
+    #[test]
+    fn float_cast_accepts_the_compiler_shape_and_rejects_dynamic_arguments() {
+        let mut node: ProgramNode = serde_json::from_value(json!({
+            "id":"n1",
+            "function":"f1",
+            "source_order":0,
+            "op":"cast",
+            "value_type":"f64-column",
+            "inputs":["n0"],
+            "parameters":{"target":"float"},
+            "lookback":{"kind":"finite","candles":0,"expression":null,"causal":true}
+        }))
+        .expect("cast node");
+        let source = SourceLocation::new("cast", "strategy.py", 7, 4);
+
+        validate_float_cast_parameters(&node, &source).expect("compiler cast shape");
+        node.parameters.insert("arguments".to_owned(), Value::Null);
+        validate_float_cast_parameters(&node, &source).expect("legacy null arguments");
+        node.parameters
+            .insert("arguments".to_owned(), json!({"copy": false}));
+        assert!(validate_float_cast_parameters(&node, &source).is_err());
     }
 
     #[test]
