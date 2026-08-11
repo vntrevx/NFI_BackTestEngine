@@ -704,6 +704,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="spot",
     )
     strategy_signal_program.add_argument("--output", "-o", type=Path, required=True)
+    strategy_tag_program = strategy_commands.add_parser(
+        "tag-program",
+        help="compile exact ordered entry and exit tags into tag-program-v1",
+    )
+    strategy_tag_program.add_argument("source", type=Path)
+    strategy_tag_program.add_argument("--class", dest="class_name")
+    strategy_tag_program.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        default="spot",
+    )
+    strategy_tag_program.add_argument("--output", "-o", type=Path, required=True)
     strategy_callback_ir = strategy_commands.add_parser(
         "callback-ir",
         help="compile source-ordered callback routes, tags, and data dependencies",

@@ -22,9 +22,9 @@ corresponding value is exactly numeric `1`; arbitrary nonzero values are not pro
 orders. Same-candle long/short/exit conflicts are resolved later by the Freqtrade-compatible
 simulation kernel, never by the compiler.
 
-Tag initialization, literal and compound tag generation, and original whitespace are the
-separate M21-02 contract. A tag write encountered by the M21-01 compiler therefore fails
-closed instead of being discarded or guessed.
+Tag initialization, literal and compound tag generation, and original whitespace belong to the
+separate [`tag-program-v1`](native-tag-program.md) contract. A tag write encountered by the
+signal-only compiler still fails closed instead of being discarded or guessed.
 
 ## Evidence and regeneration
 
