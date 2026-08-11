@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 133,
-  "updated_at": "2026-08-11T02:31:11+09:00",
+  "revision": 135,
+  "updated_at": "2026-08-11T15:54:39+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": null,
   "execution_policy": {
@@ -4804,7 +4804,7 @@
       "order": 2101,
       "milestone": "M21",
       "title": "Define and compile signal-program-v1",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "M20-05"
       ],
@@ -4823,10 +4823,17 @@
         "signal schema tests",
         "entry and exit mutation tests"
       ],
-      "started_at": null,
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "started_at": "2026-08-11T03:03:16+09:00",
+      "completed_at": "2026-08-11T15:54:39+09:00",
+      "commit_sha": "b2255b57fb47cec88c2d97308a77cfa5f891f9ac",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M21-01/b2255b57fb47cec88c2d97308a77cfa5f891f9ac/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M21-01/b2255b57fb47cec88c2d97308a77cfa5f891f9ac/latest-signal-program-gap.json",
+        ".nfi/roadmap-acceptance/M21-01/b2255b57fb47cec88c2d97308a77cfa5f891f9ac/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M21-01/b2255b57fb47cec88c2d97308a77cfa5f891f9ac/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M21-01/b2255b57fb47cec88c2d97308a77cfa5f891f9ac/x7-futures/run.json",
+        "benchmarks/reference/signals/freqtrade-2026.5.1.json"
+      ],
       "blocker": null
     },
     {
@@ -8399,6 +8406,54 @@
         "vector_engine_multiframe_connection": false,
         "full_native_strategy_claim": false,
         "next_eligible_task": "M21-01",
+        "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 181,
+      "timestamp": "2026-08-11T03:03:16+09:00",
+      "task_id": "M21-01",
+      "event": "task_started",
+      "details": {
+        "objective": "define and compile signal-program-v1 with exact dataframe assignment and source-order overwrite semantics",
+        "signal_number_execution_branches_allowed": false,
+        "unordered_assignment_evaluation_allowed": false,
+        "entry_and_exit_long_short_required": true,
+        "original_source_order_must_be_preserved": true,
+        "latest_upstream_commit": "897a1523391b8222ee711eba9714b59a3e77265a"
+      }
+    },
+    {
+      "sequence": 182,
+      "timestamp": "2026-08-11T15:54:39+09:00",
+      "task_id": "M21-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "b2255b57fb47cec88c2d97308a77cfa5f891f9ac",
+        "latest_upstream_commit": "897a1523391b8222ee711eba9714b59a3e77265a",
+        "latest_strategy_sha256": "e99b4f58ecf507da86d2ba94e641c2994f17a1456133c2cff26946fa6b4a1afb",
+        "freqtrade_version": "2026.5.1",
+        "signal_oracle_row_count": 8,
+        "signal_oracle_fingerprint": "4c3150439cc45b282919562bce0e9273ab87a9b14022413b34133ac8fccf3249",
+        "signal_program_node_count": 38,
+        "signal_mutation_count": 7,
+        "entry_then_exit_order_exact": true,
+        "overlapping_mask_last_write_exact": true,
+        "nullable_boolean_mask_exact": true,
+        "freqtrade_exact_numeric_one_semantics": true,
+        "python_test_count": 786,
+        "future_compatibility_test_count": 143,
+        "rust_workspace_test_count": 212,
+        "spot_trade_surface_and_full_state_exact": true,
+        "futures_trade_surface_and_full_state_exact": true,
+        "runtime_hardcoding_added": false,
+        "signal_number_execution_branches_added": false,
+        "latest_x7_fully_compiled": false,
+        "latest_x7_fail_closed_source": "strategy.py:13034:13",
+        "tag_program_complete": false,
+        "rust_vector_shadow_complete": false,
+        "full_native_strategy_claim": false,
+        "next_eligible_task": "M21-02",
         "next_task_manual_gate": false
       }
     }

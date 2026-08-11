@@ -8,10 +8,12 @@ from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.runtime_versions import vector_dependency_versions
 from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
 from nfi_backtest_engine.vector_worker import (
+    _advise_signals,
     _attach_funding_events,
     _bound_indicator_frames,
     _clean_ohlcv_like_freqtrade,
     _prepare_execution_frame,
+    _signal_counts,
     _stabilize_compressed_tag_columns,
     _trim_timerange,
 )
@@ -231,6 +233,70 @@ def test_execution_frame_keeps_startup_rows_as_callback_only_context() -> None:
         None,
         "141",
     ]
+
+
+def test_signal_shift_preserves_raw_values_and_counts_only_exact_one() -> None:
+    frame = pd.DataFrame(
+        {
+            "date": pd.date_range("2022-04-30T23:00:00Z", periods=6, freq="5min"),
+            "enter_long": [1, True, 1.0, 2, -1, "1"],
+        }
+    )
+
+    prepared = _prepare_execution_frame(
+        frame,
+        "1651359600-1651361100",
+        startup_candles=0,
+    )
+
+    assert prepared.frame["nfi_exec_enter_long"].tolist() == [0, 1, True, 1.0, 2, -1]
+    assert _signal_counts(prepared.frame) == {
+        "enter_long": 3,
+        "enter_short": 0,
+        "exit_long": 0,
+        "exit_short": 0,
+    }
+
+
+def test_compatibility_worker_applies_freqtrade_signal_wrappers_in_order() -> None:
+    class CompatibilityStrategy:
+        def __init__(self) -> None:
+            self.events: list[str] = []
+
+        def populate_entry_trend(
+            self,
+            dataframe: pd.DataFrame,
+            metadata: dict[str, str],
+        ) -> pd.DataFrame:
+            self.events.append("entry")
+            assert dataframe["enter_tag"].tolist() == ["", ""]
+            dataframe.loc[:, "buy"] = [1, 0]
+            dataframe.loc[:, "enter_tag"] = ["legacy", ""]
+            return dataframe
+
+        def populate_exit_trend(
+            self,
+            dataframe: pd.DataFrame,
+            metadata: dict[str, str],
+        ) -> pd.DataFrame:
+            self.events.append("exit")
+            assert dataframe["enter_long"].tolist() == [1, 0]
+            assert dataframe["exit_tag"].tolist() == ["", ""]
+            dataframe.loc[:, "sell"] = [0, 1]
+            return dataframe
+
+    strategy = CompatibilityStrategy()
+
+    result = _advise_signals(
+        strategy,
+        pd.DataFrame({"close": [1.0, 2.0]}),
+        {"pair": "ETH/USDT"},
+    )
+
+    assert strategy.events == ["entry", "exit"]
+    assert result["enter_long"].tolist() == [1, 0]
+    assert result["enter_tag"].tolist() == ["legacy", ""]
+    assert result["exit_long"].tolist() == [0, 1]
 
 
 def test_all_null_tag_transport_marks_every_nullable_value() -> None:

@@ -81,8 +81,7 @@ def run_vector_request(request: dict[str, Any]) -> dict[str, Any]:
         raise StrategyAnalysisError(f"base candle frame is missing for {pair} {timeframe}") from exc
     metadata = {"pair": pair}
     indicators = strategy.populate_indicators(base, metadata)
-    entries = strategy.populate_entry_trend(indicators, metadata)
-    signals = strategy.populate_exit_trend(entries, metadata)
+    signals = _advise_signals(strategy, indicators, metadata)
     _validate_output_frame(signals)
     prepared = _prepare_execution_frame(
         signals,
@@ -119,6 +118,34 @@ def run_vector_request(request: dict[str, Any]) -> dict[str, Any]:
     }
     write_json(metadata_path, record)
     return record
+
+
+def _advise_signals(
+    strategy: Any,
+    dataframe: pd.DataFrame,
+    metadata: dict[str, str],
+) -> pd.DataFrame:
+    """Apply Freqtrade's entry/exit wrappers in real and compatibility environments."""
+    advise_entry = getattr(strategy, "advise_entry", None)
+    if callable(advise_entry):
+        entries = cast(pd.DataFrame, advise_entry(dataframe, metadata))
+    else:
+        dataframe.loc[:, "enter_tag"] = ""
+        entries = cast(pd.DataFrame, strategy.populate_entry_trend(dataframe, metadata))
+        if "enter_long" not in entries.columns:
+            entries = entries.rename(
+                {"buy": "enter_long", "buy_tag": "enter_tag"},
+                axis="columns",
+            )
+
+    advise_exit = getattr(strategy, "advise_exit", None)
+    if callable(advise_exit):
+        return cast(pd.DataFrame, advise_exit(entries, metadata))
+    entries.loc[:, "exit_tag"] = ""
+    signals = strategy.populate_exit_trend(entries, metadata)
+    if "exit_long" not in signals.columns:
+        signals = signals.rename({"sell": "exit_long"}, axis="columns")
+    return cast(pd.DataFrame, signals)
 
 
 def _stabilize_compressed_tag_columns(frame: pd.DataFrame) -> pd.DataFrame:
@@ -174,11 +201,8 @@ def _signal_counts(frame: pd.DataFrame) -> dict[str, int]:
         raw = frame[execution_column]
         if not isinstance(raw, pd.Series):
             raise StrategyAnalysisError(f"vector signal column is not one-dimensional: {column}")
-        values = pd.to_numeric(raw, errors="coerce")
-        if not isinstance(values, pd.Series):
-            raise StrategyAnalysisError(f"vector signal conversion failed: {column}")
-        values = values.fillna(0)
-        result[column] = int(values.ne(0).sum())
+        enabled = raw.eq(1).fillna(False)
+        result[column] = int(enabled.sum())
     return result
 
 
@@ -192,10 +216,8 @@ def _materialize_execution_signals(frame: pd.DataFrame) -> pd.DataFrame:
         raw = result[column]
         if not isinstance(raw, pd.Series):
             raise StrategyAnalysisError(f"vector signal column is not one-dimensional: {column}")
-        numeric = pd.to_numeric(raw, errors="coerce")
-        if not isinstance(numeric, pd.Series):
-            raise StrategyAnalysisError(f"vector signal conversion failed: {column}")
-        result[f"nfi_exec_{column}"] = numeric.fillna(0).shift(
+        normalized = raw.mask(raw.isna(), 0)
+        result[f"nfi_exec_{column}"] = normalized.shift(
             SIGNAL_SOURCE_ROW_SHIFT,
             fill_value=0,
         )

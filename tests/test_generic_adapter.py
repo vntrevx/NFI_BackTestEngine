@@ -9,6 +9,7 @@ from nfi_backtest_engine.engine_runtime import run_engine
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.generic_adapter import (
+    _enabled,
     _optional_text,
     build_generic_simulation_input,
     build_generic_vector_manifest,
@@ -32,6 +33,27 @@ FINITE_ORDER_FIXTURE = (
     / "captured"
     / "generic-state-machine-v3-orders-spot-2025-01-01_02"
 )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (1, True),
+        (True, True),
+        (1.0, True),
+        (0, False),
+        (2, False),
+        (-1, False),
+        ("1", False),
+        (float("nan"), False),
+        (None, False),
+    ],
+)
+def test_freqtrade_signal_enablement_requires_exact_numeric_one(
+    value: object,
+    expected: bool,
+) -> None:
+    assert _enabled(value) is expected
 
 
 def _analysis(tmp_path: Path) -> dict:
