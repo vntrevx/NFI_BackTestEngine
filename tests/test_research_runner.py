@@ -434,6 +434,11 @@ def test_full_native_transport_skips_python_vector_worker(
     assert report["status"] == "complete"
     assert calls["vectors"] == 0
     assert report["vectors"]["worker_count"] == 0
+    assert report["vectors"]["source_execution"] == {
+        "strategy_source_mode": "python-ast-compile-only",
+        "populate_methods_executed": False,
+        "runtime_mode": "rust-full-native",
+    }
     assert set(report["vectors"]["programs"]) == {"indicator", "signal", "tag"}
     assert not (Path(arguments["output_directory"]) / "vectors").exists()
     assert observed["compiled_programs"] is programs
@@ -495,6 +500,27 @@ def test_full_native_compiler_failure_is_a_durable_fallback_blocker(
     }
     assert report["capability"]["native_execution"]["native_ready"] is False
     assert report["vectors"]["blockers"] == [blocker]
+
+
+def test_full_native_checkpoint_seals_no_strategy_execution_contract(tmp_path: Path) -> None:
+    report = research_runner._full_native_preflight_report(
+        analysis={"source": {"sha256": "a" * 64}},
+        programs={
+            name: {
+                "schema_version": f"{name}-program-v1",
+                "fingerprint": token * 64,
+                "nodes": [{"id": "n1"}],
+            }
+            for name, token in (("indicator", "b"), ("signal", "c"), ("tag", "d"))
+        },
+        pair_count=1,
+        blockers=[],
+    )
+    checkpoint = {"schema_version": "1.0.0", "report": report}
+
+    assert research_runner._valid_vector_checkpoint(checkpoint, tmp_path / "vectors")
+    report["source_execution"]["populate_methods_executed"] = True
+    assert not research_runner._valid_vector_checkpoint(checkpoint, tmp_path / "vectors")
 
 
 def test_completed_resume_rejects_tampered_result_without_rewriting_it(

@@ -43,6 +43,7 @@ pub(super) fn load_bundle(path: &Path) -> Result<NativeVectorBundle, NativeContr
     let futures = decode_futures(path, &validated.futures, verified.futures)?;
     Ok(NativeVectorBundle {
         source: validated.source,
+        source_execution: validated.source_execution,
         config: validated.config,
         compile_context: validated.compile_context,
         run: validated.run,

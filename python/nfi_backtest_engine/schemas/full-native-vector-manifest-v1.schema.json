@@ -7,6 +7,7 @@
   "required": [
     "schema_version",
     "source",
+    "source_execution",
     "config",
     "compile_context",
     "programs",
@@ -32,6 +33,20 @@
         "config_sha256": {"$ref": "#/$defs/sha256"},
         "compiler_source_fingerprint": {"$ref": "#/$defs/sha256"},
         "selected_class": {"$ref": "#/$defs/non_empty_string"}
+      }
+    },
+    "source_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy_source_mode",
+        "populate_methods_executed",
+        "runtime_mode"
+      ],
+      "properties": {
+        "strategy_source_mode": {"const": "python-ast-compile-only"},
+        "populate_methods_executed": {"const": false},
+        "runtime_mode": {"const": "rust-full-native"}
       }
     },
     "config": {"type": "object"},

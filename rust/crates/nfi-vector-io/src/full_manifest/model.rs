@@ -12,6 +12,7 @@ use thiserror::Error;
 #[derive(Clone, Debug)]
 pub struct NativeVectorBundle {
     pub source: SourceSeal,
+    pub source_execution: SourceExecutionSeal,
     pub config: PortfolioConfig,
     pub compile_context: CompileContext,
     pub run: RunContract,
@@ -31,6 +32,14 @@ pub struct SourceSeal {
     pub config_sha256: String,
     pub compiler_source_fingerprint: String,
     pub selected_class: String,
+}
+
+/// Sealed proof that strategy source was compiled structurally and runs only in Rust.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceExecutionSeal {
+    pub strategy_source_mode: String,
+    pub populate_methods_executed: bool,
+    pub runtime_mode: String,
 }
 
 /// Runtime context frozen by both mutation programs and the manifest.
@@ -177,6 +186,7 @@ pub enum NativeContractError {
 pub(super) struct ManifestDocument {
     pub(super) schema_version: String,
     pub(super) source: SourceDocument,
+    pub(super) source_execution: SourceExecutionDocument,
     pub(super) config: serde_json::Value,
     pub(super) compile_context: CompileContextDocument,
     pub(super) programs: ProgramDocuments,
@@ -194,6 +204,14 @@ pub(super) struct SourceDocument {
     pub(super) config_sha256: String,
     pub(super) compiler_source_fingerprint: String,
     pub(super) selected_class: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SourceExecutionDocument {
+    pub(super) strategy_source_mode: String,
+    pub(super) populate_methods_executed: bool,
+    pub(super) runtime_mode: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -318,6 +336,7 @@ pub(super) struct FuturesDocument {
 
 pub(super) struct ValidatedDocument {
     pub(super) source: SourceSeal,
+    pub(super) source_execution: SourceExecutionSeal,
     pub(super) config: PortfolioConfig,
     pub(super) compile_context: CompileContext,
     pub(super) programs: ProgramDocuments,

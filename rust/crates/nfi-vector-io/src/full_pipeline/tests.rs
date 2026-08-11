@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use super::*;
 use crate::full_manifest::{
     retained_feature_fingerprint, CompileContext, FeatureRetention, PairContract, PairLimits,
-    PairOptions, PairPrecision, RunContract, SourceSeal, TradingMode,
+    PairOptions, PairPrecision, RunContract, SourceExecutionSeal, SourceSeal, TradingMode,
 };
 use crate::{assemble_in_memory_vectors_profiled, prepare_freqtrade_ohlcv_catalog};
 
@@ -56,6 +56,9 @@ fn complete_spot_pipeline_is_exact_to_the_existing_in_memory_transport() {
         simulate(&expected).expect("expected simulation")
     );
     assert_eq!(profile.manifest_sha256, None);
+    assert_eq!(profile.strategy_source_mode, "python-ast-compile-only");
+    assert!(!profile.populate_methods_executed);
+    assert_eq!(profile.runtime_mode, "rust-full-native");
     assert_eq!(profile.trading_mode, "spot");
     assert_eq!(profile.source_row_shift, 1);
     assert_eq!(profile.raw_frame_count, 1);
@@ -116,6 +119,11 @@ fn bundle(mode: TradingMode) -> NativeVectorBundle {
             config_sha256: "b".repeat(64),
             compiler_source_fingerprint: "c".repeat(64),
             selected_class: CLASS_NAME.to_owned(),
+        },
+        source_execution: SourceExecutionSeal {
+            strategy_source_mode: "python-ast-compile-only".to_owned(),
+            populate_methods_executed: false,
+            runtime_mode: "rust-full-native".to_owned(),
         },
         config,
         compile_context: CompileContext {

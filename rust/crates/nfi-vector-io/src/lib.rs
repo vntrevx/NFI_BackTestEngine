@@ -33,8 +33,8 @@ pub use freqtrade_ohlcv::{
 pub use full_manifest::{
     load_full_native_vector_manifest, retained_feature_fingerprint, CompileContext,
     FeatureRetention, FuturesFrameSet, HistoricPriceStep, NativeContractError, NativeVectorBundle,
-    PairContract, PairLimits, PairOptions, PairPrecision, RunContract, SourceSeal, TradingMode,
-    FULL_NATIVE_VECTOR_MANIFEST_VERSION,
+    PairContract, PairLimits, PairOptions, PairPrecision, RunContract, SourceExecutionSeal,
+    SourceSeal, TradingMode, FULL_NATIVE_VECTOR_MANIFEST_VERSION,
 };
 pub use full_pipeline::{
     execute_full_native_vector_bundle_profiled, load_full_native_vector_manifest_profiled,

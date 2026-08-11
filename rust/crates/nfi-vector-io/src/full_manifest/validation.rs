@@ -10,15 +10,15 @@ use sha2::{Digest, Sha256};
 use super::model::{
     ArtifactDocument, CompileContext, FeatureRetention, FrameDocument, HistoricPriceStep,
     IdentityDocument, ManifestDocument, NativeContractError, PairContract, PairLimits, PairOptions,
-    PairPrecision, RunContract, SourceSeal, TradingMode, ValidatedDocument, ValidatedFrame,
-    ValidatedFutures,
+    PairPrecision, RunContract, SourceExecutionSeal, SourceSeal, TradingMode, ValidatedDocument,
+    ValidatedFrame, ValidatedFutures,
 };
 use super::FULL_NATIVE_VECTOR_MANIFEST_VERSION;
 
 pub(super) fn validate_document(
     document: ManifestDocument,
 ) -> Result<ValidatedDocument, NativeContractError> {
-    let (source, config, compile_context, run) = validate_header(&document)?;
+    let (source, source_execution, config, compile_context, run) = validate_header(&document)?;
     validate_program_descriptors(&document)?;
     let retained_features = validate_features(document.retained_features)?;
     let (pairs, pair_names) = validate_pairs(document.pairs, &run)?;
@@ -30,6 +30,7 @@ pub(super) fn validate_document(
     )?;
     Ok(ValidatedDocument {
         source,
+        source_execution,
         config,
         compile_context,
         programs: document.programs,
@@ -43,7 +44,16 @@ pub(super) fn validate_document(
 
 fn validate_header(
     document: &ManifestDocument,
-) -> Result<(SourceSeal, PortfolioConfig, CompileContext, RunContract), NativeContractError> {
+) -> Result<
+    (
+        SourceSeal,
+        SourceExecutionSeal,
+        PortfolioConfig,
+        CompileContext,
+        RunContract,
+    ),
+    NativeContractError,
+> {
     if document.schema_version != FULL_NATIVE_VECTOR_MANIFEST_VERSION {
         return Err(invalid(format!(
             "unsupported schema_version {:?}",
@@ -61,6 +71,19 @@ fn validate_header(
             document.source.compiler_source_fingerprint.clone(),
         )?,
         selected_class: checked_name("selected_class", document.source.selected_class.clone())?,
+    };
+    if document.source_execution.strategy_source_mode != "python-ast-compile-only"
+        || document.source_execution.populate_methods_executed
+        || document.source_execution.runtime_mode != "rust-full-native"
+    {
+        return Err(invalid(
+            "source_execution must forbid populate execution and select the Rust full-native runtime",
+        ));
+    }
+    let source_execution = SourceExecutionSeal {
+        strategy_source_mode: document.source_execution.strategy_source_mode.clone(),
+        populate_methods_executed: document.source_execution.populate_methods_executed,
+        runtime_mode: document.source_execution.runtime_mode.clone(),
     };
     let actual_config_sha = config_identity_sha256(&document.config)?;
     if actual_config_sha != source.config_sha256 {
@@ -92,6 +115,7 @@ fn validate_header(
         .map_err(|error| invalid(format!("run base_timeframe is invalid: {error}")))?;
     Ok((
         source,
+        source_execution,
         config,
         CompileContext {
             run_mode: document.compile_context.run_mode.clone(),

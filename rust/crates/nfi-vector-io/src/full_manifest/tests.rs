@@ -65,6 +65,11 @@ fn fixture(mode: TradingMode) -> Fixture {
                 "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "selected_class": CLASS_NAME
         },
+        "source_execution": {
+            "strategy_source_mode": "python-ast-compile-only",
+            "populate_methods_executed": false,
+            "runtime_mode": "rust-full-native"
+        },
         "config": config,
         "compile_context": {"run_mode": "backtest", "trading_mode": mode.as_str()},
         "programs": {"indicator": indicator, "signal": signal, "tag": tag},
@@ -220,6 +225,12 @@ fn loads_strict_spot_contract_and_dynamic_runtime_fields() {
     let fixture = fixture(TradingMode::Spot);
     let loaded = load_full_native_vector_manifest(&fixture.path).expect("complete bundle");
     assert_eq!(loaded.run.source_row_shift, 3);
+    assert_eq!(
+        loaded.source_execution.strategy_source_mode,
+        "python-ast-compile-only"
+    );
+    assert!(!loaded.source_execution.populate_methods_executed);
+    assert_eq!(loaded.source_execution.runtime_mode, "rust-full-native");
     assert_eq!(loaded.run.startup_candles, 17);
     assert_eq!(loaded.retained_features.columns, ["delta"]);
     assert_eq!(loaded.pairs[0].metadata["market"], "test");
@@ -281,6 +292,14 @@ fn rejects_unknown_fields_paths_digests_and_duplicates() {
 
 #[test]
 fn rejects_context_and_feature_drift_before_raw_decode() {
+    let mut source_execution = fixture(TradingMode::Spot);
+    source_execution.document["source_execution"]["populate_methods_executed"] = json!(true);
+    source_execution.write_manifest();
+    assert!(load_full_native_vector_manifest(&source_execution.path)
+        .expect_err("strategy execution claim")
+        .to_string()
+        .contains("must forbid populate execution"));
+
     let mut context = fixture(TradingMode::Spot);
     let raw = context.temporary.path().join("data/BTC_USDT-5m.feather");
     fs::write(&raw, b"not Feather").expect("corrupt raw frame");

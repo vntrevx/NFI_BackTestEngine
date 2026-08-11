@@ -23,6 +23,8 @@ from .engine_runtime import FULL_VECTOR_INPUT, run_engine
 from .errors import BenchmarkError, SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
 from .full_vector_runtime import (
+    FULL_NATIVE_RUNTIME_MODE,
+    FULL_NATIVE_SOURCE_MODE,
     FULL_NATIVE_VECTOR_RUNTIME_VERSION,
     build_full_native_vector_manifest,
     compile_full_native_programs,
@@ -1153,6 +1155,11 @@ def _full_native_preflight_report(
         "schema_version": "full-native-program-preflight-v1",
         "pipeline_version": FULL_NATIVE_VECTOR_RUNTIME_VERSION,
         "strategy_sha256": analysis["source"]["sha256"],
+        "source_execution": {
+            "strategy_source_mode": FULL_NATIVE_SOURCE_MODE,
+            "populate_methods_executed": False,
+            "runtime_mode": FULL_NATIVE_RUNTIME_MODE,
+        },
         "worker_count": 0,
         "pair_count": pair_count,
         "cache_hits": 0,
@@ -1181,6 +1188,12 @@ def _valid_vector_checkpoint(checkpoint: Any, vector_directory: Path) -> bool:
         return (
             report.get("pipeline_version") == FULL_NATIVE_VECTOR_RUNTIME_VERSION
             and isinstance(report.get("strategy_sha256"), str)
+            and report.get("source_execution")
+            == {
+                "strategy_source_mode": FULL_NATIVE_SOURCE_MODE,
+                "populate_methods_executed": False,
+                "runtime_mode": FULL_NATIVE_RUNTIME_MODE,
+            }
             and report.get("worker_count") == 0
             and isinstance(report.get("pair_count"), int)
             and not isinstance(report.get("pair_count"), bool)

@@ -44,7 +44,9 @@ from .x7.serialization import (
 )
 
 FULL_NATIVE_VECTOR_MANIFEST_VERSION = "full-native-vector-manifest-v1"
-FULL_NATIVE_VECTOR_RUNTIME_VERSION = "1.0.0"
+FULL_NATIVE_VECTOR_RUNTIME_VERSION = "1.1.0"
+FULL_NATIVE_SOURCE_MODE = "python-ast-compile-only"
+FULL_NATIVE_RUNTIME_MODE = "rust-full-native"
 _PROGRAM_NAMES = ("indicator", "signal", "tag")
 _SIMULATOR_COLUMNS = frozenset({"open", "high", "low", "close", "volume"})
 
@@ -197,6 +199,11 @@ def build_full_native_vector_manifest(
                 "config_sha256": _config_identity_sha256(portfolio_config),
                 "compiler_source_fingerprint": _compiler_source_fingerprint(),
                 "selected_class": class_name,
+            },
+            "source_execution": {
+                "strategy_source_mode": FULL_NATIVE_SOURCE_MODE,
+                "populate_methods_executed": False,
+                "runtime_mode": FULL_NATIVE_RUNTIME_MODE,
             },
             "config": portfolio_config,
             "compile_context": {"run_mode": "backtest", "trading_mode": trading_mode},

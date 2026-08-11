@@ -75,6 +75,11 @@ def test_builder_hardlinks_raw_frames_and_runs_the_sealed_manifest(tmp_path: Pat
     assert os.path.samefile(raw, linked)
     assert raw.stat().st_size == linked.stat().st_size
     assert document["run"]["source_row_shift"] == 1
+    assert document["source_execution"] == {
+        "strategy_source_mode": "python-ast-compile-only",
+        "populate_methods_executed": False,
+        "runtime_mode": "rust-full-native",
+    }
     assert document["retained_features"]["columns"] == []
     assert read_json(manifest) == document
 
@@ -88,6 +93,9 @@ def test_builder_hardlinks_raw_frames_and_runs_the_sealed_manifest(tmp_path: Pat
     input_profile = read_json(profile)["input"]
     assert input_profile["manifest_sha256"] is not None
     assert input_profile["raw_frame_count"] == 1
+    assert input_profile["strategy_source_mode"] == "python-ast-compile-only"
+    assert input_profile["populate_methods_executed"] is False
+    assert input_profile["runtime_mode"] == "rust-full-native"
     assert input_profile["transport"]["pair_count"] == 1
 
     research_runner._validate_full_native_manifest_artifacts(manifest)
@@ -96,9 +104,46 @@ def test_builder_hardlinks_raw_frames_and_runs_the_sealed_manifest(tmp_path: Pat
         research_runner._validate_full_native_manifest_artifacts(manifest)
 
 
-def _write_strategy(path: Path) -> None:
+def test_full_native_pipeline_never_executes_strategy_source(tmp_path: Path) -> None:
+    strategy = tmp_path / "strategy.py"
+    _write_strategy(strategy, execution_bomb=True)
+    data = tmp_path / "data"
+    _write_frame(data / "BTC_USDT-5m.feather")
+    market = tmp_path / "market.json"
+    write_json(market, _market_snapshot())
+    config = _config()
+    analysis = analyze_strategy(strategy, class_name="ManifestStrategy")
+    hot_ir = build_hot_callback_ir(
+        analysis,
+        trading_mode="spot",
+        run_mode="backtest",
+        config=config,
+    )
+    manifest = tmp_path / "run" / "simulation-input.manifest.json"
+
+    build_full_native_vector_manifest(
+        strategy_path=strategy,
+        class_name="ManifestStrategy",
+        analysis=analysis,
+        hot_ir=hot_ir,
+        config=config,
+        pairs=["BTC/USDT"],
+        data_directory=data,
+        timerange=f"{START_MS}-{START_MS + 900_000}",
+        market_metadata_path=market,
+        destination=manifest,
+    )
+
+    result = tmp_path / "run" / "result.json"
+    _rust.simulate_full_vector_file(manifest, result)
+    assert len(read_json(result)["trades"]) == 1
+
+
+def _write_strategy(path: Path, *, execution_bomb: bool = False) -> None:
+    prefix = "raise RuntimeError('strategy source executed')\n" if execution_bomb else ""
     path.write_text(
-        "from freqtrade.strategy import IStrategy\n"
+        prefix
+        + "from freqtrade.strategy import IStrategy\n"
         "class ManifestStrategy(IStrategy):\n"
         "    timeframe = '5m'\n"
         "    startup_candle_count = 0\n"
