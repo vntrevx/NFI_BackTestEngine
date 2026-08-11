@@ -126,8 +126,9 @@ yet claim that the entire latest X7 source compiles or executes Full Native.
 M20-05 establishes exact multi-timeframe primitives and compiler contracts,
 but their in-memory `VectorEngine` connection is deliberately owned by M21.
 M21-01 and M21-02 establish Native signal assignment and exact tag-generation
-contracts. M21-03 and M21-04 own independent Python/Rust vector shadowing and
-the in-memory simulator connection. M22 owns latest-upstream Spot/Futures
+contracts. M21-03 independently proves Python/Rust Indicator, Signal, Tag, and
+execution-index equality. M21-04 owns the in-memory simulator connection. M22 owns
+latest-upstream Spot/Futures
 full-state qualification, removal of Python strategy execution from the Native
 lane, and release certification. Until those proofs pass, unsupported source
 constructs remain fail-closed and the official Freqtrade fallback remains the

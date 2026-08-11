@@ -20,8 +20,9 @@ by an ordered append, so adding another numeric Signal does not require a runtim
 
 `tag-program-v1` also records numeric signal writes that share the same source function. This
 keeps tag masks and read-after-write behavior exact while `signal-program-v1` remains the public
-raw-signal contract. M21-03 will run the compiled program independently in Rust and compare every
-Indicator, Signal, Tag, and execution-index output.
+raw-signal contract. The M21-03
+[`Native Vector Shadow`](native-vector-shadow.md) runs the compiled program independently in Rust
+and compares every Indicator, Signal, Tag, and execution-index output.
 
 ## Evidence and limits
 

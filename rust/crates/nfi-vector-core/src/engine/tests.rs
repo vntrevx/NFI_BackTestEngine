@@ -85,9 +85,13 @@ fn shift_state_crosses_batch_boundaries_and_memory_stays_bounded() {
     let first_values = first_output.columns()["previous"].as_view();
     assert_eq!(
         (0..3)
-            .map(|row| first_values.f64_at(row))
+            .map(|row| first_values.f64_at(row).map(f64::to_bits))
             .collect::<Vec<_>>(),
-        vec![None, None, Some(1.0)]
+        vec![
+            Some(crate::float::CANONICAL_NAN_BITS),
+            Some(crate::float::CANONICAL_NAN_BITS),
+            Some(1.0_f64.to_bits()),
+        ]
     );
 
     let (_, second) = batch(vec![4.0, 5.0, 6.0]);

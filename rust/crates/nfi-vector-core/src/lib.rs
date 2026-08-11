@@ -1,8 +1,8 @@
-//! Safe, deterministic execution substrate for `indicator-program-v1`.
+//! Safe, deterministic execution substrate for Indicator, Signal, and Tag programs.
 //!
 //! This crate owns typed Arrow columns, causal execution planning, bounded
-//! streaming state, and generic vector execution. Feather transport remains in
-//! `nfi-vector-io`; NFI-reachable indicator algorithms are added separately.
+//! streaming state, source-ordered dataframe mutation, and generic vector
+//! execution. Feather transport remains in `nfi-vector-io`.
 
 #![forbid(unsafe_code)]
 #![allow(clippy::module_name_repetitions)] // Public names stay explicit across crate boundaries.
@@ -14,6 +14,7 @@ pub mod engine;
 pub mod error;
 pub mod float;
 pub mod kernels;
+pub mod mutation;
 pub mod program;
 pub mod sink;
 pub mod state;
