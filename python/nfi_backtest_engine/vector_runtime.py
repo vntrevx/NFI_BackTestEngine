@@ -148,7 +148,7 @@ def prepare_vector_signals(
     cache_hits: dict[str, dict[str, Any]] = {}
     futures_execution: dict[str, Any] | None = None
     for pair in pairs:
-        frame_paths = _resolve_pair_frames(
+        frame_paths = resolve_pair_frames(
             data_root,
             pair=pair,
             pairs=pairs,
@@ -161,7 +161,7 @@ def prepare_vector_signals(
             for key, path in frame_paths.items()
         }
         funding_spec = (
-            _resolve_pair_funding_data(
+            resolve_pair_funding_data(
                 data_root,
                 pair=pair,
                 data_index=data_index,
@@ -585,7 +585,7 @@ def _publish_vector_record(
     return destination
 
 
-def _resolve_pair_frames(
+def resolve_pair_frames(
     data_root: Path,
     *,
     pair: str,
@@ -653,7 +653,7 @@ def _find_candle_file(
     return matches[0]
 
 
-def _resolve_pair_funding_data(
+def resolve_pair_funding_data(
     data_root: Path,
     *,
     pair: str,
@@ -685,6 +685,11 @@ def _resolve_pair_funding_data(
         funding_fee_timeframe=funding_fee_timeframe,
         mark_timeframe=mark_timeframe,
     )
+
+
+# Stable private aliases for existing tests and downstream integrations.
+_resolve_pair_frames = resolve_pair_frames
+_resolve_pair_funding_data = resolve_pair_funding_data
 
 
 def _find_timeframed_data_file(
