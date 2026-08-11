@@ -46,6 +46,7 @@ from .x7.serialization import (
 FULL_NATIVE_VECTOR_MANIFEST_VERSION = "full-native-vector-manifest-v1"
 FULL_NATIVE_VECTOR_RUNTIME_VERSION = "1.0.0"
 _PROGRAM_NAMES = ("indicator", "signal", "tag")
+_SIMULATOR_COLUMNS = frozenset({"open", "high", "low", "close", "volume"})
 
 
 def build_full_native_vector_manifest(
@@ -166,7 +167,7 @@ def build_full_native_vector_manifest(
         funding_fee_interval_ms=funding_fee_interval_ms,
         market_snapshot=market_snapshot,
     )
-    retained_features = _required_trade_features(hot_ir)
+    retained_features = _retained_trade_features(hot_ir)
     retained_fingerprint = _retained_feature_fingerprint(retained_features)
 
     staging = Path(
@@ -277,6 +278,13 @@ def _validate_program_identity(
         context = programs[name].get("compile_context")
         if context != {"run_mode": "backtest", "trading_mode": trading_mode}:
             raise StrategyAnalysisError(f"compiled {name} context differs from the run")
+
+
+def _retained_trade_features(hot_ir: dict[str, Any]) -> list[str]:
+    """Keep callback columns not already represented by the candle contract."""
+    return [
+        name for name in _required_trade_features(hot_ir) if name not in _SIMULATOR_COLUMNS
+    ]
 
 
 def _portfolio_contract(

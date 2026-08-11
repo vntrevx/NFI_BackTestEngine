@@ -51,7 +51,7 @@ pub(super) fn execute_pair(
     let combined = adopt_tag_columns(&signal, &tag)?;
     let execution = materialize_execution_signals(&combined, run.source_row_shift, 0)?;
     let full_transport =
-        assemble_transport_columns(&indicator, &execution.frame, retained_features)?;
+        assemble_transport_columns(&indicator, &combined, &execution.frame, retained_features)?;
     let timerange = format!("{}-{}", run.timerange_start_ms, run.timerange_stop_ms);
     let prepared = prepare_execution_ohlcv(base, &timerange, run.startup_candles)?;
     let mut sliced = slice_for_execution(base, &prepared.frame, &full_transport)?;
@@ -111,7 +111,12 @@ fn indicator_execution_outputs(
     let mut seen = BTreeSet::new();
     for name in SIMULATOR_COLUMNS
         .into_iter()
-        .chain(retained.iter().map(String::as_str))
+        .chain(
+            retained
+                .iter()
+                .map(String::as_str)
+                .filter(|name| !SIGNAL_COLUMNS.contains(name) && !TAG_COLUMNS.contains(name)),
+        )
         .chain(signal.required_input_columns.iter().map(String::as_str))
         .chain(tag.required_input_columns.iter().map(String::as_str))
     {
@@ -129,7 +134,6 @@ fn validate_retained_features(features: &[String]) -> Result<(), VectorInputErro
             || !seen.insert(feature.as_str())
             || feature == "date"
             || SIMULATOR_COLUMNS.contains(&feature.as_str())
-            || SIGNAL_COLUMNS.contains(&feature.as_str())
             || TAG_COLUMNS.contains(&feature.as_str())
             || feature.starts_with("nfi_exec_")
         {
@@ -223,6 +227,7 @@ fn adopt_tag_columns(
 
 fn assemble_transport_columns(
     indicator: &FullFrameOutput,
+    decision: &MutationFrame,
     execution: &MutationFrame,
     retained: &[String],
 ) -> Result<MutationFrame, VectorInputError> {
@@ -237,16 +242,23 @@ fn assemble_transport_columns(
                 .collect(),
         ),
     )]);
-    for name in SIMULATOR_COLUMNS
-        .iter()
-        .copied()
-        .chain(retained.iter().map(String::as_str))
-    {
+    for name in SIMULATOR_COLUMNS {
         let column = indicator
             .columns()
             .get(name)
             .ok_or_else(|| VectorCoreError::MissingOutput(format!("transport column {name}")))?;
         if columns.insert(name.to_owned(), column.clone()).is_some() {
+            return Err(invalid(format!("duplicate transport column {name}")));
+        }
+    }
+    for name in retained {
+        let column = if SIGNAL_COLUMNS.contains(&name.as_str()) {
+            decision.column(name)
+        } else {
+            indicator.columns().get(name)
+        }
+        .ok_or_else(|| VectorCoreError::MissingOutput(format!("transport column {name}")))?;
+        if columns.insert(name.clone(), column.clone()).is_some() {
             return Err(invalid(format!("duplicate transport column {name}")));
         }
     }

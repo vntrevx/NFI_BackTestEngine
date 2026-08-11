@@ -61,9 +61,10 @@ fn complete_spot_pipeline_is_exact_to_the_existing_in_memory_transport() {
     assert_eq!(profile.raw_frame_count, 1);
     assert_eq!(profile.transport.pair_count, expected_profile.pair_count);
     assert_eq!(profile.transport.row_count, 6);
-    assert_eq!(profile.transport.feature_column_count, 1);
+    assert_eq!(profile.transport.feature_column_count, 2);
     assert_eq!(actual.pairs[0].execution_start_index, 1);
     assert_eq!(actual.pairs[0].feature_columns["delta"].len(), 6);
+    assert_eq!(actual.pairs[0].feature_columns["enter_long"].len(), 6);
 }
 
 #[test]
@@ -93,7 +94,7 @@ fn bundle(mode: TradingMode) -> NativeVectorBundle {
             ("volume".to_owned(), numbers([1.0; 6])),
         ]),
     };
-    let features = vec!["delta".to_owned()];
+    let features = vec!["delta".to_owned(), "enter_long".to_owned()];
     let mut config_document = json!({
         "starting_balance": 1_000.0,
         "max_open_trades": 2,

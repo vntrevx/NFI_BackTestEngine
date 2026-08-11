@@ -5,11 +5,12 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from nfi_backtest_engine import _rust, research_runner
+from nfi_backtest_engine import _rust, full_vector_runtime, research_runner
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.full_vector_runtime import (
     _config_identity_sha256,
+    _retained_trade_features,
     build_full_native_vector_manifest,
 )
 from nfi_backtest_engine.hot_ir import build_hot_callback_ir
@@ -25,6 +26,18 @@ def test_config_identity_is_cross_language_and_float_formatter_independent() -> 
     expected = "df8efe5440e003a372b0ae0d57c7dcd360517af8ace16e68601e862f48a79525"
     assert _config_identity_sha256(left) == expected
     assert _config_identity_sha256(right) == expected
+
+
+def test_retained_features_exclude_candle_fields_but_keep_raw_signals(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        full_vector_runtime,
+        "_required_trade_features",
+        lambda _hot_ir: ["close", "enter_long", "open", "RSI_14"],
+    )
+
+    assert _retained_trade_features({}) == ["enter_long", "RSI_14"]
 
 
 def test_builder_hardlinks_raw_frames_and_runs_the_sealed_manifest(tmp_path: Path) -> None:
