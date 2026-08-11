@@ -12,6 +12,14 @@ use crate::program::ProgramNode;
 use super::runtime::{NodeValue, RuntimeColumn};
 
 pub(super) fn literal_value(node: &ProgramNode) -> Result<NodeValue<'static>, VectorCoreError> {
+    if let Some(special) = node.parameters.get("special").and_then(Value::as_str) {
+        return Ok(NodeValue::Float(match special {
+            "nan" => f64::NAN,
+            "+infinity" => f64::INFINITY,
+            "-infinity" => f64::NEG_INFINITY,
+            _ => return Err(node_error(node, "literal has an unknown special float")),
+        }));
+    }
     let value = node
         .parameters
         .get("value")

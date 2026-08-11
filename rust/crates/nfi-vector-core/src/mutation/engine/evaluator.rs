@@ -10,6 +10,7 @@ use super::value::{
 use super::{MutationEngine, MutationFrame};
 use crate::column::OwnedColumn;
 use crate::float::{binary, compare, BinaryFloatOp, FloatComparison};
+use crate::mutation::validation::numpy_array_arguments_are_supported;
 use crate::mutation::MutationProgram;
 use crate::program::ProgramNode;
 use crate::VectorCoreError;
@@ -31,7 +32,21 @@ impl<'program> MutationEngine<'program> {
     ///
     /// Returns a source-located type, mask, opcode, or column error without
     /// returning a partial frame.
-    pub fn execute(&self, mut frame: MutationFrame) -> Result<MutationFrame, VectorCoreError> {
+    pub fn execute(&self, frame: MutationFrame) -> Result<MutationFrame, VectorCoreError> {
+        self.execute_with_metadata(frame, &BTreeMap::new())
+    }
+
+    /// Execute entry and exit phases with explicit immutable strategy metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns a source-located error when a compiled metadata read has no
+    /// exact string value. Metadata is never inferred from dataframe content.
+    pub fn execute_with_metadata(
+        &self,
+        mut frame: MutationFrame,
+        metadata: &BTreeMap<String, String>,
+    ) -> Result<MutationFrame, VectorCoreError> {
         for column in &self.program.required_input_columns {
             if !frame.columns.contains_key(column) {
                 return Err(VectorCoreError::MissingColumn(column.clone()));
@@ -49,7 +64,7 @@ impl<'program> MutationEngine<'program> {
                     OwnedColumn::text(vec![Some(String::new()); frame.rows]),
                 )?;
             }
-            self.execute_function(&entrypoint.function, &mut frame)?;
+            self.execute_function(&entrypoint.function, &mut frame, metadata)?;
         }
         Ok(frame)
     }
@@ -58,6 +73,7 @@ impl<'program> MutationEngine<'program> {
         &self,
         function_id: &str,
         frame: &mut MutationFrame,
+        metadata: &BTreeMap<String, String>,
     ) -> Result<(), VectorCoreError> {
         let function = self.program.function(function_id).ok_or_else(|| {
             VectorCoreError::InvalidProgram(format!("mutation function is missing: {function_id}"))
@@ -67,7 +83,7 @@ impl<'program> MutationEngine<'program> {
             let node = self.program.node(node_id).ok_or_else(|| {
                 VectorCoreError::InvalidProgram(format!("mutation node is missing: {node_id}"))
             })?;
-            let value = self.execute_node(node, &values, frame)?;
+            let value = self.execute_node(node, &values, frame, metadata)?;
             values.insert(node.id.clone(), value);
         }
         if !values.contains_key(&function.return_node) {
@@ -86,6 +102,7 @@ impl<'program> MutationEngine<'program> {
         node: &ProgramNode,
         values: &BTreeMap<String, RuntimeValue>,
         frame: &mut MutationFrame,
+        metadata: &BTreeMap<String, String>,
     ) -> Result<RuntimeValue, VectorCoreError> {
         match node.op.as_str() {
             "parameter" => Ok(match node.value_type.as_str() {
@@ -94,6 +111,9 @@ impl<'program> MutationEngine<'program> {
                 _ => RuntimeValue::Unbound,
             }),
             "literal" => self.literal(node),
+            "row-count" => self.row_count(node, values, frame.rows),
+            "metadata-read" => self.metadata_read(node, values, metadata),
+            "string-split-index" => self.string_split_index(node, values),
             "column-read" => {
                 let column = string_parameter(node, "column")?;
                 frame
@@ -104,9 +124,12 @@ impl<'program> MutationEngine<'program> {
             }
             "binary" => self.binary(node, values, frame.rows),
             "compare" => self.compare(node, values, frame.rows),
+            "membership" => self.membership(node, values, frame.rows),
+            "masked-string-append" => self.masked_string_append(node, values, frame.rows),
             "logical" => self.logical(node, values, frame.rows),
             "unary" => self.unary(node, values, frame.rows),
             "select" => self.select(node, values, frame.rows),
+            "array-call" => self.array_call(node, values, frame.rows),
             "cast" => self.cast(node, values, frame.rows),
             "shift" => self.shift(node, values, frame.rows),
             "format-string" => self.format_string(node, values),
@@ -120,7 +143,36 @@ impl<'program> MutationEngine<'program> {
         }
     }
 
+    fn metadata_read(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        metadata: &BTreeMap<String, String>,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let input = single_input(node)?;
+        if !matches!(value(values, input)?, RuntimeValue::Metadata) {
+            return Err(self.error(node, "metadata-read input is not metadata"));
+        }
+        let key = string_parameter(node, "key")?;
+        metadata
+            .get(key)
+            .cloned()
+            .map(RuntimeValue::Text)
+            .ok_or_else(|| self.error(node, format!("runtime metadata has no string key {key:?}")))
+    }
+
     fn literal(&self, node: &ProgramNode) -> Result<RuntimeValue, VectorCoreError> {
+        if let Some(special) = node.parameters.get("special") {
+            if node.parameters.len() != 1 || node.value_type != "f64-scalar" {
+                return Err(self.error(node, "special literal contract is invalid"));
+            }
+            return Ok(RuntimeValue::Float(match special.as_str() {
+                Some("nan") => crate::float::canonicalize(f64::NAN),
+                Some("+infinity") => f64::INFINITY,
+                Some("-infinity") => f64::NEG_INFINITY,
+                _ => return Err(self.error(node, "special float literal is unsupported")),
+            }));
+        }
         let value = node
             .parameters
             .get("value")
@@ -141,6 +193,320 @@ impl<'program> MutationEngine<'program> {
             JsonValue::String(value) => RuntimeValue::Text(value.clone()),
             _ => return Err(self.error(node, "JSON collection literal is not executable")),
         })
+    }
+
+    fn row_count(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let input = single_input(node)?;
+        if !matches!(value(values, input)?, RuntimeValue::DataFrame) {
+            return Err(self.error(node, "row-count input is not a dataframe"));
+        }
+        Ok(RuntimeValue::Integer(
+            i64::try_from(rows).map_err(|_| self.error(node, "row-count exceeds i64"))?,
+        ))
+    }
+
+    fn string_split_index(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let input = single_input(node)?;
+        let RuntimeValue::Text(source) = value(values, input)? else {
+            return Err(self.error(node, "string split input is not scalar text"));
+        };
+        let method = string_parameter(node, "method")?;
+        let separator = string_parameter(node, "separator")?;
+        if separator.is_empty() {
+            return Err(self.error(node, "string split separator is empty"));
+        }
+        let index = node
+            .parameters
+            .get("index")
+            .and_then(JsonValue::as_i64)
+            .ok_or_else(|| self.error(node, "string split index is not a signed integer"))?;
+        let parts = match method {
+            "partition" => source.find(separator).map_or_else(
+                || vec![source.clone(), String::new(), String::new()],
+                |position| {
+                    let after = position + separator.len();
+                    vec![
+                        source[..position].to_owned(),
+                        separator.to_owned(),
+                        source[after..].to_owned(),
+                    ]
+                },
+            ),
+            "split" => source.split(separator).map(str::to_owned).collect(),
+            "rsplit" => {
+                let mut parts = source
+                    .rsplit(separator)
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>();
+                parts.reverse();
+                parts
+            }
+            _ => return Err(self.error(node, "string split method is unsupported")),
+        };
+        let length = i64::try_from(parts.len())
+            .map_err(|_| self.error(node, "string split result length exceeds i64"))?;
+        let resolved = if index < 0 {
+            length.checked_add(index)
+        } else {
+            Some(index)
+        }
+        .and_then(|index| usize::try_from(index).ok())
+        .filter(|index| *index < parts.len())
+        .ok_or_else(|| self.error(node, "string split result index is outside its result"))?;
+        Ok(RuntimeValue::Text(parts[resolved].clone()))
+    }
+
+    fn membership(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let input = single_input(node)?;
+        let collection = node
+            .parameters
+            .get("values")
+            .and_then(JsonValue::as_array)
+            .ok_or_else(|| self.error(node, "membership values are not an array"))?;
+        let negated = node
+            .parameters
+            .get("negated")
+            .and_then(JsonValue::as_bool)
+            .ok_or_else(|| self.error(node, "membership negation is not Boolean"))?;
+        let contains = |item: Option<&str>| {
+            let member = collection.iter().any(|candidate| match item {
+                Some(item) => candidate.as_str() == Some(item),
+                None => candidate.is_null(),
+            });
+            member != negated
+        };
+        match value(values, input)? {
+            RuntimeValue::Text(item) if node.value_type == "bool-scalar" => {
+                Ok(RuntimeValue::Bool(contains(Some(item))))
+            }
+            RuntimeValue::Column(column)
+                if node.value_type == "bool-column"
+                    && column.as_view().value_type() == crate::column::ValueType::Text
+                    && column.len() == rows =>
+            {
+                let view = column.as_view();
+                Ok(RuntimeValue::Column(OwnedColumn::boolean(
+                    (0..rows)
+                        .map(|row| Some(contains(view.text_at(row))))
+                        .collect(),
+                )))
+            }
+            _ => Err(self.error(node, "membership input or output type is invalid")),
+        }
+    }
+
+    fn masked_string_append(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let [target, mask, suffix] = three_inputs(node)?;
+        let RuntimeValue::Column(target) = value(values, target)? else {
+            return Err(self.error(node, "masked string append target is not a column"));
+        };
+        let RuntimeValue::Text(suffix) = value(values, suffix)? else {
+            return Err(self.error(node, "masked string append suffix is not scalar text"));
+        };
+        if node.value_type != "string-column"
+            || target.as_view().value_type() != crate::column::ValueType::Text
+            || target.len() != rows
+        {
+            return Err(self.error(node, "masked string append target contract is invalid"));
+        }
+        let target = target.as_view();
+        Ok(RuntimeValue::Column(OwnedColumn::text(
+            (0..rows)
+                .map(|row| match bool_at(values, mask, row)? {
+                    Some(true) => target.text_at(row).map_or_else(
+                        || Err(self.error(node, "masked string append selected a null target")),
+                        |prefix| Ok(Some(format!("{prefix}{suffix}"))),
+                    ),
+                    Some(false) | None => Ok(target.text_at(row).map(str::to_owned)),
+                })
+                .collect::<Result<Vec<_>, VectorCoreError>>()?,
+        )))
+    }
+
+    fn array_call(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let name = string_parameter(node, "name")?;
+        let arguments = node
+            .parameters
+            .get("arguments")
+            .and_then(JsonValue::as_object);
+        if node.parameters.len() != 3
+            || string_parameter(node, "family")? != "numpy"
+            || arguments.is_none_or(|arguments| {
+                !numpy_array_arguments_are_supported(name, &node.value_type, arguments)
+            })
+        {
+            return Err(self.error(node, "unsupported array-call contract"));
+        }
+        match name {
+            "full" => self.array_full(node, values, rows),
+            "full_like" => self.array_full_like(node, values, rows),
+            "divide" => self.array_divide_where(node, values, rows),
+            "isnan" => self.array_isnan(node, values, rows),
+            _ => Err(self.error(node, "unsupported array-call contract")),
+        }
+    }
+
+    fn array_isnan(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let input = single_input(node)?;
+        if node.value_type != "bool-column" {
+            return Err(self.error(node, "numpy isnan requires bool-column output"));
+        }
+        Ok(RuntimeValue::Column(OwnedColumn::boolean(
+            (0..rows)
+                .map(|row| numeric_at(values, input, row).map(|value| value.map(f64::is_nan)))
+                .collect::<Result<Vec<_>, _>>()?,
+        )))
+    }
+
+    fn array_full(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        if node.inputs.len() != 2 {
+            return Err(self.error(node, "numpy full requires two inputs"));
+        }
+        let size = match value(values, &node.inputs[0])? {
+            RuntimeValue::Integer(value) => usize::try_from(*value)
+                .map_err(|_| self.error(node, "array-call size is outside usize"))?,
+            _ => return Err(self.error(node, "array-call size is not an integer")),
+        };
+        if size != rows {
+            return Err(self.error(node, "array-call size differs from dataframe rows"));
+        }
+        let fill = value(values, &node.inputs[1])?;
+        match (node.value_type.as_str(), fill) {
+            ("bool-column", RuntimeValue::Bool(value)) => {
+                Ok(RuntimeValue::Column(OwnedColumn::boolean(vec![
+                    Some(*value);
+                    rows
+                ])))
+            }
+            ("int-column", RuntimeValue::Integer(value)) => {
+                Ok(RuntimeValue::Column(OwnedColumn::i64(vec![
+                    Some(*value);
+                    rows
+                ])))
+            }
+            ("f64-column", RuntimeValue::Float(value)) => {
+                Ok(RuntimeValue::Column(OwnedColumn::f64(vec![
+                    Some(*value);
+                    rows
+                ])))
+            }
+            ("string-column", RuntimeValue::Text(value)) => {
+                Ok(RuntimeValue::Column(OwnedColumn::text(vec![
+                    Some(
+                        value.clone()
+                    );
+                    rows
+                ])))
+            }
+            _ => Err(self.error(node, "array-call fill value differs from its output type")),
+        }
+    }
+
+    fn array_full_like(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let [template, fill] = two_inputs(node)?;
+        let RuntimeValue::Column(template) = value(values, template)? else {
+            return Err(self.error(node, "numpy full_like template is not a column"));
+        };
+        if node.value_type != "f64-column"
+            || template.as_view().value_type() != crate::column::ValueType::F64
+            || template.len() != rows
+        {
+            return Err(self.error(node, "numpy full_like requires a Float64 template"));
+        }
+        let fill = match value(values, fill)? {
+            RuntimeValue::Integer(value) => super::value::i64_as_f64(*value),
+            RuntimeValue::Float(value) => *value,
+            _ => return Err(self.error(node, "numpy full_like fill is not numeric scalar")),
+        };
+        Ok(RuntimeValue::Column(OwnedColumn::f64(vec![
+            Some(fill);
+            rows
+        ])))
+    }
+
+    fn array_divide_where(
+        &self,
+        node: &ProgramNode,
+        values: &BTreeMap<String, RuntimeValue>,
+        rows: usize,
+    ) -> Result<RuntimeValue, VectorCoreError> {
+        let [numerator, denominator, out, where_mask] = match node.inputs.as_slice() {
+            [numerator, denominator, out, where_mask] => [
+                numerator.as_str(),
+                denominator.as_str(),
+                out.as_str(),
+                where_mask.as_str(),
+            ],
+            _ => return Err(self.error(node, "numpy divide requires x1, x2, out, and where")),
+        };
+        let RuntimeValue::Column(out_column) = value(values, out)? else {
+            return Err(self.error(node, "numpy divide out is not a column"));
+        };
+        if node.value_type != "f64-column"
+            || out_column.as_view().value_type() != crate::column::ValueType::F64
+            || out_column.len() != rows
+        {
+            return Err(self.error(node, "numpy divide out is not a Float64 result buffer"));
+        }
+
+        let out_view = out_column.as_view();
+        Ok(RuntimeValue::Column(OwnedColumn::f64(
+            (0..rows)
+                .map(|row| match bool_at(values, where_mask, row)? {
+                    Some(true) => {
+                        match (
+                            numeric_at(values, numerator, row)?,
+                            numeric_at(values, denominator, row)?,
+                        ) {
+                            (Some(left), Some(right)) => {
+                                Ok(Some(binary(left, right, BinaryFloatOp::Divide)))
+                            }
+                            _ => Ok(None),
+                        }
+                    }
+                    Some(false) | None => Ok(out_view.f64_at(row)),
+                })
+                .collect::<Result<Vec<_>, VectorCoreError>>()?,
+        )))
     }
 
     fn binary(

@@ -51,9 +51,14 @@ pub(super) fn numeric_at(
 ) -> Result<Option<f64>, VectorCoreError> {
     match value(values, node)? {
         RuntimeValue::Null => Ok(None),
+        RuntimeValue::Bool(value) => Ok(Some(f64::from(u8::from(*value)))),
         RuntimeValue::Integer(value) => Ok(Some(i64_as_f64(*value))),
         RuntimeValue::Float(value) => Ok(Some(*value)),
         RuntimeValue::Column(column) => match column.as_view().value_type() {
+            ValueType::Bool => Ok(column
+                .as_view()
+                .bool_at(row)
+                .map(|value| f64::from(u8::from(value)))),
             ValueType::F64 => Ok(column.as_view().f64_at(row)),
             ValueType::I64 => Ok(column.as_view().i64_at(row).map(i64_as_f64)),
             _ => Err(type_error(node, "numeric")),
@@ -478,4 +483,25 @@ pub(super) fn f64_as_i64(value: f64) -> Result<i64, VectorCoreError> {
         return Err(type_error("float cast", "a finite in-range integer"));
     }
     Ok(value as i64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn python_boolean_values_are_numeric_zero_and_one() {
+        let values = BTreeMap::from([
+            ("scalar".to_owned(), RuntimeValue::Bool(true)),
+            (
+                "column".to_owned(),
+                RuntimeValue::Column(OwnedColumn::boolean(vec![Some(false), None, Some(true)])),
+            ),
+        ]);
+
+        assert_eq!(numeric_at(&values, "scalar", 0).unwrap(), Some(1.0));
+        assert_eq!(numeric_at(&values, "column", 0).unwrap(), Some(0.0));
+        assert_eq!(numeric_at(&values, "column", 1).unwrap(), None);
+        assert_eq!(numeric_at(&values, "column", 2).unwrap(), Some(1.0));
+    }
 }

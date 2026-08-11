@@ -21,6 +21,21 @@ impl SourceLocation {
             column,
         }
     }
+
+    /// Attach a runtime failure to the strategy operation that requested it.
+    #[must_use]
+    pub fn error(&self, message: impl Into<String>) -> VectorCoreError {
+        VectorCoreError::Execution {
+            node: self.node.clone(),
+            message: format!(
+                "{}:{}:{}: {}",
+                self.path,
+                self.line,
+                self.column,
+                message.into()
+            ),
+        }
+    }
 }
 
 /// A canonical Freqtrade timeframe token.
@@ -187,16 +202,7 @@ impl MergeSpec {
     }
 
     pub(super) fn error(&self, message: impl Into<String>) -> VectorCoreError {
-        VectorCoreError::Execution {
-            node: self.source.node.clone(),
-            message: format!(
-                "{}:{}:{}: {}",
-                self.source.path,
-                self.source.line,
-                self.source.column,
-                message.into()
-            ),
-        }
+        self.source.error(message)
     }
 
     pub(super) fn output_name(&self, name: &str) -> Result<String, VectorCoreError> {

@@ -4,9 +4,15 @@
 
 mod directional;
 mod moving;
+mod native;
 mod oscillator;
 mod rolling;
 
+pub use native::{
+    absolute_difference, chaikin_money_flow, hourly_inside_bar, safe_percent_change,
+    utc_opening_range, AbsoluteDifferenceStream, ChaikinMoneyFlowStream, HourlyInsideBarOutput,
+    HourlyInsideBarStream, SafePercentChangeStream, UtcOpeningRangeOutput, UtcOpeningRangeStream,
+};
 pub use rolling::execute_rolling;
 pub(crate) use rolling::{stream as rolling_stream, RollingStream};
 
