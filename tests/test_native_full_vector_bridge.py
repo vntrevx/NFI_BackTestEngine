@@ -95,6 +95,21 @@ def _reseal(program: dict[str, Any]) -> str:
     return json.dumps(program, separators=(",", ":"))
 
 
+def _write_numeric_mutation_strategy(path: Path) -> None:
+    path.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class NumericMutationStrategy(IStrategy):\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, ['enter_long', 'enter_short']] = 0\n"
+        "        dataframe.loc[dataframe['score'] > 0, 'enter_long'] = 1\n"
+        "        return dataframe\n"
+        "    def populate_exit_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, ['exit_long', 'exit_short']] = 0\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+
 def test_full_vector_bridge_runs_in_memory_with_independent_frame_lengths(
     tmp_path: Path,
 ) -> None:
@@ -140,3 +155,26 @@ def test_full_vector_bridge_rejects_signal_tag_surface_drift(tmp_path: Path) -> 
 
     with pytest.raises(ValueError, match="Signal and Tag programs disagree on enter_long"):
         _execute((indicator, signal, _reseal(tag)))
+
+
+def test_numeric_mutation_bridge_executes_compiled_program_without_strategy_python(
+    tmp_path: Path,
+) -> None:
+    strategy = tmp_path / "numeric_mutation.py"
+    _write_numeric_mutation_strategy(strategy)
+    program = compile_signal_program(strategy, class_name="NumericMutationStrategy")
+
+    result = _rust.execute_numeric_mutation_program(
+        json.dumps(program, separators=(",", ":")),
+        {"score": [None, -0.0, 1.0]},
+        {"pair": "ETH/USDT"},
+        ["enter_long", "enter_short", "exit_long", "exit_short"],
+    )
+
+    assert result["enter_long"] == {
+        "value_type": "Int64",
+        "values": [0, 0, 1],
+    }
+    assert result["enter_short"]["values"] == [0, 0, 0]
+    assert result["exit_long"]["values"] == [0, 0, 0]
+    assert result["exit_short"]["values"] == [0, 0, 0]

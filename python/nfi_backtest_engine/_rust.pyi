@@ -68,3 +68,9 @@ def execute_full_vector(
     requested_indicator_columns: list[str],
     execution_start_index: int,
 ) -> FullVectorOutput: ...
+def execute_numeric_mutation_program(
+    program: str,
+    columns: dict[str, NumericColumn],
+    metadata: dict[str, str],
+    requested_outputs: list[str],
+) -> dict[str, NativeTypedColumn]: ...

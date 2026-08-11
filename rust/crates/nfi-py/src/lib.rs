@@ -18,6 +18,7 @@ use pyo3::prelude::*;
 use serde::Serialize;
 
 mod full_vector;
+mod mutation_vector;
 
 #[pyfunction]
 fn schema_version() -> &'static str {
@@ -320,5 +321,9 @@ fn _rust(module: &Bound<'_, PyModule>) -> PyResult<()> {
         module
     )?)?;
     module.add_function(wrap_pyfunction!(full_vector::execute_full_vector, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        mutation_vector::execute_numeric_mutation_program,
+        module
+    )?)?;
     Ok(())
 }

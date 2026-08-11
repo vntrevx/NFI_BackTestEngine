@@ -338,7 +338,7 @@ fn output_to_python(py: Python<'_>, output: FullVectorOutput) -> PyResult<Py<PyA
     Ok(result.into_any().unbind())
 }
 
-fn set_column_values(output: &Bound<'_, PyDict>, column: &OwnedColumn) -> PyResult<()> {
+pub(super) fn set_column_values(output: &Bound<'_, PyDict>, column: &OwnedColumn) -> PyResult<()> {
     let view = column.as_view();
     match view.value_type() {
         ValueType::F64 => output.set_item(
