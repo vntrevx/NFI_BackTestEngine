@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pandas as pd
 from nfi_backtest_engine.signal_program import execute_signal_program, validate_signal_program
@@ -11,6 +11,7 @@ from nfi_backtest_engine.vector_shadow_fixture import (
     INDICATOR_PROGRAM_PATH,
     SIGNAL_PROGRAM_PATH,
     TAG_PROGRAM_PATH,
+    _portable_path,
     canonical_sha256,
     decode_exact_frame,
     encode_frame,
@@ -85,3 +86,10 @@ def test_exact_frame_codec_keeps_nan_null_and_tag_whitespace_distinct() -> None:
     assert pd.isna(indicator_expected.loc[0, "previous_close"])
     assert tag_expected.loc[2, "enter_tag"] == "101 562 "
     assert tag_expected.loc[5, "enter_tag"] == "override final  "
+
+
+def test_contract_paths_are_platform_independent() -> None:
+    assert (
+        _portable_path(PureWindowsPath("benchmarks/reference/vector-shadow/tag-program.json"))
+        == "benchmarks/reference/vector-shadow/tag-program.json"
+    )

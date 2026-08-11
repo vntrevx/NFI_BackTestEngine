@@ -7,7 +7,7 @@ import copy
 import hashlib
 import json
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, cast
 
 import numpy as np
@@ -117,7 +117,7 @@ def generate_bundle() -> tuple[dict[str, object], dict[str, dict[str, Any]]]:
         },
         "programs": {
             name: {
-                "path": str(path),
+                "path": _portable_path(path),
                 "fingerprint": programs[name]["fingerprint"],
                 "sha256": _document_sha256(programs[name]),
             }
@@ -347,10 +347,15 @@ def _enabled_indexes(series: pd.Series, start: int) -> list[int]:
 
 def _portable_program(program: dict[str, Any], source: Path) -> dict[str, Any]:
     result = copy.deepcopy(program)
-    result["source"]["path"] = str(source)
+    result["source"]["path"] = _portable_path(source)
     if result["schema_version"] == "indicator-program-v1":
         validate_indicator_program(result)
     return result
+
+
+def _portable_path(path: PurePath) -> str:
+    """Serialize contract paths identically on POSIX and Windows."""
+    return path.as_posix()
 
 
 def _document_sha256(document: Mapping[str, object]) -> str:
