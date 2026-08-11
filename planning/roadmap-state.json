@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 141,
-  "updated_at": "2026-08-11T21:20:59+09:00",
+  "revision": 142,
+  "updated_at": "2026-08-11T22:09:26+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M21-04",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4917,7 +4917,7 @@
       "order": 2104,
       "milestone": "M21",
       "title": "Connect the in-memory Rust vector and simulation pipeline",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M21-03"
       ],
@@ -4937,9 +4937,16 @@
         "transport parity and performance report"
       ],
       "started_at": "2026-08-11T21:20:59+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-11T22:09:26+09:00",
+      "commit_sha": "d9529131eaa629cf598a97569931eed844e7066a",
+      "evidence": [
+        ".nfi/roadmap-acceptance/M21-04/d9529131eaa629cf598a97569931eed844e7066a/acceptance-report.json",
+        ".nfi/roadmap-acceptance/M21-04/d9529131eaa629cf598a97569931eed844e7066a/SHA256SUMS.txt",
+        ".nfi/roadmap-acceptance/M21-04/d9529131eaa629cf598a97569931eed844e7066a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M21-04/d9529131eaa629cf598a97569931eed844e7066a/x7-futures/run.json",
+        "benchmarks/evidence/native-in-memory-transport-m21-04-2026-08-11.json",
+        "docs/native-in-memory-vector.md"
+      ],
       "blocker": null
     },
     {
@@ -8606,6 +8613,37 @@
         "transport_trade_surface_and_full_state_exact_required": true,
         "transport_performance_evidence_required": true,
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 189,
+      "timestamp": "2026-08-11T22:09:26+09:00",
+      "task_id": "M21-04",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "d9529131eaa629cf598a97569931eed844e7066a",
+        "in_memory_simulator_connection_complete": true,
+        "sealed_feather_replay_retained": true,
+        "pair_dag_parallel": true,
+        "pair_order_preserved": true,
+        "parallel_wallet_mutation": false,
+        "transport_trade_surface_exact": true,
+        "transport_full_state_exact": true,
+        "transport_diagnostic_rows": 100000,
+        "transport_diagnostic_pairs": 4,
+        "observed_transport_speedup": 2.036178651616219,
+        "performance_claim": "single-host synthetic transport diagnostic only",
+        "python_test_count": 804,
+        "future_compatibility_test_count": 143,
+        "rust_workspace_default_test_count": 224,
+        "spot_trade_surface_and_full_state_exact": true,
+        "futures_trade_surface_and_full_state_exact": true,
+        "runtime_hardcoding_added": false,
+        "latest_x7_fully_compiled": false,
+        "python_strategy_execution_removed_from_native": false,
+        "full_native_strategy_claim": false,
+        "next_eligible_task": "M22-01",
+        "next_task_manual_gate": false
       }
     }
   ]
