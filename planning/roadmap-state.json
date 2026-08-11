@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 143,
-  "updated_at": "2026-08-11T22:50:22+09:00",
+  "revision": 145,
+  "updated_at": "2026-08-12T04:36:53+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M22-01",
+  "active_task_id": "M22-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4954,7 +4954,7 @@
       "order": 2201,
       "milestone": "M22",
       "title": "Qualify latest NFI as a Full Native Strategy",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M21-04"
       ],
@@ -4974,9 +4974,14 @@
         "zero blockers"
       ],
       "started_at": "2026-08-11T22:50:22+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-12T04:36:53+09:00",
+      "commit_sha": "6c60bff36aaf10272c1a0ffd6678961bbb5d1703",
+      "evidence": [
+        "benchmarks/evidence/m22/latest-x7-full-native-qualification.json",
+        "benchmarks/evidence/m22/latest-x7-signal47-boundary.json",
+        ".nfi/roadmap-acceptance/M22-01/6c60bff36aaf10272c1a0ffd6678961bbb5d1703/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M22-01/6c60bff36aaf10272c1a0ffd6678961bbb5d1703/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -4984,7 +4989,7 @@
       "order": 2202,
       "milestone": "M22",
       "title": "Remove NFI Python execution from the Native lane",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M22-01"
       ],
@@ -5003,7 +5008,7 @@
         "no-Python-execution contract tests",
         "fallback isolation tests"
       ],
-      "started_at": null,
+      "started_at": "2026-08-12T04:36:53+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8659,6 +8664,56 @@
         "runtime_hardcoding_allowed": false,
         "trade_surface_and_full_state_exact_required": true,
         "official_fallback_retained": true
+      }
+    },
+    {
+      "sequence": 191,
+      "timestamp": "2026-08-12T04:36:53+09:00",
+      "task_id": "M22-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "6c60bff36aaf10272c1a0ffd6678961bbb5d1703",
+        "latest_upstream_commit": "1df961c07e5ce6b1a8cb459a2a46958aed258323",
+        "latest_strategy_sha256": "45a2bf611d6fc5e60c7e1f4c672ce7932f6573872c2a959f6338d079dac5e382",
+        "freqtrade_version": "2026.5.1",
+        "latest_full_native_qualification_fingerprint": "2e3bb9fc12597d400043f1e2015687b9bca5da7ed97859f27b8e9842e3c8d087",
+        "signal_47_boundary_fingerprint": "d4128b380d483a05f7a230bfe78dad14502438d45a8fa0adeb0c094c5d73f7fe",
+        "latest_spot_trade_surface_exact": true,
+        "latest_spot_full_state_event_count": 288,
+        "latest_spot_full_state_stream_hash": "e119fc56545e34f2b368c4baa59c0067d64d7d821a018687de8166aa81bb4428",
+        "latest_futures_trade_surface_exact": true,
+        "latest_futures_full_state_event_count": 2880,
+        "latest_futures_full_state_stream_hash": "eff3ddae550d7f8877bd04f96457b6ed052b4f9ea0cca968d9a4721141f07bdb",
+        "captured_spot_trade_surface_and_full_state_exact": true,
+        "captured_spot_state_event_count": 288,
+        "captured_spot_state_stream_hash": "6a59c86a808e0e5f8fc016c1467fa173502ea37b0eb870f84e7f51cfa1818f8b",
+        "captured_futures_trade_surface_and_full_state_exact": true,
+        "captured_futures_state_event_count": 5472,
+        "captured_futures_state_stream_hash": "029a12115d0e9095d4e1cc19e25694a28bee4c625b6cd59dc9226ab1ceaeff85",
+        "python_test_count": 834,
+        "future_compatibility_test_count": 143,
+        "rust_workspace_default_test_count": 296,
+        "runtime_hardcoding_added": false,
+        "latest_x7_fully_compiled": true,
+        "full_native_strategy_claim": true,
+        "python_strategy_execution_removed_from_native": false,
+        "official_fallback_retained": true,
+        "next_eligible_task": "M22-02",
+        "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 192,
+      "timestamp": "2026-08-12T04:36:53+09:00",
+      "task_id": "M22-02",
+      "event": "task_started",
+      "details": {
+        "objective": "remove NFI Python strategy execution from the Native lane while retaining the AST compiler and official Freqtrade fallback",
+        "native_populate_execution_allowed": false,
+        "python_ast_compiler_retained": true,
+        "official_fallback_retained": true,
+        "sealed_feather_replay_retained": true,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
