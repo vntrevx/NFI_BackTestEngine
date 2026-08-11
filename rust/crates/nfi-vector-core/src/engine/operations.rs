@@ -29,7 +29,7 @@ pub(super) fn literal_value(node: &ProgramNode) -> Result<NodeValue<'static>, Ve
                 .as_f64()
                 .ok_or_else(|| node_error(node, "number literal is outside f64"))?,
         ),
-        Value::String(_) => NodeValue::Text,
+        Value::String(value) => NodeValue::Text(value.clone()),
         _ => NodeValue::Json,
     })
 }
@@ -252,17 +252,26 @@ pub(super) fn to_owned_column(
             ValueType::F64 => Ok(OwnedColumn::f64(
                 (0..rows).map(|row| column.f64_at(row)).collect(),
             )),
+            ValueType::I64 => Ok(OwnedColumn::i64(
+                (0..rows).map(|row| column.i64_at(row)).collect(),
+            )),
             ValueType::Bool => Ok(OwnedColumn::boolean(
                 (0..rows).map(|row| column.bool_at(row)).collect(),
+            )),
+            ValueType::Text => Ok(OwnedColumn::text(
+                (0..rows)
+                    .map(|row| column.text_at(row).map(str::to_owned))
+                    .collect(),
             )),
             ValueType::TimestampMs => Ok(OwnedColumn::timestamp_ms(
                 (0..rows).map(|row| column.timestamp_ms_at(row)).collect(),
             )),
         },
         NodeValue::Null => Ok(OwnedColumn::f64(vec![None; rows])),
-        NodeValue::Integer(value) => Ok(OwnedColumn::f64(vec![Some(integer_as_f64(*value)); rows])),
+        NodeValue::Integer(value) => Ok(OwnedColumn::i64(vec![Some(*value); rows])),
         NodeValue::Float(value) => Ok(OwnedColumn::f64(vec![Some(*value); rows])),
         NodeValue::Bool(value) => Ok(OwnedColumn::boolean(vec![Some(*value); rows])),
+        NodeValue::Text(value) => Ok(OwnedColumn::text(vec![Some(value.clone()); rows])),
         _ => Err(VectorCoreError::InvalidOutput(
             "requested output is not a supported scalar or column".to_owned(),
         )),
@@ -278,6 +287,9 @@ pub(super) fn numeric_at(
         NodeValue::Null => Ok(None),
         NodeValue::Integer(value) => Ok(Some(integer_as_f64(*value))),
         NodeValue::Float(value) => Ok(Some(*value)),
+        NodeValue::Column(column) if column.value_type() == ValueType::I64 => {
+            Ok(column.i64_at(row).map(integer_as_f64))
+        }
         NodeValue::Column(column) if column.value_type() == ValueType::F64 => {
             Ok(column.f64_at(row))
         }
@@ -343,7 +355,9 @@ pub(super) fn unsigned_parameter(node: &ProgramNode, name: &str) -> Result<usize
 pub(super) fn column_type(value_type: &str) -> Option<ValueType> {
     match value_type {
         "f64-column" => Some(ValueType::F64),
+        "int-column" => Some(ValueType::I64),
         "bool-column" => Some(ValueType::Bool),
+        "string-column" => Some(ValueType::Text),
         "timestamp-column" => Some(ValueType::TimestampMs),
         _ => None,
     }

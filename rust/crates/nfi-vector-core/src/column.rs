@@ -1,6 +1,6 @@
 //! Typed, Arrow-backed column views and owned kernel results.
 
-use arrow2::array::{Array, BooleanArray, PrimitiveArray};
+use arrow2::array::{Array, BooleanArray, PrimitiveArray, Utf8Array};
 use arrow2::datatypes::{DataType, TimeUnit};
 
 use crate::error::VectorCoreError;
@@ -10,7 +10,9 @@ use crate::float::canonicalize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ValueType {
     F64,
+    I64,
     Bool,
+    Text,
     TimestampMs,
 }
 
@@ -19,7 +21,9 @@ impl ValueType {
     pub const fn label(self) -> &'static str {
         match self {
             Self::F64 => "Float64",
+            Self::I64 => "Int64",
             Self::Bool => "Boolean",
+            Self::Text => "Utf8",
             Self::TimestampMs => "Timestamp(Millisecond)",
         }
     }
@@ -29,7 +33,10 @@ impl ValueType {
 #[derive(Debug, Clone, Copy)]
 pub enum ColumnView<'a> {
     F64(&'a PrimitiveArray<f64>),
+    I64(&'a PrimitiveArray<i64>),
     Bool(&'a BooleanArray),
+    Text(&'a Utf8Array<i32>),
+    LargeText(&'a Utf8Array<i64>),
     TimestampMs(&'a PrimitiveArray<i64>),
 }
 
@@ -51,10 +58,25 @@ impl<'a> ColumnView<'a> {
                 .downcast_ref::<PrimitiveArray<f64>>()
                 .map(Self::F64)
                 .ok_or_else(|| type_error(column, array, expected)),
+            ValueType::I64 if array.data_type() == &DataType::Int64 => array
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .map(Self::I64)
+                .ok_or_else(|| type_error(column, array, expected)),
             ValueType::Bool if array.data_type() == &DataType::Boolean => array
                 .as_any()
                 .downcast_ref::<BooleanArray>()
                 .map(Self::Bool)
+                .ok_or_else(|| type_error(column, array, expected)),
+            ValueType::Text if array.data_type() == &DataType::Utf8 => array
+                .as_any()
+                .downcast_ref::<Utf8Array<i32>>()
+                .map(Self::Text)
+                .ok_or_else(|| type_error(column, array, expected)),
+            ValueType::Text if array.data_type() == &DataType::LargeUtf8 => array
+                .as_any()
+                .downcast_ref::<Utf8Array<i64>>()
+                .map(Self::LargeText)
                 .ok_or_else(|| type_error(column, array, expected)),
             ValueType::TimestampMs
                 if matches!(
@@ -76,8 +98,10 @@ impl<'a> ColumnView<'a> {
     pub fn len(self) -> usize {
         match self {
             Self::F64(values) => values.len(),
+            Self::I64(values) | Self::TimestampMs(values) => values.len(),
             Self::Bool(values) => values.len(),
-            Self::TimestampMs(values) => values.len(),
+            Self::Text(values) => values.len(),
+            Self::LargeText(values) => values.len(),
         }
     }
 
@@ -90,7 +114,9 @@ impl<'a> ColumnView<'a> {
     pub fn value_type(self) -> ValueType {
         match self {
             Self::F64(_) => ValueType::F64,
+            Self::I64(_) => ValueType::I64,
             Self::Bool(_) => ValueType::Bool,
+            Self::Text(_) | Self::LargeText(_) => ValueType::Text,
             Self::TimestampMs(_) => ValueType::TimestampMs,
         }
     }
@@ -116,6 +142,29 @@ impl<'a> ColumnView<'a> {
     }
 
     #[must_use]
+    pub fn i64_at(self, row: usize) -> Option<i64> {
+        match self {
+            Self::I64(values) if row < values.len() && values.is_valid(row) => {
+                Some(values.value(row))
+            }
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn text_at(self, row: usize) -> Option<&'a str> {
+        match self {
+            Self::Text(values) if row < values.len() && values.is_valid(row) => {
+                Some(values.value(row))
+            }
+            Self::LargeText(values) if row < values.len() && values.is_valid(row) => {
+                Some(values.value(row))
+            }
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub fn timestamp_ms_at(self, row: usize) -> Option<i64> {
         match self {
             Self::TimestampMs(values) if row < values.len() && values.is_valid(row) => {
@@ -130,7 +179,9 @@ impl<'a> ColumnView<'a> {
 #[derive(Debug, Clone)]
 pub enum OwnedColumn {
     F64(PrimitiveArray<f64>),
+    I64(PrimitiveArray<i64>),
     Bool(BooleanArray),
+    Text(Utf8Array<i32>),
     TimestampMs(PrimitiveArray<i64>),
 }
 
@@ -151,6 +202,16 @@ impl OwnedColumn {
     }
 
     #[must_use]
+    pub fn i64(values: Vec<Option<i64>>) -> Self {
+        Self::I64(PrimitiveArray::from(values))
+    }
+
+    #[must_use]
+    pub fn text(values: Vec<Option<String>>) -> Self {
+        Self::Text(Utf8Array::<i32>::from_iter(values))
+    }
+
+    #[must_use]
     pub fn timestamp_ms(values: Vec<Option<i64>>) -> Self {
         Self::TimestampMs(
             PrimitiveArray::from(values).to(DataType::Timestamp(TimeUnit::Millisecond, None)),
@@ -161,7 +222,9 @@ impl OwnedColumn {
     pub fn as_view(&self) -> ColumnView<'_> {
         match self {
             Self::F64(values) => ColumnView::F64(values),
+            Self::I64(values) => ColumnView::I64(values),
             Self::Bool(values) => ColumnView::Bool(values),
+            Self::Text(values) => ColumnView::Text(values),
             Self::TimestampMs(values) => ColumnView::TimestampMs(values),
         }
     }
@@ -181,11 +244,16 @@ impl OwnedColumn {
     pub fn estimated_bytes(&self) -> usize {
         let validity_bytes = self.len().div_ceil(8);
         match self {
-            Self::F64(_) | Self::TimestampMs(_) => self
+            Self::F64(_) | Self::I64(_) | Self::TimestampMs(_) => self
                 .len()
                 .saturating_mul(std::mem::size_of::<u64>())
                 .saturating_add(validity_bytes),
             Self::Bool(_) => self.len().div_ceil(8).saturating_add(validity_bytes),
+            Self::Text(values) => values
+                .values()
+                .len()
+                .saturating_add((self.len() + 1).saturating_mul(std::mem::size_of::<i32>()))
+                .saturating_add(validity_bytes),
         }
     }
 }
@@ -235,5 +303,22 @@ mod tests {
                 .timestamp_ms_at(0),
             Some(1)
         );
+    }
+
+    #[test]
+    fn integer_and_text_outputs_preserve_null_empty_and_whitespace() {
+        let integers = OwnedColumn::i64(vec![Some(1), None, Some(-1)]);
+        assert_eq!(integers.as_view().i64_at(0), Some(1));
+        assert_eq!(integers.as_view().i64_at(1), None);
+        assert_eq!(integers.as_view().i64_at(2), Some(-1));
+
+        let text = OwnedColumn::text(vec![
+            Some(String::new()),
+            None,
+            Some("101 562  ".to_owned()),
+        ]);
+        assert_eq!(text.as_view().text_at(0), Some(""));
+        assert_eq!(text.as_view().text_at(1), None);
+        assert_eq!(text.as_view().text_at(2), Some("101 562  "));
     }
 }

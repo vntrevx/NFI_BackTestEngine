@@ -416,7 +416,9 @@ fn is_known_value_type(value: &str) -> bool {
             | "string-scalar"
             | "json-scalar"
             | "bool-column"
+            | "int-column"
             | "f64-column"
+            | "string-column"
             | "timestamp-column"
     )
 }

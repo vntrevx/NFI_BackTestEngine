@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Safe, deterministic vector execution core for NFI indicator programs"
+description = "Safe deterministic NFI Indicator, Signal, and Tag vector execution core"
 
 [lib]
 path = "src/lib.rs"

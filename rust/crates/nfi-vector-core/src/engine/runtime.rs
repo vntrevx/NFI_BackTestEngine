@@ -43,6 +43,20 @@ impl RuntimeColumn<'_> {
         }
     }
 
+    pub(super) fn i64_at(&self, row: usize) -> Option<i64> {
+        match self {
+            Self::Borrowed(column) => column.i64_at(row),
+            Self::Owned(column) => column.as_view().i64_at(row),
+        }
+    }
+
+    pub(super) fn text_at(&self, row: usize) -> Option<&str> {
+        match self {
+            Self::Borrowed(column) => column.text_at(row),
+            Self::Owned(column) => column.as_view().text_at(row),
+        }
+    }
+
     pub(super) fn timestamp_ms_at(&self, row: usize) -> Option<i64> {
         match self {
             Self::Borrowed(column) => column.timestamp_ms_at(row),
@@ -60,7 +74,7 @@ pub(super) enum NodeValue<'batch> {
     Bool(bool),
     Integer(i64),
     Float(f64),
-    Text,
+    Text(String),
     Json,
     Column(RuntimeColumn<'batch>),
     Alias(String),
@@ -152,8 +166,20 @@ impl VectorEngine<'_> {
                 "shift state bound changed during execution",
             ));
         }
+        let output = source
+            .into_iter()
+            .map(|value| {
+                let ready = state.len() == periods;
+                let shifted = state.push(value);
+                if ready {
+                    shifted
+                } else {
+                    Some(crate::float::canonicalize(f64::NAN))
+                }
+            })
+            .collect();
         Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
-            source.into_iter().map(|value| state.push(value)).collect(),
+            output,
         ))))
     }
 

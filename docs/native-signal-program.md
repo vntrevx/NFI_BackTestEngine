@@ -43,3 +43,7 @@ nfi-bte strategy signal-program strategy.py --class Strategy --output signal-pro
 Unsupported masks, assignments, phase-crossing writes, and dynamic behavior stop with a
 source location. Signal numbers, strategy names, pairs, timeranges, and source hashes are
 never runtime branches; the source hash is evidence identity only.
+
+The independent Rust execution and exact raw-signal comparison are documented in
+[`native-vector-shadow.md`](native-vector-shadow.md). Production in-memory simulator transport
+remains the separate M21-04 boundary.
