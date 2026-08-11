@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 142,
-  "updated_at": "2026-08-11T22:09:26+09:00",
+  "revision": 143,
+  "updated_at": "2026-08-11T22:50:22+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M22-01",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4954,7 +4954,7 @@
       "order": 2201,
       "milestone": "M22",
       "title": "Qualify latest NFI as a Full Native Strategy",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M21-04"
       ],
@@ -4973,7 +4973,7 @@
         "latest dual-mode Full Native qualification",
         "zero blockers"
       ],
-      "started_at": null,
+      "started_at": "2026-08-11T22:50:22+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8644,6 +8644,21 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M22-01",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 190,
+      "timestamp": "2026-08-11T22:50:22+09:00",
+      "task_id": "M22-01",
+      "event": "task_started",
+      "details": {
+        "objective": "compile and independently qualify the latest upstream NFI through the complete Native vector and simulation pipeline for Spot and Futures",
+        "latest_upstream_identity_must_be_refreshed": true,
+        "static_only_promotion_allowed": false,
+        "partial_callback_coverage_allowed": false,
+        "runtime_hardcoding_allowed": false,
+        "trade_surface_and_full_state_exact_required": true,
+        "official_fallback_retained": true
       }
     }
   ]
