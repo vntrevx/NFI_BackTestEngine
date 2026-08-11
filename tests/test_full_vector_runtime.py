@@ -4,8 +4,10 @@ import os
 from pathlib import Path
 
 import pandas as pd
-from nfi_backtest_engine import _rust
+import pytest
+from nfi_backtest_engine import _rust, research_runner
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.full_vector_runtime import build_full_native_vector_manifest
 from nfi_backtest_engine.hot_ir import build_hot_callback_ir
 from nfi_backtest_engine.strategy_ir import analyze_strategy
@@ -62,6 +64,11 @@ def test_builder_hardlinks_raw_frames_and_runs_the_sealed_manifest(tmp_path: Pat
     assert input_profile["manifest_sha256"] is not None
     assert input_profile["raw_frame_count"] == 1
     assert input_profile["transport"]["pair_count"] == 1
+
+    research_runner._validate_full_native_manifest_artifacts(manifest)
+    linked.write_bytes(linked.read_bytes() + b"tampered")
+    with pytest.raises(BenchmarkError, match="artifact SHA-256 differs"):
+        research_runner._validate_full_native_manifest_artifacts(manifest)
 
 
 def _write_strategy(path: Path) -> None:

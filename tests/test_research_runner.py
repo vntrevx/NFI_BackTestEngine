@@ -6,7 +6,11 @@ from pathlib import Path
 import pytest
 from nfi_backtest_engine import research_runner
 from nfi_backtest_engine.canonical import read_json, write_json
-from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
+from nfi_backtest_engine.errors import (
+    BenchmarkError,
+    SpecValidationError,
+    StrategyAnalysisError,
+)
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 
@@ -359,6 +363,138 @@ def test_completed_resume_returns_verified_result_without_running_engine(
         name: (output / name).read_bytes()
         for name in evidence_before
     }
+
+
+def test_full_native_transport_skips_python_vector_worker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    arguments, calls = _resume_workspace(monkeypatch, tmp_path)
+    observed: dict[str, object] = {}
+    programs = {
+        name: {
+            "schema_version": f"{name}-program-v1",
+            "fingerprint": token * 64,
+            "nodes": [{"id": "n1"}],
+        }
+        for name, token in (("indicator", "a"), ("signal", "b"), ("tag", "c"))
+    }
+    policy = {
+        "schema_version": research_runner.STATEFUL_EXECUTION_POLICY_VERSION,
+        "adapter_lane": "x7-generic-stateful",
+        "transport": research_runner.FULL_NATIVE_VECTOR_TRANSPORT,
+        "primary": "source-compiled-full-native-and-generic-stateful-programs",
+        "programs": [],
+        "legacy_shadow": {"enabled": False},
+        "official_fallback": {"available_on_native_blocker": True},
+        "blockers": [],
+        "native_ready": True,
+        "fingerprint": "d" * 64,
+    }
+
+    monkeypatch.setattr(
+        research_runner,
+        "build_native_execution_policy",
+        lambda *args, **kwargs: policy,
+    )
+    monkeypatch.setattr(
+        research_runner,
+        "compile_full_native_programs",
+        lambda *args, **kwargs: programs,
+    )
+    monkeypatch.setattr(research_runner, "x7_adapter_blockers", lambda *a, **k: [])
+    monkeypatch.setattr(
+        research_runner,
+        "prepare_vector_signals",
+        lambda **kwargs: pytest.fail("Full Native must not execute strategy Python"),
+    )
+
+    def fake_full_manifest(**kwargs) -> dict:
+        observed["compiled_programs"] = kwargs["compiled_programs"]
+        write_json(kwargs["destination"], {"schema_version": "full-native-test"})
+        return {"schema_version": "full-native-test"}
+
+    def fake_full_engine(_input, output, **kwargs) -> dict:
+        calls["engine"] += 1
+        observed["input_kind"] = kwargs.get("input_kind")
+        observed["vector_manifest"] = kwargs.get("vector_manifest")
+        write_json(output, {"schema_version": "test"})
+        write_json(kwargs["engine_profile_path"], {"schema_version": "test"})
+        return {"wall_time_seconds": 0.1, "peak_rss_bytes": 1024}
+
+    monkeypatch.setattr(
+        research_runner,
+        "build_full_native_vector_manifest",
+        fake_full_manifest,
+    )
+    monkeypatch.setattr(research_runner, "run_engine", fake_full_engine)
+
+    report = research_runner.run_research_backtest(**arguments)
+
+    assert report["status"] == "complete"
+    assert calls["vectors"] == 0
+    assert report["vectors"]["worker_count"] == 0
+    assert set(report["vectors"]["programs"]) == {"indicator", "signal", "tag"}
+    assert not (Path(arguments["output_directory"]) / "vectors").exists()
+    assert observed["compiled_programs"] is programs
+    assert observed["input_kind"] == research_runner.FULL_VECTOR_INPUT
+    assert observed["vector_manifest"] is None
+
+
+def test_full_native_compiler_failure_is_a_durable_fallback_blocker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    arguments, calls = _resume_workspace(monkeypatch, tmp_path)
+    policy = {
+        "schema_version": research_runner.STATEFUL_EXECUTION_POLICY_VERSION,
+        "adapter_lane": "x7-generic-stateful",
+        "transport": research_runner.FULL_NATIVE_VECTOR_TRANSPORT,
+        "primary": "source-compiled-full-native-and-generic-stateful-programs",
+        "programs": [],
+        "legacy_shadow": {"enabled": False},
+        "official_fallback": {"available_on_native_blocker": True},
+        "blockers": [],
+        "native_ready": True,
+        "fingerprint": "d" * 64,
+    }
+    monkeypatch.setattr(
+        research_runner,
+        "build_native_execution_policy",
+        lambda *args, **kwargs: policy,
+    )
+
+    def unsupported(*args, **kwargs):
+        raise StrategyAnalysisError("strategy.py:47: unsupported callback expression")
+
+    monkeypatch.setattr(research_runner, "compile_full_native_programs", unsupported)
+    monkeypatch.setattr(
+        research_runner,
+        "prepare_vector_signals",
+        lambda **kwargs: pytest.fail("blocked Full Native must not execute strategy Python"),
+    )
+    monkeypatch.setattr(
+        research_runner,
+        "build_full_native_vector_manifest",
+        lambda **kwargs: pytest.fail("blocked Full Native must not build a manifest"),
+    )
+    monkeypatch.setattr(
+        research_runner,
+        "run_engine",
+        lambda *args, **kwargs: pytest.fail("blocked Full Native must not run the engine"),
+    )
+
+    report = research_runner.run_research_backtest(**arguments)
+
+    assert report["status"] == "blocked_unsupported_semantics"
+    assert calls["vectors"] == 0
+    blocker = report["capability"]["blockers"][-1]
+    assert blocker == {
+        "code": "FULL_NATIVE_SOURCE_COMPILER_UNSUPPORTED",
+        "message": "strategy.py:47: unsupported callback expression",
+    }
+    assert report["capability"]["native_execution"]["native_ready"] is False
+    assert report["vectors"]["blockers"] == [blocker]
 
 
 def test_completed_resume_rejects_tampered_result_without_rewriting_it(

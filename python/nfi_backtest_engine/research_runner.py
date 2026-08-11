@@ -19,9 +19,14 @@ from .config_loader import (
     sanitize_config,
 )
 from .data_seal import DATA_SEAL_VERSION, prepare_data, validate_data_seal
-from .engine_runtime import run_engine
+from .engine_runtime import FULL_VECTOR_INPUT, run_engine
 from .errors import BenchmarkError, SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
+from .full_vector_runtime import (
+    FULL_NATIVE_VECTOR_RUNTIME_VERSION,
+    build_full_native_vector_manifest,
+    compile_full_native_programs,
+)
 from .generic_adapter import (
     GENERIC_ADAPTER_VERSION,
     build_generic_vector_manifest,
@@ -46,9 +51,11 @@ from .state_machine_ir import (
     compile_state_machine_program,
 )
 from .stateful_execution_policy import (
+    FULL_NATIVE_VECTOR_TRANSPORT,
     GENERIC_VECTOR_TRANSPORT,
     STATEFUL_EXECUTION_POLICY_VERSION,
     X7_VECTOR_TRANSPORT,
+    add_native_execution_blockers,
     build_native_execution_policy,
 )
 from .strategy_ir import STRATEGY_IR_VERSION
@@ -162,6 +169,24 @@ def run_research_backtest(
     )
     adapter_lane = native_execution["adapter_lane"]
     vector_transport = native_execution["transport"]
+    full_native_programs: dict[str, dict[str, Any]] | None = None
+    if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT and not native_execution["blockers"]:
+        try:
+            full_native_programs = compile_full_native_programs(
+                source,
+                class_name=class_name,
+                config=run_config,
+            )
+        except StrategyAnalysisError as exc:
+            native_execution = add_native_execution_blockers(
+                native_execution,
+                [
+                    {
+                        "code": "FULL_NATIVE_SOURCE_COMPILER_UNSUPPORTED",
+                        "message": str(exc),
+                    }
+                ],
+            )
     if execution_profile is None:
         profile = ensure_execution_profile(profile_path, workspace=output)
     else:
@@ -234,6 +259,7 @@ def run_research_backtest(
             "generic_adapter_version": GENERIC_ADAPTER_VERSION,
             "x7_adapter_version": X7_ADAPTER_VERSION,
             "stateful_execution_policy_version": STATEFUL_EXECUTION_POLICY_VERSION,
+            "full_native_vector_runtime_version": FULL_NATIVE_VECTOR_RUNTIME_VERSION,
         },
         "strategy": {
             "path": str(source),
@@ -438,23 +464,31 @@ def run_research_backtest(
         vector_report = candidate["report"]
         resumed_vector_stage = True
     if vector_report is None:
-        _reset_owned_directory(vector_directory, root=output)
-        with execution_environment(profile["environment"]):
-            vector_report = prepare_vector_signals(
-                strategy_path=source,
-                class_name=class_name,
-                config=run_config,
-                pairs=pairlist["pairs"],
-                data_directory=data_root,
-                timerange=timerange,
-                output_directory=vector_directory,
-                workers=selected_workers,
-                cache_directory=cache_directory,
-                memory_cap_bytes=int(resource_limits["working_memory_bytes"]),
-                hardware_fingerprint=profile["hardware_fingerprint"],
-                calibration_directory=Path(profile_path).resolve().parent / "calibrations",
-                recalibrate=recalibrate,
+        if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT:
+            vector_report = _full_native_preflight_report(
+                analysis=analysis,
+                programs=full_native_programs,
+                pair_count=len(pairlist["pairs"]),
+                blockers=native_execution["blockers"],
             )
+        else:
+            _reset_owned_directory(vector_directory, root=output)
+            with execution_environment(profile["environment"]):
+                vector_report = prepare_vector_signals(
+                    strategy_path=source,
+                    class_name=class_name,
+                    config=run_config,
+                    pairs=pairlist["pairs"],
+                    data_directory=data_root,
+                    timerange=timerange,
+                    output_directory=vector_directory,
+                    workers=selected_workers,
+                    cache_directory=cache_directory,
+                    memory_cap_bytes=int(resource_limits["working_memory_bytes"]),
+                    hardware_fingerprint=profile["hardware_fingerprint"],
+                    calibration_directory=Path(profile_path).resolve().parent / "calibrations",
+                    recalibrate=recalibrate,
+                )
         write_json(
             vector_checkpoint,
             {
@@ -475,7 +509,7 @@ def run_research_backtest(
     blockers = [] if state_machine_ready else list(hot_ir["blockers"])
     blockers.extend(native_execution["blockers"])
     if not blockers and not prepare_only:
-        if vector_transport == X7_VECTOR_TRANSPORT:
+        if vector_transport in {X7_VECTOR_TRANSPORT, FULL_NATIVE_VECTOR_TRANSPORT}:
             blockers.extend(
                 x7_adapter_blockers(
                     analysis,
@@ -547,7 +581,25 @@ def run_research_backtest(
         else:
             _require_absent(simulation_input_path, label="simulation input")
             stage_started_ns = time.perf_counter_ns()
-            if vector_transport == X7_VECTOR_TRANSPORT:
+            if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT:
+                if full_native_programs is None:
+                    raise BenchmarkError(
+                        "full native manifest reached execution without compiled programs"
+                    )
+                build_full_native_vector_manifest(
+                    strategy_path=source,
+                    class_name=class_name,
+                    analysis=analysis,
+                    hot_ir=hot_ir,
+                    config=run_config,
+                    pairs=pairlist["pairs"],
+                    data_directory=data_root,
+                    timerange=timerange,
+                    market_metadata_path=selected_market_metadata,
+                    destination=simulation_input_path,
+                    compiled_programs=full_native_programs,
+                )
+            elif vector_transport == X7_VECTOR_TRANSPORT:
                 build_x7_vector_manifest(
                     analysis=analysis,
                     hot_ir=hot_ir,
@@ -585,13 +637,19 @@ def run_research_backtest(
             if engine_events_path is not None:
                 _require_absent(engine_events_path, label="engine events")
             stage_started_ns = time.perf_counter_ns()
+            engine_arguments: dict[str, Any] = {
+                "profile_path": profile_path,
+                "engine_profile_path": engine_profile_path,
+                "events_path": engine_events_path,
+            }
+            if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT:
+                engine_arguments["input_kind"] = FULL_VECTOR_INPUT
+            else:
+                engine_arguments["vector_manifest"] = True
             execution = run_engine(
                 simulation_input_path,
                 simulation_result_path,
-                profile_path=profile_path,
-                vector_manifest=True,
-                engine_profile_path=engine_profile_path,
-                events_path=engine_events_path,
+                **engine_arguments,
             )
             engine_seconds = _elapsed_seconds(stage_started_ns)
             simulation_result_record = _artifact_record(simulation_result_path)
@@ -999,6 +1057,7 @@ def _load_simulation_checkpoint(
         expected_path=simulation_input_path,
         label="simulation input",
     )
+    _validate_full_native_manifest_artifacts(simulation_input_path)
 
     if engine is None:
         if surface is not None:
@@ -1082,10 +1141,65 @@ def _require_absent(path: Path, *, label: str) -> None:
         raise BenchmarkError(f"{label} already exists; refusing to overwrite it: {path}")
 
 
+def _full_native_preflight_report(
+    *,
+    analysis: dict[str, Any],
+    programs: dict[str, dict[str, Any]] | None,
+    pair_count: int,
+    blockers: list[dict[str, Any]],
+) -> dict[str, Any]:
+    compiled = programs or {}
+    return {
+        "schema_version": "full-native-program-preflight-v1",
+        "pipeline_version": FULL_NATIVE_VECTOR_RUNTIME_VERSION,
+        "strategy_sha256": analysis["source"]["sha256"],
+        "worker_count": 0,
+        "pair_count": pair_count,
+        "cache_hits": 0,
+        "outputs": [],
+        "programs": {
+            name: {
+                "schema_version": program["schema_version"],
+                "fingerprint": program["fingerprint"],
+                "node_count": len(program["nodes"]),
+            }
+            for name, program in sorted(compiled.items())
+        },
+        "blockers": blockers,
+    }
+
+
 def _valid_vector_checkpoint(checkpoint: Any, vector_directory: Path) -> bool:
     if not isinstance(checkpoint, dict) or checkpoint.get("schema_version") != "1.0.0":
         return False
     report = checkpoint.get("report")
+    if isinstance(report, dict) and report.get("schema_version") == (
+        "full-native-program-preflight-v1"
+    ):
+        programs = report.get("programs")
+        blockers = report.get("blockers")
+        return (
+            report.get("pipeline_version") == FULL_NATIVE_VECTOR_RUNTIME_VERSION
+            and isinstance(report.get("strategy_sha256"), str)
+            and report.get("worker_count") == 0
+            and isinstance(report.get("pair_count"), int)
+            and not isinstance(report.get("pair_count"), bool)
+            and report["pair_count"] > 0
+            and report.get("cache_hits") == 0
+            and report.get("outputs") == []
+            and isinstance(programs, dict)
+            and isinstance(blockers, list)
+            and all(
+                isinstance(program, dict)
+                and isinstance(program.get("schema_version"), str)
+                and isinstance(program.get("fingerprint"), str)
+                and len(program["fingerprint"]) == 64
+                and isinstance(program.get("node_count"), int)
+                and program["node_count"] > 0
+                for program in programs.values()
+            )
+            and (bool(blockers) or set(programs) == {"indicator", "signal", "tag"})
+        )
     if (
         not isinstance(report, dict)
         or report.get("pipeline_version") != VECTOR_PIPELINE_VERSION
@@ -1226,6 +1340,52 @@ def _relative_artifact_record(path: Path, *, root: Path) -> dict[str, Any]:
     record = _artifact_record(path)
     record["path"] = path.relative_to(root).as_posix()
     return record
+
+
+def _validate_full_native_manifest_artifacts(path: Path) -> None:
+    document = _read_json_object(path, label="simulation input")
+    if document.get("schema_version") != "full-native-vector-manifest-v1":
+        return
+    programs = document.get("programs")
+    frames = document.get("frames")
+    futures = document.get("futures")
+    if not isinstance(programs, dict) or not isinstance(frames, list) or not isinstance(
+        futures, list | type(None)
+    ):
+        raise BenchmarkError("full native manifest artifact inventory is malformed")
+    artifacts: list[Any] = []
+    for name in ("indicator", "signal", "tag"):
+        program = programs.get(name)
+        artifacts.append(program.get("artifact") if isinstance(program, dict) else None)
+    artifacts.extend(
+        frame.get("artifact") if isinstance(frame, dict) else None for frame in frames
+    )
+    for descriptor in futures or []:
+        if not isinstance(descriptor, dict):
+            artifacts.append(None)
+            continue
+        for role in ("funding_rate", "mark"):
+            frame = descriptor.get(role)
+            artifacts.append(frame.get("artifact") if isinstance(frame, dict) else None)
+
+    root = path.parent.resolve()
+    seen: set[Path] = set()
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            raise BenchmarkError("full native manifest artifact descriptor is malformed")
+        relative = artifact.get("path")
+        expected_sha256 = artifact.get("sha256")
+        if not isinstance(relative, str) or not isinstance(expected_sha256, str):
+            raise BenchmarkError("full native manifest artifact descriptor is malformed")
+        candidate = Path(relative)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            raise BenchmarkError("full native manifest artifact path is not contained")
+        resolved = (root / candidate).resolve()
+        if not resolved.is_relative_to(root) or resolved in seen or not resolved.is_file():
+            raise BenchmarkError("full native manifest artifact is missing or duplicated")
+        seen.add(resolved)
+        if sha256_file(resolved) != expected_sha256:
+            raise BenchmarkError("full native manifest artifact SHA-256 differs")
 
 
 def required_data_pairs(

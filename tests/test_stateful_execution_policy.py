@@ -7,9 +7,10 @@ import pytest
 from nfi_backtest_engine import stateful_execution_policy
 from nfi_backtest_engine.hot_ir import build_hot_callback_ir
 from nfi_backtest_engine.stateful_execution_policy import (
+    FULL_NATIVE_VECTOR_TRANSPORT,
     GENERIC_VECTOR_TRANSPORT,
     X7_GENERIC_STATEFUL_LANE,
-    X7_VECTOR_TRANSPORT,
+    add_native_execution_blockers,
     build_native_execution_policy,
     build_x7_generic_stateful_policy,
 )
@@ -87,8 +88,10 @@ def test_x7_generic_stateful_programs_are_the_default_native_lane(
     )
 
     assert policy["adapter_lane"] == X7_GENERIC_STATEFUL_LANE
-    assert policy["transport"] == X7_VECTOR_TRANSPORT
-    assert policy["primary"] == "source-compiled-generic-stateful-programs"
+    assert policy["transport"] == FULL_NATIVE_VECTOR_TRANSPORT
+    assert policy["primary"] == (
+        "source-compiled-full-native-and-generic-stateful-programs"
+    )
     assert policy["native_ready"] is True
     assert policy["blockers"] == []
     assert len(policy["programs"]) == 5
@@ -99,6 +102,19 @@ def test_x7_generic_stateful_programs_are_the_default_native_lane(
         "mismatch_action": None,
         "removal_gate": None,
     }
+
+
+def test_source_compiler_blocker_reseals_the_native_policy() -> None:
+    policy = build_x7_generic_stateful_policy(_manager())
+
+    blocked = add_native_execution_blockers(
+        policy,
+        [{"code": "FULL_NATIVE_SOURCE_COMPILER_UNSUPPORTED", "message": "fixture"}],
+    )
+
+    assert blocked["native_ready"] is False
+    assert blocked["blockers"][-1]["code"] == "FULL_NATIVE_SOURCE_COMPILER_UNSUPPORTED"
+    assert blocked["fingerprint"] != policy["fingerprint"]
 
 
 def test_x7_policy_discovers_source_defined_route_keys_as_data() -> None:

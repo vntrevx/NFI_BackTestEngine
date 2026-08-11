@@ -58,6 +58,7 @@ def build_full_native_vector_manifest(
     timerange: str,
     market_metadata_path: str | Path,
     destination: str | Path,
+    compiled_programs: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Compile strategy programs and seal raw inputs without copying candle bytes."""
     target = Path(destination).resolve()
@@ -83,20 +84,18 @@ def build_full_native_vector_manifest(
 
     source = Path(strategy_path).resolve()
     trading_mode = str(config.get("trading_mode", "spot"))
-    indicator = compile_indicator_program(source, class_name=class_name, config=config)
-    signal = compile_signal_program(
-        source,
-        class_name=class_name,
-        trading_mode=trading_mode,
-        config=config,
+    programs = (
+        compiled_programs
+        if compiled_programs is not None
+        else compile_full_native_programs(
+            source,
+            class_name=class_name,
+            config=config,
+        )
     )
-    tag = compile_tag_program(
-        source,
-        class_name=class_name,
-        trading_mode=trading_mode,
-        config=config,
-    )
-    programs = {"indicator": indicator, "signal": signal, "tag": tag}
+    if set(programs) != set(_PROGRAM_NAMES):
+        raise StrategyAnalysisError("compiled full native program set is incomplete")
+    indicator = programs["indicator"]
     _validate_program_identity(programs, class_name=class_name, trading_mode=trading_mode)
 
     strategy = analysis["strategies"][0]
@@ -230,6 +229,34 @@ def build_full_native_vector_manifest(
     finally:
         if not installed:
             shutil.rmtree(staging, ignore_errors=True)
+
+
+def compile_full_native_programs(
+    strategy_path: str | Path,
+    *,
+    class_name: str,
+    config: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Compile the three independent programs once for policy and manifest stages."""
+    source = Path(strategy_path).resolve()
+    trading_mode = str(config.get("trading_mode", "spot"))
+    programs = {
+        "indicator": compile_indicator_program(source, class_name=class_name, config=config),
+        "signal": compile_signal_program(
+            source,
+            class_name=class_name,
+            trading_mode=trading_mode,
+            config=config,
+        ),
+        "tag": compile_tag_program(
+            source,
+            class_name=class_name,
+            trading_mode=trading_mode,
+            config=config,
+        ),
+    }
+    _validate_program_identity(programs, class_name=class_name, trading_mode=trading_mode)
+    return programs
 
 
 def _validate_program_identity(
