@@ -62,9 +62,7 @@ fn validate_header(
         )?,
         selected_class: checked_name("selected_class", document.source.selected_class.clone())?,
     };
-    let config_identity = serde_json::to_vec(&document.config)
-        .map_err(|error| invalid(format!("cannot serialize config identity: {error}")))?;
-    let actual_config_sha = format!("{:x}", Sha256::digest(config_identity));
+    let actual_config_sha = config_identity_sha256(&document.config)?;
     if actual_config_sha != source.config_sha256 {
         return Err(invalid(
             "config_sha256 differs from the embedded simulator config",
@@ -108,6 +106,81 @@ fn validate_header(
             source_row_shift: document.run.source_row_shift,
         },
     ))
+}
+
+pub(super) fn config_identity_sha256(
+    value: &serde_json::Value,
+) -> Result<String, NativeContractError> {
+    let mut digest = Sha256::new();
+    update_config_identity(&mut digest, value)?;
+    Ok(format!("{:x}", digest.finalize()))
+}
+
+fn update_config_identity(
+    digest: &mut Sha256,
+    value: &serde_json::Value,
+) -> Result<(), NativeContractError> {
+    match value {
+        serde_json::Value::Null => digest.update(b"N"),
+        serde_json::Value::Bool(value) => {
+            digest.update(if *value { b"B\x01" } else { b"B\x00" });
+        }
+        serde_json::Value::Number(value) => {
+            if let Some(integer) = value.as_i64() {
+                update_integer(digest, integer.to_string().as_bytes())?;
+            } else if let Some(integer) = value.as_u64() {
+                update_integer(digest, integer.to_string().as_bytes())?;
+            } else if let Some(float) = value.as_f64().filter(|float| float.is_finite()) {
+                digest.update(b"F");
+                digest.update(float.to_bits().to_be_bytes());
+            } else {
+                return Err(invalid(
+                    "embedded simulator config contains an invalid number",
+                ));
+            }
+        }
+        serde_json::Value::String(value) => update_string(digest, value)?,
+        serde_json::Value::Array(values) => {
+            digest.update(b"L");
+            update_length(digest, values.len())?;
+            for value in values {
+                update_config_identity(digest, value)?;
+            }
+        }
+        serde_json::Value::Object(values) => {
+            digest.update(b"O");
+            update_length(digest, values.len())?;
+            let mut keys = values.keys().collect::<Vec<_>>();
+            keys.sort_unstable();
+            for key in keys {
+                update_string(digest, key)?;
+                update_config_identity(digest, &values[key])?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn update_integer(digest: &mut Sha256, encoded: &[u8]) -> Result<(), NativeContractError> {
+    digest.update(b"I");
+    update_length(digest, encoded.len())?;
+    digest.update(encoded);
+    Ok(())
+}
+
+fn update_string(digest: &mut Sha256, value: &str) -> Result<(), NativeContractError> {
+    let encoded = value.as_bytes();
+    digest.update(b"S");
+    update_length(digest, encoded.len())?;
+    digest.update(encoded);
+    Ok(())
+}
+
+fn update_length(digest: &mut Sha256, length: usize) -> Result<(), NativeContractError> {
+    let length = u64::try_from(length)
+        .map_err(|_| invalid("embedded simulator config container is too large"))?;
+    digest.update(length.to_be_bytes());
+    Ok(())
 }
 
 fn validate_program_descriptors(document: &ManifestDocument) -> Result<(), NativeContractError> {

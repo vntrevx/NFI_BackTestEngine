@@ -55,10 +55,7 @@ fn fixture(mode: TradingMode) -> Fixture {
         "price_step": 0.01,
         "is_futures": mode == TradingMode::Futures
     });
-    let config_sha = format!(
-        "{:x}",
-        Sha256::digest(serde_json::to_vec(&config).expect("config identity"))
-    );
+    let config_sha = validation::config_identity_sha256(&config).expect("config identity");
     let document = json!({
         "schema_version": FULL_NATIVE_VECTOR_MANIFEST_VERSION,
         "source": {
@@ -158,10 +155,9 @@ fn artifact(root: &Path, path: &Path) -> Value {
 }
 
 fn reseal_config(document: &mut Value) {
-    document["source"]["config_sha256"] = json!(format!(
-        "{:x}",
-        Sha256::digest(serde_json::to_vec(&document["config"]).expect("embedded config identity"))
-    ));
+    document["source"]["config_sha256"] =
+        json!(validation::config_identity_sha256(&document["config"])
+            .expect("embedded config identity"));
 }
 
 fn write_ohlcv(path: &Path, timestamp_ms: i64) {
@@ -195,6 +191,28 @@ fn write_ohlcv(path: &Path, timestamp_ms: i64) {
         .write(&Chunk::new(arrays), None)
         .expect("Feather batch");
     writer.finish().expect("finish Feather");
+}
+
+#[test]
+fn config_identity_matches_python_without_json_float_formatting() {
+    let left = json!({
+        "z": [null, true, false, 7, -3, 1e-5, -0.0],
+        "a": {"한글": "값"}
+    });
+    let right = json!({
+        "a": {"한글": "값"},
+        "z": [null, true, false, 7, -3, 0.00001, -0.0]
+    });
+    let expected = "df8efe5440e003a372b0ae0d57c7dcd360517af8ace16e68601e862f48a79525";
+
+    assert_eq!(
+        validation::config_identity_sha256(&left).expect("left identity"),
+        expected
+    );
+    assert_eq!(
+        validation::config_identity_sha256(&right).expect("right identity"),
+        expected
+    );
 }
 
 #[test]

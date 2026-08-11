@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import shutil
+import struct
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -191,7 +193,7 @@ def build_full_native_vector_manifest(
             "schema_version": FULL_NATIVE_VECTOR_MANIFEST_VERSION,
             "source": {
                 "strategy_sha256": indicator["source"]["sha256"],
-                "config_sha256": _canonical_sha256(portfolio_config),
+                "config_sha256": _config_identity_sha256(portfolio_config),
                 "compiler_source_fingerprint": _compiler_source_fingerprint(),
                 "selected_class": class_name,
             },
@@ -499,8 +501,51 @@ def _compiler_source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-def _canonical_sha256(value: Any) -> str:
-    return hashlib.sha256(_canonical_json_bytes(value)).hexdigest()
+def _config_identity_sha256(value: Any) -> str:
+    """Hash JSON data without depending on a language's float formatter."""
+    digest = hashlib.sha256()
+
+    def update(item: Any) -> None:
+        if item is None:
+            digest.update(b"N")
+        elif isinstance(item, bool):
+            digest.update(b"B\x01" if item else b"B\x00")
+        elif isinstance(item, int):
+            encoded = str(item).encode("ascii")
+            digest.update(b"I")
+            digest.update(len(encoded).to_bytes(8, "big"))
+            digest.update(encoded)
+        elif isinstance(item, float):
+            if not math.isfinite(item):
+                raise StrategyAnalysisError("full native config contains a non-finite number")
+            digest.update(b"F")
+            digest.update(struct.pack(">d", item))
+        elif isinstance(item, str):
+            encoded = item.encode("utf-8")
+            digest.update(b"S")
+            digest.update(len(encoded).to_bytes(8, "big"))
+            digest.update(encoded)
+        elif isinstance(item, list):
+            digest.update(b"L")
+            digest.update(len(item).to_bytes(8, "big"))
+            for value_item in item:
+                update(value_item)
+        elif isinstance(item, dict):
+            if not all(isinstance(key, str) for key in item):
+                raise StrategyAnalysisError("full native config keys must be strings")
+            keys = sorted(item)
+            digest.update(b"O")
+            digest.update(len(keys).to_bytes(8, "big"))
+            for key in keys:
+                update(key)
+                update(item[key])
+        else:
+            raise StrategyAnalysisError(
+                f"full native config contains unsupported {type(item).__name__} data"
+            )
+
+    update(value)
+    return digest.hexdigest()
 
 
 def _canonical_json_bytes(value: Any) -> bytes:
