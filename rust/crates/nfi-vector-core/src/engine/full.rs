@@ -914,12 +914,13 @@ fn validate_identity_cast(
     target: &str,
     source: &SourceLocation,
 ) -> Result<(), VectorCoreError> {
-    if node.parameters.len() != 2 {
-        return Err(source.error(format!("{target} cast parameters are not exact")));
-    }
-    match (target, node.parameters.get("arguments")) {
-        ("series", Some(Value::Null)) => Ok(()),
-        ("array", Some(Value::Object(arguments)))
+    match (
+        target,
+        node.parameters.len(),
+        node.parameters.get("arguments"),
+    ) {
+        ("series", 1, None) | ("series", 2, Some(Value::Null)) => Ok(()),
+        ("array", 2, Some(Value::Object(arguments)))
             if arguments.is_empty()
                 || (arguments.len() == 1
                     && arguments.get("copy").and_then(Value::as_bool) == Some(false)) =>
@@ -1283,6 +1284,29 @@ mod tests {
         node.parameters
             .insert("arguments".to_owned(), json!({"copy": false}));
         assert!(validate_float_cast_parameters(&node, &source).is_err());
+    }
+
+    #[test]
+    fn series_cast_accepts_the_compiler_shape_and_rejects_options() {
+        let mut node: ProgramNode = serde_json::from_value(json!({
+            "id":"n1",
+            "function":"f1",
+            "source_order":0,
+            "op":"cast",
+            "value_type":"f64-column",
+            "inputs":["n0"],
+            "parameters":{"target":"series"},
+            "lookback":{"kind":"finite","candles":0,"expression":null,"causal":true}
+        }))
+        .expect("cast node");
+        let source = SourceLocation::new("cast", "strategy.py", 7, 4);
+
+        validate_identity_cast(&node, "series", &source).expect("compiler series shape");
+        node.parameters.insert("arguments".to_owned(), Value::Null);
+        validate_identity_cast(&node, "series", &source).expect("legacy null arguments");
+        node.parameters
+            .insert("arguments".to_owned(), json!({"copy": false}));
+        assert!(validate_identity_cast(&node, "series", &source).is_err());
     }
 
     #[test]
