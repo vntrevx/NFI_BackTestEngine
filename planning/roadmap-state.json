@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 135,
-  "updated_at": "2026-08-11T15:54:39+09:00",
+  "revision": 136,
+  "updated_at": "2026-08-11T18:03:14+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M21-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4841,7 +4841,7 @@
       "order": 2102,
       "milestone": "M21",
       "title": "Compile exact Native tag generation",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M21-01"
       ],
@@ -4860,7 +4860,7 @@
         "tag priority tests",
         "compound-tag vector exactness"
       ],
-      "started_at": null,
+      "started_at": "2026-08-11T18:03:14+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8455,6 +8455,20 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M21-02",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 183,
+      "timestamp": "2026-08-11T18:03:14+09:00",
+      "task_id": "M21-02",
+      "event": "task_started",
+      "details": {
+        "objective": "compile literal and compound entry and exit tags with exact source-order assignment and original string preservation",
+        "tag_specific_execution_branches_allowed": false,
+        "original_tag_strings_must_be_preserved": true,
+        "compound_tag_order_and_whitespace_exact_required": true,
+        "official_freqtrade_oracle_required": true,
+        "latest_upstream_commit": "897a1523391b8222ee711eba9714b59a3e77265a"
       }
     }
   ]
