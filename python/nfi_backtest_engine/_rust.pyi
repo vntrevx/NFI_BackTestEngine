@@ -44,6 +44,17 @@ def simulate_vector_file_profiled(
     profile_path: str | Path,
     events_path: str | Path | None = ...,
 ) -> None: ...
+def simulate_full_vector_file(
+    manifest_path: str | Path,
+    output_path: str | Path,
+    events_path: str | Path | None = ...,
+) -> None: ...
+def simulate_full_vector_file_profiled(
+    manifest_path: str | Path,
+    output_path: str | Path,
+    profile_path: str | Path,
+    events_path: str | Path | None = ...,
+) -> None: ...
 def execute_full_vector(
     indicator_program: str,
     signal_program: str,

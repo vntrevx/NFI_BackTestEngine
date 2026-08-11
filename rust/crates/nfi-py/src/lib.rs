@@ -10,9 +10,12 @@ use nfi_sim_core::{
     simulate_with_observer, simulate_with_observer_profiled, SimulationInput, SimulationProfile,
     SimulationResult,
 };
-use nfi_vector_io::{load_vector_manifest, load_vector_manifest_profiled, VectorLoadProfile};
+use nfi_vector_io::{
+    load_full_native_vector_manifest_profiled, load_vector_manifest, load_vector_manifest_profiled,
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use serde::Serialize;
 
 mod full_vector;
 
@@ -106,25 +109,56 @@ fn simulate_vector_file_profiled(
             ))
         })?;
     let (result, simulation_profile) = run_simulation_profiled(&document, events_path)?;
-    let serialization_started = Instant::now();
-    let serialized = serialize_simulation_result(&result)
-        .map_err(|error| PyValueError::new_err(format!("cannot serialize result: {error}")))?;
-    atomic_write(output_path.clone(), &serialized)
-        .map_err(|error| PyValueError::new_err(format!("cannot write result: {error}")))?;
-    let profile = profile_document(
+    write_profiled_result(
+        output_path,
+        profile_path,
+        &result,
         &input_profile,
         &simulation_profile,
-        duration_ns(serialization_started.elapsed()),
-    );
-    let encoded_profile = serde_json::to_vec(&profile)
-        .map_err(|error| PyValueError::new_err(format!("cannot serialize profile: {error}")))?;
-    if let Err(error) = atomic_write(profile_path, &encoded_profile) {
-        let _ = fs::remove_file(output_path);
-        return Err(PyValueError::new_err(format!(
-            "cannot write engine profile: {error}"
-        )));
-    }
-    Ok(())
+    )
+}
+
+#[pyfunction(signature = (manifest_path, output_path, events_path=None))]
+#[allow(clippy::needless_pass_by_value)] // PyO3 extracts owned Python path arguments.
+fn simulate_full_vector_file(
+    manifest_path: PathBuf,
+    output_path: PathBuf,
+    events_path: Option<PathBuf>,
+) -> PyResult<()> {
+    let manifest_display = manifest_path.display().to_string();
+    let (document, _) =
+        load_full_native_vector_manifest_profiled(&manifest_path).map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid full native vector manifest {manifest_display}: {error}"
+            ))
+        })?;
+    let result = run_simulation(&document, events_path)?;
+    write_result(output_path, &result)
+}
+
+#[pyfunction(signature = (manifest_path, output_path, profile_path, events_path=None))]
+#[allow(clippy::needless_pass_by_value)] // PyO3 extracts owned Python path arguments.
+fn simulate_full_vector_file_profiled(
+    manifest_path: PathBuf,
+    output_path: PathBuf,
+    profile_path: PathBuf,
+    events_path: Option<PathBuf>,
+) -> PyResult<()> {
+    let manifest_display = manifest_path.display().to_string();
+    let (document, input_profile) = load_full_native_vector_manifest_profiled(&manifest_path)
+        .map_err(|error| {
+            PyValueError::new_err(format!(
+                "invalid full native vector manifest {manifest_display}: {error}"
+            ))
+        })?;
+    let (result, simulation_profile) = run_simulation_profiled(&document, events_path)?;
+    write_profiled_result(
+        output_path,
+        profile_path,
+        &result,
+        &input_profile,
+        &simulation_profile,
+    )
 }
 
 fn run_simulation(
@@ -210,6 +244,34 @@ fn write_result(output_path: PathBuf, result: &SimulationResult) -> PyResult<()>
         .map_err(|error| PyValueError::new_err(format!("cannot write result: {error}")))
 }
 
+fn write_profiled_result<InputProfile: Serialize>(
+    output_path: PathBuf,
+    profile_path: PathBuf,
+    result: &SimulationResult,
+    input_profile: &InputProfile,
+    simulation_profile: &SimulationProfile,
+) -> PyResult<()> {
+    let serialization_started = Instant::now();
+    let serialized = serialize_simulation_result(result)
+        .map_err(|error| PyValueError::new_err(format!("cannot serialize result: {error}")))?;
+    atomic_write(output_path.clone(), &serialized)
+        .map_err(|error| PyValueError::new_err(format!("cannot write result: {error}")))?;
+    let profile = profile_document(
+        input_profile,
+        simulation_profile,
+        duration_ns(serialization_started.elapsed()),
+    );
+    let encoded_profile = serde_json::to_vec(&profile)
+        .map_err(|error| PyValueError::new_err(format!("cannot serialize profile: {error}")))?;
+    if let Err(error) = atomic_write(profile_path, &encoded_profile) {
+        let _ = fs::remove_file(output_path);
+        return Err(PyValueError::new_err(format!(
+            "cannot write engine profile: {error}"
+        )));
+    }
+    Ok(())
+}
+
 fn atomic_write(path: PathBuf, contents: &[u8]) -> Result<(), String> {
     let temporary = path.with_extension("tmp");
     let path_display = path.display().to_string();
@@ -223,8 +285,8 @@ fn atomic_write(path: PathBuf, contents: &[u8]) -> Result<(), String> {
     })
 }
 
-fn profile_document(
-    input: &VectorLoadProfile,
+fn profile_document<InputProfile: Serialize>(
+    input: &InputProfile,
     simulation: &SimulationProfile,
     serialization_ns: u64,
 ) -> serde_json::Value {
@@ -252,6 +314,11 @@ fn _rust(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(simulate_file, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_vector_file, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_vector_file_profiled, module)?)?;
+    module.add_function(wrap_pyfunction!(simulate_full_vector_file, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        simulate_full_vector_file_profiled,
+        module
+    )?)?;
     module.add_function(wrap_pyfunction!(full_vector::execute_full_vector, module)?)?;
     Ok(())
 }

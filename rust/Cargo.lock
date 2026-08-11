@@ -386,6 +386,7 @@ dependencies = [
  "nfi-vector-core",
  "nfi-vector-io",
  "pyo3",
+ "serde",
  "serde_json",
  "sha2",
 ]
