@@ -12,8 +12,8 @@ mod validation;
 
 pub use model::{
     CompileContext, FeatureRetention, FuturesFrameSet, HistoricPriceStep, NativeContractError,
-    NativeVectorBundle, PairContract, PairLimits, PairPrecision, RunContract, SourceSeal,
-    TradingMode,
+    NativeVectorBundle, PairContract, PairLimits, PairOptions, PairPrecision, RunContract,
+    SourceSeal, TradingMode,
 };
 pub use validation::retained_feature_fingerprint;
 

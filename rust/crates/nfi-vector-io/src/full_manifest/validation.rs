@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Component;
 
+use nfi_sim_core::PortfolioConfig;
 use nfi_vector_core::alignment::{FrameIdentity, Timeframe};
 use nfi_vector_core::mutation::MutationProgram;
 use nfi_vector_core::program::IndicatorProgram;
@@ -8,7 +9,7 @@ use sha2::{Digest, Sha256};
 
 use super::model::{
     ArtifactDocument, CompileContext, FeatureRetention, FrameDocument, HistoricPriceStep,
-    IdentityDocument, ManifestDocument, NativeContractError, PairContract, PairLimits,
+    IdentityDocument, ManifestDocument, NativeContractError, PairContract, PairLimits, PairOptions,
     PairPrecision, RunContract, SourceSeal, TradingMode, ValidatedDocument, ValidatedFrame,
     ValidatedFutures,
 };
@@ -17,7 +18,7 @@ use super::FULL_NATIVE_VECTOR_MANIFEST_VERSION;
 pub(super) fn validate_document(
     document: ManifestDocument,
 ) -> Result<ValidatedDocument, NativeContractError> {
-    let (source, compile_context, run) = validate_header(&document)?;
+    let (source, config, compile_context, run) = validate_header(&document)?;
     validate_program_descriptors(&document)?;
     let retained_features = validate_features(document.retained_features)?;
     let (pairs, pair_names) = validate_pairs(document.pairs, &run)?;
@@ -29,6 +30,7 @@ pub(super) fn validate_document(
     )?;
     Ok(ValidatedDocument {
         source,
+        config,
         compile_context,
         programs: document.programs,
         run,
@@ -41,7 +43,7 @@ pub(super) fn validate_document(
 
 fn validate_header(
     document: &ManifestDocument,
-) -> Result<(SourceSeal, CompileContext, RunContract), NativeContractError> {
+) -> Result<(SourceSeal, PortfolioConfig, CompileContext, RunContract), NativeContractError> {
     if document.schema_version != FULL_NATIVE_VECTOR_MANIFEST_VERSION {
         return Err(invalid(format!(
             "unsupported schema_version {:?}",
@@ -60,12 +62,27 @@ fn validate_header(
         )?,
         selected_class: checked_name("selected_class", document.source.selected_class.clone())?,
     };
+    let config_identity = serde_json::to_vec(&document.config)
+        .map_err(|error| invalid(format!("cannot serialize config identity: {error}")))?;
+    let actual_config_sha = format!("{:x}", Sha256::digest(config_identity));
+    if actual_config_sha != source.config_sha256 {
+        return Err(invalid(
+            "config_sha256 differs from the embedded simulator config",
+        ));
+    }
+    let config: PortfolioConfig = serde_json::from_value(document.config.clone())
+        .map_err(|error| invalid(format!("embedded simulator config is invalid: {error}")))?;
     if document.compile_context.run_mode != "backtest" {
         return Err(invalid("compile_context.run_mode must be backtest"));
     }
     if document.run.trading_mode != document.compile_context.trading_mode {
         return Err(invalid(
             "run trading_mode differs from the compiled trading_mode",
+        ));
+    }
+    if config.is_futures != (document.run.trading_mode == TradingMode::Futures) {
+        return Err(invalid(
+            "simulator config is_futures differs from run trading_mode",
         ));
     }
     if document.run.timerange.start_ms < 0
@@ -77,6 +94,7 @@ fn validate_header(
         .map_err(|error| invalid(format!("run base_timeframe is invalid: {error}")))?;
     Ok((
         source,
+        config,
         CompileContext {
             run_mode: document.compile_context.run_mode.clone(),
             trading_mode: document.compile_context.trading_mode,
@@ -166,6 +184,20 @@ fn validate_pairs(
         validate_optional_nonnegative(document.limits.minimum_stake, "minimum_stake")?;
         validate_optional_nonnegative(document.limits.minimum_amount, "minimum_amount")?;
         validate_optional_nonnegative(document.limits.minimum_cost, "minimum_cost")?;
+        if run.trading_mode == TradingMode::Spot
+            && (document.options.can_short || document.options.include_funding)
+        {
+            return Err(invalid(format!(
+                "Spot pair {} cannot enable short or funding options",
+                identity.pair
+            )));
+        }
+        if run.trading_mode == TradingMode::Futures && !document.options.include_funding {
+            return Err(invalid(format!(
+                "Futures pair {} must enable funding input",
+                identity.pair
+            )));
+        }
         let price_steps = validate_price_steps(document.price_steps)?;
         pairs.push(PairContract {
             identity,
@@ -180,6 +212,12 @@ fn validate_pairs(
                 minimum_cost: document.limits.minimum_cost,
             },
             price_steps,
+            options: PairOptions {
+                can_short: document.options.can_short,
+                include_funding: document.options.include_funding,
+                use_exit_signal: document.options.use_exit_signal,
+                include_previous_close: document.options.include_previous_close,
+            },
         });
     }
     Ok((pairs, names))

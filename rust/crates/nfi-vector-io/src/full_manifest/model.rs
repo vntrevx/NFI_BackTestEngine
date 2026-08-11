@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use nfi_sim_core::PortfolioConfig;
 use nfi_vector_core::alignment::{FrameCatalog, FrameIdentity, NumericFrame, Timeframe};
 use nfi_vector_core::mutation::MutationProgram;
 use nfi_vector_core::program::IndicatorProgram;
@@ -11,6 +12,7 @@ use thiserror::Error;
 #[derive(Clone, Debug)]
 pub struct NativeVectorBundle {
     pub source: SourceSeal,
+    pub config: PortfolioConfig,
     pub compile_context: CompileContext,
     pub run: RunContract,
     pub retained_features: FeatureRetention,
@@ -82,6 +84,7 @@ pub struct PairContract {
     pub precision: PairPrecision,
     pub limits: PairLimits,
     pub price_steps: Vec<HistoricPriceStep>,
+    pub options: PairOptions,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,6 +104,16 @@ pub struct PairLimits {
 pub struct HistoricPriceStep {
     pub timestamp_ms: i64,
     pub step: f64,
+}
+
+/// Pair-local execution capabilities consumed without mode inference.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(clippy::struct_excessive_bools)] // Mirrors four independent legacy transport flags.
+pub struct PairOptions {
+    pub can_short: bool,
+    pub include_funding: bool,
+    pub use_exit_signal: bool,
+    pub include_previous_close: bool,
 }
 
 /// Sparse Futures sources remain separate because their pair/timeframe
@@ -164,6 +177,7 @@ pub enum NativeContractError {
 pub(super) struct ManifestDocument {
     pub(super) schema_version: String,
     pub(super) source: SourceDocument,
+    pub(super) config: serde_json::Value,
     pub(super) compile_context: CompileContextDocument,
     pub(super) programs: ProgramDocuments,
     pub(super) run: RunDocument,
@@ -243,6 +257,17 @@ pub(super) struct PairDocument {
     pub(super) precision: PrecisionDocument,
     pub(super) limits: LimitsDocument,
     pub(super) price_steps: Vec<PriceStepDocument>,
+    pub(super) options: PairOptionsDocument,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(clippy::struct_excessive_bools)] // Strict JSON form of the four independent flags.
+pub(super) struct PairOptionsDocument {
+    pub(super) can_short: bool,
+    pub(super) include_funding: bool,
+    pub(super) use_exit_signal: bool,
+    pub(super) include_previous_close: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -293,6 +318,7 @@ pub(super) struct FuturesDocument {
 
 pub(super) struct ValidatedDocument {
     pub(super) source: SourceSeal,
+    pub(super) config: PortfolioConfig,
     pub(super) compile_context: CompileContext,
     pub(super) programs: ProgramDocuments,
     pub(super) run: RunContract,

@@ -44,16 +44,31 @@ fn fixture(mode: TradingMode) -> Fixture {
     let tag = write_program(root, "tag.json", TAG, mode);
     let frame_path = root.join("data/BTC_USDT-5m.feather");
     write_ohlcv(&frame_path, 100);
-    let features = vec!["open".to_owned(), "close".to_owned()];
+    let features = vec!["delta".to_owned()];
+    let config = json!({
+        "starting_balance": 1_000.0,
+        "max_open_trades": 2,
+        "stake_amount": 100.0,
+        "fee_rate": 0.001,
+        "stoploss_ratio": -0.2,
+        "amount_step": 0.001,
+        "price_step": 0.01,
+        "is_futures": mode == TradingMode::Futures
+    });
+    let config_sha = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&config).expect("config identity"))
+    );
     let document = json!({
         "schema_version": FULL_NATIVE_VECTOR_MANIFEST_VERSION,
         "source": {
             "strategy_sha256": STRATEGY_SHA,
-            "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "config_sha256": config_sha,
             "compiler_source_fingerprint":
                 "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "selected_class": CLASS_NAME
         },
+        "config": config,
         "compile_context": {"run_mode": "backtest", "trading_mode": mode.as_str()},
         "programs": {"indicator": indicator, "signal": signal, "tag": tag},
         "run": {
@@ -79,7 +94,13 @@ fn fixture(mode: TradingMode) -> Fixture {
             "price_steps": [
                 {"timestamp_ms": 0, "step": 0.01},
                 {"timestamp_ms": 500, "step": 0.1}
-            ]
+            ],
+            "options": {
+                "can_short": mode == TradingMode::Futures,
+                "include_funding": mode == TradingMode::Futures,
+                "use_exit_signal": true,
+                "include_previous_close": true
+            }
         }],
         "frames": [{
             "identity": {"pair": "BTC/USDT", "timeframe": "5m"},
@@ -136,6 +157,13 @@ fn artifact(root: &Path, path: &Path) -> Value {
     })
 }
 
+fn reseal_config(document: &mut Value) {
+    document["source"]["config_sha256"] = json!(format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&document["config"]).expect("embedded config identity"))
+    ));
+}
+
 fn write_ohlcv(path: &Path, timestamp_ms: i64) {
     fs::create_dir_all(path.parent().expect("parent")).expect("data directory");
     let fields = [Field::new(
@@ -175,7 +203,7 @@ fn loads_strict_spot_contract_and_dynamic_runtime_fields() {
     let loaded = load_full_native_vector_manifest(&fixture.path).expect("complete bundle");
     assert_eq!(loaded.run.source_row_shift, 3);
     assert_eq!(loaded.run.startup_candles, 17);
-    assert_eq!(loaded.retained_features.columns, ["open", "close"]);
+    assert_eq!(loaded.retained_features.columns, ["delta"]);
     assert_eq!(loaded.pairs[0].metadata["market"], "test");
     assert_eq!(loaded.pairs[0].price_steps.len(), 2);
     assert!(loaded.futures.is_empty());
@@ -241,6 +269,10 @@ fn rejects_context_and_feature_drift_before_raw_decode() {
     context.document["frames"][0]["artifact"] = artifact(context.temporary.path(), &raw);
     context.document["compile_context"]["trading_mode"] = json!("futures");
     context.document["run"]["trading_mode"] = json!("futures");
+    context.document["config"]["is_futures"] = json!(true);
+    context.document["pairs"][0]["options"]["can_short"] = json!(true);
+    context.document["pairs"][0]["options"]["include_funding"] = json!(true);
+    reseal_config(&mut context.document);
     context.write_manifest();
     let error = load_full_native_vector_manifest(&context.path)
         .expect_err("compile context must fail before Arrow");

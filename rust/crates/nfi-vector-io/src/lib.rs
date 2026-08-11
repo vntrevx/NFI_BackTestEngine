@@ -7,8 +7,10 @@
 
 mod decode;
 mod failures;
+mod freqtrade_funding;
 mod freqtrade_ohlcv;
 mod full_manifest;
+mod full_pipeline;
 #[allow(clippy::module_name_repetitions)] // Public API distinguishes direct and Feather profiles.
 mod in_memory;
 mod loader;
@@ -18,6 +20,11 @@ mod schema;
 mod values;
 
 pub use failures::VectorInputError;
+pub use freqtrade_funding::prepare_events as prepare_funding_events;
+pub use freqtrade_funding::{
+    PreparedEvents as PreparedFundingEvents, MARK_COLUMN as FUNDING_MARK_COLUMN,
+    RATE_COLUMN as FUNDING_RATE_COLUMN,
+};
 pub use freqtrade_ohlcv::clean_frame as clean_freqtrade_ohlcv;
 pub use freqtrade_ohlcv::{
     execution_positions, prepare_execution_ohlcv, prepare_freqtrade_ohlcv_catalog, ClosedTimerange,
@@ -26,8 +33,12 @@ pub use freqtrade_ohlcv::{
 pub use full_manifest::{
     load_full_native_vector_manifest, retained_feature_fingerprint, CompileContext,
     FeatureRetention, FuturesFrameSet, HistoricPriceStep, NativeContractError, NativeVectorBundle,
-    PairContract, PairLimits, PairPrecision, RunContract, SourceSeal, TradingMode,
+    PairContract, PairLimits, PairOptions, PairPrecision, RunContract, SourceSeal, TradingMode,
     FULL_NATIVE_VECTOR_MANIFEST_VERSION,
+};
+pub use full_pipeline::{
+    execute_full_native_vector_bundle_profiled, load_full_native_vector_manifest_profiled,
+    FullNativePipelineError, FullNativeVectorProfile,
 };
 pub use in_memory::{
     assemble_in_memory_vectors, assemble_in_memory_vectors_profiled,
