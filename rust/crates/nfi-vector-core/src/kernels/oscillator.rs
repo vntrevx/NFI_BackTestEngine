@@ -293,6 +293,39 @@ pub(super) fn stochf(
     Ok((fast_k, fast_d))
 }
 
+/// TA-Lib STOCH with exact SMA slow-K and slow-D moving averages (type 0).
+pub(super) fn stoch(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    fast_k_period: usize,
+    k_smoothing: usize,
+    d_smoothing: usize,
+) -> Result<(Vec<f64>, Vec<f64>), VectorCoreError> {
+    let len = validate_price_inputs("STOCH", high, low, close)?;
+    validate_period("STOCH", "fast_k_period", fast_k_period, 1)?;
+    validate_period("STOCH", "slow_k_period", k_smoothing, 1)?;
+    validate_period("STOCH", "slow_d_period", d_smoothing, 1)?;
+
+    let first_slow_k = (fast_k_period - 1) + (k_smoothing - 1);
+    let lookback = first_slow_k + (d_smoothing - 1);
+    let mut slow_k = unavailable(len);
+    let mut slow_d = unavailable(len);
+    if len <= lookback {
+        return Ok((slow_k, slow_d));
+    }
+
+    let (_, all_slow_k) = stochf(high, low, close, fast_k_period, k_smoothing)?;
+    let valid_slow_k = &all_slow_k[first_slow_k..];
+    let smoothed_slow_d = simple_moving_average(valid_slow_k, d_smoothing);
+    for (offset, value) in smoothed_slow_d.iter().enumerate() {
+        let output_index = lookback + offset;
+        slow_k[output_index] = valid_slow_k[d_smoothing - 1 + offset];
+        slow_d[output_index] = *value;
+    }
+    Ok((slow_k, slow_d))
+}
+
 /// TA-Lib ULTOSC after its period ordering and true-range priming steps.
 pub(super) fn ultosc(
     high: &[f64],
@@ -367,6 +400,7 @@ pub(super) enum OscillatorStream {
     Cci(CciStream),
     Mfi(MfiStream),
     Obv(ObvStream),
+    Stoch(StochStream),
     Stochf(StochfStream),
     Ultosc(UltOscStream),
 }
@@ -379,6 +413,10 @@ impl OscillatorStream {
             Self::Cci(state) => Ok(vec![state.execute(price_inputs("CCI", inputs)?)?]),
             Self::Mfi(state) => Ok(vec![state.execute(price_volume_inputs("MFI", inputs)?)?]),
             Self::Obv(state) => Ok(vec![state.execute(obv_inputs(inputs)?)?]),
+            Self::Stoch(state) => {
+                let (slow_k, slow_d) = state.execute(price_inputs("STOCH", inputs)?)?;
+                Ok(vec![slow_k, slow_d])
+            }
             Self::Stochf(state) => {
                 let (fast_k, fast_d) = state.execute(price_inputs("STOCHF", inputs)?)?;
                 Ok(vec![fast_k, fast_d])
@@ -395,6 +433,7 @@ impl OscillatorStream {
             Self::Cci(state) => state.retained(),
             Self::Mfi(state) => state.retained(),
             Self::Obv(state) => state.retained(),
+            Self::Stoch(state) => state.retained(),
             Self::Stochf(state) => state.retained(),
             Self::Ultosc(state) => state.retained(),
         }
@@ -423,6 +462,22 @@ pub(super) fn stream(
             OscillatorStream::Mfi(MfiStream::new(period))
         }
         "OBV" => OscillatorStream::Obv(ObvStream::default()),
+        "STOCH" => {
+            if argument_period(arguments, "slowk_matype", 0)? != 0
+                || argument_period(arguments, "slowd_matype", 0)? != 0
+            {
+                return Err(VectorCoreError::InvalidState(
+                    "TA-Lib STOCH only supports exact SMA slow-K and slow-D".to_owned(),
+                ));
+            }
+            let fast_k_period = argument_period(arguments, "fastk_period", 5)?;
+            let k_smoothing = argument_period(arguments, "slowk_period", 3)?;
+            let d_smoothing = argument_period(arguments, "slowd_period", 3)?;
+            validate_period("STOCH", "fast_k_period", fast_k_period, 1)?;
+            validate_period("STOCH", "slow_k_period", k_smoothing, 1)?;
+            validate_period("STOCH", "slow_d_period", d_smoothing, 1)?;
+            OscillatorStream::Stoch(StochStream::new(fast_k_period, k_smoothing, d_smoothing))
+        }
         "STOCHF" => {
             if argument_period(arguments, "fastd_matype", 0)? != 0 {
                 return Err(VectorCoreError::InvalidState(
@@ -447,6 +502,63 @@ pub(super) fn stream(
         _ => return Ok(None),
     };
     Ok(Some(state))
+}
+
+#[derive(Debug)]
+pub(super) struct StochStream {
+    slow_k_state: StochfStream,
+    slow_d_period: usize,
+    slow_d_values: VecDeque<f64>,
+    slow_d_total: f64,
+    seen: usize,
+    first_slow_k: usize,
+}
+
+impl StochStream {
+    fn new(fast_k_period: usize, k_smoothing: usize, d_smoothing: usize) -> Self {
+        Self {
+            slow_k_state: StochfStream::new(fast_k_period, k_smoothing),
+            slow_d_period: d_smoothing,
+            slow_d_values: VecDeque::new(),
+            slow_d_total: 0.0,
+            seen: 0,
+            first_slow_k: (fast_k_period - 1) + (k_smoothing - 1),
+        }
+    }
+
+    fn execute(
+        &mut self,
+        inputs: PriceInputs<'_>,
+    ) -> Result<(Vec<f64>, Vec<f64>), VectorCoreError> {
+        let (raw, next_slow_k) = self.slow_k_state.execute(inputs)?;
+        drop(raw);
+        let mut slow_k = unavailable(next_slow_k.len());
+        let mut slow_d = unavailable(next_slow_k.len());
+        for (index, value) in next_slow_k.into_iter().enumerate() {
+            let global_index = self.seen + index;
+            if global_index < self.first_slow_k {
+                continue;
+            }
+            self.slow_d_total += value;
+            self.slow_d_values.push_back(value);
+            if self.slow_d_values.len() == self.slow_d_period {
+                let average = self.slow_d_total / period_as_f64(self.slow_d_period);
+                let oldest = self
+                    .slow_d_values
+                    .pop_front()
+                    .expect("full STOCH slow-D state has a trailing value");
+                self.slow_d_total -= oldest;
+                slow_k[index] = value;
+                slow_d[index] = average;
+            }
+        }
+        self.seen = self.seen.saturating_add(slow_k.len());
+        Ok((slow_k, slow_d))
+    }
+
+    fn retained(&self) -> usize {
+        self.slow_k_state.retained() + self.slow_d_values.len() + 2
+    }
 }
 
 #[derive(Debug)]
@@ -1207,6 +1319,7 @@ mod tests {
         cci_matches_pinned_bits();
         mfi_matches_pinned_bits();
         obv_matches_pinned_bits();
+        stoch_matches_pinned_bits();
         stochf_matches_pinned_bits();
         ultosc_matches_pinned_bits();
     }
@@ -1353,6 +1466,52 @@ mod tests {
         );
     }
 
+    fn stoch_matches_pinned_bits() {
+        let (slow_k, slow_d) = stoch(&HIGH, &LOW, &CLOSE, 3, 2, 2).expect("valid STOCH");
+        assert_bits(
+            &slow_k,
+            &[
+                0x7ff8_0000_0000_0000,
+                0x7ff8_0000_0000_0000,
+                0x7ff8_0000_0000_0000,
+                0x7ff8_0000_0000_0000,
+                0x404e_3555_5555_5556,
+                0x404d_c30c_30c3_0c31,
+                0x4053_0c30_c30c_30c4,
+                0x4049_0000_0000_0002,
+                0x404d_c30c_30c3_0c32,
+                0x4054_6fbe_fbef_befc,
+                0x404b_c71c_71c7_1c72,
+                0x404d_c30c_30c3_0c30,
+                0x4054_6fbe_fbef_befc,
+                0x404b_c71c_71c7_1c72,
+                0x404d_c30c_30c3_0c30,
+                0x4054_6fbe_fbef_befc,
+            ],
+        );
+        assert_bits(
+            &slow_d,
+            &[
+                0x7ff8_0000_0000_0000,
+                0x7ff8_0000_0000_0000,
+                0x7ff8_0000_0000_0000,
+                0x7ff8_0000_0000_0000,
+                0x4050_ed55_5555_5556,
+                0x404d_fc30_c30c_30c4,
+                0x4050_f6db_6db6_db6e,
+                0x404f_8c30_c30c_30c5,
+                0x404b_6186_1861_861a,
+                0x4051_a8a2_8a28_a28a,
+                0x4051_29a6_9a69_a69a,
+                0x404c_c514_5145_1450,
+                0x4051_a8a2_8a28_a28a,
+                0x4051_29a6_9a69_a69a,
+                0x404c_c514_5145_1450,
+                0x4051_a8a2_8a28_a28a,
+            ],
+        );
+    }
+
     fn ultosc_matches_pinned_bits() {
         assert_bits(
             &ultosc(&HIGH, &LOW, &CLOSE, 2, 3, 4).expect("valid ULTOSC"),
@@ -1458,6 +1617,21 @@ mod tests {
                 &price_chunks,
             ),
         );
+        assert_columns_bits(
+            &{
+                let (slow_k, slow_d) = stoch(&HIGH, &LOW, &CLOSE, 3, 2, 2).expect("batch STOCH");
+                vec![slow_k, slow_d]
+            },
+            &collect_stream(
+                "STOCH",
+                &arguments(&[
+                    ("fastk_period", 3),
+                    ("slowk_period", 2),
+                    ("slowd_period", 2),
+                ]),
+                &price_chunks,
+            ),
+        );
 
         let volume_first = [&HIGH[..2], &LOW[..2], &CLOSE[..2], &VOLUME[..2]];
         let volume_second = [&HIGH[2..7], &LOW[2..7], &CLOSE[2..7], &VOLUME[2..7]];
@@ -1505,6 +1679,16 @@ mod tests {
             ("CCI", arguments(&[("timeperiod", 3)]), price.to_vec(), 3),
             ("MFI", arguments(&[("timeperiod", 3)]), volume.to_vec(), 9),
             ("OBV", Map::new(), vec![&CLOSE[..], &VOLUME[..]], 2),
+            (
+                "STOCH",
+                arguments(&[
+                    ("fastk_period", 3),
+                    ("slowk_period", 2),
+                    ("slowd_period", 2),
+                ]),
+                price.to_vec(),
+                14,
+            ),
             (
                 "STOCHF",
                 arguments(&[("fastk_period", 3), ("fastd_period", 2)]),

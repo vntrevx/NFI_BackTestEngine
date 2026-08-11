@@ -594,6 +594,154 @@ def test_indicator_program_lowers_numpy_buffers_and_static_container_unroll(
     validate_indicator_program(program)
 
 
+def test_indicator_program_recognizes_legacy_chaikin_volume_sum_contract(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "LegacyChaikin.py"
+    source.write_text(
+        "import numpy as np\n"
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class LegacyChaikin(IStrategy):\n"
+        "    @staticmethod\n"
+        "    def rolling_sum(arr, timeperiod):\n"
+        "        return arr\n"
+        "    @staticmethod\n"
+        "    def chaikin_money_flow(high, low, close, volume, timeperiod=20):\n"
+        "        hl_range = high - low\n"
+        "        mfm = np.zeros_like(close, dtype=np.float64)\n"
+        "        valid = hl_range != 0\n"
+        "        mfm[valid] = ((close[valid] - low[valid]) - "
+        "(high[valid] - close[valid])) / hl_range[valid]\n"
+        "        mfv = mfm * volume\n"
+        "        mfv_sum = __class__.rolling_sum(mfv, timeperiod)\n"
+        "        vol_sum = ta.SUM(volume, timeperiod=timeperiod)\n"
+        "        vol_sum = np.where(vol_sum == 0, np.nan, vol_sum)\n"
+        "        return mfv_sum / vol_sum\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['cmf'] = self.chaikin_money_flow(\n"
+        "            dataframe['high'], dataframe['low'], dataframe['close'],\n"
+        "            dataframe['volume'], timeperiod=20,\n"
+        "        )\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="LegacyChaikin")
+
+    call = next(node for node in program["nodes"] if node["op"] == "indicator-call")
+    assert call["parameters"] == {
+        "family": "native",
+        "name": "chaikin-money-flow-legacy",
+        "arguments": {"timeperiod": 20},
+    }
+    assert call["lookback"] == {
+        "kind": "function-defined",
+        "candles": 19,
+        "expression": "chaikin-money-flow-legacy",
+        "causal": True,
+    }
+    validate_indicator_program(program)
+
+
+def test_indicator_program_unrolls_tuple_of_source_ordered_dynamic_mappings(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "MappingGroups.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class MappingGroups(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        first = {}\n"
+        "        first['5m'] = dataframe\n"
+        "        second = {}\n"
+        "        second['15m'] = dataframe\n"
+        "        for frames in (first, second):\n"
+        "            for timeframe, frame in frames.items():\n"
+        "                dataframe = frame\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="MappingGroups")
+
+    assert program["required_input_columns"] == []
+    assert program["produced_columns"] == []
+    assert program["opcodes"] == ["parameter", "return"]
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_source_guarded_inplace_column_drop(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "InplaceDrop.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class InplaceDrop(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        column = 'date_15m'\n"
+        "        if column in dataframe.columns:\n"
+        "            dataframe.drop(columns=column, inplace=True)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="InplaceDrop")
+
+    dropped = next(
+        node for node in program["nodes"] if node["op"] == "frame-drop-if-present"
+    )
+    assert dropped["parameters"] == {"column": "date_15m"}
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_inplace_forward_fill_as_frame_rebinding(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "InplaceFill.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class InplaceFill(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe.ffill(inplace=True)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="InplaceFill")
+
+    fill = next(node for node in program["nodes"] if node["op"] == "fill")
+    assert fill["value_type"] == "dataframe"
+    assert fill["parameters"] == {"direction": "forward"}
+    assert fill["lookback"]["kind"] == "recursive"
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_numeric_fillna_without_collapsing_infinity(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "FillMissing.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class FillMissing(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['filled'] = dataframe['source'].fillna(50.0)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="FillMissing")
+
+    call = next(node for node in program["nodes"] if node["op"] == "array-call")
+    assert call["parameters"] == {
+        "family": "numpy",
+        "name": "fill-missing",
+        "arguments": {},
+    }
+    assert call["value_type"] == "f64-column"
+    validate_indicator_program(program)
+
+
 def test_indicator_program_rejects_dynamic_window_and_helper_signature(tmp_path: Path) -> None:
     source = tmp_path / "DynamicWindow.py"
     source.write_text(

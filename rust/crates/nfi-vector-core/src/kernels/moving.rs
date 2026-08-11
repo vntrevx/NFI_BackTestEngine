@@ -56,6 +56,17 @@ pub(super) enum MovingStream {
     },
 }
 
+pub(super) fn sum_stream(period: usize) -> Result<MovingStream, VectorCoreError> {
+    validate_period(period, 2, "SUM")?;
+    Ok(MovingStream::Sum {
+        period,
+        total: 0.0,
+        values: VecDeque::new(),
+        average: false,
+        started: false,
+    })
+}
+
 /// Build bounded streaming state for a moving indicator, if it is supported.
 pub(super) fn stream(
     name: &str,

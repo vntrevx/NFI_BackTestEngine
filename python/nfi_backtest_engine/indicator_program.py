@@ -528,6 +528,8 @@ class _Compiler:
         if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
             if self.append_sequence(node.value):
                 return
+            if self.inplace_forward_fill(node.value):
+                return
             self.expression(node.value)
             return
         if (
@@ -1606,6 +1608,22 @@ class _Compiler:
                 parameters={"periods": periods},
                 lookback=_add_finite_lookback(self.lookback(base), periods),
             )
+        if method == "fillna":
+            if len(node.args) != 1 or node.keywords:
+                self.unsupported(node, "fillna signature")
+            if self.node_types[base] != "f64-column":
+                self.unsupported(node.func.value, "fillna source type")
+            fill = self.expression(node.args[0])
+            if self.node_types[fill] not in {"int-scalar", "f64-scalar"}:
+                self.unsupported(node.args[0], "fillna value type")
+            return self.emit(
+                node,
+                "array-call",
+                "f64-column",
+                inputs=[base, fill],
+                parameters={"family": "numpy", "name": "fill-missing", "arguments": {}},
+                lookback=self.merged_lookback([base, fill]),
+            )
         if method == "ffill":
             if node.args or node.keywords:
                 self.unsupported(node, "parameterized forward fill")
@@ -1859,6 +1877,19 @@ class _Compiler:
 
     def static_loop_iterations(self, node: ast.For) -> list[tuple[Binding, ...]] | None:
         target_names = _loop_target_names(node.target)
+        if len(target_names) == 1 and isinstance(node.iter, ast.Tuple | ast.List):
+            bound_items: list[tuple[Binding, ...]] = []
+            for element in node.iter.elts:
+                if not isinstance(element, ast.Name):
+                    bound_items = []
+                    break
+                binding = self.bindings.get(element.id)
+                if not isinstance(binding, _MappingBinding | _SequenceBinding):
+                    bound_items = []
+                    break
+                bound_items.append((binding,))
+            if bound_items:
+                return bound_items
         if (
             isinstance(node.iter, ast.Call)
             and isinstance(node.iter.func, ast.Attribute)
@@ -2049,32 +2080,45 @@ class _Compiler:
             and isinstance(node.test.comparators[0].value, ast.Name)
             and not node.orelse
             and len(node.body) == 1
-            and isinstance(node.body[0], ast.Assign)
-            and len(node.body[0].targets) == 1
-            and isinstance(node.body[0].targets[0], ast.Name)
-            and isinstance(node.body[0].value, ast.Call)
-            and isinstance(node.body[0].value.func, ast.Attribute)
-            and node.body[0].value.func.attr == "drop"
-            and isinstance(node.body[0].value.func.value, ast.Name)
         ):
             return False
         dataframe_name = node.test.comparators[0].value.id
-        assignment = node.body[0]
-        assert isinstance(assignment, ast.Assign)
-        assert isinstance(assignment.targets[0], ast.Name)
-        assert isinstance(assignment.value, ast.Call)
-        assert isinstance(assignment.value.func, ast.Attribute)
-        assert isinstance(assignment.value.func.value, ast.Name)
+        branch = node.body[0]
+        assignment_target: str | None = None
         if (
-            assignment.targets[0].id != dataframe_name
-            or assignment.value.func.value.id != dataframe_name
-            or assignment.value.args
-            or len(assignment.value.keywords) != 1
-            or assignment.value.keywords[0].arg != "columns"
+            isinstance(branch, ast.Assign)
+            and len(branch.targets) == 1
+            and isinstance(branch.targets[0], ast.Name)
+            and isinstance(branch.value, ast.Call)
+        ):
+            assignment_target = branch.targets[0].id
+            call = branch.value
+        elif isinstance(branch, ast.Expr) and isinstance(branch.value, ast.Call):
+            call = branch.value
+        else:
+            return False
+        if not (
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr == "drop"
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == dataframe_name
+            and not call.args
         ):
             return False
+        keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+        if None in keywords or "columns" not in keywords:
+            return False
+        if assignment_target is not None:
+            if assignment_target != dataframe_name or set(keywords) != {"columns"}:
+                return False
+        elif set(keywords) != {"columns", "inplace"}:
+            return False
+        if assignment_target is None:
+            found_inplace, inplace = self.try_static_value(keywords["inplace"])
+            if not found_inplace or inplace is not True:
+                return False
         found_test, test_column = self.try_static_value(node.test.left)
-        found_drop, drop_column = self.try_static_value(assignment.value.keywords[0].value)
+        found_drop, drop_column = self.try_static_value(keywords["columns"])
         if (
             not found_test
             or not found_drop
@@ -2094,6 +2138,39 @@ class _Compiler:
             lookback=self.lookback(dataframe),
         )
         self.bindings[dataframe_name] = dropped
+        return True
+
+    def inplace_forward_fill(self, node: ast.Call) -> bool:
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == "ffill"
+            and isinstance(node.func.value, ast.Name)
+            and not node.args
+            and len(node.keywords) == 1
+            and node.keywords[0].arg == "inplace"
+        ):
+            return False
+        found, inplace = self.try_static_value(node.keywords[0].value)
+        if not found or inplace is not True:
+            return False
+        name = node.func.value.id
+        base = self.bindings.get(name)
+        if not isinstance(base, str) or self.node_types[base] != "dataframe":
+            self.unsupported(node.func.value, "in-place forward-fill dataframe")
+        filled = self.emit(
+            node,
+            "fill",
+            "dataframe",
+            inputs=[base],
+            parameters={"direction": "forward"},
+            lookback={
+                "kind": "recursive",
+                "candles": None,
+                "expression": _safe_expression(node),
+                "causal": bool(self.lookback(base)["causal"]),
+            },
+        )
+        self.bindings[name] = filled
         return True
 
     def append_sequence(self, call: ast.Call) -> bool:
@@ -2813,9 +2890,15 @@ def _normalized_native_indicator_helper(
     if matched is None:
         return None
     arguments = dict(bound)
-    if matched == "chaikin-money-flow":
+    if matched in {"chaikin-money-flow", "chaikin-money-flow-legacy"}:
         found, period = compiler.try_static_value(arguments["timeperiod"])
-        if not found or not isinstance(period, int) or isinstance(period, bool) or period <= 0:
+        minimum = 2 if matched == "chaikin-money-flow-legacy" else 1
+        if (
+            not found
+            or not isinstance(period, int)
+            or isinstance(period, bool)
+            or period < minimum
+        ):
             compiler.unsupported(arguments["timeperiod"], "chaikin timeperiod")
         return matched, [arguments[name] for name in ("high", "low", "close", "volume")], {
             "timeperiod": period

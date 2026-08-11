@@ -89,6 +89,7 @@ fn execute_numpy<'batch>(
         "full_like" => full_like(node, values, rows, source),
         "divide" => divide_where(node, values, rows, source),
         "zeros_like" => zeros_like(node, values, rows, source),
+        "fill-missing" => fill_missing(node, values, rows, source),
         "nan_to_num" => elementwise_unary(node, values, rows, numpy_nan_to_num, source),
         _ => Err(unsupported(node, source)),
     }
@@ -246,6 +247,27 @@ fn zeros_like<'batch>(
     let template = one_input(node, source)?;
     require_f64_column(values, template, rows, node, source)?;
     Ok(column(vec![Some(0.0); rows]))
+}
+
+fn fill_missing<'batch>(
+    node: &ProgramNode,
+    values: &BTreeMap<String, NodeValue<'batch>>,
+    rows: usize,
+    source: Option<&SourceLocation>,
+) -> Result<NodeValue<'batch>, VectorCoreError> {
+    require_output(node, "f64-column", source)?;
+    let [input, fill] = two_inputs(node, source)?;
+    let input = require_f64_column(values, input, rows, node, source)?;
+    let fill = numeric_scalar(values, fill, node, source)?
+        .ok_or_else(|| error(node, source, "fill-missing value is Arrow null"))?;
+    Ok(column(
+        (0..rows)
+            .map(|row| match input.f64_at(row) {
+                Some(value) if !value.is_nan() => Some(value),
+                _ => Some(fill),
+            })
+            .collect(),
+    ))
 }
 
 fn divide_where<'batch>(
@@ -833,6 +855,31 @@ mod tests {
         )
         .expect("valid zeros_like");
         assert_eq!(output(&zeroed), vec![Some(0.0); 3]);
+
+        let missing = BTreeMap::from([
+            (
+                "input".to_owned(),
+                owned_f64(vec![None, Some(f64::NAN), Some(f64::INFINITY), Some(-0.0)]),
+            ),
+            ("fill".to_owned(), NodeValue::Float(50.0)),
+        ]);
+        let filled_missing = execute_array_call(
+            &node("fill-missing", "f64-column", &["input", "fill"], &json!({})),
+            &missing,
+            4,
+            &mut ArrayCallState::default(),
+            Some(&source()),
+        )
+        .expect("valid fill-missing");
+        let filled_missing = output(&filled_missing);
+        assert_eq!(
+            filled_missing[..3],
+            [Some(50.0), Some(50.0), Some(f64::INFINITY)]
+        );
+        assert_eq!(
+            filled_missing[3].expect("negative zero").to_bits(),
+            (-0.0_f64).to_bits()
+        );
 
         let square_root = execute_array_call(
             &node("sqrt", "dynamic", &["scalar"], &json!({})),

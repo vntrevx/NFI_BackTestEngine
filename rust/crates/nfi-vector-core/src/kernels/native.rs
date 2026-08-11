@@ -5,6 +5,8 @@ use std::collections::VecDeque;
 use crate::float::{binary, canonicalize, BinaryFloatOp, CANONICAL_NAN_BITS};
 use crate::VectorCoreError;
 
+use super::moving::{sum_stream, MovingStream};
+
 const MAX_PERIOD: usize = 100_000;
 const HOUR_MS: i64 = 3_600_000;
 const DAY_MS: i64 = 86_400_000;
@@ -112,6 +114,113 @@ pub fn chaikin_money_flow(
     timeperiod: usize,
 ) -> Result<Vec<f64>, VectorCoreError> {
     ChaikinMoneyFlowStream::new(timeperiod)?.execute(high, low, close, volume)
+}
+
+/// Bounded state for the older X7 Chaikin helper, whose volume denominator
+/// uses TA-Lib `SUM` instead of `NumPy`'s NaN-to-zero prefix sum.
+#[derive(Debug)]
+pub struct LegacyChaikinMoneyFlowStream {
+    period: usize,
+    prefix_mfv: f64,
+    mfv_prefixes: VecDeque<f64>,
+    volume_sum: MovingStream,
+}
+
+impl LegacyChaikinMoneyFlowStream {
+    /// Creates the exact legacy Chaikin stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `timeperiod` is outside the bounded SUM contract.
+    pub fn new(timeperiod: usize) -> Result<Self, VectorCoreError> {
+        Ok(Self {
+            period: timeperiod,
+            prefix_mfv: 0.0,
+            mfv_prefixes: VecDeque::with_capacity(timeperiod),
+            volume_sum: sum_stream(timeperiod)?,
+        })
+    }
+
+    /// Processes one ordered chunk with the legacy mixed NumPy/TA-Lib contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the four input columns have different lengths.
+    #[allow(clippy::float_cmp)] // The source uses exact NumPy zero comparisons.
+    pub fn execute(
+        &mut self,
+        high: &[f64],
+        low: &[f64],
+        close: &[f64],
+        volume: &[f64],
+    ) -> Result<Vec<f64>, VectorCoreError> {
+        validate_equal_lengths("legacy Chaikin money flow", &[high, low, close, volume])?;
+        let volume_sums = self.volume_sum.execute(&[volume])?;
+        let volume_sums = volume_sums.first().ok_or_else(|| {
+            VectorCoreError::InvalidState("legacy Chaikin volume SUM returned no output".to_owned())
+        })?;
+        let mut output = Vec::with_capacity(high.len());
+        for (row, (((&high, &low), &close), &volume)) in
+            high.iter().zip(low).zip(close).zip(volume).enumerate()
+        {
+            let range = binary(high, low, BinaryFloatOp::Subtract);
+            let multiplier = if range == 0.0 {
+                0.0
+            } else {
+                let close_minus_low = binary(close, low, BinaryFloatOp::Subtract);
+                let high_minus_close = binary(high, close, BinaryFloatOp::Subtract);
+                let numerator = binary(close_minus_low, high_minus_close, BinaryFloatOp::Subtract);
+                binary(numerator, range, BinaryFloatOp::Divide)
+            };
+            let mfv = nan_to_num(binary(multiplier, volume, BinaryFloatOp::Multiply));
+            self.prefix_mfv = binary(self.prefix_mfv, mfv, BinaryFloatOp::Add);
+            self.mfv_prefixes.push_back(self.prefix_mfv);
+            let mfv_sum = match self.mfv_prefixes.len().cmp(&self.period) {
+                std::cmp::Ordering::Less => None,
+                std::cmp::Ordering::Equal => Some(self.prefix_mfv),
+                std::cmp::Ordering::Greater => {
+                    let old = self.mfv_prefixes.pop_front().ok_or_else(|| {
+                        VectorCoreError::InvalidState(
+                            "legacy Chaikin prefix state is empty".to_owned(),
+                        )
+                    })?;
+                    Some(binary(self.prefix_mfv, old, BinaryFloatOp::Subtract))
+                }
+            };
+            output.push(mfv_sum.map_or_else(canonical_nan, |mfv_sum| {
+                let volume_sum = volume_sums[row];
+                if volume_sum == 0.0 {
+                    canonical_nan()
+                } else {
+                    binary(mfv_sum, volume_sum, BinaryFloatOp::Divide)
+                }
+            }));
+        }
+        Ok(output)
+    }
+
+    /// Number of retained rolling values across both numerator and denominator.
+    #[must_use]
+    pub fn retained(&self) -> usize {
+        self.mfv_prefixes
+            .len()
+            .saturating_add(self.volume_sum.retained())
+    }
+}
+
+/// Executes the legacy Chaikin helper over one complete batch.
+///
+/// # Errors
+///
+/// Returns an error for an invalid period or unequal input lengths.
+pub fn legacy_chaikin_money_flow(
+    high: &[f64],
+    low: &[f64],
+    close: &[f64],
+    volume: &[f64],
+    timeperiod: usize,
+) -> Result<Vec<f64>, VectorCoreError> {
+    LegacyChaikinMoneyFlowStream::new(timeperiod)?.execute(high, low, close, volume)
 }
 
 /// One-row state for percentage change with an exact zero-denominator guard.
@@ -559,6 +668,34 @@ mod tests {
             f64::from_bits(0xbfb1_1111_1111_1111),
         ];
         assert_bits(&actual, &expected);
+    }
+
+    #[test]
+    fn legacy_chaikin_keeps_talib_volume_sum_nan_warmup() {
+        let high = [2.0; 4];
+        let low = [0.0; 4];
+        let close = [1.5; 4];
+        let volume = [f64::NAN, 1.0, 1.0, 1.0];
+        let expected = [canonical_nan(), canonical_nan(), 0.5, 0.5];
+        let actual =
+            legacy_chaikin_money_flow(&high, &low, &close, &volume, 2).expect("valid legacy CMF");
+        assert_bits(&actual, &expected);
+
+        let modern = chaikin_money_flow(&high, &low, &close, &volume, 2).expect("valid modern CMF");
+        assert_eq!(modern[1].to_bits(), 0.5_f64.to_bits());
+        assert!(actual[1].is_nan());
+
+        let mut stream = LegacyChaikinMoneyFlowStream::new(2).expect("valid stream");
+        let mut chunked = stream
+            .execute(&high[..1], &low[..1], &close[..1], &volume[..1])
+            .expect("first chunk");
+        chunked.extend(
+            stream
+                .execute(&high[1..], &low[1..], &close[1..], &volume[1..])
+                .expect("second chunk"),
+        );
+        assert_bits(&chunked, &expected);
+        assert!(stream.retained() <= 4);
     }
 
     #[test]

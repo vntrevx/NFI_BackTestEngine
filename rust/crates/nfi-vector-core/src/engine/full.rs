@@ -22,7 +22,8 @@ use crate::alignment::{FrameCatalog, FrameIdentity, NumericFrame, SourceLocation
 use crate::column::{OwnedColumn, ValueType};
 use crate::error::VectorCoreError;
 use crate::kernels::{
-    rolling_stream, ChaikinMoneyFlowStream, RollingStream, SafePercentChangeStream, TalibStream,
+    rolling_stream, ChaikinMoneyFlowStream, LegacyChaikinMoneyFlowStream, RollingStream,
+    SafePercentChangeStream, TalibStream,
 };
 use crate::program::{IndicatorProgram, ProgramFunction, ProgramNode};
 use crate::state::ShiftState;
@@ -90,6 +91,7 @@ pub struct FullIndicatorEngine<'program> {
     rolling_states: BTreeMap<String, RollingStream>,
     array_states: BTreeMap<String, ArrayCallState>,
     chaikin_states: BTreeMap<String, (usize, ChaikinMoneyFlowStream)>,
+    legacy_chaikin_states: BTreeMap<String, (usize, LegacyChaikinMoneyFlowStream)>,
     percent_change_states: BTreeMap<String, SafePercentChangeStream>,
 }
 
@@ -128,6 +130,7 @@ impl<'program> FullIndicatorEngine<'program> {
             rolling_states: BTreeMap::new(),
             array_states: BTreeMap::new(),
             chaikin_states: BTreeMap::new(),
+            legacy_chaikin_states: BTreeMap::new(),
             percent_change_states: BTreeMap::new(),
         })
     }
@@ -187,6 +190,7 @@ impl<'program> FullIndicatorEngine<'program> {
         self.rolling_states.clear();
         self.array_states.clear();
         self.chaikin_states.clear();
+        self.legacy_chaikin_states.clear();
         self.percent_change_states.clear();
     }
 
@@ -415,6 +419,31 @@ impl<'program> FullIndicatorEngine<'program> {
                             .insert((
                                 period,
                                 ChaikinMoneyFlowStream::new(period)
+                                    .map_err(|error| located(source, error))?,
+                            ))
+                            .1
+                    }
+                };
+                state
+                    .execute(slices[0], slices[1], slices[2], slices[3])
+                    .map_err(|error| located(source, error))?
+            }
+            ("native", "chaikin-money-flow-legacy") if slices.len() == 4 => {
+                let period = bounded_argument(arguments, "timeperiod", source)?;
+                let state = match self.legacy_chaikin_states.entry(key) {
+                    std::collections::btree_map::Entry::Occupied(entry) => {
+                        if entry.get().0 != period {
+                            return Err(source.error(
+                                "legacy Chaikin money-flow period changed between executions",
+                            ));
+                        }
+                        &mut entry.into_mut().1
+                    }
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        &mut entry
+                            .insert((
+                                period,
+                                LegacyChaikinMoneyFlowStream::new(period)
                                     .map_err(|error| located(source, error))?,
                             ))
                             .1
