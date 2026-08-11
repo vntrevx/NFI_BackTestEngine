@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 140,
-  "updated_at": "2026-08-11T20:43:47+09:00",
+  "revision": 141,
+  "updated_at": "2026-08-11T21:20:59+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M21-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4917,7 +4917,7 @@
       "order": 2104,
       "milestone": "M21",
       "title": "Connect the in-memory Rust vector and simulation pipeline",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M21-03"
       ],
@@ -4936,7 +4936,7 @@
         "end-to-end Native vector fixture",
         "transport parity and performance report"
       ],
-      "started_at": null,
+      "started_at": "2026-08-11T21:20:59+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8591,6 +8591,21 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M21-04",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 188,
+      "timestamp": "2026-08-11T21:20:59+09:00",
+      "task_id": "M21-04",
+      "event": "task_started",
+      "details": {
+        "objective": "connect generic Rust vector output to the simulator through an exact in-memory transport while preserving sealed Feather replay",
+        "sealed_feather_replay_must_remain": true,
+        "pair_dag_parallelism_allowed": true,
+        "parallel_wallet_mutation_allowed": false,
+        "transport_trade_surface_and_full_state_exact_required": true,
+        "transport_performance_evidence_required": true,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
