@@ -166,6 +166,31 @@ def test_committed_indicator_program_contract_remains_schema_valid() -> None:
     assert all(node["lookback"]["causal"] for node in program["nodes"])
 
 
+def test_indicator_program_separates_positional_talib_parameters(tmp_path: Path) -> None:
+    source = tmp_path / "PositionalTalib.py"
+    source.write_text(
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class PositionalTalib(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['roc'] = ta.ROC(dataframe['close'], 10)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="PositionalTalib")
+    call = next(node for node in program["nodes"] if node["op"] == "indicator-call")
+
+    assert call["parameters"] == {
+        "family": "ta",
+        "name": "ROC",
+        "arguments": {"timeperiod": 10},
+    }
+    assert len(call["inputs"]) == 1
+    validate_indicator_program(program)
+
+
 def test_indicator_program_semantic_validator_rejects_reference_and_identity_mutation() -> None:
     program = compile_indicator_program(
         CONTRACT,

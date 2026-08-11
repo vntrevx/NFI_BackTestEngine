@@ -360,6 +360,28 @@ def _indicator_output_names(callable_name: str) -> tuple[str, ...] | None:
     return tuple(str(name) for name in names)
 
 
+@cache
+def _indicator_signature(callable_name: str) -> tuple[int, tuple[str, ...]] | None:
+    """Return TA-Lib array arity and its source-ordered static parameters."""
+    if not callable_name.startswith("ta."):
+        return None
+    from talib import abstract
+
+    try:
+        function = abstract.Function(callable_name.removeprefix("ta."))
+    except Exception:  # See the matching output-name probe above.
+        return None
+    input_count = 0
+    for value in function.input_names.values():
+        if isinstance(value, str):
+            input_count += 1
+        elif isinstance(value, Sequence):
+            input_count += len(value)
+        else:  # pragma: no cover - pinned TA-Lib exposes only these two shapes.
+            return None
+    return input_count, tuple(str(name) for name in function.parameters)
+
+
 def _qualified_name(node: ast.AST) -> str | None:
     if isinstance(node, ast.Name):
         return node.id

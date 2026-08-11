@@ -26,6 +26,7 @@ from ._indicator_ast import (
     _flatten_binary_values,
     _helper_bodies_equal,
     _indicator_output_names,
+    _indicator_signature,
     _is_absolute_difference_write,
     _is_array_index_nan_write,
     _is_json_value,
@@ -1524,10 +1525,24 @@ class _Compiler:
     ) -> tuple[list[str], dict[str, Any]]:
         if not callable_name.startswith(("ta.", "qtpylib.")):
             self.unsupported(node, "indexed value is not an indicator call")
-        return (
-            [self.expression(argument) for argument in node.args],
-            _literal_keyword_arguments(node, self),
-        )
+        signature = _indicator_signature(callable_name)
+        if signature is None:
+            return (
+                [self.expression(argument) for argument in node.args],
+                _literal_keyword_arguments(node, self),
+            )
+        input_count, parameter_names = signature
+        if len(node.args) < input_count or len(node.args) > input_count + len(parameter_names):
+            self.unsupported(node, "indicator positional signature")
+        inputs = [self.expression(argument) for argument in node.args[:input_count]]
+        arguments = _literal_keyword_arguments(node, self)
+        if any(name not in parameter_names for name in arguments):
+            self.unsupported(node, "unknown indicator keyword argument")
+        for name, argument in zip(parameter_names, node.args[input_count:], strict=False):
+            if name in arguments:
+                self.unsupported(argument, "duplicate indicator argument")
+            arguments[name] = _required_static(argument, self)
+        return inputs, arguments
 
     def emit_indicator_call(
         self,
