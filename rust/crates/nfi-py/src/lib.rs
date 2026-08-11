@@ -14,6 +14,8 @@ use nfi_vector_io::{load_vector_manifest, load_vector_manifest_profiled, VectorL
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+mod full_vector;
+
 #[pyfunction]
 fn schema_version() -> &'static str {
     nfi_sim_core::TRADE_SURFACE_SCHEMA_VERSION
@@ -250,5 +252,6 @@ fn _rust(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(simulate_file, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_vector_file, module)?)?;
     module.add_function(wrap_pyfunction!(simulate_vector_file_profiled, module)?)?;
+    module.add_function(wrap_pyfunction!(full_vector::execute_full_vector, module)?)?;
     Ok(())
 }

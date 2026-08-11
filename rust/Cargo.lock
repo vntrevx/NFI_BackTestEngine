@@ -383,6 +383,7 @@ name = "nfi-py"
 version = "1.5.0"
 dependencies = [
  "nfi-sim-core",
+ "nfi-vector-core",
  "nfi-vector-io",
  "pyo3",
  "serde_json",
