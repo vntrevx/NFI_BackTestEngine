@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "status": "diagnostic-only",
+  "recorded_at": "2026-08-11",
+  "claim_boundary": "M21-04 typed Rust vector-to-simulator transport. Exactness uses a four-row full-state fixture; performance uses four synthetic 25000-row pairs on one Linux development host. This is not latest-X7 qualification, a five-year benchmark, or a cross-platform release speed claim.",
+  "contract": {
+    "vector_program": "benchmarks/reference/vector-shadow/tag-program.json",
+    "vector_program_sha256": "eea095daeb5329274e3c825026cbed327ff40ada026efded143f6eba4db16e3e",
+    "transport_source": "rust/crates/nfi-vector-io/src/in_memory.rs",
+    "transport_source_sha256": "3cf2e59c50b1d286d21f54907a9c96cd69e54783d92a5e5b9a2b02d68e7894a8",
+    "signal_gate": "exact numeric == 1 or Boolean true",
+    "pair_order": "indexed input order",
+    "wallet_execution": "single global chronological loop",
+    "feather_replay_retained": true
+  },
+  "exact_observation": {
+    "workload_rows": 4,
+    "pair_count": 1,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "comparison": "owned direct input versus SHA-verified file-backed Feather input",
+    "direct": {
+      "pair_prepare_ns": 984131,
+      "estimated_source_column_bytes": 358,
+      "estimated_simulation_owned_bytes": 1216
+    },
+    "feather": {
+      "manifest_ns": 74852,
+      "vector_hash_ns": 23223,
+      "feather_decode_ns": 219656,
+      "file_backed_bytes": 356
+    }
+  },
+  "performance_observation": {
+    "workload_rows": 100000,
+    "rows_per_pair": 25000,
+    "pair_count": 4,
+    "feature_column_count": 4,
+    "direct": {
+      "vector_execute_ns": 901416,
+      "pair_prepare_ns": 11833000,
+      "transport_ns": 12734416,
+      "estimated_source_column_bytes": 8137532,
+      "estimated_simulation_owned_bytes": 29600052,
+      "configured_worker_limit": 16
+    },
+    "feather": {
+      "manifest_ns": 95616,
+      "vector_hash_ns": 7248024,
+      "feather_decode_ns": 18585906,
+      "transport_ns": 25929546,
+      "file_backed_bytes": 8900000
+    },
+    "observed_transport_speedup": 2.036178651616219,
+    "trade_surface_exact": true
+  },
+  "environment": {
+    "kernel": "Linux 7.0.0-28-generic",
+    "architecture": "x86_64",
+    "logical_cpu_limit": 16,
+    "memory_bytes": 50195083264,
+    "cargo_profile": "release"
+  },
+  "commands": [
+    "cargo test --release -p nfi-vector-io --locked in_memory::tests::direct_transport_is_full_state_exact_to_sealed_feather_replay -- --nocapture",
+    "cargo test --release -p nfi-vector-io --locked in_memory::tests::large_pair_transport_profile_is_reported_without_a_speed_assertion -- --ignored --nocapture"
+  ],
+  "limitations": [
+    "Each timing was measured once and includes one local Rayon pool configuration.",
+    "The synthetic workload has no open trades and measures transport, not callback or simulation speed.",
+    "The direct path retains owned simulator rows; Feather remains the bounded-heap replay option.",
+    "M22-01 must still compile and independently qualify the latest NFI Spot and Futures source."
+  ]
+}

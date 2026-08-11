@@ -31,7 +31,11 @@ strategy.py + config + candles
 AST preflight + frozen input/data identity
           |
           v
-SHA-bound Feather vectors + projected callback columns
+compiled Vector IR + typed pair columns
+          |
+          +------> parallel Rust pair DAG ------> direct owned simulator input
+          |
+          +------> SHA-bound Feather ----------> verified file-backed replay
           |
           v
 Rust global chronological portfolio loop
@@ -44,9 +48,10 @@ Rust global chronological portfolio loop
                  common canonical state trace -----------------> full exact check
 ```
 
-Python is not called once per candle. Python owns preparation, columnar transforms,
-reports, and proof artifacts. Rust owns mutable trade/order/wallet state and the hot
-chronological loop.
+Python is not called once per candle. Python owns source compilation, reports, and proof artifacts.
+Supported compiled vector work and typed transport can remain inside Rust. Rust owns mutable
+trade/order/wallet state and the hot chronological loop. Latest-X7 entry into this complete path is
+still separately qualified by the roadmap; unsupported source constructs fail closed.
 
 The compact vector manifest stores a relative Feather path, file SHA-256, row count,
 feature names, pair limits, precision, and historical price-step changes. Rust
@@ -79,6 +84,7 @@ competition, shared stake, rebuy timing, rejected signals, and equal-timestamp o
 Parallel work is limited to operations without shared mutable portfolio state:
 
 - indicators by pair;
+- complete compiled vector DAGs and typed simulator-input conversion by pair;
 - independent strategies, timeranges, fixtures, and candidate jobs;
 - offline scoring and report generation.
 

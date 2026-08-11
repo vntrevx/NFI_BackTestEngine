@@ -207,10 +207,14 @@ opens a Draft fixture PR. Neither kind is auto-approved or auto-merged.
 
 For supported X7 stateful callbacks, `run.json` records the
 `x7-generic-stateful` Native lane and every source-compiled primary program. The
-specialized X7 vector transport remains only an input contract. Current manager payloads
-execute generic programs without a handwritten X7 shadow; a missing or retired execution
-mode blocks Native before simulation and leaves the visible official fallback available.
-Historical schema readers remain available for sealed evidence replay.
+Rust vector core can now pass typed pair output directly into the chronological simulator;
+independent pair preparation is parallel, while wallet and order mutation remains one stable
+timestamp stream. SHA-verified Feather remains the durable evidence/replay path, and both transports
+must produce the same trade surface and every-candle state. Current manager payloads execute generic
+programs without a handwritten X7 shadow; a missing or retired execution mode blocks Native before
+simulation and leaves the visible official fallback available. Historical schema readers remain
+available for sealed evidence replay. See
+[Native In-Memory Vector Transport](docs/native-in-memory-vector.md).
 
 ## Confirm with official Freqtrade
 

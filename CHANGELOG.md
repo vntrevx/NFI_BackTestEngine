@@ -2,6 +2,15 @@
 
 All notable changes are recorded here. This project follows Semantic Versioning.
 
+## Unreleased
+
+- Connected typed Rust vector output directly to the chronological simulator, with
+  pair-parallel DAG preparation and no parallel wallet or order mutation.
+- Preserved SHA-verified Feather as the bounded-memory evidence/replay path and added
+  zero-tolerance trade-surface and every-candle full-state transport parity tests.
+- Kept latest-X7 Full Native qualification and the v1.6.0 release behind the remaining
+  M22 source-lowering, dual-mode exactness, performance, storage, and three-OS gates.
+
 ## 1.5.0 - 2026-08-10
 
 - Promoted source-compiled generic state-machine programs to the sole current

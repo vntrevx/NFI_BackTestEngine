@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use arrow2::array::{Array, PrimitiveArray, Utf8Array};
+use arrow2::array::{Array, BooleanArray, PrimitiveArray, Utf8Array};
 use arrow2::chunk::Chunk;
 use arrow2::datatypes::{DataType, TimeUnit};
 
@@ -144,7 +144,8 @@ pub(crate) fn is_numeric_type(data_type: &DataType) -> bool {
 }
 
 #[allow(clippy::float_cmp)]
-// Freqtrade intentionally activates a signal only for exact numeric 1. An
+// Freqtrade intentionally activates a signal only for exact numeric 1. Python
+// Boolean `True` is equal to 1, while arbitrary truthy numbers are not. An
 // epsilon comparison would incorrectly turn nearby strategy outputs into orders.
 pub(crate) fn enabled(
     array: &dyn Array,
@@ -155,6 +156,13 @@ pub(crate) fn enabled(
 ) -> Result<bool, VectorInputError> {
     if array.is_null(row) {
         return Ok(false);
+    }
+    if array.data_type() == &DataType::Boolean {
+        return Ok(array
+            .as_any()
+            .downcast_ref::<BooleanArray>()
+            .expect("Boolean physical type matches Arrow data type")
+            .value(row));
     }
     let value = required_number(array, row, pair, column, absolute_row)?;
     Ok(value == 1.0)
@@ -208,7 +216,7 @@ pub(crate) fn optional_text(
 
 #[cfg(test)]
 mod tests {
-    use arrow2::array::PrimitiveArray;
+    use arrow2::array::{BooleanArray, PrimitiveArray};
 
     use super::enabled;
 
@@ -230,5 +238,10 @@ mod tests {
                 expected
             );
         }
+
+        let booleans = BooleanArray::from([Some(true), Some(false), None]);
+        assert!(enabled(&booleans, 0, "ETH/USDT", "enter_long", 0).unwrap());
+        assert!(!enabled(&booleans, 1, "ETH/USDT", "enter_long", 1).unwrap());
+        assert!(!enabled(&booleans, 2, "ETH/USDT", "enter_long", 2).unwrap());
     }
 }

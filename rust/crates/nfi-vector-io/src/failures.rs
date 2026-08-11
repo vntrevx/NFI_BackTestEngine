@@ -7,6 +7,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum VectorInputError {
+    #[error("Native vector execution failed: {0}")]
+    VectorCore(#[from] nfi_vector_core::VectorCoreError),
     #[error("cannot read vector manifest {path}: {source}")]
     ReadManifest {
         path: PathBuf,
@@ -96,5 +98,12 @@ pub enum VectorInputError {
         pair: String,
         index: usize,
         rows: usize,
+    },
+    #[error("pair {pair:?} in-memory column {column:?} has type {actual}; expected {expected}")]
+    InMemoryColumnType {
+        pair: String,
+        column: String,
+        actual: &'static str,
+        expected: &'static str,
     },
 }
