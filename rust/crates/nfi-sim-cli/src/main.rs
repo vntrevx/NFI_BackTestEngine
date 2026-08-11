@@ -12,7 +12,16 @@ use nfi_sim_core::{
     simulate_with_observer, simulate_with_observer_profiled, SimulationInput, SimulationProfile,
     SimulationResult,
 };
-use nfi_vector_io::{load_vector_manifest, load_vector_manifest_profiled, VectorLoadProfile};
+use nfi_vector_io::{
+    load_full_native_vector_manifest_profiled, load_vector_manifest, load_vector_manifest_profiled,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InputKind {
+    SimulationJson,
+    FeatherVector,
+    FullVector,
+}
 
 fn main() -> ExitCode {
     match run() {
@@ -27,12 +36,16 @@ fn main() -> ExitCode {
 fn run() -> Result<(), String> {
     let mut arguments = env::args_os();
     let _program = arguments.next();
-    let mut vector_manifest = false;
+    let mut input_kind = InputKind::SimulationJson;
     let mut profile_output = None;
     let input = loop {
         let argument = arguments.next().ok_or_else(|| usage().to_owned())?;
         if argument == "--vector-manifest" {
-            vector_manifest = true;
+            select_input_kind(&mut input_kind, InputKind::FeatherVector)?;
+            continue;
+        }
+        if argument == "--full-vector-manifest" {
+            select_input_kind(&mut input_kind, InputKind::FullVector)?;
             continue;
         }
         if argument == "--profile-output" {
@@ -54,30 +67,11 @@ fn run() -> Result<(), String> {
     if arguments.next().is_some() {
         return Err(usage().to_owned());
     }
-    if profile_output.is_some() && !vector_manifest {
-        return Err("--profile-output requires --vector-manifest".to_owned());
+    if profile_output.is_some() && input_kind == InputKind::SimulationJson {
+        return Err("--profile-output requires a vector manifest".to_owned());
     }
 
-    let (document, input_profile) = if vector_manifest && profile_output.is_some() {
-        let (document, profile) = load_vector_manifest_profiled(&input)
-            .map_err(|error| format!("invalid vector manifest {}: {error}", input.display()))?;
-        (document, Some(profile))
-    } else if vector_manifest {
-        (
-            load_vector_manifest(&input)
-                .map_err(|error| format!("invalid vector manifest {}: {error}", input.display()))?,
-            None,
-        )
-    } else {
-        let encoded = fs::read(&input)
-            .map_err(|error| format!("cannot read {}: {error}", input.display()))?;
-        (
-            parse_simulation_input(&encoded).map_err(|error| {
-                format!("invalid simulation input {}: {error}", input.display())
-            })?,
-            None,
-        )
-    };
+    let (document, input_profile) = load_input(input_kind, &input, profile_output.is_some())?;
     let (result, simulation_profile) = if profile_output.is_some() {
         let (result, profile) = run_simulation_profiled(&document, trace)?;
         (result, Some(profile))
@@ -119,8 +113,66 @@ fn run() -> Result<(), String> {
 }
 
 fn usage() -> &'static str {
-    "usage: nfi-sim [--vector-manifest] [--profile-output profile.json] \
+    "usage: nfi-sim [--vector-manifest | --full-vector-manifest] \
+     [--profile-output profile.json] \
      <input.json> <output.json> [events.jsonl]"
+}
+
+fn select_input_kind(current: &mut InputKind, requested: InputKind) -> Result<(), String> {
+    if *current != InputKind::SimulationJson {
+        return Err("engine input kind may be selected only once".to_owned());
+    }
+    *current = requested;
+    Ok(())
+}
+
+fn load_input(
+    input_kind: InputKind,
+    input: &PathBuf,
+    profiled: bool,
+) -> Result<(SimulationInput, Option<serde_json::Value>), String> {
+    match input_kind {
+        InputKind::SimulationJson => {
+            let encoded = fs::read(input)
+                .map_err(|error| format!("cannot read {}: {error}", input.display()))?;
+            let document = parse_simulation_input(&encoded).map_err(|error| {
+                format!("invalid simulation input {}: {error}", input.display())
+            })?;
+            Ok((document, None))
+        }
+        InputKind::FeatherVector if profiled => {
+            let (document, profile) = load_vector_manifest_profiled(input)
+                .map_err(|error| format!("invalid vector manifest {}: {error}", input.display()))?;
+            Ok((document, Some(profile_value(profile)?)))
+        }
+        InputKind::FeatherVector => {
+            let document = load_vector_manifest(input)
+                .map_err(|error| format!("invalid vector manifest {}: {error}", input.display()))?;
+            Ok((document, None))
+        }
+        InputKind::FullVector => {
+            let (document, profile) =
+                load_full_native_vector_manifest_profiled(input).map_err(|error| {
+                    format!(
+                        "invalid full native vector manifest {}: {error}",
+                        input.display()
+                    )
+                })?;
+            Ok((
+                document,
+                if profiled {
+                    Some(profile_value(profile)?)
+                } else {
+                    None
+                },
+            ))
+        }
+    }
+}
+
+fn profile_value(profile: impl serde::Serialize) -> Result<serde_json::Value, String> {
+    serde_json::to_value(profile)
+        .map_err(|error| format!("cannot serialize input profile: {error}"))
 }
 
 fn run_simulation(
@@ -192,7 +244,7 @@ fn run_simulation_profiled(
 }
 
 fn profile_document(
-    input: &VectorLoadProfile,
+    input: &serde_json::Value,
     simulation: &SimulationProfile,
     serialization_ns: u64,
 ) -> serde_json::Value {

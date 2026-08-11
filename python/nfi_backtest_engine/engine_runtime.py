@@ -20,6 +20,13 @@ from .fixture import sha256_file
 from .hardware import SPOOL_DIRECTORY_ENVIRONMENT, load_execution_profile
 from .resource_usage import process_peak_rss_bytes
 
+SIMULATION_JSON_INPUT = "simulation-json"
+FEATHER_VECTOR_INPUT = "feather-vector"
+FULL_VECTOR_INPUT = "full-vector"
+_ENGINE_INPUT_KINDS = frozenset(
+    {SIMULATION_JSON_INPUT, FEATHER_VECTOR_INPUT, FULL_VECTOR_INPUT}
+)
+
 
 def build_engine(*, force: bool = False) -> dict[str, Any]:
     """Return the packaged engine, or build the source-checkout CLI fallback."""
@@ -126,14 +133,20 @@ def run_engine(
     timeout_seconds: int | None = None,
     events_path: str | Path | None = None,
     vector_manifest: bool = False,
+    input_kind: str | None = None,
     engine_profile_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run one simulation without per-candle Python calls.
 
-    ``vector_manifest=True`` selects the compact, SHA-bound Feather transport.
-    It is explicit instead of inferred from a filename so malformed inputs
-    cannot accidentally fall through to a different parser.
+    ``input_kind`` explicitly selects simulation JSON, the captured Feather
+    vector transport, or the complete Rust-native vector transport. The legacy
+    ``vector_manifest=True`` spelling remains an alias for ``feather-vector``.
+    No transport is inferred from a filename.
     """
+    selected_input_kind = _resolve_input_kind(
+        input_kind=input_kind,
+        vector_manifest=vector_manifest,
+    )
     source = Path(input_path).resolve()
     destination = Path(output_path).resolve()
     if not source.is_file():
@@ -144,8 +157,11 @@ def run_engine(
     engine_profile_destination = (
         Path(engine_profile_path).resolve() if engine_profile_path is not None else None
     )
-    if engine_profile_destination is not None and not vector_manifest:
-        raise BenchmarkError("engine phase profiling requires a vector manifest")
+    if (
+        engine_profile_destination is not None
+        and selected_input_kind == SIMULATION_JSON_INPUT
+    ):
+        raise BenchmarkError("engine phase profiling requires a vector input")
     if event_destination is not None and event_destination.exists():
         raise BenchmarkError(f"simulation events output already exists: {event_destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -166,7 +182,7 @@ def run_engine(
             profile_path=profile_path,
             timeout_seconds=timeout_seconds,
             build=build,
-            vector_manifest=vector_manifest,
+            input_kind=selected_input_kind,
             engine_profile_destination=engine_profile_destination,
         )
     binary = Path(build["binary_path"])
@@ -218,8 +234,12 @@ def run_engine(
             str(destination),
         ]
         engine_argument_index = len(time_prefix) + 1
-    if vector_manifest:
-        vector_arguments = ["--vector-manifest"]
+    if selected_input_kind != SIMULATION_JSON_INPUT:
+        vector_arguments = [
+            "--vector-manifest"
+            if selected_input_kind == FEATHER_VECTOR_INPUT
+            else "--full-vector-manifest"
+        ]
         if engine_profile_destination is not None:
             vector_arguments.extend(
                 [
@@ -262,6 +282,7 @@ def run_engine(
     result = read_json(destination)
     return {
         "schema_version": "1.0.0",
+        "input_kind": selected_input_kind,
         "input_path": str(source),
         "input_sha256": sha256_file(source),
         "output_path": str(destination),
@@ -295,7 +316,7 @@ def _run_native_engine(
     profile_path: str | Path | None,
     timeout_seconds: int | None,
     build: dict[str, Any],
-    vector_manifest: bool,
+    input_kind: str,
     engine_profile_destination: Path | None,
 ) -> dict[str, Any]:
     if timeout_seconds is not None and timeout_seconds <= 0:
@@ -311,14 +332,23 @@ def _run_native_engine(
     started_ns = time.perf_counter_ns()
     try:
         os.environ.update(environment)
-        if vector_manifest and engine_profile_destination is not None:
+        if input_kind == FULL_VECTOR_INPUT and engine_profile_destination is not None:
+            native.simulate_full_vector_file_profiled(
+                source,
+                destination,
+                engine_profile_destination,
+                event_destination,
+            )
+        elif input_kind == FULL_VECTOR_INPUT:
+            native.simulate_full_vector_file(source, destination, event_destination)
+        elif input_kind == FEATHER_VECTOR_INPUT and engine_profile_destination is not None:
             native.simulate_vector_file_profiled(
                 source,
                 destination,
                 engine_profile_destination,
                 event_destination,
             )
-        elif vector_manifest:
+        elif input_kind == FEATHER_VECTOR_INPUT:
             native.simulate_vector_file(source, destination, event_destination)
         else:
             native.simulate_file(source, destination, event_destination)
@@ -341,6 +371,7 @@ def _run_native_engine(
     result = read_json(destination)
     return {
         "schema_version": "1.0.0",
+        "input_kind": input_kind,
         "input_path": str(source),
         "input_sha256": sha256_file(source),
         "output_path": str(destination),
@@ -364,6 +395,18 @@ def _run_native_engine(
         ),
         "profile": _engine_profile_record(engine_profile_destination),
     }
+
+
+def _resolve_input_kind(*, input_kind: str | None, vector_manifest: bool) -> str:
+    if input_kind is None:
+        return FEATHER_VECTOR_INPUT if vector_manifest else SIMULATION_JSON_INPUT
+    if input_kind not in _ENGINE_INPUT_KINDS:
+        raise BenchmarkError(f"unsupported engine input kind: {input_kind}")
+    if vector_manifest and input_kind != FEATHER_VECTOR_INPUT:
+        raise BenchmarkError(
+            "vector_manifest=True conflicts with the explicit engine input kind"
+        )
+    return input_kind
 
 
 def _engine_profile_record(path: Path | None) -> dict[str, Any] | None:

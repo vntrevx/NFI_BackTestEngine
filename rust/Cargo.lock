@@ -397,6 +397,7 @@ version = "1.5.0"
 dependencies = [
  "nfi-sim-core",
  "nfi-vector-io",
+ "serde",
  "serde_json",
 ]
 
