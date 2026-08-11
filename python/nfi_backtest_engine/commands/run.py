@@ -329,6 +329,24 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         )
         print(f"signal program report: {args.output}")
         return 0
+    if args.strategy_command == "tag-program":
+        from ..tag_program import compile_tag_program
+
+        program = compile_tag_program(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+        )
+        write_json(args.output, program)
+        print(
+            "tag program: "
+            f"class={program['selected_class']}, "
+            f"mode={program['compile_context']['trading_mode']}, "
+            f"nodes={len(program['nodes'])}, "
+            f"tag_mutations={len(program['tag_mutation_nodes'])}"
+        )
+        print(f"tag program report: {args.output}")
+        return 0
     if args.strategy_command == "callback-ir":
         from ..callback_source_ir import compile_callback_source_ir
 
