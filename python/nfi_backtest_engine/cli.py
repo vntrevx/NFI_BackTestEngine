@@ -691,6 +691,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_indicator_program.add_argument("source", type=Path)
     strategy_indicator_program.add_argument("--class", dest="class_name")
+    strategy_indicator_program.add_argument("--config", type=Path)
     strategy_indicator_program.add_argument("--output", "-o", type=Path, required=True)
     strategy_signal_program = strategy_commands.add_parser(
         "signal-program",
@@ -698,6 +699,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_signal_program.add_argument("source", type=Path)
     strategy_signal_program.add_argument("--class", dest="class_name")
+    strategy_signal_program.add_argument("--config", type=Path)
     strategy_signal_program.add_argument(
         "--trading-mode",
         choices=("spot", "futures"),
@@ -710,6 +712,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     strategy_tag_program.add_argument("source", type=Path)
     strategy_tag_program.add_argument("--class", dest="class_name")
+    strategy_tag_program.add_argument("--config", type=Path)
     strategy_tag_program.add_argument(
         "--trading-mode",
         choices=("spot", "futures"),

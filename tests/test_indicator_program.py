@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
 import pytest
@@ -430,6 +431,144 @@ def test_indicator_program_constant_folds_static_control_without_lookahead(tmp_p
     assert all(node["lookback"]["causal"] for node in program["nodes"])
 
 
+def test_indicator_program_uses_configured_static_helper_without_leaking_config(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ConfiguredHelper.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class ConfiguredHelper(IStrategy):\n"
+        "    def selected_timeframe(self, fallback='5m'):\n"
+        "        return self.config.get('informative_timeframe', fallback)\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        selected = self.selected_timeframe()\n"
+        "        if selected == '1h':\n"
+        "            dataframe['selected'] = dataframe['close']\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+    secret = "must-not-appear-in-native-ir"
+
+    program = compile_indicator_program(
+        source,
+        class_name="ConfiguredHelper",
+        config={"informative_timeframe": "1h", "exchange": {"secret": secret}},
+    )
+
+    assert program["produced_columns"] == ["selected"]
+    assert secret not in json.dumps(program, sort_keys=True)
+    helper = next(
+        function
+        for function in program["functions"]
+        if function["source_name"] == "selected_timeframe"
+    )
+    assert helper["parameters"] == []
+    assert all(node["op"] != "function-call" for node in program["nodes"])
+
+
+def test_indicator_program_specializes_helpers_defaults_callables_lambda_and_shift(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "SpecializedHelpers.py"
+    source.write_text(
+        "import numpy as np\n"
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class SpecializedHelpers(IStrategy):\n"
+        "    @staticmethod\n"
+        "    def np_shift(values, periods):\n"
+        "        out = np.empty_like(values)\n"
+        "        out[:periods] = np.nan\n"
+        "        out[periods:] = values[:-periods]\n"
+        "        return out\n"
+        "    def transform(self, values, callback, period=3, *, multiplier=1.0):\n"
+        "        return callback(values, timeperiod=period) * multiplier\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        view = lambda column: dataframe[column].to_numpy(copy=False)\n"
+        "        close = view('close')\n"
+        "        smoother = ta.SMA\n"
+        "        dataframe['default'] = self.transform(close, smoother)\n"
+        "        dataframe['special'] = self.transform(\n"
+        "            close, smoother, period=5, multiplier=2.0\n"
+        "        )\n"
+        "        dataframe['shifted'] = self.np_shift(close, 2)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="SpecializedHelpers")
+
+    helpers = [
+        function for function in program["functions"] if function["source_name"] == "transform"
+    ]
+    assert len(helpers) == 2
+    calls = [
+        node
+        for node in program["nodes"]
+        if node["op"] == "indicator-call" and node["parameters"]["name"] == "SMA"
+    ]
+    assert [node["parameters"]["arguments"]["timeperiod"] for node in calls] == [3, 5]
+    assert next(node for node in program["nodes"] if node["op"] == "shift")["parameters"] == {
+        "periods": 2
+    }
+    assert program["required_input_columns"] == ["close"]
+
+
+def test_indicator_program_lowers_numpy_buffers_and_static_container_unroll(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "NumpyAndContainers.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "def reduce_any(conditions):\n"
+        "    return np.logical_or.reduce(conditions)\n"
+        "class NumpyAndContainers(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        close = dataframe['close']\n"
+        "        width = dataframe['upper'] - dataframe['lower']\n"
+        "        ratio = np.divide(\n"
+        "            close - dataframe['lower'], width,\n"
+        "            out=np.full_like(width, np.nan), where=width != 0,\n"
+        "        )\n"
+        "        outputs = {}\n"
+        "        outputs['ratio'] = ratio > 0\n"
+        "        outputs['width'] = width > 0\n"
+        "        conditions = []\n"
+        "        for name, values in outputs.items():\n"
+        "            conditions.append(values)\n"
+        "        for threshold in [1, 2]:\n"
+        "            conditions.append(close > threshold)\n"
+        "        dataframe['ratio'] = ratio\n"
+        "        dataframe['valid'] = np.full(len(dataframe), True)\n"
+        "        dataframe['combined'] = reduce_any(conditions)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="NumpyAndContainers")
+
+    assert program["produced_columns"] == ["combined", "ratio", "valid"]
+    array_calls = [
+        node["parameters"]["name"]
+        for node in program["nodes"]
+        if node["op"] == "array-call"
+    ]
+    assert array_calls == [
+        "full_like",
+        "divide",
+        "full",
+    ]
+    assert len([node for node in program["nodes"] if node["op"] == "row-count"]) == 1
+    combined = next(
+        node
+        for node in program["nodes"]
+        if node["op"] == "logical" and len(node["inputs"]) == 4
+    )
+    assert combined["parameters"] == {"operator": "or"}
+    validate_indicator_program(program)
+
+
 def test_indicator_program_rejects_dynamic_window_and_helper_signature(tmp_path: Path) -> None:
     source = tmp_path / "DynamicWindow.py"
     source.write_text(
@@ -452,11 +591,11 @@ def test_indicator_program_rejects_dynamic_window_and_helper_signature(tmp_path:
     source.write_text(
         source.read_text(encoding="utf-8").replace(
             "dataframe['close'].rolling(window).mean()",
-            "self.helper(values=dataframe['close'])",
+            "self.helper(dataframe['close'], values=dataframe['close'])",
         ),
         encoding="utf-8",
     )
-    with pytest.raises(IndicatorProgramCompileError, match="helper call signature"):
+    with pytest.raises(IndicatorProgramCompileError, match="duplicate indicator helper argument"):
         compile_indicator_program(source, class_name="DynamicWindow")
 
 

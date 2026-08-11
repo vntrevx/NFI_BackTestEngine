@@ -8,8 +8,16 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Never
 
+from .._indicator_ast import (
+    _declared_class_constants,
+    _effective_backtest_config,
+    _recognized_tag_appender,
+)
+from .._indicator_contract import _cast_result_type
 from ..errors import StrategyAnalysisError
-from ..indicator_program import _Compiler as _VectorExpressionCompiler
+from ..indicator_program import (
+    _Compiler as _VectorExpressionCompiler,
+)
 from ..strategy_ir import analyze_strategy
 from .validation import (
     SIGNAL_COLUMNS,
@@ -26,6 +34,7 @@ _NUMERIC_VALUE_TYPES = {
     "int-scalar",
     "f64-scalar",
     "bool-column",
+    "int-column",
     "f64-column",
 }
 
@@ -39,6 +48,7 @@ def compile_signal_program(
     *,
     class_name: str | None = None,
     trading_mode: str = "spot",
+    config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compile entry and exit DataFrame mutations without executing strategy Python."""
     if trading_mode not in {"spot", "futures"}:
@@ -69,6 +79,9 @@ def compile_signal_program(
         for node in class_node.body
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
     }
+    module_functions = {
+        node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)
+    }
     for method_name in ("populate_entry_trend", "populate_exit_trend"):
         method = methods.get(method_name)
         if method is None:
@@ -77,10 +90,26 @@ def compile_signal_program(
             _unsupported(method, "async signal entrypoint")
 
     constants = strategy.get("constants", {})
+    class_constants = _declared_class_constants(
+        class_node,
+        constants if isinstance(constants, Mapping) else {},
+    )
+    effective_config = dict(config or {})
+    configured_mode = effective_config.get("trading_mode")
+    if configured_mode is not None and configured_mode != trading_mode:
+        raise SignalProgramCompileError(
+            "signal trading mode differs from the supplied configuration"
+        )
+    effective_config["trading_mode"] = trading_mode
     compiler = _SignalCompiler(
         path=path,
         methods=methods,
-        class_constants=constants if isinstance(constants, Mapping) else {},
+        class_constants=class_constants,
+        instance_constants={
+            "config": _effective_backtest_config(effective_config),
+            "dp": {"runmode": {"value": "backtest"}},
+        },
+        module_functions=module_functions,
     )
     # Reserve the two public IDs before helper discovery so their identity never
     # depends on how many helper functions one phase happens to call.
@@ -142,17 +171,37 @@ class _SignalCompiler(_VectorExpressionCompiler):
         path: Path,
         methods: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
         class_constants: Mapping[str, Any],
+        instance_constants: Mapping[str, Any] | None = None,
+        module_functions: Mapping[str, ast.FunctionDef] | None = None,
     ) -> None:
-        super().__init__(path=path, methods=methods, class_constants=class_constants)
+        super().__init__(
+            path=path,
+            methods=methods,
+            class_constants=class_constants,
+            instance_constants=instance_constants,
+            module_functions=module_functions,
+        )
         self.current_phase = "entry"
+        self.compile_tags = False
         self.mutation_nodes: list[str] = []
         self.final_mutations: dict[str, str] = {}
 
     def statement(self, node: ast.stmt) -> None:
+        if (
+            not self.compile_tags
+            and isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+        ):
+            callable_name = self.resolved_callable(node.value.func)
+            function = self.module_functions.get(callable_name)
+            if function is not None and _recognized_tag_appender(function):
+                return
         if isinstance(node, ast.Assign) and len(node.targets) == 1:
             target = node.targets[0]
             if self._is_loc_target(target):
                 assert isinstance(target, ast.Subscript)
+                if not self.compile_tags and _loc_targets_only_tags(target):
+                    return
                 self._loc_write(target, node.value, node)
                 return
         super().statement(node)
@@ -191,7 +240,7 @@ class _SignalCompiler(_VectorExpressionCompiler):
             return self.emit(
                 node,
                 "cast",
-                self.node_types[base],
+                _cast_result_type(self.node_types[base], target),
                 inputs=[base],
                 parameters={"target": target},
                 lookback=self.lookback(base),
@@ -344,6 +393,13 @@ def _is_full_slice(node: ast.expr) -> bool:
         and node.upper is None
         and node.step is None
     )
+
+
+def _loc_targets_only_tags(target: ast.Subscript) -> bool:
+    if not isinstance(target.slice, ast.Tuple) or len(target.slice.elts) != 2:
+        return False
+    columns = _literal_columns(target.slice.elts[1])
+    return bool(columns) and all(column in {"enter_tag", "exit_tag"} for column in columns)
 
 
 def _cast_target(node: ast.expr) -> str | None:

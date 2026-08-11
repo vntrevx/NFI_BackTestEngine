@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Never
 
+from .._indicator_ast import _declared_class_constants, _effective_backtest_config
 from ..errors import StrategyAnalysisError
 from ..signal_program.compiler import (
     _is_full_slice,
@@ -31,6 +32,7 @@ _NUMERIC_VALUE_TYPES = {
     "int-scalar",
     "f64-scalar",
     "bool-column",
+    "int-column",
     "f64-column",
 }
 _STRING_VALUE_TYPES = {"null", "string-scalar", "string-column"}
@@ -45,6 +47,7 @@ def compile_tag_program(
     *,
     class_name: str | None = None,
     trading_mode: str = "spot",
+    config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compile ordered signal and tag writes without executing strategy Python."""
     if trading_mode not in {"spot", "futures"}:
@@ -75,6 +78,9 @@ def compile_tag_program(
         for node in class_node.body
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
     }
+    module_functions = {
+        node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)
+    }
     for method_name in ("populate_entry_trend", "populate_exit_trend"):
         method = methods.get(method_name)
         if method is None:
@@ -83,10 +89,24 @@ def compile_tag_program(
             _unsupported(method, "async tag entrypoint")
 
     constants = strategy.get("constants", {})
+    class_constants = _declared_class_constants(
+        class_node,
+        constants if isinstance(constants, Mapping) else {},
+    )
+    effective_config = dict(config or {})
+    configured_mode = effective_config.get("trading_mode")
+    if configured_mode is not None and configured_mode != trading_mode:
+        raise TagProgramCompileError("tag trading mode differs from the supplied configuration")
+    effective_config["trading_mode"] = trading_mode
     compiler = _TagCompiler(
         path=path,
         methods=methods,
-        class_constants=constants if isinstance(constants, Mapping) else {},
+        class_constants=class_constants,
+        instance_constants={
+            "config": _effective_backtest_config(effective_config),
+            "dp": {"runmode": {"value": "backtest"}},
+        },
+        module_functions=module_functions,
     )
     compiler.method_ids.update({"populate_entry_trend": "f1", "populate_exit_trend": "f2"})
     try:
@@ -145,8 +165,17 @@ class _TagCompiler(_SignalCompiler):
         path: Path,
         methods: Mapping[str, ast.FunctionDef | ast.AsyncFunctionDef],
         class_constants: Mapping[str, Any],
+        instance_constants: Mapping[str, Any] | None = None,
+        module_functions: Mapping[str, ast.FunctionDef] | None = None,
     ) -> None:
-        super().__init__(path=path, methods=methods, class_constants=class_constants)
+        super().__init__(
+            path=path,
+            methods=methods,
+            class_constants=class_constants,
+            instance_constants=instance_constants,
+            module_functions=module_functions,
+        )
+        self.compile_tags = True
         self.tag_mutation_nodes: list[str] = []
 
     def statement(self, node: ast.stmt) -> None:

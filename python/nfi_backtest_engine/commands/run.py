@@ -297,9 +297,11 @@ def _execute_strategy(args: argparse.Namespace) -> int:
     if args.strategy_command == "indicator-program":
         from ..indicator_program import compile_indicator_program
 
+        config = load_effective_config(args.config)["config"] if args.config else None
         program = compile_indicator_program(
             args.source,
             class_name=args.class_name,
+            config=config,
         )
         write_json(args.output, program)
         print(
@@ -314,10 +316,12 @@ def _execute_strategy(args: argparse.Namespace) -> int:
     if args.strategy_command == "signal-program":
         from ..signal_program import compile_signal_program
 
+        config = load_effective_config(args.config)["config"] if args.config else None
         program = compile_signal_program(
             args.source,
             class_name=args.class_name,
             trading_mode=args.trading_mode,
+            config=config,
         )
         write_json(args.output, program)
         print(
@@ -332,10 +336,12 @@ def _execute_strategy(args: argparse.Namespace) -> int:
     if args.strategy_command == "tag-program":
         from ..tag_program import compile_tag_program
 
+        config = load_effective_config(args.config)["config"] if args.config else None
         program = compile_tag_program(
             args.source,
             class_name=args.class_name,
             trading_mode=args.trading_mode,
+            config=config,
         )
         write_json(args.output, program)
         print(
