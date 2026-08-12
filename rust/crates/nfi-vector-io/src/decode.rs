@@ -13,7 +13,6 @@ use crate::row::append_batch_to_spool;
 use crate::schema::{column_positions, feature_layout, projected_source_indices};
 use crate::VectorInputError;
 
-const SPOOL_DIRECTORY_ENVIRONMENT: &str = "NFI_BTE_SPOOL_DIRECTORY";
 // One bounded buffer converts batches into fixed-width rows without issuing a
 // kernel write for every candle. The spool itself remains disk-backed.
 const SPOOL_WRITE_BUFFER_BYTES: usize = 256 * 1024;
@@ -107,14 +106,12 @@ pub(crate) fn read_feather(
     Ok((CandleSeries::file_backed(rows), features, file_backed_bytes))
 }
 
-fn pair_spool(pair: &str) -> Result<File, VectorInputError> {
+pub(crate) fn pair_spool(pair: &str) -> Result<File, VectorInputError> {
     // OS-local temp avoids the severe random-read penalty of a WSL-mounted
     // Windows vector directory. Hosts whose temp directory is RAM-backed can
     // select a disk-backed mount explicitly; the path is configuration, never
     // a compiled machine assumption.
-    let result = std::env::var_os(SPOOL_DIRECTORY_ENVIRONMENT)
-        .map_or_else(tempfile::tempfile, tempfile::tempfile_in);
-    result.map_err(|source| VectorInputError::FileBacking {
+    crate::spool_admission::create_file().map_err(|source| VectorInputError::FileBacking {
         pair: pair.to_owned(),
         source,
     })

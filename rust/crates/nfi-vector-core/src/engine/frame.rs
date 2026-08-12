@@ -7,7 +7,7 @@
 //! overlays, while only an actual merge owns new column buffers.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use serde_json::{Map, Value};
 
@@ -43,6 +43,7 @@ impl FrameStorage<'_> {
 #[derive(Clone, Debug)]
 pub(super) struct RuntimeFrame<'catalog> {
     storage: FrameStorage<'catalog>,
+    source_columns: Arc<BTreeMap<String, OnceLock<OwnedColumn>>>,
     timestamp_columns: Arc<BTreeMap<String, Vec<Option<i64>>>>,
     overlays: Arc<BTreeMap<String, OwnedColumn>>,
     visible_columns: BTreeSet<String>,
@@ -56,6 +57,7 @@ impl<'catalog> RuntimeFrame<'catalog> {
         visible_columns.insert(BASE_DATE_COLUMN.to_owned());
         Self {
             storage: FrameStorage::Borrowed(frame),
+            source_columns: source_column_cache(frame),
             timestamp_columns: Arc::new(BTreeMap::new()),
             overlays: Arc::new(BTreeMap::new()),
             visible_columns,
@@ -67,6 +69,7 @@ impl<'catalog> RuntimeFrame<'catalog> {
         visible_columns.extend(timestamp_columns.keys().cloned());
         visible_columns.insert(BASE_DATE_COLUMN.to_owned());
         Self {
+            source_columns: source_column_cache(&frame),
             storage: FrameStorage::Owned(Arc::new(frame)),
             timestamp_columns: Arc::new(timestamp_columns),
             overlays: Arc::new(BTreeMap::new()),
@@ -140,12 +143,12 @@ impl<'catalog> RuntimeFrame<'catalog> {
         if let Some(values) = self.timestamp_columns.get(name) {
             return Some(OwnedColumn::timestamp_ms(values.clone()));
         }
-        self.storage
-            .frame()
-            .columns
-            .get(name)
-            .cloned()
-            .map(OwnedColumn::f64)
+        let values = self.storage.frame().columns.get(name)?;
+        self.source_columns.get(name).map(|cached| {
+            cached
+                .get_or_init(|| OwnedColumn::f64(values.clone()))
+                .clone()
+        })
     }
 
     /// Add or replace one typed dataframe column without copying the source
@@ -342,6 +345,16 @@ impl<'catalog> RuntimeFrame<'catalog> {
             })
             .collect()
     }
+}
+
+fn source_column_cache(frame: &NumericFrame) -> Arc<BTreeMap<String, OnceLock<OwnedColumn>>> {
+    Arc::new(
+        frame
+            .columns
+            .keys()
+            .map(|name| (name.clone(), OnceLock::new()))
+            .collect(),
+    )
 }
 
 /// Immutable external context for frame and metadata opcodes.

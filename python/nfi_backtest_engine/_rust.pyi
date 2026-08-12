@@ -48,12 +48,14 @@ def simulate_full_vector_file(
     manifest_path: str | Path,
     output_path: str | Path,
     events_path: str | Path | None = ...,
+    pair_worker_limit: int | None = ...,
 ) -> None: ...
 def simulate_full_vector_file_profiled(
     manifest_path: str | Path,
     output_path: str | Path,
     profile_path: str | Path,
     events_path: str | Path | None = ...,
+    pair_worker_limit: int | None = ...,
 ) -> None: ...
 def execute_full_vector(
     indicator_program: str,

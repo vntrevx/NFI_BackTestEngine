@@ -10,11 +10,13 @@ mod load;
 mod model;
 mod validation;
 
+pub(crate) use load::{decode_verified_frame, load_plan};
 pub use model::{
     CompileContext, FeatureRetention, FuturesFrameSet, HistoricPriceStep, NativeContractError,
     NativeVectorBundle, PairContract, PairLimits, PairOptions, PairPrecision, RunContract,
     SourceExecutionSeal, SourceSeal, TradingMode,
 };
+pub(crate) use model::{NativeVectorPlan, VerifiedFrameSource, VerifiedFuturesSources};
 pub use validation::retained_feature_fingerprint;
 
 /// The only complete native-vector manifest accepted by this parser.

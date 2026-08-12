@@ -11,7 +11,9 @@ use nfi_sim_core::{
     SimulationResult,
 };
 use nfi_vector_io::{
-    load_full_native_vector_manifest_profiled, load_vector_manifest, load_vector_manifest_profiled,
+    load_full_native_vector_manifest_profiled,
+    load_full_native_vector_manifest_profiled_with_worker_limit, load_vector_manifest,
+    load_vector_manifest_profiled,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -119,39 +121,55 @@ fn simulate_vector_file_profiled(
     )
 }
 
-#[pyfunction(signature = (manifest_path, output_path, events_path=None))]
+#[pyfunction(signature = (manifest_path, output_path, events_path=None, pair_worker_limit=None))]
 #[allow(clippy::needless_pass_by_value)] // PyO3 extracts owned Python path arguments.
 fn simulate_full_vector_file(
     manifest_path: PathBuf,
     output_path: PathBuf,
     events_path: Option<PathBuf>,
+    pair_worker_limit: Option<usize>,
 ) -> PyResult<()> {
     let manifest_display = manifest_path.display().to_string();
-    let (document, _) =
-        load_full_native_vector_manifest_profiled(&manifest_path).map_err(|error| {
-            PyValueError::new_err(format!(
-                "invalid full native vector manifest {manifest_display}: {error}"
-            ))
-        })?;
+    let loaded = if let Some(limit) = pair_worker_limit {
+        load_full_native_vector_manifest_profiled_with_worker_limit(&manifest_path, limit)
+    } else {
+        load_full_native_vector_manifest_profiled(&manifest_path)
+    };
+    let (document, _) = loaded.map_err(|error| {
+        PyValueError::new_err(format!(
+            "invalid full native vector manifest {manifest_display}: {error}"
+        ))
+    })?;
     let result = run_simulation(&document, events_path)?;
     write_result(output_path, &result)
 }
 
-#[pyfunction(signature = (manifest_path, output_path, profile_path, events_path=None))]
+#[pyfunction(signature = (
+    manifest_path,
+    output_path,
+    profile_path,
+    events_path=None,
+    pair_worker_limit=None
+))]
 #[allow(clippy::needless_pass_by_value)] // PyO3 extracts owned Python path arguments.
 fn simulate_full_vector_file_profiled(
     manifest_path: PathBuf,
     output_path: PathBuf,
     profile_path: PathBuf,
     events_path: Option<PathBuf>,
+    pair_worker_limit: Option<usize>,
 ) -> PyResult<()> {
     let manifest_display = manifest_path.display().to_string();
-    let (document, input_profile) = load_full_native_vector_manifest_profiled(&manifest_path)
-        .map_err(|error| {
-            PyValueError::new_err(format!(
-                "invalid full native vector manifest {manifest_display}: {error}"
-            ))
-        })?;
+    let loaded = if let Some(limit) = pair_worker_limit {
+        load_full_native_vector_manifest_profiled_with_worker_limit(&manifest_path, limit)
+    } else {
+        load_full_native_vector_manifest_profiled(&manifest_path)
+    };
+    let (document, input_profile) = loaded.map_err(|error| {
+        PyValueError::new_err(format!(
+            "invalid full native vector manifest {manifest_display}: {error}"
+        ))
+    })?;
     let (result, simulation_profile) = run_simulation_profiled(&document, events_path)?;
     write_profiled_result(
         output_path,

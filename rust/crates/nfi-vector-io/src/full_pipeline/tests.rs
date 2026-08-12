@@ -62,6 +62,14 @@ fn complete_spot_pipeline_is_exact_to_the_existing_in_memory_transport() {
     assert_eq!(profile.trading_mode, "spot");
     assert_eq!(profile.source_row_shift, 1);
     assert_eq!(profile.raw_frame_count, 1);
+    assert_eq!(profile.manifest_declared_raw_rows, 6);
+    assert!(profile.transport.file_backed_bytes <= profile.spool_required_upper_bound_bytes);
+    assert!(profile.spool_available_bytes_at_admission >= profile.spool_required_upper_bound_bytes);
+    assert!(matches!(
+        profile.spool_target_source,
+        "os-temp" | "environment"
+    ));
+    assert!(!profile.spool_cleanup_mode.is_empty());
     assert_eq!(profile.transport.pair_count, expected_profile.pair_count);
     assert_eq!(profile.transport.row_count, 6);
     assert_eq!(profile.transport.feature_column_count, 2);

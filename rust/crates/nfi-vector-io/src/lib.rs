@@ -17,6 +17,7 @@ mod loader;
 mod raw_ohlcv;
 mod row;
 mod schema;
+mod spool_admission;
 mod values;
 
 pub use failures::VectorInputError;
@@ -38,12 +39,13 @@ pub use full_manifest::{
 };
 pub use full_pipeline::{
     execute_full_native_vector_bundle_profiled, load_full_native_vector_manifest_profiled,
-    FullNativePipelineError, FullNativeVectorProfile,
+    load_full_native_vector_manifest_profiled_with_worker_limit, FullNativePipelineError,
+    FullNativeVectorProfile,
 };
 pub use in_memory::{
     assemble_in_memory_vectors, assemble_in_memory_vectors_profiled,
-    execute_in_memory_pair_dag_profiled, InMemoryVectorPair, InMemoryVectorProfile,
-    VectorPairOptions,
+    execute_in_memory_pair_dag_profiled, execute_in_memory_pair_dag_profiled_with_worker_limit,
+    InMemoryVectorPair, InMemoryVectorProfile, VectorPairOptions,
 };
 pub use loader::{load_vector_manifest, load_vector_manifest_profiled, VectorLoadProfile};
 pub use raw_ohlcv::{load_raw_ohlcv_catalog, load_raw_ohlcv_frame, FeatherFrameSource};

@@ -22,6 +22,7 @@ from .data_seal import DATA_SEAL_VERSION, prepare_data, validate_data_seal
 from .engine_runtime import FULL_VECTOR_INPUT, run_engine
 from .errors import BenchmarkError, SpecValidationError, StrategyAnalysisError
 from .fixture import sha256_file
+from .full_native_calibration import resolve_full_native_pair_workers
 from .full_vector_runtime import (
     FULL_NATIVE_RUNTIME_MODE,
     FULL_NATIVE_SOURCE_MODE,
@@ -454,6 +455,7 @@ def run_research_backtest(
     vector_directory = output / "vectors"
     vector_checkpoint = output / "checkpoints" / "vectors.json"
     vector_report = None
+    full_native_calibration: dict[str, Any] | None = None
     resumed_vector_stage = False
     if existing_run is not None and not vector_checkpoint.is_file():
         raise BenchmarkError(
@@ -632,6 +634,9 @@ def run_research_backtest(
             execution = engine_stage["execution"]
             simulation_result_record = engine_stage["artifact"]
             engine_events_record = engine_stage.get("engine_events")
+            stored_calibration = engine_stage.get("workload_calibration")
+            if isinstance(stored_calibration, dict):
+                full_native_calibration = stored_calibration
             resumed_engine_stage = True
         else:
             _require_absent(simulation_result_path, label="simulation result")
@@ -645,7 +650,20 @@ def run_research_backtest(
                 "events_path": engine_events_path,
             }
             if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT:
+                full_native_calibration = resolve_full_native_pair_workers(
+                    simulation_input_path,
+                    profile_path=profile_path,
+                    hardware_fingerprint=str(profile["hardware_fingerprint"]),
+                    requested_workers=selected_workers,
+                    memory_cap_bytes=resource_limits["memory_cap_bytes"],
+                    calibration_directory=Path(profile_path).resolve().parent
+                    / "calibrations",
+                    recalibrate=recalibrate,
+                )
                 engine_arguments["input_kind"] = FULL_VECTOR_INPUT
+                engine_arguments["pair_worker_limit"] = full_native_calibration[
+                    "worker_limit"
+                ]
             else:
                 engine_arguments["vector_manifest"] = True
             execution = run_engine(
@@ -666,6 +684,7 @@ def run_research_backtest(
                 "execution": execution,
                 "engine_profile": _artifact_record(engine_profile_path),
                 "engine_events": engine_events_record,
+                "workload_calibration": full_native_calibration,
             }
             _write_simulation_checkpoint(
                 simulation_checkpoint_path,
@@ -771,7 +790,11 @@ def run_research_backtest(
             "indicator_workers": vector_report["worker_count"],
             "cpu_process_limit": safe_workers,
             "working_memory_bytes": resource_limits["working_memory_bytes"],
-            "workload_calibration": vector_report.get("calibration"),
+            "workload_calibration": (
+                full_native_calibration
+                if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT
+                else vector_report.get("calibration")
+            ),
             "portfolio_simulator_threads": profile["runtime"][
                 "portfolio_simulator_threads"
             ],

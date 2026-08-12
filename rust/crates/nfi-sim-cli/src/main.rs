@@ -13,7 +13,9 @@ use nfi_sim_core::{
     SimulationResult,
 };
 use nfi_vector_io::{
-    load_full_native_vector_manifest_profiled, load_vector_manifest, load_vector_manifest_profiled,
+    load_full_native_vector_manifest_profiled,
+    load_full_native_vector_manifest_profiled_with_worker_limit, load_vector_manifest,
+    load_vector_manifest_profiled,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -38,6 +40,7 @@ fn run() -> Result<(), String> {
     let _program = arguments.next();
     let mut input_kind = InputKind::SimulationJson;
     let mut profile_output = None;
+    let mut pair_worker_limit = None;
     let input = loop {
         let argument = arguments.next().ok_or_else(|| usage().to_owned())?;
         if argument == "--vector-manifest" {
@@ -57,6 +60,18 @@ fn run() -> Result<(), String> {
             );
             continue;
         }
+        if argument == "--pair-workers" {
+            let raw = arguments.next().ok_or_else(|| usage().to_owned())?;
+            let value = raw
+                .to_str()
+                .ok_or_else(|| "--pair-workers must be a positive integer".to_owned())?
+                .parse::<usize>()
+                .map_err(|_| "--pair-workers must be a positive integer".to_owned())?;
+            if value == 0 || pair_worker_limit.replace(value).is_some() {
+                return Err("--pair-workers must be declared once and be positive".to_owned());
+            }
+            continue;
+        }
         break PathBuf::from(argument);
     };
     let output = arguments
@@ -70,8 +85,16 @@ fn run() -> Result<(), String> {
     if profile_output.is_some() && input_kind == InputKind::SimulationJson {
         return Err("--profile-output requires a vector manifest".to_owned());
     }
+    if pair_worker_limit.is_some() && input_kind != InputKind::FullVector {
+        return Err("--pair-workers requires --full-vector-manifest".to_owned());
+    }
 
-    let (document, input_profile) = load_input(input_kind, &input, profile_output.is_some())?;
+    let (document, input_profile) = load_input(
+        input_kind,
+        &input,
+        profile_output.is_some(),
+        pair_worker_limit,
+    )?;
     let (result, simulation_profile) = if profile_output.is_some() {
         let (result, profile) = run_simulation_profiled(&document, trace)?;
         (result, Some(profile))
@@ -115,6 +138,7 @@ fn run() -> Result<(), String> {
 fn usage() -> &'static str {
     "usage: nfi-sim [--vector-manifest | --full-vector-manifest] \
      [--profile-output profile.json] \
+     [--pair-workers positive-integer] \
      <input.json> <output.json> [events.jsonl]"
 }
 
@@ -130,6 +154,7 @@ fn load_input(
     input_kind: InputKind,
     input: &PathBuf,
     profiled: bool,
+    pair_worker_limit: Option<usize>,
 ) -> Result<(SimulationInput, Option<serde_json::Value>), String> {
     match input_kind {
         InputKind::SimulationJson => {
@@ -151,13 +176,17 @@ fn load_input(
             Ok((document, None))
         }
         InputKind::FullVector => {
-            let (document, profile) =
-                load_full_native_vector_manifest_profiled(input).map_err(|error| {
-                    format!(
-                        "invalid full native vector manifest {}: {error}",
-                        input.display()
-                    )
-                })?;
+            let loaded = if let Some(limit) = pair_worker_limit {
+                load_full_native_vector_manifest_profiled_with_worker_limit(input, limit)
+            } else {
+                load_full_native_vector_manifest_profiled(input)
+            };
+            let (document, profile) = loaded.map_err(|error| {
+                format!(
+                    "invalid full native vector manifest {}: {error}",
+                    input.display()
+                )
+            })?;
             Ok((
                 document,
                 if profiled {

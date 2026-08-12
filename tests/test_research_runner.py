@@ -418,6 +418,7 @@ def test_full_native_transport_skips_python_vector_worker(
         calls["engine"] += 1
         observed["input_kind"] = kwargs.get("input_kind")
         observed["vector_manifest"] = kwargs.get("vector_manifest")
+        observed["pair_worker_limit"] = kwargs.get("pair_worker_limit")
         write_json(output, {"schema_version": "test"})
         write_json(kwargs["engine_profile_path"], {"schema_version": "test"})
         return {"wall_time_seconds": 0.1, "peak_rss_bytes": 1024}
@@ -426,6 +427,22 @@ def test_full_native_transport_skips_python_vector_worker(
         research_runner,
         "build_full_native_vector_manifest",
         fake_full_manifest,
+    )
+    calibration = {
+        "schema_version": "1.0.0",
+        "worker_limit": 2,
+        "probe_pair": "BTC/USDT",
+    }
+
+    def fake_calibration(*args, **kwargs) -> dict:
+        observed["calibration_requested_workers"] = kwargs["requested_workers"]
+        observed["calibration_memory_cap_bytes"] = kwargs["memory_cap_bytes"]
+        return calibration
+
+    monkeypatch.setattr(
+        research_runner,
+        "resolve_full_native_pair_workers",
+        fake_calibration,
     )
     monkeypatch.setattr(research_runner, "run_engine", fake_full_engine)
 
@@ -443,7 +460,11 @@ def test_full_native_transport_skips_python_vector_worker(
     assert not (Path(arguments["output_directory"]) / "vectors").exists()
     assert observed["compiled_programs"] is programs
     assert observed["input_kind"] == research_runner.FULL_VECTOR_INPUT
+    assert observed["pair_worker_limit"] == 2
     assert observed["vector_manifest"] is None
+    assert observed["calibration_requested_workers"] == 2
+    assert observed["calibration_memory_cap_bytes"] == 8 * 1024**3
+    assert report["execution"]["workload_calibration"] == calibration
 
 
 def test_full_native_compiler_failure_is_a_durable_fallback_blocker(

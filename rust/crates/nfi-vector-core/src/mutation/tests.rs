@@ -25,6 +25,79 @@ const SIGNAL_PROGRAM: &str =
 const TAG_PROGRAM: &str =
     include_str!("../../../../../benchmarks/reference/vector-shadow/tag-program.json");
 
+#[test]
+fn tag_decision_projection_is_exact_and_rejects_semantic_drift() {
+    let signal = MutationProgram::from_json(SIGNAL_PROGRAM).expect("signal program valid");
+    let mut tag = signal.clone();
+    tag.schema_version = super::model::TAG_PROGRAM_VERSION.to_owned();
+
+    prove_signal_tag_decision_equivalence(&signal, &tag)
+        .expect("Tag-only projection leaves the exact Signal DAG");
+
+    // A Tag assignment may repeat a Signal predicate solely to choose its
+    // string. Once that Tag write is removed, its predicate branch is not
+    // observable and must not make otherwise exact decision programs differ.
+    let mut orphan = tag
+        .nodes
+        .iter()
+        .find(|node| node.op == "literal")
+        .expect("reference program has a literal")
+        .clone();
+    orphan.id = format!("n{}", tag.nodes.len() + 1);
+    orphan.source_order = tag
+        .nodes
+        .iter()
+        .filter(|node| node.function == orphan.function)
+        .map(|node| node.source_order)
+        .max()
+        .expect("function contains nodes")
+        + 1;
+    tag.source_map.insert(
+        orphan.id.clone(),
+        tag.source_map
+            .get(&tag.nodes[0].id)
+            .expect("reference source location")
+            .clone(),
+    );
+    tag.functions
+        .iter_mut()
+        .find(|function| function.id == orphan.function)
+        .expect("literal function exists")
+        .node_ids
+        .push(orphan.id.clone());
+    tag.nodes.push(orphan);
+
+    prove_signal_tag_decision_equivalence(&signal, &tag)
+        .expect("unreachable Tag predicate branch is not a Signal decision");
+
+    let decision = tag
+        .nodes
+        .iter_mut()
+        .find(|node| node.op == "literal")
+        .expect("reference Tag program has a decision literal");
+    decision
+        .parameters
+        .insert("semantic-drift".to_owned(), json!(true));
+    assert!(prove_signal_tag_decision_equivalence(&signal, &tag).is_err());
+}
+
+#[test]
+#[ignore = "explicit external compiler-artifact diagnostic"]
+fn external_signal_tag_decision_projection_is_exact() {
+    let signal_path = std::env::var("NFI_SIGNAL_PROGRAM").expect("Signal artifact path");
+    let tag_path = std::env::var("NFI_TAG_PROGRAM").expect("Tag artifact path");
+    let signal = MutationProgram::from_json(
+        &std::fs::read_to_string(signal_path).expect("read Signal artifact"),
+    )
+    .expect("external Signal program valid");
+    let tag =
+        MutationProgram::from_json(&std::fs::read_to_string(tag_path).expect("read Tag artifact"))
+            .expect("external Tag program valid");
+
+    prove_signal_tag_decision_equivalence(&signal, &tag)
+        .expect("external Tag decision projection exact to Signal");
+}
+
 #[derive(Debug, Deserialize)]
 struct Fixture {
     fingerprint: String,

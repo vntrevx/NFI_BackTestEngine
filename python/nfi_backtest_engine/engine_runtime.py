@@ -135,6 +135,7 @@ def run_engine(
     vector_manifest: bool = False,
     input_kind: str | None = None,
     engine_profile_path: str | Path | None = None,
+    pair_worker_limit: int | None = None,
 ) -> dict[str, Any]:
     """Run one simulation without per-candle Python calls.
 
@@ -147,6 +148,15 @@ def run_engine(
         input_kind=input_kind,
         vector_manifest=vector_manifest,
     )
+    if pair_worker_limit is not None:
+        if (
+            not isinstance(pair_worker_limit, int)
+            or isinstance(pair_worker_limit, bool)
+            or pair_worker_limit <= 0
+        ):
+            raise BenchmarkError("pair worker limit must be a positive integer")
+        if selected_input_kind != FULL_VECTOR_INPUT:
+            raise BenchmarkError("pair worker limit requires full-vector input")
     source = Path(input_path).resolve()
     destination = Path(output_path).resolve()
     if not source.is_file():
@@ -184,6 +194,7 @@ def run_engine(
             build=build,
             input_kind=selected_input_kind,
             engine_profile_destination=engine_profile_destination,
+            pair_worker_limit=pair_worker_limit,
         )
     binary = Path(build["binary_path"])
     # `/usr/bin/time` writes process metrics outside the simulation result.
@@ -251,6 +262,8 @@ def run_engine(
                     ),
                 ]
             )
+        if pair_worker_limit is not None:
+            vector_arguments.extend(["--pair-workers", str(pair_worker_limit)])
         command[engine_argument_index:engine_argument_index] = vector_arguments
     if event_destination is not None:
         command.append(_wsl_path(event_destination) if os.name == "nt" else str(event_destination))
@@ -294,6 +307,7 @@ def run_engine(
         "execution_profile_fingerprint": (
             profile["hardware_fingerprint"] if profile is not None else None
         ),
+        "pair_worker_limit": pair_worker_limit,
         "trade_count": len(result.get("trades", [])),
         "events": (
             {
@@ -318,6 +332,7 @@ def _run_native_engine(
     build: dict[str, Any],
     input_kind: str,
     engine_profile_destination: Path | None,
+    pair_worker_limit: int | None,
 ) -> dict[str, Any]:
     if timeout_seconds is not None and timeout_seconds <= 0:
         raise BenchmarkError("engine timeout must be positive")
@@ -333,14 +348,31 @@ def _run_native_engine(
     try:
         os.environ.update(environment)
         if input_kind == FULL_VECTOR_INPUT and engine_profile_destination is not None:
-            native.simulate_full_vector_file_profiled(
-                source,
-                destination,
-                engine_profile_destination,
-                event_destination,
-            )
+            if pair_worker_limit is None:
+                native.simulate_full_vector_file_profiled(
+                    source,
+                    destination,
+                    engine_profile_destination,
+                    event_destination,
+                )
+            else:
+                native.simulate_full_vector_file_profiled(
+                    source,
+                    destination,
+                    engine_profile_destination,
+                    event_destination,
+                    pair_worker_limit,
+                )
         elif input_kind == FULL_VECTOR_INPUT:
-            native.simulate_full_vector_file(source, destination, event_destination)
+            if pair_worker_limit is None:
+                native.simulate_full_vector_file(source, destination, event_destination)
+            else:
+                native.simulate_full_vector_file(
+                    source,
+                    destination,
+                    event_destination,
+                    pair_worker_limit,
+                )
         elif input_kind == FEATHER_VECTOR_INPUT and engine_profile_destination is not None:
             native.simulate_vector_file_profiled(
                 source,
@@ -383,6 +415,7 @@ def _run_native_engine(
         "execution_profile_fingerprint": (
             profile["hardware_fingerprint"] if profile is not None else None
         ),
+        "pair_worker_limit": pair_worker_limit,
         "trade_count": len(result.get("trades", [])),
         "events": (
             {

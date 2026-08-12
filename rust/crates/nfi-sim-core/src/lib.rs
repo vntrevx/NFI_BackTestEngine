@@ -48,6 +48,7 @@ pub use state_machine_vm::{
     validate_state_machine_program, StateMachineAction, StateMachineContext,
     StateMachineDiagnostic, StateMachineError,
 };
+pub use validation::validate_simulator_preflight;
 mod futures;
 mod futures_contract;
 #[cfg(test)]

@@ -183,9 +183,11 @@ def test_run_engine_selects_full_native_profiled_entrypoint(
         output_path: Path,
         profile_path: Path,
         events_path: Path | None,
+        pair_worker_limit: int,
     ) -> None:
         assert input_path == source
         assert events_path is None
+        assert pair_worker_limit == 3
         write_json(output_path, {"trades": []})
         write_json(profile_path, {"input": {"raw_frame_count": 5}})
 
@@ -204,9 +206,11 @@ def test_run_engine_selects_full_native_profiled_entrypoint(
         output,
         input_kind=engine_runtime.FULL_VECTOR_INPUT,
         engine_profile_path=profile,
+        pair_worker_limit=3,
     )
 
     assert report["input_kind"] == engine_runtime.FULL_VECTOR_INPUT
+    assert report["pair_worker_limit"] == 3
     assert report["profile"]["phases"]["input"]["raw_frame_count"] == 5
 
 
@@ -226,6 +230,19 @@ def test_engine_input_kind_never_uses_filename_inference(tmp_path: Path) -> None
             tmp_path / "result.json",
             input_kind=engine_runtime.FULL_VECTOR_INPUT,
             vector_manifest=True,
+        )
+    with pytest.raises(BenchmarkError, match="requires full-vector"):
+        engine_runtime.run_engine(
+            source,
+            tmp_path / "pair-workers.json",
+            pair_worker_limit=2,
+        )
+    with pytest.raises(BenchmarkError, match="positive integer"):
+        engine_runtime.run_engine(
+            source,
+            tmp_path / "zero-workers.json",
+            input_kind=engine_runtime.FULL_VECTOR_INPUT,
+            pair_worker_limit=0,
         )
 
 

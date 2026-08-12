@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Component;
 
-use nfi_sim_core::PortfolioConfig;
+use nfi_sim_core::{validate_simulator_preflight, PortfolioConfig};
 use nfi_vector_core::alignment::{FrameIdentity, Timeframe};
 use nfi_vector_core::mutation::MutationProgram;
 use nfi_vector_core::program::IndicatorProgram;
@@ -93,6 +93,11 @@ fn validate_header(
     }
     let config: PortfolioConfig = serde_json::from_value(document.config.clone())
         .map_err(|error| invalid(format!("embedded simulator config is invalid: {error}")))?;
+    validate_simulator_preflight(&config).map_err(|error| {
+        invalid(format!(
+            "embedded simulator config fails runtime preflight: {error}"
+        ))
+    })?;
     if document.compile_context.run_mode != "backtest" {
         return Err(invalid("compile_context.run_mode must be backtest"));
     }

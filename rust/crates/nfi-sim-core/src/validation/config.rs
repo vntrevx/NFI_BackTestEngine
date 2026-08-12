@@ -22,7 +22,39 @@ pub(crate) fn validate_input(input: &SimulationInput) -> Result<ValidationSummar
     if input.schema_version != SIMULATOR_SCHEMA_VERSION {
         return Err(SimError::UnsupportedSchema(input.schema_version.clone()));
     }
+    validate_simulator_preflight(&input.config)?;
     let config = &input.config;
+    // Timestamp batches are a logical profile counter, not scheduler work.
+    // Collect the distinct execution-visible timestamps while validation is
+    // already reading every row. This avoids a second full scan of multi-year
+    // file-backed vectors solely to preserve the profiling contract.
+    let mut logical_timestamps = BTreeSet::new();
+    for (pair_index, pair) in input.pairs.iter().enumerate() {
+        validate_pair_series(
+            pair_index,
+            pair,
+            config.nfi_x7_trade_manager.as_ref(),
+            config.is_futures,
+            &mut logical_timestamps,
+        )?;
+    }
+    Ok(ValidationSummary {
+        logical_timestamp_batches: u64::try_from(logical_timestamps.len()).unwrap_or(u64::MAX),
+    })
+}
+
+/// Validate simulator configuration independently of pair vectors.
+///
+/// Complete-native vector loaders can call this immediately after parsing a
+/// manifest, before decoding or preparing any pair data. Full simulation still
+/// performs the same validation before its pair-specific audit.
+///
+/// # Errors
+///
+/// Returns the same configuration, callback, state-machine, or NFI manager
+/// error that [`validate_input`] would return before inspecting pairs.
+#[allow(clippy::too_many_lines)] // Preserve the existing fail-closed audit and error order.
+pub fn validate_simulator_preflight(config: &PortfolioConfig) -> Result<(), SimError> {
     for (name, value) in [
         ("starting_balance", config.starting_balance),
         ("stake_amount", config.stake_amount),
@@ -134,24 +166,7 @@ pub(crate) fn validate_input(input: &SimulationInput) -> Result<ValidationSummar
     {
         return Err(SimError::InvalidPositiveConfig("exit_confirmation_program"));
     }
-    validate_scalar_callback_bundles(config)?;
-    // Timestamp batches are a logical profile counter, not scheduler work.
-    // Collect the distinct execution-visible timestamps while validation is
-    // already reading every row. This avoids a second full scan of multi-year
-    // file-backed vectors solely to preserve the profiling contract.
-    let mut logical_timestamps = BTreeSet::new();
-    for (pair_index, pair) in input.pairs.iter().enumerate() {
-        validate_pair_series(
-            pair_index,
-            pair,
-            config.nfi_x7_trade_manager.as_ref(),
-            config.is_futures,
-            &mut logical_timestamps,
-        )?;
-    }
-    Ok(ValidationSummary {
-        logical_timestamp_batches: u64::try_from(logical_timestamps.len()).unwrap_or(u64::MAX),
-    })
+    validate_scalar_callback_bundles(config)
 }
 
 fn validate_leverage_contract(config: &PortfolioConfig) -> Result<(), SimError> {

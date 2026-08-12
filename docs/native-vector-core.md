@@ -140,6 +140,35 @@ official Freqtrade fallback. It removes execution of NFI strategy Python from
 the Full Native runtime. Legacy captured Feather replay remains available as an
 evidence/compatibility transport and is not relabeled as Full Native.
 
+## Five-year resource boundaries
+
+Full Native pair preparation uses an explicit outer worker pool while every
+numeric library remains single-threaded. Before a new workload runs, the engine
+selects the pair with the largest declared frame inventory, executes that exact
+full-range pair with one worker, and records its measured peak RSS. The worker
+limit is then recomputed from the current host's available memory and the
+execution profile's CPU/memory limits. Calibration identity includes the complete
+manifest hash and Rust source fingerprint, so a different strategy, dataset,
+configuration, or engine cannot inherit the observation.
+
+Raw frames are SHA-verified first and decoded pair by pair. Completed execution
+rows go directly to fixed-width file-backed storage; analyzed Feather files are
+not persisted and pair-owned indicator frames are released before the global
+wallet loop. The spool bound is derived from the run contract rather than from
+observed sparse input rows:
+
+```text
+pair count × maximum gap-filled base buckets × (81 + 8 × retained features)
+```
+
+The selected filesystem must have at least that many free bytes before any pair
+is decoded. Equality is permitted; arithmetic overflow and a one-byte shortfall
+fail closed. The engine profile records the admitted upper bound, available
+bytes, target source, cleanup mode, declared raw rows, and actual file-backed
+bytes, and rejects an actual value above the bound. Spool files are private
+delete-on-close temporaries, so success, error, or process termination releases
+them instead of accumulating one analyzed dataset per run.
+
 ## Current claim boundary
 
 M22-01 qualifies upstream X7 `1df961c0` through the complete Spot and Futures

@@ -10,7 +10,8 @@ use sha2::{Digest, Sha256};
 
 use super::model::{
     ArtifactDocument, FuturesFrameSet, ManifestDocument, NativeContractError, NativeVectorBundle,
-    ValidatedDocument, ValidatedFrame, ValidatedFutures,
+    NativeVectorPlan, ValidatedDocument, ValidatedFrame, ValidatedFutures, VerifiedFrameSource,
+    VerifiedFuturesSources,
 };
 use super::validation::{invalid, validate_document, validate_program_identity};
 use crate::{load_raw_ohlcv_frame, FeatherFrameSource};
@@ -28,6 +29,26 @@ use crate::{load_raw_ohlcv_frame, FeatherFrameSource};
 /// identities, path escape, digest drift, program/context drift, or raw-frame
 /// schema/decode failure.
 pub(super) fn load_bundle(path: &Path) -> Result<NativeVectorBundle, NativeContractError> {
+    let plan = load_plan(path)?;
+    let frames = decode_catalog(&plan.frames)?;
+    let futures = decode_futures(&plan.futures)?;
+    Ok(NativeVectorBundle {
+        source: plan.source,
+        source_execution: plan.source_execution,
+        config: plan.config,
+        compile_context: plan.compile_context,
+        run: plan.run,
+        retained_features: plan.retained_features,
+        pairs: plan.pairs,
+        indicator_program: plan.indicator_program,
+        signal_program: plan.signal_program,
+        tag_program: plan.tag_program,
+        frames,
+        futures,
+    })
+}
+
+pub(crate) fn load_plan(path: &Path) -> Result<NativeVectorPlan, NativeContractError> {
     let validated = validate_document(read_document(path)?)?;
     let verified = verify_all_artifacts(path, &validated)?;
     let indicator_program = parse_indicator(&verified.indicator.path)?;
@@ -39,9 +60,9 @@ pub(super) fn load_bundle(path: &Path) -> Result<NativeVectorBundle, NativeContr
         &signal_program,
         &tag_program,
     )?;
-    let frames = decode_catalog(path, &validated.frames, verified.frames)?;
-    let futures = decode_futures(path, &validated.futures, verified.futures)?;
-    Ok(NativeVectorBundle {
+    let frames = bind_frame_sources(path, &validated.frames, verified.frames);
+    let futures = bind_futures_sources(path, &validated.futures, verified.futures);
+    Ok(NativeVectorPlan {
         source: validated.source,
         source_execution: validated.source_execution,
         config: validated.config,
@@ -216,81 +237,120 @@ fn parse_mutation(role: &'static str, path: &Path) -> Result<MutationProgram, Na
         .map_err(|source| NativeContractError::Program { role, source })
 }
 
-fn decode_catalog(
+fn bind_frame_sources(
     manifest_path: &Path,
     contracts: &[ValidatedFrame],
     artifacts: Vec<VerifiedArtifact>,
-) -> Result<FrameCatalog, NativeContractError> {
-    let mut entries = Vec::with_capacity(contracts.len());
+) -> Vec<VerifiedFrameSource> {
+    let mut sources = Vec::with_capacity(contracts.len());
     for (index, (contract, artifact)) in contracts.iter().zip(artifacts).enumerate() {
-        let role = format!("raw frame {index}");
-        let frame = decode_frame(
+        sources.push(bind_frame_source(
             manifest_path,
             format!("manifest-frame-{index}"),
-            &role,
             contract,
             artifact,
-        )?;
-        entries.push((contract.identity.clone(), frame));
+        ));
     }
-    FrameCatalog::new(entries).map_err(|error| invalid(error.to_string()))
+    sources
 }
 
-fn decode_futures(
+fn bind_futures_sources(
     manifest_path: &Path,
     contracts: &[ValidatedFutures],
     artifacts: Vec<(VerifiedArtifact, VerifiedArtifact)>,
-) -> Result<Vec<FuturesFrameSet>, NativeContractError> {
+) -> Vec<VerifiedFuturesSources> {
     contracts
         .iter()
         .zip(artifacts)
         .enumerate()
-        .map(|(index, (contract, (funding, mark)))| {
-            Ok(FuturesFrameSet {
+        .map(
+            |(index, (contract, (funding, mark)))| VerifiedFuturesSources {
                 pair: contract.pair.clone(),
-                funding_rate: decode_frame(
+                funding_rate: bind_frame_source(
                     manifest_path,
                     format!("manifest-funding-{index}"),
-                    &format!("futures funding frame {index}"),
                     &contract.funding_rate,
                     funding,
-                )?,
-                mark: decode_frame(
+                ),
+                mark: bind_frame_source(
                     manifest_path,
                     format!("manifest-mark-{index}"),
-                    &format!("futures mark frame {index}"),
                     &contract.mark,
                     mark,
-                )?,
-            })
-        })
+                ),
+            },
+        )
         .collect()
 }
 
-fn decode_frame(
+fn bind_frame_source(
     manifest_path: &Path,
     node: String,
-    role: &str,
     contract: &ValidatedFrame,
     artifact: VerifiedArtifact,
-) -> Result<NumericFrame, NativeContractError> {
+) -> VerifiedFrameSource {
     let source = FeatherFrameSource::new(
         contract.identity.clone(),
         artifact.path,
         SourceLocation::new(node, manifest_path.display().to_string(), 0, 0),
     );
-    let frame = load_raw_ohlcv_frame(&source).map_err(|source| NativeContractError::RawFrame {
-        role: role.to_owned(),
+    VerifiedFrameSource {
+        identity: contract.identity.clone(),
+        rows: contract.rows,
         source,
-    })?;
+    }
+}
+
+pub(crate) fn decode_verified_frame(
+    source: &VerifiedFrameSource,
+    role: &str,
+) -> Result<NumericFrame, NativeContractError> {
+    let frame =
+        load_raw_ohlcv_frame(&source.source).map_err(|source| NativeContractError::RawFrame {
+            role: role.to_owned(),
+            source,
+        })?;
     let actual = frame.timestamps_ms.len();
-    if actual != contract.rows {
+    if actual != source.rows {
         return Err(invalid(format!(
             "{role} row count differs: expected {}, got {actual}",
-            contract.rows
+            source.rows
         )));
     }
     Ok(frame)
+}
+
+fn decode_catalog(sources: &[VerifiedFrameSource]) -> Result<FrameCatalog, NativeContractError> {
+    let entries = sources
+        .iter()
+        .enumerate()
+        .map(|(index, source)| {
+            Ok((
+                source.identity.clone(),
+                decode_verified_frame(source, &format!("raw frame {index}"))?,
+            ))
+        })
+        .collect::<Result<Vec<_>, NativeContractError>>()?;
+    FrameCatalog::new(entries).map_err(|error| invalid(error.to_string()))
+}
+
+fn decode_futures(
+    sources: &[VerifiedFuturesSources],
+) -> Result<Vec<FuturesFrameSet>, NativeContractError> {
+    sources
+        .iter()
+        .enumerate()
+        .map(|(index, source)| {
+            Ok(FuturesFrameSet {
+                pair: source.pair.clone(),
+                funding_rate: decode_verified_frame(
+                    &source.funding_rate,
+                    &format!("futures funding frame {index}"),
+                )?,
+                mark: decode_verified_frame(&source.mark, &format!("futures mark frame {index}"))?,
+            })
+        })
+        .collect()
 }
 
 fn sha256_file(path: &Path) -> Result<String, std::io::Error> {

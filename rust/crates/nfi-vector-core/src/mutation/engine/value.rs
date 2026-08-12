@@ -20,6 +20,125 @@ pub(super) enum RuntimeValue {
     Alias(String),
 }
 
+impl RuntimeValue {
+    pub(super) fn numeric_at(
+        &self,
+        node: &str,
+        row: usize,
+    ) -> Result<Option<f64>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Bool(value) => Ok(Some(f64::from(u8::from(*value)))),
+            Self::Integer(value) => Ok(Some(i64_as_f64(*value))),
+            Self::Float(value) => Ok(Some(*value)),
+            Self::Column(column) => match column.as_view().value_type() {
+                ValueType::Bool => Ok(column
+                    .as_view()
+                    .bool_at(row)
+                    .map(|value| f64::from(u8::from(value)))),
+                ValueType::F64 => Ok(column.as_view().f64_at(row)),
+                ValueType::I64 => Ok(column.as_view().i64_at(row).map(i64_as_f64)),
+                _ => Err(type_error(node, "numeric")),
+            },
+            _ => Err(type_error(node, "numeric")),
+        }
+    }
+
+    pub(super) fn bool_at(&self, node: &str, row: usize) -> Result<Option<bool>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Bool(value) => Ok(Some(*value)),
+            Self::Column(column) if column.as_view().value_type() == ValueType::Bool => {
+                Ok(column.as_view().bool_at(row))
+            }
+            _ => Err(type_error(node, "Boolean")),
+        }
+    }
+
+    pub(super) fn cast_i64_at(
+        &self,
+        node: &str,
+        row: usize,
+    ) -> Result<Option<i64>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Bool(value) => Ok(Some(i64::from(*value))),
+            Self::Integer(value) => Ok(Some(*value)),
+            Self::Float(value) => Ok(Some(f64_as_i64(*value)?)),
+            Self::Column(column) => match column.as_view().value_type() {
+                ValueType::Bool => Ok(column.as_view().bool_at(row).map(i64::from)),
+                ValueType::I64 => Ok(column.as_view().i64_at(row)),
+                ValueType::F64 => column.as_view().f64_at(row).map(f64_as_i64).transpose(),
+                _ => Err(type_error(node, "castable to integer")),
+            },
+            _ => Err(type_error(node, "castable to integer")),
+        }
+    }
+
+    pub(super) fn cast_f64_at(
+        &self,
+        node: &str,
+        row: usize,
+    ) -> Result<Option<f64>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Bool(value) => Ok(Some(f64::from(u8::from(*value)))),
+            Self::Integer(value) => Ok(Some(i64_as_f64(*value))),
+            Self::Float(value) => Ok(Some(*value)),
+            Self::Column(column) => match column.as_view().value_type() {
+                ValueType::Bool => Ok(column
+                    .as_view()
+                    .bool_at(row)
+                    .map(|value| f64::from(u8::from(value)))),
+                ValueType::I64 => Ok(column.as_view().i64_at(row).map(i64_as_f64)),
+                ValueType::F64 => Ok(column.as_view().f64_at(row)),
+                _ => Err(type_error(node, "castable to float")),
+            },
+            _ => Err(type_error(node, "castable to float")),
+        }
+    }
+
+    pub(super) fn cast_bool_at(
+        &self,
+        node: &str,
+        row: usize,
+    ) -> Result<Option<bool>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Bool(value) => Ok(Some(*value)),
+            Self::Integer(value) => Ok(Some(*value != 0)),
+            Self::Float(value) => Ok(Some(*value != 0.0)),
+            Self::Column(column) => match column.as_view().value_type() {
+                ValueType::Bool => Ok(column.as_view().bool_at(row)),
+                ValueType::I64 => Ok(column.as_view().i64_at(row).map(|value| value != 0)),
+                ValueType::F64 => Ok(column.as_view().f64_at(row).map(|value| value != 0.0)),
+                _ => Err(type_error(node, "castable to Boolean")),
+            },
+            _ => Err(type_error(node, "castable to Boolean")),
+        }
+    }
+
+    pub(super) fn text_at(&self, node: &str, row: usize) -> Result<&str, VectorCoreError> {
+        self.text_at_optional(node, row)?
+            .ok_or_else(|| type_error(node, "non-null text"))
+    }
+
+    pub(super) fn text_at_optional(
+        &self,
+        node: &str,
+        row: usize,
+    ) -> Result<Option<&str>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Text(value) => Ok(Some(value)),
+            Self::Column(column) if column.as_view().value_type() == ValueType::Text => {
+                Ok(column.as_view().text_at(row))
+            }
+            _ => Err(type_error(node, "text")),
+        }
+    }
+}
+
 pub(super) fn value<'a>(
     values: &'a BTreeMap<String, RuntimeValue>,
     start: &str,
@@ -42,130 +161,6 @@ pub(super) fn value<'a>(
         node: start.to_owned(),
         message: "mutation runtime alias cycle".to_owned(),
     })
-}
-
-pub(super) fn numeric_at(
-    values: &BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<Option<f64>, VectorCoreError> {
-    match value(values, node)? {
-        RuntimeValue::Null => Ok(None),
-        RuntimeValue::Bool(value) => Ok(Some(f64::from(u8::from(*value)))),
-        RuntimeValue::Integer(value) => Ok(Some(i64_as_f64(*value))),
-        RuntimeValue::Float(value) => Ok(Some(*value)),
-        RuntimeValue::Column(column) => match column.as_view().value_type() {
-            ValueType::Bool => Ok(column
-                .as_view()
-                .bool_at(row)
-                .map(|value| f64::from(u8::from(value)))),
-            ValueType::F64 => Ok(column.as_view().f64_at(row)),
-            ValueType::I64 => Ok(column.as_view().i64_at(row).map(i64_as_f64)),
-            _ => Err(type_error(node, "numeric")),
-        },
-        _ => Err(type_error(node, "numeric")),
-    }
-}
-
-pub(super) fn bool_at(
-    values: &BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<Option<bool>, VectorCoreError> {
-    match value(values, node)? {
-        RuntimeValue::Null => Ok(None),
-        RuntimeValue::Bool(value) => Ok(Some(*value)),
-        RuntimeValue::Column(column) if column.as_view().value_type() == ValueType::Bool => {
-            Ok(column.as_view().bool_at(row))
-        }
-        _ => Err(type_error(node, "Boolean")),
-    }
-}
-
-pub(super) fn cast_i64_at(
-    values: &BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<Option<i64>, VectorCoreError> {
-    match value(values, node)? {
-        RuntimeValue::Null => Ok(None),
-        RuntimeValue::Bool(value) => Ok(Some(i64::from(*value))),
-        RuntimeValue::Integer(value) => Ok(Some(*value)),
-        RuntimeValue::Float(value) => Ok(Some(f64_as_i64(*value)?)),
-        RuntimeValue::Column(column) => match column.as_view().value_type() {
-            ValueType::Bool => Ok(column.as_view().bool_at(row).map(i64::from)),
-            ValueType::I64 => Ok(column.as_view().i64_at(row)),
-            ValueType::F64 => column.as_view().f64_at(row).map(f64_as_i64).transpose(),
-            _ => Err(type_error(node, "castable to integer")),
-        },
-        _ => Err(type_error(node, "castable to integer")),
-    }
-}
-
-pub(super) fn cast_f64_at(
-    values: &BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<Option<f64>, VectorCoreError> {
-    match value(values, node)? {
-        RuntimeValue::Null => Ok(None),
-        RuntimeValue::Bool(value) => Ok(Some(f64::from(u8::from(*value)))),
-        RuntimeValue::Integer(value) => Ok(Some(i64_as_f64(*value))),
-        RuntimeValue::Float(value) => Ok(Some(*value)),
-        RuntimeValue::Column(column) => match column.as_view().value_type() {
-            ValueType::Bool => Ok(column
-                .as_view()
-                .bool_at(row)
-                .map(|value| f64::from(u8::from(value)))),
-            ValueType::I64 => Ok(column.as_view().i64_at(row).map(i64_as_f64)),
-            ValueType::F64 => Ok(column.as_view().f64_at(row)),
-            _ => Err(type_error(node, "castable to float")),
-        },
-        _ => Err(type_error(node, "castable to float")),
-    }
-}
-
-pub(super) fn cast_bool_at(
-    values: &BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<Option<bool>, VectorCoreError> {
-    match value(values, node)? {
-        RuntimeValue::Null => Ok(None),
-        RuntimeValue::Bool(value) => Ok(Some(*value)),
-        RuntimeValue::Integer(value) => Ok(Some(*value != 0)),
-        RuntimeValue::Float(value) => Ok(Some(*value != 0.0)),
-        RuntimeValue::Column(column) => match column.as_view().value_type() {
-            ValueType::Bool => Ok(column.as_view().bool_at(row)),
-            ValueType::I64 => Ok(column.as_view().i64_at(row).map(|value| value != 0)),
-            ValueType::F64 => Ok(column.as_view().f64_at(row).map(|value| value != 0.0)),
-            _ => Err(type_error(node, "castable to Boolean")),
-        },
-        _ => Err(type_error(node, "castable to Boolean")),
-    }
-}
-
-pub(super) fn text_at<'a>(
-    values: &'a BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<&'a str, VectorCoreError> {
-    text_at_optional(values, node, row)?.ok_or_else(|| type_error(node, "non-null text"))
-}
-
-pub(super) fn text_at_optional<'a>(
-    values: &'a BTreeMap<String, RuntimeValue>,
-    node: &str,
-    row: usize,
-) -> Result<Option<&'a str>, VectorCoreError> {
-    match value(values, node)? {
-        RuntimeValue::Null => Ok(None),
-        RuntimeValue::Text(value) => Ok(Some(value)),
-        RuntimeValue::Column(column) if column.as_view().value_type() == ValueType::Text => {
-            Ok(column.as_view().text_at(row))
-        }
-        _ => Err(type_error(node, "text")),
-    }
 }
 
 pub(super) fn scalar_text(value: &RuntimeValue) -> Result<String, VectorCoreError> {
@@ -499,9 +494,38 @@ mod tests {
             ),
         ]);
 
-        assert_eq!(numeric_at(&values, "scalar", 0).unwrap(), Some(1.0));
-        assert_eq!(numeric_at(&values, "column", 0).unwrap(), Some(0.0));
-        assert_eq!(numeric_at(&values, "column", 1).unwrap(), None);
-        assert_eq!(numeric_at(&values, "column", 2).unwrap(), Some(1.0));
+        let scalar = value(&values, "scalar").unwrap();
+        let column = value(&values, "column").unwrap();
+        assert_eq!(scalar.numeric_at("scalar", 0).unwrap(), Some(1.0));
+        assert_eq!(column.numeric_at("column", 0).unwrap(), Some(0.0));
+        assert_eq!(column.numeric_at("column", 1).unwrap(), None);
+        assert_eq!(column.numeric_at("column", 2).unwrap(), Some(1.0));
+    }
+
+    #[test]
+    fn direct_numeric_access_preserves_arrow_null_nan_and_signed_zero() {
+        let column = RuntimeValue::Column(OwnedColumn::f64(vec![
+            None,
+            Some(f64::from_bits(0xfff8_1234_5678_9abc)),
+            Some(-0.0),
+            Some(0.0),
+        ]));
+
+        assert_eq!(column.numeric_at("column", 0).unwrap(), None);
+        assert_eq!(
+            column.numeric_at("column", 1).unwrap().unwrap().to_bits(),
+            crate::float::CANONICAL_NAN_BITS
+        );
+        assert_eq!(
+            column.numeric_at("column", 2).unwrap().unwrap().to_bits(),
+            (-0.0_f64).to_bits()
+        );
+        assert_eq!(
+            column.numeric_at("column", 3).unwrap().unwrap().to_bits(),
+            0.0_f64.to_bits()
+        );
+        assert_eq!(column.cast_f64_at("column", 0).unwrap(), None);
+        assert_eq!(column.cast_bool_at("column", 1).unwrap(), Some(true));
+        assert_eq!(column.cast_bool_at("column", 2).unwrap(), Some(false));
     }
 }

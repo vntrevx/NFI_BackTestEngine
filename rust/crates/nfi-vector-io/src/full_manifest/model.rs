@@ -25,6 +25,37 @@ pub struct NativeVectorBundle {
     pub futures: Vec<FuturesFrameSet>,
 }
 
+/// SHA-verified manifest whose raw frames remain unopened until their pair DAG.
+#[derive(Debug)]
+pub(crate) struct NativeVectorPlan {
+    pub(crate) source: SourceSeal,
+    pub(crate) source_execution: SourceExecutionSeal,
+    pub(crate) config: PortfolioConfig,
+    pub(crate) compile_context: CompileContext,
+    pub(crate) run: RunContract,
+    pub(crate) retained_features: FeatureRetention,
+    pub(crate) pairs: Vec<PairContract>,
+    pub(crate) indicator_program: IndicatorProgram,
+    pub(crate) signal_program: MutationProgram,
+    pub(crate) tag_program: MutationProgram,
+    pub(crate) frames: Vec<VerifiedFrameSource>,
+    pub(crate) futures: Vec<VerifiedFuturesSources>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct VerifiedFrameSource {
+    pub(crate) identity: FrameIdentity,
+    pub(crate) rows: usize,
+    pub(crate) source: crate::FeatherFrameSource,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct VerifiedFuturesSources {
+    pub(crate) pair: String,
+    pub(crate) funding_rate: VerifiedFrameSource,
+    pub(crate) mark: VerifiedFrameSource,
+}
+
 /// Static inputs that produced the compiled programs.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceSeal {

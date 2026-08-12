@@ -3,9 +3,8 @@ use std::collections::BTreeMap;
 use serde_json::Value as JsonValue;
 
 use super::value::{
-    append_text, as_column, assign_masked, bool_at, cast_bool_at, cast_f64_at, cast_i64_at,
-    mask_values, numeric_at, scalar_text, shift_column, single_input, string_parameter, text_at,
-    text_at_optional, three_inputs, two_inputs, value, RuntimeValue,
+    append_text, as_column, assign_masked, mask_values, scalar_text, shift_column, single_input,
+    string_parameter, three_inputs, two_inputs, value, RuntimeValue,
 };
 use super::{MutationEngine, MutationFrame};
 use crate::column::OwnedColumn;
@@ -79,12 +78,16 @@ impl<'program> MutationEngine<'program> {
             VectorCoreError::InvalidProgram(format!("mutation function is missing: {function_id}"))
         })?;
         let mut values = BTreeMap::new();
+        let mut remaining_uses = self.function_input_uses(function)?;
         for node_id in &function.node_ids {
             let node = self.program.node(node_id).ok_or_else(|| {
                 VectorCoreError::InvalidProgram(format!("mutation node is missing: {node_id}"))
             })?;
             let value = self.execute_node(node, &values, frame, metadata)?;
             values.insert(node.id.clone(), value);
+            if node.op != "return" {
+                release_consumed_inputs(&node.inputs, &mut remaining_uses, &mut values)?;
+            }
         }
         if !values.contains_key(&function.return_node) {
             return Err(self.error(
@@ -95,6 +98,35 @@ impl<'program> MutationEngine<'program> {
             ));
         }
         Ok(())
+    }
+
+    fn function_input_uses(
+        &self,
+        function: &crate::program::ProgramFunction,
+    ) -> Result<BTreeMap<String, usize>, VectorCoreError> {
+        let mut uses = function
+            .node_ids
+            .iter()
+            .map(|id| (id.clone(), 0_usize))
+            .collect::<BTreeMap<_, _>>();
+        for node_id in &function.node_ids {
+            let node = self.program.node(node_id).ok_or_else(|| {
+                VectorCoreError::InvalidProgram(format!("mutation node is missing: {node_id}"))
+            })?;
+            for input in &node.inputs {
+                let count = uses.get_mut(input).ok_or_else(|| {
+                    VectorCoreError::InvalidProgram(format!(
+                        "mutation node {node_id} references non-local input {input}"
+                    ))
+                })?;
+                *count = count.checked_add(1).ok_or_else(|| {
+                    VectorCoreError::InvalidProgram(
+                        "mutation input use count is too large".to_owned(),
+                    )
+                })?;
+            }
+        }
+        Ok(uses)
     }
 
     fn execute_node(
@@ -319,6 +351,7 @@ impl<'program> MutationEngine<'program> {
         let RuntimeValue::Column(target) = value(values, target)? else {
             return Err(self.error(node, "masked string append target is not a column"));
         };
+        let mask_value = value(values, mask)?;
         let RuntimeValue::Text(suffix) = value(values, suffix)? else {
             return Err(self.error(node, "masked string append suffix is not scalar text"));
         };
@@ -331,7 +364,7 @@ impl<'program> MutationEngine<'program> {
         let target = target.as_view();
         Ok(RuntimeValue::Column(OwnedColumn::text(
             (0..rows)
-                .map(|row| match bool_at(values, mask, row)? {
+                .map(|row| match mask_value.bool_at(mask, row)? {
                     Some(true) => target.text_at(row).map_or_else(
                         || Err(self.error(node, "masked string append selected a null target")),
                         |prefix| Ok(Some(format!("{prefix}{suffix}"))),
@@ -377,12 +410,17 @@ impl<'program> MutationEngine<'program> {
         rows: usize,
     ) -> Result<RuntimeValue, VectorCoreError> {
         let input = single_input(node)?;
+        let input_value = value(values, input)?;
         if node.value_type != "bool-column" {
             return Err(self.error(node, "numpy isnan requires bool-column output"));
         }
         Ok(RuntimeValue::Column(OwnedColumn::boolean(
             (0..rows)
-                .map(|row| numeric_at(values, input, row).map(|value| value.map(f64::is_nan)))
+                .map(|row| {
+                    input_value
+                        .numeric_at(input, row)
+                        .map(|value| value.map(f64::is_nan))
+                })
                 .collect::<Result<Vec<_>, _>>()?,
         )))
     }
@@ -478,7 +516,11 @@ impl<'program> MutationEngine<'program> {
             ],
             _ => return Err(self.error(node, "numpy divide requires x1, x2, out, and where")),
         };
-        let RuntimeValue::Column(out_column) = value(values, out)? else {
+        let numerator_value = value(values, numerator)?;
+        let denominator_value = value(values, denominator)?;
+        let out_value = value(values, out)?;
+        let where_value = value(values, where_mask)?;
+        let RuntimeValue::Column(out_column) = out_value else {
             return Err(self.error(node, "numpy divide out is not a column"));
         };
         if node.value_type != "f64-column"
@@ -491,11 +533,11 @@ impl<'program> MutationEngine<'program> {
         let out_view = out_column.as_view();
         Ok(RuntimeValue::Column(OwnedColumn::f64(
             (0..rows)
-                .map(|row| match bool_at(values, where_mask, row)? {
+                .map(|row| match where_value.bool_at(where_mask, row)? {
                     Some(true) => {
                         match (
-                            numeric_at(values, numerator, row)?,
-                            numeric_at(values, denominator, row)?,
+                            numerator_value.numeric_at(numerator, row)?,
+                            denominator_value.numeric_at(denominator, row)?,
                         ) {
                             (Some(left), Some(right)) => {
                                 Ok(Some(binary(left, right, BinaryFloatOp::Divide)))
@@ -516,6 +558,8 @@ impl<'program> MutationEngine<'program> {
         rows: usize,
     ) -> Result<RuntimeValue, VectorCoreError> {
         let [left, right] = two_inputs(node)?;
+        let left_value = value(values, left)?;
+        let right_value = value(values, right)?;
         if node.value_type.starts_with("string-") {
             if string_parameter(node, "operator")? != "add" {
                 return Err(self.error(node, "string binary operation is not concatenation"));
@@ -523,16 +567,16 @@ impl<'program> MutationEngine<'program> {
             if node.value_type == "string-scalar" {
                 return Ok(RuntimeValue::Text(format!(
                     "{}{}",
-                    text_at(values, left, 0)?,
-                    text_at(values, right, 0)?
+                    left_value.text_at(left, 0)?,
+                    right_value.text_at(right, 0)?
                 )));
             }
             return Ok(RuntimeValue::Column(OwnedColumn::text(
                 (0..rows)
                     .map(|row| {
                         match (
-                            text_at_optional(values, left, row)?,
-                            text_at_optional(values, right, row)?,
+                            left_value.text_at_optional(left, row)?,
+                            right_value.text_at_optional(right, row)?,
                         ) {
                             (Some(left), Some(right)) => Ok(Some(format!("{left}{right}"))),
                             _ => Ok(None),
@@ -555,8 +599,8 @@ impl<'program> MutationEngine<'program> {
                     .map(|row| {
                         Ok(
                             match (
-                                numeric_at(values, left, row)?,
-                                numeric_at(values, right, row)?,
+                                left_value.numeric_at(left, row)?,
+                                right_value.numeric_at(right, row)?,
                             ) {
                                 (Some(left), Some(right)) => Some(binary(left, right, operation)),
                                 _ => None,
@@ -567,7 +611,10 @@ impl<'program> MutationEngine<'program> {
             )));
         }
         Ok(
-            match (numeric_at(values, left, 0)?, numeric_at(values, right, 0)?) {
+            match (
+                left_value.numeric_at(left, 0)?,
+                right_value.numeric_at(right, 0)?,
+            ) {
                 (Some(left), Some(right)) => RuntimeValue::Float(binary(left, right, operation)),
                 _ => RuntimeValue::Null,
             },
@@ -581,6 +628,8 @@ impl<'program> MutationEngine<'program> {
         rows: usize,
     ) -> Result<RuntimeValue, VectorCoreError> {
         let [left, right] = two_inputs(node)?;
+        let left_value = value(values, left)?;
+        let right_value = value(values, right)?;
         let operation = match string_parameter(node, "operator")? {
             "equal" => FloatComparison::Equal,
             "not-equal" => FloatComparison::NotEqual,
@@ -593,8 +642,8 @@ impl<'program> MutationEngine<'program> {
         let evaluate = |row| -> Result<Option<bool>, VectorCoreError> {
             Ok(
                 match (
-                    numeric_at(values, left, row)?,
-                    numeric_at(values, right, row)?,
+                    left_value.numeric_at(left, row)?,
+                    right_value.numeric_at(right, row)?,
                 ) {
                     (Some(left), Some(right)) => Some(compare(left, right, operation)),
                     _ => None,
@@ -620,10 +669,23 @@ impl<'program> MutationEngine<'program> {
         if node.inputs.is_empty() || !matches!(operation, "and" | "or") {
             return Err(self.error(node, "logical operation has invalid arity or operator"));
         }
+        let inputs = node
+            .inputs
+            .iter()
+            .map(|input| Ok((input.as_str(), value(values, input)?)))
+            .collect::<Result<Vec<_>, VectorCoreError>>()?;
         let evaluate = |row| -> Result<Option<bool>, VectorCoreError> {
-            let mut result = bool_at(values, &node.inputs[0], row)?;
-            for input in node.inputs.iter().skip(1) {
-                let right = bool_at(values, input, row)?;
+            let mut result = inputs[0].1.bool_at(inputs[0].0, row)?;
+            for (input, input_value) in inputs.iter().skip(1) {
+                // Pandas' nullable Boolean algebra has two absorbing values:
+                // false for AND and true for OR. Once reached, later operands
+                // cannot change either the value or its nullability.
+                if (operation == "and" && result == Some(false))
+                    || (operation == "or" && result == Some(true))
+                {
+                    break;
+                }
+                let right = input_value.bool_at(input, row)?;
                 result = nullable_logical(result, right, operation);
             }
             Ok(result)
@@ -644,6 +706,7 @@ impl<'program> MutationEngine<'program> {
         rows: usize,
     ) -> Result<RuntimeValue, VectorCoreError> {
         let input = single_input(node)?;
+        let input_value = value(values, input)?;
         let operation = string_parameter(node, "operator")?;
         if node.value_type.starts_with("bool-") {
             if !matches!(operation, "not" | "invert") {
@@ -652,11 +715,16 @@ impl<'program> MutationEngine<'program> {
             if node.value_type == "bool-column" {
                 return Ok(RuntimeValue::Column(OwnedColumn::boolean(
                     (0..rows)
-                        .map(|row| bool_at(values, input, row).map(|value| value.map(|item| !item)))
+                        .map(|row| {
+                            input_value
+                                .bool_at(input, row)
+                                .map(|value| value.map(|item| !item))
+                        })
                         .collect::<Result<Vec<_>, _>>()?,
                 )));
             }
-            return Ok(bool_at(values, input, 0)?
+            return Ok(input_value
+                .bool_at(input, 0)?
                 .map_or(RuntimeValue::Null, |value| RuntimeValue::Bool(!value)));
         }
         if !matches!(operation, "negate" | "positive") {
@@ -666,15 +734,19 @@ impl<'program> MutationEngine<'program> {
         if node.value_type.ends_with("-column") {
             return Ok(RuntimeValue::Column(OwnedColumn::f64(
                 (0..rows)
-                    .map(|row| numeric_at(values, input, row).map(|value| value.map(apply)))
+                    .map(|row| {
+                        input_value
+                            .numeric_at(input, row)
+                            .map(|value| value.map(apply))
+                    })
                     .collect::<Result<Vec<_>, _>>()?,
             )));
         }
-        Ok(
-            numeric_at(values, input, 0)?.map_or(RuntimeValue::Null, |value| {
+        Ok(input_value
+            .numeric_at(input, 0)?
+            .map_or(RuntimeValue::Null, |value| {
                 RuntimeValue::Float(apply(value))
-            }),
-        )
+            }))
     }
 
     fn select(
@@ -684,14 +756,17 @@ impl<'program> MutationEngine<'program> {
         rows: usize,
     ) -> Result<RuntimeValue, VectorCoreError> {
         let [condition, truthy, falsey] = three_inputs(node)?;
+        let condition_value = value(values, condition)?;
+        let truthy_value = value(values, truthy)?;
+        let falsey_value = value(values, falsey)?;
         if node.value_type != "f64-column" {
             return Err(self.error(node, "select currently requires f64-column output"));
         }
         Ok(RuntimeValue::Column(OwnedColumn::f64(
             (0..rows)
-                .map(|row| match bool_at(values, condition, row)? {
-                    Some(true) => numeric_at(values, truthy, row),
-                    Some(false) => numeric_at(values, falsey, row),
+                .map(|row| match condition_value.bool_at(condition, row)? {
+                    Some(true) => truthy_value.numeric_at(truthy, row),
+                    Some(false) => falsey_value.numeric_at(falsey, row),
                     None => Ok(None),
                 })
                 .collect::<Result<Vec<_>, _>>()?,
@@ -705,24 +780,25 @@ impl<'program> MutationEngine<'program> {
         rows: usize,
     ) -> Result<RuntimeValue, VectorCoreError> {
         let input = single_input(node)?;
+        let input_value = value(values, input)?;
         let target = string_parameter(node, "target")?;
         if target == "array" {
-            return Ok(RuntimeValue::Alias(input.to_owned()));
+            return Ok(input_value.clone());
         }
         match target {
             "int" => Ok(RuntimeValue::Column(OwnedColumn::i64(
                 (0..rows)
-                    .map(|row| cast_i64_at(values, input, row))
+                    .map(|row| input_value.cast_i64_at(input, row))
                     .collect::<Result<Vec<_>, _>>()?,
             ))),
             "float" => Ok(RuntimeValue::Column(OwnedColumn::f64(
                 (0..rows)
-                    .map(|row| cast_f64_at(values, input, row))
+                    .map(|row| input_value.cast_f64_at(input, row))
                     .collect::<Result<Vec<_>, _>>()?,
             ))),
             "bool" => Ok(RuntimeValue::Column(OwnedColumn::boolean(
                 (0..rows)
-                    .map(|row| cast_bool_at(values, input, row))
+                    .map(|row| input_value.cast_bool_at(input, row))
                     .collect::<Result<Vec<_>, _>>()?,
             ))),
             _ => Err(self.error(node, format!("unsupported cast target {target}"))),
@@ -837,6 +913,29 @@ impl<'program> MutationEngine<'program> {
             |location| format!("{}:{}:{}", location.path, location.line, location.column),
         )
     }
+}
+
+fn release_consumed_inputs(
+    inputs: &[String],
+    remaining_uses: &mut BTreeMap<String, usize>,
+    values: &mut BTreeMap<String, RuntimeValue>,
+) -> Result<(), VectorCoreError> {
+    for input in inputs {
+        let remaining = remaining_uses.get_mut(input).ok_or_else(|| {
+            VectorCoreError::InvalidProgram(format!(
+                "mutation input {input} has no liveness record"
+            ))
+        })?;
+        *remaining = remaining.checked_sub(1).ok_or_else(|| {
+            VectorCoreError::InvalidProgram(format!(
+                "mutation input {input} was consumed too many times"
+            ))
+        })?;
+        if *remaining == 0 {
+            values.remove(input);
+        }
+    }
+    Ok(())
 }
 
 fn nullable_logical(left: Option<bool>, right: Option<bool>, operation: &str) -> Option<bool> {

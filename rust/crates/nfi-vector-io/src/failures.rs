@@ -106,4 +106,19 @@ pub enum VectorInputError {
         actual: &'static str,
         expected: &'static str,
     },
+    #[error("cannot create the bounded pair worker pool: {0}")]
+    PairWorkerPool(String),
+    #[error("cannot calculate the Full Native spool upper bound: {0}")]
+    SpoolBound(String),
+    #[error("cannot inspect spool filesystem at {target}: {source}")]
+    SpoolCapacityProbe {
+        target: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("spool capacity admission failed for {target_source}: requires {required_bytes} bytes, only {available_bytes} bytes are available")]
+    SpoolCapacity {
+        target_source: &'static str,
+        required_bytes: u64,
+        available_bytes: u64,
+    },
 }

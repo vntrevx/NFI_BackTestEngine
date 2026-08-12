@@ -80,8 +80,13 @@ pub(crate) fn exit_decision(
         }
     }
     if let Some(manager) = &config.nfi_x7_trade_manager {
-        let feature_index =
-            callback_feature_index(candle_index).ok_or(SimError::InvalidNfiTradeManager)?;
+        let runtime_error = |diagnostic: String| SimError::InvalidNfiExitRuntime {
+            pair: trade.pair.clone(),
+            timestamp_ms: candle.timestamp_ms,
+            diagnostic,
+        };
+        let feature_index = callback_feature_index(candle_index)
+            .ok_or_else(|| runtime_error("callback feature index is unavailable".to_owned()))?;
         let decision = evaluate_nfi_exit(
             manager,
             trade,
@@ -91,7 +96,7 @@ pub(crate) fn exit_decision(
             config,
             profit_targets,
         )
-        .ok_or(SimError::InvalidNfiTradeManager)?;
+        .map_err(|diagnostic| runtime_error(diagnostic.to_string()))?;
         if let CustomExitDecision::Exit(reason) = decision {
             return Ok(Some(ExitDecision {
                 rate: candle.open,

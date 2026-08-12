@@ -1,6 +1,7 @@
 //! NFI custom-exit routing and profit-target state machine.
 
 use std::collections::BTreeMap;
+use std::fmt;
 
 use serde_json::Value;
 
@@ -32,6 +33,60 @@ use super::state::{
 pub(crate) enum CustomExitDecision {
     NoExit,
     Exit(String),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum NfiExitDiagnostic {
+    DispatchUnavailable,
+    RouteUnavailable {
+        side: &'static str,
+        index: usize,
+    },
+    MatcherShadowDisagreement {
+        side: &'static str,
+        route: String,
+    },
+    ManagedRouteEvaluation {
+        side: &'static str,
+        route: String,
+        line: Option<usize>,
+        column: Option<usize>,
+    },
+    LegacyGrindSnapshot {
+        route: String,
+    },
+}
+
+impl fmt::Display for NfiExitDiagnostic {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DispatchUnavailable => formatter.write_str("runtime dispatch is unavailable"),
+            Self::RouteUnavailable { side, index } => {
+                write!(formatter, "{side} route index {index} is unavailable")
+            }
+            Self::MatcherShadowDisagreement { side, route } => {
+                write!(formatter, "{side} route {route:?} matcher shadow disagreed")
+            }
+            Self::ManagedRouteEvaluation {
+                side,
+                route,
+                line: Some(line),
+                column: Some(column),
+            } => write!(
+                formatter,
+                "{side} route {route:?} evaluation failed at strategy.py:{line}:{column}"
+            ),
+            Self::ManagedRouteEvaluation { side, route, .. } => {
+                write!(formatter, "{side} route {route:?} evaluation failed")
+            }
+            Self::LegacyGrindSnapshot { route } => {
+                write!(
+                    formatter,
+                    "legacy Grind route {route:?} profit snapshot failed"
+                )
+            }
+        }
+    }
 }
 
 pub(crate) const NFI_LONG_EXIT_PROGRAMS: &[&str] = &[
@@ -67,12 +122,19 @@ pub(crate) fn evaluate_nfi_exit(
     candle: &Candle,
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
-) -> Option<CustomExitDecision> {
-    let dispatch = manager.runtime_dispatch()?;
+) -> Result<CustomExitDecision, NfiExitDiagnostic> {
+    let dispatch = manager
+        .runtime_dispatch()
+        .ok_or(NfiExitDiagnostic::DispatchUnavailable)?;
     let tags = dispatch.intern_trade_tags(trade);
     for step in &dispatch.long_steps {
         if let NfiLongDispatchStep::Managed(step) = step {
-            let route = manager.managed_long_routes.get(step.route_index)?;
+            let route = manager.managed_long_routes.get(step.route_index).ok_or(
+                NfiExitDiagnostic::RouteUnavailable {
+                    side: "long",
+                    index: step.route_index,
+                },
+            )?;
             let source_route = manager.managed_exit_program.as_ref().and_then(|program| {
                 step.source_route_index
                     .and_then(|index| program.routes.get(index))
@@ -88,11 +150,15 @@ pub(crate) fn evaluate_nfi_exit(
             if !matches!(source_route, Some((ManagedExitExecutionMode::Primary, _)))
                 && source_matches != legacy_matches
             {
-                return None;
+                return Err(NfiExitDiagnostic::MatcherShadowDisagreement {
+                    side: "long",
+                    route: route.key.clone(),
+                });
             }
             if !source_matches {
                 continue;
             }
+            let diagnostic = managed_route_diagnostic("long", route, source_route);
             match evaluate_nfi_managed_long_exit(
                 manager,
                 source_route,
@@ -107,9 +173,11 @@ pub(crate) fn evaluate_nfi_exit(
                 candle,
                 config,
                 profit_targets,
-            )? {
+            )
+            .ok_or(diagnostic)?
+            {
                 CustomExitDecision::Exit(reason) => {
-                    return Some(CustomExitDecision::Exit(reason));
+                    return Ok(CustomExitDecision::Exit(reason));
                 }
                 CustomExitDecision::NoExit => continue,
             }
@@ -127,11 +195,14 @@ pub(crate) fn evaluate_nfi_exit(
                 fee_open(config),
                 fee_close(config),
                 config.is_futures,
-            )?;
+            )
+            .ok_or_else(|| NfiExitDiagnostic::LegacyGrindSnapshot {
+                route: route.mode_name.clone(),
+            })?;
             if snapshot.initial_stake_ratio > route.exit_profit_threshold {
                 let entry_tag = trade.entry_tag.as_deref().unwrap_or("empty");
                 let reason = format!("exit_{}_g", route.mode_name);
-                return Some(CustomExitDecision::Exit(nfi_exit_reason(
+                return Ok(CustomExitDecision::Exit(nfi_exit_reason(
                     &reason, entry_tag,
                 )));
             }
@@ -150,11 +221,11 @@ pub(crate) fn evaluate_nfi_exit(
         profit_targets,
     )?;
     if let CustomExitDecision::Exit(_) = short_decision {
-        return Some(short_decision);
+        return Ok(short_decision);
     }
     // A compound of individually compiled words may intentionally match no
     // all-tags route. The source callback returns None in that case.
-    Some(CustomExitDecision::NoExit)
+    Ok(CustomExitDecision::NoExit)
 }
 
 /// Execute the bounded short-rebuy branch in source order.
@@ -167,11 +238,18 @@ fn evaluate_nfi_short_exit(
     candle: &Candle,
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
-) -> Option<CustomExitDecision> {
-    let dispatch = manager.runtime_dispatch()?;
+) -> Result<CustomExitDecision, NfiExitDiagnostic> {
+    let dispatch = manager
+        .runtime_dispatch()
+        .ok_or(NfiExitDiagnostic::DispatchUnavailable)?;
     let tags = dispatch.intern_trade_tags(trade);
     for step in &dispatch.short_steps {
-        let route = manager.managed_short_routes.get(step.route_index)?;
+        let route = manager.managed_short_routes.get(step.route_index).ok_or(
+            NfiExitDiagnostic::RouteUnavailable {
+                side: "short",
+                index: step.route_index,
+            },
+        )?;
         let source_route = manager
             .managed_short_exit_program
             .as_ref()
@@ -190,11 +268,15 @@ fn evaluate_nfi_short_exit(
         if !matches!(source_route, Some((ManagedExitExecutionMode::Primary, _)))
             && source_matches != legacy_matches
         {
-            return None;
+            return Err(NfiExitDiagnostic::MatcherShadowDisagreement {
+                side: "short",
+                route: route.key.clone(),
+            });
         }
         if !source_matches {
             continue;
         }
+        let diagnostic = managed_route_diagnostic("short", route, source_route);
         match evaluate_nfi_managed_long_exit(
             manager,
             source_route,
@@ -209,14 +291,39 @@ fn evaluate_nfi_short_exit(
             candle,
             config,
             profit_targets,
-        )? {
+        )
+        .ok_or(diagnostic)?
+        {
             CustomExitDecision::Exit(reason) => {
-                return Some(CustomExitDecision::Exit(reason));
+                return Ok(CustomExitDecision::Exit(reason));
             }
             CustomExitDecision::NoExit => {}
         }
     }
-    Some(CustomExitDecision::NoExit)
+    Ok(CustomExitDecision::NoExit)
+}
+
+fn managed_route_diagnostic(
+    side: &'static str,
+    route: &NfiManagedLongRoute,
+    source_route: Option<(ManagedExitExecutionMode, &ManagedExitRoute)>,
+) -> NfiExitDiagnostic {
+    let (route, line, column) = source_route.map_or_else(
+        || (route.key.clone(), None, None),
+        |(_, source)| {
+            (
+                source.id.clone(),
+                Some(source.location.line),
+                Some(source.location.column),
+            )
+        },
+    );
+    NfiExitDiagnostic::ManagedRouteEvaluation {
+        side,
+        route,
+        line,
+        column,
+    }
 }
 
 /// Execute one source-bound NFI X7 managed custom-exit route.
@@ -930,9 +1037,16 @@ fn generic_managed_exit_stop(
 ) -> Option<(bool, Option<String>)> {
     match &route.state_program.as_ref()?.stop {
         ManagedExitStopPolicy::SourceHelper { helper }
-            if (helper == "long_exit_stoploss" && trade.side == TradeSide::Long)
-                || (helper == "short_exit_stoploss" && trade.side == TradeSide::Short) =>
+            if matches!(
+                helper.as_str(),
+                "long_exit_stoploss" | "short_exit_stoploss"
+            ) =>
         {
+            // X7's shared enter-tag column can select a route from the
+            // opposite entry side. The source callback still invokes that
+            // route's named helper with the actual trade; the helper itself
+            // applies direction-sensitive predicates. Do not synthesize a
+            // side gate that is absent from the source route.
             nfi_common_long_stoploss(
                 manager,
                 &route.mode_name,

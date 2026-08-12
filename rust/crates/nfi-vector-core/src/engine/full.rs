@@ -84,8 +84,8 @@ impl FullFrameOutput {
 #[derive(Debug)]
 pub struct FullIndicatorEngine<'program> {
     program: &'program IndicatorProgram,
-    functions: BTreeMap<String, usize>,
-    nodes: BTreeMap<String, usize>,
+    functions: BTreeMap<String, &'program ProgramFunction>,
+    nodes: BTreeMap<String, &'program ProgramNode>,
     shift_states: BTreeMap<String, ShiftState>,
     indicator_states: BTreeMap<String, TalibStream>,
     rolling_states: BTreeMap<String, RollingStream>,
@@ -107,8 +107,7 @@ impl<'program> FullIndicatorEngine<'program> {
         let functions = program
             .functions
             .iter()
-            .enumerate()
-            .map(|(index, function)| (function.id.clone(), index))
+            .map(|function| (function.id.clone(), function))
             .collect::<BTreeMap<_, _>>();
         if !functions.contains_key(&program.entrypoint) {
             return Err(VectorCoreError::InvalidProgram(
@@ -118,8 +117,7 @@ impl<'program> FullIndicatorEngine<'program> {
         let nodes = program
             .nodes
             .iter()
-            .enumerate()
-            .map(|(index, node)| (node.id.clone(), index))
+            .map(|node| (node.id.clone(), node))
             .collect();
         Ok(Self {
             program,
@@ -207,7 +205,7 @@ impl<'program> FullIndicatorEngine<'program> {
                 "indicator helper call depth exceeds {MAX_CALL_DEPTH} at {call_path}"
             )));
         }
-        let function = self.function(function_id)?.clone();
+        let function = self.function(function_id)?;
         if arguments.len() != function.parameters.len() {
             return Err(VectorCoreError::InvalidProgram(format!(
                 "function {} received {} arguments; expected {}",
@@ -217,6 +215,7 @@ impl<'program> FullIndicatorEngine<'program> {
             )));
         }
         let mut scope = FunctionScope::default();
+        let mut remaining_uses = self.function_input_uses(function)?;
         for (parameter, argument) in function.parameters.iter().zip(arguments) {
             if !argument.matches_type(&parameter.value_type) {
                 return Err(VectorCoreError::InvalidProgram(format!(
@@ -231,7 +230,7 @@ impl<'program> FullIndicatorEngine<'program> {
         }
 
         for node_id in &function.node_ids {
-            let node = self.node(node_id)?.clone();
+            let node = self.node(node_id)?;
             if node.op == "parameter" {
                 if !scope.contains(&node.id) {
                     return Err(VectorCoreError::InvalidProgram(format!(
@@ -241,9 +240,9 @@ impl<'program> FullIndicatorEngine<'program> {
                 }
                 continue;
             }
-            let value = self.execute_node(runtime, &node, &scope, call_path, depth)?;
+            let value = self.execute_node(runtime, node, &scope, call_path, depth)?;
             if !value.matches_type(&node.value_type) {
-                let source = node_source(self.program, &node)?;
+                let source = node_source(self.program, node)?;
                 return Err(source.error(format!(
                     "opcode {} returned runtime type {}; expected {}",
                     node.op,
@@ -252,6 +251,11 @@ impl<'program> FullIndicatorEngine<'program> {
                 )));
             }
             scope.insert(node.id.clone(), value);
+            scope.release_consumed_inputs(
+                &node.inputs,
+                &mut remaining_uses,
+                &function.return_node,
+            )?;
         }
         scope.bound(&function.return_node)
     }
@@ -339,9 +343,7 @@ impl<'program> FullIndicatorEngine<'program> {
             return Err(source.error("shift periods must be positive"));
         }
         let rows = scope.rows_for(node, source)?;
-        let values = (0..rows)
-            .map(|row| scope.numeric_at(input, row, source))
-            .collect::<Result<Vec<_>, _>>()?;
+        let input = scope.numeric_input(input, source)?;
         let key = state_key(call_path, &node.id);
         let state = self
             .shift_states
@@ -350,8 +352,8 @@ impl<'program> FullIndicatorEngine<'program> {
         if state.lag() != periods {
             return Err(source.error("shift state period changed between executions"));
         }
-        let output = values
-            .into_iter()
+        let output = (0..rows)
+            .map(|row| input.at(row))
             .map(|value| {
                 let ready = state.len() == periods;
                 let shifted = state.push(value);
@@ -383,7 +385,10 @@ impl<'program> FullIndicatorEngine<'program> {
             .ok_or_else(|| source.error("indicator-call arguments must be an object"))?;
         let rows = scope.rows_for(node, source)?;
         let inputs = scope.present_numeric_inputs(node, rows, source)?;
-        let slices = inputs.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let slices = inputs
+            .iter()
+            .map(PresentNumeric::as_slice)
+            .collect::<Vec<_>>();
         let key = state_key(call_path, &node.id);
         let output = match (family, name) {
             ("ta" | "talib", _) => {
@@ -481,13 +486,12 @@ impl<'program> FullIndicatorEngine<'program> {
         let reducer = string_parameter(node, "reducer").map_err(|error| located(source, error))?;
         let input = single_input(node).map_err(|error| located(source, error))?;
         let rows = scope.rows_for(node, source)?;
-        let values = (0..rows)
-            .map(|row| {
-                scope
-                    .numeric_at(input, row, source)?
-                    .ok_or_else(|| source.error("rolling input contains an Arrow null"))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let values = scope.present_numeric_input(
+            input,
+            rows,
+            "rolling input contains an Arrow null",
+            source,
+        )?;
         let key = state_key(call_path, &node.id);
         let state = match self.rolling_states.entry(key) {
             std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
@@ -498,24 +502,53 @@ impl<'program> FullIndicatorEngine<'program> {
         };
         Ok(BoundValue::Runtime(NodeValue::Column(
             RuntimeColumn::Owned(OwnedColumn::f64(
-                state.execute(&values).into_iter().map(Some).collect(),
+                state
+                    .execute(values.as_slice())
+                    .into_iter()
+                    .map(Some)
+                    .collect(),
             )),
         )))
     }
 
-    fn function(&self, id: &str) -> Result<&ProgramFunction, VectorCoreError> {
-        self.functions
-            .get(id)
-            .and_then(|index| self.program.functions.get(*index))
-            .ok_or_else(|| {
-                VectorCoreError::InvalidProgram(format!("unknown complete function {id}"))
-            })
+    fn function(&self, id: &str) -> Result<&'program ProgramFunction, VectorCoreError> {
+        self.functions.get(id).copied().ok_or_else(|| {
+            VectorCoreError::InvalidProgram(format!("unknown complete function {id}"))
+        })
     }
 
-    fn node(&self, id: &str) -> Result<&ProgramNode, VectorCoreError> {
+    fn function_input_uses(
+        &self,
+        function: &ProgramFunction,
+    ) -> Result<BTreeMap<String, usize>, VectorCoreError> {
+        let mut uses = function
+            .node_ids
+            .iter()
+            .map(|id| (id.clone(), 0_usize))
+            .collect::<BTreeMap<_, _>>();
+        for node_id in &function.node_ids {
+            for input in &self.node(node_id)?.inputs {
+                let count = uses.get_mut(input).ok_or_else(|| {
+                    VectorCoreError::InvalidProgram(format!(
+                        "function {} node {node_id} references non-local input {input}",
+                        function.id
+                    ))
+                })?;
+                *count = count.checked_add(1).ok_or_else(|| {
+                    VectorCoreError::InvalidProgram(format!(
+                        "function {} input use count is too large",
+                        function.id
+                    ))
+                })?;
+            }
+        }
+        Ok(uses)
+    }
+
+    fn node(&self, id: &str) -> Result<&'program ProgramNode, VectorCoreError> {
         self.nodes
             .get(id)
-            .and_then(|index| self.program.nodes.get(*index))
+            .copied()
             .ok_or_else(|| VectorCoreError::InvalidProgram(format!("unknown complete node {id}")))
     }
 }
@@ -596,6 +629,32 @@ impl<'catalog> FunctionScope<'catalog> {
 
     fn contains(&self, id: &str) -> bool {
         self.values.contains_key(id)
+    }
+
+    fn release_consumed_inputs(
+        &mut self,
+        inputs: &[String],
+        remaining_uses: &mut BTreeMap<String, usize>,
+        return_node: &str,
+    ) -> Result<(), VectorCoreError> {
+        for input in inputs {
+            let remaining = remaining_uses.get_mut(input).ok_or_else(|| {
+                VectorCoreError::InvalidProgram(format!(
+                    "function input {input} has no liveness record"
+                ))
+            })?;
+            *remaining = remaining.checked_sub(1).ok_or_else(|| {
+                VectorCoreError::InvalidProgram(format!(
+                    "function input {input} was consumed too many times"
+                ))
+            })?;
+            if *remaining == 0 && input != return_node {
+                self.values.remove(input);
+                self.frames.remove(input);
+                self.metadata.remove(input);
+            }
+        }
+        Ok(())
     }
 
     fn runtime(&self, id: &str) -> Result<&NodeValue<'catalog>, VectorCoreError> {
@@ -710,52 +769,108 @@ impl<'catalog> FunctionScope<'catalog> {
         }
     }
 
-    fn numeric_at(
-        &self,
+    fn numeric_input<'scope>(
+        &'scope self,
         input: &str,
-        row: usize,
         source: &SourceLocation,
-    ) -> Result<Option<f64>, VectorCoreError> {
+    ) -> Result<NumericInput<'scope, 'catalog>, VectorCoreError> {
         match self
             .runtime(input)
             .map_err(|error| located(source, error))?
         {
-            NodeValue::Null => Ok(None),
+            NodeValue::Null => Ok(NumericInput::Null),
             NodeValue::Integer(value) => {
                 #[allow(clippy::cast_precision_loss)]
                 let value = *value as f64;
-                Ok(Some(value))
+                Ok(NumericInput::Scalar(value))
             }
-            NodeValue::Float(value) => Ok(Some(*value)),
-            NodeValue::Column(column) if column.value_type() == ValueType::I64 =>
-            {
-                #[allow(clippy::cast_precision_loss)]
-                Ok(column.i64_at(row).map(|value| value as f64))
+            NodeValue::Float(value) => Ok(NumericInput::Scalar(*value)),
+            NodeValue::Column(column) if column.value_type() == ValueType::I64 => {
+                Ok(NumericInput::I64(column))
             }
             NodeValue::Column(column) if column.value_type() == ValueType::F64 => {
-                Ok(column.f64_at(row))
+                Ok(NumericInput::F64(column))
             }
             _ => Err(source.error(format!("node {input} is not numeric"))),
         }
     }
 
-    fn present_numeric_inputs(
-        &self,
+    fn present_numeric_input<'scope>(
+        &'scope self,
+        input: &str,
+        rows: usize,
+        null_error: &str,
+        source: &SourceLocation,
+    ) -> Result<PresentNumeric<'scope>, VectorCoreError> {
+        let input = self.numeric_input(input, source)?;
+        if let NumericInput::F64(column) = input {
+            if let Some(values) = column.present_f64_slice() {
+                if values.len() == rows {
+                    return Ok(PresentNumeric::Borrowed(values));
+                }
+            }
+        }
+        let values = (0..rows)
+            .map(|row| input.at(row).ok_or_else(|| source.error(null_error)))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(PresentNumeric::Owned(values))
+    }
+
+    fn present_numeric_inputs<'scope>(
+        &'scope self,
         node: &ProgramNode,
         rows: usize,
         source: &SourceLocation,
-    ) -> Result<Vec<Vec<f64>>, VectorCoreError> {
+    ) -> Result<Vec<PresentNumeric<'scope>>, VectorCoreError> {
         node.inputs
             .iter()
             .map(|input| {
-                (0..rows)
-                    .map(|row| {
-                        self.numeric_at(input, row, source)?
-                            .ok_or_else(|| source.error("indicator input contains an Arrow null"))
-                    })
-                    .collect()
+                self.present_numeric_input(
+                    input,
+                    rows,
+                    "indicator input contains an Arrow null",
+                    source,
+                )
             })
             .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum NumericInput<'scope, 'catalog> {
+    Null,
+    Scalar(f64),
+    I64(&'scope RuntimeColumn<'catalog>),
+    F64(&'scope RuntimeColumn<'catalog>),
+}
+
+impl NumericInput<'_, '_> {
+    fn at(self, row: usize) -> Option<f64> {
+        match self {
+            Self::Null => None,
+            Self::Scalar(value) => Some(value),
+            Self::I64(column) =>
+            {
+                #[allow(clippy::cast_precision_loss)]
+                column.i64_at(row).map(|value| value as f64)
+            }
+            Self::F64(column) => column.f64_at(row),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum PresentNumeric<'scope> {
+    Borrowed(&'scope [f64]),
+    Owned(Vec<f64>),
+}
+
+impl PresentNumeric<'_> {
+    fn as_slice(&self) -> &[f64] {
+        match self {
+            Self::Borrowed(values) => values,
+            Self::Owned(values) => values,
+        }
     }
 }
 

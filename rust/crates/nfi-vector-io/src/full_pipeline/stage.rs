@@ -43,12 +43,12 @@ pub(super) fn execute_pair(
     )?;
     validate_indicator_identity(base, &indicator)?;
     let mutation_source = MutationFrame::new(indicator.columns().clone())?;
-    let signal = MutationEngine::new(signal_program)?
-        .execute_with_metadata(mutation_source.clone(), &pair.metadata)?;
+    // The manifest-level structural proof removes only Tag formatting/appends and
+    // requires the remaining complete DAG to equal Signal exactly. Execute
+    // that shared decision surface once, then retain Tag's additional columns.
     let tag =
         MutationEngine::new(tag_program)?.execute_with_metadata(mutation_source, &pair.metadata)?;
-    compare_signal_surfaces(&signal, &tag)?;
-    let combined = adopt_tag_columns(&signal, &tag)?;
+    let combined = adopt_tag_columns(&tag, &tag)?;
     let execution = materialize_execution_signals(&combined, run.source_row_shift, 0)?;
     let full_transport =
         assemble_transport_columns(&indicator, &combined, &execution.frame, retained_features)?;
@@ -156,46 +156,6 @@ fn validate_indicator_identity(
         .into());
     }
     Ok(())
-}
-
-fn compare_signal_surfaces(
-    signal: &MutationFrame,
-    tag: &MutationFrame,
-) -> Result<(), VectorInputError> {
-    for name in SIGNAL_COLUMNS {
-        let left = signal.column(name).ok_or_else(|| {
-            VectorCoreError::InvalidOutput(format!("Signal program did not produce {name}"))
-        })?;
-        let right = tag.column(name).ok_or_else(|| {
-            VectorCoreError::InvalidOutput(format!("Tag program did not produce {name}"))
-        })?;
-        if !columns_are_exact(left, right) {
-            return Err(VectorCoreError::InvalidOutput(format!(
-                "Signal and Tag programs disagree on {name}"
-            ))
-            .into());
-        }
-    }
-    Ok(())
-}
-
-fn columns_are_exact(left: &OwnedColumn, right: &OwnedColumn) -> bool {
-    let left_view = left.as_view();
-    let right_view = right.as_view();
-    if left_view.value_type() != right_view.value_type() || left.len() != right.len() {
-        return false;
-    }
-    (0..left.len()).all(|row| match left_view.value_type() {
-        ValueType::F64 => match (left_view.f64_at(row), right_view.f64_at(row)) {
-            (None, None) => true,
-            (Some(left), Some(right)) => left.to_bits() == right.to_bits(),
-            _ => false,
-        },
-        ValueType::I64 => left_view.i64_at(row) == right_view.i64_at(row),
-        ValueType::Bool => left_view.bool_at(row) == right_view.bool_at(row),
-        ValueType::Text => left_view.text_at(row) == right_view.text_at(row),
-        ValueType::TimestampMs => left_view.timestamp_ms_at(row) == right_view.timestamp_ms_at(row),
-    })
 }
 
 fn adopt_tag_columns(

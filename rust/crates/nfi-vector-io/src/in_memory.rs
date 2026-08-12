@@ -1,21 +1,26 @@
 //! Exact in-memory handoff from generic Rust vector output to the simulator.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::mem::size_of;
 use std::time::{Duration, Instant};
 
 use nfi_sim_core::{
-    Candle, EntrySignal, ExitSignal, FeatureColumn, PairSeries, PortfolioConfig, PriceStepChange,
-    SimulationInput, SIMULATOR_SCHEMA_VERSION,
+    Candle, CandleSeries, EntrySignal, ExitSignal, FeatureColumn, FileBackedFeatureKind,
+    FileBackedRows, PairSeries, PortfolioConfig, PriceStepChange, SimulationInput,
+    FILE_BACKED_FEATURE_BYTES, FILE_BACKED_ROW_HEADER_BYTES, SIMULATOR_SCHEMA_VERSION,
 };
 use nfi_vector_core::column::{OwnedColumn, ValueType};
 use nfi_vector_core::mutation::MutationFrame;
 use rayon::prelude::*;
 use serde::Serialize;
 
+use crate::decode::pair_spool as open_pair_spool;
 use crate::VectorInputError;
 
 const EMPTY_TAG_TRANSPORT_SENTINEL: &str = "__nfi_bte_empty_tag_column__";
+const SPOOL_WRITE_BUFFER_BYTES: usize = 256 * 1024;
 
 /// One pair whose complete typed vector frame already lives in Rust memory.
 ///
@@ -108,12 +113,15 @@ pub struct InMemoryVectorProfile {
     pub schema_version: &'static str,
     pub vector_execute_ns: u64,
     pub pair_prepare_ns: u64,
+    pub pair_prepare_fused: bool,
     pub pair_count: usize,
     pub row_count: usize,
     pub feature_column_count: usize,
     pub estimated_source_column_bytes: usize,
     pub estimated_simulation_owned_bytes: usize,
+    pub file_backed_bytes: u64,
     pub pair_prepare_worker_limit: usize,
+    pub source_pair_retention_limit: usize,
 }
 
 struct PreparedPair {
@@ -209,9 +217,10 @@ pub fn assemble_in_memory_vectors_profiled(
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
     let profile = InMemoryVectorProfile {
-        schema_version: "1.0.0",
+        schema_version: "1.2.0",
         vector_execute_ns: 0,
         pair_prepare_ns: duration_ns(started.elapsed()),
+        pair_prepare_fused: false,
         pair_count: prepared.len(),
         row_count: prepared
             .iter()
@@ -229,23 +238,16 @@ pub fn assemble_in_memory_vectors_profiled(
             .iter()
             .map(|pair| pair.owned_bytes)
             .fold(0, usize::saturating_add),
+        file_backed_bytes: 0,
         pair_prepare_worker_limit: rayon::current_num_threads(),
+        source_pair_retention_limit: prepared.len(),
     };
-    Ok((
-        SimulationInput {
-            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
-            config,
-            pairs: prepared
-                .into_iter()
-                .map(PreparedPair::into_pair_series)
-                .collect(),
-        },
-        profile,
-    ))
+    Ok((simulation_input(config, prepared), profile))
 }
 
-/// Execute independent pair vector DAGs in parallel, then build one ordered
-/// simulator input for the chronological wallet loop.
+/// Execute and prepare independent pair vector DAGs in one bounded parallel
+/// stage, then build one ordered simulator input for the chronological wallet
+/// loop.
 ///
 /// The executor receives one caller-defined task and must return the complete
 /// typed frame for that pair. Indexed Rayon collection preserves task order;
@@ -264,20 +266,502 @@ where
     Task: Send,
     Execute: Fn(Task) -> Result<InMemoryVectorPair, VectorInputError> + Send + Sync,
 {
+    let (prepared, profile) = execute_spooled_pair_dag(tasks, execute)?;
+    Ok((spooled_simulation_input(config, prepared)?, profile))
+}
+
+/// Execute a fused pair DAG inside an explicit bounded Rayon pool.
+///
+/// The prepared, `Send`-safe rows leave the worker pool before the simulator
+/// input is assembled. This keeps the simulator's intentionally local
+/// file-backed representation out of cross-thread APIs.
+///
+/// # Errors
+///
+/// Returns a fail-closed error for a zero/unbuildable worker limit or any pair
+/// vector/transport failure.
+pub fn execute_in_memory_pair_dag_profiled_with_worker_limit<Task, Execute>(
+    config: PortfolioConfig,
+    tasks: Vec<Task>,
+    pair_worker_limit: usize,
+    execute: Execute,
+) -> Result<(SimulationInput, InMemoryVectorProfile), VectorInputError>
+where
+    Task: Send,
+    Execute: Fn(Task) -> Result<InMemoryVectorPair, VectorInputError> + Send + Sync,
+{
+    if pair_worker_limit == 0 {
+        return Err(VectorInputError::PairWorkerPool(
+            "worker limit must be positive".to_owned(),
+        ));
+    }
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(pair_worker_limit)
+        .thread_name(|index| format!("nfi-full-native-pair-{index}"))
+        .build()
+        .map_err(|error| VectorInputError::PairWorkerPool(error.to_string()))?;
+    let (prepared, profile) = pool.install(|| execute_spooled_pair_dag(tasks, execute))?;
+    Ok((spooled_simulation_input(config, prepared)?, profile))
+}
+
+fn execute_spooled_pair_dag<Task, Execute>(
+    tasks: Vec<Task>,
+    execute: Execute,
+) -> Result<(Vec<PreparedSpoolPair>, InMemoryVectorProfile), VectorInputError>
+where
+    Task: Send,
+    Execute: Fn(Task) -> Result<InMemoryVectorPair, VectorInputError> + Send + Sync,
+{
     let started = Instant::now();
-    let pairs = tasks
+    let worker_limit = rayon::current_num_threads();
+    let prepared = tasks
         .into_par_iter()
-        .map(execute)
+        .map(|task| execute(task).and_then(spool_pair))
         .collect::<Vec<_>>()
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
-    let vector_execute_ns = duration_ns(started.elapsed());
-    let (input, mut profile) = assemble_in_memory_vectors_profiled(config, pairs)?;
-    profile.vector_execute_ns = vector_execute_ns;
-    Ok((input, profile))
+    validate_spooled_pairs(&prepared)?;
+    let profile = profile_from_spooled(&prepared, duration_ns(started.elapsed()), worker_limit)?;
+    Ok((prepared, profile))
+}
+
+fn validate_spooled_pairs(pairs: &[PreparedSpoolPair]) -> Result<(), VectorInputError> {
+    if pairs.is_empty() {
+        return Err(VectorInputError::EmptyPairs);
+    }
+    let mut names = BTreeSet::new();
+    for pair in pairs {
+        if pair.pair.is_empty() || !names.insert(pair.pair.as_str()) {
+            return Err(VectorInputError::InvalidPair(pair.pair.clone()));
+        }
+    }
+    Ok(())
+}
+
+fn profile_from_spooled(
+    prepared: &[PreparedSpoolPair],
+    fused_wall_ns: u64,
+    worker_limit: usize,
+) -> Result<InMemoryVectorProfile, VectorInputError> {
+    let row_count = checked_usize_evidence(prepared.iter().map(|pair| pair.rows), "row count")?;
+    let feature_column_count = checked_usize_evidence(
+        prepared.iter().map(|pair| pair.feature_layouts.len()),
+        "feature column count",
+    )?;
+    let estimated_source_column_bytes = checked_usize_evidence(
+        prepared.iter().map(|pair| pair.source_bytes),
+        "estimated source bytes",
+    )?;
+    let estimated_simulation_owned_bytes = prepared.iter().try_fold(0_usize, |total, pair| {
+        let pair_bytes = checked_usize_evidence(
+            std::iter::once(pair.pair.len())
+                .chain(pair.tags.iter().map(String::len))
+                .chain(pair.feature_layouts.iter().map(|(name, _)| name.len())),
+            "estimated pair-owned bytes",
+        )?;
+        total
+            .checked_add(pair_bytes)
+            .ok_or_else(|| evidence_overflow("estimated simulation-owned bytes"))
+    })?;
+    let file_backed_bytes = prepared.iter().try_fold(0_u64, |total, pair| {
+        total
+            .checked_add(pair.spool_bytes)
+            .ok_or_else(|| evidence_overflow("file-backed bytes"))
+    })?;
+    Ok(InMemoryVectorProfile {
+        schema_version: "1.2.0",
+        vector_execute_ns: fused_wall_ns,
+        pair_prepare_ns: 0,
+        pair_prepare_fused: true,
+        pair_count: prepared.len(),
+        row_count,
+        feature_column_count,
+        estimated_source_column_bytes,
+        estimated_simulation_owned_bytes,
+        file_backed_bytes,
+        pair_prepare_worker_limit: worker_limit,
+        source_pair_retention_limit: worker_limit.min(prepared.len()),
+    })
+}
+
+fn checked_usize_evidence(
+    values: impl IntoIterator<Item = usize>,
+    label: &str,
+) -> Result<usize, VectorInputError> {
+    values.into_iter().try_fold(0_usize, |total, value| {
+        total
+            .checked_add(value)
+            .ok_or_else(|| evidence_overflow(label))
+    })
+}
+
+fn evidence_overflow(label: &str) -> VectorInputError {
+    VectorInputError::SpoolBound(format!("{label} evidence exceeds its integer range"))
+}
+
+fn simulation_input(config: PortfolioConfig, prepared: Vec<PreparedPair>) -> SimulationInput {
+    SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config,
+        pairs: prepared
+            .into_iter()
+            .map(PreparedPair::into_pair_series)
+            .collect(),
+    }
+}
+
+struct PreparedSpoolPair {
+    pair: String,
+    execution_start_index: usize,
+    amount_step: Option<f64>,
+    price_step: Option<f64>,
+    price_steps: Vec<PriceStepChange>,
+    minimum_stake: Option<f64>,
+    minimum_amount: Option<f64>,
+    minimum_cost: Option<f64>,
+    spool: File,
+    row_count: usize,
+    feature_layouts: Vec<(String, FileBackedFeatureKind)>,
+    tags: Vec<String>,
+    rows: usize,
+    source_bytes: usize,
+    spool_bytes: u64,
+}
+
+impl PreparedSpoolPair {
+    fn into_pair_series(self) -> Result<PairSeries, VectorInputError> {
+        let rows = FileBackedRows::new(
+            self.spool,
+            self.row_count,
+            self.feature_layouts.len(),
+            self.tags,
+        )
+        .map_err(|source| VectorInputError::FileBacking {
+            pair: self.pair.clone(),
+            source,
+        })?;
+        let feature_columns = self
+            .feature_layouts
+            .into_iter()
+            .enumerate()
+            .map(|(index, (name, kind))| {
+                (name, FeatureColumn::file_backed(rows.clone(), index, kind))
+            })
+            .collect();
+        Ok(PairSeries {
+            pair: self.pair,
+            execution_start_index: self.execution_start_index,
+            amount_step: self.amount_step,
+            price_step: self.price_step,
+            price_steps: self.price_steps,
+            minimum_stake: self.minimum_stake,
+            minimum_amount: self.minimum_amount,
+            minimum_cost: self.minimum_cost,
+            feature_columns,
+            candles: CandleSeries::file_backed(rows),
+        })
+    }
+}
+
+fn spooled_simulation_input(
+    config: PortfolioConfig,
+    prepared: Vec<PreparedSpoolPair>,
+) -> Result<SimulationInput, VectorInputError> {
+    Ok(SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config,
+        pairs: prepared
+            .into_iter()
+            .map(PreparedSpoolPair::into_pair_series)
+            .collect::<Result<Vec<_>, _>>()?,
+    })
+}
+
+fn spool_pair(pair: InMemoryVectorPair) -> Result<PreparedSpoolPair, VectorInputError> {
+    validate_feature_names(&pair)?;
+    let rows = pair.frame.len();
+    if pair.execution_start_index >= rows {
+        return Err(VectorInputError::ExecutionStart {
+            pair: pair.pair,
+            index: pair.execution_start_index,
+            rows,
+        });
+    }
+    let source_bytes = pair
+        .frame
+        .columns()
+        .values()
+        .map(OwnedColumn::estimated_bytes)
+        .try_fold(0_usize, |total, bytes| {
+            total
+                .checked_add(bytes)
+                .ok_or_else(|| evidence_overflow("source column bytes"))
+        })?;
+    let feature_layouts = pair
+        .feature_columns
+        .iter()
+        .map(|name| {
+            let value_type = column(&pair, name)?.as_view().value_type();
+            let kind = match value_type {
+                ValueType::F64 | ValueType::I64 => FileBackedFeatureKind::Number,
+                ValueType::Bool => FileBackedFeatureKind::Boolean,
+                _ => {
+                    return Err(type_error(
+                        &pair,
+                        name,
+                        column(&pair, name)?,
+                        "numeric or Boolean",
+                    ))
+                }
+            };
+            Ok((name.clone(), kind))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let row_stride = feature_layouts
+        .len()
+        .checked_mul(FILE_BACKED_FEATURE_BYTES)
+        .and_then(|bytes| FILE_BACKED_ROW_HEADER_BYTES.checked_add(bytes))
+        .ok_or_else(|| file_backing_error(&pair.pair, "pair row is too wide"))?;
+    let spool = open_pair_spool(&pair.pair)?;
+    let mut writer = BufWriter::with_capacity(SPOOL_WRITE_BUFFER_BYTES, spool);
+    let mut encoder = SpoolRowEncoder::new(row_stride);
+
+    for row in 0..rows {
+        encoder.encode(&pair, &feature_layouts, row)?;
+        writer
+            .write_all(encoder.row())
+            .map_err(|source| VectorInputError::FileBacking {
+                pair: pair.pair.clone(),
+                source,
+            })?;
+    }
+    writer
+        .flush()
+        .map_err(|source| VectorInputError::FileBacking {
+            pair: pair.pair.clone(),
+            source,
+        })?;
+    let spool = writer
+        .into_inner()
+        .map_err(|error| VectorInputError::FileBacking {
+            pair: pair.pair.clone(),
+            source: error.into_error(),
+        })?;
+    let spool_bytes = rows
+        .checked_mul(row_stride)
+        .and_then(|bytes| u64::try_from(bytes).ok())
+        .ok_or_else(|| file_backing_error(&pair.pair, "pair spool is too large"))?;
+    Ok(PreparedSpoolPair {
+        pair: pair.pair,
+        execution_start_index: pair.execution_start_index,
+        amount_step: pair.amount_step,
+        price_step: pair.price_step,
+        price_steps: pair.price_steps,
+        minimum_stake: pair.minimum_stake,
+        minimum_amount: pair.minimum_amount,
+        minimum_cost: pair.minimum_cost,
+        spool,
+        row_count: rows,
+        feature_layouts,
+        tags: encoder.tags,
+        rows,
+        source_bytes,
+        spool_bytes,
+    })
+}
+
+struct SpoolRowEncoder {
+    buffer: Vec<u8>,
+    tag_ids: BTreeMap<String, u32>,
+    tags: Vec<String>,
+    previous_close: Option<f64>,
+}
+
+impl SpoolRowEncoder {
+    fn new(row_stride: usize) -> Self {
+        Self {
+            buffer: vec![0_u8; row_stride],
+            tag_ids: BTreeMap::new(),
+            tags: Vec::new(),
+            previous_close: None,
+        }
+    }
+
+    fn row(&self) -> &[u8] {
+        &self.buffer
+    }
+
+    fn encode(
+        &mut self,
+        pair: &InMemoryVectorPair,
+        feature_layouts: &[(String, FileBackedFeatureKind)],
+        row: usize,
+    ) -> Result<(), VectorInputError> {
+        let close = required_number(pair, "close", row)?;
+        let entry_tag = optional_text(pair, "nfi_exec_enter_tag", row)?;
+        let exit_tag = optional_text(pair, "nfi_exec_exit_tag", row)?;
+        let enter_long = enabled(pair, "nfi_exec_enter_long", row)?;
+        let enter_short = pair.options.can_short() && enabled(pair, "nfi_exec_enter_short", row)?;
+        let exit_long = pair.options.use_exit_signal() && enabled(pair, "nfi_exec_exit_long", row)?;
+        let exit_short = pair.options.can_short()
+            && pair.options.use_exit_signal()
+            && enabled(pair, "nfi_exec_exit_short", row)?;
+        let funding_rate = pair
+            .options
+            .include_funding()
+            .then(|| optional_number(pair, "nfi_exec_funding_rate", row))
+            .transpose()?
+            .flatten();
+        let funding_mark_price = pair
+            .options
+            .include_funding()
+            .then(|| optional_number(pair, "nfi_exec_funding_mark_price", row))
+            .transpose()?
+            .flatten();
+        let prior_close = pair
+            .options
+            .include_previous_close()
+            .then_some(self.previous_close)
+            .flatten();
+        let mut flags = 0_u8;
+        for (bit, enabled) in [
+            prior_close.is_some(),
+            funding_rate.is_some(),
+            funding_mark_price.is_some(),
+            enter_long,
+            enter_short,
+            exit_long,
+            exit_short,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            set_flag(
+                &mut flags,
+                u8::try_from(bit).expect("seven flags fit u8"),
+                enabled,
+            );
+        }
+        put_i64(&mut self.buffer, 0, required_timestamp(pair, "date", row)?);
+        for (offset, name, value) in [
+            (8, "open", None),
+            (16, "high", None),
+            (24, "low", None),
+            (32, "close", Some(close)),
+            (40, "volume", None),
+        ] {
+            put_f64(
+                &mut self.buffer,
+                offset,
+                value.map_or_else(|| required_number(pair, name, row), Ok)?,
+            );
+        }
+        put_f64(&mut self.buffer, 48, prior_close.unwrap_or_default());
+        put_f64(&mut self.buffer, 56, funding_rate.unwrap_or_default());
+        put_f64(&mut self.buffer, 64, funding_mark_price.unwrap_or_default());
+        self.buffer[72] = flags;
+        put_u32(
+            &mut self.buffer,
+            73,
+            dictionary_id(
+                entry_tag.as_deref(),
+                &mut self.tag_ids,
+                &mut self.tags,
+                &pair.pair,
+            )?,
+        );
+        put_u32(
+            &mut self.buffer,
+            77,
+            dictionary_id(
+                exit_tag.as_deref(),
+                &mut self.tag_ids,
+                &mut self.tags,
+                &pair.pair,
+            )?,
+        );
+        for (feature_index, (name, kind)) in feature_layouts.iter().enumerate() {
+            put_f64(
+                &mut self.buffer,
+                FILE_BACKED_ROW_HEADER_BYTES + feature_index * FILE_BACKED_FEATURE_BYTES,
+                feature_value(pair, name, *kind, row)?,
+            );
+        }
+        self.previous_close = Some(close);
+        Ok(())
+    }
+}
+
+fn feature_value(
+    pair: &InMemoryVectorPair,
+    name: &str,
+    kind: FileBackedFeatureKind,
+    row: usize,
+) -> Result<f64, VectorInputError> {
+    let source = column(pair, name)?;
+    Ok(match kind {
+        FileBackedFeatureKind::Number => match source.as_view().value_type() {
+            ValueType::F64 => source.as_view().f64_at(row).unwrap_or(f64::NAN),
+            ValueType::I64 => source
+                .as_view()
+                .i64_at(row)
+                .map_or(f64::NAN, integer_as_number),
+            _ => return Err(type_error(pair, name, source, "numeric")),
+        },
+        FileBackedFeatureKind::Boolean => source
+            .as_view()
+            .bool_at(row)
+            .map(f64::from)
+            .ok_or_else(|| null_error(pair, name, row))?,
+    })
+}
+
+fn dictionary_id(
+    value: Option<&str>,
+    ids: &mut BTreeMap<String, u32>,
+    values: &mut Vec<String>,
+    pair: &str,
+) -> Result<u32, VectorInputError> {
+    let Some(value) = value else {
+        return Ok(0);
+    };
+    if let Some(identifier) = ids.get(value) {
+        return Ok(*identifier);
+    }
+    let identifier = u32::try_from(values.len() + 1)
+        .map_err(|_| file_backing_error(pair, "pair tag dictionary is too large"))?;
+    ids.insert(value.to_owned(), identifier);
+    values.push(value.to_owned());
+    Ok(identifier)
+}
+
+fn file_backing_error(pair: &str, message: &str) -> VectorInputError {
+    VectorInputError::FileBacking {
+        pair: pair.to_owned(),
+        source: std::io::Error::new(std::io::ErrorKind::InvalidData, message),
+    }
+}
+
+const fn set_flag(flags: &mut u8, bit: u8, enabled: bool) {
+    if enabled {
+        *flags |= 1 << bit;
+    }
+}
+
+fn put_i64(row: &mut [u8], offset: usize, value: i64) {
+    row[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+}
+
+fn put_u32(row: &mut [u8], offset: usize, value: u32) {
+    row[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+}
+
+fn put_f64(row: &mut [u8], offset: usize, value: f64) {
+    row[offset..offset + 8].copy_from_slice(&value.to_bits().to_le_bytes());
 }
 
 fn prepare_pair(pair: InMemoryVectorPair) -> Result<PreparedPair, VectorInputError> {
+    validate_feature_names(&pair)?;
     let rows = pair.frame.len();
     if pair.execution_start_index >= rows {
         return Err(VectorInputError::ExecutionStart {
@@ -774,6 +1258,14 @@ mod tests {
 
         assert_eq!(profile.pair_count, 2);
         assert!(profile.vector_execute_ns > 0);
+        assert!(profile.pair_prepare_fused);
+        assert_eq!(profile.pair_prepare_ns, 0);
+        assert!(profile.source_pair_retention_limit <= profile.pair_prepare_worker_limit);
+        assert!(profile.file_backed_bytes > 0);
+        assert!(matches!(
+            input.pairs[0].candles,
+            nfi_sim_core::CandleSeries::FileBacked(_)
+        ));
         assert_eq!(input.pairs[0].pair, "AAA/USDT");
         assert_eq!(input.pairs[1].pair, "BBB/USDT");
         assert!(input.pairs.iter().all(|pair| {
@@ -786,6 +1278,40 @@ mod tests {
         simulate_with_observer(&input, |event| events.push(event.clone()))
             .expect("DAG-fed simulation");
         assert!(!events.is_empty());
+    }
+
+    #[test]
+    fn explicit_pair_worker_pool_is_bounded_and_preserves_order() {
+        let config = serde_json::from_value(config_document()).expect("portfolio config");
+        let tasks = vec!["CCC/USDT", "AAA/USDT", "BBB/USDT"];
+        let (input, profile) =
+            execute_in_memory_pair_dag_profiled_with_worker_limit(config, tasks, 2, |pair| {
+                let mut output = fixture_pair(fixture_frame());
+                output.pair = pair.to_owned();
+                Ok(output)
+            })
+            .expect("bounded pair DAG executes");
+
+        assert_eq!(
+            input
+                .pairs
+                .iter()
+                .map(|pair| pair.pair.as_str())
+                .collect::<Vec<_>>(),
+            vec!["CCC/USDT", "AAA/USDT", "BBB/USDT"]
+        );
+        assert_eq!(profile.pair_prepare_worker_limit, 2);
+        assert_eq!(profile.source_pair_retention_limit, 2);
+        assert!(profile.pair_prepare_fused);
+
+        let error = execute_in_memory_pair_dag_profiled_with_worker_limit(
+            serde_json::from_value(config_document()).expect("portfolio config"),
+            vec!["AAA/USDT"],
+            0,
+            |_| Ok(fixture_pair(fixture_frame())),
+        )
+        .expect_err("zero workers fail closed");
+        assert!(matches!(error, VectorInputError::PairWorkerPool(_)));
     }
 
     #[test]
