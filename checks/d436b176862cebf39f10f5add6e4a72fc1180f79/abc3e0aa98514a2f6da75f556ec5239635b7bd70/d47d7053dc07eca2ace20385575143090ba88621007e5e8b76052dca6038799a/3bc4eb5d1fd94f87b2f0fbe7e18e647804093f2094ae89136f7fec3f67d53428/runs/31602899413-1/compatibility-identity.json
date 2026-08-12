@@ -5,7 +5,5 @@
   "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
   "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
   "baseline_upstream_sha": "fd3176b14eb6b1d7ac9ed5a999f846e8b8be0490",
-  "check_path": "checks/d436b176862cebf39f10f5add6e4a72fc1180f79/abc3e0aa98514a2f6da75f556ec5239635b7bd70/d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a/3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428/runs/31602899413-1",
-  "trigger_reason": "upstream-changed",
-  "run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/31602899413"
+  "source_sha256": "6e0eee0ab7b80092a39b8c9c35044731a86a343f6911d6e93cdc246888d07f46"
 }
