@@ -1,0 +1,72 @@
+{
+  "schema_version": "compatibility-semantic-review-v1",
+  "claim_boundary": "Automation evidence for generic IR review only. Native support remains blocked until independent trade-surface and full-state exact proof.",
+  "decision": {
+    "schema_version": "1.0.0",
+    "identity": {
+      "upstream_sha": "4b05ce5653699ec3ec3ea41a9b0ebfb1c05596fb",
+      "engine_sha": "abc3e0aa98514a2f6da75f556ec5239635b7bd70",
+      "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+      "strategy_sha256": "f4a90649353894be807208d53e683901a1e43e6291ec2f2d8ad1259aaf9774ee"
+    },
+    "trading_mode": "spot",
+    "strategy_classification": "ir-compatible",
+    "automation_route": "semantic_review_draft_pr",
+    "execution_route": "official_only",
+    "review_kind": "generic_lowering",
+    "verification": {
+      "state": "latest_checked",
+      "changed_branch_reached": false,
+      "trade_surface_exact": null,
+      "full_state_exact": null,
+      "exact": false
+    },
+    "discovery_status": null,
+    "added_opcodes": [],
+    "behavior_targets": [
+      {
+        "id": "127f6b0d5a40b9895963923144325c4e8fd18ea2d9a204128ae8231e889cbc18",
+        "kind": "callback",
+        "change": "changed",
+        "runtime_observable": true
+      }
+    ],
+    "blockers": [
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      },
+      {
+        "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+        "message": "NFI adjustment grind 5 fallback condition changed"
+      },
+      {
+        "code": "NATIVE_COMPATIBILITY_BLOCKED",
+        "message": "static Native compatibility did not pass"
+      },
+      {
+        "code": "TARGETED_COVERAGE_GAP",
+        "message": "1 changed behavior target(s) have no branch-reaching fixture: callback"
+      }
+    ],
+    "action": {
+      "native_promotion_allowed": false,
+      "bounded_discovery_required": false,
+      "draft_pr_allowed": true,
+      "draft_pr_kind": "generic_lowering",
+      "official_fallback_available": true,
+      "automatic_semantic_merge_allowed": false,
+      "external_data_deferred_is_exact": false
+    },
+    "action_fingerprint": "199540272bf87149e573857c4d8d809fa3ce04a1ebdef80334cf0b8468268f7d",
+    "decision_fingerprint": "e54c48508e13520fd9b6fc770aeee1469ee7c24d7a8b1552bc2c016f26545116",
+    "message": "Static lowering is blocked; open a generic lowering review Draft PR."
+  },
+  "review_requirements": [
+    "implement only a source-structural generic opcode or lowerer",
+    "add a focused unit test and an official captured fixture",
+    "prove changed-branch, trade-surface, and full-state exactness",
+    "obtain human review and Required CI; never merge automatically"
+  ]
+}
