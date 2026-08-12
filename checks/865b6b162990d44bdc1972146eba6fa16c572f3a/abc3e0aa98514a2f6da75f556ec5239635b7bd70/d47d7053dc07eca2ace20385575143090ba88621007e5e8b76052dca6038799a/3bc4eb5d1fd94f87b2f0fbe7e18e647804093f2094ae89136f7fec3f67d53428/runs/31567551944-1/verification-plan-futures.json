@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "coverage-gap",
+  "targets": [
+    {
+      "id": "b7148601be52ae55d388a4d0a527103480c8595176b508d18f0741fe7835a000",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "5"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28547,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28549,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [],
+  "missing_targets": [
+    {
+      "id": "b7148601be52ae55d388a4d0a527103480c8595176b508d18f0741fe7835a000",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "5"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28547,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28549,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "executable": false
+}
