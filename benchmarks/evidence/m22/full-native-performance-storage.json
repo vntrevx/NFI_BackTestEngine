@@ -1,0 +1,162 @@
+{
+  "schema_version": "full-native-performance-storage-v1",
+  "status": "certified",
+  "recorded_at": "2026-08-12",
+  "implementation": {
+    "commit": "eba09d977e3eddb45f7a7982ebf026b0e5731c45",
+    "measurement_binary_sha256": "caf5599a3a32fe6815fa4fb96a3ca9f8dfeb99536715ed5906cd6a1a06580d01",
+    "post_measurement_change": "Tag/Signal structural preflight liveness only; the measured execution hot path is unchanged",
+    "current_exact_fixture_source_fingerprint": "f89ee9bc2de011e278948d962fa831e8087675192ccbb4427d48ebb8ee8f8417",
+    "current_exact_fixture_binary_sha256": "642d67a08e5405b7ea5a8d7864eade0ce1655d337e2bb6b1552ffa4af9769f76"
+  },
+  "workload": {
+    "strategy": "NostalgiaForInfinityX7",
+    "strategy_version": "v17.4.528",
+    "upstream_commit": "1df961c07e5ce6b1a8cb459a2a46958aed258323",
+    "strategy_sha256": "45a2bf611d6fc5e60c7e1f4c672ce7932f6573872c2a959f6338d079dac5e382",
+    "manifest_sha256": "3b1b18bdaaacca43ff538e1397547df020ace3e80913371aa137607dc2185e90",
+    "config_sha256": "402d90b02890192a54cb6e7e9ba6fdc11b69b89bd8627fd9a268f70f4e3110db",
+    "trading_mode": "spot",
+    "timerange": "20210101-20260101",
+    "pair_count": 80,
+    "raw_frame_count": 400,
+    "timeframes": [
+      "5m",
+      "15m",
+      "1h",
+      "4h",
+      "1d"
+    ],
+    "startup_candles": 800,
+    "source_row_shift": 1,
+    "retained_feature_count": 104,
+    "retained_feature_fingerprint": "ad099fe5ef897191a4d34597e82e0e3c850d960e24fd9611713fdd714ee17d9b",
+    "manifest_declared_raw_rows": 72488162,
+    "execution_row_count": 42134157,
+    "history_coverage_policy": "available local sealed history"
+  },
+  "environment": {
+    "os": "Linux x86_64",
+    "kernel": "7.0.0-28-generic",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-1260P",
+    "logical_cpu_count": 16,
+    "memory_bytes": 50195083264,
+    "hardware_fingerprint": "5c71dfa54dd8a8d5e87088d2c78522f6e85d009434b4779d45bc378b82ffa30d",
+    "pair_worker_limit": 8
+  },
+  "calibration": {
+    "key": "3610776e2f8680861b6b2c7a515b47245cb0ff2cc0e85f205d9fa881c8f44281",
+    "record_sha256": "19d68b154601badbebe5f35d0918c06e31d112e83159f3f2ec91fc7af3f3377a",
+    "probe_pair": "XRP/USDT",
+    "probe_peak_rss_bytes": 4605874176,
+    "probe_wall_time_seconds": 112.182186987,
+    "admitted_workers": 8
+  },
+  "result": {
+    "sha256": "5adac8e620877b30d7e52988e377d068799be3a4045a8d45221e29620aa08266",
+    "byte_identical_across_repetitions": true,
+    "trade_count": 1162,
+    "final_balance": 27064.22769050002,
+    "profit_total_abs": 26064.227690500004,
+    "total_volume": 3523156.3395277644,
+    "rejected_signals": 4476,
+    "maximum_concurrent_trades": 6
+  },
+  "repetitions": [
+    {
+      "name": "cold-01",
+      "wall_seconds": 3797,
+      "vector_execute_seconds": 3115.615091735,
+      "event_loop_seconds": 658.949939495,
+      "validation_seconds": 19.61198466,
+      "peak_rss_bytes": 41832026112,
+      "profile_sha256": "c6889a5f0636980d268217f6221627fbb732eb78be1ddf7ad8fd39280cd0e2d1",
+      "time_log_sha256": "58dff50b2e9aaebb0da2d845f769b3c1c8b9633d8a3f4c05a0a712dbba7f0131"
+    },
+    {
+      "name": "warm-02",
+      "wall_seconds": 3771,
+      "vector_execute_seconds": 3103.454727467,
+      "event_loop_seconds": 650.534573412,
+      "validation_seconds": 13.957065728,
+      "peak_rss_bytes": 41783009280,
+      "profile_sha256": "7c3e74732834d3c9b0a22fadbbba65011241260298ca570485afbb522ed2a820",
+      "time_log_sha256": "6b74da336a8fca324f23499f382f3c33a9ede47476b330bd3d1ad690d57e72b9"
+    },
+    {
+      "name": "warm-03",
+      "wall_seconds": 3764,
+      "vector_execute_seconds": 3096.122603618,
+      "event_loop_seconds": 650.939236179,
+      "validation_seconds": 13.801878597,
+      "peak_rss_bytes": 41793679360,
+      "profile_sha256": "dd40bc5287a567aabdfea30352f0ce65d115c15ccf778d0b8cebc22dc009c1e3",
+      "time_log_sha256": "e3b901846e473dbf3958e7174c49dafb589fcc6e600b46cfd558c8c76de2c915"
+    }
+  ],
+  "aggregate": {
+    "wall_seconds_min": 3764,
+    "wall_seconds_median": 3771,
+    "wall_seconds_max": 3797,
+    "wall_spread_ratio": 0.008767268862911796,
+    "five_repetitions_required": false,
+    "vector_execute_seconds_median": 3103.454727467,
+    "event_loop_seconds_median": 650.939236179,
+    "peak_rss_bytes_median": 41793679360,
+    "peak_rss_spread_ratio": 0.0011731283324167502
+  },
+  "storage": {
+    "target_source": "os-temp",
+    "cleanup_mode": "unlink-on-open",
+    "required_upper_bound_bytes": 38469364560,
+    "actual_file_backed_bytes": 38468485341,
+    "bound_margin_bytes": 879219,
+    "actual_within_bound": true,
+    "available_bytes_at_first_admission": 93288243200,
+    "available_bytes_after_final_run": 93272535040,
+    "named_orphan_file_count": 0,
+    "delete_pending_handle_count_after_exit": 0,
+    "partial_result_or_profile_count_after_failed_run": 0,
+    "unbounded_local_accumulation_observed": false
+  },
+  "exact_regression": {
+    "spot": {
+      "run_sha256": "c8b689934d386b9b355c6b54acf548c71851ac79a7ea447c559a551c6cd0f866",
+      "input_sha256": "b76ddcae92972692ff1fb011ef540dc81ba389bc93019174ff90a36be1539bcc",
+      "output_sha256": "3624f7b2de5368e126bdc0582f86a6e7c2adfaf78e02497c21ea4a207c632f98",
+      "trade_surface_exact": true,
+      "full_state_exact": true,
+      "state_event_count": 288,
+      "state_stream_hash": "6a59c86a808e0e5f8fc016c1467fa173502ea37b0eb870f84e7f51cfa1818f8b"
+    },
+    "futures": {
+      "run_sha256": "002579af277077e15a99aa02a8b9b1cf910385857a7ce7f07898051191804df0",
+      "input_sha256": "d6236067eb775fb59842853c9d15cc0ca9c2b7914b60a636d59837c00a610f14",
+      "output_sha256": "a36ebf30a353e185953da02b722c0268175a02b1d850555057efe77492d93af6",
+      "trade_surface_exact": true,
+      "full_state_exact": true,
+      "state_event_count": 5472,
+      "state_stream_hash": "029a12115d0e9095d4e1cc19e25694a28bee4c625b6cd59dc9226ab1ceaeff85"
+    }
+  },
+  "excluded_runs": [
+    {
+      "reason": "pre-fix binary rejected a reached cross-side short_normal helper route",
+      "included_in_performance_statistics": false
+    },
+    {
+      "reason": "concurrent diagnostic process contaminated host resources and the run was terminated",
+      "included_in_performance_statistics": false
+    }
+  ],
+  "claim_boundary": {
+    "five_year_full_native_performance_and_storage_certified": true,
+    "latest_x7_source_compiled_without_runtime_python": true,
+    "runtime_strategy_pair_timerange_sha_or_result_hardcoding_added": false,
+    "official_freqtrade_five_year_parity_claimed": false,
+    "cross_platform_performance_claimed": false,
+    "futures_five_year_performance_claimed": false,
+    "v1_6_0_released": false
+  },
+  "fingerprint": "a9ab243261ecbe79c23e1f22f4a3fe8cefa794be1bb494cf922442efbd8699ad"
+}

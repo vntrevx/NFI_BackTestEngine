@@ -175,9 +175,10 @@ M22-01 qualifies upstream X7 `1df961c0` through the complete Spot and Futures
 pipeline. Indicator, Signal, Tag, stateful callbacks, trade surface, and full
 state are exact for the committed dual-mode qualification, and the older public
 Spot/Futures captures remain exact after the same runtime changes. M22-02 owns
-the no-strategy-execution contract and fallback isolation; M22-03 still owns the
-five-year performance and storage certificate, and M22-04 owns the v1.6.0
-release. Unsupported constructs remain fail-closed and the announced official
+the no-strategy-execution contract and fallback isolation. M22-03 certifies the
+bounded five-year Full Native Spot workload with three byte-identical results;
+M22-04 still owns the v1.6.0 release. Unsupported constructs remain fail-closed
+and the announced official
 Freqtrade fallback remains available. EWM remains fail-closed because it is not
 reachable in the qualified upstream inventory. Unknown functions, non-SMA
 TA-Lib MA types, centered rolling windows, Arrow null indicator inputs, and

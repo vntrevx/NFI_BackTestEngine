@@ -80,6 +80,15 @@ Both certificates still prove exact parity for their sealed workloads. They do n
 form a controlled Spot-versus-Futures performance test, so this project makes no
 cross-mode speed ratio claim.
 
+The unreleased Full Native path also completed a latest-X7 Spot development
+qualification over 80 pairs and 2021-01-01 through 2026-01-01. Three fresh
+processes finished in 63:17, 62:51, and 62:44 with byte-identical 1,162-trade
+results (0.88% wall spread). Median peak RSS was 38.9 GiB. The 38.47 GB temporary
+row spool remained below its pre-admitted bound and was reclaimed after every
+run. This is a single-host performance/storage certificate, not an official
+Freqtrade five-year parity or cross-platform performance claim. See the
+[M22 performance evidence](benchmarks/evidence/m22/full-native-performance-storage.json).
+
 For a fresh-run expectation, compare Spot's full native median with Futures' cold seed.
 Use the Futures reuse number only after its content-addressed vectors already exist.
 Actual runtime still depends on strategy behavior, data, hardware, and memory limits.
