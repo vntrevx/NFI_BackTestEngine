@@ -79,7 +79,18 @@ class _Runtime:
         inputs = [values[input_id] for input_id in node["inputs"]]
         options = node["parameters"]
         if opcode == "literal":
+            special = options.get("special")
+            if special is not None:
+                return {
+                    "nan": float("nan"),
+                    "+infinity": float("inf"),
+                    "-infinity": float("-inf"),
+                }[special]
             return options.get("value")
+        if opcode == "row-count":
+            return len(_require_frame(inputs[0], node["id"]))
+        if opcode == "string-split-index":
+            return _string_split_index(inputs[0], options, node["id"])
         if opcode == "column-read":
             frame = _require_frame(inputs[0], node["id"])
             column = options["column"]
@@ -104,6 +115,10 @@ class _Runtime:
             return _binary(options["operator"], inputs[0], inputs[1])
         if opcode == "compare":
             return _compare(options["operator"], inputs[0], inputs[1])
+        if opcode == "membership":
+            return _membership(inputs[0], options)
+        if opcode == "masked-string-append":
+            return _masked_string_append(inputs, node["id"])
         if opcode == "logical":
             return _logical(options["operator"], inputs)
         if opcode == "unary":
@@ -233,6 +248,35 @@ def _compare(name: str, left: Any, right: Any) -> Any:
     return operation(left, right)
 
 
+def _membership(value: Any, options: Mapping[str, Any]) -> Any:
+    collection = options["values"]
+    negated = bool(options["negated"])
+    if isinstance(value, pd.Series):
+        result = value.isin(collection)
+        return ~result if negated else result
+    if isinstance(value, np.ndarray):
+        result = np.isin(value, collection)
+        return ~result if negated else result
+    result = value in collection
+    return not result if negated else result
+
+
+def _masked_string_append(inputs: Sequence[Any], node_id: str) -> np.ndarray[Any, Any]:
+    if len(inputs) != 3 or not isinstance(inputs[2], str):
+        raise SignalProgramExecutionError(f"signal node {node_id} tag append is invalid")
+    target = np.asarray(inputs[0], dtype=object).copy()
+    mask = inputs[1]
+    if isinstance(mask, bool | np.bool_):
+        if mask:
+            target[:] = target + inputs[2]
+        return target
+    selected = np.asarray(mask)
+    if selected.ndim != 1 or len(selected) != len(target) or not is_bool_dtype(selected.dtype):
+        raise SignalProgramExecutionError(f"signal node {node_id} tag append mask is invalid")
+    target[selected] = target[selected] + inputs[2]
+    return target
+
+
 def _logical(name: str, values: Sequence[Any]) -> Any:
     if not values:
         raise SignalProgramExecutionError("signal logical operation has no inputs")
@@ -275,7 +319,40 @@ def _scalar_call(name: str, values: Sequence[Any]) -> Any:
 
 
 def _array_call(name: str, values: Sequence[Any], arguments: Mapping[str, Any]) -> Any:
+    if name == "full_like":
+        if len(values) != 2 or arguments:
+            raise SignalProgramExecutionError("invalid NumPy full_like contract")
+        return np.full_like(values[0], values[1])
+    if name == "divide":
+        if len(values) != 4 or arguments:
+            raise SignalProgramExecutionError("invalid NumPy divide contract")
+        output = np.array(values[2], copy=True)
+        return np.divide(values[0], values[1], out=output, where=values[3])
+    if name == "absolute-difference":
+        if len(values) != 1 or arguments:
+            raise SignalProgramExecutionError("invalid NumPy absolute-difference contract")
+        source = np.asarray(values[0], dtype=np.float64)
+        output = np.full_like(source, np.nan)
+        if len(source) > 1:
+            output[1:] = np.abs(np.diff(source))
+        return output
     function = getattr(np, name, None)
     if function is None or not callable(function):
         raise SignalProgramExecutionError(f"unknown signal NumPy call {name!r}")
     return function(*values, **arguments)
+
+
+def _string_split_index(value: Any, options: Mapping[str, Any], node_id: str) -> str:
+    if not isinstance(value, str):
+        raise SignalProgramExecutionError(f"signal node {node_id} string source is invalid")
+    method = options["method"]
+    separator = options["separator"]
+    index = options["index"]
+    if method not in {"partition", "split", "rsplit"} or not isinstance(separator, str):
+        raise SignalProgramExecutionError(f"signal node {node_id} string contract is invalid")
+    try:
+        return getattr(value, method)(separator)[index]
+    except (IndexError, TypeError) as exc:
+        raise SignalProgramExecutionError(
+            f"signal node {node_id} string result index is invalid"
+        ) from exc

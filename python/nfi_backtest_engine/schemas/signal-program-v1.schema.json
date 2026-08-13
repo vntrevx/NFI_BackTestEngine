@@ -136,7 +136,9 @@
         "string-scalar",
         "json-scalar",
         "bool-column",
+        "int-column",
         "f64-column",
+        "string-column",
         "timestamp-column"
       ]
     },
@@ -144,11 +146,14 @@
       "enum": [
         "parameter",
         "literal",
+        "row-count",
+        "string-split-index",
         "column-read",
         "metadata-read",
         "frame-write",
         "binary",
         "compare",
+        "membership",
         "logical",
         "unary",
         "select",

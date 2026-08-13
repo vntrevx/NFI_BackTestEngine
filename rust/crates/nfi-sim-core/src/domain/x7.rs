@@ -1040,6 +1040,38 @@ pub struct NfiX7GrindFallbackLevel {
 pub struct NfiX7AdjustmentPredicate {
     pub any_derisk_levels: Vec<usize>,
     pub conditions: Vec<NfiX7AdjustmentCondition>,
+    /// Source-shaped fallback expression for predicates that cannot be
+    /// represented by the historical de-risk-plus-comparisons contract.
+    #[serde(default)]
+    pub expression: Option<NfiX7AdjustmentExpression>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+pub enum NfiX7AdjustmentExpression {
+    All {
+        values: Vec<NfiX7AdjustmentExpression>,
+    },
+    Any {
+        values: Vec<NfiX7AdjustmentExpression>,
+    },
+    Not {
+        value: Box<NfiX7AdjustmentExpression>,
+    },
+    Flag {
+        name: String,
+    },
+    DeriskFound {
+        level: usize,
+    },
+    Present {
+        operand: NfiX7AdjustmentOperand,
+    },
+    Comparison {
+        left: NfiX7AdjustmentOperand,
+        operator: NfiX7AdjustmentComparison,
+        right: NfiX7AdjustmentOperand,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1051,14 +1083,15 @@ pub struct NfiX7AdjustmentCondition {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NfiX7AdjustmentOperand {
     Literal { value: f64 },
     Variable { name: String },
     Feature { name: String, multiplier: f64 },
+    Trade { name: String, multiplier: f64 },
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NfiX7AdjustmentComparison {
     Lt,

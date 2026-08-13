@@ -122,7 +122,6 @@ def test_signal_program_identity_rejects_order_or_source_map_mutation(tmp_path: 
 @pytest.mark.parametrize(
     ("statement", "message"),
     [
-        ("dataframe.loc[:, 'enter_tag'] = '1 '", "tag mutation"),
         ("dataframe.loc[:, 'feature'] = 1", "non-signal dataframe output"),
         ("dataframe.loc[:, 'exit_long'] = 1", "during the entry phase"),
         ("dataframe.iloc[:, 0] = 1", "nested dataframe write"),
@@ -149,6 +148,130 @@ def test_signal_program_fails_closed_outside_m21_signal_surface(
 
     with pytest.raises(SignalProgramCompileError, match=message):
         compile_signal_program(source, class_name="Unsupported")
+
+
+def test_signal_program_leaves_tag_writes_to_the_independent_tag_program(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "SeparateTag.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class SeparateTag(IStrategy):\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, 'enter_long'] = 0\n"
+        "        dataframe.loc[:, 'enter_tag'] = '1 '\n"
+        "        return dataframe\n"
+        "    def populate_exit_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, 'exit_long'] = 0\n"
+        "        dataframe.loc[:, 'exit_tag'] = 'done '\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_signal_program(source, class_name="SeparateTag")
+
+    assert all(
+        not any(column.endswith("_tag") for column in node["parameters"]["columns"])
+        for node in program["nodes"]
+        if node["op"] == "frame-write"
+    )
+    assert "masked-string-append" not in program["opcodes"]
+    assert all(
+        output["column"].endswith(("_long", "_short"))
+        for output in program["signal_outputs"]
+    )
+
+
+def test_signal_program_lowers_metadata_partition_and_static_membership(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "MetadataRoute.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class MetadataRoute(IStrategy):\n"
+        "    top_coins = ['BTC', 'ETH']\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        pair_coin = metadata['pair'].partition('/')[0]\n"
+        "        dataframe.loc[:, 'enter_long'] = pair_coin in self.top_coins\n"
+        "        return dataframe\n"
+        "    def populate_exit_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, 'exit_long'] = 0\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+    program = compile_signal_program(source, class_name="MetadataRoute")
+
+    split = next(node for node in program["nodes"] if node["op"] == "string-split-index")
+    membership = next(node for node in program["nodes"] if node["op"] == "membership")
+    assert split["parameters"] == {"method": "partition", "separator": "/", "index": 0}
+    assert membership["parameters"] == {"values": ["BTC", "ETH"], "negated": False}
+    frame = pd.DataFrame({"close": [1.0, 2.0, 3.0]})
+    accepted = execute_signal_program(program, frame, metadata={"pair": "BTC/USDT"})
+    rejected = execute_signal_program(program, frame, metadata={"pair": "XRP/USDT"})
+    assert accepted["enter_long"].tolist() == [True, True, True]
+    assert rejected["enter_long"].tolist() == [False, False, False]
+
+
+def test_signal_program_flattens_more_than_1500_associative_conditions(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "DeepLogical.py"
+    conditions = " & ".join("(dataframe['score'] > -1.0)" for _ in range(1_501))
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class DeepLogical(IStrategy):\n"
+        "    def deep_condition(self, dataframe):\n"
+        f"        return {conditions}\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        condition = self.deep_condition(dataframe)\n"
+        "        dataframe.loc[:, 'enter_long'] = condition.astype(int)\n"
+        "        return dataframe\n"
+        "    def populate_exit_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, 'exit_long'] = 0\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_signal_program(source, class_name="DeepLogical")
+
+    logical = next(
+        node
+        for node in program["nodes"]
+        if node["op"] == "logical" and node["parameters"] == {"operator": "and"}
+    )
+    assert len(logical["inputs"]) == 1_501
+    validate_signal_program(program)
+
+
+def test_signal_program_types_numpy_isnan_as_boolean_column(tmp_path: Path) -> None:
+    source = tmp_path / "IsNanMask.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class IsNanMask(IStrategy):\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        values = dataframe['score'].to_numpy(copy=False)\n"
+        "        dataframe.loc[:, 'enter_long'] = ~np.isnan(values)\n"
+        "        return dataframe\n"
+        "    def populate_exit_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, 'exit_long'] = 0\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_signal_program(source, class_name="IsNanMask")
+
+    isnan = next(
+        node
+        for node in program["nodes"]
+        if node["op"] == "array-call" and node["parameters"]["name"] == "isnan"
+    )
+    assert isnan["value_type"] == "bool-column"
+    actual = execute_signal_program(
+        program,
+        pd.DataFrame({"score": [1.0, float("nan"), -0.0]}),
+    )
+    assert actual["enter_long"].tolist() == [True, False, True]
 
 
 def test_signal_program_runtime_fails_closed_for_numeric_mask(tmp_path: Path) -> None:

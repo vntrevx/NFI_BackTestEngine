@@ -236,6 +236,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee1b05cbd864bcaecbd3455d6d967862d446e4ebfc3c2e5e5b9841e53cba6673"
 
 [[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -380,27 +390,30 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "nfi-py"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "nfi-sim-core",
+ "nfi-vector-core",
  "nfi-vector-io",
  "pyo3",
+ "serde",
  "serde_json",
  "sha2",
 ]
 
 [[package]]
 name = "nfi-sim-cli"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "nfi-sim-core",
  "nfi-vector-io",
+ "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "nfi-sim-core"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "num-bigint",
  "num-rational",
@@ -414,7 +427,7 @@ dependencies = [
 
 [[package]]
 name = "nfi-vector-core"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "arrow2",
  "serde",
@@ -425,9 +438,10 @@ dependencies = [
 
 [[package]]
 name = "nfi-vector-io"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "arrow2",
+ "fs2",
  "nfi-sim-core",
  "nfi-vector-core",
  "rayon",
@@ -854,6 +868,28 @@ checksum = "dc1b4cb0cc549fcf58d7dfc081778139b3d283a081644e833e84682ad71cea24"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "winapi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+dependencies = [
+ "winapi-i686-pc-windows-gnu",
+ "winapi-x86_64-pc-windows-gnu",
+]
+
+[[package]]
+name = "winapi-i686-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-x86_64-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows-link"

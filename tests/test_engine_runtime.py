@@ -157,15 +157,92 @@ def test_run_engine_native_profile_keeps_result_and_reports_separate_phases(
     assert report["profile"]["phases"]["simulation"]["event_loop_ns"] == 22
 
 
-def test_engine_profile_requires_vector_manifest(tmp_path: Path) -> None:
+def test_engine_profile_requires_vector_input(tmp_path: Path) -> None:
     source = tmp_path / "simulation.json"
     write_json(source, {"schema_version": "fixture"})
 
-    with pytest.raises(BenchmarkError, match="requires a vector manifest"):
+    with pytest.raises(BenchmarkError, match="requires a vector input"):
         engine_runtime.run_engine(
             source,
             tmp_path / "result.json",
             engine_profile_path=tmp_path / "engine-profile.json",
+        )
+
+
+def test_run_engine_selects_full_native_profiled_entrypoint(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "full-native.manifest.json"
+    output = tmp_path / "result.json"
+    profile = tmp_path / "engine-profile.json"
+    write_json(source, {"schema_version": "full-native-vector-manifest-v1"})
+
+    def simulate_full_vector_file_profiled(
+        input_path: Path,
+        output_path: Path,
+        profile_path: Path,
+        events_path: Path | None,
+        pair_worker_limit: int,
+    ) -> None:
+        assert input_path == source
+        assert events_path is None
+        assert pair_worker_limit == 3
+        write_json(output_path, {"trades": []})
+        write_json(profile_path, {"input": {"raw_frame_count": 5}})
+
+    native = SimpleNamespace(
+        simulate_full_vector_file_profiled=simulate_full_vector_file_profiled
+    )
+    monkeypatch.setattr(
+        engine_runtime,
+        "build_engine",
+        lambda: {"kind": "pyo3-extension", "binary_path": "fixture"},
+    )
+    monkeypatch.setattr(engine_runtime, "_native_module", lambda: native)
+
+    report = engine_runtime.run_engine(
+        source,
+        output,
+        input_kind=engine_runtime.FULL_VECTOR_INPUT,
+        engine_profile_path=profile,
+        pair_worker_limit=3,
+    )
+
+    assert report["input_kind"] == engine_runtime.FULL_VECTOR_INPUT
+    assert report["pair_worker_limit"] == 3
+    assert report["profile"]["phases"]["input"]["raw_frame_count"] == 5
+
+
+def test_engine_input_kind_never_uses_filename_inference(tmp_path: Path) -> None:
+    source = tmp_path / "looks-like-vectors.manifest.json"
+    write_json(source, {"schema_version": "fixture"})
+
+    with pytest.raises(BenchmarkError, match="unsupported engine input kind"):
+        engine_runtime.run_engine(
+            source,
+            tmp_path / "result.json",
+            input_kind="unknown-vector-kind",
+        )
+    with pytest.raises(BenchmarkError, match="conflicts"):
+        engine_runtime.run_engine(
+            source,
+            tmp_path / "result.json",
+            input_kind=engine_runtime.FULL_VECTOR_INPUT,
+            vector_manifest=True,
+        )
+    with pytest.raises(BenchmarkError, match="requires full-vector"):
+        engine_runtime.run_engine(
+            source,
+            tmp_path / "pair-workers.json",
+            pair_worker_limit=2,
+        )
+    with pytest.raises(BenchmarkError, match="positive integer"):
+        engine_runtime.run_engine(
+            source,
+            tmp_path / "zero-workers.json",
+            input_kind=engine_runtime.FULL_VECTOR_INPUT,
+            pair_worker_limit=0,
         )
 
 

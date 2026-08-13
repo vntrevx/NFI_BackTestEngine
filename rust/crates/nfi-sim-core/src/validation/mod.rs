@@ -8,6 +8,7 @@ mod pair;
 mod routing;
 
 pub(crate) use config::validate_input;
+pub use config::validate_simulator_preflight;
 #[cfg(test)]
 pub(crate) use manager::valid_nfi_managed_long_route;
 pub(crate) use pair::freqtrade_entry_signal;

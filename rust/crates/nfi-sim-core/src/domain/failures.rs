@@ -50,6 +50,12 @@ pub enum SimError {
     InvalidPositionAdjustment { pair: String, timestamp_ms: i64 },
     #[error("NFI X7 trade manager configuration or scalar program is invalid")]
     InvalidNfiTradeManager,
+    #[error("NFI X7 exit callback failed for {pair:?} at {timestamp_ms}: {diagnostic}")]
+    InvalidNfiExitRuntime {
+        pair: String,
+        timestamp_ms: i64,
+        diagnostic: String,
+    },
     #[error("NFI X7 trade manager does not support entry tag {entry_tag:?} for {pair:?}")]
     UnsupportedNfiEntryTag { pair: String, entry_tag: String },
 }

@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import math
 import re
-from typing import Any
+from typing import Any, Never
 
 from ..errors import StrategyAnalysisError
 from .trade_manager import (
@@ -288,9 +288,25 @@ def _adjustment_predicate(node: ast.AST, *, level: int) -> dict[str, Any]:
         raise StrategyAnalysisError(
             f"NFI adjustment grind {level} fallback must be an AND expression"
         )
+    legacy = _legacy_adjustment_predicate(node)
+    if legacy is not None:
+        return legacy
+    return {
+        "any_derisk_levels": [],
+        "conditions": [],
+        "expression": _adjustment_boolean_expression(node, level=level),
+    }
+
+
+def _legacy_adjustment_predicate(node: ast.BoolOp) -> dict[str, Any] | None:
     any_derisk_levels: list[int] = []
     conditions: list[dict[str, Any]] = []
     for value in node.values:
+        if any(
+            isinstance(item, ast.Constant) and isinstance(item.value, bool)
+            for item in ast.walk(value)
+        ):
+            return None
         if isinstance(value, ast.BoolOp) and isinstance(value.op, ast.Or):
             levels = sorted(
                 {
@@ -307,16 +323,93 @@ def _adjustment_predicate(node: ast.AST, *, level: int) -> dict[str, Any]:
                 continue
         condition = _adjustment_comparison(value)
         if condition is None:
-            raise StrategyAnalysisError(f"NFI adjustment grind {level} fallback condition changed")
+            return None
         conditions.append(condition)
     if not conditions:
-        raise StrategyAnalysisError(
-            f"NFI adjustment grind {level} fallback has no numeric conditions"
-        )
+        return None
     return {
         "any_derisk_levels": sorted(set(any_derisk_levels)),
         "conditions": conditions,
     }
+
+
+def _adjustment_boolean_expression(node: ast.AST, *, level: int) -> dict[str, Any]:
+    if isinstance(node, ast.BoolOp):
+        operation = "all" if isinstance(node.op, ast.And) else "any"
+        if not isinstance(node.op, ast.And | ast.Or) or not node.values:
+            _unsupported_fallback(level)
+        return {
+            "op": operation,
+            "values": [
+                _adjustment_boolean_expression(value, level=level) for value in node.values
+            ],
+        }
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return {
+            "op": "not",
+            "value": _adjustment_boolean_expression(node.operand, level=level),
+        }
+    derisk_level = _derisk_found_level(node)
+    if derisk_level is not None:
+        return {"op": "derisk_found", "level": derisk_level}
+    flag = _adjustment_boolean_flag(node)
+    if flag is not None:
+        return {"op": "flag", "name": flag}
+    if isinstance(node, ast.Compare) and len(node.ops) == 1 and len(node.comparators) == 1:
+        presence = _presence_expression(node)
+        if presence is not None:
+            return presence
+        comparison = _adjustment_comparison(node)
+        if comparison is not None:
+            return {"op": "comparison", **comparison}
+    _unsupported_fallback(level)
+
+
+def _presence_expression(node: ast.Compare) -> dict[str, Any] | None:
+    operator = node.ops[0]
+    left, right = node.left, node.comparators[0]
+    if isinstance(right, ast.Constant) and right.value is None:
+        operand_node = left
+    elif isinstance(left, ast.Constant) and left.value is None:
+        operand_node = right
+    else:
+        return None
+    if not isinstance(operator, ast.Is | ast.IsNot):
+        return None
+    operand = _adjustment_operand(operand_node)
+    if operand is None:
+        return None
+    present = {"op": "present", "operand": operand}
+    return present if isinstance(operator, ast.IsNot) else {"op": "not", "value": present}
+
+
+def _derisk_found_level(node: ast.AST) -> int | None:
+    if not isinstance(node, ast.Name):
+        return None
+    match = re.fullmatch(r"is_derisk_(\d+)_found", node.id)
+    return int(match.group(1)) if match is not None else None
+
+
+def _adjustment_boolean_flag(node: ast.AST) -> str | None:
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
+        and node.attr == "is_futures_mode"
+    ):
+        return "is_futures_mode"
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "trade"
+        and node.attr == "is_short"
+    ):
+        return "trade_is_short"
+    return None
+
+
+def _unsupported_fallback(level: int) -> Never:
+    raise StrategyAnalysisError(f"NFI adjustment grind {level} fallback condition changed")
 
 
 def _adjustment_comparison(node: ast.AST) -> dict[str, Any] | None:
@@ -339,28 +432,54 @@ def _adjustment_comparison(node: ast.AST) -> dict[str, Any] | None:
 
 
 def _adjustment_operand(node: ast.AST) -> dict[str, Any] | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+        return {"kind": "literal", "value": float(node.value)}
     number = _ast_number(node)
     if number is not None:
         return {"kind": "literal", "value": number}
     if isinstance(node, ast.Name) and node.id in {
+        "current_rate",
         "slice_profit",
         "slice_profit_entry",
+        "slice_profit_exit",
         "num_open_grinds_and_buybacks",
     }:
         return {"kind": "variable", "name": node.id}
     feature = _last_candle_feature(node)
     if feature is not None:
         return {"kind": "feature", "name": feature, "multiplier": 1.0}
+    trade_field = _trade_numeric_field(node)
+    if trade_field is not None:
+        return {"kind": "trade", "name": trade_field, "multiplier": 1.0}
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
-        feature = _last_candle_feature(node.left)
-        multiplier = _ast_number(node.right)
-        if feature is None or multiplier is None or not math.isfinite(multiplier):
-            return None
-        return {
-            "kind": "feature",
-            "name": feature,
-            "multiplier": multiplier,
-        }
+        return _scaled_adjustment_operand(node)
+    return None
+
+
+def _scaled_adjustment_operand(node: ast.BinOp) -> dict[str, Any] | None:
+    multiplier = _ast_number(node.right)
+    operand = _adjustment_operand(node.left) if multiplier is not None else None
+    if operand is None:
+        multiplier = _ast_number(node.left)
+        operand = _adjustment_operand(node.right) if multiplier is not None else None
+    if (
+        operand is None
+        or multiplier is None
+        or not math.isfinite(multiplier)
+        or operand["kind"] not in {"feature", "trade"}
+    ):
+        return None
+    return {**operand, "multiplier": operand["multiplier"] * multiplier}
+
+
+def _trade_numeric_field(node: ast.AST) -> str | None:
+    if (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "trade"
+        and node.attr == "liquidation_price"
+    ):
+        return node.attr
     return None
 
 

@@ -17,12 +17,14 @@ pub(super) enum MovingStream {
         total: f64,
         values: VecDeque<f64>,
         average: bool,
+        started: bool,
     },
     Ema {
         period: usize,
         count: usize,
         seed_total: f64,
         previous: Option<f64>,
+        started: bool,
     },
     Extreme {
         period: usize,
@@ -41,6 +43,7 @@ pub(super) enum MovingStream {
         total_two: f64,
         values: VecDeque<f64>,
         nb_dev: f64,
+        started: bool,
     },
     Bbands {
         period: usize,
@@ -49,7 +52,19 @@ pub(super) enum MovingStream {
         values: VecDeque<f64>,
         nb_dev_up: f64,
         nb_dev_down: f64,
+        started: bool,
     },
+}
+
+pub(super) fn sum_stream(period: usize) -> Result<MovingStream, VectorCoreError> {
+    validate_period(period, 2, "SUM")?;
+    Ok(MovingStream::Sum {
+        period,
+        total: 0.0,
+        values: VecDeque::new(),
+        average: false,
+        started: false,
+    })
 }
 
 /// Build bounded streaming state for a moving indicator, if it is supported.
@@ -63,18 +78,21 @@ pub(super) fn stream(
             total: 0.0,
             values: VecDeque::new(),
             average: true,
+            started: false,
         },
         "SUM" => MovingStream::Sum {
             period: argument_period(arguments, 30, "SUM")?,
             total: 0.0,
             values: VecDeque::new(),
             average: false,
+            started: false,
         },
         "EMA" => MovingStream::Ema {
             period: argument_period(arguments, 30, "EMA")?,
             count: 0,
             seed_total: 0.0,
             previous: None,
+            started: false,
         },
         "MIN" => MovingStream::Extreme {
             period: argument_period(arguments, 30, "MIN")?,
@@ -99,6 +117,7 @@ pub(super) fn stream(
             total_two: 0.0,
             values: VecDeque::new(),
             nb_dev: argument_number(arguments, "nbdev", 1.0)?,
+            started: false,
         },
         "BBANDS" => {
             if argument_integer(arguments, "matype", 0)? != 0 {
@@ -113,6 +132,7 @@ pub(super) fn stream(
                 values: VecDeque::new(),
                 nb_dev_up: argument_number(arguments, "nbdevup", 2.0)?,
                 nb_dev_down: argument_number(arguments, "nbdevdn", 2.0)?,
+                started: false,
             }
         }
         _ => return Ok(None),
@@ -163,13 +183,15 @@ impl MovingStream {
                 total,
                 values,
                 average,
-            } => next_sum(value, *period, total, values, *average),
+                started,
+            } => next_sum(value, *period, total, values, *average, started),
             Self::Ema {
                 period,
                 count,
                 seed_total,
                 previous,
-            } => next_ema(value, *period, count, seed_total, previous),
+                started,
+            } => next_ema(value, *period, count, seed_total, previous, started),
             Self::Extreme {
                 period,
                 seen,
@@ -187,7 +209,16 @@ impl MovingStream {
                 total_two,
                 values,
                 nb_dev,
-            } => next_stddev(value, *period, total_one, total_two, values, *nb_dev),
+                started,
+            } => {
+                let mut state = VarianceState {
+                    total_one,
+                    total_two,
+                    values,
+                    started,
+                };
+                next_stddev(value, *period, &mut state, *nb_dev)
+            }
             Self::Bbands { .. } => unreachable!("BBANDS has three outputs"),
         }
     }
@@ -200,23 +231,29 @@ impl MovingStream {
             values,
             nb_dev_up,
             nb_dev_down,
+            started,
         } = self
         else {
             unreachable!("only BBANDS has three outputs");
         };
-        next_bbands(
-            value,
-            *period,
+        let mut state = VarianceState {
             total_one,
             total_two,
             values,
-            *nb_dev_up,
-            *nb_dev_down,
-        )
+            started,
+        };
+        next_bbands(value, *period, &mut state, *nb_dev_up, *nb_dev_down)
     }
 }
 
 type BandsRow = (f64, f64, f64);
+
+struct VarianceState<'a> {
+    total_one: &'a mut f64,
+    total_two: &'a mut f64,
+    values: &'a mut VecDeque<f64>,
+    started: &'a mut bool,
+}
 
 fn argument_period(
     arguments: &Map<String, Value>,
@@ -283,7 +320,14 @@ fn next_sum(
     total: &mut f64,
     values: &mut VecDeque<f64>,
     average: bool,
+    started: &mut bool,
 ) -> f64 {
+    if !*started {
+        if value.is_nan() {
+            return f64::NAN;
+        }
+        *started = true;
+    }
     *total += value;
     values.push_back(value);
     if values.len() < period {
@@ -307,7 +351,14 @@ fn next_ema(
     count: &mut usize,
     seed_total: &mut f64,
     previous: &mut Option<f64>,
+    started: &mut bool,
 ) -> f64 {
+    if !*started {
+        if value.is_nan() {
+            return f64::NAN;
+        }
+        *started = true;
+    }
     if *count < period - 1 {
         *count += 1;
         *seed_total += value;
@@ -371,15 +422,8 @@ fn next_roc(value: f64, period: usize, seen: &mut usize, values: &mut VecDeque<f
     output
 }
 
-fn next_stddev(
-    value: f64,
-    period: usize,
-    total_one: &mut f64,
-    total_two: &mut f64,
-    values: &mut VecDeque<f64>,
-    nb_dev: f64,
-) -> f64 {
-    let Some((variance, _)) = next_variance(value, period, total_one, total_two, values) else {
+fn next_stddev(value: f64, period: usize, state: &mut VarianceState<'_>, nb_dev: f64) -> f64 {
+    let Some((variance, _)) = next_variance(value, period, state) else {
         return f64::NAN;
     };
     if variance > 0.0 {
@@ -396,13 +440,11 @@ fn next_stddev(
 fn next_bbands(
     value: f64,
     period: usize,
-    total_one: &mut f64,
-    total_two: &mut f64,
-    values: &mut VecDeque<f64>,
+    state: &mut VarianceState<'_>,
     nb_dev_up: f64,
     nb_dev_down: f64,
 ) -> BandsRow {
-    let Some((variance, mean)) = next_variance(value, period, total_one, total_two, values) else {
+    let Some((variance, mean)) = next_variance(value, period, state) else {
         return (f64::NAN, f64::NAN, f64::NAN);
     };
     let deviation = if variance > 0.0 { variance.sqrt() } else { 0.0 };
@@ -426,26 +468,27 @@ fn next_bbands(
     }
 }
 
-fn next_variance(
-    value: f64,
-    period: usize,
-    total_one: &mut f64,
-    total_two: &mut f64,
-    values: &mut VecDeque<f64>,
-) -> Option<(f64, f64)> {
-    *total_one += value;
-    *total_two += value * value;
-    values.push_back(value);
-    if values.len() < period {
+fn next_variance(value: f64, period: usize, state: &mut VarianceState<'_>) -> Option<(f64, f64)> {
+    if !*state.started {
+        if value.is_nan() {
+            return None;
+        }
+        *state.started = true;
+    }
+    *state.total_one += value;
+    *state.total_two += value * value;
+    state.values.push_back(value);
+    if state.values.len() < period {
         return None;
     }
-    let mean_one = *total_one / period_as_f64(period);
-    let mean_two = *total_two / period_as_f64(period);
-    let trailing = values
+    let mean_one = *state.total_one / period_as_f64(period);
+    let mean_two = *state.total_two / period_as_f64(period);
+    let trailing = state
+        .values
         .pop_front()
         .expect("full rolling variance has a trailing value");
-    *total_one -= trailing;
-    *total_two -= trailing * trailing;
+    *state.total_one -= trailing;
+    *state.total_two -= trailing * trailing;
     Some((mean_two - (mean_one * mean_one), mean_one))
 }
 
@@ -457,18 +500,22 @@ pub(super) fn sma(values: &[f64], period: usize) -> Result<Vec<f64>, VectorCoreE
 pub(super) fn ema(values: &[f64], period: usize) -> Result<Vec<f64>, VectorCoreError> {
     validate_period(period, 2, "EMA")?;
     let mut output = warmup(values.len());
-    if values.len() < period {
+    let Some(start) = first_non_nan(values) else {
+        return Ok(output);
+    };
+    let first_output = start.saturating_add(period - 1);
+    if first_output >= values.len() {
         return Ok(output);
     }
     let mut total = 0.0;
-    for value in &values[..period] {
+    for value in &values[start..=first_output] {
         total += value;
     }
     let period_as_f64 = period_as_f64(period);
     let k = 2.0 / (period_as_f64 + 1.0);
     let mut previous = total / period_as_f64;
-    output[period - 1] = previous;
-    for (index, value) in values.iter().enumerate().skip(period) {
+    output[first_output] = previous;
+    for (index, value) in values.iter().enumerate().skip(first_output + 1) {
         previous = ((*value - previous) * k) + previous;
         output[index] = previous;
     }
@@ -521,7 +568,10 @@ pub(super) fn bbands_sma(
     let deviations = stddev_using_precalculated_sma(values, &middle, period);
     let mut upper = warmup(values.len());
     let mut lower = warmup(values.len());
-    for index in (period - 1)..values.len() {
+    let Some(first_output) = first_non_nan(values).map(|start| start + period - 1) else {
+        return Ok((upper, middle, lower));
+    };
+    for index in first_output..values.len() {
         let deviation = deviations[index];
         let average = middle[index];
         if exact_equal(nb_dev_up, nb_dev_down) {
@@ -560,6 +610,10 @@ fn warmup(length: usize) -> Vec<f64> {
     vec![f64::NAN; length]
 }
 
+fn first_non_nan(values: &[f64]) -> Option<usize> {
+    values.iter().position(|value| !value.is_nan())
+}
+
 /// TA-Lib permits periods through 100,000, so this cast is exact on all targets.
 #[allow(clippy::cast_precision_loss)]
 fn period_as_f64(period: usize) -> f64 {
@@ -578,15 +632,19 @@ fn is_one(value: f64) -> bool {
 
 fn rolling_sum(values: &[f64], period: usize, average: bool) -> Vec<f64> {
     let mut output = warmup(values.len());
-    if values.len() < period {
+    let Some(start) = first_non_nan(values) else {
+        return output;
+    };
+    let first_output = start.saturating_add(period - 1);
+    if first_output >= values.len() {
         return output;
     }
     let mut total = 0.0;
-    let mut trailing = 0;
-    for value in &values[..period - 1] {
+    let mut trailing = start;
+    for value in &values[start..first_output] {
         total += value;
     }
-    for today in (period - 1)..values.len() {
+    for today in first_output..values.len() {
         total += values[today];
         let current = total;
         total -= values[trailing];
@@ -647,7 +705,10 @@ fn stddev_with_nbdev(
 ) -> Result<Vec<f64>, VectorCoreError> {
     validate_period(period, 2, "STDDEV")?;
     let mut output = variance(values, period);
-    for value in output.iter_mut().skip(period - 1) {
+    let Some(first_output) = first_non_nan(values).map(|start| start + period - 1) else {
+        return Ok(output);
+    };
+    for value in output.iter_mut().skip(first_output) {
         if *value > 0.0 {
             *value = if is_one(nb_dev) {
                 value.sqrt()
@@ -663,16 +724,20 @@ fn stddev_with_nbdev(
 
 fn variance(values: &[f64], period: usize) -> Vec<f64> {
     let mut output = warmup(values.len());
-    if values.len() < period {
+    let Some(start) = first_non_nan(values) else {
+        return output;
+    };
+    let first_output = start.saturating_add(period - 1);
+    if first_output >= values.len() {
         return output;
     }
     let mut total_one = 0.0;
     let mut total_two = 0.0;
-    for value in &values[..period - 1] {
+    for value in &values[start..first_output] {
         total_one += value;
         total_two += value * value;
     }
-    for (trailing, today) in ((period - 1)..values.len()).enumerate() {
+    for (trailing, today) in (start..).zip(first_output..values.len()) {
         let value = values[today];
         total_one += value;
         total_two += value * value;
@@ -688,14 +753,18 @@ fn variance(values: &[f64], period: usize) -> Vec<f64> {
 
 fn stddev_using_precalculated_sma(values: &[f64], averages: &[f64], period: usize) -> Vec<f64> {
     let mut output = warmup(values.len());
-    if values.len() < period {
+    let Some(start) = first_non_nan(values) else {
+        return output;
+    };
+    let first_output = start.saturating_add(period - 1);
+    if first_output >= values.len() {
         return output;
     }
     let mut total_two = 0.0;
-    for value in &values[..period - 1] {
+    for value in &values[start..first_output] {
         total_two += value * value;
     }
-    for (trailing, index) in ((period - 1)..values.len()).enumerate() {
+    for (trailing, index) in (start..).zip(first_output..values.len()) {
         let value = values[index];
         total_two += value * value;
         let mut mean_two = total_two / period_as_f64(period);
@@ -734,6 +803,85 @@ mod tests {
         assert_bits(
             &sum(&values, 3).expect("valid SUM"),
             &[f64::NAN, f64::NAN, 6.0, 9.0, 12.0],
+        );
+    }
+
+    #[test]
+    fn leading_nan_warmup_matches_talib_and_streaming_chunks() {
+        let values = [f64::NAN, f64::NAN, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let average = vec![f64::NAN, f64::NAN, f64::NAN, f64::NAN, 2.0, 3.0, 4.0];
+        let total = vec![f64::NAN, f64::NAN, f64::NAN, f64::NAN, 6.0, 9.0, 12.0];
+        let deviation = vec![
+            f64::NAN,
+            f64::NAN,
+            f64::NAN,
+            f64::NAN,
+            f64::from_bits(0x3fea_20bd_700c_2c40),
+            f64::from_bits(0x3fea_20bd_700c_2c3b),
+            f64::from_bits(0x3fea_20bd_700c_2c45),
+        ];
+        let upper = vec![
+            f64::NAN,
+            f64::NAN,
+            f64::NAN,
+            f64::NAN,
+            f64::from_bits(0x400d_105e_b806_1620),
+            f64::from_bits(0x4012_882f_5c03_0b0f),
+            f64::from_bits(0x4016_882f_5c03_0b11),
+        ];
+        let lower = vec![
+            f64::NAN,
+            f64::NAN,
+            f64::NAN,
+            f64::NAN,
+            f64::from_bits(0x3fd7_7d0a_3fcf_4f00),
+            f64::from_bits(0x3ff5_df42_8ff3_d3c5),
+            f64::from_bits(0x4002_efa1_47f9_e9de),
+        ];
+        let period = 3;
+        let defaults = arguments(&json!({"timeperiod": period}));
+
+        assert_bits(&sma(&values, period).expect("SMA"), &average);
+        assert_bits(&ema(&values, period).expect("EMA"), &average);
+        assert_bits(&sum(&values, period).expect("SUM"), &total);
+        assert_bits(&stddev(&values, period, 1.0).expect("STDDEV"), &deviation);
+        let bands = bbands_sma(&values, period, 2.0, 2.0).expect("BBANDS");
+        assert_bits(&bands.0, &upper);
+        assert_bits(&bands.1, &average);
+        assert_bits(&bands.2, &lower);
+        assert_stream(
+            "SMA",
+            &defaults,
+            &values,
+            std::slice::from_ref(&average),
+            period,
+        );
+        assert_stream(
+            "EMA",
+            &defaults,
+            &values,
+            std::slice::from_ref(&average),
+            period,
+        );
+        assert_stream("SUM", &defaults, &values, &[total], period);
+        assert_stream(
+            "STDDEV",
+            &arguments(&json!({"timeperiod": period, "nbdev": 1.0})),
+            &values,
+            &[deviation],
+            period,
+        );
+        assert_stream(
+            "BBANDS",
+            &arguments(&json!({
+                "timeperiod": period,
+                "nbdevup": 2.0,
+                "nbdevdn": 2.0,
+                "matype": 0,
+            })),
+            &values,
+            &[upper, average, lower],
+            period,
         );
     }
 

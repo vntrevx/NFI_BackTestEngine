@@ -23,6 +23,7 @@ _NUMERIC_VALUE_TYPES = {
     "int-scalar",
     "f64-scalar",
     "bool-column",
+    "int-column",
     "f64-column",
 }
 _STRING_VALUE_TYPES = {"null", "string-scalar", "string-column"}

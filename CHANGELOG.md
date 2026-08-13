@@ -4,12 +4,32 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.6.0 - 2026-08-14
+
+- Added the source-compiled Full Native transport: Rust now executes the complete
+  Indicator, Signal, Tag, callback, order, wallet, and state pipeline without
+  importing or executing strategy Python at runtime.
+- Added content-bound Full Native worker calibration, pair-local raw-frame loading,
+  live-value release, and direct file-backed simulator handoff without persistent
+  analyzed Feather outputs.
+- Added fail-closed spool-capacity admission from the run's gap-fill bound, automatic
+  delete-on-close cleanup, and profile evidence for admitted versus actual bytes.
+- Split NFI manager validation failures from pair/timestamp/route/source-located
+  runtime diagnostics, and validate the embedded simulator config before expensive
+  pair preparation.
 - Connected typed Rust vector output directly to the chronological simulator, with
   pair-parallel DAG preparation and no parallel wallet or order mutation.
 - Preserved SHA-verified Feather as the bounded-memory evidence/replay path and added
   zero-tolerance trade-surface and every-candle full-state transport parity tests.
-- Kept latest-X7 Full Native qualification and the v1.6.0 release behind the remaining
-  M22 source-lowering, dual-mode exactness, performance, storage, and three-OS gates.
+- Certified a five-year Full Native Spot workload with three byte-identical results,
+  a pre-admitted 38.47 GB temporary spool bound, and no retained spool files. This is
+  a single-host performance/storage claim, not a new official Freqtrade certificate.
+- Generalized current X7 Grind-5 fallback lowering for `slice_profit_exit`, Boolean
+  protection columns, bare Derisk state, Futures mode, and liquidation-distance
+  expressions without strategy-version, pair, or expected-result branches.
+- Pinned the Freqtrade same-candle contract: position adjustment and its filled order
+  are applied before stop/exit evaluation. The external 2022 Futures report that
+  motivated the hotfix remains unclaimed until its sealed input is supplied.
 
 ## 1.5.0 - 2026-08-10
 

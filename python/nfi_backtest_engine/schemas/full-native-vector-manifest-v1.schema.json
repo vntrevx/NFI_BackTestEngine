@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/full-native-vector-manifest-v1.schema.json",
+  "title": "Full Native Vector Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "source_execution",
+    "config",
+    "compile_context",
+    "programs",
+    "run",
+    "retained_features",
+    "pairs",
+    "frames",
+    "futures"
+  ],
+  "properties": {
+    "schema_version": {"const": "full-native-vector-manifest-v1"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy_sha256",
+        "config_sha256",
+        "compiler_source_fingerprint",
+        "selected_class"
+      ],
+      "properties": {
+        "strategy_sha256": {"$ref": "#/$defs/sha256"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "compiler_source_fingerprint": {"$ref": "#/$defs/sha256"},
+        "selected_class": {"$ref": "#/$defs/non_empty_string"}
+      }
+    },
+    "source_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy_source_mode",
+        "populate_methods_executed",
+        "runtime_mode"
+      ],
+      "properties": {
+        "strategy_source_mode": {"const": "python-ast-compile-only"},
+        "populate_methods_executed": {"const": false},
+        "runtime_mode": {"const": "rust-full-native"}
+      }
+    },
+    "config": {"type": "object"},
+    "compile_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_mode", "trading_mode"],
+      "properties": {
+        "run_mode": {"const": "backtest"},
+        "trading_mode": {"enum": ["spot", "futures"]}
+      }
+    },
+    "programs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["indicator", "signal", "tag"],
+      "properties": {
+        "indicator": {"$ref": "#/$defs/program"},
+        "signal": {"$ref": "#/$defs/program"},
+        "tag": {"$ref": "#/$defs/program"}
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trading_mode",
+        "timerange",
+        "startup_candles",
+        "base_timeframe",
+        "source_row_shift"
+      ],
+      "properties": {
+        "trading_mode": {"enum": ["spot", "futures"]},
+        "timerange": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_ms", "stop_ms"],
+          "properties": {
+            "start_ms": {"type": "integer", "minimum": 0},
+            "stop_ms": {"type": "integer", "minimum": 0}
+          }
+        },
+        "startup_candles": {"type": "integer", "minimum": 0},
+        "base_timeframe": {"$ref": "#/$defs/non_empty_string"},
+        "source_row_shift": {"const": 1}
+      }
+    },
+    "retained_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns", "fingerprint"],
+      "properties": {
+        "columns": {"$ref": "#/$defs/unique_strings"},
+        "fingerprint": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "pairs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/pair"}
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/frame"}
+    },
+    "futures": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "array",
+          "items": {"$ref": "#/$defs/futures"}
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "non_empty_string": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "unique_strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/non_empty_string"}
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/non_empty_string"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "fingerprint"],
+      "properties": {
+        "artifact": {"$ref": "#/$defs/artifact"},
+        "fingerprint": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pair", "timeframe"],
+      "properties": {
+        "pair": {"$ref": "#/$defs/non_empty_string"},
+        "timeframe": {"$ref": "#/$defs/non_empty_string"}
+      }
+    },
+    "nullable_number": {"type": ["number", "null"]},
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "rows", "artifact"],
+      "properties": {
+        "identity": {"$ref": "#/$defs/identity"},
+        "rows": {"type": "integer", "minimum": 0},
+        "artifact": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity",
+        "metadata",
+        "precision",
+        "limits",
+        "price_steps",
+        "options"
+      ],
+      "properties": {
+        "identity": {"$ref": "#/$defs/identity"},
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "precision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount_step", "price_step"],
+          "properties": {
+            "amount_step": {"$ref": "#/$defs/nullable_number"},
+            "price_step": {"$ref": "#/$defs/nullable_number"}
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum_stake", "minimum_amount", "minimum_cost"],
+          "properties": {
+            "minimum_stake": {"$ref": "#/$defs/nullable_number"},
+            "minimum_amount": {"$ref": "#/$defs/nullable_number"},
+            "minimum_cost": {"$ref": "#/$defs/nullable_number"}
+          }
+        },
+        "price_steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["timestamp_ms", "step"],
+            "properties": {
+              "timestamp_ms": {"type": "integer", "minimum": 0},
+              "step": {"type": "number", "exclusiveMinimum": 0}
+            }
+          }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "can_short",
+            "include_funding",
+            "use_exit_signal",
+            "include_previous_close"
+          ],
+          "properties": {
+            "can_short": {"type": "boolean"},
+            "include_funding": {"type": "boolean"},
+            "use_exit_signal": {"type": "boolean"},
+            "include_previous_close": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "futures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pair", "funding_rate", "mark"],
+      "properties": {
+        "pair": {"$ref": "#/$defs/non_empty_string"},
+        "funding_rate": {"$ref": "#/$defs/frame"},
+        "mark": {"$ref": "#/$defs/frame"}
+      }
+    }
+  }
+}

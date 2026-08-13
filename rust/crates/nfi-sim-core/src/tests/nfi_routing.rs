@@ -4,6 +4,86 @@ use super::*;
 use crate::nfi::NFI_LONG_EXIT_PROGRAMS;
 
 #[test]
+fn nfi_manager_preflight_accepts_source_shaped_liquidation_fallback() {
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    let predicate: NfiX7AdjustmentPredicate = serde_json::from_value(serde_json::json!({
+        "any_derisk_levels": [],
+        "conditions": [],
+        "expression": {
+            "op": "all",
+            "values": [
+                {"op": "flag", "name": "is_futures_mode"},
+                {
+                    "op": "comparison",
+                    "left": {"kind": "variable", "name": "slice_profit_entry"},
+                    "operator": "lt",
+                    "right": {"kind": "literal", "value": -0.15}
+                },
+                {
+                    "op": "present",
+                    "operand": {
+                        "kind": "trade",
+                        "name": "liquidation_price",
+                        "multiplier": 1.0
+                    }
+                },
+                {
+                    "op": "any",
+                    "values": [
+                        {
+                            "op": "all",
+                            "values": [
+                                {"op": "flag", "name": "trade_is_short"},
+                                {
+                                    "op": "comparison",
+                                    "left": {"kind": "variable", "name": "current_rate"},
+                                    "operator": "gt",
+                                    "right": {
+                                        "kind": "trade",
+                                        "name": "liquidation_price",
+                                        "multiplier": 0.8
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "op": "all",
+                            "values": [
+                                {
+                                    "op": "not",
+                                    "value": {"op": "flag", "name": "trade_is_short"}
+                                },
+                                {
+                                    "op": "comparison",
+                                    "left": {"kind": "variable", "name": "current_rate"},
+                                    "operator": "lt",
+                                    "right": {
+                                        "kind": "trade",
+                                        "name": "liquidation_price",
+                                        "multiplier": 1.2
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }))
+    .expect("source-shaped generic fallback");
+    let policy = manager
+        .position_adjustment
+        .as_mut()
+        .and_then(|adjustment| adjustment.constants.policy.as_mut())
+        .expect("test manager adjustment policy");
+    policy.grind_entry_fallbacks[4].predicates.push(predicate);
+    let mut manager_config = config(1);
+    enable_nfi_manager(&mut manager_config, manager);
+
+    assert_eq!(validate_simulator_preflight(&manager_config), Ok(()));
+}
+
+#[test]
 fn retired_execution_modes_still_deserialize_for_evidence_replay() {
     let managed: ManagedExitExecutionMode =
         serde_json::from_str("\"primary-with-legacy-shadow\"").expect("managed mode");
@@ -303,7 +383,7 @@ fn generic_managed_exit_shadow_short_fails_closed_on_target_state_difference() {
 
     let result = simulate(&input);
     assert!(
-        matches!(result, Err(SimError::InvalidNfiTradeManager)),
+        matches!(result, Err(SimError::InvalidNfiExitRuntime { .. })),
         "unexpected result: {result:?}"
     );
 }
@@ -514,7 +594,18 @@ fn generic_managed_exit_shadow_fails_closed_on_a_decision_difference() {
         )],
     });
 
-    assert!(matches!(result, Err(SimError::InvalidNfiTradeManager)));
+    let Err(SimError::InvalidNfiExitRuntime {
+        pair,
+        timestamp_ms,
+        diagnostic,
+    }) = result
+    else {
+        panic!("unexpected result: {result:?}");
+    };
+    assert_eq!(pair, "AAA/USDT");
+    assert_eq!(timestamp_ms, 2);
+    assert!(diagnostic.contains("long_normal"), "{diagnostic}");
+    assert!(diagnostic.contains("strategy.py:"), "{diagnostic}");
 }
 
 #[test]
@@ -550,7 +641,7 @@ fn generic_managed_exit_shadow_fails_closed_on_target_state_difference() {
 
     assert!(matches!(
         simulate(&input),
-        Err(SimError::InvalidNfiTradeManager)
+        Err(SimError::InvalidNfiExitRuntime { .. })
     ));
 }
 
@@ -608,7 +699,7 @@ fn generic_managed_exit_shadow_fails_closed_on_inline_program_difference() {
 
     assert!(matches!(
         simulate(&input),
-        Err(SimError::InvalidNfiTradeManager)
+        Err(SimError::InvalidNfiExitRuntime { .. })
     ));
 }
 
@@ -1056,6 +1147,39 @@ fn nfi_cross_side_compound_keeps_source_callback_order() {
         result.trades[0].exit_reason,
         "exit_long_normal_test ( 1 562)"
     );
+}
+
+#[test]
+fn generic_short_route_runs_its_source_helper_for_a_long_cross_side_tag() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        // Spot cannot open a short trade, but X7's shared enter_tag can retain
+        // the simultaneous short-normal label. Its callback evaluates the
+        // short-normal block with this actual long trade.
+        tag: Some("1 501".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_full_short_manager(&mut manager);
+    enable_test_short_exit_shadow(&mut manager);
+    let mut manager_config = config(1);
+    manager_config.max_entry_position_adjustment = 0;
+    enable_nfi_manager(&mut manager_config, manager);
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![nfi_pair(
+            vec![entry, candle(2, 100.0, 100.0)],
+            BTreeMap::new(),
+        )],
+    };
+
+    let result = simulate(&input).expect("cross-side source helper shadow agrees");
+
+    assert!(!result.trades[0].is_short);
+    assert_eq!(result.trades[0].entry_tag.as_deref(), Some("1 501"));
+    assert_eq!(result.trades[0].exit_reason, "force_exit");
 }
 
 #[test]

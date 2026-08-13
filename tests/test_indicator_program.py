@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
 import pytest
@@ -163,6 +164,31 @@ def test_committed_indicator_program_contract_remains_schema_valid() -> None:
     assert program["required_input_columns"] == ["close"]
     assert program["informative_nodes"] == []
     assert all(node["lookback"]["causal"] for node in program["nodes"])
+
+
+def test_indicator_program_separates_positional_talib_parameters(tmp_path: Path) -> None:
+    source = tmp_path / "PositionalTalib.py"
+    source.write_text(
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class PositionalTalib(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['roc'] = ta.ROC(dataframe['close'], 10)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="PositionalTalib")
+    call = next(node for node in program["nodes"] if node["op"] == "indicator-call")
+
+    assert call["parameters"] == {
+        "family": "ta",
+        "name": "ROC",
+        "arguments": {"timeperiod": 10},
+    }
+    assert len(call["inputs"]) == 1
+    validate_indicator_program(program)
 
 
 def test_indicator_program_semantic_validator_rejects_reference_and_identity_mutation() -> None:
@@ -430,6 +456,292 @@ def test_indicator_program_constant_folds_static_control_without_lookahead(tmp_p
     assert all(node["lookback"]["causal"] for node in program["nodes"])
 
 
+def test_indicator_program_uses_configured_static_helper_without_leaking_config(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ConfiguredHelper.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class ConfiguredHelper(IStrategy):\n"
+        "    def selected_timeframe(self, fallback='5m'):\n"
+        "        return self.config.get('informative_timeframe', fallback)\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        selected = self.selected_timeframe()\n"
+        "        if selected == '1h':\n"
+        "            dataframe['selected'] = dataframe['close']\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+    secret = "must-not-appear-in-native-ir"
+
+    program = compile_indicator_program(
+        source,
+        class_name="ConfiguredHelper",
+        config={"informative_timeframe": "1h", "exchange": {"secret": secret}},
+    )
+
+    assert program["produced_columns"] == ["selected"]
+    assert secret not in json.dumps(program, sort_keys=True)
+    helper = next(
+        function
+        for function in program["functions"]
+        if function["source_name"] == "selected_timeframe"
+    )
+    assert helper["parameters"] == []
+    assert all(node["op"] != "function-call" for node in program["nodes"])
+
+
+def test_indicator_program_specializes_helpers_defaults_callables_lambda_and_shift(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "SpecializedHelpers.py"
+    source.write_text(
+        "import numpy as np\n"
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class SpecializedHelpers(IStrategy):\n"
+        "    @staticmethod\n"
+        "    def np_shift(values, periods):\n"
+        "        out = np.empty_like(values)\n"
+        "        out[:periods] = np.nan\n"
+        "        out[periods:] = values[:-periods]\n"
+        "        return out\n"
+        "    def transform(self, values, callback, period=3, *, multiplier=1.0):\n"
+        "        return callback(values, timeperiod=period) * multiplier\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        view = lambda column: dataframe[column].to_numpy(copy=False)\n"
+        "        close = view('close')\n"
+        "        smoother = ta.SMA\n"
+        "        dataframe['default'] = self.transform(close, smoother)\n"
+        "        dataframe['special'] = self.transform(\n"
+        "            close, smoother, period=5, multiplier=2.0\n"
+        "        )\n"
+        "        dataframe['shifted'] = self.np_shift(close, 2)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="SpecializedHelpers")
+
+    helpers = [
+        function for function in program["functions"] if function["source_name"] == "transform"
+    ]
+    assert len(helpers) == 2
+    calls = [
+        node
+        for node in program["nodes"]
+        if node["op"] == "indicator-call" and node["parameters"]["name"] == "SMA"
+    ]
+    assert [node["parameters"]["arguments"]["timeperiod"] for node in calls] == [3, 5]
+    assert next(node for node in program["nodes"] if node["op"] == "shift")["parameters"] == {
+        "periods": 2
+    }
+    assert program["required_input_columns"] == ["close"]
+
+
+def test_indicator_program_lowers_numpy_buffers_and_static_container_unroll(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "NumpyAndContainers.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "def reduce_any(conditions):\n"
+        "    return np.logical_or.reduce(conditions)\n"
+        "class NumpyAndContainers(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        close = dataframe['close']\n"
+        "        width = dataframe['upper'] - dataframe['lower']\n"
+        "        ratio = np.divide(\n"
+        "            close - dataframe['lower'], width,\n"
+        "            out=np.full_like(width, np.nan), where=width != 0,\n"
+        "        )\n"
+        "        outputs = {}\n"
+        "        outputs['ratio'] = ratio > 0\n"
+        "        outputs['width'] = width > 0\n"
+        "        conditions = []\n"
+        "        for name, values in outputs.items():\n"
+        "            conditions.append(values)\n"
+        "        for threshold in [1, 2]:\n"
+        "            conditions.append(close > threshold)\n"
+        "        dataframe['ratio'] = ratio\n"
+        "        dataframe['valid'] = np.full(len(dataframe), True)\n"
+        "        dataframe['combined'] = reduce_any(conditions)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="NumpyAndContainers")
+
+    assert program["produced_columns"] == ["combined", "ratio", "valid"]
+    array_calls = [
+        node["parameters"]["name"]
+        for node in program["nodes"]
+        if node["op"] == "array-call"
+    ]
+    assert array_calls == [
+        "full_like",
+        "divide",
+        "full",
+    ]
+    assert len([node for node in program["nodes"] if node["op"] == "row-count"]) == 1
+    combined = next(
+        node
+        for node in program["nodes"]
+        if node["op"] == "logical" and len(node["inputs"]) == 4
+    )
+    assert combined["parameters"] == {"operator": "or"}
+    validate_indicator_program(program)
+
+
+def test_indicator_program_recognizes_legacy_chaikin_volume_sum_contract(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "LegacyChaikin.py"
+    source.write_text(
+        "import numpy as np\n"
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class LegacyChaikin(IStrategy):\n"
+        "    @staticmethod\n"
+        "    def rolling_sum(arr, timeperiod):\n"
+        "        return arr\n"
+        "    @staticmethod\n"
+        "    def chaikin_money_flow(high, low, close, volume, timeperiod=20):\n"
+        "        hl_range = high - low\n"
+        "        mfm = np.zeros_like(close, dtype=np.float64)\n"
+        "        valid = hl_range != 0\n"
+        "        mfm[valid] = ((close[valid] - low[valid]) - "
+        "(high[valid] - close[valid])) / hl_range[valid]\n"
+        "        mfv = mfm * volume\n"
+        "        mfv_sum = __class__.rolling_sum(mfv, timeperiod)\n"
+        "        vol_sum = ta.SUM(volume, timeperiod=timeperiod)\n"
+        "        vol_sum = np.where(vol_sum == 0, np.nan, vol_sum)\n"
+        "        return mfv_sum / vol_sum\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['cmf'] = self.chaikin_money_flow(\n"
+        "            dataframe['high'], dataframe['low'], dataframe['close'],\n"
+        "            dataframe['volume'], timeperiod=20,\n"
+        "        )\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="LegacyChaikin")
+
+    call = next(node for node in program["nodes"] if node["op"] == "indicator-call")
+    assert call["parameters"] == {
+        "family": "native",
+        "name": "chaikin-money-flow-legacy",
+        "arguments": {"timeperiod": 20},
+    }
+    assert call["lookback"] == {
+        "kind": "function-defined",
+        "candles": 19,
+        "expression": "chaikin-money-flow-legacy",
+        "causal": True,
+    }
+    validate_indicator_program(program)
+
+
+def test_indicator_program_unrolls_tuple_of_source_ordered_dynamic_mappings(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "MappingGroups.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class MappingGroups(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        first = {}\n"
+        "        first['5m'] = dataframe\n"
+        "        second = {}\n"
+        "        second['15m'] = dataframe\n"
+        "        for frames in (first, second):\n"
+        "            for timeframe, frame in frames.items():\n"
+        "                dataframe = frame\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="MappingGroups")
+
+    assert program["required_input_columns"] == []
+    assert program["produced_columns"] == []
+    assert program["opcodes"] == ["parameter", "return"]
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_source_guarded_inplace_column_drop(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "InplaceDrop.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class InplaceDrop(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        column = 'date_15m'\n"
+        "        if column in dataframe.columns:\n"
+        "            dataframe.drop(columns=column, inplace=True)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="InplaceDrop")
+
+    dropped = next(
+        node for node in program["nodes"] if node["op"] == "frame-drop-if-present"
+    )
+    assert dropped["parameters"] == {"column": "date_15m"}
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_inplace_forward_fill_as_frame_rebinding(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "InplaceFill.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class InplaceFill(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe.ffill(inplace=True)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="InplaceFill")
+
+    fill = next(node for node in program["nodes"] if node["op"] == "fill")
+    assert fill["value_type"] == "dataframe"
+    assert fill["parameters"] == {"direction": "forward"}
+    assert fill["lookback"]["kind"] == "recursive"
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_numeric_fillna_without_collapsing_infinity(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "FillMissing.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class FillMissing(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['filled'] = dataframe['source'].fillna(50.0)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="FillMissing")
+
+    call = next(node for node in program["nodes"] if node["op"] == "array-call")
+    assert call["parameters"] == {
+        "family": "numpy",
+        "name": "fill-missing",
+        "arguments": {},
+    }
+    assert call["value_type"] == "f64-column"
+    validate_indicator_program(program)
+
+
 def test_indicator_program_rejects_dynamic_window_and_helper_signature(tmp_path: Path) -> None:
     source = tmp_path / "DynamicWindow.py"
     source.write_text(
@@ -452,11 +764,11 @@ def test_indicator_program_rejects_dynamic_window_and_helper_signature(tmp_path:
     source.write_text(
         source.read_text(encoding="utf-8").replace(
             "dataframe['close'].rolling(window).mean()",
-            "self.helper(values=dataframe['close'])",
+            "self.helper(dataframe['close'], values=dataframe['close'])",
         ),
         encoding="utf-8",
     )
-    with pytest.raises(IndicatorProgramCompileError, match="helper call signature"):
+    with pytest.raises(IndicatorProgramCompileError, match="duplicate indicator helper argument"):
         compile_indicator_program(source, class_name="DynamicWindow")
 
 

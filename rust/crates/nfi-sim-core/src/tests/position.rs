@@ -44,6 +44,47 @@ fn entry_adjustment_stop_and_fees_are_accounted_in_order() {
 }
 
 #[test]
+fn same_candle_adjustment_is_applied_before_stop_exit() {
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("entry".to_owned()),
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut adjustment_and_stop = candle(2, 99.5, 98.0);
+    adjustment_and_stop.adjustment = Some(AdjustmentSignal {
+        stake_amount: 50.0,
+        tag: "grind".to_owned(),
+    });
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: config(1),
+        pairs: vec![PairSeries {
+            pair: "AAA/USDT".to_owned(),
+            execution_start_index: 0,
+            amount_step: None,
+            price_step: None,
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: vec![entry, adjustment_and_stop].into(),
+        }],
+    };
+
+    let result = simulate(&input).expect("adjustment precedes the same-candle stop check");
+    let trade = &result.trades[0];
+
+    assert_eq!(trade.exit_reason, "stop_loss");
+    assert_eq!(trade.close_timestamp_ms, 2);
+    assert_eq!(trade.orders.len(), 3);
+    assert!(trade.orders[1].is_entry);
+    assert_eq!(trade.orders[1].tag.as_deref(), Some("grind"));
+    assert!(!trade.orders[2].is_entry);
+}
+
+#[test]
 fn futures_entry_adjustment_replays_funding_at_the_fill_timestamp() {
     let mut portfolio = config(1);
     portfolio.is_futures = true;

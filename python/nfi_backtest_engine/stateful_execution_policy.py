@@ -9,10 +9,11 @@ from typing import Any
 from .errors import StrategyAnalysisError
 from .x7.serialization import _nfi_trade_manager_config
 
-STATEFUL_EXECUTION_POLICY_VERSION = "1.1.0"
+STATEFUL_EXECUTION_POLICY_VERSION = "1.2.0"
 X7_GENERIC_STATEFUL_LANE = "x7-generic-stateful"
 X7_VECTOR_TRANSPORT = "x7-vector-manifest"
 GENERIC_VECTOR_TRANSPORT = "generic-vector-manifest"
+FULL_NATIVE_VECTOR_TRANSPORT = "full-native-vector-manifest"
 
 _STATEFUL_PROGRAM_SCHEMA_PREFIXES = (
     "adjustment-transition-program-",
@@ -137,14 +138,30 @@ def _x7_policy(
         {
             "schema_version": STATEFUL_EXECUTION_POLICY_VERSION,
             "adapter_lane": X7_GENERIC_STATEFUL_LANE,
-            "transport": X7_VECTOR_TRANSPORT,
-            "primary": "source-compiled-generic-stateful-programs",
+            "transport": FULL_NATIVE_VECTOR_TRANSPORT,
+            "primary": "source-compiled-full-native-and-generic-stateful-programs",
             "programs": programs,
             "legacy_shadow": _shadow_contract(shadow_count),
             "official_fallback": _official_fallback_contract(),
             "blockers": blockers,
         }
     )
+
+
+def add_native_execution_blockers(
+    policy: dict[str, Any],
+    blockers: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Append source-compiler blockers and reseal the policy fingerprint."""
+    if not blockers:
+        return policy
+    base = {
+        key: value
+        for key, value in policy.items()
+        if key not in {"fingerprint", "native_ready"}
+    }
+    base["blockers"] = [*policy.get("blockers", []), *blockers]
+    return _finalize_policy(base)
 
 
 def _stateful_program_inventory(manager: dict[str, Any]) -> list[dict[str, Any]]:

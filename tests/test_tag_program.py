@@ -210,6 +210,41 @@ def test_tag_program_runtime_fails_closed_for_numeric_mask(tmp_path: Path) -> No
         execute_tag_program(program, pd.DataFrame({"mask": [0, 1]}))
 
 
+def test_tag_program_lowers_masked_append_and_preserves_trailing_whitespace(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "MaskedAppend.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "def append_tag(target, mask, tag):\n"
+        "    target[mask] = target[mask] + tag\n"
+        "class MaskedAppend(IStrategy):\n"
+        "    def populate_entry_trend(self, dataframe, metadata):\n"
+        "        tags = np.full(len(dataframe), '', dtype=object)\n"
+        "        append_tag(tags, dataframe['score'] > 0, '101  ')\n"
+        "        append_tag(tags, dataframe['score'] >= 2, '562 ')\n"
+        "        dataframe.loc[:, 'enter_tag'] = tags\n"
+        "        return dataframe\n"
+        "    def populate_exit_trend(self, dataframe, metadata):\n"
+        "        dataframe.loc[:, 'exit_tag'] = ' tail  '\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+    program = compile_tag_program(source, class_name="MaskedAppend")
+
+    appends = [node for node in program["nodes"] if node["op"] == "masked-string-append"]
+    assert len(appends) == 2
+    assert all(node["value_type"] == "string-column" for node in appends)
+    frame = pd.DataFrame(
+        {"score": [-1.0, 1.0, 2.0], "enter_tag": ["stale"] * 3, "exit_tag": ["stale"] * 3}
+    )
+    actual = execute_tag_program(program, frame)
+    assert actual["enter_tag"].tolist() == ["", "101  ", "101  562 "]
+    assert actual["exit_tag"].tolist() == [" tail  "] * 3
+    assert frame["enter_tag"].tolist() == ["stale"] * 3
+
+
 def test_tag_program_parser_seals_mode_and_output() -> None:
     args = cli.build_parser().parse_args(
         [

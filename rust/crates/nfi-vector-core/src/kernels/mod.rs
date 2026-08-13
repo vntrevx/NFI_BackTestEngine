@@ -4,9 +4,16 @@
 
 mod directional;
 mod moving;
+mod native;
 mod oscillator;
 mod rolling;
 
+pub use native::{
+    absolute_difference, chaikin_money_flow, hourly_inside_bar, legacy_chaikin_money_flow,
+    safe_percent_change, utc_opening_range, AbsoluteDifferenceStream, ChaikinMoneyFlowStream,
+    HourlyInsideBarOutput, HourlyInsideBarStream, LegacyChaikinMoneyFlowStream,
+    SafePercentChangeStream, UtcOpeningRangeOutput, UtcOpeningRangeStream,
+};
 pub use rolling::execute_rolling;
 pub(crate) use rolling::{stream as rolling_stream, RollingStream};
 
@@ -273,6 +280,25 @@ fn execute_oscillator(
             input(inputs, 0)?,
             integer(arguments, "timeperiod", 14)?,
         )?),
+        "STOCH" => {
+            if integer(arguments, "slowk_matype", 0)? != 0
+                || integer(arguments, "slowd_matype", 0)? != 0
+            {
+                return Err(kernel_error(
+                    name,
+                    "only exact TA-Lib SMA slow-K and slow-D are implemented",
+                ));
+            }
+            let (slow_k, slow_d) = oscillator::stoch(
+                input(inputs, 0)?,
+                input(inputs, 1)?,
+                input(inputs, 2)?,
+                integer(arguments, "fastk_period", 5)?,
+                integer(arguments, "slowk_period", 3)?,
+                integer(arguments, "slowd_period", 3)?,
+            )?;
+            KernelOutput::new(&["slowk", "slowd"], vec![slow_k, slow_d])
+        }
         "STOCHF" => {
             if integer(arguments, "fastd_matype", 0)? != 0 {
                 return Err(kernel_error(
@@ -310,6 +336,7 @@ fn output_names(name: &str) -> Result<&'static [&'static str], VectorCoreError> 
     match name {
         "AROON" => Ok(&["aroondown", "aroonup"]),
         "BBANDS" => Ok(&["upperband", "middleband", "lowerband"]),
+        "STOCH" => Ok(&["slowk", "slowd"]),
         "STOCHF" => Ok(&["fastk", "fastd"]),
         "ADX" | "CCI" | "EMA" | "MAX" | "MFI" | "MIN" | "MINUS_DI" | "OBV" | "PLUS_DI" | "ROC"
         | "RSI" | "SMA" | "STDDEV" | "SUM" | "ULTOSC" | "WILLR" => Ok(&["real"]),

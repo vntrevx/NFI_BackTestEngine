@@ -1,5 +1,10 @@
 //! Batch-local execution of the safe generic indicator-program substrate.
 
+#[allow(dead_code)] // Staged independently; the runtime integration owns execute-node wiring.
+mod array;
+#[allow(dead_code)] // Staged independently; the runtime integration owns execute-node wiring.
+mod frame;
+mod full;
 mod operations;
 mod runtime;
 
@@ -18,6 +23,8 @@ use crate::kernels::{RollingStream, TalibStream};
 use crate::program::{ExecutionPlan, IndicatorProgram, ProgramNode};
 use crate::sink::{BatchSink, OutputBatch};
 use crate::state::ShiftState;
+
+pub use self::full::{FullFrameOutput, FullIndicatorEngine};
 
 /// Bounded live-value accounting across a streaming execution.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

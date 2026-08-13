@@ -13,6 +13,7 @@ path = "src/lib.rs"
 
 [dependencies]
 arrow2 = { version = "0.18", features = ["io_ipc", "io_ipc_compression"] }
+fs2 = "0.4"
 nfi-sim-core = { path = "../nfi-sim-core" }
 nfi-vector-core = { path = "../nfi-vector-core" }
 rayon = "1"

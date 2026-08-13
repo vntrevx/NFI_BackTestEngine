@@ -7,12 +7,14 @@
 //! be joined accidentally.
 
 mod batch;
+mod catalog;
 mod fill;
 mod model;
 mod stream;
 mod support;
 
 pub use batch::merge;
+pub use catalog::FrameCatalog;
 pub use fill::{forward_fill, ForwardFillStream};
 pub use model::{FrameIdentity, MergeSpec, MergedFrame, NumericFrame, SourceLocation, Timeframe};
 pub use stream::MergeStream;

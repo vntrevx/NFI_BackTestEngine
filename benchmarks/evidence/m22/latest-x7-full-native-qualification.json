@@ -1,0 +1,91 @@
+{
+  "schema_version": "latest-x7-full-native-qualification-v1",
+  "status": "exact",
+  "source": {
+    "upstream_commit": "1df961c07e5ce6b1a8cb459a2a46958aed258323",
+    "strategy_sha256": "45a2bf611d6fc5e60c7e1f4c672ce7932f6573872c2a959f6338d079dac5e382",
+    "strategy_version": "v17.4.528",
+    "freqtrade_version": "2026.5.1"
+  },
+  "changed_branch": {
+    "kind": "signal-protection",
+    "signal": "47",
+    "evidence_path": "benchmarks/evidence/m22/latest-x7-signal47-boundary.json",
+    "evidence_sha256": "84ee3f451d016a8f67f5b98314970a527cddde97f4476b147a0375c1bc6ce8d1",
+    "evidence_fingerprint": "d4128b380d483a05f7a230bfe78dad14502438d45a8fa0adeb0c094c5d73f7fe",
+    "spot_exact": true,
+    "futures_exact": true,
+    "tag_exact": true,
+    "baseline_reaches_and_current_rejects_boundary": true,
+    "one_term_passes_current": true,
+    "callback_and_stateful_methods_changed": false
+  },
+  "spot": {
+    "pair": "BTC/USDT",
+    "timerange": "20230101-20230102",
+    "transport": "full-native-vector-manifest",
+    "raw_frame_count": 5,
+    "row_count": 1089,
+    "retained_feature_count": 104,
+    "program_fingerprints": {
+      "indicator": "df8339e280aadb53cdca1efc552cfab3351959187b771763999f296aaa8c05a2",
+      "signal": "35d744c99f3702320572783608b5ff28182d75b7a91b1616d7d24088ec37d69b",
+      "tag": "0804bfbbd39340a53da7b7d61cefa1ef472af45d08870e1b4fa575eae9dc22be"
+    },
+    "trade_surface": {
+      "trade_count": 0,
+      "native_sha256": "cfd5868610e8e916a9233bc67f42e6e78ae3f5fff95855c4b4f87d0b1df568f6",
+      "official_sha256": "cfd5868610e8e916a9233bc67f42e6e78ae3f5fff95855c4b4f87d0b1df568f6",
+      "exact": true
+    },
+    "full_state": {
+      "event_count": 288,
+      "stream_hash": "e119fc56545e34f2b368c4baa59c0067d64d7d821a018687de8166aa81bb4428",
+      "first_difference": null,
+      "exact": true
+    },
+    "native_vector_seconds": 7.042690725,
+    "blockers": []
+  },
+  "futures": {
+    "pair": "APE/USDT:USDT",
+    "timerange": "20220410-20220420",
+    "transport": "full-native-vector-manifest",
+    "raw_frame_count": 10,
+    "row_count": 3681,
+    "retained_feature_count": 104,
+    "program_fingerprints": {
+      "indicator": "b3b1ab61235141e7da9ba4611a5879676ba007d20a3c34105f01e778ec3996c5",
+      "signal": "0d68c82365732250ca6302056d8c723e7b20565859410bc5b792d6be13cc237b",
+      "tag": "6ae46ee6e2f32290dea1685d9d9173a156ca1d4425afec11148c4de7809bb388"
+    },
+    "trade_surface": {
+      "trade_count": 1,
+      "entry_tag": "142 ",
+      "exit_reason": "exit_long_tc_w_0_8 ( 142 )",
+      "funding_fee": "-2.9366127",
+      "native_sha256": "f472f82eb970142d0d10b1b59171a8b9e80c001b9698f47ff1d53caf1f800eb7",
+      "official_sha256": "f472f82eb970142d0d10b1b59171a8b9e80c001b9698f47ff1d53caf1f800eb7",
+      "exact": true
+    },
+    "full_state": {
+      "event_count": 2880,
+      "stream_hash": "eff3ddae550d7f8877bd04f96457b6ed052b4f9ea0cca968d9a4721141f07bdb",
+      "first_difference": null,
+      "exact": true
+    },
+    "native_vector_seconds": 27.139196679,
+    "blockers": []
+  },
+  "claims": {
+    "latest_upstream_compiles_without_blockers": true,
+    "indicator_signal_tag_and_stateful_runtime_is_native": true,
+    "python_strategy_execution_in_native_runtime": false,
+    "official_fallback_retained": true,
+    "runtime_strategy_pair_timerange_sha_or_result_branches_added": false,
+    "m22_01_latest_dual_mode_qualification_complete": true,
+    "five_year_performance_certified": false,
+    "v1_6_0_released": false
+  },
+  "fingerprint": "2e3bb9fc12597d400043f1e2015687b9bca5da7ed97859f27b8e9842e3c8d087"
+}

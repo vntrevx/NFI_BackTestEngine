@@ -3,6 +3,8 @@
 use std::collections::BTreeMap;
 
 use crate::batch::BatchView;
+use arrow2::array::Array;
+
 use crate::column::{ColumnView, OwnedColumn, ValueType};
 use crate::error::VectorCoreError;
 use crate::kernels::{rolling_stream, TalibStream};
@@ -61,6 +63,23 @@ impl RuntimeColumn<'_> {
         match self {
             Self::Borrowed(column) => column.timestamp_ms_at(row),
             Self::Owned(column) => column.as_view().timestamp_ms_at(row),
+        }
+    }
+
+    /// Borrow the canonical f64 buffer when every row is present.
+    ///
+    /// Complete-frame stateful kernels can then consume Arrow-owned outputs
+    /// without rebuilding an intermediate `Vec<f64>` for every downstream
+    /// node. Nullable columns still take the checked scalar path.
+    pub(super) fn present_f64_slice(&self) -> Option<&[f64]> {
+        match self {
+            Self::Borrowed(ColumnView::F64(values)) if values.null_count() == 0 => {
+                Some(values.values().as_slice())
+            }
+            Self::Owned(OwnedColumn::F64(values)) if values.null_count() == 0 => {
+                Some(values.values().as_slice())
+            }
+            _ => None,
         }
     }
 }
@@ -314,5 +333,32 @@ fn parameter_value(node: &ProgramNode) -> NodeValue<'static> {
         "dataframe" => NodeValue::DataFrame,
         "metadata" => NodeValue::Metadata,
         _ => NodeValue::Unbound,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RuntimeColumn;
+    use crate::column::OwnedColumn;
+
+    #[test]
+    fn present_f64_slice_preserves_bits_and_rejects_arrow_nulls() {
+        let payload_nan = f64::from_bits(0x7ff8_0000_0000_0042);
+        let present = RuntimeColumn::Owned(OwnedColumn::f64(vec![
+            Some(-0.0),
+            Some(payload_nan),
+            Some(f64::INFINITY),
+        ]));
+        let values = present.present_f64_slice().expect("all values present");
+
+        assert_eq!(values[0].to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(
+            values[1].to_bits(),
+            crate::float::canonicalize(payload_nan).to_bits()
+        );
+        assert_eq!(values[2].to_bits(), f64::INFINITY.to_bits());
+
+        let nullable = RuntimeColumn::Owned(OwnedColumn::f64(vec![Some(-0.0), None]));
+        assert!(nullable.present_f64_slice().is_none());
     }
 }

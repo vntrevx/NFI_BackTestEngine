@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 142,
-  "updated_at": "2026-08-11T22:09:26+09:00",
+  "revision": 149,
+  "updated_at": "2026-08-14T03:11:20+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M22-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -4954,7 +4954,7 @@
       "order": 2201,
       "milestone": "M22",
       "title": "Qualify latest NFI as a Full Native Strategy",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "M21-04"
       ],
@@ -4973,10 +4973,15 @@
         "latest dual-mode Full Native qualification",
         "zero blockers"
       ],
-      "started_at": null,
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "started_at": "2026-08-11T22:50:22+09:00",
+      "completed_at": "2026-08-12T04:36:53+09:00",
+      "commit_sha": "6c60bff36aaf10272c1a0ffd6678961bbb5d1703",
+      "evidence": [
+        "benchmarks/evidence/m22/latest-x7-full-native-qualification.json",
+        "benchmarks/evidence/m22/latest-x7-signal47-boundary.json",
+        ".nfi/roadmap-acceptance/M22-01/6c60bff36aaf10272c1a0ffd6678961bbb5d1703/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M22-01/6c60bff36aaf10272c1a0ffd6678961bbb5d1703/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -4984,7 +4989,7 @@
       "order": 2202,
       "milestone": "M22",
       "title": "Remove NFI Python execution from the Native lane",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "M22-01"
       ],
@@ -5003,10 +5008,17 @@
         "no-Python-execution contract tests",
         "fallback isolation tests"
       ],
-      "started_at": null,
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "started_at": "2026-08-12T04:36:53+09:00",
+      "completed_at": "2026-08-12T05:02:56+09:00",
+      "commit_sha": "f2315658affa4320388c899ecb3e5143e0ea3929",
+      "evidence": [
+        "docs/native-vector-core.md",
+        "tests/test_full_vector_runtime.py",
+        "tests/test_research_runner.py",
+        "tests/test_official_fallback.py",
+        ".nfi/roadmap-acceptance/M22-02/f2315658a/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M22-02/f2315658a/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -5014,7 +5026,7 @@
       "order": 2203,
       "milestone": "M22",
       "title": "Certify Full Native performance and storage boundaries",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "M22-02"
       ],
@@ -5034,10 +5046,20 @@
         "storage lifecycle audit",
         "result SHA identity"
       ],
-      "started_at": null,
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "started_at": "2026-08-12T05:02:56+09:00",
+      "completed_at": "2026-08-12T14:05:25+09:00",
+      "commit_sha": "eba09d977e3eddb45f7a7982ebf026b0e5731c45",
+      "evidence": [
+        "benchmarks/evidence/m22/full-native-performance-storage.json",
+        "tests/test_full_native_performance_evidence.py",
+        "docs/native-vector-core.md",
+        ".nfi/roadmap-acceptance/M22-03/spot-five-year-cold-01.profile.json",
+        ".nfi/roadmap-acceptance/M22-03/spot-five-year-warm-02.profile.json",
+        ".nfi/roadmap-acceptance/M22-03/spot-five-year-warm-03.profile.json",
+        ".nfi/roadmap-acceptance/M22-03/final/python-all.log",
+        ".nfi/roadmap-acceptance/M22-03/final/x7-spot/run.json",
+        ".nfi/roadmap-acceptance/M22-03/final/x7-futures/run.json"
+      ],
       "blocker": null
     },
     {
@@ -5045,7 +5067,7 @@
       "order": 2204,
       "milestone": "M22",
       "title": "Publish the v1.6.0 Full Native Strategy release",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M22-03"
       ],
@@ -5065,7 +5087,7 @@
         "Full Native product bundle",
         "RC/stable byte identity"
       ],
-      "started_at": null,
+      "started_at": "2026-08-14T03:11:20+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8644,6 +8666,184 @@
         "full_native_strategy_claim": false,
         "next_eligible_task": "M22-01",
         "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 190,
+      "timestamp": "2026-08-11T22:50:22+09:00",
+      "task_id": "M22-01",
+      "event": "task_started",
+      "details": {
+        "objective": "compile and independently qualify the latest upstream NFI through the complete Native vector and simulation pipeline for Spot and Futures",
+        "latest_upstream_identity_must_be_refreshed": true,
+        "static_only_promotion_allowed": false,
+        "partial_callback_coverage_allowed": false,
+        "runtime_hardcoding_allowed": false,
+        "trade_surface_and_full_state_exact_required": true,
+        "official_fallback_retained": true
+      }
+    },
+    {
+      "sequence": 191,
+      "timestamp": "2026-08-12T04:36:53+09:00",
+      "task_id": "M22-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "6c60bff36aaf10272c1a0ffd6678961bbb5d1703",
+        "latest_upstream_commit": "1df961c07e5ce6b1a8cb459a2a46958aed258323",
+        "latest_strategy_sha256": "45a2bf611d6fc5e60c7e1f4c672ce7932f6573872c2a959f6338d079dac5e382",
+        "freqtrade_version": "2026.5.1",
+        "latest_full_native_qualification_fingerprint": "2e3bb9fc12597d400043f1e2015687b9bca5da7ed97859f27b8e9842e3c8d087",
+        "signal_47_boundary_fingerprint": "d4128b380d483a05f7a230bfe78dad14502438d45a8fa0adeb0c094c5d73f7fe",
+        "latest_spot_trade_surface_exact": true,
+        "latest_spot_full_state_event_count": 288,
+        "latest_spot_full_state_stream_hash": "e119fc56545e34f2b368c4baa59c0067d64d7d821a018687de8166aa81bb4428",
+        "latest_futures_trade_surface_exact": true,
+        "latest_futures_full_state_event_count": 2880,
+        "latest_futures_full_state_stream_hash": "eff3ddae550d7f8877bd04f96457b6ed052b4f9ea0cca968d9a4721141f07bdb",
+        "captured_spot_trade_surface_and_full_state_exact": true,
+        "captured_spot_state_event_count": 288,
+        "captured_spot_state_stream_hash": "6a59c86a808e0e5f8fc016c1467fa173502ea37b0eb870f84e7f51cfa1818f8b",
+        "captured_futures_trade_surface_and_full_state_exact": true,
+        "captured_futures_state_event_count": 5472,
+        "captured_futures_state_stream_hash": "029a12115d0e9095d4e1cc19e25694a28bee4c625b6cd59dc9226ab1ceaeff85",
+        "python_test_count": 834,
+        "future_compatibility_test_count": 143,
+        "rust_workspace_default_test_count": 296,
+        "runtime_hardcoding_added": false,
+        "latest_x7_fully_compiled": true,
+        "full_native_strategy_claim": true,
+        "python_strategy_execution_removed_from_native": false,
+        "official_fallback_retained": true,
+        "next_eligible_task": "M22-02",
+        "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 192,
+      "timestamp": "2026-08-12T04:36:53+09:00",
+      "task_id": "M22-02",
+      "event": "task_started",
+      "details": {
+        "objective": "remove NFI Python strategy execution from the Native lane while retaining the AST compiler and official Freqtrade fallback",
+        "native_populate_execution_allowed": false,
+        "python_ast_compiler_retained": true,
+        "official_fallback_retained": true,
+        "sealed_feather_replay_retained": true,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 193,
+      "timestamp": "2026-08-12T05:02:56+09:00",
+      "task_id": "M22-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "f2315658affa4320388c899ecb3e5143e0ea3929",
+        "full_native_vector_runtime_version": "1.1.0",
+        "strategy_source_mode": "python-ast-compile-only",
+        "populate_methods_executed": false,
+        "runtime_mode": "rust-full-native",
+        "module_scope_execution_bomb_test_passed": true,
+        "manifest_execution_claim_drift_rejected_before_data_decode": true,
+        "vector_worker_count": 0,
+        "analyzed_feather_outputs": 0,
+        "checkpoint_execution_claim_is_sealed": true,
+        "official_fallback_isolated_and_retained": true,
+        "sealed_feather_replay_retained": true,
+        "spot_manifest_sha256": "b76ddcae92972692ff1fb011ef540dc81ba389bc93019174ff90a36be1539bcc",
+        "futures_manifest_sha256": "d6236067eb775fb59842853c9d15cc0ca9c2b7914b60a636d59837c00a610f14",
+        "spot_trade_surface_and_full_state_exact": true,
+        "spot_state_event_count": 288,
+        "spot_state_stream_hash": "6a59c86a808e0e5f8fc016c1467fa173502ea37b0eb870f84e7f51cfa1818f8b",
+        "futures_trade_surface_and_full_state_exact": true,
+        "futures_state_event_count": 5472,
+        "futures_state_stream_hash": "029a12115d0e9095d4e1cc19e25694a28bee4c625b6cd59dc9226ab1ceaeff85",
+        "python_test_count": 836,
+        "future_compatibility_test_count": 143,
+        "rust_workspace_default_test_count": 296,
+        "runtime_hardcoding_added": false,
+        "next_eligible_task": "M22-03",
+        "next_task_manual_gate": false
+      }
+    },
+    {
+      "sequence": 194,
+      "timestamp": "2026-08-12T05:02:56+09:00",
+      "task_id": "M22-03",
+      "event": "task_started",
+      "details": {
+        "objective": "certify cold and warm Full Native performance and bounded storage on a representative five-year workload",
+        "five_year_result_identity_required": true,
+        "cold_and_warm_measurements_required": true,
+        "cache_and_artifact_lifecycle_audit_required": true,
+        "unbounded_local_accumulation_allowed": false,
+        "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 195,
+      "timestamp": "2026-08-12T14:05:25+09:00",
+      "task_id": "M22-03",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "eba09d977e3eddb45f7a7982ebf026b0e5731c45",
+        "latest_upstream_commit": "1df961c07e5ce6b1a8cb459a2a46958aed258323",
+        "latest_strategy_sha256": "45a2bf611d6fc5e60c7e1f4c672ce7932f6573872c2a959f6338d079dac5e382",
+        "five_year_manifest_sha256": "3b1b18bdaaacca43ff538e1397547df020ace3e80913371aa137607dc2185e90",
+        "five_year_result_sha256": "5adac8e620877b30d7e52988e377d068799be3a4045a8d45221e29620aa08266",
+        "five_year_result_byte_identical": true,
+        "five_year_trade_count": 1162,
+        "benchmark_repetitions": 3,
+        "benchmark_wall_seconds": [
+          3797,
+          3771,
+          3764
+        ],
+        "benchmark_wall_spread_ratio": 0.008767268862911796,
+        "five_repetitions_required": false,
+        "median_peak_rss_bytes": 41793679360,
+        "spool_required_upper_bound_bytes": 38469364560,
+        "spool_actual_file_backed_bytes": 38468485341,
+        "spool_actual_within_bound": true,
+        "spool_orphan_file_count": 0,
+        "unbounded_local_accumulation_observed": false,
+        "spot_trade_surface_and_full_state_exact": true,
+        "spot_state_event_count": 288,
+        "spot_state_stream_hash": "6a59c86a808e0e5f8fc016c1467fa173502ea37b0eb870f84e7f51cfa1818f8b",
+        "futures_trade_surface_and_full_state_exact": true,
+        "futures_state_event_count": 5472,
+        "futures_state_stream_hash": "029a12115d0e9095d4e1cc19e25694a28bee4c625b6cd59dc9226ab1ceaeff85",
+        "python_test_count": 841,
+        "python_test_log_sha256": "00520b811b4a7264ebd50512e93e9bb5ac8fda8451d76e2d1402424fa5395518",
+        "rust_sim_core_test_count": 150,
+        "rust_vector_core_test_count": 117,
+        "rust_vector_io_test_count": 39,
+        "runtime_hardcoding_added": false,
+        "official_freqtrade_five_year_parity_claimed": false,
+        "cross_platform_performance_claimed": false,
+        "next_eligible_task": "M22-04",
+        "next_task_manual_gate": true
+      }
+    },
+    {
+      "sequence": 196,
+      "timestamp": "2026-08-14T03:11:20+09:00",
+      "task_id": "M22-04",
+      "event": "task_started",
+      "details": {
+        "objective": "publish the v1.6.0 Full Native Strategy release with the current X7 Grind-5 compatibility hotfix",
+        "manual_gate_approval": "user-approved in conversation",
+        "x7_v536_source_sha256": "808e42060b9f18c86a7029d25d0d72f43e95756e8f5a571b158b9f2786833c04",
+        "x7_v537_upstream_commit": "f74d8cac2b11bb9e1c32dd7538dd4eca53c10efe",
+        "x7_v537_source_sha256": "3c11060280705d98db8f705c42853ac902c21cd494f0478299eea191587714f4",
+        "current_grind_five_fallback_lowering_required": true,
+        "same_commit_required_ci_required": true,
+        "three_os_installer_audits_required": true,
+        "byte_identical_rc_stable_required": true,
+        "external_2022_report_exact_claim_allowed_without_sealed_input": false,
+        "relabel_prior_certificates_allowed": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]

@@ -212,12 +212,212 @@ impl MutationProgram {
             if node.op == "format-string" {
                 self.validate_format_string(node)?;
             }
+            if node.op == "literal" {
+                Self::validate_literal(node)?;
+            }
+            if node.op == "array-call" {
+                self.validate_array_call(node)?;
+            }
+            if node.op == "string-split-index" {
+                self.validate_string_split_index(node)?;
+            }
+            if node.op == "metadata-read" {
+                self.validate_metadata_read(node)?;
+            }
+            if node.op == "membership" {
+                self.validate_membership(node)?;
+            }
+            if node.op == "masked-string-append" {
+                self.validate_masked_string_append(node)?;
+            }
             if node.op == "function-call" {
                 return Err(invalid(format!(
                     "mutation helper execution is not yet exact at {}",
                     node.id
                 )));
             }
+        }
+        Ok(())
+    }
+
+    fn validate_metadata_read(&self, node: &ProgramNode) -> Result<(), VectorCoreError> {
+        let key = node.parameters.get("key").and_then(Value::as_str);
+        let valid = node.parameters.len() == 1
+            && key.is_some_and(|key| !key.is_empty())
+            && node.value_type == "string-scalar"
+            && node.inputs.len() == 1
+            && self
+                .node(&node.inputs[0])
+                .is_some_and(|input| input.value_type == "metadata");
+        if !valid {
+            return Err(invalid(format!(
+                "metadata-read {} contract is invalid",
+                node.id
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_string_split_index(&self, node: &ProgramNode) -> Result<(), VectorCoreError> {
+        let method = required_string(&node.parameters, "method", node)?;
+        let separator = required_string(&node.parameters, "separator", node)?;
+        let index = node.parameters.get("index").and_then(Value::as_i64);
+        let valid = node.parameters.len() == 3
+            && matches!(method, "partition" | "split" | "rsplit")
+            && !separator.is_empty()
+            && index.is_some()
+            && node.value_type == "string-scalar"
+            && node.inputs.len() == 1
+            && self
+                .node(&node.inputs[0])
+                .is_some_and(|input| input.value_type == "string-scalar");
+        if !valid {
+            return Err(invalid(format!(
+                "string-split-index {} contract is invalid",
+                node.id
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_membership(&self, node: &ProgramNode) -> Result<(), VectorCoreError> {
+        let values = node.parameters.get("values").and_then(Value::as_array);
+        let negated = node.parameters.get("negated").and_then(Value::as_bool);
+        let input_type = node
+            .inputs
+            .first()
+            .and_then(|input| self.node(input))
+            .map(|input| input.value_type.as_str());
+        let values_are_scalar = values.is_some_and(|values| {
+            values.iter().all(|value| {
+                value.is_null() || value.is_boolean() || value.is_number() || value.is_string()
+            })
+        });
+        let valid = node.parameters.len() == 2
+            && node.inputs.len() == 1
+            && negated.is_some()
+            && values_are_scalar
+            && matches!(
+                (input_type, node.value_type.as_str()),
+                (Some("string-scalar"), "bool-scalar") | (Some("string-column"), "bool-column")
+            );
+        if !valid {
+            return Err(invalid(format!(
+                "membership {} contract is invalid",
+                node.id
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_masked_string_append(&self, node: &ProgramNode) -> Result<(), VectorCoreError> {
+        let input_types = node
+            .inputs
+            .iter()
+            .map(|input| self.node(input).map(|input| input.value_type.as_str()))
+            .collect::<Option<Vec<_>>>();
+        let valid = node.parameters.is_empty()
+            && node.value_type == "string-column"
+            && input_types.as_deref().is_some_and(|inputs| {
+                matches!(
+                    inputs,
+                    [
+                        "string-column",
+                        "bool-scalar" | "bool-column",
+                        "string-scalar"
+                    ]
+                )
+            });
+        if !valid {
+            return Err(invalid(format!(
+                "masked-string-append {} contract is invalid",
+                node.id
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_literal(node: &ProgramNode) -> Result<(), VectorCoreError> {
+        let has_value = node.parameters.contains_key("value");
+        let has_special = node.parameters.contains_key("special");
+        if has_value == has_special || node.parameters.len() != 1 {
+            return Err(invalid(format!(
+                "literal {} must have exactly one ordinary or special value",
+                node.id
+            )));
+        }
+        if has_special {
+            let special = node.parameters.get("special").and_then(Value::as_str);
+            if node.value_type != "f64-scalar"
+                || !matches!(special, Some("nan" | "+infinity" | "-infinity"))
+            {
+                return Err(invalid(format!(
+                    "literal {} special float contract is invalid",
+                    node.id
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_array_call(&self, node: &ProgramNode) -> Result<(), VectorCoreError> {
+        let parameters = &node.parameters;
+        let family = required_string(parameters, "family", node)?;
+        let name = required_string(parameters, "name", node)?;
+        let arguments = parameters
+            .get("arguments")
+            .and_then(Value::as_object)
+            .ok_or_else(|| invalid(format!("array-call {} has no arguments map", node.id)))?;
+        if parameters.len() != 3
+            || family != "numpy"
+            || !numpy_array_arguments_are_supported(name, &node.value_type, arguments)
+        {
+            return Err(invalid(format!(
+                "array-call {} contract is invalid",
+                node.id
+            )));
+        }
+        let input_types = node
+            .inputs
+            .iter()
+            .map(|input| {
+                self.node(input)
+                    .map(|input| input.value_type.as_str())
+                    .ok_or_else(|| invalid(format!("array-call {} input is missing", node.id)))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let valid = match name {
+            "full" => {
+                input_types.len() == 2
+                    && input_types[0] == "int-scalar"
+                    && matches!(
+                        (node.value_type.as_str(), input_types[1]),
+                        ("bool-column", "bool-scalar")
+                            | ("int-column", "int-scalar")
+                            | ("f64-column", "f64-scalar")
+                            | ("string-column", "string-scalar")
+                    )
+            }
+            "full_like" => {
+                node.value_type == "f64-column"
+                    && matches!(
+                        input_types.as_slice(),
+                        ["f64-column", "f64-scalar" | "int-scalar"]
+                    )
+            }
+            "divide" => {
+                node.value_type == "f64-column"
+                    && input_types.as_slice()
+                        == ["f64-column", "f64-column", "f64-column", "bool-column"]
+            }
+            "isnan" => node.value_type == "bool-column" && input_types.as_slice() == ["f64-column"],
+            _ => false,
+        };
+        if !valid {
+            return Err(invalid(format!(
+                "array-call {} signature is unsupported",
+                node.id
+            )));
         }
         Ok(())
     }
@@ -496,6 +696,23 @@ impl MutationProgram {
     }
 }
 
+pub(crate) fn numpy_array_arguments_are_supported(
+    name: &str,
+    value_type: &str,
+    arguments: &serde_json::Map<String, Value>,
+) -> bool {
+    match name {
+        "full" => {
+            arguments.is_empty()
+                || (value_type == "string-column"
+                    && arguments.len() == 1
+                    && arguments.get("dtype").and_then(Value::as_str) == Some("object"))
+        }
+        "full_like" | "divide" | "isnan" => arguments.is_empty(),
+        _ => false,
+    }
+}
+
 fn required_string<'a>(
     parameters: &'a serde_json::Map<String, Value>,
     name: &str,
@@ -512,11 +729,15 @@ fn known_opcode(value: &str) -> bool {
         value,
         "parameter"
             | "literal"
+            | "row-count"
+            | "string-split-index"
             | "column-read"
             | "metadata-read"
             | "frame-write"
             | "binary"
             | "compare"
+            | "membership"
+            | "masked-string-append"
             | "logical"
             | "unary"
             | "select"

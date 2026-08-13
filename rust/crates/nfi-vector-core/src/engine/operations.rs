@@ -12,6 +12,14 @@ use crate::program::ProgramNode;
 use super::runtime::{NodeValue, RuntimeColumn};
 
 pub(super) fn literal_value(node: &ProgramNode) -> Result<NodeValue<'static>, VectorCoreError> {
+    if let Some(special) = node.parameters.get("special").and_then(Value::as_str) {
+        return Ok(NodeValue::Float(match special {
+            "nan" => f64::NAN,
+            "+infinity" => f64::INFINITY,
+            "-infinity" => f64::NEG_INFINITY,
+            _ => return Err(node_error(node, "literal has an unknown special float")),
+        }));
+    }
     let value = node
         .parameters
         .get("value")
@@ -53,22 +61,24 @@ pub(super) fn execute_binary<'batch>(
             ));
         }
     };
+    let left = resolve_numeric(values, left)?;
+    let right = resolve_numeric(values, right)?;
     if node.value_type.ends_with("-column") {
         let output = (0..rows)
             .map(|row| {
-                let left = numeric_at(values, left, row)?;
-                let right = numeric_at(values, right, row)?;
-                Ok(match (left, right) {
+                let left = left.at(row);
+                let right = right.at(row);
+                match (left, right) {
                     (Some(left), Some(right)) => Some(binary(left, right, operation)),
                     _ => None,
-                })
+                }
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect();
         Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
             output,
         ))))
     } else {
-        match (numeric_at(values, left, 0)?, numeric_at(values, right, 0)?) {
+        match (left.at(0), right.at(0)) {
             (Some(left), Some(right)) => Ok(NodeValue::Float(binary(left, right, operation))),
             _ => Ok(NodeValue::Null),
         }
@@ -90,22 +100,24 @@ pub(super) fn execute_compare<'batch>(
         "greater-than-or-equal" => FloatComparison::GreaterEqual,
         other => return Err(node_error(node, format!("unsupported comparison: {other}"))),
     };
+    let left = resolve_numeric(values, left)?;
+    let right = resolve_numeric(values, right)?;
     if node.value_type == "bool-column" {
         let output = (0..rows)
             .map(|row| {
-                let left = numeric_at(values, left, row)?;
-                let right = numeric_at(values, right, row)?;
-                Ok(match (left, right) {
+                let left = left.at(row);
+                let right = right.at(row);
+                match (left, right) {
                     (Some(left), Some(right)) => Some(compare(left, right, comparison)),
                     _ => None,
-                })
+                }
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect();
         Ok(NodeValue::Column(RuntimeColumn::Owned(
             OwnedColumn::boolean(output),
         )))
     } else {
-        match (numeric_at(values, left, 0)?, numeric_at(values, right, 0)?) {
+        match (left.at(0), right.at(0)) {
             (Some(left), Some(right)) => Ok(NodeValue::Bool(compare(left, right, comparison))),
             _ => Ok(NodeValue::Null),
         }
@@ -124,10 +136,15 @@ pub(super) fn execute_logical<'batch>(
             "logical node has an unsupported operator or arity",
         ));
     }
-    let apply = |row| -> Result<Option<bool>, VectorCoreError> {
-        let mut result = bool_at(values, &node.inputs[0], row)?;
-        for input in node.inputs.iter().skip(1) {
-            let right = bool_at(values, input, row)?;
+    let inputs = node
+        .inputs
+        .iter()
+        .map(|input| resolve_bool(values, input))
+        .collect::<Result<Vec<_>, _>>()?;
+    let apply = |row| -> Option<bool> {
+        let mut result = inputs[0].at(row);
+        for input in inputs.iter().skip(1) {
+            let right = input.at(row);
             result = match (result, right) {
                 (Some(left), Some(right)) => Some(if operator == "and" {
                     left && right
@@ -137,14 +154,14 @@ pub(super) fn execute_logical<'batch>(
                 _ => None,
             };
         }
-        Ok(result)
+        result
     };
     if node.value_type == "bool-column" {
         Ok(NodeValue::Column(RuntimeColumn::Owned(
-            OwnedColumn::boolean((0..rows).map(apply).collect::<Result<Vec<_>, _>>()?),
+            OwnedColumn::boolean((0..rows).map(apply).collect()),
         )))
     } else {
-        Ok(apply(0)?.map_or(NodeValue::Null, NodeValue::Bool))
+        Ok(apply(0).map_or(NodeValue::Null, NodeValue::Bool))
     }
 }
 
@@ -159,32 +176,34 @@ pub(super) fn execute_unary<'batch>(
         if !matches!(operator, "not" | "invert") {
             return Err(node_error(node, "boolean unary operator is unsupported"));
         }
+        let input = resolve_bool(values, input)?;
         return Ok(NodeValue::Column(RuntimeColumn::Owned(
             OwnedColumn::boolean(
                 (0..rows)
-                    .map(|row| bool_at(values, input, row).map(|value| value.map(|item| !item)))
-                    .collect::<Result<Vec<_>, _>>()?,
+                    .map(|row| input.at(row).map(|item| !item))
+                    .collect(),
             ),
         )));
     }
     if !matches!(operator, "negate" | "positive") {
         return Err(node_error(node, "numeric unary operator is unsupported"));
     }
-    let apply = |row| -> Result<Option<f64>, VectorCoreError> {
-        Ok(numeric_at(values, input, row)?.map(|value| {
+    let input = resolve_numeric(values, input)?;
+    let apply = |row| -> Option<f64> {
+        input.at(row).map(|value| {
             if operator == "negate" {
                 crate::float::canonicalize(-value)
             } else {
                 value
             }
-        }))
+        })
     };
     if node.value_type.ends_with("-column") {
         Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
-            (0..rows).map(apply).collect::<Result<Vec<_>, _>>()?,
+            (0..rows).map(apply).collect(),
         ))))
     } else {
-        Ok(apply(0)?.map_or(NodeValue::Null, NodeValue::Float))
+        Ok(apply(0).map_or(NodeValue::Null, NodeValue::Float))
     }
 }
 
@@ -199,13 +218,35 @@ pub(super) fn execute_select<'batch>(
             "select substrate requires three inputs and f64 output",
         ));
     }
-    let output = (0..rows)
-        .map(|row| match bool_at(values, &node.inputs[0], row)? {
-            Some(true) => numeric_at(values, &node.inputs[1], row),
-            Some(false) => numeric_at(values, &node.inputs[2], row),
-            None => Ok(None),
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let condition = resolve_bool(values, &node.inputs[0])?;
+    let mut when_true = None;
+    let mut when_false = None;
+    let mut output = Vec::with_capacity(rows);
+    for row in 0..rows {
+        output.push(match condition.at(row) {
+            Some(true) => {
+                let value = if let Some(value) = when_true {
+                    value
+                } else {
+                    let value = resolve_numeric(values, &node.inputs[1])?;
+                    when_true = Some(value);
+                    value
+                };
+                value.at(row)
+            }
+            Some(false) => {
+                let value = if let Some(value) = when_false {
+                    value
+                } else {
+                    let value = resolve_numeric(values, &node.inputs[2])?;
+                    when_false = Some(value);
+                    value
+                };
+                value.at(row)
+            }
+            None => None,
+        });
+    }
     Ok(NodeValue::Column(RuntimeColumn::Owned(OwnedColumn::f64(
         output,
     ))))
@@ -240,7 +281,8 @@ pub(super) fn collect_numeric(
     node: &str,
     rows: usize,
 ) -> Result<Vec<Option<f64>>, VectorCoreError> {
-    (0..rows).map(|row| numeric_at(values, node, row)).collect()
+    let value = resolve_numeric(values, node)?;
+    Ok((0..rows).map(|row| value.at(row)).collect())
 }
 
 pub(super) fn to_owned_column(
@@ -283,15 +325,43 @@ pub(super) fn numeric_at(
     node: &str,
     row: usize,
 ) -> Result<Option<f64>, VectorCoreError> {
+    Ok(resolve_numeric(values, node)?.at(row))
+}
+
+#[derive(Clone, Copy)]
+enum NumericValue<'values, 'batch> {
+    Null,
+    Integer(i64),
+    Float(f64),
+    I64(&'values RuntimeColumn<'batch>),
+    F64(&'values RuntimeColumn<'batch>),
+}
+
+impl NumericValue<'_, '_> {
+    fn at(self, row: usize) -> Option<f64> {
+        match self {
+            Self::Null => None,
+            Self::Integer(value) => Some(integer_as_f64(value)),
+            Self::Float(value) => Some(value),
+            Self::I64(column) => column.i64_at(row).map(integer_as_f64),
+            Self::F64(column) => column.f64_at(row),
+        }
+    }
+}
+
+fn resolve_numeric<'values, 'batch>(
+    values: &'values BTreeMap<String, NodeValue<'batch>>,
+    node: &str,
+) -> Result<NumericValue<'values, 'batch>, VectorCoreError> {
     match resolve_value(values, node)? {
-        NodeValue::Null => Ok(None),
-        NodeValue::Integer(value) => Ok(Some(integer_as_f64(*value))),
-        NodeValue::Float(value) => Ok(Some(*value)),
+        NodeValue::Null => Ok(NumericValue::Null),
+        NodeValue::Integer(value) => Ok(NumericValue::Integer(*value)),
+        NodeValue::Float(value) => Ok(NumericValue::Float(*value)),
         NodeValue::Column(column) if column.value_type() == ValueType::I64 => {
-            Ok(column.i64_at(row).map(integer_as_f64))
+            Ok(NumericValue::I64(column))
         }
         NodeValue::Column(column) if column.value_type() == ValueType::F64 => {
-            Ok(column.f64_at(row))
+            Ok(NumericValue::F64(column))
         }
         _ => Err(VectorCoreError::Execution {
             node: node.to_owned(),
@@ -300,16 +370,32 @@ pub(super) fn numeric_at(
     }
 }
 
-fn bool_at(
-    values: &BTreeMap<String, NodeValue<'_>>,
+#[derive(Clone, Copy)]
+enum BoolValue<'values, 'batch> {
+    Null,
+    Scalar(bool),
+    Column(&'values RuntimeColumn<'batch>),
+}
+
+impl BoolValue<'_, '_> {
+    fn at(self, row: usize) -> Option<bool> {
+        match self {
+            Self::Null => None,
+            Self::Scalar(value) => Some(value),
+            Self::Column(column) => column.bool_at(row),
+        }
+    }
+}
+
+fn resolve_bool<'values, 'batch>(
+    values: &'values BTreeMap<String, NodeValue<'batch>>,
     node: &str,
-    row: usize,
-) -> Result<Option<bool>, VectorCoreError> {
+) -> Result<BoolValue<'values, 'batch>, VectorCoreError> {
     match resolve_value(values, node)? {
-        NodeValue::Null => Ok(None),
-        NodeValue::Bool(value) => Ok(Some(*value)),
+        NodeValue::Null => Ok(BoolValue::Null),
+        NodeValue::Bool(value) => Ok(BoolValue::Scalar(*value)),
         NodeValue::Column(column) if column.value_type() == ValueType::Bool => {
-            Ok(column.bool_at(row))
+            Ok(BoolValue::Column(column))
         }
         _ => Err(VectorCoreError::Execution {
             node: node.to_owned(),
