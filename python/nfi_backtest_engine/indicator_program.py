@@ -1442,6 +1442,30 @@ class _Compiler:
 
     def array_call(self, node: ast.Call, callable_name: str) -> str:
         name = callable_name.removeprefix("np.")
+        if name == "zeros_like":
+            if len(node.args) != 1:
+                self.unsupported(node, "numpy zeros_like signature")
+            if len(node.keywords) > 1:
+                self.unsupported(node, "numpy zeros_like signature")
+            explicit_float64 = bool(node.keywords)
+            if explicit_float64:
+                keyword = node.keywords[0]
+                if keyword.arg != "dtype" or _qualified_name(keyword.value) != "np.float64":
+                    self.unsupported(keyword.value, "numpy zeros_like dtype")
+            inputs = [self.expression(node.args[0])]
+            template_type = self.node_types[inputs[0]]
+            if template_type != "f64-column" and not (
+                explicit_float64 and template_type == "dynamic"
+            ):
+                self.unsupported(node.args[0], "numpy zeros_like template type")
+            return self.emit(
+                node,
+                "array-call",
+                "f64-column",
+                inputs=inputs,
+                parameters={"family": "numpy", "name": name, "arguments": {}},
+                lookback=self.merged_lookback(inputs),
+            )
         if name == "full_like":
             if len(node.args) != 2 or node.keywords:
                 self.unsupported(node, "numpy full_like signature")
@@ -2890,7 +2914,11 @@ def _normalized_native_indicator_helper(
     if matched is None:
         return None
     arguments = dict(bound)
-    if matched in {"chaikin-money-flow", "chaikin-money-flow-legacy"}:
+    if matched in {
+        "chaikin-money-flow",
+        "chaikin-money-flow-legacy",
+        "chaikin-money-flow-rolling-sum",
+    }:
         found, period = compiler.try_static_value(arguments["timeperiod"])
         minimum = 2 if matched == "chaikin-money-flow-legacy" else 1
         if (
@@ -2900,9 +2928,14 @@ def _normalized_native_indicator_helper(
             or period < minimum
         ):
             compiler.unsupported(arguments["timeperiod"], "chaikin timeperiod")
-        return matched, [arguments[name] for name in ("high", "low", "close", "volume")], {
-            "timeperiod": period
-        }
+        native_name = (
+            "chaikin-money-flow"
+            if matched == "chaikin-money-flow-rolling-sum"
+            else matched
+        )
+        return native_name, [
+            arguments[name] for name in ("high", "low", "close", "volume")
+        ], {"timeperiod": period}
     return matched, [arguments["arr"]], {}
 
 
