@@ -849,8 +849,20 @@ mod tests {
         assert_bits(&bands.0, &upper);
         assert_bits(&bands.1, &average);
         assert_bits(&bands.2, &lower);
-        assert_stream("SMA", &defaults, &values, &[average.clone()], period);
-        assert_stream("EMA", &defaults, &values, &[average.clone()], period);
+        assert_stream(
+            "SMA",
+            &defaults,
+            &values,
+            std::slice::from_ref(&average),
+            period,
+        );
+        assert_stream(
+            "EMA",
+            &defaults,
+            &values,
+            std::slice::from_ref(&average),
+            period,
+        );
         assert_stream("SUM", &defaults, &values, &[total], period);
         assert_stream(
             "STDDEV",
