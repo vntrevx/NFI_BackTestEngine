@@ -42,6 +42,18 @@ def helper(high, low, close, volume, timeperiod=20):
     vol_sum = np.where(vol_sum == 0, np.nan, vol_sum)
     return mfv_sum / vol_sum
 """,
+    "chaikin-money-flow-rolling-sum": """
+def helper(high, low, close, volume, timeperiod=20):
+    hl_range = high - low
+    mfm = np.zeros_like(close, dtype=np.float64)
+    valid = hl_range != 0
+    mfm[valid] = ((close[valid] - low[valid]) - (high[valid] - close[valid])) / hl_range[valid]
+    mfv = mfm * volume
+    mfv_sum = __class__.rolling_sum(mfv, timeperiod)
+    vol_sum = __class__.rolling_sum(volume, timeperiod)
+    vol_sum = np.where(vol_sum == 0, np.nan, vol_sum)
+    return mfv_sum / vol_sum
+""",
     "safe-percent-change": """
 def helper(arr):
     arr = np.asarray(arr, dtype=np.float64)

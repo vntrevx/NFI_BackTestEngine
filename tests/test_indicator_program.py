@@ -594,6 +594,33 @@ def test_indicator_program_lowers_numpy_buffers_and_static_container_unroll(
     validate_indicator_program(program)
 
 
+def test_indicator_program_normalizes_static_float64_zeros_like(tmp_path: Path) -> None:
+    source = tmp_path / "ZerosLike.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class ZerosLike(IStrategy):\n"
+        "    @staticmethod\n"
+        "    def zero_buffer(values):\n"
+        "        return np.zeros_like(values, dtype=np.float64)\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['zero'] = self.zero_buffer(dataframe['close'])\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="ZerosLike")
+
+    call = next(node for node in program["nodes"] if node["op"] == "array-call")
+    assert call["value_type"] == "f64-column"
+    assert call["parameters"] == {
+        "family": "numpy",
+        "name": "zeros_like",
+        "arguments": {},
+    }
+    validate_indicator_program(program)
+
+
 def test_indicator_program_recognizes_legacy_chaikin_volume_sum_contract(
     tmp_path: Path,
 ) -> None:
@@ -640,6 +667,49 @@ def test_indicator_program_recognizes_legacy_chaikin_volume_sum_contract(
         "candles": 19,
         "expression": "chaikin-money-flow-legacy",
         "causal": True,
+    }
+    validate_indicator_program(program)
+
+
+def test_indicator_program_normalizes_nan_tolerant_chaikin_rolling_sums(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "RollingChaikin.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class RollingChaikin(IStrategy):\n"
+        "    @staticmethod\n"
+        "    def rolling_sum(arr, timeperiod):\n"
+        "        return arr\n"
+        "    @staticmethod\n"
+        "    def chaikin_money_flow(high, low, close, volume, timeperiod=20):\n"
+        "        hl_range = high - low\n"
+        "        mfm = np.zeros_like(close, dtype=np.float64)\n"
+        "        valid = hl_range != 0\n"
+        "        mfm[valid] = ((close[valid] - low[valid]) - "
+        "(high[valid] - close[valid])) / hl_range[valid]\n"
+        "        mfv = mfm * volume\n"
+        "        mfv_sum = __class__.rolling_sum(mfv, timeperiod)\n"
+        "        vol_sum = __class__.rolling_sum(volume, timeperiod)\n"
+        "        vol_sum = np.where(vol_sum == 0, np.nan, vol_sum)\n"
+        "        return mfv_sum / vol_sum\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        dataframe['cmf'] = self.chaikin_money_flow(\n"
+        "            dataframe['high'], dataframe['low'], dataframe['close'],\n"
+        "            dataframe['volume'], timeperiod=20,\n"
+        "        )\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="RollingChaikin")
+
+    call = next(node for node in program["nodes"] if node["op"] == "indicator-call")
+    assert call["parameters"] == {
+        "family": "native",
+        "name": "chaikin-money-flow",
+        "arguments": {"timeperiod": 20},
     }
     validate_indicator_program(program)
 

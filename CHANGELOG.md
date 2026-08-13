@@ -30,6 +30,9 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 - Pinned the Freqtrade same-candle contract: position adjustment and its filled order
   are applied before stop/exit evaluation. The external 2022 Futures report that
   motivated the hotfix remains unclaimed until its sealed input is supplied.
+- Normalized the X7 NaN-tolerant Chaikin helper and its explicit NumPy `float64`
+  zero buffer into generic Native kernels, keeping old release fixtures on the same
+  Full Native path instead of falling back during installed-wheel verification.
 
 ## 1.5.0 - 2026-08-10
 
