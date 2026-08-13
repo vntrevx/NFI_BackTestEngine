@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "f74d8cac2b11bb9e1c32dd7538dd4eca53c10efe",
+    "engine_sha": "abc3e0aa98514a2f6da75f556ec5239635b7bd70",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "3c11060280705d98db8f705c42853ac902c21cd494f0478299eea191587714f4"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "semantic_review_draft_pr",
+  "execution_route": "official_only",
+  "review_kind": "generic_lowering",
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "81af23c7d012410c42e1dc3af4f6592ca571c5cd337a812eebd1fc7a3d7e13d7",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "NFI adjustment grind 5 fallback condition changed"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": true,
+    "draft_pr_kind": "generic_lowering",
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "916317a3aba5255f4b15b5e1e00551ceb55399f051ef64028c83ecab8e63dc1f",
+  "decision_fingerprint": "8fd4a8dcbf3b1dc681b515bd8307b3c1acdbe6afbf5efceaa560e67eee1c6c93",
+  "message": "Static lowering is blocked; open a generic lowering review Draft PR."
+}
