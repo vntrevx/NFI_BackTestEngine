@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "strategy_sha256": "3c11060280705d98db8f705c42853ac902c21cd494f0478299eea191587714f4",
+  "classification": "ir-compatible",
+  "verification_state": "latest_checked",
+  "changed_branch_reached": false,
+  "trade_surface_exact": null,
+  "full_state_exact": null,
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    }
+  ]
+}
