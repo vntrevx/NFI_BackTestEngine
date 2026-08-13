@@ -20,7 +20,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated.
 | Latest public release | [v1.5.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.5.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.5.0 Native Stateful Runtime; no new combined Full X7 certification claim |
+| Current `main` | v1.6.0 Full Native Strategy release candidate; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -80,7 +80,7 @@ Both certificates still prove exact parity for their sealed workloads. They do n
 form a controlled Spot-versus-Futures performance test, so this project makes no
 cross-mode speed ratio claim.
 
-The unreleased Full Native path also completed a latest-X7 Spot development
+The v1.6.0 Full Native path completed a latest-X7 Spot development
 qualification over 80 pairs and 2021-01-01 through 2026-01-01. Three fresh
 processes finished in 63:17, 62:51, and 62:44 with byte-identical 1,162-trade
 results (0.88% wall spread). Median peak RSS was 38.9 GiB. The 38.47 GB temporary
@@ -150,8 +150,8 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` both return
-`nfi-bte 1.5.0`.
+The latest public installer returns `nfi-bte 1.5.0`. A source checkout of `main`
+returns the v1.6.0 Full Native Strategy release candidate.
 
 ## Quick start
 

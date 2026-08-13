@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 148,
-  "updated_at": "2026-08-12T14:05:25+09:00",
+  "revision": 149,
+  "updated_at": "2026-08-14T03:11:20+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M22-04",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5067,7 +5067,7 @@
       "order": 2204,
       "milestone": "M22",
       "title": "Publish the v1.6.0 Full Native Strategy release",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": [
         "M22-03"
       ],
@@ -5087,7 +5087,7 @@
         "Full Native product bundle",
         "RC/stable byte identity"
       ],
-      "started_at": null,
+      "started_at": "2026-08-14T03:11:20+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -8824,6 +8824,26 @@
         "cross_platform_performance_claimed": false,
         "next_eligible_task": "M22-04",
         "next_task_manual_gate": true
+      }
+    },
+    {
+      "sequence": 196,
+      "timestamp": "2026-08-14T03:11:20+09:00",
+      "task_id": "M22-04",
+      "event": "task_started",
+      "details": {
+        "objective": "publish the v1.6.0 Full Native Strategy release with the current X7 Grind-5 compatibility hotfix",
+        "manual_gate_approval": "user-approved in conversation",
+        "x7_v536_source_sha256": "808e42060b9f18c86a7029d25d0d72f43e95756e8f5a571b158b9f2786833c04",
+        "x7_v537_upstream_commit": "f74d8cac2b11bb9e1c32dd7538dd4eca53c10efe",
+        "x7_v537_source_sha256": "3c11060280705d98db8f705c42853ac902c21cd494f0478299eea191587714f4",
+        "current_grind_five_fallback_lowering_required": true,
+        "same_commit_required_ci_required": true,
+        "three_os_installer_audits_required": true,
+        "byte_identical_rc_stable_required": true,
+        "external_2022_report_exact_claim_allowed_without_sealed_input": false,
+        "relabel_prior_certificates_allowed": false,
+        "runtime_hardcoding_allowed": false
       }
     }
   ]
