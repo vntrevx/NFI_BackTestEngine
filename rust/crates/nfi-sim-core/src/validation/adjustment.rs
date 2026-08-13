@@ -269,7 +269,10 @@ fn valid_nfi_legacy_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> bool
         NfiX7AdjustmentOperand::Literal { value } => value.is_finite(),
         NfiX7AdjustmentOperand::Variable { name } => matches!(
             name.as_str(),
-            "slice_profit" | "slice_profit_entry" | "num_open_grinds_and_buybacks"
+            "slice_profit"
+                | "slice_profit_entry"
+                | "slice_profit_exit"
+                | "num_open_grinds_and_buybacks"
         ),
         NfiX7AdjustmentOperand::Feature { name, multiplier } => {
             !name.is_empty() && multiplier.is_finite()
@@ -283,7 +286,11 @@ pub(crate) fn valid_nfi_adjustment_operand(operand: &NfiX7AdjustmentOperand) -> 
         NfiX7AdjustmentOperand::Literal { value } => value.is_finite(),
         NfiX7AdjustmentOperand::Variable { name } => matches!(
             name.as_str(),
-            "current_rate" | "slice_profit" | "slice_profit_entry" | "num_open_grinds_and_buybacks"
+            "current_rate"
+                | "slice_profit"
+                | "slice_profit_entry"
+                | "slice_profit_exit"
+                | "num_open_grinds_and_buybacks"
         ),
         NfiX7AdjustmentOperand::Feature { name, multiplier } => {
             !name.is_empty() && multiplier.is_finite()

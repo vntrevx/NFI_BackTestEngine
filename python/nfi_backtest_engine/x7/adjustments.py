@@ -302,6 +302,11 @@ def _legacy_adjustment_predicate(node: ast.BoolOp) -> dict[str, Any] | None:
     any_derisk_levels: list[int] = []
     conditions: list[dict[str, Any]] = []
     for value in node.values:
+        if any(
+            isinstance(item, ast.Constant) and isinstance(item.value, bool)
+            for item in ast.walk(value)
+        ):
+            return None
         if isinstance(value, ast.BoolOp) and isinstance(value.op, ast.Or):
             levels = sorted(
                 {
@@ -427,6 +432,8 @@ def _adjustment_comparison(node: ast.AST) -> dict[str, Any] | None:
 
 
 def _adjustment_operand(node: ast.AST) -> dict[str, Any] | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+        return {"kind": "literal", "value": float(node.value)}
     number = _ast_number(node)
     if number is not None:
         return {"kind": "literal", "value": number}
@@ -434,6 +441,7 @@ def _adjustment_operand(node: ast.AST) -> dict[str, Any] | None:
         "current_rate",
         "slice_profit",
         "slice_profit_entry",
+        "slice_profit_exit",
         "num_open_grinds_and_buybacks",
     }:
         return {"kind": "variable", "name": node.id}

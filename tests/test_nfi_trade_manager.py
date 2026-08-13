@@ -413,3 +413,55 @@ and (
         "op": "not",
         "value": {"op": "flag", "name": "trade_is_short"},
     }
+
+
+def test_adjustment_policy_compiles_exit_profit_boolean_and_bare_derisk() -> None:
+    method = _adjustment_method()
+    grind_five = next(
+        node
+        for node in method.body
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(value, ast.Constant) and value.value == "grind_5_entry"
+            for value in ast.walk(node)
+        )
+    )
+    assert isinstance(grind_five.test, ast.BoolOp)
+    signal = grind_five.test.values[1]
+    assert isinstance(signal, ast.BoolOp)
+    signal.values.append(
+        ast.parse(
+            """
+(is_derisk_1_found
+and slice_profit_exit < -0.04
+and last_candle["protections_long_global"] == True)
+""",
+            mode="eval",
+        ).body
+    )
+
+    policy = _adjustment_literal_policy(method)
+    expression = policy["grind_entry_fallbacks"][4]["predicates"][1]["expression"]
+
+    assert expression == {
+        "op": "all",
+        "values": [
+            {"op": "derisk_found", "level": 1},
+            {
+                "op": "comparison",
+                "left": {"kind": "variable", "name": "slice_profit_exit"},
+                "operator": "lt",
+                "right": {"kind": "literal", "value": -0.04},
+            },
+            {
+                "op": "comparison",
+                "left": {
+                    "kind": "feature",
+                    "name": "protections_long_global",
+                    "multiplier": 1.0,
+                },
+                "operator": "eq",
+                "right": {"kind": "literal", "value": 1.0},
+            },
+        ],
+    }

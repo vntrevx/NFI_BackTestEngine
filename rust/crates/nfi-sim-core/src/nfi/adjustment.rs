@@ -13,8 +13,8 @@ use serde_json::Value;
 
 use crate::calculations::{fee_close, fee_open};
 use crate::callbacks::{
-    feature_number_at, insert_projected_feature_window, scalar_program_feature_projection,
-    scalar_trade_value,
+    feature_bool_at, feature_number_at, insert_projected_feature_window,
+    scalar_program_feature_projection, scalar_trade_value,
 };
 use crate::domain::{
     AdjustmentSignal, Candle, CompiledOrderSide, CompiledSystemAdjustmentAction,
@@ -95,6 +95,7 @@ struct AdjustmentContext<'a> {
     slice_amount: f64,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     current_stake_amount: f64,
     rebuy_mode: bool,
     is_grind_entry: bool,
@@ -340,6 +341,7 @@ fn evaluate_compiled_system_adjustment(
         request.candle_index,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         open_grind_count,
     )?;
     let extra_derisk = any_derisk_level(&state, &policy.extra_entry_derisk_levels)?;
@@ -365,6 +367,7 @@ fn evaluate_compiled_system_adjustment(
         slice_amount,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         current_stake_amount: trade.amount * request.candle.open,
         rebuy_mode,
         is_grind_entry: grind_entry_signal,
@@ -750,6 +753,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         request.candle_index,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         num_open_grinds,
     )?;
     let extra_derisk = any_derisk_level(state, &policy.extra_entry_derisk_levels)?;
@@ -774,6 +778,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         slice_amount,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         current_stake_amount: trade.amount * candle.open,
         rebuy_mode,
         is_grind_entry,
@@ -1394,6 +1399,7 @@ fn grind_entry_signal(
                     context.candle.open,
                     context.slice_profit,
                     context.slice_profit_entry,
+                    context.slice_profit_exit,
                     num_open_grinds,
                 )
             })?;
@@ -1411,6 +1417,7 @@ fn adjustment_predicate_matches(
     current_rate: f64,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     num_open_grinds: usize,
 ) -> Option<bool> {
     if let Some(expression) = &predicate.expression {
@@ -1424,6 +1431,7 @@ fn adjustment_predicate_matches(
             current_rate,
             slice_profit,
             slice_profit_entry,
+            slice_profit_exit,
             num_open_grinds,
         );
     }
@@ -1443,6 +1451,7 @@ fn adjustment_predicate_matches(
                     candle_index,
                     slice_profit,
                     slice_profit_entry,
+                    slice_profit_exit,
                     num_open_grinds,
                 )
             } else {
@@ -1462,6 +1471,7 @@ fn adjustment_expression_matches(
     current_rate: f64,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     num_open_grinds: usize,
 ) -> Option<bool> {
     match expression {
@@ -1477,6 +1487,7 @@ fn adjustment_expression_matches(
                     current_rate,
                     slice_profit,
                     slice_profit_entry,
+                    slice_profit_exit,
                     num_open_grinds,
                 )? {
                     return Some(false);
@@ -1496,6 +1507,7 @@ fn adjustment_expression_matches(
                     current_rate,
                     slice_profit,
                     slice_profit_entry,
+                    slice_profit_exit,
                     num_open_grinds,
                 )? {
                     return Some(true);
@@ -1513,6 +1525,7 @@ fn adjustment_expression_matches(
             current_rate,
             slice_profit,
             slice_profit_entry,
+            slice_profit_exit,
             num_open_grinds,
         )
         .map(|value| !value),
@@ -1533,6 +1546,7 @@ fn adjustment_expression_matches(
                 current_rate,
                 slice_profit,
                 slice_profit_entry,
+                slice_profit_exit,
                 num_open_grinds,
             )
             .is_some(),
@@ -1551,6 +1565,7 @@ fn adjustment_expression_matches(
             current_rate,
             slice_profit,
             slice_profit_entry,
+            slice_profit_exit,
             num_open_grinds,
         ),
     }
@@ -1569,6 +1584,7 @@ fn adjustment_condition_matches(
     candle_index: usize,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     num_open_grinds: usize,
 ) -> Option<bool> {
     let left = adjustment_legacy_operand_value(
@@ -1577,6 +1593,7 @@ fn adjustment_condition_matches(
         candle_index,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         num_open_grinds,
     )?;
     let right = adjustment_legacy_operand_value(
@@ -1585,6 +1602,7 @@ fn adjustment_condition_matches(
         candle_index,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         num_open_grinds,
     )?;
     Some(adjustment_values_match(left, condition.operator, right))
@@ -1601,6 +1619,7 @@ fn adjustment_comparison_matches(
     current_rate: f64,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     num_open_grinds: usize,
 ) -> Option<bool> {
     let left = adjustment_expression_operand_value(
@@ -1611,6 +1630,7 @@ fn adjustment_comparison_matches(
         current_rate,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         num_open_grinds,
     )?;
     let right = adjustment_expression_operand_value(
@@ -1621,6 +1641,7 @@ fn adjustment_comparison_matches(
         current_rate,
         slice_profit,
         slice_profit_entry,
+        slice_profit_exit,
         num_open_grinds,
     )?;
     Some(adjustment_values_match(left, operator, right))
@@ -1642,6 +1663,7 @@ fn adjustment_legacy_operand_value(
     candle_index: usize,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     num_open_grinds: usize,
 ) -> Option<f64> {
     let value = match operand {
@@ -1649,6 +1671,7 @@ fn adjustment_legacy_operand_value(
         NfiX7AdjustmentOperand::Variable { name } => match name.as_str() {
             "slice_profit" => slice_profit,
             "slice_profit_entry" => slice_profit_entry,
+            "slice_profit_exit" => slice_profit_exit,
             "num_open_grinds_and_buybacks" => f64::from(u32::try_from(num_open_grinds).ok()?),
             _ => return None,
         },
@@ -1660,6 +1683,16 @@ fn adjustment_legacy_operand_value(
     value.is_finite().then_some(value)
 }
 
+fn adjustment_expression_feature_value(
+    pair: &PairSeries,
+    candle_index: usize,
+    name: &str,
+) -> Option<f64> {
+    feature_number_at(pair, candle_index, name).or_else(|| {
+        feature_bool_at(pair, candle_index, name).map(|value| f64::from(u8::from(value)))
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn adjustment_expression_operand_value(
     operand: &NfiX7AdjustmentOperand,
@@ -1669,6 +1702,7 @@ fn adjustment_expression_operand_value(
     current_rate: f64,
     slice_profit: f64,
     slice_profit_entry: f64,
+    slice_profit_exit: f64,
     num_open_grinds: usize,
 ) -> Option<f64> {
     let value = match operand {
@@ -1677,11 +1711,12 @@ fn adjustment_expression_operand_value(
             "current_rate" => current_rate,
             "slice_profit" => slice_profit,
             "slice_profit_entry" => slice_profit_entry,
+            "slice_profit_exit" => slice_profit_exit,
             "num_open_grinds_and_buybacks" => f64::from(u32::try_from(num_open_grinds).ok()?),
             _ => return None,
         },
         NfiX7AdjustmentOperand::Feature { name, multiplier } => {
-            feature_number_at(pair, candle_index, name)? * multiplier
+            adjustment_expression_feature_value(pair, candle_index, name)? * multiplier
         }
         NfiX7AdjustmentOperand::Trade { name, multiplier } => match name.as_str() {
             "liquidation_price" => trade.liquidation_price? * multiplier,
@@ -2037,6 +2072,37 @@ mod tests {
         }
     }
 
+    fn exit_profit_protection_predicate() -> NfiX7AdjustmentPredicate {
+        let expression: NfiX7AdjustmentExpression = serde_json::from_value(json!({
+            "op": "all",
+            "values": [
+                {"op": "derisk_found", "level": 1},
+                {
+                    "op": "comparison",
+                    "left": {"kind": "variable", "name": "slice_profit_exit"},
+                    "operator": "lt",
+                    "right": {"kind": "literal", "value": -0.04}
+                },
+                {
+                    "op": "comparison",
+                    "left": {
+                        "kind": "feature",
+                        "name": "protection",
+                        "multiplier": 1.0
+                    },
+                    "operator": "eq",
+                    "right": {"kind": "literal", "value": 1.0}
+                }
+            ]
+        }))
+        .expect("valid exit-profit protection expression");
+        NfiX7AdjustmentPredicate {
+            any_derisk_levels: Vec::new(),
+            conditions: Vec::new(),
+            expression: Some(expression),
+        }
+    }
+
     fn empty_adjustment_state() -> AdjustmentState {
         AdjustmentState {
             order_count: 1,
@@ -2073,6 +2139,7 @@ mod tests {
                     current_rate,
                     -0.04,
                     -0.04,
+                    0.0,
                     0,
                 )
             };
@@ -2083,7 +2150,7 @@ mod tests {
         trade.liquidation_price = None;
         assert_eq!(
             adjustment_predicate_matches(
-                &predicate, &state, &config, &trade, &pair, 0, 100.0, -0.04, -0.04, 0,
+                &predicate, &state, &config, &trade, &pair, 0, 100.0, -0.04, -0.04, 0.0, 0,
             ),
             Some(false)
         );
@@ -2110,6 +2177,7 @@ mod tests {
                     current_rate,
                     0.04,
                     0.04,
+                    0.0,
                     0,
                 )
             };
@@ -2120,10 +2188,44 @@ mod tests {
         config.is_futures = false;
         assert_eq!(
             adjustment_predicate_matches(
-                &predicate, &state, &config, &trade, &pair, 0, 100.0, 0.04, 0.04, 0,
+                &predicate, &state, &config, &trade, &pair, 0, 100.0, 0.04, 0.04, 0.0, 0,
             ),
             Some(false)
         );
+    }
+
+    #[test]
+    fn exit_profit_expression_uses_boolean_feature_and_derisk_state() {
+        let (mut pair, config) = pair_and_config();
+        pair.feature_columns.insert(
+            "protection".to_owned(),
+            crate::io::FeatureColumn::booleans(vec![true]),
+        );
+        let trade = test_trade();
+        let predicate = exit_profit_protection_predicate();
+        let mut state = empty_adjustment_state();
+        state.derisk_found[0] = true;
+
+        let matches = |state: &AdjustmentState, slice_profit_exit| {
+            adjustment_predicate_matches(
+                &predicate,
+                state,
+                &config,
+                &trade,
+                &pair,
+                0,
+                90.0,
+                -0.1,
+                -0.1,
+                slice_profit_exit,
+                0,
+            )
+        };
+
+        assert_eq!(matches(&state, -0.05), Some(true));
+        assert_eq!(matches(&state, -0.03), Some(false));
+        state.derisk_found[0] = false;
+        assert_eq!(matches(&state, -0.05), Some(false));
     }
 
     #[test]
@@ -2259,6 +2361,7 @@ mod tests {
             slice_amount: 100.0,
             slice_profit: -0.1,
             slice_profit_entry: -0.1,
+            slice_profit_exit: 0.0,
             current_stake_amount: 90.0,
             rebuy_mode: false,
             is_grind_entry: false,
@@ -2326,6 +2429,7 @@ mod tests {
             slice_amount: 100.0,
             slice_profit: -0.1,
             slice_profit_entry: -0.1,
+            slice_profit_exit: 0.0,
             current_stake_amount: 90.0,
             rebuy_mode: false,
             is_grind_entry: false,
@@ -2402,6 +2506,7 @@ mod tests {
             slice_amount: 100.0,
             slice_profit: 0.05,
             slice_profit_entry: 0.05,
+            slice_profit_exit: 0.0,
             current_stake_amount: 157.5,
             rebuy_mode: false,
             is_grind_entry: false,
