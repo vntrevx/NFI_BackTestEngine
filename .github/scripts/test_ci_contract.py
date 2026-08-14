@@ -47,7 +47,11 @@ class CiContractTests(unittest.TestCase):
     def test_compatibility_automation_uses_focused_lane(self) -> None:
         paths = [
             ".github/workflows/nfi-compatibility.yml",
+            "python/nfi_backtest_engine/compatibility_automation.py",
+            "scripts/compatibility_issue.py",
             "scripts/compatibility_review_pr.py",
+            "tests/test_compatibility_automation.py",
+            "tests/test_compatibility_issue.py",
             "tests/test_compatibility_review_pr.py",
             "tests/test_nfi_compatibility_workflow.py",
             ".github/workflows/ci.yml",
@@ -65,7 +69,7 @@ class CiContractTests(unittest.TestCase):
             ["planning/futures-discovery-policy.json"],
             [".github/workflows/release.yml"],
             [
-                "scripts/compatibility_review_pr.py",
+                "scripts/compatibility_issue.py",
                 "rust/crates/nfi-sim-core/Cargo.toml",
             ],
             [],
@@ -117,8 +121,7 @@ class CiContractTests(unittest.TestCase):
         self.assertIn("needs.changes.outputs.code_changes == 'true'", workflow)
         self.assertIn("Run focused compatibility automation tests", workflow)
         self.assertNotIn("pull_request_target:", workflow)
-        self.assertIn('paths-ignore:', workflow)
-        self.assertIn('- "planning/compatibility-reviews/**"', workflow)
+        self.assertNotIn('paths-ignore:', workflow)
         for path in self.contract["push"]["release_paths"]:
             self.assertIn(f'- "{path}"', workflow)
 

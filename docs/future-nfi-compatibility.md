@@ -97,17 +97,18 @@ trade surface exact, full-state exact가 모두 필요하다. 원본 fixture는 
 Signal/Grind 번호, pair, timerange 또는 기대 결과를 분기값으로 사용하지 않는다.
 
 - `native_exact`: 변경 branch 도달과 trade surface/full-state exact가 모두 참일 때만 허용
-- `semantic_review_draft_pr`: 새 opcode 또는 generic lowering 검토가 필요하며 실행은 official-only
+- `semantic_review_issue`: 새 opcode 또는 generic lowering 검토가 필요하며 실행은 official-only
 - `bounded_discovery`: 정적 lowering은 가능하지만 exact branch fixture가 부족함
 - `exact_fixture_draft_pr`: discovery가 독립 exact 후보를 만들었으나 병합 전 검토가 필요함
 - `external_data_deferred`: 외부 데이터 재시도 보류이며 exact 증거가 아님
 - `official_only`: 탐색이 끝났거나 현재 Native exact를 증명할 수 없음
 
-semantic review Draft PR은 compact 결정문과 검토 요구사항만 추가한다. 런타임
-의미론을 추측 생성하지 않으며 자동 승인·병합하지 않는다. maintainer가 범용
-opcode/lowerer, 단위 테스트, 공식 fixture를 추가하고 Required CI와 exact 검증을
-통과해야 Native로 승격된다. 외부 데이터 보류를 재사용할 때도 저장된 결정문의
-`execution_route=official_only`, `exact=false`를 다시 검사한다.
+semantic review는 append-only ledger와 자동 조정되는 단일 compatibility issue에
+기록한다. evidence-only Draft PR은 만들지 않는다. maintainer가 범용 opcode/lowerer,
+단위 테스트, 공식 fixture를 추가하고 Required CI와 exact 검증을 통과해야 Native로
+승격된다. PR은 독립 exact fixture 후보 또는 실제 구현 변경에만 사용한다. 외부 데이터
+보류를 재사용할 때도 저장된 결정문의 `execution_route=official_only`, `exact=false`를
+다시 검사한다.
 
 ## Managed exit의 단계적 Native 전환
 

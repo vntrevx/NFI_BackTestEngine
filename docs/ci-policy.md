@@ -13,8 +13,9 @@ The classifier selects the cheapest lane that covers every changed path:
 - `policy-only`: documentation plus explicitly listed repository metadata and the
   required-CI implementation itself; a dependency-free policy self-test runs on
   Ubuntu;
-- `automation-only`: the allowlisted NFI semantic-review workflow, publisher, and
-  focused tests; one Ubuntu job runs only their tests, lint, and type check;
+- `automation-only`: the allowlisted NFI compatibility routing, issue reconciler,
+  workflow, and focused tests; one Ubuntu job runs only their tests, lint, and type
+  check;
 - `code`: every unlisted path, runtime source, tests, schemas, fixtures, build
   inputs, and installers; the full Python matrix on Linux, Windows, and macOS,
   static/Rust checks, and native full-parity fixtures run.
@@ -34,6 +35,13 @@ explicit manual request. Scheduled runs reuse that compact state instead of rebu
 or downloading data. Unknown infrastructure failures still fail and remain visible.
 Non-candidate artifacts expire after one day; raw candles, caches, container layers,
 and traces are never uploaded.
+
+Blocked generic semantics are retained in the append-only compatibility ledger and
+one automatically reconciled `nfi-compatibility` issue. They do not create evidence-
+only Draft PRs. Pull requests are reserved for a compact independently exact fixture
+candidate or an implementation change, so a scheduled watcher cannot grow the PR
+queue. The removed publisher and test paths remain explicit classification tombstones
+so the deletion commit itself also stays on this focused automation lane.
 
 Pull requests are the normal required-check surface. A protected merge is not tested
 a second time on `main`; push-triggered CI is limited to version and product-release
