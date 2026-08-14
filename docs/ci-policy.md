@@ -40,7 +40,8 @@ Blocked generic semantics are retained in the append-only compatibility ledger a
 one automatically reconciled `nfi-compatibility` issue. They do not create evidence-
 only Draft PRs. Pull requests are reserved for a compact independently exact fixture
 candidate or an implementation change, so a scheduled watcher cannot grow the PR
-queue.
+queue. The removed publisher and test paths remain explicit classification tombstones
+so the deletion commit itself also stays on this focused automation lane.
 
 Pull requests are the normal required-check surface. A protected merge is not tested
 a second time on `main`; push-triggered CI is limited to version and product-release

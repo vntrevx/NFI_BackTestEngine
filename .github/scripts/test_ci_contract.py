@@ -49,8 +49,10 @@ class CiContractTests(unittest.TestCase):
             ".github/workflows/nfi-compatibility.yml",
             "python/nfi_backtest_engine/compatibility_automation.py",
             "scripts/compatibility_issue.py",
+            "scripts/compatibility_review_pr.py",
             "tests/test_compatibility_automation.py",
             "tests/test_compatibility_issue.py",
+            "tests/test_compatibility_review_pr.py",
             "tests/test_nfi_compatibility_workflow.py",
             ".github/workflows/ci.yml",
         ]
