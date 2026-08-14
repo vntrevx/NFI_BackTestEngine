@@ -105,7 +105,7 @@ def test_ir_compatible_targeted_exact_is_the_only_native_promotion() -> None:
     assert report["action"]["automatic_semantic_merge_allowed"] is False
 
 
-def test_static_new_opcode_is_official_only_and_routes_to_review_draft() -> None:
+def test_static_new_opcode_is_official_only_and_routes_to_deduplicated_issue() -> None:
     identity, difference, compatibility, targeted = _documents()
     difference["classification"] = "stateful-review"
     difference["changes"]["opcodes"]["added"] = ["call:new_behavior"]
@@ -118,10 +118,12 @@ def test_static_new_opcode_is_official_only_and_routes_to_review_draft() -> None
         identity, difference, compatibility, targeted
     )
 
-    assert report["automation_route"] == "semantic_review_draft_pr"
+    assert report["automation_route"] == "semantic_review_issue"
     assert report["execution_route"] == "official_only"
     assert report["review_kind"] == "new_opcode"
-    assert report["action"]["draft_pr_kind"] == "new_opcode"
+    assert report["action"]["draft_pr_allowed"] is False
+    assert report["action"]["draft_pr_kind"] is None
+    assert report["action"]["issue_required"] is True
     assert report["action"]["native_promotion_allowed"] is False
 
 
@@ -137,9 +139,11 @@ def test_static_lowering_change_routes_without_hardcoded_behavior_value() -> Non
         identity, difference, compatibility, targeted
     )
 
-    assert report["automation_route"] == "semantic_review_draft_pr"
+    assert report["automation_route"] == "semantic_review_issue"
     assert report["review_kind"] == "generic_lowering"
     assert report["action"]["bounded_discovery_required"] is False
+    assert report["action"]["draft_pr_allowed"] is False
+    assert report["action"]["issue_required"] is True
 
 
 def test_missing_exact_proof_routes_to_bounded_discovery_and_exact_candidate_pr() -> None:

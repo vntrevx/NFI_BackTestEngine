@@ -9,10 +9,6 @@ on:
       - ".github/product-release-contract.json"
       - ".github/release-candidate-contract.json"
   pull_request:
-    paths-ignore:
-      # Evidence-only semantic review PRs do not need CI until implementation code
-      # is added. Ignoring their PR event prevents a redundant action_required run.
-      - "planning/compatibility-reviews/**"
   workflow_dispatch:
 
 permissions:
@@ -109,18 +105,22 @@ jobs:
         if: needs.changes.outputs.automation_changes == 'true'
         run: >-
           uv run pytest -q
-          tests/test_compatibility_review_pr.py
+          tests/test_compatibility_automation.py
+          tests/test_compatibility_issue.py
           tests/test_nfi_compatibility_workflow.py
           tests/test_release_contract.py
       - name: Lint and type-check the focused automation surface
         if: needs.changes.outputs.automation_changes == 'true'
         run: |
           uv run ruff check \
-            scripts/compatibility_review_pr.py \
-            tests/test_compatibility_review_pr.py \
+            python/nfi_backtest_engine/compatibility_automation.py \
+            scripts/compatibility_issue.py \
+            tests/test_compatibility_automation.py \
+            tests/test_compatibility_issue.py \
             tests/test_nfi_compatibility_workflow.py
           uv run basedpyright --level error \
-            scripts/compatibility_review_pr.py
+            python/nfi_backtest_engine/compatibility_automation.py \
+            scripts/compatibility_issue.py
 
   python:
     name: Python ${{ matrix.os }} / ${{ matrix.python-version }}

@@ -116,21 +116,20 @@ def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
     assert "nfi-automation-health" in text
     assert "scripts/workflow_health_issue.py" in text
     assert '--stage "canary=${{ needs.canary.result }}"' in text
-    assert '--stage "semantic-review=${{ needs.semantic-review.result }}"' in text
+    assert "semantic-review" not in text
     assert "--stage \"publish=${{ needs.publish.result }}\"" in text
 
 
-def test_workflow_routes_blocked_generic_semantics_to_evidence_only_draft_pr() -> None:
+def test_workflow_routes_blocked_semantics_to_one_issue_and_never_opens_review_prs() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     targeted = text[text.index("  targeted:") : text.index("  canary:")]
-    review = text[text.index("  semantic-review:") : text.index("  publish:")]
+    publish = text[text.index("  publish:") : text.index("  health:")]
 
     assert "scripts/compatibility_automation.py" in targeted
     assert "automation-decision-${{ matrix.trading_mode }}.json" in targeted
-    assert "semantic_review_draft_pr" in review
-    assert "scripts/compatibility_review_pr.py" in review
-    assert "actions: write" not in review
-    assert "pull-requests: write" in review
-    assert "gh pr merge" not in review
-    assert "gh pr review" not in review
-    assert "auto-merge" not in review
+    assert "semantic_review_issue" not in text  # Routing stays inside the decision JSON.
+    assert "scripts/compatibility_issue.py" in publish
+    assert "Reconcile deduplicated compatibility issue" in publish
+    assert "compatibility_review_pr.py" not in text
+    assert "pull-requests: write" not in text
+    assert "gh pr create" not in text

@@ -88,7 +88,7 @@ def classify_compatibility_automation(
     if exact:
         route = "native_exact"
     elif not static_compatible:
-        route = "semantic_review_draft_pr"
+        route = "semantic_review_issue"
         review_kind = "new_opcode" if added_opcodes else "generic_lowering"
     elif discovery_status is None or discovery_status == "budget_exhausted":
         route = "bounded_discovery"
@@ -103,9 +103,7 @@ def classify_compatibility_automation(
 
     native_allowed = route == "native_exact"
     draft_kind = (
-        review_kind
-        if route == "semantic_review_draft_pr"
-        else "exact_fixture"
+        "exact_fixture"
         if route == "exact_fixture_draft_pr"
         else None
     )
@@ -154,6 +152,7 @@ def classify_compatibility_automation(
             "bounded_discovery_required": route == "bounded_discovery",
             "draft_pr_allowed": draft_kind is not None,
             "draft_pr_kind": draft_kind,
+            "issue_required": route == "semantic_review_issue",
             "official_fallback_available": True,
             "automatic_semantic_merge_allowed": False,
             "external_data_deferred_is_exact": False,
@@ -348,9 +347,9 @@ def _message(route: str, *, review_kind: str | None) -> str:
         ),
         "official_only": "Native exactness is unproven; use the announced official fallback.",
     }
-    if route == "semantic_review_draft_pr":
+    if route == "semantic_review_issue":
         subject = "new generic opcode" if review_kind == "new_opcode" else "generic lowering"
-        return f"Static lowering is blocked; open a {subject} review Draft PR."
+        return f"Static lowering is blocked; track the {subject} in the compatibility issue."
     return messages[route]
 
 
