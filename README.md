@@ -11,7 +11,9 @@ surface with official Freqtrade at zero tolerance.
 
 The engine compiles the strategy file and inputs supplied at runtime. It does not
 hard-code a pair list, timerange, strategy hash, or expected result. Unknown active
-semantics stop with a clear fail-closed verdict instead of being approximated.
+semantics stop with a clear fail-closed verdict instead of being approximated. Python
+parses and compiles the supplied strategy; the supported Native runtime does not
+import or execute that strategy Python.
 
 ## Release status
 
@@ -114,18 +116,24 @@ Evidence:
 The native lane is for fast research. The official lane is independent and slower by
 design; it is the final semantic authority.
 
-## Native core structure
+## Full Native algorithm map
 
-The Rust core keeps the public API in a thin facade and separates domain contracts,
-vector-backed I/O, scalar callbacks, bounded state-machine execution, validation,
-portfolio/futures rules, NFI routing and adjustments, protections, chronological
-simulation, profiling, and result assembly. The Feather boundary separately owns
-manifest verification, Arrow schema projection, fixed-width row encoding, and typed
-scalar decoding.
+| Stage | Semantic source | Native algorithm | Exactness and failure boundary |
+| --- | --- | --- | --- |
+| Raw market data | Freqtrade OHLCV preparation | SHA-bound Arrow decode, stable duplicate reduction, anchored resampling, gap filling, and timerange/startup slicing | Rejects invalid schemas, timestamps, identities, and missing required frames before simulation |
+| Informative frames | NFI calls using Freqtrade merge rules | Explicit `(pair, timeframe)` catalog with causal visibility, suffixing, `ffill`, calendar boundaries, and no-lookahead alignment | Pinned Freqtrade merge fixtures are column-exact; unsupported frame operations fail closed |
+| Indicators | NFI expressions, TA-Lib, qtpylib, NumPy, and pandas helpers | `IndicatorProgram` DAG with bounded streaming TA-Lib/native kernels, lookback planning, constant folding, and live-column projection | Arrow null, IEEE NaN, infinity, and signed zero remain distinct where the source distinguishes them |
+| Entry and exit signals | NFI source-ordered dataframe mutations | Typed `SignalProgram` masks and assignments using Freqtrade's exact numeric-`1`/Boolean-`true` gate | Missing bodies, unknown operations, invalid types, or different signal surfaces stop Native |
+| Tags | NFI tag literals, append order, and route keys | `TagProgram` string interning and masked source-order append, preserving compound tags and whitespace | Tag values are data, never Signal-number branches; raw and adopted tag surfaces must match exactly |
+| Grind and callbacks | NFI adjustment, Derisk, Buyback, rebuy, stop, and managed-exit logic | Generic scalar/callback IR plus bounded state-machine programs over trade, order, wallet, and custom state | A new behavior is Native only when representable by reviewed opcodes and full-state parity evidence |
+| Orders and portfolio | Freqtrade callback order, fill rules, wallet, stake, fee, precision, slots, protections, and pair locks | One deterministic timestamp-ordered Rust event loop; pair-local preparation may run in parallel | Shared wallet and order mutation never runs in parallel; equal-timestamp ordering is stable |
+| Futures | Freqtrade and exchange leverage, funding, mark price, and liquidation contracts | Exact sparse funding/mark joins, leverage and liquidation state, side-aware PnL, and recalculation after fills | Funding is never forward-filled; invalid or incomplete economics fail before a result is claimed |
+| Result proof | Official Freqtrade export and captured full state | Canonical trade surface plus every-candle state projection and stream hash | Zero tolerance: Native promotion requires both trade-surface and full-state equality |
 
-This layout is a behavior-preserving refactor. It does not add strategy-, pair-,
-timerange-, SHA-, or expected-result branches, and optimization work remains a
-separate measured stage.
+The Rust core keeps these responsibilities in separate vector, simulation, portfolio,
+Futures, NFI state-machine, protection, I/O, profiling, and result modules. Optimization
+is driven by IR structure and measured profiles, never by strategy version, pair,
+timerange, SHA, Signal number, or expected output.
 
 ## Install
 
@@ -210,9 +218,9 @@ identities every four hours. Spot and Futures run independently, then an atomic 
 canary verifies both result sets and their fail-closed automation decisions before the
 ledger identity can advance. Changed branches are promoted only after independent
 official/Native trade-surface and full-state equality. Missing exact coverage enters a
-bounded Spot or Futures discovery lane; blocked generic lowering opens an evidence-only
-Draft review while execution stays official-only. An exact, size-bounded discovery hit
-opens a Draft fixture PR. Neither kind is auto-approved or auto-merged.
+bounded Spot or Futures discovery lane; blocked generic lowering updates one reconciled
+compatibility Issue while execution stays official-only. Only an exact, size-bounded
+discovery hit may open a Draft fixture PR, and it is never auto-approved or auto-merged.
 
 For supported X7 stateful callbacks, `run.json` records the
 `x7-generic-stateful` Native lane and every source-compiled primary program. The
