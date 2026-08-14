@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "ce4509db2ce0413805f475d3b331f9a41c666004",
+    "engine_sha": "87bc580c5fee1700f36fc78475c03ce9a94485cc",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "434e0790645558511b9ae0131087becb7f96e7f7286c341b8a40110f37cd18e2"
+  },
+  "trading_mode": "spot",
+  "strategy_classification": "vector-only",
+  "automation_route": "bounded_discovery",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "4280de9255d40fb6415bf3af3eeb7100f3817fe86f6a18263a6244037a9c3d2c",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "1 changed behavior target(s) have no branch-reaching fixture: callback"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": true,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "bc77d340de75868add474a7ad1a81e4271910f9753eb90d9c9b58f692fccbdfa",
+  "decision_fingerprint": "88fd6a0b991cd3d0bb82bd0e0789a90c734329af4c82cd25f7fd62ed68284ef7",
+  "message": "Exact branch evidence is missing; continue bounded discovery."
+}
