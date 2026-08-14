@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "source_sha256": "fcd98225cb0c152e9e0561dd57e0c746157f3220cb24c756eeeb9c6ffe976137",
+  "plan": {
+    "status": "coverage-gap",
+    "selected_fixture_count": 0,
+    "missing_target_count": 1
+  },
+  "runs": [],
+  "proof": null,
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "fcd98225cb0c152e9e0561dd57e0c746157f3220cb24c756eeeb9c6ffe976137",
+    "classification": "vector-only",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "blockers": [
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "1 changed behavior target(s) have no branch-reaching fixture: callback"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
