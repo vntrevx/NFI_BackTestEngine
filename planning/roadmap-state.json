@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 149,
-  "updated_at": "2026-08-14T03:11:20+09:00",
+  "revision": 150,
+  "updated_at": "2026-08-14T23:21:38+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M22-04",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5067,7 +5067,7 @@
       "order": 2204,
       "milestone": "M22",
       "title": "Publish the v1.6.0 Full Native Strategy release",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": [
         "M22-03"
       ],
@@ -5088,9 +5088,19 @@
         "RC/stable byte identity"
       ],
       "started_at": "2026-08-14T03:11:20+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-08-14T23:21:38+09:00",
+      "commit_sha": "87bc580c5fee1700f36fc78475c03ce9a94485cc",
+      "evidence": [
+        "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/31740931466",
+        "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/31743355211",
+        "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/31746625757",
+        "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/31746746610",
+        "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.0-rc.1",
+        "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.0",
+        "benchmarks/evidence/m22/full-native-performance-storage.json",
+        "benchmarks/evidence/m22/latest-x7-full-native-qualification.json",
+        "docs/releases/v1.6.0.md"
+      ],
       "blocker": null
     }
   ],
@@ -8844,6 +8854,36 @@
         "external_2022_report_exact_claim_allowed_without_sealed_input": false,
         "relabel_prior_certificates_allowed": false,
         "runtime_hardcoding_allowed": false
+      }
+    },
+    {
+      "sequence": 197,
+      "timestamp": "2026-08-14T23:21:38+09:00",
+      "task_id": "M22-04",
+      "event": "task_completed",
+      "details": {
+        "candidate_tag": "v1.6.0-rc.1",
+        "stable_tag": "v1.6.0",
+        "release_commit": "87bc580c5fee1700f36fc78475c03ce9a94485cc",
+        "same_commit_required_ci_run_id": 31740931466,
+        "candidate_build_run_id": 31743355211,
+        "candidate_publish_run_id": 31746625757,
+        "stable_promotion_run_id": 31746746610,
+        "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.0",
+        "published_asset_count": 12,
+        "candidate_and_stable_bytes_exact": true,
+        "linux_installer_audit": true,
+        "windows_installer_audit": true,
+        "macos_installer_audit": true,
+        "stable_assets_rebuilt": false,
+        "full_native_strategy_claim": true,
+        "strategy_python_executed_in_native_runtime": false,
+        "runtime_hardcoding_added": false,
+        "new_official_freqtrade_five_year_claim": false,
+        "combined_full_x7_certified": false,
+        "external_2022_report_exact_claimed": false,
+        "roadmap_complete": true,
+        "next_eligible_task": null
       }
     }
   ]
