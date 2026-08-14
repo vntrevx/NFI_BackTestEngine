@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "source_sha256": "a76f932f725b7c6cf1d410a53a605942911b8e103fd6321c4d559bc6218b00f4",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 1,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "x7-v17.4.435-variable-leverage-algo-futures",
+      "target_ids": [
+        "d2663c1ed40f84676728193460344c5c4c7efa9a15e18eac073c5c296689eef8"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "x7-v17.4.435-variable-leverage-algo-futures-targeted-a76f932f725b",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-variable-leverage-algo-futures/official-fixture/manifest.json",
+        "manifest_sha256": "2a93738fcc5bc638ec805f5e6e96731d4776baf7c211dec96e47ed44b1627c4f",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-variable-leverage-algo-futures/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-variable-leverage-algo-futures/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-variable-leverage-algo-futures/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "d2663c1ed40f84676728193460344c5c4c7efa9a15e18eac073c5c296689eef8"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "d2663c1ed40f84676728193460344c5c4c7efa9a15e18eac073c5c296689eef8",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  ],
+  "proof": {
+    "complete": true,
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "a76f932f725b7c6cf1d410a53a605942911b8e103fd6321c4d559bc6218b00f4",
+    "classification": "ir-compatible",
+    "verification_state": "quick_verified",
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "blockers": []
+  },
+  "blockers": [],
+  "verification_state": "quick_verified",
+  "complete": true
+}

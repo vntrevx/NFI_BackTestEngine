@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "ready",
+  "targets": [
+    {
+      "id": "d2663c1ed40f84676728193460344c5c4c7efa9a15e18eac073c5c296689eef8",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "64",
+        "669"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28654,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28891,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "x7-v17.4.435-variable-leverage-algo-futures",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/x7-variable-leverage-futures-v17.4.435-2021-02-04_09/manifest.json",
+      "target_ids": [
+        "d2663c1ed40f84676728193460344c5c4c7efa9a15e18eac073c5c296689eef8"
+      ]
+    }
+  ],
+  "missing_targets": [],
+  "executable": true
+}
