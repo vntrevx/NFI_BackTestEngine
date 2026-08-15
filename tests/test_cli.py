@@ -29,6 +29,9 @@ from nfi_backtest_engine.commands import (
 from nfi_backtest_engine.commands import (
     system as system_commands,
 )
+from nfi_backtest_engine.commands import (
+    update as update_commands,
+)
 from nfi_backtest_engine.parity import ParityDifference, ParityMismatch
 
 
@@ -259,6 +262,7 @@ def test_every_top_level_command_has_one_handler() -> None:
         clean_commands.COMMAND_NAMES,
         certify_commands.COMMAND_NAMES,
         release_commands.COMMAND_NAMES,
+        update_commands.COMMAND_NAMES,
     ]
 
     assert set().union(*handler_sets) == set(subparsers.choices)
@@ -285,6 +289,35 @@ def test_parity_mismatch_keeps_exit_one_after_dispatch_split(
 
     assert cli.main(["doctor"]) == 1
     assert "parity mismatch at $.trades" in capsys.readouterr().err
+
+
+def test_successful_command_checks_for_update_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checked_versions: list[str] = []
+
+    monkeypatch.setattr(cli, "_dispatch_command", lambda *_args, **_kwargs: 0)
+    monkeypatch.setattr(
+        cli,
+        "maybe_print_update_notice",
+        lambda version: checked_versions.append(version),
+    )
+
+    assert cli.main(["doctor"]) == 0
+    assert checked_versions == [cli.__version__]
+
+
+def test_update_command_does_not_repeat_update_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli, "_dispatch_command", lambda *_args, **_kwargs: 0)
+    monkeypatch.setattr(
+        cli,
+        "maybe_print_update_notice",
+        lambda _version: pytest.fail("update must not trigger an update check"),
+    )
+
+    assert cli.main(["update"]) == 0
 
 
 def test_futures_market_capture_loads_pinned_binance_tiers(

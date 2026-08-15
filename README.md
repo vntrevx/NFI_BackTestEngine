@@ -161,6 +161,25 @@ nfi-bte doctor
 The latest public installer and a source checkout of `main` return `nfi-bte 1.6.0`,
 the Full Native Strategy release.
 
+### Keep the CLI updated
+
+Update an installed CLI to the latest public release with one command:
+
+```text
+nfi-bte update
+```
+
+Successful commands check PyPI at most once every 24 hours. When a newer release is
+available, the CLI prints one line to stderr without changing the command result:
+
+```text
+Update available: 1.6.0 -> 1.7.0. Run `nfi-bte update`.
+```
+
+The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
+checkouts remain developer-managed and must be updated through Git and `uv sync`.
+Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
+
 ## Quick start
 
 Run the first-time wizard with an NFI strategy:
@@ -316,6 +335,7 @@ cleanup](docs/clean.md).
 | Command | Purpose |
 | --- | --- |
 | `nfi-bte run` | Run or resume native research |
+| `nfi-bte update` | Update the installed CLI to the latest release |
 | `nfi-bte strategy check ...` | Check a newly downloaded NFI revision |
 | `nfi-bte doctor` | Inspect the current machine |
 | `nfi-bte reference research ...` | Run official Freqtrade |
