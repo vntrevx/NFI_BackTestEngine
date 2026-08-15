@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "296b962204f7bcdef334d2c1ac2c505e2bbb913c",
+    "engine_sha": "0a59cd41d2a2ac3cb41d9aafb20a2fb2c785545b",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "bfe78d11c1560a44eae7ebf03070a67cd98f6299a154f9d9d9754c2566566433"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "external_data_deferred",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": "external_data_deferred",
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "5c1277dd7884029949cb8da0b6a3d8a46c4f93e77125e1ebbd3db747e11f571d",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "81062a1ed494ddcbdef506b2845c9701a731cb00cca7fae883d06a88a9ce3d67",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b5f199a0f393e1a2ab8e2c74c5f4735a942b28b343e5441de7ff09408d760826",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "d673a79f1df91970b45940d3cfff54bb3b19ae395e2d771373f6d6c350bfc5f1",
+      "kind": "signal",
+      "change": "added",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "4 changed behavior target(s) have no branch-reaching fixture: callback, signal"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "320a457d5bb73caaa8c04f5ec5a8f68242ca4dfab389ea263d698e724cca11ac",
+  "decision_fingerprint": "7ed2343b4d351ea7f4ad3c55859d732fc522dabb8c344995db1f273bc7c6a12a",
+  "message": "External data is deferred; keep official-only execution and reuse this state."
+}
