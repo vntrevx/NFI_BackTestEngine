@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "fingerprint": "5814d85c6b76a61e397edfd4ad8b0095a417609c6d16a80659bbbfed26330e51",
+  "identity": {
+    "upstream_commit": "89b45ec4c7926b616d8726390409c516589e09b7",
+    "baseline_upstream_commit": "94a6a53aa4030e7f1ac35a8577b79d8946efa335",
+    "engine_commit": "0a59cd41d2a2ac3cb41d9aafb20a2fb2c785545b",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "c1a534878e0374805c6181fab16e42ef237e5617994f3e3977e764342c604f37",
+    "baseline_strategy_sha256": "a76f932f725b7c6cf1d410a53a605942911b8e103fd6321c4d559bc6218b00f4",
+    "trading_mode": "futures",
+    "policy_sha256": "6c06a09aeb79e9a30a361387d1704067d1e9a1603cdab9ffe6e2be7fd5122c1e",
+    "target_ids": [
+      "59268e8cd0c8e0dca198b659312f5fba1b98870f42e558828b1b6b5b3bda1445"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "59268e8cd0c8e0dca198b659312f5fba1b98870f42e558828b1b6b5b3bda1445",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "10",
+        "162",
+        "4",
+        "43",
+        "61",
+        "669"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28891,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28889,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "59268e8cd0c8e0dca198b659312f5fba1b98870f42e558828b1b6b5b3bda1445",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "10",
+        "162",
+        "4",
+        "43",
+        "61",
+        "669"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28891,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 28889,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}
