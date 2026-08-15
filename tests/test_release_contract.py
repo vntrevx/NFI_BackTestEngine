@@ -4,6 +4,7 @@ import importlib.util
 import json
 import zipfile
 from pathlib import Path
+from tomllib import load
 from types import ModuleType
 
 import pytest
@@ -469,10 +470,13 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     promote = (
         root / ".github/workflows/promote-product-release.yml"
     ).read_text(encoding="utf-8")
+    with (root / "pyproject.toml").open("rb") as project_file:
+        project_version = load(project_file)["project"]["version"]
 
+    assert contract["package_version"] == project_version
     assert contract == {
         "schema_version": "1.0.0",
-        "package_version": "1.6.0",
+        "package_version": "1.6.1",
         "release_kind": "product",
         "combined_full_x7_certified": False,
         "distribution_policy": {
