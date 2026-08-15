@@ -8,14 +8,35 @@ import re
 import sys
 import time
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 from urllib.request import Request, urlopen
 
-PYPI_JSON_URL = "https://pypi.org/pypi/nfi-backtest-engine/json"
+GITHUB_LATEST_RELEASE_URL = (
+    "https://api.github.com/repos/vntrevx/NFI_BackTestEngine/releases/latest"
+)
 CHECK_INTERVAL_SECONDS = 24 * 60 * 60
 NETWORK_TIMEOUT_SECONDS = 1.0
 _RELEASE_PATTERN = re.compile(r"^\d+(?:\.\d+)*")
+_STABLE_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+@dataclass(frozen=True)
+class ReleaseAsset:
+    """One checksum-addressed GitHub release asset."""
+
+    name: str
+    download_url: str
+    sha256: str
+
+
+@dataclass(frozen=True)
+class LatestRelease:
+    """The latest stable GitHub release and its downloadable assets."""
+
+    version: str
+    assets: tuple[ReleaseAsset, ...]
 
 
 def _release_tuple(version: str) -> tuple[int, ...]:
@@ -25,7 +46,7 @@ def _release_tuple(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in match.group().split("."))
 
 
-def _is_newer(latest_version: str, current_version: str) -> bool:
+def is_newer_release(latest_version: str, current_version: str) -> bool:
     latest = _release_tuple(latest_version)
     current = _release_tuple(current_version)
     width = max(len(latest), len(current))
@@ -66,24 +87,69 @@ def _write_cached_version(cache_path: Path, *, now_epoch: float, latest_version:
     temporary_path.replace(cache_path)
 
 
-def fetch_latest_version() -> str:
-    """Read the latest published version from PyPI."""
+def parse_latest_release(payload: object) -> LatestRelease:
+    """Parse the stable GitHub release contract without guessing."""
+    if not isinstance(payload, dict):
+        raise ValueError("GitHub returned a non-object release")
+    tag_name = payload.get("tag_name")
+    if not isinstance(tag_name, str) or not tag_name.startswith("v"):
+        raise ValueError("GitHub release has no stable version tag")
+    version = tag_name.removeprefix("v")
+    if _STABLE_VERSION_PATTERN.fullmatch(version) is None:
+        raise ValueError(f"GitHub latest release tag is not stable: {tag_name}")
+
+    raw_assets = payload.get("assets")
+    if not isinstance(raw_assets, list):
+        raise ValueError("GitHub release has no asset list")
+    assets: list[ReleaseAsset] = []
+    for raw_asset in raw_assets:
+        if not isinstance(raw_asset, dict):
+            raise ValueError("GitHub release contains a non-object asset")
+        name = raw_asset.get("name")
+        download_url = raw_asset.get("browser_download_url")
+        digest = raw_asset.get("digest")
+        if (
+            not isinstance(name, str)
+            or not isinstance(download_url, str)
+            or not isinstance(digest, str)
+            or not digest.startswith("sha256:")
+        ):
+            raise ValueError("GitHub release asset is missing its SHA-256 identity")
+        sha256 = digest.removeprefix("sha256:")
+        if len(sha256) != 64:
+            raise ValueError(f"GitHub release asset has an invalid SHA-256 digest: {name}")
+        assets.append(
+            ReleaseAsset(
+                name=name,
+                download_url=download_url,
+                sha256=sha256,
+            )
+        )
+    return LatestRelease(version=version, assets=tuple(assets))
+
+
+def fetch_latest_release() -> LatestRelease:
+    """Read the latest checksum-addressed stable release from GitHub."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "nfi-bte update-check",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     request = Request(
-        PYPI_JSON_URL,
-        headers={"User-Agent": "nfi-bte update-check"},
+        GITHUB_LATEST_RELEASE_URL,
+        headers=headers,
     )
     with urlopen(request, timeout=NETWORK_TIMEOUT_SECONDS) as response:
         payload: object = json.load(response)
-    if not isinstance(payload, dict):
-        raise ValueError("PyPI returned a non-object response")
-    info = payload.get("info")
-    if not isinstance(info, dict):
-        raise ValueError("PyPI response has no info object")
-    latest_version = info.get("version")
-    if not isinstance(latest_version, str):
-        raise ValueError("PyPI response has no version")
-    _release_tuple(latest_version)
-    return latest_version
+    return parse_latest_release(payload)
+
+
+def fetch_latest_version() -> str:
+    """Read the latest published GitHub release version."""
+    return fetch_latest_release().version
 
 
 def available_update_notice(
@@ -93,7 +159,7 @@ def available_update_notice(
     now_epoch: float,
     fetch_latest: Callable[[], str],
 ) -> str | None:
-    """Return a notice only when PyPI has a newer stable release."""
+    """Return a notice only when GitHub has a newer stable release."""
     latest_version = _read_cached_version(cache_path, now_epoch=now_epoch)
     if latest_version is None:
         latest_version = fetch_latest()
@@ -102,7 +168,7 @@ def available_update_notice(
             now_epoch=now_epoch,
             latest_version=latest_version,
         )
-    if not _is_newer(latest_version, current_version):
+    if not is_newer_release(latest_version, current_version):
         return None
     return (
         f"Update available: {current_version} -> {latest_version}. "

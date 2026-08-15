@@ -19,10 +19,10 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.6.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.0) |
+| Latest public release | [v1.6.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.1) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.6.0 Full Native Strategy release; no new combined Full X7 certification claim |
+| Current `main` | v1.6.1 product update; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -158,8 +158,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` return `nfi-bte 1.6.0`,
-the Full Native Strategy release.
+The latest public installer and a source checkout of `main` return `nfi-bte 1.6.1`.
 
 ### Keep the CLI updated
 
@@ -169,11 +168,11 @@ Update an installed CLI to the latest public release with one command:
 nfi-bte update
 ```
 
-Successful commands check PyPI at most once every 24 hours. When a newer release is
+Successful commands check GitHub Releases at most once every 24 hours. When a newer release is
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.6.0 -> 1.7.0. Run `nfi-bte update`.
+Update available: 1.6.0 -> 1.6.1. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source

@@ -17,10 +17,21 @@ def test_update_executes_detected_upgrade_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     observed: list[list[str]] = []
-    command = ["uv", "tool", "upgrade", "nfi-backtest-engine"]
+    release = update_check.LatestRelease(version="1.6.1", assets=())
 
     monkeypatch.setattr(update_commands, "_is_source_checkout", lambda: False)
-    monkeypatch.setattr(update_commands, "_select_upgrade_command", lambda: command)
+    monkeypatch.setattr(update_commands, "__version__", "1.6.0")
+    monkeypatch.setattr(update_commands, "fetch_latest_release", lambda: release)
+    monkeypatch.setattr(
+        update_commands,
+        "_download_release_wheel",
+        lambda fetched, destination: destination / f"engine-{fetched.version}.whl",
+    )
+    monkeypatch.setattr(
+        update_commands,
+        "_select_upgrade_command",
+        lambda wheel: ["/usr/bin/uv", "tool", "install", "--force", str(wheel)],
+    )
 
     def fake_run(
         arguments: list[str],
@@ -36,18 +47,28 @@ def test_update_executes_detected_upgrade_command(
     result = update_commands.execute(argparse.Namespace(command_name="update"))
 
     assert result == 0
-    assert observed == [command]
-    assert "Update complete." in capsys.readouterr().out
+    assert observed[0][:4] == ["/usr/bin/uv", "tool", "install", "--force"]
+    assert observed[0][4].endswith("engine-1.6.1.whl")
+    assert "Updated to NFI Backtest Engine 1.6.1." in capsys.readouterr().out
 
 
 def test_update_failure_preserves_installed_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    release = update_check.LatestRelease(version="1.6.1", assets=())
+
     monkeypatch.setattr(update_commands, "_is_source_checkout", lambda: False)
+    monkeypatch.setattr(update_commands, "__version__", "1.6.0")
+    monkeypatch.setattr(update_commands, "fetch_latest_release", lambda: release)
+    monkeypatch.setattr(
+        update_commands,
+        "_download_release_wheel",
+        lambda fetched, destination: destination / f"engine-{fetched.version}.whl",
+    )
     monkeypatch.setattr(
         update_commands,
         "_select_upgrade_command",
-        lambda: ["uv", "tool", "upgrade", "nfi-backtest-engine"],
+        lambda wheel: ["/usr/bin/uv", "tool", "install", "--force", str(wheel)],
     )
     monkeypatch.setattr(
         update_commands.subprocess,
@@ -59,9 +80,31 @@ def test_update_failure_preserves_installed_version(
         update_commands.execute(argparse.Namespace(command_name="update"))
 
 
-def test_uv_tool_install_selects_uv_tool_upgrade(
+def test_update_does_not_downgrade_newer_installed_version(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    release = update_check.LatestRelease(version="1.6.0", assets=())
+
+    monkeypatch.setattr(update_commands, "_is_source_checkout", lambda: False)
+    monkeypatch.setattr(update_commands, "__version__", "1.6.1")
+    monkeypatch.setattr(update_commands, "fetch_latest_release", lambda: release)
+    monkeypatch.setattr(
+        update_commands,
+        "_download_release_wheel",
+        lambda *_args: pytest.fail("a newer installation must not be replaced"),
+    )
+
+    result = update_commands.execute(argparse.Namespace(command_name="update"))
+
+    assert result == 0
+    assert "Already up to date: 1.6.1." in capsys.readouterr().out
+
+
+def test_uv_tool_install_selects_verified_wheel(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    wheel = Path("/tmp/nfi-backtest-engine-1.6.1.whl")
     monkeypatch.setattr(sys, "executable", "/home/user/.local/share/uv/tools/pkg/bin/python")
     monkeypatch.setattr(
         update_commands.shutil,
@@ -69,12 +112,39 @@ def test_uv_tool_install_selects_uv_tool_upgrade(
         lambda executable: f"/usr/bin/{executable}" if executable == "uv" else None,
     )
 
-    assert update_commands._select_upgrade_command() == [
+    assert update_commands._select_upgrade_command(wheel) == [
         "/usr/bin/uv",
         "tool",
-        "upgrade",
-        "nfi-backtest-engine",
+        "install",
+        "--force",
+        "--python",
+        "3.12",
+        str(wheel),
     ]
+
+
+def test_github_release_payload_parses_version_and_assets() -> None:
+    release = update_check.parse_latest_release(
+        {
+            "tag_name": "v1.6.1",
+            "assets": [
+                {
+                    "name": "nfi_backtest_engine-1.6.1-manylinux2014_x86_64.whl",
+                    "browser_download_url": "https://example.test/engine.whl",
+                    "digest": "sha256:" + "a" * 64,
+                }
+            ],
+        }
+    )
+
+    assert release.version == "1.6.1"
+    assert release.assets == (
+        update_check.ReleaseAsset(
+            name="nfi_backtest_engine-1.6.1-manylinux2014_x86_64.whl",
+            download_url="https://example.test/engine.whl",
+            sha256="a" * 64,
+        ),
+    )
 
 
 def test_update_notice_fetches_and_caches_latest_version(tmp_path: Path) -> None:
