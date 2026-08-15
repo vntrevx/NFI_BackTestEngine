@@ -34,6 +34,9 @@ from .commands import (
 from .commands import (
     system as system_commands,
 )
+from .commands import (
+    update as update_commands,
+)
 from .config_loader import load_effective_config
 from .errors import NfiBacktestError
 from .hardware import create_execution_profile
@@ -44,6 +47,7 @@ from .product_contract import (
 )
 from .reference_runtime import load_reference_leverage_tiers
 from .state_trace import TraceMismatch
+from .update_check import maybe_print_update_notice
 
 
 def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
@@ -104,6 +108,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nfi-bte")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subcommands = parser.add_subparsers(dest="command_name", required=True)
+
+    subcommands.add_parser("update", help="update the installed CLI to the latest release")
 
     fixture = subcommands.add_parser("fixture", help="manage benchmark fixtures")
     fixture_commands = fixture.add_subparsers(dest="fixture_command", required=True)
@@ -1301,6 +1307,8 @@ def _dispatch_command(
         return certify_commands.execute(args)
     if command_name in release_commands.COMMAND_NAMES:
         return release_commands.execute(args)
+    if command_name in update_commands.COMMAND_NAMES:
+        return update_commands.execute(args)
     raise AssertionError(f"unhandled command: {command_name}")
 
 
@@ -1313,7 +1321,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         raw_args = raw_args[:separator]
     args = build_parser().parse_args(raw_args)
     try:
-        return _dispatch_command(args, benchmark_command=benchmark_command)
+        result = _dispatch_command(args, benchmark_command=benchmark_command)
+        if result == 0 and args.command_name != "update":
+            maybe_print_update_notice(__version__)
+        return result
     except ParityMismatch as exc:
         print(str(exc), file=sys.stderr)
         return 1
