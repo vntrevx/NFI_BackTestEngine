@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "fingerprint": "e9a5dc341fdfe05fa495e1229f18d732b27c903d14a14a2bfd13705b41da401e",
+  "identity": {
+    "upstream_commit": "070bd72628dedaf6f9bf1ca31ff6ee3d3b82a0c1",
+    "baseline_upstream_commit": "296b962204f7bcdef334d2c1ac2c505e2bbb913c",
+    "engine_commit": "c45a7a5e2ca147d95a9ed35f381e5bd7bdff9426",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "37bea81bc9081b889e47102cfbef34afef274fac549e973820be6a9725ec176d",
+    "baseline_strategy_sha256": "bfe78d11c1560a44eae7ebf03070a67cd98f6299a154f9d9d9754c2566566433",
+    "trading_mode": "futures",
+    "policy_sha256": "6c06a09aeb79e9a30a361387d1704067d1e9a1603cdab9ffe6e2be7fd5122c1e",
+    "target_ids": [
+      "e74bb350381672eb1642fb5897cc320e7c0f6ae45de49f73965695f2579a327e"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "e74bb350381672eb1642fb5897cc320e7c0f6ae45de49f73965695f2579a327e",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "43"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 29019,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 29021,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "e74bb350381672eb1642fb5897cc320e7c0f6ae45de49f73965695f2579a327e",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "43"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 29019,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13030,
+            "column": 2,
+            "end_line": 29021,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}
