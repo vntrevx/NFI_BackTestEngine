@@ -1,0 +1,267 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "0b7841c73872e802584b0278981fd3bcba5152fe",
+    "engine_sha": "f24d055649dca5b112917a75d4c207bdff04d452",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "f2bd0f06febff8da0978ac7921b1c17a0c1e2afce36e9261b06057ad95f7247c"
+  },
+  "trading_mode": "spot",
+  "strategy_classification": "stateful-review",
+  "automation_route": "semantic_review_issue",
+  "execution_route": "official_only",
+  "review_kind": "generic_lowering",
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "17fa7f775543361231846e0381348e1876794b578f74f0bafb8cb5846453e877",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "263a2f7c4bae1ad63c1acb347b1a6a731a83a63f8643d3a9b430e8474c1462d0",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2b7a641195ef25298e70f4c13ce15b3bf6a7b9cb02c1067b92b49e03c73eda58",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2d384401872d8d1f78577bfc8290b120699493f46562983ae4aabf1ce3e347ba",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3123d644d6a15a3124f78fee0145788396ea20418151d99d381bdc6d518fa84e",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3441178e7758bf1abcb1b811cbb2d2786b42a89d03eb6d3ce81b4b4929b55962",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "38cce4107d75d1d7f33331a259f95a65ac63b89bc5a8c6b38157a01c3131dfee",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3d061dd019bd92e8f902d3121d4a7be9119524f8ae4dd5380338fc82702e2bd1",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4064aada3639726260ae8186ac81c49695b2e173fce23a38037bd8ca0bf85126",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4763d4efff719c804d02aac098786fd180c06d33483b911e9f4a432ddec0e25d",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4ec8be213f112caf984bb62f586e19a808957da986680db6322b6a9cfcccf21f",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5f6df9fd30f289e81565b3be3de014a472d564037e88b7b0e3bfdb4a39f9a0df",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6412e51dc8cd080a0f2208bf9bb0bd3eb3e2d2790d18f2d05fe678603f1a619f",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "68824b1d6695183d4242bf9b06ce6d4401bbd715fb3d39e974fc6fc0e3e2cae7",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "70279fe4bd6a3af3c3cda9c1d14a6ab99f0be0938f197018a52a60f3b1fc079a",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "7464965266e13ed007c120017c0d021865e011f41eebfbac6a3ab0a662b174ef",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8362c1e642e37895ba618ede1054ba071817bcdf9310a1b54008b3eb137a4620",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "889e58676d8aeaadad9f9f888c3c898c91ac298a0cd9d174d73016e9c8f3c1b0",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "912244f2ca953e8f06eeb1c2d9291412d5a4f92ca89efbe51bfbf1c232cabe8f",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": false
+    },
+    {
+      "id": "9456687d476bb4ed93963ddfff300a824f2e8efb8bb77116b301d4e5f82562e4",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "96c92213c236c8b73c3a6ae6f92cb8e9c68df08be1344d4d3019140a2683046e",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a0a820f6cdf06acabe2a32046a7e099569b3ec0b0483ce7c0724f41f8c28c599",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a4e286ef4982b393be755495b3429dfe87746ac4117a6c8135f5a64f662ecce2",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a804dd25611fac902769b879cddd09b9c9010765293f670b3d8e8173f74541ea",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b2058649f60898fc472b3fe436a9d2108daaa6e3afd2dcaba701bf63b05bcf16",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b299a4fbec041fb6dddf48e0977b2e1618de820f034b19762a9e1f288e137312",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bbc867f28b00f81ceb2d8c41f5031c3e226e6ac29343a37f1cc5c4d0c38fd86a",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "cf727cc8f903e75893a629e07c471e8a449bed058f1951a155b72a04fb017391",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "d248c4f75ac9c7873e6fa24316c44a0313ed5dc09005244aebb72e8bad95c0f8",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "df4acc1e6a3526f8162e7b8be3a360e0741fd49f2c34b29719b61389a0d4e0d0",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "e4c2fd31f1fe06c66901537d14dc3cf7cc4754d91cf9033e3a4adbabb464ed3e",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "eb0ef68a4df98ebbf1d9cff42dc758f767f3b74ab1b10d265e391ea307750a4b",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ebf891bed5671b1bbd354e69e987c3de5df1bcb8bd5fe4ea8f4c507652d98da9",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "fe74227cc931c2266c99006a51457808a89d746066f9dce5abca175c742edf51",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ff72b75b7aa2f9ea84adbb375de1a107f636ad3ef6883cdfc1bd46c03a608b12",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "scalar fragment cannot be represented at 49007:23: global name 'self' is not frozen"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "3 changed behavior target(s) have no branch-reaching fixture: callback"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": true,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "e07745d31745f67bdbbda6cb80944c0a281f4933e42f9f68d8837d80a2ee43fa",
+  "decision_fingerprint": "d2ca0946f9c116d795c2b7db16362aa650d528e936086e21e4f4fd5b8c51a71b",
+  "message": "Static lowering is blocked; track the generic lowering in the compatibility issue."
+}

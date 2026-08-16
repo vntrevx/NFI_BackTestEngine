@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "source_sha256": "f2bd0f06febff8da0978ac7921b1c17a0c1e2afce36e9261b06057ad95f7247c",
+  "plan": {
+    "status": "coverage-gap",
+    "selected_fixture_count": 1,
+    "missing_target_count": 3
+  },
+  "runs": [],
+  "proof": null,
+  "qualification": {
+    "schema_version": "1.0.0",
+    "strategy_sha256": "f2bd0f06febff8da0978ac7921b1c17a0c1e2afce36e9261b06057ad95f7247c",
+    "classification": "stateful-review",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "blockers": [
+      {
+        "code": "NATIVE_COMPATIBILITY_BLOCKED",
+        "message": "static Native compatibility did not pass"
+      },
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "scalar fragment cannot be represented at 49007:23: global name 'self' is not frozen"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "3 changed behavior target(s) have no branch-reaching fixture: callback"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
