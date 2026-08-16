@@ -137,6 +137,10 @@ timerange, SHA, Signal number, or expected output.
 
 ## Install
 
+Installation targets advanced users who are comfortable with the shell and, for
+data downloads or Freqtrade confirmation, with Docker and basic Ubuntu/Linux
+commands.
+
 Windows PowerShell:
 
 ```powershell
@@ -152,6 +156,9 @@ curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/ins
 The installer downloads the matching wheel from the latest public GitHub release,
 checks its published SHA-256 digest, and installs `nfi-bte` in an isolated `uv`
 environment.
+
+Close and reopen your terminal (or open a new shell) after installation so the
+`nfi-bte` command is picked up on `PATH`, then verify:
 
 ```text
 nfi-bte --version
@@ -361,7 +368,11 @@ Requirements:
 
 - Python 3.12, 3.13, or 3.14
 - an NFI/Freqtrade strategy, config, candle directory, and timerange
-- Docker only for data downloads or official Freqtrade confirmation
+- Docker only for data downloads or official Freqtrade confirmation. Install Docker
+  for your distribution yourself
+  ([Docker Engine docs](https://docs.docker.com/engine/install/) cover Ubuntu,
+  Debian, Fedora, and more); install commands differ per distro and the installer
+  does not manage Docker
 
 Public market metadata needs no exchange API credentials. Never commit private keys or
 live-trading secrets.
