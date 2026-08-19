@@ -1,0 +1,1110 @@
+{
+  "schema_version": "1.0.0",
+  "checked_at": "2026-08-19T16:47:29.605286Z",
+  "source": {
+    "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/NostalgiaForInfinityX7.py",
+    "bytes": 3402482,
+    "sha256": "1b662abb3b5d196b99996d758cdef24bd4a412d569f2dd3050577ebeb32d032e"
+  },
+  "selected_class": "NostalgiaForInfinityX7",
+  "trading_mode": "futures",
+  "config": null,
+  "static_safe": true,
+  "native_compatible": false,
+  "blockers": [
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "scalar fragment cannot be represented at 49541:23: global name 'self' is not frozen"
+    }
+  ],
+  "callback_ir": null,
+  "callback_source_ir": {
+    "schema_version": "callback-source-ir-v1",
+    "fingerprint": "468044f24961c1f3983ec61374e29d8ed0f2da98d9cc725addfa7292f2502c1c",
+    "entrypoints": [
+      "custom_exit",
+      "custom_stake_amount",
+      "order_filled",
+      "adjust_trade_position",
+      "confirm_trade_entry",
+      "confirm_trade_exit",
+      "check_entry_timeout",
+      "check_exit_timeout",
+      "bot_loop_start",
+      "leverage"
+    ],
+    "route_keys": [
+      "long_normal_mode_tags",
+      "long_pump_mode_tags",
+      "long_quick_mode_tags",
+      "long_rebuy_mode_tags",
+      "long_high_profit_mode_tags",
+      "long_rapid_mode_tags",
+      "long_grind_mode_tags",
+      "long_btc_mode_tags",
+      "long_top_coins_mode_tags",
+      "long_scalp_mode_tags",
+      "long_rebuy_grind_mode_tags",
+      "long_scalp_rebuy_grind_mode_tags",
+      "long_rapid_rebuy_grind_mode_tags",
+      "long_rapid_rebuy_grind_scalp_mode_tags",
+      "long_adjust_mode_tags",
+      "long_known_mode_tags",
+      "short_normal_mode_tags",
+      "short_pump_mode_tags",
+      "short_quick_mode_tags",
+      "short_rebuy_mode_tags",
+      "short_high_profit_mode_tags",
+      "short_rapid_mode_tags",
+      "short_grind_mode_tags",
+      "short_scalp_mode_tags",
+      "short_rebuy_grind_mode_tags",
+      "short_scalp_rebuy_grind_mode_tags",
+      "short_rapid_rebuy_grind_mode_tags",
+      "short_adjust_mode_tags",
+      "short_known_mode_tags",
+      "short_exit_known_mode_tags"
+    ],
+    "emitted_tag_count": 4388,
+    "required_reads": [
+      {
+        "source": "candle",
+        "key": "current_entry_profit",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "candle",
+        "key": "current_entry_rate",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "candle",
+        "key": "current_exit_profit",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "candle",
+        "key": "current_exit_rate",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "candle",
+        "key": "current_profit",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "candle",
+        "key": "current_rate",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "candle",
+        "key": "current_time",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_entry",
+          "bot_loop_start"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "ft_order_side",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "ft_order_tag",
+        "entrypoints": [
+          "custom_exit",
+          "order_filled",
+          "adjust_trade_position",
+          "check_exit_timeout"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "id",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "price",
+        "entrypoints": [
+          "check_entry_timeout",
+          "check_exit_timeout"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "safe_filled",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "safe_price",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "order",
+        "key": "safe_remaining",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "orders",
+        "key": "filled",
+        "entrypoints": [
+          "custom_exit",
+          "order_filled",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "amount",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "enter_tag",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "entry_side",
+        "entrypoints": [
+          "custom_exit",
+          "order_filled",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "exit_side",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "fee_close",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "fee_open",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "funding_fees",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "get_custom_data",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "has_open_orders",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "id",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "is_short",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_exit",
+          "check_entry_timeout",
+          "check_exit_timeout"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "leverage",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "liquidation_price",
+        "entrypoints": [
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "nr_of_successful_entries",
+        "entrypoints": [
+          "order_filled",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "nr_of_successful_exits",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "open_date_utc",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "open_rate",
+        "entrypoints": [
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "orders",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "pair",
+        "entrypoints": [
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "realized_profit",
+        "entrypoints": [
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "select_filled_orders",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "set_custom_data",
+        "entrypoints": [
+          "order_filled",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "trade",
+        "key": "stake_amount",
+        "entrypoints": [
+          "adjust_trade_position",
+          "confirm_trade_exit"
+        ]
+      },
+      {
+        "source": "wallet",
+        "key": "max_stake",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "wallet",
+        "key": "min_stake",
+        "entrypoints": [
+          "custom_stake_amount",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "source": "wallet",
+        "key": "proposed_stake",
+        "entrypoints": [
+          "custom_stake_amount"
+        ]
+      }
+    ],
+    "required_columns": [
+      {
+        "name": "AROOND_14",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROOND_14_15m",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROOND_14_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "AROOND_14_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROOND_14_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROONU_14",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROONU_14_15m",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROONU_14_1d",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROONU_14_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "AROONU_14_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "BBB_20_2.0_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "BBL_20_2.0",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "BBL_20_2.0_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "BBU_20_2.0",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "BBU_20_2.0_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "BB_ABOVE_COUNT",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "BB_BELOW_COUNT",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "BTC_RSI_14_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "CCI_20_change_pct_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "CCI_20_change_pct_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "CMF_20",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "CMF_20_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "CMF_20_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "EMA_100",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_100_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_12",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_12_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "EMA_12_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_16",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_20",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_200",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "EMA_200_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "EMA_200_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_26",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_50",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "EMA_50_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "EMA_9",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "KST_10_15_20_30_10_10_10_15",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "KST_10_15_20_30_10_10_10_15_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "KST_10_15_20_30_10_10_10_15_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "KSTs_9",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "KSTs_9_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "KSTs_9_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "MFI_14",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "ROC_2",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "ROC_2_1d",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "ROC_2_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "ROC_2_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "ROC_9_15m",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "ROC_9_1d",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "ROC_9_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "ROC_9_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_14",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_14_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "RSI_14_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_14_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_20",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_3",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_3_15m",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_3_1d",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_3_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "RSI_3_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "SMA_16",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "SMA_21",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "SMA_30",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "SMA_9",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "STOCHRSIk_14_14_3_3",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "STOCHRSIk_14_14_3_3_15m",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "STOCHRSIk_14_14_3_3_1d",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "STOCHRSIk_14_14_3_3_1h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "STOCHRSIk_14_14_3_3_4h",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "STOCHRSIk_14_14_3_3_change_pct_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "STOCHk_14_3_3_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "WILLR_14",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "WILLR_480",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "WILLR_84_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "bot_wick_pct_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "change_pct_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "change_pct_1h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "change_pct_4h",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "close",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position",
+          "confirm_trade_entry"
+        ]
+      },
+      {
+        "name": "close_max_12",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "close_max_48",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "close_min_12",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "close_min_48",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "enter_long",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "enter_short",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "global_protections_long_dump",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "global_protections_long_pump",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "global_protections_short_dump",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "global_protections_short_pump",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "high_max_12_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "high_max_12_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "high_max_24_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "high_max_24_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "high_max_30_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "high_max_6_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "low_min_12_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "low_min_12_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "low_min_24_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "low_min_24_4h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "low_min_30_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      },
+      {
+        "name": "low_min_6_1h",
+        "entrypoints": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "open",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "protections_long_global",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "protections_long_rebuy",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "protections_short_global",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "protections_short_rebuy",
+        "entrypoints": [
+          "custom_exit",
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "name": "top_wick_pct_1d",
+        "entrypoints": [
+          "custom_exit"
+        ]
+      }
+    ]
+  },
+  "state_machine_ir": null
+}
