@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "ready",
+  "targets": [
+    {
+      "id": "de93aef88ca84d48148e147c49202b728563440f73597f2dc96fe4ea08132d0a",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "102",
+        "141"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 29978,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 29982,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "x7-v17.4.435-compound-tag-ape-futures",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/x7-compound-tag-futures-v17.4.435-2022-04-29_05-02/manifest.json",
+      "target_ids": [
+        "de93aef88ca84d48148e147c49202b728563440f73597f2dc96fe4ea08132d0a"
+      ]
+    }
+  ],
+  "missing_targets": [],
+  "executable": true
+}
