@@ -1,0 +1,290 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "coverage-gap",
+  "targets": [
+    {
+      "id": "3066b2566a97f1090c38a405f04de79576379e9a8c7b2d6218b1094639154a16",
+      "kind": "tag",
+      "change": "added",
+      "value": "string",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "10",
+        "101",
+        "102",
+        "103",
+        "104",
+        "105",
+        "11",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "164",
+        "165",
+        "166",
+        "167",
+        "168",
+        "169",
+        "170",
+        "171",
+        "172",
+        "173",
+        "192",
+        "193",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "505",
+        "506",
+        "541",
+        "542",
+        "543",
+        "544",
+        "545",
+        "546",
+        "561",
+        "562",
+        "563",
+        "592",
+        "593",
+        "6",
+        "605",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661",
+        "662",
+        "663",
+        "664",
+        "665",
+        "666",
+        "667",
+        "669",
+        "670",
+        "671",
+        "68",
+        "7",
+        "8",
+        "9",
+        "string"
+      ],
+      "proof": {
+        "mode": "presence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 29982,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 30048,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "5b1294f1c96c328e5916f4ff969e27e1966668bf5d46333723824a54265edd1d",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "142",
+        "143",
+        "145",
+        "193",
+        "61",
+        "62",
+        "665"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 29982,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 30048,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "x7-v17.4.435-compound-tag-ape-futures",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/x7-compound-tag-futures-v17.4.435-2022-04-29_05-02/manifest.json",
+      "target_ids": [
+        "5b1294f1c96c328e5916f4ff969e27e1966668bf5d46333723824a54265edd1d"
+      ]
+    }
+  ],
+  "missing_targets": [
+    {
+      "id": "3066b2566a97f1090c38a405f04de79576379e9a8c7b2d6218b1094639154a16",
+      "kind": "tag",
+      "change": "added",
+      "value": "string",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "1",
+        "10",
+        "101",
+        "102",
+        "103",
+        "104",
+        "105",
+        "11",
+        "120",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "161",
+        "162",
+        "163",
+        "164",
+        "165",
+        "166",
+        "167",
+        "168",
+        "169",
+        "170",
+        "171",
+        "172",
+        "173",
+        "192",
+        "193",
+        "2",
+        "21",
+        "3",
+        "4",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "5",
+        "501",
+        "502",
+        "503",
+        "504",
+        "505",
+        "506",
+        "541",
+        "542",
+        "543",
+        "544",
+        "545",
+        "546",
+        "561",
+        "562",
+        "563",
+        "592",
+        "593",
+        "6",
+        "605",
+        "61",
+        "62",
+        "63",
+        "64",
+        "641",
+        "642",
+        "65",
+        "661",
+        "662",
+        "663",
+        "664",
+        "665",
+        "666",
+        "667",
+        "669",
+        "670",
+        "671",
+        "68",
+        "7",
+        "8",
+        "9",
+        "string"
+      ],
+      "proof": {
+        "mode": "presence",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 29982,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 12916,
+            "column": 2,
+            "end_line": 30048,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "executable": false
+}
