@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "strategy_sha256": "59c23d45e342ae5fce16cac2d0827f346dfd64e4b3ef5b9c0bc601ef0a2ea723",
+  "classification": "ir-compatible",
+  "verification_state": "latest_checked",
+  "changed_branch_reached": false,
+  "trade_surface_exact": null,
+  "full_state_exact": null,
+  "blockers": [
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    },
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    }
+  ]
+}
