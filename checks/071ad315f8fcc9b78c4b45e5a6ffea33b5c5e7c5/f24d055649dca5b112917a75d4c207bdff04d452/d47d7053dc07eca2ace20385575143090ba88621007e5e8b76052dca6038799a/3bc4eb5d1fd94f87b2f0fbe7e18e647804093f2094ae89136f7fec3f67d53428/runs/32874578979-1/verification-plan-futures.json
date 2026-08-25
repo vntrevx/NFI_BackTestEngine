@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "ready",
+  "targets": [
+    {
+      "id": "7e003b85d67498cab7f7b60ef943ad00fea2979c8c7d816f4aa7670cba312db2",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "47",
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13003,
+            "column": 2,
+            "end_line": 30397,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13003,
+            "column": 2,
+            "end_line": 30401,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json",
+      "target_ids": [
+        "7e003b85d67498cab7f7b60ef943ad00fea2979c8c7d816f4aa7670cba312db2"
+      ]
+    }
+  ],
+  "missing_targets": [],
+  "executable": true
+}
