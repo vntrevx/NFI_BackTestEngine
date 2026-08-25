@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "classification": "ir-compatible",
+  "status": "coverage-gap",
+  "targets": [
+    {
+      "id": "a133bee046db797dc1af277f5aaaca0252d2dc1322573da56a102f591ed4b9e1",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "47",
+        "562",
+        "6",
+        "64",
+        "65"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13003,
+            "column": 2,
+            "end_line": 30385,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13003,
+            "column": 2,
+            "end_line": 30397,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [],
+  "missing_targets": [
+    {
+      "id": "a133bee046db797dc1af277f5aaaca0252d2dc1322573da56a102f591ed4b9e1",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "47",
+        "562",
+        "6",
+        "64",
+        "65"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13003,
+            "column": 2,
+            "end_line": 30385,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13003,
+            "column": 2,
+            "end_line": 30397,
+            "end_column": 13
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "executable": false
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "1232e33450742dd132a3bcdd3963f949c390f924",
+    "engine_sha": "f24d055649dca5b112917a75d4c207bdff04d452",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "5161c4c02afbe597f531773b90e963dcd67bdebedfab87af7dc8aae2091e8b4f"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "semantic_review_issue",
+  "execution_route": "official_only",
+  "review_kind": "generic_lowering",
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "a133bee046db797dc1af277f5aaaca0252d2dc1322573da56a102f591ed4b9e1",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "scalar fragment cannot be represented at 50259:23: global name 'self' is not frozen"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": true,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "bc3ac7b2ebda39c9d9ec4ef9294eb66f8a6cfe8db7ebd59b5cd94013a4068a89",
+  "decision_fingerprint": "6dda32e741d34bb76d2c83f8192ce29b41f2d5f9afed35a1fb751638a7b2f3fd",
+  "message": "Static lowering is blocked; track the generic lowering in the compatibility issue."
+}
