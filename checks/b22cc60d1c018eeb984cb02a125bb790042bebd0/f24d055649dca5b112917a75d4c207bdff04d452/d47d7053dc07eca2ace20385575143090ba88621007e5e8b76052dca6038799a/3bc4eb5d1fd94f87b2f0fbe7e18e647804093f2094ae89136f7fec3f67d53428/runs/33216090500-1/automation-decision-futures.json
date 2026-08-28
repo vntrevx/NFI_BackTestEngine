@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "b22cc60d1c018eeb984cb02a125bb790042bebd0",
+    "engine_sha": "f24d055649dca5b112917a75d4c207bdff04d452",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "strategy_sha256": "40796e8be7ad11ba14dc51607ee1d002d1c7cce743f1476f67ddfac5283a5aeb"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "stateful-review",
+  "automation_route": "semantic_review_issue",
+  "execution_route": "official_only",
+  "review_kind": "new_opcode",
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [
+    "call:_bad_trade_controller_exit_reason",
+    "call:_boost_bad_trade_long_grind_stake"
+  ],
+  "behavior_targets": [
+    {
+      "id": "078de46033ee673cd55f062dbbaaa98a470384b4688fb9dc59bc984c6ea68264",
+      "kind": "opcode",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "24171beca3801d20366bf60eb7476c89886aa5b4f36debe1d11c423e0ce4ace0",
+      "kind": "tag",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "5acb4ea6422630a10d2da35f81c07987ee46b815e7489b833fb2a8df985d541d",
+      "kind": "tag",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "624ddd89f21f86d946af01b581d54074df58a749ed89478ed9f1752480dbf202",
+      "kind": "callback",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "947c607850913fdf4d44275e676412764a3748cc94d4fc9019e7d5099b332945",
+      "kind": "opcode",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "d248c4f75ac9c7873e6fa24316c44a0313ed5dc09005244aebb72e8bad95c0f8",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "d47dd4eb8be084f89ff42ba0e3c825230efec821363bfc8ab3e09f60c29d4f6b",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": false
+    },
+    {
+      "id": "ef6d1ac32d236ddd8a1732d2afa81f1f4337f4b5c56f152e1221fc2aa2962ddc",
+      "kind": "callback",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "f81b7d5337ebb873951a8d0f3346483a45aa942cdeb8c0de473ce7043f16a1cf",
+      "kind": "callback",
+      "change": "added",
+      "runtime_observable": true
+    },
+    {
+      "id": "ffed042b61a99201f3cec37ccc0e52ee32009185d1c0db5233bd6f237f35df23",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+      "message": "scalar fragment cannot be represented at 50418:23: global name 'self' is not frozen"
+    },
+    {
+      "code": "NATIVE_COMPATIBILITY_BLOCKED",
+      "message": "static Native compatibility did not pass"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "3 changed behavior target(s) have no branch-reaching fixture: callback, tag"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": true,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "2ea5cd37aadb18b8718acd97971c20d2d3ee1212198f0e58504a01f02bea1d0d",
+  "decision_fingerprint": "91dd18b02c6f3628bbba61d4d50a6bd656fa55252f896c670ff7ac2b0fdd6101",
+  "message": "Static lowering is blocked; track the new generic opcode in the compatibility issue."
+}
