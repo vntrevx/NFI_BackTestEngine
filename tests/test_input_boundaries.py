@@ -487,24 +487,25 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
             Path(sys.executable), "a" * 64, None
         ),
     )
+    deadline_seconds = 10.0 if os.name == "nt" else 2.0
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
-        listener.settimeout(5)
+        listener.settimeout(deadline_seconds + 5)
         monkeypatch.setenv("NFI_TEST_READY_PORT", str(listener.getsockname()[1]))
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(
                 benchmark.run_benchmark,
                 manifest_path,
                 tmp_path / "report.json",
-                trusted_timeout_seconds=2.0,
+                trusted_timeout_seconds=deadline_seconds,
             )
             connection, _address = listener.accept()
             with connection:
                 connection.settimeout(5)
                 child_pid = int(connection.recv(32).decode())
             with pytest.raises(BenchmarkError, match="timed out"):
-                future.result(timeout=5)
+                future.result(timeout=deadline_seconds + 5)
 
     with pytest.raises(ProcessLookupError):
         os.kill(child_pid, 0)
