@@ -1,0 +1,126 @@
+{
+  "blockers": [],
+  "fingerprint": "3aeb86b38a00aa0ab018a7a298565f3d6ef1a678e1c340d5555fc7494d08cd1e",
+  "freqtrade": {
+    "contracts": [
+      {
+        "file_sha256": "3e3c2fd0e5dbd2a975ec75945e39480cafa019d7e6cc3458818d731e22de96e4",
+        "fingerprint": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+        "name": "scheduler",
+        "schema_version": "freqtrade-scheduler-contract-v1"
+      },
+      {
+        "file_sha256": "7bead3237000586d57dd11be44cb564ee440fef32759117a7633437bdce75551",
+        "fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0",
+        "name": "execution",
+        "schema_version": "freqtrade-execution-contract-v1"
+      },
+      {
+        "file_sha256": "7b58fae36d7826cd6b48dd75bea85d284ce5c147d417c09431785248a50b55a3",
+        "fingerprint": "d7d36fa55e652cae5d7e3a0e60b735e0a4fe3596243f436e2d106656448ac896",
+        "name": "futures",
+        "schema_version": "freqtrade-futures-contract-v1"
+      }
+    ],
+    "reference": {
+      "ccxt_version": "4.5.55",
+      "image": "freqtradeorg/freqtrade",
+      "image_config_digest": "sha256:8615e1e2f8c429b27f57a0bcb948dfac1abe6828df8300c63ebd88a16ec6cabc",
+      "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+      "platform": "linux/amd64",
+      "version": "2026.5.1"
+    },
+    "semantic_profile": {
+      "file_sha256": "9fb6fcf33913ef6aadc9c0b6a5f5cdd8e0bada2e34521ce83ac6b8368a3cffc5",
+      "fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+      "schema_version": "freqtrade-semantic-profile-v1"
+    },
+    "source": {
+      "commit": "6fa470939cc74bf0672e0e348a4d9b293072e43c",
+      "identity_kind": "git-commit-and-observed-method-merkle-v1",
+      "observed_method_count": 15,
+      "observed_method_merkle_root": "54e428105e8b2108b76a5ae1fbdf4d948e1a27a853b1c0bcdee6f1ac5d1b0192",
+      "repository": "https://github.com/freqtrade/freqtrade.git"
+    }
+  },
+  "schema_version": "current-head-semantic-registry-summary-v1",
+  "source_closure": {
+    "algorithm": "sha256-merkle-source-closure-v1",
+    "complete": true,
+    "external_imports": [
+      "copy",
+      "datetime",
+      "freqtrade",
+      "functools",
+      "logging",
+      "numpy",
+      "pandas",
+      "pathlib",
+      "rapidjson",
+      "talib",
+      "time",
+      "typing",
+      "warnings"
+    ],
+    "file_count": 1,
+    "merkle_root": "33a3205a243cecaae1e0c195d833834dbdbd7ec7abb9d415aa07bee495d59798",
+    "missing_local_imports": []
+  },
+  "strategy": {
+    "selected_class": "NostalgiaForInfinityX7",
+    "source": {
+      "bytes": 3436521,
+      "path": "NostalgiaForInfinityX7.py",
+      "sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a"
+    },
+    "upstream": {
+      "configured_commit": "649890f727fce8067a66f7556431b7ce0ee64416",
+      "observation_method": "git-fetch-depth-1-v1",
+      "observed_commit": "649890f727fce8067a66f7556431b7ce0ee64416",
+      "observed_commit_timestamp": "2026-08-22T14:11:15+03:00",
+      "ref": "refs/heads/main",
+      "repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+      "source_path": "NostalgiaForInfinityX7.py"
+    }
+  },
+  "summary": {
+    "active_obligations": 459069,
+    "active_obligations_accounted": true,
+    "all_obligations_accounted": true,
+    "ast_node_obligations": 250228,
+    "call_obligations": 5573,
+    "callable_obligations": 151,
+    "callback_action_obligations": 77,
+    "callback_exception_obligations": 20,
+    "callback_state_mutation_obligations": 33,
+    "compiled_program_obligations": 458817,
+    "decision_outcomes": 29654,
+    "duplicate_obligation_ids": 0,
+    "every_obligation_mapped_once": true,
+    "futures_paths": 68,
+    "generic_runtime_obligations": 252,
+    "historical_non_observation_exclusions": 0,
+    "ir_node_obligations": 13,
+    "machine_proven_unreachable_obligations": 0,
+    "mapped_obligations": 459069,
+    "mcdc_terms": 58213,
+    "native_promotion": true,
+    "official_only_blocker_obligations": 0,
+    "operator_obligations": 61643,
+    "order_transitions": 69,
+    "protection_obligations": 15,
+    "scheduler_transitions": 21,
+    "signal_obligations": 52,
+    "source_closure_complete": true,
+    "source_node_obligations": 255801,
+    "state_machine_edges": 486,
+    "state_machine_two_edge_sequences": 610,
+    "statically_witnessed_obligations": 459069,
+    "tag_obligations": 316,
+    "threshold_boundaries": 51800,
+    "total_obligations": 459069,
+    "unknown_obligations": 0,
+    "wallet_transitions": 10
+  }
+}

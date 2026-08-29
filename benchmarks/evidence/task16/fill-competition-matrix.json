@@ -1,0 +1,439 @@
+{
+  "schema_version": "freqtrade-fill-competition-matrix-v1",
+  "reference": {
+    "version": "2026.5.1",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "network": "none"
+  },
+  "contract": {
+    "path": "planning/freqtrade-fill-competition-contract-v1.json",
+    "sha256": "9cfd04c8881c9c622604f9f3050187ed2ba115c1387856ea341d14df2669ae74",
+    "fingerprint": "fcbbd771e8652bd98fc3e9dad363db5ba0e71c420396835730b0c0d069dc4c2f"
+  },
+  "official_fixtures": [
+    {
+      "lane": "limit-fallthrough",
+      "manifest": "benchmarks/fixtures/captured/current-fill-competition-limit-fallthrough-spot-r1/manifest.json",
+      "manifest_sha256": "27cff943f33cfd871540a5e81b2f1c5847eff3b1bbe0b6a47a49716886cd0bac",
+      "coverage": [
+        "inherited-limit-entry-exit",
+        "custom-entry-price",
+        "custom-reject-stoploss-fallthrough",
+        "roi-rejection-before-target-candle",
+        "frozen-price-rounding",
+        "common-fee"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "579a110ae1b0c0d5bc41312c301e69a06479e6e8e12cdae312c4bacad66b1886",
+          "bytes": 6378
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "001f9cb951f341c821e45cc450ea8df9ef0875853c7294b3c65190f4f9034507",
+          "bytes": 2303
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "2fde27480562f5d40dd79d9f3262a632df7916470ed200f6473a495e877997df",
+          "bytes": 24114
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "5c857ab0e46a547aea48d22c7746f34a4f81eecb4156665f6693d9faed3e3239",
+          "bytes": 3988
+        }
+      },
+      "auxiliary_inputs": [
+        {
+          "schema_version": "freqtrade-fill-competition-trace-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/execution-trace-limit-fallthrough.json",
+          "sha256": "b0fa2ba2744d7584f3a5b8a1179fe494866dcca42ff0b8a6f6c24b84fc6b1042",
+          "bytes": 21246
+        },
+        {
+          "schema_version": "official-source-authentication-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/001-source-auth-limit-fallthrough.json",
+          "sha256": "87964268ccf21b0b86c74d912cc72df1469ef8c558291f98f70e24a55c373d2a",
+          "bytes": 665
+        }
+      ]
+    },
+    {
+      "lane": "limit-all-rejected",
+      "manifest": "benchmarks/fixtures/captured/current-fill-competition-limit-all-rejected-spot-r1/manifest.json",
+      "manifest_sha256": "f369877b3ed991c57d06441b1308306de65904416ca85a8667c2e404aaf0c8ee",
+      "coverage": [
+        "all-regular-candidates-rejected",
+        "force-exit-accepted",
+        "repeated-roi-rejection",
+        "no-rejected-order-id-consumption"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "a1b8d6d6d8715aa78a8ad76a8c3a24f251846c7610f4043e4d03f1be3f579d83",
+          "bytes": 6396
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "b06e291ee651d3cab5bf2994680223d35a628ce036ad4f5840d175babbd9c53e",
+          "bytes": 2301
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "71d17408913b62b27600045c0283c618e6c804b4d1b57d451dc2726b7cff1eb3",
+          "bytes": 14594
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "8c6434dabdc35ac435a797c7ff3735712c338392d62581c9c237cdf3aefeca20",
+          "bytes": 4127
+        }
+      },
+      "auxiliary_inputs": [
+        {
+          "schema_version": "freqtrade-fill-competition-trace-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/execution-trace-limit-all-rejected.json",
+          "sha256": "9c6eb04d1e738849def9f8f056c4b601b0117d05d14b5fbab6b6b065dd8a045c",
+          "bytes": 8591
+        },
+        {
+          "schema_version": "official-source-authentication-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/001-source-auth-limit-all-rejected.json",
+          "sha256": "ae1487150320f422011f98df27183982019a32a20309fffeaab7513a90426ea3",
+          "bytes": 666
+        }
+      ]
+    },
+    {
+      "lane": "limit-trailing-fallthrough",
+      "manifest": "benchmarks/fixtures/captured/current-fill-competition-limit-trailing-fallthrough-spot-r1/manifest.json",
+      "manifest_sha256": "69481badf3f57401c5bb83a4829f5fb5000551916b08ad37dc2f3f5adcdc54d2",
+      "coverage": [
+        "custom-reject",
+        "stop-reject",
+        "roi-reject",
+        "trailing-update-timing",
+        "trailing-winner"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "57d3f1b54b9950e2eacf8683c98220857259dbf4319b20df24957fb72a6b217a",
+          "bytes": 6370
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "5916b443f8426264ff8f75cf042e2597033e0b1dce24cf0696e95e2258bd539a",
+          "bytes": 2321
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "d493de9fc926cedd5f17599c2b1a027276dbe022564e80f54c2efb3313bcb48b",
+          "bytes": 22830
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "ebaf4dff0a861e5d29935599dd89985cd32e0b532b51cf16721c046e44d96c52",
+          "bytes": 4020
+        }
+      },
+      "auxiliary_inputs": [
+        {
+          "schema_version": "freqtrade-fill-competition-trace-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/execution-trace-limit-trailing-fallthrough.json",
+          "sha256": "d8b002fbaac9f8310caa532c543fbe8df565457b110f601c4b465225f34e9b0b",
+          "bytes": 19654
+        },
+        {
+          "schema_version": "official-source-authentication-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/001-source-auth-limit-trailing-fallthrough.json",
+          "sha256": "7e392f955cce8abe4579a5f47b24a88a6649a49a1fc3c686ae24b0ea2f7c911e",
+          "bytes": 674
+        }
+      ]
+    },
+    {
+      "lane": "limit-signal-fallthrough",
+      "manifest": "benchmarks/fixtures/captured/current-fill-competition-limit-signal-fallthrough-spot-r1/manifest.json",
+      "manifest_sha256": "2b8a1dd64facd37d579f0d74c550c308dedbec6a6688a675d6ed2b8c51d775ba",
+      "coverage": [
+        "explicit-signal-reject",
+        "stoploss-fallthrough-winner",
+        "custom-exit-suppressed-by-signal"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "c95dcb704594e53bc305d646c036ae9cd9323216dddbbfb4b977b524c06e4263",
+          "bytes": 6351
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "01346c25d311f4fc912adcd93b023d3100c71462036acf6ecfdf7f317c6f12a1",
+          "bytes": 2298
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "9d56b34cf8b31d33088d04f4f3a6304547aff7dc3d0f5b3b4e5326a284d0e442",
+          "bytes": 24121
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "059829a26f0e56bfce81aff306970ed7a656c00c01cd83ae3f07c0881e477afd",
+          "bytes": 3995
+        }
+      },
+      "auxiliary_inputs": [
+        {
+          "schema_version": "freqtrade-fill-competition-trace-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/execution-trace-limit-signal-fallthrough.json",
+          "sha256": "e78317c683f336622dc00364f3b0c5b851038a8f87577e7377bc4516c198bdd7",
+          "bytes": 21093
+        },
+        {
+          "schema_version": "official-source-authentication-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/001-source-auth-limit-signal-fallthrough.json",
+          "sha256": "b84c4f3c675c8fc07f23cb18823dca69c9b7f81d1d434272218ddc85b9847342",
+          "bytes": 672
+        }
+      ]
+    },
+    {
+      "lane": "limit-primary-accept",
+      "manifest": "benchmarks/fixtures/captured/current-fill-competition-limit-primary-accept-spot-r1/manifest.json",
+      "manifest_sha256": "7c5f1b5ec63a17a370b8534b1903bc6ac7dd5dae908855004ac5e80fd1366b12",
+      "coverage": [
+        "custom-exit-winner",
+        "custom-exit-price",
+        "frozen-price-rounding"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "e479e2b820b84fd861705f3828dbb3dbea93c5d1e6d4d9ccb2ca2874e8511dbe",
+          "bytes": 6276
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "68cf8aa9ab768f99df2f5e9d150be811aadd6d3c8d3df0e5ab1798d83c391711",
+          "bytes": 2316
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "55984cb11fd31168de5b2d3264a05c881b75aef0463b3b170cc00982c8f061c6",
+          "bytes": 24165
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "18b4db24ee304f8cf0f81c11b6f72785646d5227c7511ed7927b728b36bf3547",
+          "bytes": 3991
+        }
+      },
+      "auxiliary_inputs": [
+        {
+          "schema_version": "freqtrade-fill-competition-trace-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/execution-trace-limit-primary-accept.json",
+          "sha256": "cd9abbf3679e4cdaf91fddff14d6825a02a798b9aef4f960dd96054400b8725f",
+          "bytes": 21068
+        },
+        {
+          "schema_version": "official-source-authentication-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/001-source-auth-limit-primary-accept.json",
+          "sha256": "6b1c4f2e8afc477e453ab6105f79e40cbbbe89b27f4e71b3b551817db4826347",
+          "bytes": 668
+        }
+      ]
+    },
+    {
+      "lane": "market-primary-accept",
+      "manifest": "benchmarks/fixtures/captured/current-fill-competition-market-primary-accept-spot-r1/manifest.json",
+      "manifest_sha256": "30f1562f471575cdcdb276e0e9a32cfd9406f6726ff2ee391a340cb94db0a17e",
+      "coverage": [
+        "explicit-market-config",
+        "entry-open-fill",
+        "custom-price-callbacks-bypassed",
+        "exit-open-fill"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "2d50d8b85ecbdbc7c45784bc1a44e2f86477ab3bb11396b3bc77ff383f888a31",
+          "bytes": 6261
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "cc4e777afe69572f0c4c0019fd18c118e73ab3e6c9b452e4b97179f2a903f3d8",
+          "bytes": 2214
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "19e32205be115107951faeb9028b9f51a2043055b32a8714da6b65ae5effe8e5",
+          "bytes": 23094
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "e6366203ae6ceea8b9aa64ff85f53f4e45dd25ccd6074e8c45ccc8ecc691ae70",
+          "bytes": 3895
+        }
+      },
+      "auxiliary_inputs": [
+        {
+          "schema_version": "freqtrade-fill-competition-trace-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/execution-trace-market-primary-accept.json",
+          "sha256": "6970220a11c56ca74813ceb995ac38cd675a6aede2cab2a2d44a0a14d43cd29a",
+          "bytes": 19733
+        },
+        {
+          "schema_version": "official-source-authentication-v1",
+          "role": "auxiliary",
+          "path": "inputs/auxiliary/001-source-auth-market-primary-accept.json",
+          "sha256": "4b4c9ff7b9c2d25eb9d81cd3727d41a55dee8f2f1fc29e5726ee0d812742b7b1",
+          "bytes": 669
+        }
+      ]
+    },
+    {
+      "lane": "reused-current-callback-oracle-spot-r1",
+      "manifest": "benchmarks/fixtures/captured/current-callback-oracle-spot-r1/manifest.json",
+      "manifest_sha256": "41867d81ac64c32932699261a90e6d525ff250d65d7628df30f08b3ba767b65c",
+      "coverage": [
+        "amount-floor-multiple-decimals",
+        "entry-confirm-rejection-id-consumption",
+        "positive-adjustment-fee"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "46b85fb99730ba64f7453b36f4313570291d1d73c1b25add89fd4830370ee6b1",
+          "bytes": 42251
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "6bcea30ab020ca73aa6c4439e606a624e661697888e7d97ff5de48c2bf6cff53",
+          "bytes": 465303
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "8ea0fec13e1781e4b0a0ab582f9259a8f697107b99d6487ee016007693134523",
+          "bytes": 17756
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "2240e86d4c92eae9bbfd767dc1daa3109e59d0d46f3b98ceedc90ad9f4c9df41",
+          "bytes": 17760
+        }
+      },
+      "auxiliary_inputs": []
+    },
+    {
+      "lane": "reused-current-portfolio-pressure-3p-btc-eth-aave-r1",
+      "manifest": "benchmarks/fixtures/captured/current-portfolio-pressure-3p-btc-eth-aave-r1/manifest.json",
+      "manifest_sha256": "83df60a1dfd40f0ab66e9e945dc8ac0d1c7463a6a2f787d93d89af050befaf46",
+      "coverage": [
+        "profitable-partial-exit",
+        "loss-trade",
+        "partial-exit-order-id"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "7084933dd64a7ff41917ce6a6665bcdcdccf7bd734c4815f9f0dce34adac552c",
+          "bytes": 7192
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "5bb83186a13326a5b93022b9aeae73c5a7d348cbdeb2580aa7d2a66e18405542",
+          "bytes": 5703
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "13e1e148e1b44255900d4e82895055f1f3fa8e88b90db7e2cb56983ed071cb28",
+          "bytes": 226566
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "a487cd246f3e07ebdc34ba406a655838027f6a40643d073b2c8a30e1352d2777",
+          "bytes": 17206
+        }
+      },
+      "auxiliary_inputs": []
+    },
+    {
+      "lane": "reused-generic-state-machine-v3-orders-spot-2025-01-01_02",
+      "manifest": "benchmarks/fixtures/captured/generic-state-machine-v3-orders-spot-2025-01-01_02/manifest.json",
+      "manifest_sha256": "c75ec91ec2894a2757d572a59b34b7e5789cc3008c9a1b0846c64436c26d0b69",
+      "coverage": [
+        "each-adjustment-fee",
+        "weighted-basis",
+        "many-order-sequence"
+      ],
+      "artifacts": {
+        "freqtrade_result": {
+          "path": "artifacts/freqtrade-result.zip",
+          "sha256": "4344259ab25876fa79658398a262d90a72bc06006a929b3338ac14f782ade463",
+          "bytes": 13173
+        },
+        "trade_surface": {
+          "path": "artifacts/trade-surface.json",
+          "sha256": "326d7ae0316996fceb4ccfa46d7a4a66b8503d4bc65706246fe4175af74f9b29",
+          "bytes": 5800
+        },
+        "state_trace": {
+          "path": "artifacts/state-trace.nfitrace",
+          "sha256": "42f81ea5eb272b4c1aaf639c9a823bb618e5a7055e68d34ae714c14b614dbc5b",
+          "bytes": 2477654
+        },
+        "state_projection": {
+          "path": "artifacts/state-projection.nfitrace",
+          "sha256": "05b5f3ffc6c6aaea66aadbc6c3c10b0e8dc4c7b36de7704f6471080d9536495b",
+          "bytes": 140582
+        }
+      },
+      "auxiliary_inputs": []
+    }
+  ],
+  "todo14_supersession": {
+    "status": "reverification-required",
+    "claim": "same-candle confirmation rejection has no lower-priority fallthrough",
+    "impacted": [
+      "benchmarks/fixtures/captured/current-callback-oracle-spot-r1",
+      "tests/test_task14_oracle_contract.py",
+      ".omo/evidence/task-14-oracle-track-handoff.json"
+    ],
+    "replacement": "Task16 official limit fallthrough and all-rejected fixtures"
+  },
+  "source_corrections": [
+    {
+      "id": "T16-ORDER-TYPE-EXPANSION",
+      "fact": "NFI source omits order_types and therefore inherits official limit entry/exit defaults; limit is certification scope and market is explicit-config comparison scope"
+    },
+    {
+      "id": "T16-FALLTHROUGH",
+      "fact": "official _check_trade_exit continues its for-loop after _get_exit_for_signal returns None; lower-priority same-candle candidates are attempted"
+    },
+    {
+      "id": "T16-MIN-STAKE-STAGE",
+      "fact": "official minimum stake is validated before amount truncation and is not rechecked afterward; only zero truncated amount rejects"
+    },
+    {
+      "id": "T16-FEE-SCOPE",
+      "fact": "Backtesting uses one self.fee for both LocalTrade fee_open and fee_close; NFI custom fee fields remain separately reachable strategy calculations"
+    }
+  ],
+  "verdict": "official_oracle_matrix_captured_qualified"
+}

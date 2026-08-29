@@ -7,11 +7,14 @@
 
 use super::adjustment::evaluate_grind_entry_program;
 use super::dispatch::nfi_long_grind_supports_trade;
-use crate::calculations::{fee_close, fee_open};
+use crate::calculations::{
+    checked_finite, checked_float_product, checked_float_sum, fee_close, fee_open,
+};
 use crate::domain::{
-    AdjustmentSignal, Candle, CompiledLegacyGrindExecutionMode, CompiledLegacyGrindProgram,
-    CompiledLegacyGrindTransition, FilledOrder, NfiLegacyGrindCluster, NfiLongGrindRoute,
-    NfiX7TradeManager, PairSeries, PortfolioConfig,
+    AdjustmentSignal, Candle, CompiledLegacyComparison, CompiledLegacyGrindExecutionMode,
+    CompiledLegacyGrindProgram, CompiledLegacyGrindSide, CompiledLegacyGrindTransition,
+    FilledOrder, NfiLegacyGrindCluster, NfiLongGrindRoute, NfiX7TradeManager, PairSeries,
+    PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::portfolio::{OpenTrade, TradeSide};
@@ -32,27 +35,62 @@ struct LegacyCluster {
 }
 
 impl LegacyCluster {
-    fn add_entry(&mut self, order: &FilledOrder) {
-        self.count += 1;
-        self.total_amount += order.amount;
-        self.total_cost += order.amount * order.price;
+    fn add_entry(&mut self, order: &FilledOrder) -> Option<()> {
+        self.count = self.count.checked_add(1)?;
+        self.total_amount = checked_float_sum(
+            &[self.total_amount, order.amount],
+            "nfi-legacy-grind-total-amount",
+        )
+        .ok()?;
+        let cost =
+            checked_float_product(&[order.amount, order.price], "nfi-legacy-grind-order-cost")
+                .ok()?;
+        self.total_cost =
+            checked_float_sum(&[self.total_cost, cost], "nfi-legacy-grind-total-cost").ok()?;
         self.entry_ids.push(order.id);
         self.latest_entry_price.get_or_insert(order.price);
+        Some(())
     }
 
-    fn finish(&mut self, rate: f64, close_fee: f64) {
+    fn finish(&mut self, rate: f64, close_fee: f64, side: CompiledLegacyGrindSide) -> Option<()> {
         if self.count == 0 {
-            return;
+            return Some(());
         }
-        self.open_rate = self.total_cost / self.total_amount;
-        let current_stake = self.total_amount * rate * (1.0 - close_fee);
-        self.profit_stake = current_stake - self.total_cost;
-        self.profit_rate = (rate - self.open_rate) / self.open_rate;
+        self.open_rate = checked_finite(
+            self.total_cost / self.total_amount,
+            "nfi-legacy-grind-open-rate",
+        )
+        .ok()?;
+        let current_stake = checked_float_product(
+            &[self.total_amount, rate, 1.0 - close_fee],
+            "nfi-legacy-grind-current-stake",
+        )
+        .ok()?;
+        let direction = match side {
+            CompiledLegacyGrindSide::Long => 1.0,
+            CompiledLegacyGrindSide::Short => -1.0,
+        };
+        self.profit_stake = checked_float_product(
+            &[current_stake - self.total_cost, direction],
+            "nfi-legacy-grind-profit-stake",
+        )
+        .ok()?;
+        self.profit_rate = checked_finite(
+            (rate - self.open_rate) / self.open_rate * direction,
+            "nfi-legacy-grind-profit-rate",
+        )
+        .ok()?;
+        Some(())
     }
 
-    fn latest_distance(&self, rate: f64) -> f64 {
-        self.latest_entry_price
-            .map_or(0.0, |price| (rate - price) / price)
+    fn latest_distance(&self, rate: f64, side: CompiledLegacyGrindSide) -> f64 {
+        self.latest_entry_price.map_or(0.0, |price| {
+            let distance = (rate - price) / price;
+            match side {
+                CompiledLegacyGrindSide::Long => distance,
+                CompiledLegacyGrindSide::Short => -distance,
+            }
+        })
     }
 }
 
@@ -180,7 +218,7 @@ enum CompiledGrindOutcome {
 pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     manager: &NfiX7TradeManager,
     route: &NfiLongGrindRoute,
-    trade: &OpenTrade,
+    trade: &mut OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
     candle: &Candle,
@@ -221,11 +259,12 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     let Some(program) = route.program.as_ref() else {
         return Some(legacy);
     };
+    let mut compiled_trade = trade.clone();
     match evaluate_compiled_grind(
         manager,
         route,
         program,
-        trade,
+        &mut compiled_trade,
         pair,
         candle_index,
         candle,
@@ -234,7 +273,14 @@ pub(crate) fn evaluate_nfi_legacy_grind_adjustment(
     )? {
         CompiledGrindOutcome::ResidualPrecedes => Some(legacy),
         CompiledGrindOutcome::Reached(compiled) => {
-            compiled_adjustments_match(compiled.as_ref(), legacy.as_ref()).then_some(legacy)
+            if compiled_adjustments_match(compiled.as_ref(), legacy.as_ref())
+                && compiled_trade.custom_data == trade.custom_data
+            {
+                trade.custom_data = compiled_trade.custom_data;
+                Some(legacy)
+            } else {
+                None
+            }
         }
         CompiledGrindOutcome::NoTransition => {
             let legacy_is_compiled = legacy.as_ref().is_some_and(|signal| {
@@ -368,14 +414,18 @@ fn evaluate_compiled_grind(
     manager: &NfiX7TradeManager,
     route: &NfiLongGrindRoute,
     program: &CompiledLegacyGrindProgram,
-    trade: &OpenTrade,
+    trade: &mut OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
     candle: &Candle,
     config: &PortfolioConfig,
     available_balance: f64,
 ) -> Option<CompiledGrindOutcome> {
-    if trade.side != TradeSide::Long || !nfi_long_grind_supports_trade(route, trade) {
+    let expected_side = match program.side {
+        CompiledLegacyGrindSide::Long => TradeSide::Long,
+        CompiledLegacyGrindSide::Short => TradeSide::Short,
+    };
+    if trade.side != expected_side || !nfi_long_grind_supports_trade(route, trade) {
         return None;
     }
     let mode = legacy_mode_for_route(route, config)?;
@@ -446,13 +496,13 @@ fn evaluate_compiled_grind(
         - minimum_stake * program.policy.minimum_entry_multiplier
         > minimum_stake;
     if mode == LegacyMode::Grind && !first_entry_closed && first_entry_has_room {
-        let distance = price_distance(candle.open, state.first_entry.price)?;
+        let distance = legacy_profit_distance(candle.open, state.first_entry.price, program.side)?;
         let requested_exit = state.first_entry.amount * candle.open / trade.leverage;
-        let action_tag = if distance > profit_threshold + fee_open(config) + fee_close(config) {
+        let profit_exit = distance > profit_threshold + fee_open(config) + fee_close(config);
+        let stop_exit = stop_action.is_some_and(|(_, threshold)| distance < threshold);
+        let action_tag = if profit_exit {
             Some(profit_tag)
-        } else if route.derisk_use_grind_stops
-            && stop_action.is_some_and(|(_, threshold)| distance < threshold)
-        {
+        } else if route.derisk_use_grind_stops && stop_exit {
             stop_action.map(|(tag, _)| tag)
         } else {
             None
@@ -529,10 +579,24 @@ fn evaluate_compiled_grind(
         > state.latest_entry_timestamp_ms
         && (candle.timestamp_ms - program.policy.force_order_age_ms
             > state.latest_order_timestamp_ms
-            || slice_profit < program.policy.forced_entry_loss_gate)
+            || legacy_comparison_matches(
+                slice_profit,
+                program.policy.forced_entry_loss_gate,
+                match program.side {
+                    CompiledLegacyGrindSide::Long => CompiledLegacyComparison::LessThan,
+                    CompiledLegacyGrindSide::Short => CompiledLegacyComparison::GreaterThan,
+                },
+            ))
         && (num_open_grinds == 0
             || candle.timestamp_ms - program.policy.order_age_ms > state.latest_order_timestamp_ms
-            || slice_profit < program.policy.forced_entry_loss_gate);
+            || legacy_comparison_matches(
+                slice_profit,
+                program.policy.forced_entry_loss_gate,
+                match program.side {
+                    CompiledLegacyGrindSide::Long => CompiledLegacyComparison::LessThan,
+                    CompiledLegacyGrindSide::Short => CompiledLegacyComparison::GreaterThan,
+                },
+            ));
     let is_derisk = trade.amount < state.first_entry.amount * program.policy.derisk_amount_ratio;
     let current_stake_amount = trade.amount * candle.open;
     let first_cost = state.first_entry.amount * state.first_entry.price;
@@ -550,6 +614,7 @@ fn evaluate_compiled_grind(
             stop_tag,
             post_derisk,
             futures_fallback_loss_threshold,
+            liquidation_rescue,
             ..
         } = transition
         else {
@@ -592,7 +657,7 @@ fn evaluate_compiled_grind(
         let distance_allows = if cluster.count == 0 {
             first_entry_condition
         } else if cluster.count < scaled_stakes.len() {
-            cluster.latest_distance(candle.open) < *thresholds.get(cluster.count)?
+            cluster.latest_distance(candle.open, program.side) < *thresholds.get(cluster.count)?
         } else {
             false
         };
@@ -601,13 +666,26 @@ fn evaluate_compiled_grind(
         } else {
             true
         };
+        let rescue_eligible = liquidation_rescue_matches(
+            liquidation_rescue.as_ref(),
+            trade,
+            candle,
+            config,
+            slice_profit_entry,
+        )?;
         if route_allows
             && cluster.count < scaled_stakes.len()
             && distance_allows
             && entry_age_allows
-            && is_long_grind_entry
+            && (is_long_grind_entry || rescue_eligible)
             && below_maximum
         {
+            if rescue_eligible {
+                let policy = liquidation_rescue.as_ref()?;
+                trade
+                    .custom_data
+                    .insert(policy.used_state_key.clone(), serde_json::Value::Bool(true));
+            }
             let requested = (slice_amount * scaled_stakes[cluster.count] / stake_leverage)
                 .max(minimum_stake * program.policy.minimum_entry_multiplier);
             return Some(CompiledGrindOutcome::Reached(
@@ -622,7 +700,14 @@ fn evaluate_compiled_grind(
             config.is_futures
                 && first_entry_condition
                 && cluster.count < scaled_stakes.len()
-                && slice_profit < threshold / trade.leverage
+                && legacy_comparison_matches(
+                    slice_profit,
+                    threshold / trade.leverage,
+                    match program.side {
+                        CompiledLegacyGrindSide::Long => CompiledLegacyComparison::LessThan,
+                        CompiledLegacyGrindSide::Short => CompiledLegacyComparison::GreaterThan,
+                    },
+                )
         }) {
             let requested = (slice_amount * scaled_stakes[cluster.count] / stake_leverage)
                 .max(minimum_stake * program.policy.minimum_entry_multiplier);
@@ -646,9 +731,9 @@ fn evaluate_compiled_grind(
         {
             return Some(CompiledGrindOutcome::ResidualPrecedes);
         }
-        if cluster.count > 0
-            && cluster.profit_rate > profit_threshold + fee_open(config) + fee_close(config)
-        {
+        let cluster_profit_exit =
+            cluster.profit_rate > profit_threshold + fee_open(config) + fee_close(config);
+        if cluster.count > 0 && cluster_profit_exit {
             let requested = cluster.total_amount * candle.open / trade.leverage;
             if let Some(stake_amount) = compiled_partial_exit_stake(
                 trade,
@@ -663,9 +748,10 @@ fn evaluate_compiled_grind(
                 })));
             }
         }
+        let cluster_stop = cluster.profit_stake < slice_amount * stop_threshold;
         if route.derisk_use_grind_stops
             && cluster.count > 0
-            && cluster.profit_stake < slice_amount * stop_threshold
+            && cluster_stop
             && (is_derisk || route.grind_mode)
         {
             if let Some(stake_amount) = compiled_partial_exit_stake(
@@ -701,6 +787,7 @@ fn evaluate_compiled_grind(
             minimum_stake,
             entry_age_allows,
             is_long_grind_entry,
+            program.side,
         )? {
             LegacyClusterOutcome::Continue => {}
             LegacyClusterOutcome::ReturnNone => {
@@ -712,6 +799,46 @@ fn evaluate_compiled_grind(
         }
     }
     Some(CompiledGrindOutcome::NoTransition)
+}
+
+fn liquidation_rescue_matches(
+    policy: Option<&crate::domain::NfiLegacyLiquidationRescuePolicy>,
+    trade: &OpenTrade,
+    candle: &Candle,
+    config: &PortfolioConfig,
+    slice_profit_entry: f64,
+) -> Option<bool> {
+    let Some(policy) = policy else {
+        return Some(false);
+    };
+    let Some(liquidation_price) = trade.liquidation_price else {
+        return Some(false);
+    };
+    let expected_side = match policy.side {
+        CompiledLegacyGrindSide::Long => TradeSide::Long,
+        CompiledLegacyGrindSide::Short => TradeSide::Short,
+    };
+    if !config.is_futures
+        || trade.side != expected_side
+        || !legacy_comparison_matches(
+            slice_profit_entry,
+            policy.loss_threshold,
+            policy.profit_comparison,
+        )
+        || trade.custom_data.contains_key(&policy.used_state_key)
+    {
+        return Some(false);
+    }
+    let boundary = checked_float_product(
+        &[liquidation_price, policy.liquidation_multiplier],
+        "nfi-legacy-liquidation-rescue-boundary",
+    )
+    .ok()?;
+    Some(legacy_comparison_matches(
+        candle.open,
+        boundary,
+        policy.liquidation_comparison,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -727,6 +854,7 @@ fn evaluate_compiled_derisk_buyback(
     minimum_stake: f64,
     entry_age_allows: bool,
     is_long_grind_entry: bool,
+    side: CompiledLegacyGrindSide,
 ) -> Option<LegacyClusterOutcome> {
     let CompiledLegacyGrindTransition::DeriskBuyback {
         tag,
@@ -747,7 +875,7 @@ fn evaluate_compiled_derisk_buyback(
     };
     if state.is_derisk_1 && state.derisk_1_reentry.is_none() {
         let exit = state.derisk_1_exit?;
-        if price_distance(candle.open, exit.price)? < threshold
+        if legacy_profit_distance(candle.open, exit.price, side)? < threshold
             && entry_age_allows
             && is_long_grind_entry
         {
@@ -784,7 +912,7 @@ fn evaluate_compiled_derisk_buyback(
     } else {
         1.0
     };
-    if price_distance(candle.open, reentry.price)? >= threshold / mode_leverage {
+    if legacy_profit_distance(candle.open, reentry.price, side)? >= threshold / mode_leverage {
         return Some(LegacyClusterOutcome::Continue);
     }
     let requested = reentry.amount * candle.open / trade.leverage;
@@ -839,7 +967,7 @@ fn rebuild_compiled_grind_state(
                 .position(|cluster| cluster.entry_tag == tag)
             {
                 if !closed.get(index).copied()? {
-                    clusters.get_mut(index)?.add_entry(order);
+                    clusters.get_mut(index)?.add_entry(order)?;
                 }
             } else if !closed.get(first_ordinary).copied()?
                 && !program
@@ -848,7 +976,7 @@ fn rebuild_compiled_grind_state(
                     .iter()
                     .any(|excluded| excluded == tag)
             {
-                clusters.get_mut(first_ordinary)?.add_entry(order);
+                clusters.get_mut(first_ordinary)?.add_entry(order)?;
             }
             continue;
         }
@@ -885,7 +1013,7 @@ fn rebuild_compiled_grind_state(
         }
     }
     for cluster in &mut clusters {
-        cluster.finish(rate, close_fee);
+        cluster.finish(rate, close_fee, program.side)?;
     }
     Some(LegacyState {
         clusters,
@@ -996,12 +1124,12 @@ fn rebuild_legacy_state(
                 derisk_1_reentry.get_or_insert_with(|| order.into());
             } else if let Some(index) = direct_entry_cluster(tag, &route.constants.clusters) {
                 if !closed.get(index).copied()? {
-                    clusters.get_mut(index)?.add_entry(order);
+                    clusters.get_mut(index)?.add_entry(order)?;
                 }
             } else if !closed.first().copied()?
                 && !grind_one_entry_excluded(tag, &route.constants.clusters)
             {
-                clusters.first_mut()?.add_entry(order);
+                clusters.first_mut()?.add_entry(order)?;
             }
             continue;
         }
@@ -1024,7 +1152,7 @@ fn rebuild_legacy_state(
         }
     }
     for cluster in &mut clusters {
-        cluster.finish(rate, close_fee);
+        cluster.finish(rate, close_fee, CompiledLegacyGrindSide::Long)?;
     }
     Some(LegacyState {
         clusters,
@@ -1166,7 +1294,8 @@ fn evaluate_cluster(
     let distance_allows = if cluster.count == 0 {
         first_entry_condition
     } else if cluster.count < scaled_stakes.len() {
-        cluster.latest_distance(context.candle.open) < *thresholds.get(cluster.count)?
+        cluster.latest_distance(context.candle.open, CompiledLegacyGrindSide::Long)
+            < *thresholds.get(cluster.count)?
     } else {
         false
     };
@@ -1406,4 +1535,23 @@ fn order_id_tag(prefix: &str, ids: &[u64]) -> String {
 
 fn price_distance(rate: f64, reference: f64) -> Option<f64> {
     (reference > 0.0).then_some((rate - reference) / reference)
+}
+
+fn legacy_profit_distance(rate: f64, reference: f64, side: CompiledLegacyGrindSide) -> Option<f64> {
+    let distance = price_distance(rate, reference)?;
+    Some(match side {
+        CompiledLegacyGrindSide::Long => distance,
+        CompiledLegacyGrindSide::Short => -distance,
+    })
+}
+
+fn legacy_comparison_matches(
+    value: f64,
+    threshold: f64,
+    comparison: CompiledLegacyComparison,
+) -> bool {
+    match comparison {
+        CompiledLegacyComparison::LessThan => value < threshold,
+        CompiledLegacyComparison::GreaterThan => value > threshold,
+    }
 }

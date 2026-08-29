@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "CurrentShortGrindBoundaryContract",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20210204-20210209"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "9972.68940231",
+    "profit_total_abs": "-27.31059769",
+    "total_volume": "408.324710325",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT:USDT",
+      "direction": "short",
+      "open_timestamp_ms": 1612399500000,
+      "close_timestamp_ms": 1612796700000,
+      "open_rate": "37904.94",
+      "close_rate": "43719.19",
+      "amount": "0.005",
+      "stake_amount": "94.76235",
+      "max_stake_amount": "94.76235",
+      "leverage": "2",
+      "entry_tag": "620 ",
+      "exit_reason": "exit_signal",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "1.9647126354793718"
+      },
+      "profit": {
+        "absolute": "-27.31059769",
+        "ratio": "-0.2883451056238048"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "56667.88",
+      "stop_loss": "56667.88",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "sell",
+          "is_entry": true,
+          "filled_timestamp_ms": 1612399500000,
+          "amount": "0.005",
+          "price": "37904.94",
+          "cost": "189.61946235000002",
+          "tag": "620 "
+        },
+        {
+          "sequence": 1,
+          "side": "buy",
+          "is_entry": false,
+          "filled_timestamp_ms": 1612796700000,
+          "amount": "0.005",
+          "price": "43719.19",
+          "cost": "218.705247975",
+          "tag": "exit_signal"
+        }
+      ],
+      "duration_minutes": 6620,
+      "is_open": false,
+      "minimum_rate": "36233",
+      "maximum_rate": "45063.24",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}

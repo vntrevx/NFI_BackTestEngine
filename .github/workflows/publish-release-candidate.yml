@@ -28,7 +28,12 @@ permissions:
 jobs:
   publish:
     name: Publish sealed candidate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, nfi-release-signer]
+    environment: release-publication
+    env:
+      # Persistent owner-controlled 0700 mount on the protected signer runner.
+      PROVENANCE_LEDGER: /var/lib/nfi-release/provenance/used-certificates.sqlite
+      PUBLICATION_ATTEMPT: ${{ github.run_id }}
     steps:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -89,8 +94,14 @@ jobs:
             || { echo "tag version $expected_version differs from package $package_version" >&2; exit 1; }
 
           if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "tag already exists: $RELEASE_TAG" >&2
-            exit 1
+            existing_sha="$(
+              gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" \
+                --jq .object.sha
+            )"
+            [[ "$existing_sha" == "$candidate_sha" ]] \
+              || { echo "existing release tag targets another candidate" >&2; exit 1; }
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+              >/dev/null
           fi
           echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
       - name: Download sealed candidate
@@ -124,6 +135,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$PROVENANCE_LEDGER"
           mapfile -t wheels < <(find candidate -maxdepth 1 -type f -name '*manylinux*x86_64.whl')
           test "${#wheels[@]}" -eq 1
           (cd candidate && sha256sum --check SHA256SUMS.txt)
@@ -159,15 +171,18 @@ jobs:
               certificates/futures/full-x7-certification.json \
             --platform-evidence "candidate/$spot_platform" \
             --platform-evidence "candidate/$futures_platform" \
+            --native-score-evidence candidate/native-score/score-evidence.json \
+            --native-score-identity candidate/native-score/identity.json \
             --output-dir combined
           .gate-venv/bin/nfi-bte release gate-combined \
             --candidate-dir candidate \
             --combined-release combined/full-x7-release-result.json \
             --candidate-commit "$CANDIDATE_SHA" \
+            --native-score-evidence candidate/native-score/score-evidence.json \
+            --native-score-identity candidate/native-score/identity.json \
+            --provenance-ledger "$PROVENANCE_LEDGER" \
+            --publication-attempt "$PUBLICATION_ATTEMPT" \
             --output-dir release
-          .gate-venv/bin/nfi-bte release verify-combined \
-            --release-dir release \
-            --candidate-commit "$CANDIDATE_SHA"
           (cd release && sha256sum --check SHA256SUMS.txt)
           (cd release && sha256sum --check RELEASE-SHA256SUMS.txt)
           jq -e \
@@ -177,7 +192,7 @@ jobs:
              and .status == "release_certified"
              and .candidate_commit == $commit' \
             release/release-gate.json
-      - name: Create prerelease from sealed files
+      - name: Publish verified draft and finalize durable claim
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -185,25 +200,89 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$RELEASE_TAG" release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$CANDIDATE_SHA" \
-            --title "$RELEASE_TAG" \
-            --generate-notes \
-            --prerelease
-      - name: Verify published asset bytes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        shell: bash
-        run: |
-          set -euo pipefail
+          public=false
+          cleanup_failed_draft() {
+            release_state="$(
+              gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+                --jq .draft 2>/dev/null || echo absent
+            )"
+            if [[ "$release_state" == "true" ]]; then
+              gh release delete "$RELEASE_TAG" \
+                --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+            fi
+            if [[ "$release_state" != "false" ]]; then
+              .gate-venv/bin/nfi-bte release abort-combined \
+                --release-dir release \
+                --provenance-ledger "$PROVENANCE_LEDGER" \
+                --publication-attempt "$PUBLICATION_ATTEMPT" || true
+            fi
+          }
+          trap cleanup_failed_draft ERR INT TERM
+
+          release_json="$(
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+              2>/dev/null || true
+          )"
+          release_state="absent"
+          if [[ -n "$release_json" ]]; then
+            release_state="$(jq -r .draft <<<"$release_json")"
+            [[ "$(jq -r .target_commitish <<<"$release_json")" == "$CANDIDATE_SHA" ]] \
+              || { echo "existing draft targets another candidate" >&2; exit 1; }
+            [[ "$(jq -r .prerelease <<<"$release_json")" == "true" ]]
+          fi
+          if [[ "$release_state" == "absent" ]]; then
+            .gate-venv/bin/nfi-bte release authorize-current \
+              --operation "combined-draft-create:$RELEASE_TAG:$CANDIDATE_SHA" \
+              --evidence candidate/native-score/score-evidence.json \
+              --identity candidate/native-score/identity.json
+            gh release create "$RELEASE_TAG" --draft \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$CANDIDATE_SHA" \
+              --title "$RELEASE_TAG" \
+              --generate-notes \
+              --prerelease
+            release_state=true
+          fi
+          if [[ "$release_state" == "true" ]]; then
+            .gate-venv/bin/nfi-bte release authorize-current \
+              --operation "combined-draft-upload:$RELEASE_TAG:$CANDIDATE_SHA" \
+              --evidence candidate/native-score/score-evidence.json \
+              --identity candidate/native-score/identity.json
+            gh release upload "$RELEASE_TAG" release/* \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            rm -rf remote-draft
+            mkdir remote-draft
+            gh release download "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" --dir remote-draft
+            diff -qr release remote-draft
+            (cd remote-draft && sha256sum --check SHA256SUMS.txt)
+            (cd remote-draft && sha256sum --check RELEASE-SHA256SUMS.txt)
+            .gate-venv/bin/nfi-bte release authorize-current \
+              --operation "combined-draft-publish:$RELEASE_TAG:$CANDIDATE_SHA" \
+              --evidence candidate/native-score/score-evidence.json \
+              --identity candidate/native-score/identity.json
+            gh release edit "$RELEASE_TAG" --draft=false \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+
+          rm -rf published
           mkdir published
           gh release download "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --dir published
+            --repo "$GITHUB_REPOSITORY" --dir published
           diff -qr release published
           (cd published && sha256sum --check SHA256SUMS.txt)
           (cd published && sha256sum --check RELEASE-SHA256SUMS.txt)
+          .gate-venv/bin/nfi-bte release finalize-combined \
+            --release-dir published \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --native-score-evidence candidate/native-score/score-evidence.json \
+            --native-score-identity candidate/native-score/identity.json \
+            --provenance-ledger "$PROVENANCE_LEDGER" \
+            --publication-attempt "$PUBLICATION_ATTEMPT"
           .gate-venv/bin/nfi-bte release verify-combined \
-            --release-dir published
+            --release-dir published \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --native-score-evidence candidate/native-score/score-evidence.json \
+            --native-score-identity candidate/native-score/identity.json \
+            --provenance-ledger "$PROVENANCE_LEDGER"
+          trap - ERR INT TERM

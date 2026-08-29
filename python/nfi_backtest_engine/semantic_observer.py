@@ -25,18 +25,23 @@ def project_official_semantic_trace(
     destination: str | Path,
     *,
     report_path: str | Path | None = None,
+    source_trace_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Project official callback/state events under one digest-bound profile."""
     manifest_file = Path(manifest_path).resolve()
     manifest = validate_fixture(manifest_file, validate_trace_semantics=False)
     profile = load_freqtrade_semantic_profile(profile_path)
     _validate_fixture_identity(manifest, profile)
-
     root = manifest_file.parent
-    trace_record = manifest["artifacts"].get("state_trace")
-    if not isinstance(trace_record, dict) or not isinstance(trace_record.get("path"), str):
-        raise TraceError("official semantic observer requires a captured state trace")
-    source_trace = root / trace_record["path"]
+
+    if source_trace_path is None:
+        root = manifest_file.parent
+        trace_record = manifest["artifacts"].get("state_trace")
+        if not isinstance(trace_record, dict) or not isinstance(trace_record.get("path"), str):
+            raise TraceError("official semantic observer requires a captured state trace")
+        source_trace = root / trace_record["path"]
+    else:
+        source_trace = Path(source_trace_path).resolve()
     source_summary = trace_summary(source_trace)
     if not source_summary["include_state"]:
         raise TraceError("official semantic observer requires materialized reference state")
@@ -76,7 +81,7 @@ def project_official_semantic_trace(
                 phase=phase,
                 pair=event["pair"],
                 callback=callback,
-                state=_reference_state(state, quote_currency, trading_mode),
+                state=_complete_reference_state(state, quote_currency, trading_mode),
             )
             phase_counts[phase] += 1
             if callback is not None:
@@ -114,6 +119,74 @@ def project_official_semantic_trace(
     if report_path is not None:
         write_json(report_path, report)
     return report
+
+
+def _complete_reference_state(
+    state: dict[str, Any],
+    quote_currency: str,
+    trading_mode: str,
+) -> dict[str, Any]:
+    trades = state.get("trades")
+    locks = state.get("locks")
+    counters = state.get("counters")
+    balances = state.get("wallets")
+    if not isinstance(trades, list):
+        raise TraceError("official semantic state requires materialized trades")
+    if not isinstance(locks, list):
+        raise TraceError("official semantic state requires materialized locks")
+    if not isinstance(counters, dict):
+        raise TraceError("official semantic state requires materialized counters")
+    if not isinstance(balances, dict):
+        raise TraceError("official semantic state requires materialized balances")
+
+    orders: list[dict[str, Any]] = []
+    funding: list[dict[str, Any]] = []
+    liquidation: list[dict[str, Any]] = []
+    custom_state: list[dict[str, Any]] = []
+    for trade_index, trade in enumerate(trades):
+        if not isinstance(trade, dict):
+            raise TraceError("official semantic state trade must be an object")
+        trade_orders = trade.get("orders", [])
+        if not isinstance(trade_orders, list):
+            raise TraceError("official semantic state trade orders must be an array")
+        orders.append({"trade_index": trade_index, "records": trade_orders})
+        funding.append(
+            {
+                "trade_index": trade_index,
+                "funding_fees": trade.get("funding_fees"),
+                "order_funding_fees": [
+                    order.get("funding_fee") if isinstance(order, dict) else None
+                    for order in trade_orders
+                ],
+            }
+        )
+        liquidation.append(
+            {
+                "trade_index": trade_index,
+                "liquidation_price": trade.get("liquidation_price"),
+            }
+        )
+        custom_state.append(
+            {
+                "trade_index": trade_index,
+                "custom_data": trade.get("custom_data"),
+            }
+        )
+
+    return {
+        "balances": balances,
+        "portfolio": _reference_state(state, quote_currency, trading_mode),
+        "scheduler": {
+            "open_trade_count": state.get("open_trade_count"),
+            "counters": counters,
+        },
+        "trades": trades,
+        "orders": orders,
+        "custom_state": custom_state,
+        "funding": funding,
+        "liquidation": liquidation,
+        "protections": {"locks": locks},
+    }
 
 
 def _validate_fixture_identity(manifest: dict[str, Any], profile: dict[str, Any]) -> None:

@@ -1,0 +1,414 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+____ test_promotion_rejects_resealed_replay_role_substitution[spot-roles0] _____
+
+mode = 'spot', roles = ('candle_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+____ test_promotion_rejects_resealed_replay_role_substitution[spot-roles1] _____
+
+mode = 'spot', roles = ('market_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+___ test_promotion_rejects_resealed_replay_role_substitution[futures-roles2] ___
+
+mode = 'futures', roles = ('funding_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+___ test_promotion_rejects_resealed_replay_role_substitution[futures-roles3] ___
+
+mode = 'futures', roles = ('mark_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+___ test_promotion_rejects_resealed_replay_role_substitution[futures-roles4] ___
+
+mode = 'futures', roles = ('leverage_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+____ test_promotion_rejects_resealed_replay_role_substitution[spot-roles5] _____
+
+mode = 'spot', roles = ('source_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+____ test_promotion_rejects_resealed_replay_role_substitution[spot-roles6] _____
+
+mode = 'spot', roles = ('capture_input',)
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+___ test_promotion_rejects_resealed_replay_role_substitution[futures-roles7] ___
+
+mode = 'futures', roles = ('candle_input', 'market_input', 'funding_input')
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+___ test_promotion_rejects_resealed_replay_role_substitution[futures-roles8] ___
+
+mode = 'futures'
+roles = ('mark_input', 'leverage_input', 'source_input', 'capture_input')
+
+    @pytest.mark.parametrize(
+        ("mode", "roles"),
+        [
+            ("spot", ("candle_input",)),
+            ("spot", ("market_input",)),
+            ("futures", ("funding_input",)),
+            ("futures", ("mark_input",)),
+            ("futures", ("leverage_input",)),
+            ("spot", ("source_input",)),
+            ("spot", ("capture_input",)),
+            ("futures", ("candle_input", "market_input", "funding_input")),
+            ("futures", ("mark_input", "leverage_input", "source_input", "capture_input")),
+        ],
+    )
+    def test_promotion_rejects_resealed_replay_role_substitution(
+        mode: str,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: each selected role is resealed around real but unrelated config bytes.
+        document = _document()
+        provenance = document["modes"][mode]["official_provenance"]
+        replacement = _artifact(provenance, "config_input")
+        for role in roles:
+            artifact = _artifact(provenance, role)
+            artifact["path"] = replacement["path"]
+            artifact["sha256"] = replacement["sha256"]
+        _reseal(document)
+    
+        # When / Then: promotion proves the consumed role, not merely its self-hash.
+>       with pytest.raises(SpecValidationError, match="role|replay|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:84: Failed
+__________ test_promotion_reconstructs_official_state_from_raw_trace ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1460/test_promotion_reconstructs_of0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72301eae67e0>
+
+    def test_promotion_reconstructs_official_state_from_raw_trace(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: the authenticated raw trace is changed and the manifest is fully resealed,
+        # while the normalized projection and proof rows retain the original state.
+        replay_root = _clean_root(tmp_path, monkeypatch) / "spot/replay"
+        raw_trace = replay_root / "artifacts/state-trace.nfitrace"
+        _rewrite_trace(raw_trace, "raw-wallet")
+        manifest_path = replay_root / "manifest.json"
+        manifest = read_json(manifest_path)
+        manifest["artifacts"]["state_trace"].update(
+            sha256=hashlib.sha256(raw_trace.read_bytes()).hexdigest(),
+            bytes=raw_trace.stat().st_size,
+        )
+        write_json(manifest_path, manifest)
+        document = _document()
+        for lane_name in ("official", "native"):
+            replay = _artifact(document["modes"]["spot"][f"{lane_name}_provenance"], "replay_manifest")
+            replay["sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        _reseal(document)
+    
+        # When / Then: resealing cannot detach canonical state from raw producer events.
+>       with pytest.raises(SpecValidationError, match="state|trace|reconstruct"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:154: Failed
+_________ test_promotion_rejects_resealed_normalized_state_projection __________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1460/test_promotion_rejects_reseale0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72301b69aa20>
+
+    def test_promotion_rejects_resealed_normalized_state_projection(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: both stored projections and proof rows are changed in lockstep while
+        # the authenticated official raw trace and Native execution remain unchanged.
+        replay_root = _clean_root(tmp_path, monkeypatch)
+        document = _document()
+        mode = document["modes"]["futures"]
+        official_path = replay_root / "futures/official-state.nfitrace"
+        native_path = replay_root / "futures/native-state.nfitrace"
+        _rewrite_trace(official_path, "projection-wallet")
+        _rewrite_trace(native_path, "projection-wallet")
+        for lane_name, path in (("official", official_path), ("native", native_path)):
+            provenance = mode[f"{lane_name}_provenance"]
+            artifact = _artifact(provenance, f"{lane_name}_state")
+            artifact["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+            for row in mode[lane_name]["full_state"]:
+                row["wallet"]["quote_free"] = str(
+                    Decimal(row["wallet"]["quote_free"]) + 1
+                )
+        _reseal(document)
+    
+        # When / Then: normalized views are caches and cannot become authority by resealing.
+>       with pytest.raises(SpecValidationError, match="state|projection|reconstruct"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r4.py:182: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[spot-roles0]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[spot-roles1]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[futures-roles2]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[futures-roles3]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[futures-roles4]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[spot-roles5]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[spot-roles6]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[futures-roles7]
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_replay_role_substitution[futures-roles8]
+FAILED tests/test_task8_r4.py::test_promotion_reconstructs_official_state_from_raw_trace
+FAILED tests/test_task8_r4.py::test_promotion_rejects_resealed_normalized_state_projection
+11 failed in 39.45s

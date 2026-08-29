@@ -36,6 +36,17 @@ REFERENCE_CCXT_VERSION = "4.5.55"
 
 REFERENCE_BLAKE3_VERSION = "1.0.9"
 
+# The tracer's only image-external dependency. The exact CPython 3.14,
+# manylinux x86_64 wheel is selected for the pinned linux/amd64 Oracle image.
+REFERENCE_DEPENDENCY_WHEELS = (
+    (
+        "blake3-1.0.9-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "https://files.pythonhosted.org/packages/e1/b8/1298806dd6c464a6f807df24c9640ad3bf27ee54ff4de82b2b5a823a8aba/"
+        "blake3-1.0.9-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "f65d77eb05331495485048f6804f53885b192b998acb7e6fe1487d941bf08435",
+    ),
+)
+
 REFERENCE_TRACER_VERSION = "1.1.0"
 
 SUPPORTED_REFERENCE_TRACER_VERSIONS = frozenset({"1.0.0", REFERENCE_TRACER_VERSION})
@@ -68,6 +79,13 @@ print(
 """
 
 _CGROUP_CAPTURE_SCRIPT = BIND_OWNER_EXECUTABLE_FUNCTION + """\
+if [ -d /reference-deps ]; then
+  /usr/local/bin/python \
+    /nfi-python/nfi_backtest_engine/reference/dependency_seal.py \
+    /reference-deps /nfi-deps/site \
+    blake3-1.0.9-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl \
+    f65d77eb05331495485048f6804f53885b192b998acb7e6fe1487d941bf08435 || exit 126
+fi
 run_as_bind_owner freqtrade "$@"
 status=$?
 if [ -r /sys/fs/cgroup/memory.peak ]; then

@@ -195,6 +195,14 @@ jobs:
           test "$(
             sha256sum .compatibility/old.py | awk '{print $1}'
           )" = "${expected_old_sha}"
+          jq \
+            --arg old_commit "${baseline_upstream_sha}" \
+            --arg new_commit "${UPSTREAM_SHA}" \
+            '.old.commit = $old_commit | .new.commit = $new_commit' \
+            .compatibility/strategy-diff.json \
+            > .compatibility/strategy-diff.bound.json
+          mv .compatibility/strategy-diff.bound.json \
+            .compatibility/strategy-diff.json
           jq -n \
             --arg upstream_sha "${UPSTREAM_SHA}" \
             --arg engine_sha "${ENGINE_SHA}" \
@@ -447,12 +455,37 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Install uv and locked Python environment
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --frozen
       - name: Download both mode results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: latest-nfi-x7-*
           path: .compatibility/results
           merge-multiple: true
+      - name: Generate current-HEAD changed-target ledger
+        run: |
+          uv run nfi-bte strategy semantic-registry-packaged-integrity
+          gzip -dc -- \
+            python/nfi_backtest_engine/contracts/freqtrade-nfi-semantic-obligation-registry.json.gz \
+            > .compatibility/results/semantic-registry.json
+          uv run python scripts/changed_target_ledger.py \
+            --strategy-diff .compatibility/results/strategy-diff.json \
+            --semantic-registry .compatibility/results/semantic-registry.json \
+            --fixture-registry planning/compatibility-fixtures.json \
+            --spot-targeted-report .compatibility/results/targeted-report-spot.json \
+            --futures-targeted-report .compatibility/results/targeted-report-futures.json \
+            --upstream-repository https://github.com/iterativv/NostalgiaForInfinity.git \
+            --upstream-ref refs/heads/main \
+            --upstream-head "$(jq -er .upstream_sha .compatibility/results/compatibility-identity.json)" \
+            --baseline-commit "$(jq -er .baseline_upstream_sha .compatibility/results/compatibility-identity.json)" \
+            --output .compatibility/changed-target-ledger.json
+          uv run python scripts/validate_changed_target_promotion.py \
+            --ledger .compatibility/changed-target-ledger.json \
+            --decisions .compatibility/results
       - name: Validate four-identity dual-mode completion
         run: |
           python scripts/compatibility_canary.py \
@@ -468,9 +501,113 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: latest-nfi-x7-hosted-canary
-          path: .compatibility/hosted-canary.json
+          path: |
+            .compatibility/hosted-canary.json
+            .compatibility/changed-target-ledger.json
           if-no-files-found: error
           retention-days: 30
+
+  product-status:
+    name: NFI product compatibility
+    needs:
+      - discover
+      - diff
+      - x7
+      - targeted
+      - canary
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      source_run_id: ${{ steps.status.outputs.source_run_id }}
+    steps:
+      - name: Check out current main for status comparison
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download current-run proof artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: latest-nfi-x7-*
+          path: .compatibility/status-input
+          merge-multiple: true
+      - name: Load unchanged authoritative ledger proof
+        if: needs.discover.outputs.changed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ledger_dir="$(mktemp -d)"
+          git clone --quiet --single-branch --branch compatibility-ledger \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "${ledger_dir}"
+          check_path="$(jq -er .check_path "${ledger_dir}/latest.json")"
+          cp -a "${ledger_dir}/${check_path}/." .compatibility/status-input/
+      - name: Seal and classify authoritative product status
+        id: status
+        continue-on-error: true
+        env:
+          CHANGED: ${{ needs.discover.outputs.changed || 'false' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          proof=.compatibility/status-input
+          identity="${proof}/compatibility-identity.json"
+          current_engine_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          current_upstream_sha="$(git ls-remote \
+            https://github.com/iterativv/NostalgiaForInfinity.git \
+            refs/heads/main | awk '{print $1}')"
+          test -n "${current_engine_sha}"
+          test -n "${current_upstream_sha}"
+          local_digest="$(PYTHONPATH=python python -c \
+            'from nfi_backtest_engine.reference.contracts import REFERENCE_INDEX_DIGEST; print(REFERENCE_INDEX_DIGEST)')"
+          local_profile="$(jq -er .fingerprint planning/freqtrade-semantic-profile.json)"
+          source_run_id="${GITHUB_RUN_ID}"
+          seal=()
+          if [ "${CHANGED}" = "true" ]; then
+            cp planning/freqtrade-semantic-profile.json "${proof}/semantic-profile.json"
+            jq -n \
+              --arg source_run_id "${source_run_id}" \
+              --argjson identity "$(jq '{upstream_sha,engine_sha,freqtrade_digest,semantic_profile_sha256,source_sha256}' "${identity}")" \
+              '{schema_version:"compatibility-source-run-v1",source_run_id:$source_run_id,identity:$identity}' \
+              > "${proof}/source-run.json"
+            seal=(--seal-proof-manifest)
+          else
+            source_run_id="$(jq -er .source_run_id "${proof}/source-run.json")"
+          fi
+          workflow_execution=succeeded
+          if [ "$(jq -er .freqtrade_digest "${identity}")" != "${local_digest}" ] \
+            || [ "$(jq -er .semantic_profile_sha256 "${identity}")" != "${local_profile}" ]; then
+            workflow_execution=stale
+          fi
+          echo "source_run_id=${source_run_id}" >> "${GITHUB_OUTPUT}"
+          PYTHONPATH=python python scripts/compatibility_automation.py \
+            --identity "${identity}" \
+            --decision-dir "${proof}" \
+            --proof-dir "${proof}" \
+            --source-run-id "${source_run_id}" \
+            "${seal[@]}" \
+            --current-engine-sha "${current_engine_sha}" \
+            --current-upstream-sha "${current_upstream_sha}" \
+            --workflow-execution "${workflow_execution}" \
+            --spot-discovery-execution not_required \
+            --futures-discovery-execution not_required \
+            --output .compatibility/compatibility-product-status.json
+      - name: Retain machine-consumed compatibility status
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nfi-compatibility-product-status
+          path: |
+            .compatibility/compatibility-product-status.json
+            .compatibility/status-input/compatibility-proof-manifest.json
+            .compatibility/status-input/source-run.json
+            .compatibility/status-input/semantic-profile.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce required product compatibility
+        run: jq -e '.required_status_passed == true' .compatibility/compatibility-product-status.json
 
   publish:
     name: Preserve ledger and reconcile compatibility issue
@@ -480,6 +617,7 @@ jobs:
       - x7
       - targeted
       - canary
+      - product-status
     if: >-
       always()
       && needs.discover.outputs.changed == 'true'
@@ -487,6 +625,7 @@ jobs:
       && needs.x7.result == 'success'
       && needs.targeted.result == 'success'
       && needs.canary.result == 'success'
+      && needs.product-status.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -502,11 +641,34 @@ jobs:
           pattern: latest-nfi-x7-*
           path: .compatibility/results
           merge-multiple: true
+      - name: Download trusted product status
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: nfi-compatibility-product-status
+          path: .compatibility/status
+      - name: Recheck trusted product status and current refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=.compatibility/status/compatibility-product-status.json
+          jq -e '.required_status_passed == true' "${status}"
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .same_engine_proof.source_run_id "${status}")" = \
+            "${{ needs.product-status.outputs.source_run_id }}"
       - name: Reconcile deduplicated compatibility issue
         env:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
+          set -euo pipefail
+          status=.compatibility/status/compatibility-product-status.json
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
           gh label create nfi-compatibility \
             --description "Automated latest NFI compatibility blocker" \
             --color B60205 --force
@@ -517,6 +679,9 @@ jobs:
             --upstream-sha "${UPSTREAM_SHA}"
       - name: Revalidate atomic hosted canary
         run: |
+          uv run python scripts/validate_changed_target_promotion.py \
+            --ledger .compatibility/results/changed-target-ledger.json \
+            --decisions .compatibility/results
           python scripts/compatibility_canary.py \
             --identity .compatibility/results/compatibility-identity.json \
             --strategy-diff .compatibility/results/strategy-diff.json \
@@ -538,6 +703,11 @@ jobs:
           UPSTREAM_SHA: ${{ needs.discover.outputs.upstream_sha }}
         run: |
           set -euo pipefail
+          status="${GITHUB_WORKSPACE}/.compatibility/status/compatibility-product-status.json"
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
           ledger_dir="$(mktemp -d)"
           git clone --quiet --no-checkout \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
@@ -571,8 +741,15 @@ jobs:
             verification-plan-spot.json \
             verification-plan-futures.json \
             compatibility-identity.json \
+            changed-target-ledger.json \
             hosted-canary.json; do
             cp "${GITHUB_WORKSPACE}/.compatibility/results/${file}" \
+              "${check_path}/${file}"
+          done
+          cp "${GITHUB_WORKSPACE}/.compatibility/status/compatibility-product-status.json" \
+            "${check_path}/compatibility-product-status.json"
+          for file in compatibility-proof-manifest.json source-run.json semantic-profile.json; do
+            cp "${GITHUB_WORKSPACE}/.compatibility/status/status-input/${file}" \
               "${check_path}/${file}"
           done
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -585,6 +762,7 @@ jobs:
             --arg check_path "${check_path}" \
             --arg trigger_reason "${TRIGGER_REASON}" \
             --arg run_url "${run_url}" \
+            --arg source_run_id "${{ needs.product-status.outputs.source_run_id }}" \
             '{
               schema_version: "1.1.0",
               upstream_sha: $upstream_sha,
@@ -594,7 +772,8 @@ jobs:
               baseline_upstream_sha: $baseline_upstream_sha,
               check_path: $check_path,
               trigger_reason: $trigger_reason,
-              run_url: $run_url
+              run_url: $run_url,
+              source_run_id: $source_run_id
             }' > "${check_path}/metadata.json"
           cp "${check_path}/metadata.json" latest.json
           printf '%s\n' "${UPSTREAM_SHA}" > latest-sha.txt
@@ -617,6 +796,7 @@ jobs:
       - x7
       - targeted
       - canary
+      - product-status
       - publish
     if: always()
     runs-on: ubuntu-latest
@@ -644,4 +824,5 @@ jobs:
             --stage "x7=${{ needs.x7.result }}" \
             --stage "targeted=${{ needs.targeted.result }}" \
             --stage "canary=${{ needs.canary.result }}" \
+            --stage "product-status=${{ needs.product-status.result }}" \
             --stage "publish=${{ needs.publish.result }}"

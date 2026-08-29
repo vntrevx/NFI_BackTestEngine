@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 PINNED_FREQTRADE_VERSION = "2026.5.1"
+REFERENCE_STATE_SCHEMA_VERSION = "reference-state-v2"
 PINNED_METHOD_HASHES = {
     "backtest": "c65dbdd3427a758d2b7b3b9e5c113970cc39c94affadfde70d8e6a2ab9452fbf",
     "backtest_one_strategy": (
@@ -1127,7 +1128,7 @@ def _writer(backtesting: Any) -> Any:
         strategy_sha256=os.environ["NFI_TRACE_STRATEGY_SHA256"],
         profile_sha256=os.environ["NFI_TRACE_PROFILE_SHA256"],
         trading_mode=str(backtesting.config["trading_mode"]),
-        include_state=os.environ.get("NFI_TRACE_INCLUDE_STATE") == "1",
+        include_state=True,
     )
     backtesting._nfi_state_trace_writer = writer
     return writer
@@ -1197,7 +1198,10 @@ def _snapshot(backtesting: Any) -> dict[str, Any]:
     from freqtrade.persistence import LocalTrade, PairLocks
 
     balances = backtesting.wallets.get_all_balances()
-    trades = sorted(LocalTrade.bt_trades, key=lambda trade: trade.id or 0)
+    trades = sorted(
+        [*LocalTrade.bt_trades, *LocalTrade.bt_trades_open],
+        key=lambda trade: trade.id or 0,
+    )
     locks = sorted(
         PairLocks.get_all_locks(),
         key=lambda lock: (
@@ -1209,6 +1213,7 @@ def _snapshot(backtesting: Any) -> dict[str, Any]:
     )
     return _canonicalize(
         {
+            "schema_version": REFERENCE_STATE_SCHEMA_VERSION,
             "wallets": balances,
             "open_trade_count": LocalTrade.bt_open_open_trade_count,
             "total_profit": LocalTrade.bt_total_profit,

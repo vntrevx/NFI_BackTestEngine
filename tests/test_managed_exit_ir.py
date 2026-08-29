@@ -452,8 +452,8 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
 
 def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) -> None:
     source = Path(
-        "benchmarks/fixtures/captured/"
-        "x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/strategy.py"
+        "benchmarks/evidence/m22/current-x7-raw/"
+        "upstream-NostalgiaForInfinityX7.source"
     )
     text = source.read_text(encoding="utf-8")
     old = "(last_rsi_14 < 22.0):\n        sell, signal_name = True, f\"exit_{mode_name}_q_1\""
@@ -470,7 +470,7 @@ def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) 
 
     assert manager is not None
     operation = manager["operation"]
-    assert operation["schema_version"] == "0.29.0"
+    assert operation["schema_version"] == "0.30.0"
     assert operation["managed_short_exit_program"]["execution_mode"] == "primary"
 
 

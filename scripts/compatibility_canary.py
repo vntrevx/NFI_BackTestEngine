@@ -39,9 +39,7 @@ def build_hosted_canary(
     if watcher_identity["semantic_profile_sha256"] != profile_sha256:
         raise ValueError("compatibility identity differs from the committed semantic profile")
     new_source = strategy_diff.get("new")
-    diff_source_sha256 = (
-        new_source.get("sha256") if isinstance(new_source, Mapping) else None
-    )
+    diff_source_sha256 = new_source.get("sha256") if isinstance(new_source, Mapping) else None
     if diff_source_sha256 != source_sha256:
         raise ValueError("strategy difference and compatibility identity source differ")
 
@@ -52,7 +50,7 @@ def build_hosted_canary(
         qualification = _mode_document(qualifications, mode, "qualification")
         _validate_compatibility(compatibility, mode, source_sha256)
         _validate_targeted(targeted, mode, source_sha256, qualification)
-        _validate_qualification(qualification, source_sha256)
+        _validate_qualification(qualification, mode, source_sha256)
         decision = (
             _mode_document(decisions, mode, "automation decision")
             if decisions is not None
@@ -112,18 +110,12 @@ def main() -> int:
     canary = build_hosted_canary(
         _read_object(args.identity),
         _read_object(args.strategy_diff),
-        {
-            mode: _read_object(args.reports / f"report-{mode}.json")
-            for mode in _MODES
-        },
+        {mode: _read_object(args.reports / f"report-{mode}.json") for mode in _MODES},
         {
             mode: _read_object(args.targeted_reports / f"targeted-report-{mode}.json")
             for mode in _MODES
         },
-        {
-            mode: _read_object(args.qualifications / f"qualification-{mode}.json")
-            for mode in _MODES
-        },
+        {mode: _read_object(args.qualifications / f"qualification-{mode}.json") for mode in _MODES},
         semantic_profile=_read_object(args.semantic_profile),
         decisions={
             mode: _read_object(args.decisions / f"automation-decision-{mode}.json")
@@ -197,9 +189,15 @@ def _validate_targeted(
         raise ValueError(f"{mode} targeted completion flag is inconsistent")
 
 
-def _validate_qualification(report: Mapping[str, Any], source_sha256: str) -> None:
+def _validate_qualification(
+    report: Mapping[str, Any],
+    mode: str,
+    source_sha256: str,
+) -> None:
     if report.get("schema_version") != "1.0.0":
         raise ValueError("qualification schema is unsupported")
+    if report.get("trading_mode") != mode:
+        raise ValueError("qualification has a different trading mode")
     if report.get("strategy_sha256") != source_sha256:
         raise ValueError("qualification has a different strategy source")
     if report.get("verification_state") not in {"latest_checked", "quick_verified"}:

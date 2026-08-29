@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/execution-boundary-event-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sequence",
+    "timestamp_ms",
+    "pair",
+    "phase",
+    "order_type",
+    "candle",
+    "candidates",
+    "intermediates"
+  ],
+  "properties": {
+    "schema_version": {"const": "execution-boundary-event-v1"},
+    "sequence": {"type": "integer", "minimum": 0},
+    "timestamp_ms": {"type": "integer"},
+    "pair": {"type": "string", "minLength": 1},
+    "phase": {
+      "enum": [
+        "entry_candidate",
+        "entry_gate",
+        "entry_fill",
+        "exit_candidate",
+        "exit_competition",
+        "exit_confirmation",
+        "exit_fill",
+        "adjustment_candidate",
+        "adjustment_fill",
+        "partial_exit_fill"
+      ]
+    },
+    "order_type": {"enum": ["limit", "market"]},
+    "order_status": {"type": "string", "minLength": 1},
+    "proposed_rate": {"$ref": "#/$defs/decimal"},
+    "clamped_rate": {"$ref": "#/$defs/decimal"},
+    "precision_rate": {"$ref": "#/$defs/decimal"},
+    "within_candle": {"type": "boolean"},
+    "timeout_checked": {"type": "boolean"},
+    "timed_out": {"type": "boolean"},
+    "candle": {"$ref": "#/$defs/candle"},
+    "candidates": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "winner": {"type": "string", "minLength": 1},
+    "confirmation": {"type": "boolean"},
+    "rejection_reason": {"type": "string", "minLength": 1},
+    "trade_id": {"type": "integer", "minimum": 1},
+    "order_id": {"type": "integer", "minimum": 1},
+    "amount_input": {"$ref": "#/$defs/decimal"},
+    "amount_step": {"$ref": "#/$defs/decimal"},
+    "amount_output": {"$ref": "#/$defs/decimal"},
+    "price_input": {"$ref": "#/$defs/decimal"},
+    "current_price_step": {"$ref": "#/$defs/decimal"},
+    "price_step": {"$ref": "#/$defs/decimal"},
+    "price_output": {"$ref": "#/$defs/decimal"},
+    "minimum_stake": {"$ref": "#/$defs/decimal"},
+    "minimum_stake_stage": {"type": "string", "minLength": 1},
+    "minimum_stake_accepted": {"type": "boolean"},
+    "fee_open": {"$ref": "#/$defs/decimal"},
+    "fee_close": {"$ref": "#/$defs/decimal"},
+    "fee_applied": {"$ref": "#/$defs/decimal"},
+    "intermediates": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/decimal"}
+    },
+    "state_before": {"$ref": "#/$defs/state"},
+    "state_after": {"$ref": "#/$defs/state"}
+  },
+  "$defs": {
+    "decimal": {
+      "type": "string",
+      "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$"
+    },
+    "candle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["open", "high", "low", "close"],
+      "properties": {
+        "open": {"$ref": "#/$defs/decimal"},
+        "high": {"$ref": "#/$defs/decimal"},
+        "low": {"$ref": "#/$defs/decimal"},
+        "close": {"$ref": "#/$defs/decimal"}
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wallet_free",
+        "wallet_tied",
+        "realized_closed",
+        "realized_partial",
+        "occupied_slots",
+        "slot_limit",
+        "open_trade_ids",
+        "open_trade_pairs",
+        "open_order_ids",
+        "next_trade_id",
+        "next_order_id",
+        "rejected_signals"
+      ],
+      "properties": {
+        "wallet_free": {"type": "number"},
+        "wallet_tied": {"type": "number"},
+        "realized_closed": {"type": "number"},
+        "realized_partial": {"type": "number"},
+        "occupied_slots": {"type": "integer", "minimum": 0},
+        "slot_limit": {"type": "integer", "minimum": 0},
+        "open_trade_ids": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 1},
+          "uniqueItems": true
+        },
+        "open_trade_pairs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "open_order_ids": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 1},
+          "uniqueItems": true
+        },
+        "next_trade_id": {"type": "integer", "minimum": 1},
+        "next_order_id": {"type": "integer", "minimum": 1},
+        "rejected_signals": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

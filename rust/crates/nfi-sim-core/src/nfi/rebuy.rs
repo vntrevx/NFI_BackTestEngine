@@ -144,7 +144,7 @@ fn evaluate_compiled_rebuy_program(
     if !first.is_entry {
         return None;
     }
-    let aggregates = trade.filled_order_aggregates();
+    let aggregates = trade.filled_order_aggregates().ok()?;
     let latest_entry = aggregates
         .select(crate::order_aggregates::FilledOrderSelector::Entries)
         .latest
@@ -492,6 +492,7 @@ mod tests {
             liquidation_price_is_explicit: false,
             initial_stop_loss: 1.0,
             stop_loss: 1.0,
+            custom_stop_loss_ratio: None,
             minimum_rate: 90.0,
             maximum_rate: 100.0,
             orders: vec![FilledOrder {
@@ -584,18 +585,20 @@ mod tests {
     fn compiled_rebuy_delegate_tag_is_program_data() {
         let mut program = compiled_program();
         let mut trade = open_trade();
-        trade.push_filled_order(FilledOrder {
-            id: 2,
-            funding_fee: 0.0,
-            sequence: 1,
-            side: OrderSide::Sell,
-            is_entry: false,
-            filled_timestamp_ms: 1,
-            amount: 0.5,
-            price: 90.0,
-            cost: 45.0,
-            tag: Some("source_derisk".to_owned()),
-        });
+        trade
+            .push_filled_order(FilledOrder {
+                id: 2,
+                funding_fee: 0.0,
+                sequence: 1,
+                side: OrderSide::Sell,
+                is_entry: false,
+                filled_timestamp_ms: 1,
+                amount: 0.5,
+                price: 90.0,
+                cost: 45.0,
+                tag: Some("source_derisk".to_owned()),
+            })
+            .expect("finite aggregate append");
         assert!(compiled_rebuy_delegates(&program, &trade));
         program.delegate.tag = "changed_derisk".to_owned();
         assert!(!compiled_rebuy_delegates(&program, &trade));

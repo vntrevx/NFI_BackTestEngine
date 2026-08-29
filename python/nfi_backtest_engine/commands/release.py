@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 
 from ..canonical import read_json, write_json
 
@@ -102,8 +104,93 @@ def execute_platform(args: argparse.Namespace) -> int:
         seal_platform_evidence,
     )
 
+    if args.platform_command == "prepare-attestation":
+        from ..fixture import sha256_file
+        from ..release_provenance import (
+            create_platform_statement,
+            prepare_statement_signing_bytes,
+        )
+
+        statement = create_platform_statement(
+            args.report,
+            repository=args.repository,
+            repository_ref=args.repository_ref,
+            workflow=args.workflow,
+            workflow_ref=args.workflow_ref,
+            job=args.job,
+            commit=args.commit,
+            run_id=args.run_id,
+            run_attempt=args.run_attempt,
+            candidate_id=args.candidate_id,
+            bundle_id=args.bundle_id,
+            challenge=args.challenge,
+            nonce=args.nonce,
+        )
+        payload, pae = prepare_statement_signing_bytes(statement)
+        args.payload_output.write_bytes(payload)
+        args.pae_output.write_bytes(pae)
+        args.checksum_output.write_text(
+            f"{sha256_file(args.payload_output)}  {args.payload_output.name}\n"
+            f"{sha256_file(args.pae_output)}  {args.pae_output.name}\n",
+            encoding="utf-8",
+        )
+        print(f"platform provenance signing request: {args.pae_output}")
+        return 0
+    if args.platform_command == "assemble-attestation":
+        from ..canonical import write_json
+        from ..release_provenance import assemble_statement_envelope
+
+        envelope = assemble_statement_envelope(
+            args.payload.read_bytes(), args.signature.read_bytes()
+        )
+        write_json(args.output, envelope)
+        print(f"platform provenance assembled: {args.output}")
+        return 0
+    if args.platform_command == "attest":
+        from ..release_provenance import (
+            PRODUCTION_KEY_ID,
+            load_signing_key,
+            write_signed_platform_provenance,
+        )
+
+        encoded_key = os.environ.get("NFI_RELEASE_PROVENANCE_PRIVATE_KEY")
+        if not encoded_key:
+            raise RuntimeError("NFI_RELEASE_PROVENANCE_PRIVATE_KEY is not configured")
+        private_key = load_signing_key(encoded_key.encode())
+        envelope = write_signed_platform_provenance(
+            args.report,
+            args.output,
+            repository=args.repository,
+            repository_ref=args.repository_ref,
+            workflow=args.workflow,
+            workflow_ref=args.workflow_ref,
+            job=args.job,
+            commit=args.commit,
+            run_id=args.run_id,
+            run_attempt=args.run_attempt,
+            candidate_id=args.candidate_id,
+            bundle_id=args.bundle_id,
+            challenge=args.challenge,
+            nonce=args.nonce,
+            key_id=PRODUCTION_KEY_ID,
+            private_key=private_key,
+        )
+        print(
+            "platform provenance signed: "
+            f"payload_type={envelope['payloadType']} -> {args.output}"
+        )
+        return 0
     if args.platform_command == "seal":
-        evidence = seal_platform_evidence(args.report, args.output_dir)
+        evidence = seal_platform_evidence(
+            args.report,
+            args.output_dir,
+            expected_commit=args.candidate_commit,
+            expected_run_id=args.run_id,
+            expected_run_attempt=args.run_attempt,
+            expected_candidate_id=args.candidate_id,
+            expected_bundle_id=args.bundle_id,
+            expected_challenge=args.challenge,
+        )
         print(
             "platform evidence sealed: "
             f"result={evidence['result_sha256']}, "
@@ -152,6 +239,27 @@ def execute_platform(args: argparse.Namespace) -> int:
 
 
 def execute_release(args: argparse.Namespace) -> int:
+    if args.release_command == "score":
+        from ..native_scorecard import evaluate_native_scorecard
+
+        report = evaluate_native_scorecard(
+            args.evidence,
+            expected_identity_path=args.identity,
+            output_path=args.output,
+            authorization_operation=args.operation,
+        )
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+        return 0 if report["perfect_native"] else 1
+    if args.release_command == "authorize-current":
+        from ..native_scorecard import require_fresh_current_ref_for_authorization
+
+        require_fresh_current_ref_for_authorization(
+            args.evidence,
+            args.identity,
+            args.operation,
+        )
+        print("current-ref authorization valid")
+        return 0
     if args.release_command == "combine":
         from ..combined_release import combine_full_x7_release
 
@@ -160,6 +268,8 @@ def execute_release(args: argparse.Namespace) -> int:
             futures_certificate_path=args.futures_certificate,
             platform_evidence_paths=args.platform_evidence,
             output_directory=args.output_dir,
+            native_score_evidence_path=args.native_score_evidence,
+            native_score_identity_path=args.native_score_identity,
         )
         print(
             f"Full X7 release: status={report['status']}, "
@@ -178,6 +288,10 @@ def execute_release(args: argparse.Namespace) -> int:
             platform_evidence_path=args.platform_evidence,
             candidate_commit=args.candidate_commit,
             output_directory=args.output_dir,
+            provenance_ledger_path=args.provenance_ledger,
+            publication_attempt_id=args.publication_attempt,
+            native_score_evidence_path=args.native_score_evidence,
+            native_score_identity_path=args.native_score_identity,
         )
         print(
             f"release gate: status={report['status']}, "
@@ -194,6 +308,10 @@ def execute_release(args: argparse.Namespace) -> int:
             combined_release_result_path=args.combined_release,
             candidate_commit=args.candidate_commit,
             output_directory=args.output_dir,
+            provenance_ledger_path=args.provenance_ledger,
+            publication_attempt_id=args.publication_attempt,
+            native_score_evidence_path=args.native_score_evidence,
+            native_score_identity_path=args.native_score_identity,
         )
         print(
             f"combined release gate: status={report['status']}, "
@@ -202,12 +320,39 @@ def execute_release(args: argparse.Namespace) -> int:
             f"{args.output_dir / 'RELEASE-SHA256SUMS.txt'}"
         )
         return 0
+    if args.release_command in {"finalize-combined", "abort-combined"}:
+        from ..combined_release import (
+            abort_combined_release_publication,
+            finalize_combined_release_publication,
+        )
+
+        if args.release_command == "finalize-combined":
+            finalize_combined_release_publication(
+                args.release_dir,
+                provenance_ledger_path=args.provenance_ledger,
+                publication_attempt_id=args.publication_attempt,
+                expected_commit=args.candidate_commit,
+                native_score_evidence_path=args.native_score_evidence,
+                native_score_identity_path=args.native_score_identity,
+            )
+            print("combined release durable publication finalized")
+        else:
+            abort_combined_release_publication(
+                args.release_dir,
+                provenance_ledger_path=args.provenance_ledger,
+                publication_attempt_id=args.publication_attempt,
+            )
+            print("combined release durable publication aborted")
+        return 0
     if args.release_command == "verify-combined":
         from ..combined_release import verify_combined_release_candidate
 
         report = verify_combined_release_candidate(
             args.release_dir,
             expected_commit=args.candidate_commit,
+            provenance_ledger_path=args.provenance_ledger,
+            native_score_evidence_path=args.native_score_evidence,
+            native_score_identity_path=args.native_score_identity,
         )
         print(
             f"combined release valid: commit={report['candidate_commit']}, "

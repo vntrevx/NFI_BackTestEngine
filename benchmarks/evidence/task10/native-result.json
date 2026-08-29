@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0.0",
+  "starting_balance": 10000.0,
+  "final_balance": 9915.83454658,
+  "profit_total_abs": -84.16545342,
+  "total_volume": 2011.25766627,
+  "rejected_signals": 0,
+  "maximum_concurrent_trades": 1,
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "id": 1,
+      "pair": "BTC/USDT:USDT",
+      "is_short": true,
+      "leverage": 5.0,
+      "open_timestamp_ms": 1612399500000,
+      "close_timestamp_ms": 1612796700000,
+      "open_rate": 40041.33,
+      "close_rate": 43719.19,
+      "amount": 0.024,
+      "stake_amount": 192.198396,
+      "max_stake_amount": 192.198396,
+      "entry_tag": "620 ",
+      "exit_reason": "exit_signal",
+      "fee_open": 0.0005,
+      "fee_close": 0.0005,
+      "funding_fees": 5.108252852246366,
+      "liquidation_price": 47467.32215239044,
+      "profit_abs": -84.16545342,
+      "profit_ratio": -0.4381283036233003,
+      "initial_stop_loss": 45410.11,
+      "stop_loss": 45410.11,
+      "minimum_rate": 36233.0,
+      "maximum_rate": 45063.24,
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "sell",
+          "is_entry": true,
+          "filled_timestamp_ms": 1612399500000,
+          "amount": 0.013,
+          "price": 37904.94,
+          "cost": 493.01060211,
+          "tag": "620 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": true,
+          "filled_timestamp_ms": 1612788900000,
+          "amount": 0.011,
+          "price": 42566.16,
+          "cost": 468.46187388,
+          "tag": "gd5"
+        },
+        {
+          "sequence": 2,
+          "side": "buy",
+          "is_entry": false,
+          "filled_timestamp_ms": 1612796700000,
+          "amount": 0.024,
+          "price": 43719.19,
+          "cost": 1049.78519028,
+          "tag": "exit_signal"
+        }
+      ]
+    }
+  ]
+}

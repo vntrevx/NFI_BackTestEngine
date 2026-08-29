@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -9,16 +11,43 @@ from typing import Any, Literal
 import polars as pl
 
 from .branch_coverage import validate_fixture_coverage
+from .callback_trace_projection import project_engine_events
 from .canonical import canonical_decimal, read_json, write_json
+from .data_seal import timeframe_milliseconds
 from .engine_runtime import run_engine
 from .errors import BenchmarkError, StrategyAnalysisError
-from .fixture import sha256_file, validate_fixture
+from .fixture import (
+    fixture_input_sha256,
+    materialized_fixture,
+    sha256_file,
+    validate_fixture,
+)
 from .mismatch_replay import create_mismatch_replay
 from .parity import first_difference
 from .specs import validate_trade_surface
-from .state_trace import first_trace_difference, trace_summary
+from .state_trace import (
+    first_trace_difference,
+    iter_validated_trace_events,
+    trace_summary,
+)
 from .strategy_ir import analyze_strategy
-from .trace_projection import project_engine_events, project_reference_trace
+from .trace_projection import (
+    project_engine_events as project_portfolio_engine_events,
+)
+from .trace_projection import (
+    project_reference_trace,
+)
+
+
+def _uses_legacy_reference_state(root: Path, manifest: dict[str, Any]) -> bool:
+    source_record = manifest["artifacts"].get("state_trace")
+    if source_record is None:
+        return False
+    first_event = next(iter_validated_trace_events(root / source_record["path"]), None)
+    if first_event is None:
+        return False
+    state = first_event.get("state")
+    return isinstance(state, dict) and "schema_version" not in state
 
 VerificationLevel = Literal["quick", "full"]
 
@@ -31,17 +60,38 @@ def run_fixture_engine(
     timeout_seconds: int | None = None,
     verification_level: VerificationLevel = "quick",
 ) -> dict[str, Any]:
-    """Adapt one supported contract fixture, run Rust, and verify exact parity."""
-    if verification_level not in {"quick", "full"}:
-        raise BenchmarkError(
-            f"verification level must be 'quick' or 'full', got {verification_level!r}"
-        )
-    manifest_file = Path(manifest_path).resolve()
+    """Adapt one retained contract fixture, run Rust, and verify exact parity."""
+    manifest_file = Path(manifest_path).absolute()
     manifest = validate_fixture(
         manifest_file,
         validate_trace_semantics=False,
     )
-    if (
+    with materialized_fixture(manifest_file, manifest) as retained:
+        return _run_fixture_engine_materialized(
+            retained[0],
+            retained[1],
+            output_directory,
+            profile_path=profile_path,
+            timeout_seconds=timeout_seconds,
+            verification_level=verification_level,
+        )
+
+
+def _run_fixture_engine_materialized(
+    manifest_file: Path,
+    manifest: dict[str, Any],
+    output_directory: str | Path,
+    *,
+    profile_path: str | Path | None,
+    timeout_seconds: int | None,
+    verification_level: VerificationLevel,
+) -> dict[str, Any]:
+    if verification_level not in {"quick", "full"}:
+        raise BenchmarkError(
+            f"verification level must be 'quick' or 'full', got {verification_level!r}"
+        )
+    native_vector_input = _native_vector_input(manifest_file, manifest)
+    if native_vector_input is None and (
         manifest["schema_version"] == "3.0.0"
         or manifest["freqtrade"]["strategy"]
         not in {"ContractStopsOnly", "ContractNormalRouting"}
@@ -62,13 +112,16 @@ def run_fixture_engine(
     if output.exists() and any(output.iterdir()):
         raise BenchmarkError(f"engine output directory must be empty: {output}")
     output.mkdir(parents=True, exist_ok=True)
-    input_path = output / "simulation-input.json"
-    build_fixture_simulation_input(
-        manifest_file,
-        input_path,
-        validated_manifest=manifest,
-        strategy_analysis=strategy_analysis,
-    )
+    if native_vector_input is None:
+        input_path = output / "simulation-input.json"
+        build_fixture_simulation_input(
+            manifest_file,
+            input_path,
+            validated_manifest=manifest,
+            strategy_analysis=strategy_analysis,
+        )
+    else:
+        input_path = (manifest_file.parent / native_vector_input["path"]).resolve()
     raw_result_path = output / "simulation-result.json"
     engine_events_path = output / "engine-events.jsonl" if verification_level == "full" else None
     execution = run_engine(
@@ -77,12 +130,14 @@ def run_fixture_engine(
         profile_path=profile_path,
         timeout_seconds=timeout_seconds,
         events_path=engine_events_path,
+        vector_manifest=native_vector_input is not None,
     )
     surface = engine_result_to_surface(
         manifest_file,
         raw_result_path,
         validated_manifest=manifest,
         strategy_analysis=strategy_analysis,
+        vector_result=native_vector_input is not None,
     )
     surface_path = output / "trade-surface.json"
     write_json(surface_path, surface)
@@ -128,7 +183,14 @@ def run_fixture_engine(
             actual_trace_path,
             manifest=manifest,
         )
-        state_difference = first_trace_difference(expected_trace_path, actual_trace_path)
+        state_difference = first_trace_difference(
+            expected_trace_path,
+            actual_trace_path,
+            allow_actual_terminal_state_repeat=_uses_legacy_reference_state(
+                manifest_file.parent,
+                manifest,
+            ),
+        )
         state_parity = {
             "checked": True,
             "equal": state_difference is None,
@@ -144,7 +206,7 @@ def run_fixture_engine(
         }
     parity_equal = trade_difference is None and state_parity["equal"] is not False
     mismatch_replay = None
-    if not parity_equal:
+    if not parity_equal and native_vector_input is None:
         mismatch_replay = create_mismatch_replay(
             output / "mismatch-replay",
             fixture_id=manifest["fixture_id"],
@@ -213,18 +275,53 @@ def _run_research_fixture_engine(
     market_input = _one_input(manifest, "market_metadata")
     config = read_json(root / config_input["path"])
     pairs = config["exchange"]["pair_whitelist"]
+    interval_identity = official_consumed_interval(manifest_file, manifest)
     research_output = output / "research"
     selected_profile = (
         Path(profile_path).resolve()
         if profile_path is not None
         else output / "execution-profile.json"
     )
+    manifest_payload = getattr(manifest, "manifest_payload", None)
+    if not isinstance(manifest_payload, bytes):
+        raise BenchmarkError("fixture validation did not retain manifest bytes")
+    official_trace_inputs = [
+        item
+        for item in manifest["inputs"]
+        if item["role"] == "auxiliary"
+        and item["sha256"] == interval_identity["official_trace_sha256"]
+    ]
+    if len(official_trace_inputs) > 1:
+        raise BenchmarkError("fixture has ambiguous official portfolio trace inputs")
+    portfolio_envelope_identity = (
+        {
+            "fixture_id": manifest["fixture_id"],
+            "fixture_manifest_sha256": hashlib.sha256(manifest_payload).hexdigest(),
+            "scheduler_contract_sha256": interval_identity["scheduler_contract_sha256"],
+            "scheduler_contract_fingerprint": interval_identity[
+                "scheduler_contract_fingerprint"
+            ],
+            "portfolio_contract_sha256": interval_identity["portfolio_contract_sha256"],
+            "portfolio_contract_fingerprint": interval_identity[
+                "portfolio_contract_fingerprint"
+            ],
+            "source_sha256": strategy_input["sha256"],
+            "config_sha256": config_input["sha256"],
+            "data_sha256": interval_identity["data_sha256"],
+            "official_trace_sha256": interval_identity["official_trace_sha256"],
+            "native_timerange": interval_identity["native_timerange"],
+            "configured_pairs": pairs,
+            "slot_limit": int(config["max_open_trades"]),
+        }
+        if official_trace_inputs
+        else None
+    )
     research = run_research_backtest(
         strategy_path=root / strategy_input["path"],
         class_name=manifest["freqtrade"]["strategy"],
         config_path=root / config_input["path"],
         data_directory=_fixture_data_directory(root, manifest),
-        timerange=manifest["freqtrade"]["timerange"],
+        timerange=interval_identity["native_timerange"],
         output_directory=research_output,
         pairs=pairs,
         workers=1,
@@ -238,9 +335,14 @@ def _run_research_fixture_engine(
         recalibrate=True,
         history_coverage_policy="strict",
         trace_engine_events=verification_level == "full",
+        portfolio_envelope_identity=portfolio_envelope_identity,
     )
     surface_path = research_output / "trade-surface.json"
     expected_path = root / manifest["artifacts"]["trade_surface"]["path"]
+    if surface_path.is_file():
+        surface = read_json(surface_path)
+        surface["context"]["timerange"] = manifest["freqtrade"]["timerange"]
+        write_json(surface_path, surface)
     trade_difference = (
         first_difference(read_json(expected_path), read_json(surface_path))
         if surface_path.is_file()
@@ -270,13 +372,25 @@ def _run_research_fixture_engine(
                 manifest=manifest,
             )
         actual_trace_path = output / "engine-state-projected.trace"
-        project_engine_events(
+        expected_phases = {
+            event["phase"] for event in iter_validated_trace_events(expected_trace_path)
+        }
+        projector = (
+            project_portfolio_engine_events
+            if expected_phases == {"portfolio.after_candle"}
+            else project_engine_events
+        )
+        projector(
             manifest_file,
             engine_events,
             actual_trace_path,
             manifest=manifest,
         )
-        state_difference = first_trace_difference(expected_trace_path, actual_trace_path)
+        state_difference = first_trace_difference(
+            expected_trace_path,
+            actual_trace_path,
+            allow_actual_terminal_state_repeat=_uses_legacy_reference_state(root, manifest),
+        )
         state_parity = {
             "checked": True,
             "equal": state_difference is None,
@@ -290,7 +404,48 @@ def _run_research_fixture_engine(
                 **trace_summary(actual_trace_path),
             },
         }
-    parity_equal = trade_equal and state_parity["equal"] is not False
+    portfolio_parity: dict[str, Any] = {
+        "checked": False,
+        "equal": None,
+        "event_count": None,
+        "difference": None,
+        "verification": None,
+    }
+    portfolio_verification_path: Path | None = None
+    portfolio_events_path = research_output / "portfolio-events.json"
+    if (
+        research["complete"]
+        and portfolio_events_path.is_file()
+        and official_trace_inputs
+    ):
+        from .portfolio_trace import verify_portfolio_trace
+
+        if len(official_trace_inputs) != 1:
+            raise BenchmarkError("fixture has ambiguous official portfolio trace inputs")
+        official_trace_input = official_trace_inputs[0]
+        portfolio_verification_path = output / "portfolio-verification.json"
+        portfolio_verification = verify_portfolio_trace(
+            manifest_file,
+            root / official_trace_input["path"],
+            portfolio_events_path,
+            output_path=portfolio_verification_path,
+        )
+        native_header = read_json(portfolio_events_path)["portfolio_header"]
+        execution = research["result"]["execution"]
+        if native_header["native_binary_sha256"] != execution["build"]["binary_sha256"]:
+            raise BenchmarkError("portfolio envelope Native binary identity differs")
+        portfolio_parity = {
+            "checked": True,
+            "equal": portfolio_verification["exact"],
+            "event_count": portfolio_verification["event_count"],
+            "difference": portfolio_verification["mismatch"],
+            "verification": portfolio_verification,
+        }
+    parity_equal = (
+        trade_equal
+        and state_parity["equal"] is not False
+        and portfolio_parity["equal"] is not False
+    )
     coverage = (
         validate_fixture_coverage(manifest_file, manifest)
         if manifest["schema_version"] == "3.0.0"
@@ -321,6 +476,7 @@ def _run_research_fixture_engine(
                 "difference": _difference_document(trade_difference),
             },
             "state_trace": state_parity,
+            "portfolio_trace": portfolio_parity,
         },
         "branch_coverage": coverage,
         "research_report": _artifact_record(research_output / "run.json"),
@@ -331,6 +487,16 @@ def _run_research_fixture_engine(
             "engine_state_projection": (
                 _artifact_record(actual_trace_path)
                 if actual_trace_path is not None
+                else None
+            ),
+            "portfolio_events": (
+                _artifact_record(portfolio_events_path)
+                if portfolio_events_path.is_file()
+                else None
+            ),
+            "portfolio_verification": (
+                _artifact_record(portfolio_verification_path)
+                if portfolio_verification_path is not None
                 else None
             ),
         },
@@ -377,8 +543,17 @@ def build_fixture_simulation_input(
     validated_manifest: dict[str, Any] | None = None,
     strategy_analysis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    manifest_file = Path(manifest_path).resolve()
-    manifest = validated_manifest or validate_fixture(manifest_file)
+    manifest_file = Path(manifest_path).absolute()
+    if validated_manifest is None:
+        manifest = validate_fixture(manifest_file)
+        with materialized_fixture(manifest_file, manifest) as retained:
+            return build_fixture_simulation_input(
+                retained[0],
+                destination,
+                validated_manifest=retained[1],
+                strategy_analysis=strategy_analysis,
+            )
+    manifest = validated_manifest
     root = manifest_file.parent
     strategy_input = _one_input(manifest, "strategy")
     config_input = _one_input(manifest, "config")
@@ -471,9 +646,20 @@ def engine_result_to_surface(
     *,
     validated_manifest: dict[str, Any] | None = None,
     strategy_analysis: dict[str, Any] | None = None,
+    vector_result: bool = False,
 ) -> dict[str, Any]:
-    manifest_file = Path(manifest_path).resolve()
-    manifest = validated_manifest or validate_fixture(manifest_file)
+    manifest_file = Path(manifest_path).absolute()
+    if validated_manifest is None:
+        manifest = validate_fixture(manifest_file)
+        with materialized_fixture(manifest_file, manifest) as retained:
+            return engine_result_to_surface(
+                retained[0],
+                result_path,
+                validated_manifest=retained[1],
+                strategy_analysis=strategy_analysis,
+                vector_result=vector_result,
+            )
+    manifest = validated_manifest
     result = read_json(result_path)
     analysis = strategy_analysis or analyze_strategy(
         manifest_file.parent / _one_input(manifest, "strategy")["path"],
@@ -481,7 +667,13 @@ def engine_result_to_surface(
     )
     stoploss_ratio = analysis["strategies"][0]["constants"]["stoploss"]
     trades = [
-        _surface_trade(trade, index, stoploss_ratio) for index, trade in enumerate(result["trades"])
+        _surface_trade(
+            trade,
+            index,
+            stoploss_ratio,
+            vector_result=vector_result,
+        )
+        for index, trade in enumerate(result["trades"])
     ]
     surface = {
         "schema_version": "2.0.0",
@@ -496,8 +688,16 @@ def engine_result_to_surface(
         "summary": {
             "total_trades": len(trades),
             "starting_balance": _decimal(result["starting_balance"]),
-            "final_balance": _decimal(round(result["final_balance"], 8)),
-            "profit_total_abs": _decimal(round(result["profit_total_abs"], 8)),
+            "final_balance": _decimal(
+                result["final_balance"]
+                if vector_result
+                else round(result["final_balance"], 8)
+            ),
+            "profit_total_abs": _decimal(
+                result["profit_total_abs"]
+                if vector_result
+                else round(result["profit_total_abs"], 8)
+            ),
             "total_volume": _decimal(result["total_volume"]),
             "rejected_signals": result["rejected_signals"],
             "timedout_entry_orders": 0,
@@ -518,6 +718,8 @@ def _surface_trade(
     trade: dict[str, Any],
     sequence: int,
     stoploss_ratio: float,
+    *,
+    vector_result: bool,
 ) -> dict[str, Any]:
     open_time = trade["open_timestamp_ms"]
     close_time = trade["close_timestamp_ms"]
@@ -525,15 +727,21 @@ def _surface_trade(
     return {
         "sequence": sequence,
         "pair": trade["pair"],
-        "direction": "long",
+        "direction": "short" if vector_result and trade.get("is_short") else "long",
         "open_timestamp_ms": open_time,
         "close_timestamp_ms": close_time,
         "open_rate": _decimal(trade["open_rate"]),
         "close_rate": _decimal(trade["close_rate"]),
         "amount": _decimal(trade["amount"]),
-        "stake_amount": _decimal(trade["stake_amount"]),
-        "max_stake_amount": _decimal(trade["max_stake_amount"]),
-        "leverage": "1",
+        "stake_amount": _decimal(
+            round(trade["stake_amount"], 8) if vector_result else trade["stake_amount"]
+        ),
+        "max_stake_amount": _decimal(
+            round(trade["max_stake_amount"], 8)
+            if vector_result
+            else trade["max_stake_amount"]
+        ),
+        "leverage": _decimal(trade.get("leverage", 1)) if vector_result else "1",
         "entry_tag": trade["entry_tag"],
         "exit_reason": trade["exit_reason"],
         "fees": {
@@ -543,7 +751,7 @@ def _surface_trade(
             "close_rate": _decimal(trade["fee_close"]),
             "close_cost": None,
             "close_currency": None,
-            "funding": "0",
+            "funding": _decimal(trade.get("funding_fees", 0)) if vector_result else "0",
         },
         "profit": {
             "absolute": _decimal(round(trade["profit_abs"], 8)),
@@ -636,14 +844,183 @@ def _timerange_bounds(timerange: str) -> tuple[int, int]:
 
 def _candle_input_for_pair(manifest: dict[str, Any], pair: str) -> dict[str, Any]:
     normalized = pair.replace("/", "_").replace(":", "_")
+    timeframe = manifest["freqtrade"]["timeframe"]
+    expected_names = {
+        f"{normalized}-{timeframe}.feather",
+        f"{normalized}-{timeframe}-futures.feather",
+    }
     candidates = [
         item
         for item in manifest["inputs"]
-        if item["role"] == "candles" and Path(item["path"]).name.startswith(normalized)
+        if item["role"] == "candles" and Path(item["path"]).name in expected_names
     ]
     if len(candidates) != 1:
-        raise BenchmarkError(f"expected one candle input for {pair}, found {len(candidates)}")
+        raise BenchmarkError(
+            f"expected one primary candle input for {pair}, found {len(candidates)}"
+        )
     return candidates[0]
+
+
+def official_consumed_interval(
+    manifest_file: str | Path,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Authenticate the exact Oracle-consumed slots before narrowing a fixture run."""
+    root = Path(manifest_file).resolve().parent
+    configured = read_json(root / _one_input(manifest, "config")["path"])["exchange"][
+        "pair_whitelist"
+    ]
+    auxiliary = [item for item in manifest["inputs"] if item["role"] == "auxiliary"]
+    documents = [(item, read_json(root / item["path"])) for item in auxiliary]
+    traces = [
+        (item, document)
+        for item, document in documents
+        if isinstance(document, dict)
+        and document.get("schema_version") == "freqtrade-portfolio-pressure-trace-v1"
+    ]
+    authentications = [
+        document
+        for _item, document in documents
+        if isinstance(document, dict)
+        and document.get("schema_version") == "official-source-authentication-v1"
+    ]
+    portfolio_contract_path = (
+        Path(__file__).parent / "contracts/freqtrade-portfolio-pressure-contract-v1.json"
+    )
+    scheduler_contract_path = Path(__file__).parent / "contracts/freqtrade-scheduler-contract.json"
+    portfolio_contract = read_json(portfolio_contract_path)
+    scheduler_contract = read_json(scheduler_contract_path)
+
+    if len(traces) == 1 and len(authentications) == 1:
+        trace_input, trace = traces[0]
+        authentication = authentications[0]
+        if (
+            trace.get("configured_pair_order") != configured
+            or authentication.get("configured_pair_order") != configured
+        ):
+            raise BenchmarkError("official-consumed configured pair order differs")
+        events = trace.get("events")
+        if not isinstance(events, list) or not events:
+            raise BenchmarkError("official-consumed trace has no events")
+        event_timestamps: set[int] = set()
+        for event in events:
+            if not isinstance(event, dict) or event.get("pair") not in configured:
+                continue
+            timestamp = event.get("timestamp_ms")
+            if not isinstance(timestamp, int) or isinstance(timestamp, bool):
+                raise BenchmarkError("official-consumed trace has an invalid timestamp")
+            event_timestamps.add(timestamp)
+        official_trace_sha256 = trace_input["sha256"]
+        scheduler_contract_fingerprint = authentication[
+            "scheduler_contract_fingerprint"
+        ]
+        portfolio_contract_sha256 = authentication["portfolio_contract"]["sha256"]
+        require_exact_candle_slots = True
+    elif not traces and not authentications:
+        event_timestamps, official_trace_sha256 = _legacy_official_trace_identity(
+            root,
+            manifest,
+            configured,
+        )
+        scheduler_contract_fingerprint = scheduler_contract["fingerprint"]
+        portfolio_contract_sha256 = sha256_file(portfolio_contract_path)
+        require_exact_candle_slots = False
+    else:
+        raise BenchmarkError(
+            "fixture requires matched official-consumed trace and authentication"
+        )
+
+    if not event_timestamps:
+        raise BenchmarkError("official-consumed trace has no configured-pair events")
+    step = timeframe_milliseconds(manifest["freqtrade"]["timeframe"])
+    event_start = min(event_timestamps)
+    event_end = max(event_timestamps)
+    interval_start = event_start - step
+    interval_end = event_end + step
+    expected = set(range(interval_start, interval_end, step))
+    candle_identities: list[dict[str, Any]] = []
+    for pair in configured:
+        candle = _candle_input_for_pair(manifest, pair)
+        candle_path = root / candle["path"]
+        frame = pl.read_ipc(candle_path, memory_map=True, rechunk=False)
+        timestamps = set(frame["date"].dt.epoch("ms").to_list())
+        missing = sorted(expected - timestamps)
+        if missing:
+            raise BenchmarkError(
+                f"official-consumed interval for {pair} has missing slot {missing[0]}"
+            )
+        if require_exact_candle_slots and timestamps != expected:
+            raise BenchmarkError(
+                f"official-consumed interval for {pair} has unbound slots"
+            )
+        candle_identities.append(
+            {
+                "pair": pair,
+                "path": candle["path"],
+                "sha256": candle["sha256"],
+                "bytes": candle["bytes"],
+            }
+        )
+    data_identity = hashlib.sha256(
+        json.dumps(candle_identities, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return {
+        "schema_version": "official-consumed-interval-v1",
+        "native_timerange": f"{interval_start}-{interval_end}",
+        "official_event_start_timestamp_ms": event_start,
+        "official_event_end_timestamp_ms": event_end,
+        "timeframe_ms": step,
+        "configured_pairs": configured,
+        "official_trace_sha256": official_trace_sha256,
+        "data_sha256": data_identity,
+        "scheduler_contract_sha256": sha256_file(scheduler_contract_path),
+        "scheduler_contract_fingerprint": scheduler_contract_fingerprint,
+        "portfolio_contract_sha256": portfolio_contract_sha256,
+        "portfolio_contract_fingerprint": portfolio_contract["fingerprint"],
+    }
+
+
+def _legacy_official_trace_identity(
+    root: Path,
+    manifest: dict[str, Any],
+    configured_pairs: list[str],
+) -> tuple[set[int], str]:
+    trace = manifest["artifacts"].get("state_trace")
+    if not isinstance(trace, dict):
+        raise BenchmarkError("legacy fixture requires one sealed full state trace")
+    trace_path = root / trace["path"]
+    summary = trace_summary(trace_path)
+    strategy = _one_input(manifest, "strategy")
+    config = _one_input(manifest, "config")
+    expected_header = {
+        "source": "freqtrade-reference",
+        "input_sha256": fixture_input_sha256(manifest["inputs"]),
+        "strategy_sha256": strategy["sha256"],
+        "profile_sha256": config["sha256"],
+        "trading_mode": manifest["freqtrade"]["trading_mode"],
+        "include_state": True,
+    }
+    for field, expected in expected_header.items():
+        if summary[field] != expected:
+            raise BenchmarkError(f"legacy state trace {field} identity differs")
+
+    ordered_pairs: dict[int, list[str]] = {}
+    configured = set(configured_pairs)
+    for event in iter_validated_trace_events(trace_path):
+        if event["phase"] != "candle.after":
+            continue
+        pair = event["pair"]
+        if pair not in configured:
+            raise BenchmarkError("legacy state trace contains an unconfigured candle pair")
+        ordered_pairs.setdefault(event["timestamp_ms"], []).append(pair)
+    if not ordered_pairs:
+        raise BenchmarkError("legacy state trace has no candle events")
+    for timestamp, pairs in ordered_pairs.items():
+        if pairs != configured_pairs:
+            raise BenchmarkError(
+                f"legacy state trace configured pair order differs at {timestamp}"
+            )
+    return set(ordered_pairs), trace["sha256"]
 
 
 def _fixture_data_directory(root: Path, manifest: dict[str, Any]) -> Path:
@@ -685,6 +1062,36 @@ def _one_input(manifest: dict[str, Any], role: str) -> dict[str, Any]:
     if len(candidates) != 1:
         raise BenchmarkError(f"fixture requires exactly one {role!r} input")
     return candidates[0]
+
+
+def _native_vector_input(
+    manifest_file: Path,
+    manifest: dict[str, Any],
+) -> dict[str, Any] | None:
+    value = manifest["artifacts"].get("native_vector_manifest")
+    if not isinstance(value, dict):
+        return None
+    document = read_json(manifest_file.parent / value["path"])
+    if not isinstance(document, dict):
+        raise BenchmarkError("Native vector manifest must be a JSON object")
+    validate_native_manager_binding(manifest, document)
+    return value
+
+
+def validate_native_manager_binding(
+    manifest: dict[str, Any],
+    native_document: dict[str, Any],
+) -> None:
+    config = native_document.get("config")
+    manager = config.get("nfi_x7_trade_manager") if isinstance(config, dict) else None
+    if not isinstance(manager, dict):
+        raise BenchmarkError("Native vector manifest requires a compiled NFI trade manager")
+    expected_source = manifest.get("strategy_provenance", {}).get("base_source_sha256")
+    if (
+        not isinstance(expected_source, str)
+        or manager.get("source_sha256") != expected_source
+    ):
+        raise BenchmarkError("Native trade manager source differs from fixture provenance")
 
 
 def _command_option_float(command: list[str], option: str) -> float:

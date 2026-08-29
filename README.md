@@ -19,14 +19,20 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.6.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.1) |
+| Latest public release | [v1.7.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.7.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.6.1 product update; no new combined Full X7 certification claim |
+| Current `main` | v1.7.0 product candidate; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
+
+v1.7.0 freezes a current-source compatibility check for X7 v17.4.580 at upstream
+commit `b22cc60d1c018eeb984cb02a125bb790042bebd0`: Spot and Futures both have
+source-compiled stateful closure with no reachable gaps. Release distribution still
+replays the immutable v17.4.473 Spot/Futures regression fixtures. Current-source
+static closure is not a new full-state or continuous performance certificate.
 
 ## Certified performance
 
@@ -130,6 +136,10 @@ design; it is the final semantic authority.
 | Futures | Freqtrade and exchange leverage, funding, mark price, and liquidation contracts | Exact sparse funding/mark joins, leverage and liquidation state, side-aware PnL, and recalculation after fills | Funding is never forward-filled; invalid or incomplete economics fail before a result is claimed |
 | Result proof | Official Freqtrade export and captured full state | Canonical trade surface plus every-candle state projection and stream hash | Zero tolerance: Native promotion requires both trade-surface and full-state equality |
 
+Official and Native traces retain complete materialized records at their own event
+granularities; their raw event counts and schemas are not a one-to-one parity claim.
+Zero-tolerance comparison is defined on the common every-candle projection.
+
 The Rust core keeps these responsibilities in separate vector, simulation, portfolio,
 Futures, NFI state-machine, protection, I/O, profiling, and result modules. Optimization
 is driven by IR structure and measured profiles, never by strategy version, pair,
@@ -165,7 +175,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` return `nfi-bte 1.6.1`.
+The latest public installer and a source checkout of `main` return `nfi-bte 1.7.0`.
 
 ### Keep the CLI updated
 
@@ -179,7 +189,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.6.0 -> 1.6.1. Run `nfi-bte update`.
+Update available: 1.6.1 -> 1.7.0. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source

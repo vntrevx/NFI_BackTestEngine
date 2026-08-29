@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.3.0",
+  "created_at": "2026-08-23T01:35:00.735972Z",
+  "reference": {
+    "image": "freqtradeorg/freqtrade",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64"
+  },
+  "request": {
+    "exchange": "binance",
+    "trading_mode": "spot",
+    "pairs": [
+      "BTC/USDT"
+    ],
+    "timeframes": [
+      "5m"
+    ],
+    "timerange": "20250101-20250102",
+    "start_timestamp_ms": 1735689600000,
+    "end_timestamp_ms": 1735776000000,
+    "startup_candles": 0,
+    "startup_coverage_policy": "record",
+    "history_coverage_policy": "strict",
+    "coverage_start_timestamp_ms_by_timeframe": {
+      "5m": 1735689600000
+    },
+    "download_timerange": "1735689600000-1735776000000",
+    "config_path": "/tmp/nfi-task12-source.EljomZ/native-spot-trace/download-config.json",
+    "config_sha256": "78790137f5bcbeb2423e00b1bcec58d36cb96a0d1da181c9ec214c8c23974f24",
+    "config_inputs": [
+      {
+        "path": "/tmp/nfi-task12-source.EljomZ/native-spot-trace/download-config.json",
+        "bytes": 1123,
+        "sha256": "2cb81168d41721215cfbe16dd4fc5da3917d384eb2f74f57f70df39d06aa5179"
+      }
+    ]
+  },
+  "data_root": "/home/turing/project/NFI_BacktestEngine/benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/candles",
+  "downloads": [],
+  "coverage_shortfalls": [],
+  "startup_shortfalls": [],
+  "files": [
+    {
+      "path": "BTC_USDT-5m.feather",
+      "bytes": 44826,
+      "sha256": "e5460a3957a4ced1f7ac8eefe324a7468b10a686e7f60d90651dfe0b45a5ee7c",
+      "coverage": {
+        "rows": 864,
+        "start_timestamp_ms": 1735689600000,
+        "end_timestamp_ms": 1735948500000
+      }
+    }
+  ],
+  "aggregate_sha256": "811fa89deb51ab0592d6ea57340ca5e35490fd04151b82500b4958aaee7f3d8e"
+}

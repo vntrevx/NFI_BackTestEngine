@@ -162,6 +162,110 @@ class Demo(IStrategy):
     assert helper["runtime_observable"] is True
 
 
+def test_strategy_diff_characterizes_existing_nested_helper_projection(
+    tmp_path: Path,
+) -> None:
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    source = """
+class Demo(IStrategy):
+    def leaf(self, value):
+        return value > 10
+
+    def middle(self, value):
+        return self.leaf(value)
+
+    def populate_entry_trend(self, dataframe, metadata):
+        if self.signal_id == 63 and self.middle(dataframe["close"]):
+            dataframe["enter_tag"] = "63"
+        return dataframe
+""".lstrip()
+    old.write_text(source, encoding="utf-8")
+    new.write_text(source.replace("value > 10", "value >= 10"), encoding="utf-8")
+
+    report = diff_strategies(old, new, class_name="Demo")
+
+    target = next(
+        target
+        for target in report["behavior_targets"]
+        if target["kind"] == "callback" and target["value"] == "leaf"
+    )
+    assert target["methods"] == ["leaf"]
+    assert target["tags"] == ["63", "close"]
+    assert target["runtime_observable"] is True
+
+
+def test_strategy_diff_fans_nested_helper_change_to_every_semantic_caller(
+    tmp_path: Path,
+) -> None:
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    source = """
+class Demo(IStrategy):
+    def leaf(self, value):
+        return value > 10
+
+    def middle(self, value):
+        return self.leaf(value)
+
+    def populate_entry_trend(self, dataframe, metadata):
+        if self.signal_id == 63 and self.middle(dataframe["close"]):
+            dataframe["enter_tag"] = "63"
+        return dataframe
+
+    def populate_exit_trend(self, dataframe, metadata):
+        if self.signal_id == 65 and self.leaf(dataframe["close"]):
+            dataframe["exit_tag"] = "65"
+        return dataframe
+""".lstrip()
+    old.write_text(source, encoding="utf-8")
+    new.write_text(source.replace("value > 10", "value >= 10"), encoding="utf-8")
+
+    report = diff_strategies(old, new, class_name="Demo")
+
+    helper = next(
+        target
+        for target in report["behavior_targets"]
+        if target["kind"] == "callback" and target["value"] == "leaf"
+    )
+    assert helper["semantic_callers"] == [
+        "populate_entry_trend",
+        "populate_exit_trend",
+    ]
+
+
+def test_strategy_diff_emits_changed_signal_target_for_changed_route(
+    tmp_path: Path,
+) -> None:
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    source = """
+class Demo(IStrategy):
+    def populate_entry_trend(self, dataframe, metadata):
+        if self.signal_id == 562:
+            condition = dataframe["close"] > 10
+        return dataframe
+""".lstrip()
+    old.write_text(source, encoding="utf-8")
+    new.write_text(
+        source.replace('dataframe["close"] > 10', 'dataframe["close"] > 11'), encoding="utf-8"
+    )
+
+    report = diff_strategies(old, new, class_name="Demo")
+
+    changed = [
+        target
+        for target in report["behavior_targets"]
+        if target["kind"] == "signal" and target["value"] == "562"
+    ]
+    assert len(changed) == 1
+    assert changed[0]["change"] == "changed"
+    assert changed[0]["proof"]["changed_source_spans"]
+    assert {
+        span["line"] for span in changed[0]["proof"]["changed_source_spans"]
+    } == {4}
+
+
 def test_strategy_diff_records_source_driven_boolean_mapping_transitions(
     tmp_path: Path,
 ) -> None:

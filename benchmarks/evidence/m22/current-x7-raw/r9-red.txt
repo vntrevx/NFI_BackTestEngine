@@ -1,0 +1,38 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_promotion_rejects_external_local_config_include _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1636/test_promotion_rejects_externa0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x764a71509ee0>
+
+    def test_promotion_rejects_external_local_config_include(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: direct local config imports an external file that changes Git resolution.
+        root = isolated_git_attack_root(tmp_path, monkeypatch)
+        git_root = root / ".nfi/upstream-nfi"
+        external = tmp_path / "attacker.config"
+        external.write_text("[attacker]\n\tselected = true\n", encoding="utf-8")
+        subprocess.run(
+            ("git", "-C", git_root.as_posix(), "config", "--local", "include.path", external.as_posix()),
+            check=True,
+        )
+        effective = subprocess.run(
+            ("git", "-C", git_root.as_posix(), "config", "--get", "attacker.selected"),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert effective.stdout.strip() == "true"
+    
+        # When / Then: promotion rejects before the external config can become authority.
+>       with pytest.raises(SpecValidationError, match="include|config|Git"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r9.py:43: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r9.py::test_promotion_rejects_external_local_config_include
+1 failed in 86.13s (0:01:26)
+
+exit_status=1

@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import nfi_backtest_engine.targeted_verification as targeted
+import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.targeted_verification import (
     assess_targeted_coverage,
@@ -352,6 +354,34 @@ def test_changed_callback_requires_old_and_new_route_observation(
     )
     assert incomplete["changed_branch_reached"] is False
     assert incomplete["target_proofs"][0]["candidate_observed"] is False
+
+
+def test_targeted_verifier_rejects_conflicting_compatibility_mode(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "strategy.py"
+    source.write_text("class X7:\\n    pass\\n", encoding="utf-8")
+    fixtures = tmp_path / "fixtures"
+    fixtures.mkdir()
+
+    with pytest.raises(SpecValidationError, match="conflicts with requested trading mode"):
+        verify_targeted_strategy(
+            source,
+            _difference(_target("d", kind="signal", change="added", value="63")),
+            {
+                "native_compatible": True,
+                "trading_mode": "futures",
+                "source": {"sha256": "a" * 64},
+                "blockers": [],
+            },
+            fixtures,
+            tmp_path / "result",
+            class_name="X7",
+            trading_mode="spot",
+            upstream_repository="example/NFI",
+            upstream_commit="b" * 40,
+            timeout_seconds=60,
+        )
 
 
 def test_targeted_verifier_stays_latest_checked_without_branch_fixture(

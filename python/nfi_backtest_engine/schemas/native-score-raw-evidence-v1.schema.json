@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/native-score-raw-evidence-v1.json",
+  "title": "Native scorecard typed raw gate evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evaluator_version", "gate_id", "identity", "records"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "evaluator_version": {"const": "native-score-evaluator-v3"},
+    "gate_id": {"$ref": "#/$defs/gate_id"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/record"}
+    }
+  },
+  "allOf": [
+    {"$ref": "#/$defs/identity_gate"},
+    {"$ref": "#/$defs/independence_gate"},
+    {"$ref": "#/$defs/purity_gate"},
+    {"$ref": "#/$defs/semantic_gate"},
+    {"$ref": "#/$defs/coverage_gate"},
+    {"$ref": "#/$defs/comparison_gate"},
+    {"$ref": "#/$defs/state_gate"},
+    {"$ref": "#/$defs/generative_gate"},
+    {"$ref": "#/$defs/portfolio_gate"},
+    {"$ref": "#/$defs/performance_gate"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonempty": {"type": "string", "minLength": 1},
+    "gate_id": {
+      "enum": [
+        "immutable_identity_scope",
+        "evidence_independence",
+        "native_purity",
+        "semantic_closure",
+        "changed_path_coverage_completeness",
+        "vector_callback_exactness",
+        "execution_complete_state_exactness",
+        "generative_metamorphic_mutation_proof",
+        "same_candidate_portfolio_platform_certification",
+        "deterministic_performance_resource_proof"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_closure_sha256", "engine_artifact_sha256", "oracle_sha256", "scope_sha256"],
+      "properties": {
+        "source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "engine_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "oracle_sha256": {"$ref": "#/$defs/sha256"},
+        "scope_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "gate_id", "record_id", "record_type",
+        "source_identity_sha256", "candidate_identity_sha256",
+        "mode_contract", "platform", "workload_sha256", "run_id",
+        "nonce", "source_artifact", "payload"
+      ],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "gate_id": {"$ref": "#/$defs/gate_id"},
+        "record_id": {"$ref": "#/$defs/nonempty"},
+        "record_type": {"$ref": "#/$defs/nonempty"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
+        "platform": {"enum": ["darwin", "linux", "windows"]},
+        "workload_sha256": {"$ref": "#/$defs/sha256"},
+        "run_id": {"$ref": "#/$defs/nonempty"},
+        "nonce": {"$ref": "#/$defs/sha256"},
+        "source_artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": {"$ref": "#/$defs/nonempty"},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "payload": {"type": "object"}
+      },
+      "allOf": [
+        {"$ref": "#/$defs/identity_component_payload"},
+        {"$ref": "#/$defs/provenance_identity_payload"},
+        {"$ref": "#/$defs/producer_run_payload"},
+        {"$ref": "#/$defs/execution_trace_payload"},
+        {"$ref": "#/$defs/semantic_payload"},
+        {"$ref": "#/$defs/coverage_payload"},
+        {"$ref": "#/$defs/comparison_payload"},
+        {"$ref": "#/$defs/state_payload"},
+        {"$ref": "#/$defs/generative_payload"},
+        {"$ref": "#/$defs/metamorphic_payload"},
+        {"$ref": "#/$defs/mutant_payload"},
+        {"$ref": "#/$defs/portfolio_payload"},
+        {"$ref": "#/$defs/performance_payload"}
+      ]
+    },
+    "identity_component_payload": {
+      "if": {"properties": {"record_type": {"const": "identity_component"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["component", "digest"], "properties": {"component": {"enum": ["source_closure_sha256", "engine_artifact_sha256", "oracle_sha256", "scope_sha256"]}, "digest": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "provenance_identity_payload": {
+      "if": {"properties": {"record_type": {"const": "provenance_identity"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["repository", "repository_ref", "commit", "workflow", "workflow_ref", "job", "bundle_id", "challenge", "candidate_id"], "properties": {"repository": {"$ref": "#/$defs/nonempty"}, "repository_ref": {"$ref": "#/$defs/nonempty"}, "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}, "workflow": {"$ref": "#/$defs/nonempty"}, "workflow_ref": {"$ref": "#/$defs/nonempty"}, "job": {"$ref": "#/$defs/nonempty"}, "bundle_id": {"$ref": "#/$defs/sha256"}, "challenge": {"$ref": "#/$defs/sha256"}, "candidate_id": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "producer_run_payload": {
+      "if": {"properties": {"record_type": {"const": "producer_run"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["oracle_producer", "oracle_run_id", "native_producer", "native_run_id", "verifier_producer", "verifier_run_id", "observer_baseline_sha256", "observer_trace_sha256"], "properties": {"oracle_producer": {"$ref": "#/$defs/nonempty"}, "oracle_run_id": {"$ref": "#/$defs/nonempty"}, "native_producer": {"$ref": "#/$defs/nonempty"}, "native_run_id": {"$ref": "#/$defs/nonempty"}, "verifier_producer": {"$ref": "#/$defs/nonempty"}, "verifier_run_id": {"$ref": "#/$defs/nonempty"}, "observer_baseline_sha256": {"$ref": "#/$defs/sha256"}, "observer_trace_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "execution_trace_payload": {
+      "if": {"properties": {"record_type": {"const": "execution_trace"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["events", "trace_sha256"], "properties": {"trace_sha256": {"$ref": "#/$defs/sha256"}, "events": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["sequence", "kind", "module", "route"], "properties": {"sequence": {"type": "integer", "minimum": 0}, "kind": {"$ref": "#/$defs/nonempty"}, "module": {"type": "string"}, "route": {"$ref": "#/$defs/nonempty"}}}}}}}}
+    },
+    "semantic_payload": {
+      "if": {"properties": {"record_type": {"const": "semantic_obligation"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["obligation_id", "registry_sha256", "mapping", "witness_sha256"], "properties": {"obligation_id": {"$ref": "#/$defs/nonempty"}, "registry_sha256": {"$ref": "#/$defs/sha256"}, "mapping": {"$ref": "#/$defs/nonempty"}, "witness_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "coverage_payload": {
+      "if": {"properties": {"record_type": {"enum": ["obligation_coverage", "changed_target", "mcdc_term", "transition"]}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["target_id", "required_witness_sha256", "observed_witness_sha256"], "properties": {"target_id": {"$ref": "#/$defs/nonempty"}, "required_witness_sha256": {"$ref": "#/$defs/sha256"}, "observed_witness_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "comparison_payload": {
+      "if": {"properties": {"record_type": {"enum": ["vector", "decision", "callback", "state_delta"]}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["comparison_id", "expected_sha256", "actual_sha256"], "properties": {"comparison_id": {"$ref": "#/$defs/nonempty"}, "expected_sha256": {"$ref": "#/$defs/sha256"}, "actual_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "state_payload": {
+      "if": {"properties": {"record_type": {"const": "execution_state"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["event_id", "expected_execution_sha256", "actual_execution_sha256", "expected_state_sha256", "actual_state_sha256", "state_fields"], "properties": {"event_id": {"$ref": "#/$defs/nonempty"}, "expected_execution_sha256": {"$ref": "#/$defs/sha256"}, "actual_execution_sha256": {"$ref": "#/$defs/sha256"}, "expected_state_sha256": {"$ref": "#/$defs/sha256"}, "actual_state_sha256": {"$ref": "#/$defs/sha256"}, "state_fields": {"type": "array", "minItems": 9, "maxItems": 9, "prefixItems": [{"const": "quote_free"}, {"const": "base_balances"}, {"const": "open_trade_count"}, {"const": "realized_profit"}, {"const": "closed_trade_count"}, {"const": "rejected_signals"}, {"const": "trade_id_counter"}, {"const": "order_id_counter"}, {"const": "locks"}], "items": false}}}}}
+    },
+    "generative_payload": {
+      "if": {"properties": {"record_type": {"const": "generative_case"}}},
+      "then": {"properties": {"payload": {"$ref": "#/$defs/case_observation"}}}
+    },
+    "metamorphic_payload": {
+      "if": {"properties": {"record_type": {"const": "metamorphic_case"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["case_id", "seed", "input_sha256", "expected_sha256", "actual_sha256", "relation"], "properties": {"case_id": {"$ref": "#/$defs/nonempty"}, "seed": {"type": "integer"}, "input_sha256": {"$ref": "#/$defs/sha256"}, "expected_sha256": {"$ref": "#/$defs/sha256"}, "actual_sha256": {"$ref": "#/$defs/sha256"}, "relation": {"$ref": "#/$defs/nonempty"}}}}}
+    },
+    "case_observation": {"type": "object", "additionalProperties": false, "required": ["case_id", "seed", "input_sha256", "expected_sha256", "actual_sha256"], "properties": {"case_id": {"$ref": "#/$defs/nonempty"}, "seed": {"type": "integer"}, "input_sha256": {"$ref": "#/$defs/sha256"}, "expected_sha256": {"$ref": "#/$defs/sha256"}, "actual_sha256": {"$ref": "#/$defs/sha256"}}},
+    "mutant_payload": {
+      "if": {"properties": {"record_type": {"const": "mutant_outcome"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["mutant_id", "operator", "run_sha256", "baseline_result_sha256", "mutant_result_sha256"], "properties": {"mutant_id": {"$ref": "#/$defs/nonempty"}, "operator": {"$ref": "#/$defs/nonempty"}, "run_sha256": {"$ref": "#/$defs/sha256"}, "baseline_result_sha256": {"$ref": "#/$defs/sha256"}, "mutant_result_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "portfolio_payload": {
+      "if": {"properties": {"record_type": {"const": "portfolio_certificate"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["certificate_sha256", "candidate_sha256", "wheel_sha256", "native_extension_sha256", "replay_result_sha256", "replay_candidate_sha256"], "properties": {"certificate_sha256": {"$ref": "#/$defs/sha256"}, "candidate_sha256": {"$ref": "#/$defs/sha256"}, "wheel_sha256": {"$ref": "#/$defs/sha256"}, "native_extension_sha256": {"$ref": "#/$defs/sha256"}, "replay_result_sha256": {"$ref": "#/$defs/sha256"}, "replay_candidate_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "performance_payload": {
+      "if": {"properties": {"record_type": {"const": "performance_process_sample"}}},
+      "then": {"properties": {"payload": {"type": "object", "additionalProperties": false, "required": ["runtime", "population", "sample_index", "wall_seconds", "peak_rss_bytes", "memory_limit_bytes", "oom", "swap_bytes", "output_sha256"], "properties": {"runtime": {"enum": ["official", "native"]}, "population": {"enum": ["cold", "reuse"]}, "sample_index": {"type": "integer", "minimum": 0, "maximum": 2}, "wall_seconds": {"type": "number", "exclusiveMinimum": 0}, "peak_rss_bytes": {"type": "integer", "minimum": 0}, "memory_limit_bytes": {"type": "integer", "minimum": 1}, "oom": {"type": "boolean"}, "swap_bytes": {"type": "integer", "minimum": 0}, "output_sha256": {"$ref": "#/$defs/sha256"}}}}}
+    },
+    "identity_gate": {
+      "if": {"properties": {"gate_id": {"const": "immutable_identity_scope"}}},
+      "then": {"properties": {"records": {"minItems": 30, "maxItems": 30, "items": {"properties": {"record_type": {"enum": ["identity_component", "provenance_identity"]}}}}}}
+    },
+    "independence_gate": {
+      "if": {"properties": {"gate_id": {"const": "evidence_independence"}}},
+      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "producer_run"}}}}}}
+    },
+    "purity_gate": {
+      "if": {"properties": {"gate_id": {"const": "native_purity"}}},
+      "then": {
+        "properties": {
+          "records": {
+            "minItems": 6,
+            "maxItems": 6,
+            "items": {
+              "properties": {
+                "record_type": {"const": "execution_trace"},
+                "payload": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["events", "trace_sha256"],
+                  "properties": {
+                    "trace_sha256": {"$ref": "#/$defs/sha256"},
+                    "events": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["sequence", "kind", "module", "route"],
+                        "properties": {
+                          "sequence": {"type": "integer", "minimum": 0},
+                          "kind": {"$ref": "#/$defs/nonempty"},
+                          "module": {"type": "string"},
+                          "route": {"$ref": "#/$defs/nonempty"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "semantic_gate": {
+      "if": {"properties": {"gate_id": {"const": "semantic_closure"}}},
+      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "semantic_obligation"}}}}}}
+    },
+    "coverage_gate": {
+      "if": {"properties": {"gate_id": {"const": "changed_path_coverage_completeness"}}},
+      "then": {"properties": {"records": {"minItems": 24, "maxItems": 24, "items": {"properties": {"record_type": {"enum": ["obligation_coverage", "changed_target", "mcdc_term", "transition"]}}}}}}
+    },
+    "comparison_gate": {
+      "if": {"properties": {"gate_id": {"const": "vector_callback_exactness"}}},
+      "then": {"properties": {"records": {"minItems": 24, "maxItems": 24, "items": {"properties": {"record_type": {"enum": ["vector", "decision", "callback", "state_delta"]}}}}}}
+    },
+    "state_gate": {
+      "if": {"properties": {"gate_id": {"const": "execution_complete_state_exactness"}}},
+      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "execution_state"}}}}}}
+    },
+    "generative_gate": {
+      "if": {"properties": {"gate_id": {"const": "generative_metamorphic_mutation_proof"}}},
+      "then": {"properties": {"records": {"minItems": 18, "maxItems": 18, "items": {"properties": {"record_type": {"enum": ["generative_case", "metamorphic_case", "mutant_outcome"]}}}}}}
+    },
+    "portfolio_gate": {
+      "if": {"properties": {"gate_id": {"const": "same_candidate_portfolio_platform_certification"}}},
+      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "portfolio_certificate"}}}}}}
+    },
+    "performance_gate": {
+      "if": {"properties": {"gate_id": {"const": "deterministic_performance_resource_proof"}}},
+      "then": {"properties": {"records": {"minItems": 72, "maxItems": 72, "items": {"properties": {"record_type": {"const": "performance_process_sample"}}}}}}
+    }
+  }
+}

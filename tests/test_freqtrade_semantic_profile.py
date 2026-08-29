@@ -19,7 +19,7 @@ from nfi_backtest_engine.specs import (
     SEMANTIC_OBSERVER_REPORT_SCHEMA,
     validate_schema,
 )
-from nfi_backtest_engine.state_trace import trace_summary
+from nfi_backtest_engine.state_trace import iter_validated_trace_events, trace_summary
 
 ROOT = Path(__file__).parents[1]
 PROFILE = ROOT / "planning" / "freqtrade-semantic-profile.json"
@@ -90,6 +90,18 @@ def test_official_semantic_observer_projection_is_byte_deterministic(tmp_path: P
     summary = trace_summary(first_trace)
     assert summary["profile_sha256"] == first["semantic_profile_sha256"]
     assert summary["source"] == "freqtrade-semantic-observer"
+    first_event = next(iter_validated_trace_events(first_trace))
+    assert set(first_event["state"]) == {
+        "balances",
+        "portfolio",
+        "scheduler",
+        "trades",
+        "orders",
+        "custom_state",
+        "funding",
+        "liquidation",
+        "protections",
+    }
 
 
 def test_official_semantic_observer_rejects_unprofiled_events() -> None:

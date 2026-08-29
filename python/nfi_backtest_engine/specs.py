@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Iterable
 from functools import cache
+from importlib import import_module
 from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -33,6 +37,18 @@ STATE_MACHINE_PROGRAM_SCHEMA = "state-machine-program-v1.schema.json"
 STATE_MACHINE_PROGRAM_V2_SCHEMA = "state-machine-program-v2.schema.json"
 STATE_MACHINE_PROGRAM_V3_SCHEMA = "state-machine-program-v3.schema.json"
 SEMANTIC_INVENTORY_SCHEMA = "semantic-inventory-v1.schema.json"
+SEMANTIC_OBLIGATION_REGISTRY_SCHEMA = "semantic-obligation-registry-v1.schema.json"
+CHANGED_TARGET_LEDGER_SCHEMA = "changed-target-ledger-v1.schema.json"
+SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_ID = (
+    "https://github.com/vntrevx/NFI_BackTestEngine/schemas/"
+    "semantic-obligation-registry-v1.schema.json"
+)
+SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_VERSION = "semantic-obligation-registry-v1"
+SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_BYTES = 20_881
+SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_SHA256 = (
+    "b68588db19867595d626f674c3abbd85ef8678ceef5fe214999d53e462406083"
+)
+_SEMANTIC_REGISTRY_SCHEMA_IDENTITY_CODE = "SEMANTIC_REGISTRY_SCHEMA_IDENTITY"
 INDICATOR_INVENTORY_SCHEMA = "indicator-operation-inventory-v1.schema.json"
 INDICATOR_PROGRAM_SCHEMA = "indicator-program-v1.schema.json"
 SIGNAL_PROGRAM_SCHEMA = "signal-program-v1.schema.json"
@@ -43,9 +59,20 @@ FREQTRADE_SEMANTIC_PROFILE_SCHEMA = "freqtrade-semantic-profile-v1.schema.json"
 SEMANTIC_OBSERVER_REPORT_SCHEMA = "semantic-observer-report-v1.schema.json"
 SCHEDULER_CONTRACT_SCHEMA = "scheduler-contract-v1.schema.json"
 SCHEDULER_VERIFICATION_SCHEMA = "scheduler-verification-v1.schema.json"
+PORTFOLIO_TRACE_SCHEMA = "portfolio-semantic-trace-v1.schema.json"
+PORTFOLIO_VERIFICATION_SCHEMA = "portfolio-semantic-verification-v1.schema.json"
+EXECUTION_TRACE_SCHEMA = "execution-semantic-trace-v1.schema.json"
+NATIVE_EXECUTION_EVENTS_SCHEMA = "native-execution-events-v1.schema.json"
+EXECUTION_BOUNDARY_EVENT_SCHEMA = "execution-boundary-event-v1.schema.json"
+EXECUTION_VERIFICATION_SCHEMA = "execution-semantic-verification-v1.schema.json"
 EXECUTION_CONTRACT_SCHEMA = "execution-contract-v1.schema.json"
 FUTURES_CONTRACT_SCHEMA = "futures-contract-v1.schema.json"
 CALLBACK_SOURCE_IR_SCHEMA = "callback-source-ir-v1.schema.json"
+NATIVE_SCORECARD_SCHEMA = "native-10-scorecard-v1.schema.json"
+NATIVE_SCORE_RAW_EVIDENCE_SCHEMA = "native-score-raw-evidence-v1.schema.json"
+NATIVE_SCORE_MACHINE_RECORD_SCHEMA = "native-score-machine-record-v1.schema.json"
+NATIVE_SCORE_DOMAIN_EVIDENCE_SCHEMA = "native-score-domain-evidence-v1.schema.json"
+RELEASE_PROVENANCE_ENVELOPE_SCHEMA = "release-provenance-envelope-v2.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
@@ -69,18 +96,116 @@ _SUMMARY_DECIMAL_FIELDS = (
 )
 
 
+def semantic_obligation_registry_schema_identity() -> dict[str, str | int]:
+    """Return the registry schema identity sealed independently in executable code."""
+    return {
+        "$id": SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_ID,
+        "schema_version": SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_VERSION,
+        "bytes": SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_BYTES,
+        "sha256": SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_SHA256,
+    }
+
+
+def _schema_identity_error(reason: str) -> SpecValidationError:
+    return SpecValidationError(f"{_SEMANTIC_REGISTRY_SCHEMA_IDENTITY_CODE}: {reason}")
+
+
+def _semantic_registry_schema_package_locations() -> tuple[Path, ...]:
+    package = import_module("nfi_backtest_engine.schemas")
+    return tuple(Path(location).absolute() for location in package.__path__)
+
+
+def _verify_semantic_registry_schema_resource_uniqueness(package: Path) -> None:
+    try:
+        if package.is_symlink() or not package.is_dir():
+            raise _schema_identity_error("trusted schema package is not a regular directory")
+        candidates = [
+            entry.name
+            for entry in package.iterdir()
+            if "semantic-obligation-registry-v1.schema" in entry.name
+        ]
+    except OSError as exc:
+        raise _schema_identity_error("trusted schema package contents are unavailable") from exc
+    if candidates != [SEMANTIC_OBLIGATION_REGISTRY_SCHEMA]:
+        raise _schema_identity_error("trusted schema resource is absent or duplicated")
+
+
+def _trusted_semantic_registry_schema_bytes() -> bytes:
+    try:
+        package_locations = _semantic_registry_schema_package_locations()
+    except (ImportError, ModuleNotFoundError, OSError) as exc:
+        raise _schema_identity_error("trusted schema package is unavailable") from exc
+    if len(package_locations) != 1:
+        raise _schema_identity_error("trusted schema package location is duplicated")
+    _verify_semantic_registry_schema_resource_uniqueness(package_locations[0])
+    try:
+        schema_resource = files("nfi_backtest_engine.schemas").joinpath(
+            SEMANTIC_OBLIGATION_REGISTRY_SCHEMA
+        )
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise _schema_identity_error("trusted schema package is unavailable") from exc
+
+    resource_path = schema_resource if isinstance(schema_resource, Path) else None
+    if resource_path is not None:
+        try:
+            if resource_path.is_symlink():
+                raise _schema_identity_error("trusted schema must not be a symlink")
+            if not resource_path.is_file():
+                raise _schema_identity_error("trusted schema is absent or not a regular file")
+        except OSError as exc:
+            raise _schema_identity_error("trusted schema file identity is unavailable") from exc
+    try:
+        payload = schema_resource.read_bytes()
+    except (FileNotFoundError, IsADirectoryError, OSError) as exc:
+        raise _schema_identity_error("trusted schema bytes are unavailable") from exc
+    if len(payload) != SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_BYTES:
+        raise _schema_identity_error("trusted schema length differs from compiled identity")
+    if hashlib.sha256(payload).hexdigest() != SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_SHA256:
+        raise _schema_identity_error("trusted schema digest differs from compiled identity")
+    return payload
+
+
+def verify_semantic_obligation_registry_schema_identity() -> dict[str, str | int]:
+    """Verify exact packaged schema bytes before trusting a semantic registry."""
+    payload = _trusted_semantic_registry_schema_bytes()
+    try:
+        schema = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:  # pragma: no cover - hash owns it
+        raise _schema_identity_error("trusted schema is not canonical JSON") from exc
+    if not isinstance(schema, dict):  # pragma: no cover - hash owns it
+        raise _schema_identity_error("trusted schema is not a JSON object")
+    version = schema.get("properties", {}).get("schema_version", {}).get("const")
+    if schema.get("$id") != SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_ID or (
+        version != SEMANTIC_OBLIGATION_REGISTRY_SCHEMA_VERSION
+    ):
+        raise _schema_identity_error("trusted schema ID or version differs from compiled identity")
+    return semantic_obligation_registry_schema_identity()
+
+
+@cache
+def _semantic_registry_validator(payload: bytes) -> Draft202012Validator:
+    schema = json.loads(payload)
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema, format_checker=FormatChecker())
+
+
 @cache
 def _validator(schema_name: str) -> Draft202012Validator:
     schema_resource = files("nfi_backtest_engine.schemas").joinpath(schema_name)
-    schema = __import__("json").loads(schema_resource.read_text(encoding="utf-8"))
+    schema = json.loads(schema_resource.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema, format_checker=FormatChecker())
 
 
 def validate_schema(document: Any, schema_name: str) -> None:
     """Raise on the first deterministic JSON Schema error."""
+    validator = (
+        _semantic_registry_validator(_trusted_semantic_registry_schema_bytes())
+        if schema_name == SEMANTIC_OBLIGATION_REGISTRY_SCHEMA
+        else _validator(schema_name)
+    )
     errors = sorted(
-        _validator(schema_name).iter_errors(document),
+        validator.iter_errors(document),
         key=lambda error: tuple(str(part) for part in error.absolute_path),
     )
     if not errors:

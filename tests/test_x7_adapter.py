@@ -829,6 +829,31 @@ def test_x7_adapter_serializes_scope_limited_nfi_trade_manager(
     assert document["config"]["custom_exit_program"] is None
 
 
+def test_x7_adapter_selects_manager_for_position_adjustment_only() -> None:
+    # Given: a branch probe whose only stateful manager callback is adjustment.
+    hot_ir = _nfi_manager_hot_ir()
+    custom_exit = next(
+        callback for callback in hot_ir["callbacks"] if callback["name"] == "custom_exit"
+    )
+    custom_exit["active_for_run"] = False
+    hot_ir["callbacks"].append(
+        {
+            "name": "adjust_trade_position",
+            "active_for_run": True,
+            "backend": "rust-nfi-x7-position-adjustment",
+            "executable_in_rust": True,
+            "lowering": hot_ir["nfi_trade_manager"],
+        }
+    )
+
+    # When: the source-derived manager is serialized.
+    manager = _nfi_trade_manager_config(hot_ir)
+
+    # Then: custom-exit inactivity cannot erase adjustment semantics.
+    assert manager is not None
+    assert manager["source_sha256"] == "a" * 64
+
+
 def test_x7_adapter_preserves_routes_without_local_stop_thresholds() -> None:
     hot_ir = _nfi_manager_hot_ir()
     operation = hot_ir["nfi_trade_manager"]["operation"]

@@ -225,7 +225,7 @@ def test_execution_frame_keeps_startup_rows_as_callback_only_context() -> None:
     assert prepared.execution_start_index == 4
     assert prepared.frame["date"].tolist() == frame["date"].tolist()
     # The prefix may contain shifted signals, but the Rust cursor starts at
-    # index 3 so those rows can only serve callback feature lookups.
+    # index 4 so those rows can only serve callback feature lookups.
     assert prepared.frame["nfi_exec_enter_tag"].tolist() == [
         None,
         "context-only",
@@ -233,6 +233,30 @@ def test_execution_frame_keeps_startup_rows_as_callback_only_context() -> None:
         None,
         "141",
     ]
+
+
+def test_post_listing_pair_activates_after_available_startup_and_signal_shift() -> None:
+    frame = pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-02T00:00:00Z", periods=5, freq="5min"),
+            "enter_long": [1, 1, 1, 0, 0],
+            "enter_tag": ["listing", "warmup-1", "eligible", None, None],
+        }
+    )
+
+    prepared = _prepare_execution_frame(
+        frame,
+        "1704067200-1704155400",
+        startup_candles=2,
+    )
+
+    assert prepared.frame["date"].tolist() == frame["date"].tolist()
+    assert prepared.execution_start_index == 3
+    assert prepared.frame.iloc[prepared.execution_start_index]["date"] == pd.Timestamp(
+        "2024-01-02T00:15:00Z"
+    )
+    assert prepared.frame["nfi_exec_enter_long"].tolist() == [0, 1, 1, 1, 0]
+    assert prepared.frame.iloc[prepared.execution_start_index]["nfi_exec_enter_tag"] == "eligible"
 
 
 def test_signal_shift_preserves_raw_values_and_counts_only_exact_one() -> None:

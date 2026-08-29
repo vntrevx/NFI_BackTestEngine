@@ -17,16 +17,29 @@ The classifier selects the cheapest lane that covers every changed path:
   workflow, and focused tests; one Ubuntu job runs only their tests, lint, and type
   check;
 - `code`: every unlisted path, runtime source, tests, schemas, fixtures, build
-  inputs, and installers; the full Python matrix on Linux, Windows, and macOS,
-  static/Rust checks, and native full-parity fixtures run.
+  inputs, and installers. Ordinary pull requests receive a second, fail-closed
+  affected-path plan instead of automatically starting every code job.
 
-Mixed changes escalate to the highest-risk lane. An empty diff, unavailable base
-commit, or manual dispatch fails closed to `code`. `Required CI` checks that selected
-jobs succeeded and every unselected expensive job was skipped.
+The affected-path plan always runs the Ubuntu 3.12 Python lane and Python quality
+checks for Python runtime changes. Python runtime changes also run the two native
+parity fixtures. Rust changes add Rust format, test, and Clippy checks; AST-sensitive
+indicator/strategy changes add the Ubuntu 3.13 and 3.14 identity lanes; and the
+allowlisted platform-boundary files add Windows and macOS 3.12. General Python tests
+run the Ubuntu 3.12 Python and quality lanes, while parity fixtures and reference
+inputs also add native parity.
+
+Build-identity changes (`pyproject.toml`, `uv.lock`, the Rust workspace manifests and
+lockfile, or the Rust toolchain file), an empty or unavailable diff, manual dispatch,
+and every unknown path fail closed to the full five-entry Python matrix, Python and
+Rust quality jobs, and native parity. Mixed changes take the union of capabilities.
+`Required CI` authenticates the emitted plan by recomputing it from the changed paths,
+then requires every selected job to succeed and every unselected conditional job to
+be skipped. Timing validation uses the exact report identities selected by that same
+plan rather than requiring evidence from jobs that intentionally did not run.
 
 Operational discovery configuration, release contracts, non-CI workflows, runtime
-schemas, and fixtures are not covered by broad directory exceptions. They remain in
-the `code` lane unless individually reviewed and listed.
+schemas, and fixtures are not covered by broad directory exceptions. They remain
+fail-closed unless an exact affected-path rule covers them.
 
 The separate branch-discovery workflow keeps external-data policy in the mode-specific
 JSON files. A declared provider HTTP restriction is recorded as deferred, does not
@@ -51,6 +64,14 @@ available for an explicit full rerun.
 Fast-lane acceptance requires `Required CI` to succeed while every unselected job is
 reported as `skipped`. A documentation-only pull request must not start Python,
 Rust, native parity, or operating-system matrix runners.
+
+Rust compilation in the Python native-build, Rust-quality, and parity jobs uses the
+pinned `sccache` v0.10.0 GitHub Actions backend. Release wheel builds enable the same
+compiler-object cache through the pinned maturin action; source-distribution builds
+do not. The cache implementation literal is part of timing evidence and candidate
+identity, so stale or differently configured evidence is rejected. Final wheels,
+source distributions, parity results, timing reports, and release evidence are never
+restored from this compiler cache.
 
 The workflow uses read-only repository contents, explicit job timeouts, and
 per-PR/ref concurrency with older runs cancelled. It never uses

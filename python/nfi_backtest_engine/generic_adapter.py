@@ -6,7 +6,7 @@ import math
 import numbers
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import pandas as pd
 
@@ -26,6 +26,7 @@ from .vector_manifest import (
 )
 
 GENERIC_ADAPTER_VERSION = "1.4.0"
+_RETIRED_FUTURES_BLOCKER: Final = "GENERIC_FUTURES_ADAPTER_UNSUPPORTED"
 
 
 def generic_adapter_blockers(
@@ -34,6 +35,7 @@ def generic_adapter_blockers(
     *,
     market_metadata_path: str | Path | None,
     state_machine_program: dict[str, Any] | None = None,
+    executable_callback_program: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     strategy = analysis["strategies"][0]
     constants = strategy["constants"]
@@ -46,12 +48,25 @@ def generic_adapter_blockers(
         strategy_callbacks = [
             name for name in strategy_callbacks if name != "leverage"
         ]
+    if state_machine_program is not None and executable_callback_program is not None:
+        blockers.append(
+            {
+                "code": "CALLBACK_PROGRAM_PARTIAL_MIXING",
+                "message": "executable callback and state-machine programs cannot coexist",
+            }
+        )
+    selected_program = executable_callback_program or state_machine_program
     compiled_callbacks = (
-        set(state_machine_program.get("entrypoints", {}))
-        if state_machine_program is not None
-        and isinstance(state_machine_program.get("entrypoints"), dict)
+        set(selected_program.get("entrypoints", {}))
+        if selected_program is not None
+        and isinstance(selected_program.get("entrypoints"), dict)
         else set()
     )
+    if executable_callback_program is not None:
+        compiled_callbacks.intersection_update(strategy_callbacks)
+        compiled_callbacks.discard("loop_cadence_startup_lookback")
+        if config.get("trading_mode", "spot") == "spot":
+            compiled_callbacks.discard("leverage")
     uncovered_callbacks = sorted(set(strategy_callbacks) - compiled_callbacks)
     unexpected_entrypoints = sorted(compiled_callbacks - set(strategy_callbacks))
     if uncovered_callbacks or unexpected_entrypoints:
@@ -66,18 +81,11 @@ def generic_adapter_blockers(
                 ),
             }
         )
-    if config.get("trading_mode", "spot") != "spot":
-        blockers.append(
-            {
-                "code": "GENERIC_FUTURES_ADAPTER_UNSUPPORTED",
-                "message": "generic signal adapter is certified for spot mode only",
-            }
-        )
-    if constants.get("can_short") is True:
+    if config.get("trading_mode", "spot") == "spot" and constants.get("can_short") is True:
         blockers.append(
             {
                 "code": "GENERIC_SHORT_ADAPTER_UNSUPPORTED",
-                "message": "generic signal adapter does not certify short signals",
+                "message": "spot signal adapters cannot execute short signals",
             }
         )
     method_names = {
@@ -91,12 +99,33 @@ def generic_adapter_blockers(
             }
         )
     if constants.get("trailing_stop") is True:
-        blockers.append(
-            {
-                "code": "TRAILING_STOP_UNSUPPORTED",
-                "message": "trailing_stop is not implemented by the generic adapter",
-            }
+        positive = constants.get("trailing_stop_positive")
+        offset = constants.get("trailing_stop_positive_offset")
+        only_after_offset = constants.get("trailing_only_offset_is_reached") is True
+        invalid_positive = positive is not None and (
+            isinstance(positive, bool)
+            or not isinstance(positive, int | float)
+            or not math.isfinite(float(positive))
+            or not 0.0 <= float(positive) < 1.0
         )
+        invalid_offset = offset is not None and (
+            isinstance(offset, bool)
+            or not isinstance(offset, int | float)
+            or not math.isfinite(float(offset))
+            or not 0.0 <= float(offset) < 1.0
+        )
+        if (
+            invalid_positive
+            or invalid_offset
+            or only_after_offset
+            and (positive is None or offset is None)
+        ):
+            blockers.append(
+                {
+                    "code": "TRAILING_STOP_INVALID",
+                    "message": "trailing stop ratios must be finite literal values in [0, 1)",
+                }
+            )
     if (
         constants.get("position_adjustment_enable") is True
         and "adjust_trade_position" not in compiled_callbacks
@@ -134,7 +163,8 @@ def generic_adapter_blockers(
             }
         )
     numeric_config: dict[str, float] = {}
-    for name in ("dry_run_wallet", "stake_amount", "max_open_trades"):
+    unlimited_stake = config.get("stake_amount") == "unlimited"
+    for name in ("dry_run_wallet", "max_open_trades"):
         value = config.get(name)
         if (
             isinstance(value, bool)
@@ -150,6 +180,22 @@ def generic_adapter_blockers(
             )
         else:
             numeric_config[name] = float(value)
+    raw_stake = config.get("stake_amount")
+    if not unlimited_stake:
+        if (
+            isinstance(raw_stake, bool)
+            or not isinstance(raw_stake, int | float)
+            or not math.isfinite(float(raw_stake))
+        ):
+            blockers.append(
+                {
+                    "code": "NUMERIC_CONFIG_REQUIRED",
+                    "field": "stake_amount",
+                    "message": "config.stake_amount must be numeric or 'unlimited'",
+                }
+            )
+        else:
+            numeric_config["stake_amount"] = float(raw_stake)
     wallet = numeric_config.get("dry_run_wallet")
     stake = numeric_config.get("stake_amount")
     slots = numeric_config.get("max_open_trades")
@@ -229,9 +275,9 @@ def generic_adapter_blockers(
 
 def generic_data_blockers(
     analysis: dict[str, Any],
-    vector_report: dict[str, Any],
+    _vector_report: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Prove that an unimplemented ROI table cannot trigger on these sealed candles."""
+    """Validate a literal ROI table now executed by the Native simulator."""
     constants = analysis["strategies"][0]["constants"]
     roi = constants.get("minimal_roi", {})
     if roi in ({}, None):
@@ -243,38 +289,26 @@ def generic_data_blockers(
                 "message": "minimal_roi must be a literal numeric mapping",
             }
         ]
-    values = list(roi.values())
-    if any(isinstance(value, bool) or not isinstance(value, int | float) for value in values):
-        return [
-            {
-                "code": "ROI_TABLE_INVALID",
-                "message": "minimal_roi values must be literal numbers",
-            }
-        ]
-    minimum_roi = min(float(value) for value in values)
-    maximum_possible_return = 0.0
-    for artifact in vector_report["outputs"]:
-        frame = pd.read_feather(artifact["path"], columns=["high", "low"])
-        minimum = _finite_series_extreme(frame, "low", minimum=True)
-        maximum = _finite_series_extreme(frame, "high", minimum=False)
-        if minimum is None or maximum is None or minimum <= 0.0:
+    for key, value in roi.items():
+        try:
+            minute = int(key)
+        except (TypeError, ValueError):
+            minute = -1
+        if (
+            isinstance(key, bool)
+            or str(minute) != str(key)
+            or minute < 0
+            or isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(float(value))
+            or float(value) < -1.0
+        ):
             return [
                 {
-                    "code": "ROI_BOUND_INVALID",
-                    "message": "cannot prove ROI reachability with non-positive prices",
+                    "code": "ROI_TABLE_INVALID",
+                    "message": "minimal_roi requires non-negative minute keys and finite ratios",
                 }
             ]
-        maximum_possible_return = max(maximum_possible_return, maximum / minimum - 1.0)
-    if maximum_possible_return >= minimum_roi:
-        return [
-            {
-                "code": "ROI_TABLE_REACHABLE",
-                "message": (
-                    f"sealed candle bound {maximum_possible_return:.8f} can reach "
-                    f"minimal_roi {minimum_roi:.8f}"
-                ),
-            }
-        ]
     return []
 
 
@@ -305,12 +339,14 @@ def build_generic_simulation_input(
     market_metadata_path: str | Path,
     destination: str | Path,
     state_machine_program: dict[str, Any] | None = None,
+    executable_callback_program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     blockers = generic_adapter_blockers(
         analysis,
         config,
         market_metadata_path=market_metadata_path,
         state_machine_program=state_machine_program,
+        executable_callback_program=executable_callback_program,
     )
     if blockers:
         raise StrategyAnalysisError(blockers[0]["message"])
@@ -376,6 +412,8 @@ def build_generic_simulation_input(
             price_step=pairs[0]["price_step"],
             pair_count=len(pairs),
             state_machine_program=state_machine_program,
+            executable_callback_program=executable_callback_program,
+            maximum_leverage_by_pair=_maximum_leverage_by_pair(markets, pairs),
         ),
         "pairs": pairs,
     }
@@ -391,6 +429,7 @@ def build_generic_vector_manifest(
     market_metadata_path: str | Path,
     destination: str | Path,
     state_machine_program: dict[str, Any] | None = None,
+    executable_callback_program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Write a compact Feather manifest for the certified generic subset."""
     blockers = generic_adapter_blockers(
@@ -398,6 +437,7 @@ def build_generic_vector_manifest(
         config,
         market_metadata_path=market_metadata_path,
         state_machine_program=state_machine_program,
+        executable_callback_program=executable_callback_program,
     )
     if blockers:
         raise StrategyAnalysisError(blockers[0]["message"])
@@ -428,6 +468,7 @@ def build_generic_vector_manifest(
             if state_machine_program is not None
             else set()
         )
+        executable_columns = _executable_feature_columns(executable_callback_program)
         require_columns(
             columns,
             {
@@ -440,7 +481,8 @@ def build_generic_vector_manifest(
                 "nfi_exec_enter_long",
                 "nfi_exec_exit_long",
             }
-            | state_machine_columns,
+            | state_machine_columns
+            | executable_columns,
             pair,
         )
         precision_frame = pd.read_feather(
@@ -479,9 +521,10 @@ def build_generic_vector_manifest(
                     "rows": len(precision_frame),
                     "format": "feather-ipc",
                 },
-                "feature_columns": sorted(state_machine_columns),
+                "feature_columns": sorted(state_machine_columns | executable_columns),
                 "can_short": can_short,
                 "use_exit_signal": use_exit_signal is not False,
+                "include_funding": config.get("trading_mode", "spot") == "futures",
                 # The generic certified subset has no entry callback and never
                 # observes analyzed-frame close data during entry confirmation.
                 "include_previous_close": False,
@@ -503,6 +546,8 @@ def build_generic_vector_manifest(
             price_step=pairs[0]["price_step"],
             pair_count=len(pairs),
             state_machine_program=state_machine_program,
+            executable_callback_program=executable_callback_program,
+            maximum_leverage_by_pair=_maximum_leverage_by_pair(markets, pairs),
         ),
         "pairs": pairs,
     }
@@ -519,6 +564,8 @@ def _generic_portfolio_config(
     price_step: float,
     pair_count: int,
     state_machine_program: dict[str, Any] | None,
+    executable_callback_program: dict[str, Any] | None = None,
+    maximum_leverage_by_pair: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Keep the certified portfolio semantics identical across transports."""
     max_open_trades = int(config["max_open_trades"])
@@ -527,22 +574,101 @@ def _generic_portfolio_config(
     return {
         "starting_balance": float(config["dry_run_wallet"]),
         "max_open_trades": min(max_open_trades, pair_count),
-        "stake_amount": float(config["stake_amount"]),
+        "stake_amount": (
+            float(config["dry_run_wallet"])
+            if config["stake_amount"] == "unlimited"
+            else float(config["stake_amount"])
+        ),
+        "unlimited_stake": config["stake_amount"] == "unlimited",
+        "tradable_balance_ratio": float(config.get("tradable_balance_ratio", 0.99)),
         "fee_rate": fee_rate,
         "fee_open_rate": fee_rate,
         "fee_close_rate": fee_rate,
         "leverage": 1.0,
+        **(
+            {"maximum_leverage_by_pair": maximum_leverage_by_pair}
+            if maximum_leverage_by_pair
+            else {}
+        ),
         "stoploss_ratio": effective_stoploss_ratio(constants, config),
+        "minimal_roi": {
+            str(int(minute)): float(ratio)
+            for minute, ratio in (constants.get("minimal_roi") or {}).items()
+        },
+        "trailing_stop": constants.get("trailing_stop") is True,
+        "trailing_stop_positive": constants.get("trailing_stop_positive"),
+        "trailing_stop_positive_offset": constants.get("trailing_stop_positive_offset"),
+        "trailing_only_offset_is_reached": (
+            constants.get("trailing_only_offset_is_reached") is True
+        ),
         "amount_step": amount_step,
         "price_step": price_step,
+        "is_futures": config.get("trading_mode", "spot") == "futures",
         "custom_exit_after_ms": None,
         "adjustment_rule": None,
+        **(
+            {"funding_fee_interval_ms": 8 * 60 * 60 * 1000}
+            if config.get("trading_mode", "spot") == "futures"
+            else {}
+        ),
         **(
             {"state_machine_program": state_machine_program}
             if state_machine_program is not None
             else {}
         ),
+        **(
+            {"executable_callback_program": executable_callback_program}
+            if executable_callback_program is not None
+            else {}
+        ),
     }
+
+
+def _maximum_leverage_by_pair(
+    markets: dict[str, Any], pairs: list[dict[str, Any]]
+) -> dict[str, float]:
+    result: dict[str, float] = {}
+    for pair_record in pairs:
+        pair = pair_record["pair"]
+        market = markets.get(pair)
+        if not isinstance(market, dict):
+            continue
+        limits = market.get("limits")
+        leverage_limit = limits.get("leverage") if isinstance(limits, dict) else None
+        maximum = leverage_limit.get("max") if isinstance(leverage_limit, dict) else None
+        if not isinstance(maximum, int | float) or isinstance(maximum, bool):
+            info = market.get("info")
+            required = info.get("requiredMarginPercent") if isinstance(info, dict) else None
+            if not isinstance(required, str | int | float) or isinstance(required, bool):
+                continue
+            try:
+                margin_percent = float(required)
+            except ValueError:
+                continue
+            maximum = 100.0 / margin_percent if margin_percent > 0.0 else None
+        if isinstance(maximum, int | float) and not isinstance(maximum, bool):
+            value = float(maximum)
+            if math.isfinite(value) and value > 0.0:
+                result[pair] = value
+    return result
+
+
+def _executable_feature_columns(program: dict[str, Any] | None) -> set[str]:
+    columns: set[str] = set()
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            if value.get("op") == "read_candle" and isinstance(value.get("key"), str):
+                columns.add(value["key"])
+            for nested in value.values():
+                visit(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                visit(nested)
+
+    if program is not None:
+        visit(program.get("entrypoints", {}))
+    return columns
 
 
 def generic_result_to_surface(
@@ -671,6 +797,8 @@ def _signal_candles(
         entry_tag = _optional_text(row.get("nfi_exec_enter_tag"))
         exit_tag = _optional_text(row.get("nfi_exec_exit_tag"))
         exit_reason = exit_tag or "exit_signal"
+        funding_rate = row.get("nfi_exec_funding_rate")
+        funding_mark_price = row.get("nfi_exec_funding_mark_price")
         records.append(
             {
                 "timestamp_ms": timestamp.value // 1_000_000,
@@ -699,8 +827,18 @@ def _signal_candles(
                 ),
                 "exit_long": {"reason": exit_reason} if exit_long else None,
                 "exit_short": {"reason": exit_reason} if exit_short else None,
-                "funding_rate": None,
-                "funding_mark_price": None,
+                "funding_rate": (
+                    float(funding_rate)
+                    if isinstance(funding_rate, numbers.Real)
+                    and math.isfinite(float(funding_rate))
+                    else None
+                ),
+                "funding_mark_price": (
+                    float(funding_mark_price)
+                    if isinstance(funding_mark_price, numbers.Real)
+                    and math.isfinite(float(funding_mark_price))
+                    else None
+                ),
                 "adjustment": None,
             }
         )
@@ -772,7 +910,9 @@ def _surface_trade(
         "minimum_rate": _decimal(trade["minimum_rate"]),
         "maximum_rate": _decimal(trade["maximum_rate"]),
         "initial_stop_loss_ratio": _decimal(stoploss_ratio),
-        "stop_loss_ratio": _decimal(stoploss_ratio),
+        "stop_loss_ratio": _decimal(
+            trade.get("custom_stop_loss_ratio", stoploss_ratio)
+        ),
         "weekday": weekday,
     }
 

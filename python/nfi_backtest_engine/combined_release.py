@@ -7,12 +7,15 @@ import json
 import re
 import shutil
 import zipfile
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Literal, Protocol
 
-from .canonical import read_json, write_json
+from .archive_security import read_zip_member, validate_zip_archive
+from .canonical import loads_json_bytes, read_json, write_json
+from .certification_policy import validate_certification_semantics
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import write_evidence_bundle
 from .fixture import sha256_file
@@ -29,6 +32,17 @@ from .release_gate import (
     _plain_directory,
     _plain_file,
     _validate_candidate_manifest,
+)
+from .release_provenance import (
+    DEFAULT_PROVENANCE_POLICY,
+    PLATFORM_EVIDENCE_VERSION,
+    ProvenancePolicy,
+    abort_certificate_publication,
+    candidate_distribution_identity,
+    mark_certificate_published,
+    require_published_certificate,
+    reserve_certificate_publication,
+    verify_embedded_platform_evidence,
 )
 from .specs import (
     FULL_X7_CERTIFICATION_V2_SCHEMA,
@@ -54,12 +68,26 @@ def combine_full_x7_release(
     futures_certificate_path: str | Path,
     platform_evidence_paths: list[str | Path],
     output_directory: str | Path,
+    native_score_evidence_path: str | Path | None = None,
+    native_score_identity_path: str | Path | None = None,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
 ) -> dict[str, Any]:
-    """Bind two exact certificates and optional three-OS evidence without reruns."""
+    """Bind two exact certificates and three-OS evidence after current score validation."""
+    from .native_scorecard import (
+        require_fresh_current_ref_for_authorization,
+        require_native_scorecard_candidate_binding,
+        require_native_scorecard_for_promotion,
+    )
+
+    require_native_scorecard_for_promotion(
+        native_score_evidence_path,
+        expected_identity_path=native_score_identity_path,
+        provenance_policy=provenance_policy,
+        authorization_operation="combined-release-combine",
+    )
     output = Path(output_directory).resolve()
-    if output.exists() and any(output.iterdir()):
+    if output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise BenchmarkError(f"combined release output must be empty: {output}")
-    output.mkdir(parents=True, exist_ok=True)
 
     certificates = {
         SPOT_RELEASE_CONTRACT_ID: _load_certificate(
@@ -80,11 +108,52 @@ def combine_full_x7_release(
         [Path(path).resolve() for path in platform_evidence_paths],
         certificates=certificates,
         shared_identity=shared_identity,
+        provenance_policy=provenance_policy,
     )
+    provenance_identities = {
+        (
+            item["document"]["provenance"]["candidate_id"],
+            item["document"]["provenance"]["bundle_id"],
+            item["document"]["provenance"]["challenge"],
+        )
+        for item in platform_evidence.values()
+    }
+    if platform_evidence and len(provenance_identities) != 1:
+        raise SpecValidationError(
+            "Spot and Futures evidence use different provenance challenges"
+        )
+    candidate_commits = {
+        item["document"]["candidate_commit"] for item in platform_evidence.values()
+    }
+    candidate_ids = {
+        item["document"]["provenance"]["candidate_id"]
+        for item in platform_evidence.values()
+    }
+    if len(candidate_commits) != 1 or len(candidate_ids) != 1:
+        raise SpecValidationError("combined release score candidate identity is unavailable")
+    require_native_scorecard_candidate_binding(
+        native_score_identity_path,
+        expected_candidate_commit=next(iter(candidate_commits)),
+        expected_candidate_identity=next(iter(candidate_ids)),
+    )
+    require_fresh_current_ref_for_authorization(
+        native_score_evidence_path,
+        native_score_identity_path,
+        "combined-release-combine-output",
+    )
+    output.mkdir(parents=True, exist_ok=True)
     bundled_evidence = _materialize_release_evidence(
         output,
         certificates=certificates,
         platform_evidence=platform_evidence,
+    )
+    if native_score_evidence_path is None:  # narrowed after fail-closed validation above
+        raise SpecValidationError("Native scorecard evidence is required")
+    score_root = Path(native_score_evidence_path).resolve().parent
+    score_destination = output / "evidence" / "native-score"
+    shutil.copytree(score_root, score_destination)
+    bundled_evidence.extend(
+        sorted(path for path in score_destination.rglob("*") if path.is_file())
     )
     platform_modes = set(platform_evidence)
     platforms_met = platform_modes == REQUIRED_MODE_CONTRACTS
@@ -140,11 +209,35 @@ def seal_combined_release_candidate(
     candidate_commit: str,
     output_directory: str | Path,
     created_at: str | None = None,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+    provenance_ledger_path: str | Path | None = None,
+    publication_attempt_id: str | None = None,
+    native_score_evidence_path: str | Path | None = None,
+    native_score_identity_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Seal one build-once candidate after both modes and three OSes certify it."""
+    from .native_scorecard import (
+        require_fresh_current_ref_for_authorization,
+        require_native_scorecard_candidate_binding,
+        require_native_scorecard_for_promotion,
+    )
 
+    require_native_scorecard_for_promotion(
+        native_score_evidence_path,
+        expected_identity_path=native_score_identity_path,
+        provenance_policy=provenance_policy,
+        authorization_operation="combined-release-seal",
+    )
     if _COMMIT_PATTERN.fullmatch(candidate_commit) is None:
         raise SpecValidationError("candidate commit must be a 40-character lowercase Git SHA")
+    if (
+        provenance_ledger_path is None
+        or publication_attempt_id is None
+        or re.fullmatch(r"[A-Za-z0-9_.-]{1,200}", publication_attempt_id) is None
+    ):
+        raise SpecValidationError(
+            "certified publication requires a durable ledger and publication attempt"
+        )
     candidate_root = _plain_directory(candidate_directory, label="candidate")
     combined_result_file = _plain_file(
         combined_release_result_path,
@@ -154,10 +247,15 @@ def seal_combined_release_candidate(
     if raw_output.is_symlink():
         raise SpecValidationError("combined release output must not be a symlink")
     output = raw_output.resolve()
-    if output.exists() and (not output.is_dir() or any(output.iterdir())):
-        raise BenchmarkError(f"combined release output must be empty: {output}")
+    if output.exists() and not output.is_dir():
+        raise BenchmarkError(f"combined release output must be a directory: {output}")
 
     candidate = _validate_candidate_manifest(candidate_root)
+    require_native_scorecard_candidate_binding(
+        native_score_identity_path,
+        expected_candidate_commit=candidate_commit,
+        expected_candidate_identity=_candidate_distribution_id(candidate),
+    )
     result = read_json(combined_result_file)
     if not isinstance(result, dict):
         raise SpecValidationError("combined release result must be a JSON object")
@@ -184,6 +282,8 @@ def seal_combined_release_candidate(
         candidate,
         report=report,
         shared_identity=shared,
+        provenance_policy=provenance_policy,
+        expected_commit=candidate_commit,
     )
 
     report_source = combined_result_file.parent / COMBINED_RELEASE_REPORT_NAME
@@ -197,70 +297,329 @@ def seal_combined_release_candidate(
     if bundle_source.name != COMBINED_RELEASE_BUNDLE_NAME:
         raise SpecValidationError("combined release archive has a noncanonical name")
 
-    output.mkdir(parents=True, exist_ok=True)
-    copied_distributions: list[Path] = []
-    for source in distributions:
-        destination = output / source.name
-        _copy_new_file(source, destination)
-        copied_distributions.append(destination)
-    _write_distribution_checksums(output, copied_distributions)
-    report_destination = output / COMBINED_RELEASE_REPORT_NAME
-    bundle_destination = output / COMBINED_RELEASE_BUNDLE_NAME
-    _copy_new_file(report_source, report_destination)
-    _copy_new_file(bundle_source, bundle_destination)
+    platform_document = read_json(
+        candidate["root"] / next(iter(platform_records.values()))["candidate_file"]
+    )
+    bundle_id = platform_document["provenance"]["bundle_id"]
+    if output.exists() and any(output.iterdir()):
+        recovered = _verify_combined_release_assets(
+            output,
+            expected_commit=candidate_commit,
+            provenance_policy=provenance_policy,
+        )
+        certificate_sha256 = sha256_file(output / COMBINED_RELEASE_GATE_NAME)
+        require_fresh_current_ref_for_authorization(
+            native_score_evidence_path,
+            native_score_identity_path,
+            "combined-release-recovery-reservation",
+        )
+        state = reserve_certificate_publication(
+            provenance_ledger_path,
+            bundle_id=bundle_id,
+            certificate_sha256=certificate_sha256,
+            attempt_id=publication_attempt_id,
+        )
+        if state == "published":
+            raise SpecValidationError(
+                "release provenance bundle challenge was already published"
+            )
+        return recovered
+    if output.exists():
+        output.rmdir()
 
-    gate = {
-        "schema_version": COMBINED_RELEASE_GATE_VERSION,
-        "created_at": created_at or datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        "release_kind": "combined-full-x7",
-        "status": "release_certified",
-        "release_certified": True,
-        "candidate_commit": candidate_commit,
-        "package_version": shared["package_version"],
-        "candidate_manifest": _candidate_artifact_record(
-            candidate_root / CANDIDATE_CHECKSUMS_NAME,
-            relative_to=candidate_root,
-        ),
-        "combined_release": {
-            "report": _artifact_record(report_destination),
-            "bundle": _artifact_record(bundle_destination),
-            "mode_contracts": sorted(REQUIRED_MODE_CONTRACTS),
-            "strategy_sha256": shared["strategy_sha256"],
-            "wheel_sha256": shared["wheel_sha256"],
-            "native_extension_sha256": shared["native_extension_sha256"],
-            "portable_package_sha256": shared["portable_package_sha256"],
-        },
-        "distributions": [
-            _artifact_record(path)
-            for path in sorted(copied_distributions, key=lambda item: item.name)
-        ],
-        "platform_evidence": platform_records,
-        "gates": {
-            "candidate_manifest": True,
-            "candidate_commit": True,
-            "distribution_set": True,
-            "combined_certificates": True,
-            "shared_candidate": True,
-            "portable_package": True,
-            "three_os_both_modes": True,
-            "preview_rejected": True,
-            "public_asset_set": True,
-        },
-    }
-    validate_combined_release_gate(gate)
-    write_json(output / COMBINED_RELEASE_GATE_NAME, gate)
-    _write_public_release_checksums(output)
-    verify_combined_release_candidate(
-        output,
-        expected_commit=candidate_commit,
+    stage = output.parent / f".{output.name}.stage-{publication_attempt_id}"
+    if stage.exists():
+        shutil.rmtree(stage)
+    require_fresh_current_ref_for_authorization(
+        native_score_evidence_path,
+        native_score_identity_path,
+        "combined-release-seal-output",
+    )
+    stage.mkdir(mode=0o700)
+    reserved = False
+    published = False
+    certificate_sha256 = ""
+    try:
+        copied_distributions: list[Path] = []
+        for source in distributions:
+            destination = stage / source.name
+            _copy_new_file(source, destination)
+            copied_distributions.append(destination)
+        _write_distribution_checksums(stage, copied_distributions)
+        report_destination = stage / COMBINED_RELEASE_REPORT_NAME
+        bundle_destination = stage / COMBINED_RELEASE_BUNDLE_NAME
+        _copy_new_file(report_source, report_destination)
+        _copy_new_file(bundle_source, bundle_destination)
+
+        gate = {
+            "schema_version": COMBINED_RELEASE_GATE_VERSION,
+            "created_at": created_at or report["created_at"],
+            "release_kind": "combined-full-x7",
+            "status": "release_certified",
+            "release_certified": True,
+            "candidate_commit": candidate_commit,
+            "package_version": shared["package_version"],
+            "candidate_manifest": _candidate_artifact_record(
+                candidate_root / CANDIDATE_CHECKSUMS_NAME,
+                relative_to=candidate_root,
+            ),
+            "combined_release": {
+                "report": _artifact_record(report_destination),
+                "bundle": _artifact_record(bundle_destination),
+                "mode_contracts": sorted(REQUIRED_MODE_CONTRACTS),
+                "strategy_sha256": shared["strategy_sha256"],
+                "wheel_sha256": shared["wheel_sha256"],
+                "native_extension_sha256": shared["native_extension_sha256"],
+                "portable_package_sha256": shared["portable_package_sha256"],
+            },
+            "distributions": [
+                _artifact_record(path)
+                for path in sorted(copied_distributions, key=lambda item: item.name)
+            ],
+            "platform_evidence": platform_records,
+            "gates": {
+                "candidate_manifest": True,
+                "candidate_commit": True,
+                "distribution_set": True,
+                "combined_certificates": True,
+                "shared_candidate": True,
+                "portable_package": True,
+                "three_os_both_modes": True,
+                "preview_rejected": True,
+                "public_asset_set": True,
+                "native_scorecard": True,
+            },
+        }
+        validate_combined_release_gate(gate)
+        write_json(stage / COMBINED_RELEASE_GATE_NAME, gate)
+        _write_public_release_checksums(stage)
+        _verify_combined_release_assets(
+            stage,
+            expected_commit=candidate_commit,
+            provenance_policy=provenance_policy,
+        )
+        certificate_sha256 = sha256_file(stage / COMBINED_RELEASE_GATE_NAME)
+        _publication_checkpoint("before-reservation")
+        require_fresh_current_ref_for_authorization(
+            native_score_evidence_path,
+            native_score_identity_path,
+            "combined-release-reservation",
+        )
+        state = reserve_certificate_publication(
+            provenance_ledger_path,
+            bundle_id=bundle_id,
+            certificate_sha256=certificate_sha256,
+            attempt_id=publication_attempt_id,
+        )
+        if state == "published":
+            raise SpecValidationError(
+                "release provenance bundle challenge was already used"
+            )
+        reserved = True
+        _publication_checkpoint("after-reservation")
+        _publication_checkpoint("during-staged-publication")
+        require_fresh_current_ref_for_authorization(
+            native_score_evidence_path,
+            native_score_identity_path,
+            "combined-release-publication-output",
+        )
+        stage.rename(output)
+        published = True
+        _publication_checkpoint("after-publication-before-finalize")
+        return gate
+    except BaseException:
+        if stage.exists():
+            shutil.rmtree(stage)
+        if reserved and not published:
+            abort_certificate_publication(
+                provenance_ledger_path,
+                bundle_id=bundle_id,
+                certificate_sha256=certificate_sha256,
+                attempt_id=publication_attempt_id,
+            )
+        raise
+
+
+class RemoteDraftBackend(Protocol):
+    """Transactional remote release operations used by the publication coordinator."""
+
+    def state(self) -> Literal["absent", "draft", "public"]: ...
+    def create_draft(self) -> None: ...
+    def upload_assets(self) -> None: ...
+    def verify_assets(self, *, public: bool) -> None: ...
+    def publish_draft(self) -> None: ...
+    def delete_draft(self) -> None: ...
+
+
+def publish_remote_draft_release(
+    backend: RemoteDraftBackend,
+    *,
+    finalize: Callable[[], None],
+    abort: Callable[[], None],
+    checkpoint: Callable[[str], None] = lambda _name: None,
+) -> None:
+    """Publish through a private draft and finalize only after public byte verification."""
+    try:
+        state = backend.state()
+        if state == "absent":
+            backend.create_draft()
+            checkpoint("after-create")
+            state = "draft"
+        if state == "draft":
+            backend.upload_assets()
+            checkpoint("after-upload")
+            backend.verify_assets(public=False)
+            checkpoint("after-draft-verify")
+            backend.publish_draft()
+            checkpoint("after-publish")
+        if backend.state() != "public":
+            raise SpecValidationError("remote release did not become public")
+        backend.verify_assets(public=True)
+        checkpoint("after-public-verify")
+        checkpoint("before-finalize")
+        finalize()
+        checkpoint("after-finalize")
+    except BaseException:
+        if backend.state() != "public":
+            if backend.state() == "draft":
+                backend.delete_draft()
+            abort()
+        raise
+
+
+def finalize_combined_release_publication(
+    source: str | Path,
+    *,
+    provenance_ledger_path: str | Path,
+    publication_attempt_id: str,
+    expected_commit: str | None = None,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+    native_score_evidence_path: str | Path | None = None,
+    native_score_identity_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Finalize a remotely public, byte-verified combined release."""
+    from .native_scorecard import require_fresh_current_ref_for_authorization
+
+    gate = _verify_combined_release_assets(
+        source,
+        expected_commit=expected_commit,
+        provenance_policy=provenance_policy,
+    )
+    root = Path(source)
+    bundle_id = _public_bundle_id(root / COMBINED_RELEASE_BUNDLE_NAME)
+    certificate_sha256 = sha256_file(root / COMBINED_RELEASE_GATE_NAME)
+    require_fresh_current_ref_for_authorization(
+        native_score_evidence_path,
+        native_score_identity_path,
+        "combined-release-finalize-publication",
+    )
+    state = reserve_certificate_publication(
+        provenance_ledger_path,
+        bundle_id=bundle_id,
+        certificate_sha256=certificate_sha256,
+        attempt_id=publication_attempt_id,
+    )
+    if state == "reserved":
+        mark_certificate_published(
+            provenance_ledger_path,
+            bundle_id=bundle_id,
+            certificate_sha256=certificate_sha256,
+            attempt_id=publication_attempt_id,
+        )
+    require_published_certificate(
+        provenance_ledger_path,
+        bundle_id=bundle_id,
+        certificate_sha256=certificate_sha256,
     )
     return gate
+
+
+def abort_combined_release_publication(
+    source: str | Path,
+    *,
+    provenance_ledger_path: str | Path,
+    publication_attempt_id: str,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+) -> None:
+    """Abort an unpublished remote attempt without releasing its identity."""
+    _verify_combined_release_assets(source, provenance_policy=provenance_policy)
+    root = Path(source)
+    abort_certificate_publication(
+        provenance_ledger_path,
+        bundle_id=_public_bundle_id(root / COMBINED_RELEASE_BUNDLE_NAME),
+        certificate_sha256=sha256_file(root / COMBINED_RELEASE_GATE_NAME),
+        attempt_id=publication_attempt_id,
+    )
 
 
 def verify_combined_release_candidate(
     source: str | Path,
     *,
     expected_commit: str | None = None,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+    provenance_ledger_path: str | Path | None = None,
+    native_score_evidence_path: str | Path | None = None,
+    native_score_identity_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Verify public assets and their exact durable published score claim."""
+    from .native_scorecard import (
+        require_fresh_current_ref_for_authorization,
+        require_native_scorecard_candidate_binding,
+        require_native_scorecard_for_promotion,
+    )
+
+    if expected_commit is None:
+        raise SpecValidationError("combined release candidate commit is required")
+    require_native_scorecard_for_promotion(
+        native_score_evidence_path,
+        expected_identity_path=native_score_identity_path,
+        provenance_policy=provenance_policy,
+        authorization_operation="combined-release-verify",
+    )
+    release_root = _plain_directory(source, label="combined release")
+    distribution_records = _parse_checksum_manifest(
+        release_root / CANDIDATE_CHECKSUMS_NAME
+    )
+    candidate_identity = candidate_distribution_identity(
+        {
+            name: digest
+            for name, digest in distribution_records.items()
+            if name.endswith(".whl") or name.endswith(".tar.gz")
+        }
+    )
+    require_native_scorecard_candidate_binding(
+        native_score_identity_path,
+        expected_candidate_commit=expected_commit,
+        expected_candidate_identity=candidate_identity,
+    )
+    gate = _verify_combined_release_assets(
+        source,
+        expected_commit=expected_commit,
+        provenance_policy=provenance_policy,
+    )
+    if provenance_ledger_path is None:
+        raise SpecValidationError(
+            "combined release certification requires a durable published claim"
+        )
+    bundle_id = _public_bundle_id(Path(source) / COMBINED_RELEASE_BUNDLE_NAME)
+    require_fresh_current_ref_for_authorization(
+        native_score_evidence_path,
+        native_score_identity_path,
+        "combined-release-verify-output",
+    )
+    require_published_certificate(
+        provenance_ledger_path,
+        bundle_id=bundle_id,
+        certificate_sha256=sha256_file(Path(source) / COMBINED_RELEASE_GATE_NAME),
+    )
+    return gate
+
+
+def _verify_combined_release_assets(
+    source: str | Path,
+    *,
+    expected_commit: str | None = None,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
 ) -> dict[str, Any]:
     """Verify the exact ten-file public combined-release asset set."""
 
@@ -325,7 +684,6 @@ def verify_combined_release_candidate(
     bundle_path = root / COMBINED_RELEASE_BUNDLE_NAME
     if _artifact_record(bundle_path) != gate["combined_release"]["bundle"]:
         raise SpecValidationError("combined public bundle differs from release gate")
-    _verify_public_combined_bundle(bundle_path, expected_report=report)
     shared = report["shared_candidate"]
     if not isinstance(shared, dict) or any(
         not _is_sha256(shared.get(key))
@@ -360,6 +718,15 @@ def verify_combined_release_candidate(
             },
         },
         shared,
+    )
+    _verify_public_combined_bundle(
+        bundle_path,
+        expected_report=report,
+        provenance_policy=provenance_policy,
+        expected_commit=gate["candidate_commit"],
+        expected_candidate_id=candidate_distribution_identity(
+            {record["file"]: record["sha256"] for record in gate["distributions"]}
+        ),
     )
     return gate
 
@@ -419,6 +786,8 @@ def _candidate_platform_records(
     *,
     report: dict[str, Any],
     shared_identity: dict[str, Any],
+    provenance_policy: ProvenancePolicy,
+    expected_commit: str,
 ) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     platform_wheels_by_mode: dict[str, dict[str, str]] = {}
@@ -443,6 +812,9 @@ def _candidate_platform_records(
             [path],
             certificates={mode: _synthetic_certificate_identity(shared_identity)},
             shared_identity=shared_identity,
+            provenance_policy=provenance_policy,
+            expected_commit=expected_commit,
+            expected_candidate_id=_candidate_distribution_id(candidate),
         )
         if set(loaded) != {mode}:
             raise SpecValidationError(f"candidate platform evidence mode differs for {mode}")
@@ -478,6 +850,16 @@ def _candidate_platform_records(
             "and leave exactly one additional wheel"
         )
     return result
+
+
+def _candidate_distribution_id(candidate: dict[str, Any]) -> str:
+    return candidate_distribution_identity(
+        {
+            name: str(record["sha256"])
+            for name, record in candidate["files"].items()
+            if name.endswith(".whl") or name.endswith(".tar.gz")
+        }
+    )
 
 
 def _synthetic_certificate_identity(
@@ -543,17 +925,44 @@ def _verify_checksum_records(
             raise SpecValidationError(f"{label} checksum failed: {name}")
 
 
+def _publication_checkpoint(_name: str) -> None:
+    """Deterministic fault boundary used by publication recovery tests."""
+
+
+def _public_bundle_id(bundle_path: Path) -> str:
+    with zipfile.ZipFile(bundle_path) as archive:
+        members = validate_zip_archive(archive)
+        bundle_ids = {
+            document["provenance"]["bundle_id"]
+            for name, info in members.items()
+            if name.endswith("platform-evidence.json")
+            for document in [loads_json_bytes(read_zip_member(archive, info))]
+            if isinstance(document, dict)
+            and isinstance(document.get("provenance"), dict)
+            and _is_sha256(document["provenance"].get("bundle_id"))
+        }
+    if len(bundle_ids) != 1:
+        raise SpecValidationError("combined public bundle identity is incomplete")
+    return next(iter(bundle_ids))
+
+
 def _verify_public_combined_bundle(
     bundle_path: Path,
     *,
     expected_report: dict[str, Any],
+    provenance_policy: ProvenancePolicy,
+    expected_commit: str,
+    expected_candidate_id: str,
 ) -> None:
     try:
         with zipfile.ZipFile(bundle_path) as archive:
-            names = archive.namelist()
-            if len(names) != len(set(names)) or "bundle-manifest.json" not in names:
+            members = validate_zip_archive(archive)
+            names = list(members)
+            if "bundle-manifest.json" not in names:
                 raise SpecValidationError("combined public bundle member set is invalid")
-            manifest = json.loads(archive.read("bundle-manifest.json"))
+            manifest = loads_json_bytes(
+                read_zip_member(archive, members["bundle-manifest.json"])
+            )
             files = manifest.get("files") if isinstance(manifest, dict) else None
             if (
                 not isinstance(manifest, dict)
@@ -583,14 +992,32 @@ def _verify_public_combined_bundle(
                 ):
                     raise SpecValidationError("combined public bundle manifest member is invalid")
                 records[name] = record
-                content = archive.read(name)
+                info = members.get(name)
+                if info is None:
+                    raise SpecValidationError("combined public bundle member is missing")
+                content = read_zip_member(archive, info)
                 if (
                     len(content) != record["bytes"]
                     or hashlib.sha256(content).hexdigest() != record["sha256"]
                 ):
                     raise SpecValidationError("combined public bundle member checksum failed")
                 if name == COMBINED_RELEASE_REPORT_NAME:
-                    report_found = json.loads(content) == expected_report
+                    report_found = loads_json_bytes(content) == expected_report
+                if name.endswith("platform-evidence.json"):
+                    platform_document = loads_json_bytes(content)
+                    if not isinstance(platform_document, dict):
+                        raise SpecValidationError(
+                            "combined public bundle platform evidence is malformed"
+                        )
+                    validate_certification_semantics(
+                        platform_document, label="combined platform evidence"
+                    )
+                    verify_embedded_platform_evidence(
+                        platform_document,
+                        policy=provenance_policy,
+                        expected_commit=expected_commit,
+                        expected_candidate_id=expected_candidate_id,
+                    )
             if set(names) != {*records, "bundle-manifest.json"}:
                 raise SpecValidationError("combined public bundle members differ from its manifest")
             if not report_found:
@@ -601,6 +1028,7 @@ def _verify_public_combined_bundle(
         KeyError,
         UnicodeDecodeError,
         json.JSONDecodeError,
+        ValueError,
         zipfile.BadZipFile,
     ) as exc:
         raise SpecValidationError("combined public bundle is invalid") from exc
@@ -613,9 +1041,17 @@ def _load_certificate(path: Path, *, expected_mode: str) -> dict[str, Any]:
     bundle = document.get("bundle")
     report = {key: value for key, value in document.items() if key != "bundle"}
     validate_schema(report, FULL_X7_CERTIFICATION_V2_SCHEMA)
+    validate_certification_semantics(report, label="Full X7 certificate")
+    gates = report.get("gates")
+    recomputed_certified = bool(
+        isinstance(gates, dict)
+        and gates
+        and all(isinstance(gate, dict) and gate.get("met") is True for gate in gates.values())
+    )
     if (
-        report.get("release_certified") is not True
-        or report.get("status") != "certified"
+        report.get("status") != "certified"
+        or report.get("release_certified") is not True
+        or not recomputed_certified
         or report.get("claim_scope", {}).get("mode_contract") != expected_mode
     ):
         raise SpecValidationError(f"Full X7 certificate is not certified for {expected_mode}")
@@ -672,9 +1108,15 @@ def _validate_evidence_bundle(
             or not isinstance(record.get("sha256"), str)
         ):
             raise SpecValidationError(f"{label} bundle {key} is invalid")
-        artifact = (root / record["path"]).resolve()
+        name = record["path"]
+        relative = PurePosixPath(name)
+        artifact = root / name
         if (
-            not artifact.is_relative_to(root)
+            "\\" in name
+            or relative.is_absolute()
+            or relative.as_posix() != name
+            or any(part in {"", ".", ".."} for part in relative.parts)
+            or _traverses_symlink(artifact, root)
             or not artifact.is_file()
             or artifact.stat().st_size != record["bytes"]
             or sha256_file(artifact) != record["sha256"]
@@ -719,26 +1161,24 @@ def _validate_evidence_bundle(
     expected_archive_names = {*member_records, manifest_name}
     try:
         with zipfile.ZipFile(resolved["archive"]) as archive:
-            if (
-                len(archive.namelist()) != len(expected_archive_names)
-                or set(archive.namelist()) != expected_archive_names
-            ):
+            members = validate_zip_archive(archive)
+            if set(members) != expected_archive_names:
                 raise SpecValidationError(f"{label} bundle archive members differ")
-            archived_manifest = archive.read(manifest_name)
+            archived_manifest = read_zip_member(archive, members[manifest_name])
             if len(archived_manifest) != resolved["manifest"].stat().st_size or hashlib.sha256(
                 archived_manifest
             ).hexdigest() != sha256_file(resolved["manifest"]):
                 raise SpecValidationError(f"{label} bundle archive manifest differs")
             for name, record in member_records.items():
-                archived = archive.read(name)
+                archived = read_zip_member(archive, members[name])
                 if (
                     len(archived) != record["bytes"]
                     or hashlib.sha256(archived).hexdigest() != record["sha256"]
                 ):
                     raise SpecValidationError(f"{label} bundle member failed hash validation")
                 with suppress(UnicodeDecodeError, json.JSONDecodeError):
-                    expected_found |= json.loads(archived) == expected_document
-    except (KeyError, zipfile.BadZipFile) as exc:
+                    expected_found |= loads_json_bytes(archived) == expected_document
+    except (KeyError, ValueError, zipfile.BadZipFile) as exc:
         raise SpecValidationError(f"{label} bundle archive is invalid") from exc
     if not expected_found:
         raise SpecValidationError(f"{label} bundle does not contain its report")
@@ -747,6 +1187,17 @@ def _validate_evidence_bundle(
         "_archive_path": resolved["archive"],
         "_manifest_path": resolved["manifest"],
     }
+
+
+def _traverses_symlink(path: Path, root: Path) -> bool:
+    current = path
+    while current != root:
+        if current.is_symlink():
+            return True
+        if current.parent == current:
+            return True
+        current = current.parent
+    return False
 
 
 def _shared_candidate_identity(
@@ -815,12 +1266,22 @@ def _load_platform_evidence(
     *,
     certificates: dict[str, dict[str, Any]],
     shared_identity: dict[str, Any],
+    provenance_policy: ProvenancePolicy,
+    expected_commit: str | None = None,
+    expected_candidate_id: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for path in paths:
         document = read_json(path)
         if not isinstance(document, dict):
             raise SpecValidationError(f"platform evidence must be an object: {path}")
+        validate_certification_semantics(document, label="platform evidence")
+        verified = verify_embedded_platform_evidence(
+            document,
+            policy=provenance_policy,
+            expected_commit=expected_commit,
+            expected_candidate_id=expected_candidate_id,
+        )
         mode = document.get("mode_contract")
         if mode not in REQUIRED_MODE_CONTRACTS:
             raise SpecValidationError("platform evidence has an unsupported mode")
@@ -832,8 +1293,9 @@ def _load_platform_evidence(
             raise SpecValidationError(f"platform evidence is incomplete for {mode}")
         systems = {item.get("system") for item in platforms if isinstance(item, dict)}
         if (
-            document.get("schema_version") != "1.0.0"
+            document.get("schema_version") != PLATFORM_EVIDENCE_VERSION
             or document.get("release_certified") is not True
+            or document.get("candidate_commit") != verified["commit"]
             or systems != REQUIRED_PLATFORM_SYSTEMS
             or not isinstance(workload, dict)
             or workload.get("mode_contract") != mode
@@ -855,8 +1317,15 @@ def _load_platform_evidence(
             None,
         )
         certificate_wheel = certificates[mode]["report"]["gates"]["installed_wheel"]["sha256"]
-        if not isinstance(linux, dict) or linux.get("wheel_sha256") != certificate_wheel:
-            raise SpecValidationError(f"Linux platform wheel differs from the {mode} certificate")
+        if (
+            not isinstance(linux, dict)
+            or linux.get("wheel_sha256") != certificate_wheel
+            or linux.get("native_extension_sha256")
+            != shared_identity["native_extension_sha256"]
+        ):
+            raise SpecValidationError(
+                f"Linux platform wheel or extension differs from the {mode} certificate"
+            )
         bundle_path = path.parent / "bundle.json"
         bundle = read_json(bundle_path) if bundle_path.is_file() else None
         validated_bundle = _validate_evidence_bundle(
@@ -865,6 +1334,18 @@ def _load_platform_evidence(
             expected_document=document,
             label=f"{mode} platform evidence",
         )
+        report_by_system = {
+            report["platform"]["system"]: report for report in verified["reports"]
+        }
+        for item in platforms:
+            signed_report = report_by_system.get(item.get("system"))
+            if signed_report is None or any(
+                item.get(key) != signed_report["package"].get(key)
+                for key in ("wheel_sha256", "native_extension_sha256")
+            ):
+                raise SpecValidationError(
+                    f"platform evidence projection differs from signed reports for {mode}"
+                )
         result[mode] = {
             "document": document,
             "bundle": validated_bundle,

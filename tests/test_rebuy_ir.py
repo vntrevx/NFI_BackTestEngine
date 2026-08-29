@@ -12,8 +12,8 @@ from nfi_backtest_engine.x7.rebuy_ir import compile_rebuy_transition_ir
 from nfi_backtest_engine.x7.trade_manager import build_nfi_trade_manager_ir
 
 _SOURCE = Path(
-    "benchmarks/fixtures/captured/"
-    "x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/strategy.py"
+    "benchmarks/evidence/m22/current-x7-raw/"
+    "upstream-NostalgiaForInfinityX7.source"
 )
 
 
@@ -141,7 +141,7 @@ def test_trade_manager_binds_independent_long_and_short_adjustment_programs() ->
     long_adjustment = operation["position_adjustment"]
     short_adjustment = operation["short_position_adjustment"]
 
-    assert operation["schema_version"] == "0.29.0"
+    assert operation["schema_version"] == "0.30.0"
     assert long_adjustment["program"]["side"] == "long"
     assert short_adjustment["program"]["side"] == "short"
     assert long_adjustment["program"]["order_scan"]["entry_order_side"] == "buy"

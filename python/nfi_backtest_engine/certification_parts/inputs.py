@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from ..archive_security import read_zip_member, validate_zip_archive
 from ..canonical import read_json
 from ..config_loader import config_sha256, load_effective_config
 from ..data_seal import validate_data_seal
@@ -53,10 +54,13 @@ def verify_installed_wheel(
     if build.get("kind") != "pyo3-extension":
         raise BenchmarkError("Full X7 certification must run an installed native wheel")
     suffixes = (".pyd", ".so", ".dylib")
+    if wheel.is_symlink():
+        raise BenchmarkError(f"release wheel must not be a symlink: {wheel}")
     with zipfile.ZipFile(wheel) as archive:
+        archive_members = validate_zip_archive(archive)
         package_members = sorted(
             name
-            for name in archive.namelist()
+            for name in archive_members
             if name.startswith("nfi_backtest_engine/") and not name.endswith("/")
         )
         if not package_members:
@@ -70,7 +74,9 @@ def verify_installed_wheel(
             raise BenchmarkError(
                 f"release wheel must contain exactly one native extension; found {len(candidates)}"
             )
-        member_sha = hashlib.sha256(archive.read(candidates[0])).hexdigest()
+        member_sha = hashlib.sha256(
+            read_zip_member(archive, archive_members[candidates[0]])
+        ).hexdigest()
         installed_root = (
             Path(package_root).resolve()
             if package_root is not None
@@ -81,7 +87,9 @@ def verify_installed_wheel(
         for name in package_members:
             relative = Path(name).relative_to("nfi_backtest_engine")
             installed = installed_root / relative
-            wheel_sha = hashlib.sha256(archive.read(name)).hexdigest()
+            wheel_sha = hashlib.sha256(
+                read_zip_member(archive, archive_members[name])
+            ).hexdigest()
             if not installed.is_file() or sha256_file(installed) != wheel_sha:
                 raise BenchmarkError(
                     f"installed package file does not match the candidate wheel: {relative}"

@@ -10,6 +10,7 @@ from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.generic_adapter import (
     _enabled,
+    _generic_portfolio_config,
     _optional_text,
     build_generic_simulation_input,
     build_generic_vector_manifest,
@@ -86,6 +87,44 @@ def _config() -> dict:
 def test_generic_adapter_decodes_the_empty_tag_transport_marker() -> None:
     assert _optional_text(EMPTY_TAG_TRANSPORT_SENTINEL) is None
     assert _optional_text("121") == "121"
+
+
+def test_generic_futures_config_preserves_binance_funding_interval() -> None:
+    config = _generic_portfolio_config(
+        constants={"stoploss": -0.5},
+        config={**_config(), "trading_mode": "futures"},
+        fee_rate=0.0005,
+        amount_step=0.001,
+        price_step=0.1,
+        pair_count=1,
+        state_machine_program=None,
+    )
+
+    assert config["funding_fee_interval_ms"] == 8 * 60 * 60 * 1000
+
+def test_generic_config_preserves_roi_and_trailing_contract() -> None:
+    config = _generic_portfolio_config(
+        constants={
+            "stoploss": -0.05,
+            "minimal_roi": {"0": 0.01, "30": -1},
+            "trailing_stop": True,
+            "trailing_stop_positive": 0.02,
+            "trailing_stop_positive_offset": 0.03,
+            "trailing_only_offset_is_reached": True,
+        },
+        config=_config(),
+        fee_rate=0.001,
+        amount_step=0.00001,
+        price_step=0.01,
+        pair_count=1,
+        state_machine_program=None,
+    )
+
+    assert config["minimal_roi"] == {"0": 0.01, "30": -1.0}
+    assert config["trailing_stop"] is True
+    assert config["trailing_stop_positive"] == 0.02
+    assert config["trailing_stop_positive_offset"] == 0.03
+    assert config["trailing_only_offset_is_reached"] is True
 
 
 def test_generic_adapter_requires_frozen_market_metadata(tmp_path: Path) -> None:

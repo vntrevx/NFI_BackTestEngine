@@ -153,8 +153,9 @@ fn dynamic_leverage_cap_uses_proposed_stake_tier() {
 
 #[test]
 fn futures_partial_exit_keeps_freqtrade_initial_stake_float_boundary() {
-    let (amount, stake, _, _) =
-        entry_sizing(9_900.0, 20.881, 0.0005, 1.0, 5.0).expect("valid entry sizing");
+    let (amount, stake, _, _) = entry_sizing(9_900.0, 20.881, 0.0005, 1.0, 5.0)
+        .expect("representable entry sizing")
+        .expect("positive entry sizing");
     assert_eq!(amount, 2_370.0);
     assert_eq!(stake, 9_897.594_000_000_001);
 
@@ -165,7 +166,22 @@ fn futures_partial_exit_keeps_freqtrade_initial_stake_float_boundary() {
     let requested_stake = sell_amount * 5.0 * (stake / amount) / exit_rate;
     let raw_amount =
         precise_product_quotient(requested_stake, amount, stake).expect("valid partial exit");
-    assert_eq!(floor_step(raw_amount, 1.0), 474.0);
+    assert_eq!(floor_step(raw_amount, 1.0), Ok(474.0));
+}
+
+#[test]
+fn futures_entry_sizing_preserves_oracle_quote_free_boundaries() {
+    for (requested, rate, amount_step, leverage, expected_amount, expected_stake) in [
+        (2_475.0, 39_858.3, 0.001, 3.0, 0.186, 2_471.214_6),
+        (2_474.99, 0.8182, 0.1, 3.0, 9_074.7, 2_474.973_18),
+        (10_432.0, 22.817, 1.0, 5.0, 2_286.0, 10_431.932_4),
+    ] {
+        let (amount, stake, _, _) = entry_sizing(requested, rate, 0.0005, amount_step, leverage)
+            .expect("representable entry sizing")
+            .expect("positive entry sizing");
+        assert_eq!(amount, expected_amount);
+        assert_eq!(stake, expected_stake);
+    }
 }
 
 #[test]
@@ -183,7 +199,7 @@ fn futures_profit_rounding_matches_python_format_boundary() {
     assert_eq!(close_value, 21_537.307_689_135);
     assert_eq!(profit, 715.575_545_895_000_7);
     assert_eq!(average, 0.7768);
-    assert_eq!(round_eight(profit), 715.575_545_9);
+    assert_eq!(round_eight(profit), Ok(715.575_545_9));
 }
 
 #[test]
@@ -300,7 +316,7 @@ fn computed_isolated_liquidation_matches_binance_long_and_short_formula() {
         // The calculated liquidation boundary remains exact on the trade,
         // while the synthetic liquidation order is filled at the price
         // precision frozen when the position opened.
-        assert_eq!(trade.close_rate, round_step(expected, 0.01));
+        assert_eq!(round_step(expected, 0.01), Ok(trade.close_rate));
         assert_eq!(trade.liquidation_price, Some(expected));
     }
 }
@@ -443,7 +459,7 @@ fn partial_exit_liquidation_refresh_precedes_trade_replay() {
     assert_eq!(trade.exit_reason, "liquidation");
     assert_eq!(trade.orders[1].amount, 531.0);
     assert_eq!(trade.orders[2].amount, 797.0);
-    assert_eq!(trade.close_rate, round_step(expected, 0.001));
+    assert_eq!(round_step(expected, 0.001), Ok(trade.close_rate));
     assert_eq!(trade.close_rate, 17.984);
 }
 
@@ -501,6 +517,47 @@ fn ape_short_funding_and_profit_match_freqtrade_2026_5_1() {
     assert_eq!(trade.funding_fees, 0.199_965_941_37);
     assert!((trade.profit_abs - 284.871_360_94).abs() < 1e-10);
     assert!((trade.profit_ratio - 0.088_060_358_846_711_66).abs() < 1e-14);
+}
+
+#[test]
+fn initial_entry_on_funding_timestamp_includes_the_official_funding_row() {
+    let mut portfolio = config(1);
+    portfolio.is_futures = true;
+    portfolio.stake_amount = 100.0;
+    portfolio.fee_rate = 0.0;
+    portfolio.funding_fee_interval_ms = Some(8 * 60 * 60 * 1_000);
+    let mut entry = candle(8 * 60 * 60 * 1_000, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: Some("execution ".to_owned()),
+        leverage: Some(1.0),
+        liquidation_price: None,
+    });
+    entry.funding_rate = Some(0.001);
+    entry.funding_mark_price = Some(100.0);
+    let mut exit = candle(8 * 60 * 60 * 1_000 + 5 * 60 * 1_000, 100.0, 100.0);
+    exit.exit_long = Some(ExitSignal {
+        reason: "exit_signal".to_owned(),
+    });
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: portfolio,
+        pairs: vec![PairSeries {
+            pair: "BTC/USDT:USDT".to_owned(),
+            execution_start_index: 0,
+            amount_step: Some(0.001),
+            price_step: Some(0.1),
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: vec![entry, exit].into(),
+        }],
+    };
+
+    let result = simulate(&input).expect("valid same-timestamp funding simulation");
+
+    assert_eq!(result.trades[0].funding_fees, -0.1);
 }
 
 #[test]
@@ -609,4 +666,44 @@ fn trailing_stop_uses_candle_open_after_a_gap_beyond_the_retained_stop() {
 
     assert_eq!(exit.reason, "trailing_stop_loss");
     assert_eq!(exit.rate, 99.0);
+}
+
+#[test]
+fn funding_product_overflow_is_typed_before_storage() {
+    let mut entry = candle(1, 1.0, 1.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: None,
+        leverage: Some(1.0),
+        liquidation_price: None,
+    });
+    let mut funding = candle(2, 1.0, 1.0);
+    funding.funding_rate = Some(16.0);
+    funding.funding_mark_price = Some(1.0);
+    let mut portfolio = config(1);
+    portfolio.starting_balance = f64::MAX;
+    portfolio.stake_amount = f64::MAX / 4.0;
+    portfolio.is_futures = true;
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: portfolio,
+        pairs: vec![PairSeries {
+            pair: "MAX/USDT:USDT".to_owned(),
+            execution_start_index: 0,
+            amount_step: None,
+            price_step: None,
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: vec![entry, funding].into(),
+        }],
+    };
+
+    assert_eq!(
+        simulate(&input),
+        Err(SimError::ExactArithmetic {
+            operation: "funding-fee-product"
+        })
+    );
 }

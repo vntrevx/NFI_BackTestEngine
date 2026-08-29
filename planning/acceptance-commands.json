@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-08-10",
+  "updated_at": "2026-08-15",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -222,6 +222,15 @@
       "availability": "available",
       "mutates_external_state": false
     },
+    "native_scorecard_release_tests": {
+      "command": "uv run pytest -q tests/test_native_scorecard.py tests/test_release_gate.py tests/test_release_contract.py tests/test_combined_release.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1800,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
     "strategy_tests": {
       "command": "uv run pytest -q tests/test_strategy_compatibility.py tests/test_strategy_ir.py tests/test_hot_ir.py tests/test_x7_adapter.py tests/test_nfi_trade_manager.py",
       "working_directory": ".",
@@ -272,6 +281,15 @@
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 900,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "ci_timing_contract_tests": {
+      "command": "uv run pytest -q .github/scripts/test_ci_contract.py tests/test_ci_policy.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 120,
       "required": true,
       "availability": "available",
       "mutates_external_state": false
@@ -392,6 +410,7 @@
       "planning_json",
       "diff_check",
       "workflow_contract_tests",
+      "ci_timing_contract_tests",
       "python_all",
       "ci_required_checks"
     ],

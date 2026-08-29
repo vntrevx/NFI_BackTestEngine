@@ -661,6 +661,17 @@ impl<'catalog> FunctionScope<'catalog> {
         resolve_value(&self.values, id)
     }
 
+    fn row_count(&self) -> Result<usize, VectorCoreError> {
+        self.frames
+            .values()
+            .next()
+            .map(RuntimeFrame::len)
+            .ok_or_else(|| VectorCoreError::Execution {
+                node: "cast".to_owned(),
+                message: "string-array cast has no dataframe row domain".to_owned(),
+            })
+    }
+
     fn frame(&self, id: &str) -> Result<RuntimeFrame<'catalog>, VectorCoreError> {
         let mut current = id;
         for _ in 0..=self.values.len() {
@@ -1011,6 +1022,21 @@ fn execute_cast<'catalog>(
         validate_identity_cast(node, target, source)?;
         return scope.bound(input);
     }
+    if target == "string-array" && node.value_type == "string-column" {
+        if node.parameters.len() != 1 {
+            return Err(source.error("string-array cast parameters are not exact"));
+        }
+        let value = scope
+            .runtime(input)
+            .map_err(|error| located(source, error))?;
+        let rows = scope.row_count()?;
+        let output = (0..rows)
+            .map(|row| string_cast_at(value, row, source))
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(BoundValue::Runtime(NodeValue::Column(
+            RuntimeColumn::Owned(OwnedColumn::text(output)),
+        )));
+    }
     if target != "float" || node.value_type != "f64-column" {
         return Err(VectorCoreError::UnsupportedOpcode {
             opcode: node.op.clone(),
@@ -1041,6 +1067,51 @@ fn execute_cast<'catalog>(
     Ok(BoundValue::Runtime(NodeValue::Column(
         RuntimeColumn::Owned(OwnedColumn::f64(output)),
     )))
+}
+
+fn string_cast_at(
+    value: &NodeValue<'_>,
+    row: usize,
+    source: &SourceLocation,
+) -> Result<Option<String>, VectorCoreError> {
+    match value {
+        NodeValue::Null => Ok(None),
+        NodeValue::Bool(value) => Ok(Some(if *value { "True" } else { "False" }.to_owned())),
+        NodeValue::Integer(value) => Ok(Some(value.to_string())),
+        NodeValue::Float(value) => Ok(float_string(*value)),
+        NodeValue::Text(value) => Ok(Some(value.clone())),
+        NodeValue::Column(column) => match column.value_type() {
+            ValueType::F64 => Ok(column.f64_at(row).and_then(float_string)),
+            ValueType::I64 => Ok(column.i64_at(row).map(|value| value.to_string())),
+            ValueType::Bool => Ok(column
+                .bool_at(row)
+                .map(|value| if value { "True" } else { "False" }.to_owned())),
+            ValueType::Text => Ok(column.text_at(row).map(str::to_owned)),
+            ValueType::TimestampMs => Err(source.error("timestamp cannot cast to string array")),
+        },
+        NodeValue::DataFrame
+        | NodeValue::Metadata
+        | NodeValue::Unbound
+        | NodeValue::Json
+        | NodeValue::Alias(_) => Err(source.error("value cannot cast to string array")),
+    }
+}
+
+fn float_string(value: f64) -> Option<String> {
+    if value.is_nan() {
+        return None;
+    }
+    if value == f64::INFINITY {
+        return Some("inf".to_owned());
+    }
+    if value == f64::NEG_INFINITY {
+        return Some("-inf".to_owned());
+    }
+    let mut rendered = value.to_string();
+    if value.fract() == 0.0 && !rendered.contains('e') && !rendered.contains('E') {
+        rendered.push_str(".0");
+    }
+    Some(rendered)
 }
 
 fn validate_float_cast_parameters(

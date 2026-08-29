@@ -10,14 +10,92 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, NoReturn
 
-from .errors import NormalizationError
+from .errors import InputBoundaryError, NormalizationError
+
+MAX_JSON_BYTES = 64 * 1024 * 1024
+MAX_JSON_DEPTH = 100
 
 
-def read_json(path: str | Path, *, decimals: bool = False) -> Any:
-    """Read UTF-8 JSON, optionally preserving JSON float tokens as Decimal."""
+def read_json(
+    path: str | Path,
+    *,
+    decimals: bool = False,
+    max_bytes: int = MAX_JSON_BYTES,
+) -> Any:
+    """Read bounded UTF-8 JSON, optionally preserving float tokens as Decimal."""
+    source = Path(path)
+    if source.is_symlink() or not source.is_file():
+        raise InputBoundaryError(f"JSON source must be a regular non-symlink file: {source}")
+    size = source.stat().st_size
+    if size > max_bytes:
+        raise InputBoundaryError(
+            f"JSON byte limit exceeded ({size} > {max_bytes}): {source}"
+        )
+    with source.open("rb") as handle:
+        payload = handle.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise InputBoundaryError(f"JSON byte limit exceeded while reading: {source}")
+    return loads_json_bytes(payload, decimals=decimals, max_bytes=max_bytes)
+
+
+def loads_json_bytes(
+    payload: bytes,
+    *,
+    decimals: bool = False,
+    max_bytes: int = MAX_JSON_BYTES,
+) -> Any:
+    """Decode bounded UTF-8 JSON and reject excessive container nesting."""
+    if len(payload) > max_bytes:
+        raise InputBoundaryError(
+            f"JSON byte limit exceeded ({len(payload)} > {max_bytes})"
+        )
+    _validate_json_depth_before_parse(payload)
     parse_float = Decimal if decimals else float
-    with Path(path).open("r", encoding="utf-8") as handle:
-        return json.load(handle, parse_float=parse_float)
+
+    def reject_constant(value: str) -> NoReturn:
+        raise InputBoundaryError(f"non-finite JSON number is not supported: {value}")
+
+    document = json.loads(
+        payload.decode("utf-8"),
+        parse_float=parse_float,
+        parse_constant=reject_constant,
+    )
+    stack = [(document, 1)]
+    while stack:
+        value, depth = stack.pop()
+        if depth > MAX_JSON_DEPTH:
+            raise InputBoundaryError(f"JSON nesting limit exceeded ({MAX_JSON_DEPTH})")
+        if isinstance(value, dict):
+            stack.extend((item, depth + 1) for item in value.values())
+        elif isinstance(value, list):
+            stack.extend((item, depth + 1) for item in value)
+    return document
+
+
+def _validate_json_depth_before_parse(payload: bytes) -> None:
+    """Count JSON containers without allocating the decoded object graph."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for byte in payload:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif byte == 0x5C:  # backslash
+                escaped = True
+            elif byte == 0x22:  # quote
+                in_string = False
+            continue
+        if byte == 0x22:
+            in_string = True
+        elif byte in {0x5B, 0x7B}:  # [ {
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise InputBoundaryError(
+                    f"JSON nesting limit exceeded ({MAX_JSON_DEPTH}) before parsing"
+                )
+        elif byte in {0x5D, 0x7D}:  # ] }
+            depth -= 1
 
 
 def write_json(path: str | Path, value: Any) -> None:

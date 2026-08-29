@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/native-score-machine-record-v1.json",
+  "title": "Independent Native scorecard machine observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "gate_id", "record_type", "semantic_identity", "producer", "context", "inputs", "observation"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "gate_id": {"enum": ["immutable_identity_scope", "evidence_independence", "native_purity", "semantic_closure", "changed_path_coverage_completeness", "vector_callback_exactness", "execution_complete_state_exactness", "generative_metamorphic_mutation_proof", "same_candidate_portfolio_platform_certification", "deterministic_performance_resource_proof"]},
+    "record_type": {"enum": ["identity_component", "provenance_identity", "producer_run", "execution_trace", "semantic_obligation", "obligation_coverage", "changed_target", "mcdc_term", "transition", "vector", "decision", "callback", "state_delta", "execution_state", "generative_case", "metamorphic_case", "mutant_outcome", "portfolio_certificate", "performance_process_sample"]},
+    "semantic_identity": {"type": "string", "minLength": 1},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "identity_sha256", "run_id"],
+      "properties": {
+        "role": {"enum": ["build-identity-observer", "provenance-verifier", "independence-auditor", "process-tracer", "semantic-registry-verifier", "coverage-runner", "changed-target-runner", "mcdc-runner", "transition-runner", "oracle-comparator", "callback-comparator", "state-comparator", "complete-state-comparator", "corpus-runner", "metamorphic-runner", "mutation-runner", "portfolio-certificate-verifier", "process-resource-meter"]},
+        "identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "run_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_identity_sha256", "candidate_identity_sha256", "mode_contract", "platform", "workload_sha256", "run_id", "nonce"],
+      "properties": {
+        "source_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "candidate_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
+        "platform": {"enum": ["darwin", "linux", "windows"]},
+        "workload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "run_id": {"type": "string", "minLength": 1},
+        "nonce": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "path", "sha256"],
+        "properties": {
+          "field": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "observation": {"type": "object"}
+  }
+}

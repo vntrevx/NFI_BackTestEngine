@@ -6,8 +6,8 @@ use crate::domain::{
     NfiLongGrindRoute, PortfolioConfig, ScalarDecisionProgram, ScalarProgramBundle, SimError,
     SimulationInput,
 };
-use crate::validate_state_machine_program;
 use crate::SIMULATOR_SCHEMA_VERSION;
+use crate::{validate_executable_callback_config, validate_state_machine_program};
 
 use super::callback::validate_callback_program;
 use super::manager::validate_nfi_trade_manager;
@@ -55,6 +55,7 @@ pub(crate) fn validate_input(input: &SimulationInput) -> Result<ValidationSummar
 /// error that [`validate_input`] would return before inspecting pairs.
 #[allow(clippy::too_many_lines)] // Preserve the existing fail-closed audit and error order.
 pub fn validate_simulator_preflight(config: &PortfolioConfig) -> Result<(), SimError> {
+    validate_executable_callback_config(config)?;
     for (name, value) in [
         ("starting_balance", config.starting_balance),
         ("stake_amount", config.stake_amount),
@@ -84,6 +85,40 @@ pub fn validate_simulator_preflight(config: &PortfolioConfig) -> Result<(), SimE
         if value.is_some_and(|rate| !rate.is_finite() || rate < 0.0) {
             return Err(SimError::InvalidPositiveConfig(name));
         }
+    }
+    for (name, rates_by_pair) in [
+        ("entry_rates_by_pair", &config.entry_rates_by_pair),
+        ("exit_rates_by_pair", &config.exit_rates_by_pair),
+    ] {
+        if rates_by_pair.iter().any(|(pair, rates)| {
+            pair.is_empty()
+                || rates.is_empty()
+                || rates.iter().any(|(timestamp_ms, rate)| {
+                    *timestamp_ms < 0 || !rate.is_finite() || *rate <= 0.0
+                })
+        }) {
+            return Err(SimError::InvalidPositiveConfig(name));
+        }
+    }
+    if config
+        .minimal_roi
+        .values()
+        .any(|ratio| !ratio.is_finite() || *ratio < -1.0)
+    {
+        return Err(SimError::InvalidPositiveConfig("minimal_roi"));
+    }
+    if config
+        .trailing_stop_positive
+        .is_some_and(|ratio| !ratio.is_finite() || !(0.0..1.0).contains(&ratio))
+        || config
+            .trailing_stop_positive_offset
+            .is_some_and(|ratio| !ratio.is_finite() || !(0.0..1.0).contains(&ratio))
+        || config.trailing_only_offset_is_reached
+            && (!config.trailing_stop
+                || config.trailing_stop_positive.is_none()
+                || config.trailing_stop_positive_offset.is_none())
+    {
+        return Err(SimError::InvalidPositiveConfig("trailing_stop"));
     }
     validate_leverage_contract(config)?;
     validate_liquidation_contract(config)?;
@@ -302,6 +337,7 @@ pub(crate) fn uses_full_futures_manager_contract(schema_version: &str) -> bool {
             | "0.27.0"
             | "0.28.0"
             | "0.29.0"
+            | "0.30.0"
     )
 }
 
@@ -328,5 +364,6 @@ pub(crate) fn valid_legacy_futures_fallback(
                 | "0.27.0"
                 | "0.28.0"
                 | "0.29.0"
+                | "0.30.0"
         ) && route.futures_fallback_loss_threshold.is_none())
 }

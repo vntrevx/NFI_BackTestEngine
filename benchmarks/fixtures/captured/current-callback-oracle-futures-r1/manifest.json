@@ -1,0 +1,174 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "current-callback-oracle-futures-r1",
+  "description": "Pinned Freqtrade 2026.5.1 futures callback cadence, order, visibility, exception rollback, and same-candle competition oracle.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-08-23T05:27:29Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "Task14CallbackOracle",
+    "timerange": "20220401-20220402",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "Task14CallbackOracle",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20220401-20220402",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "auxiliary",
+      "path": "inputs/callback-evidence.json",
+      "sha256": "b50278fb5359265de31c98f7088e8ca1f837c5d2faa9aa1b95ab565f10604aaf",
+      "bytes": 2187
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "cb960d0b8cd29c20842bcc5679a28048f28994d6281e4c49cc10a845237b806f",
+      "bytes": 942
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "57b9d74c54cb4532db4e6284e370786937ef81de5cc7bea2f62f9b9468c5c6db",
+      "bytes": 127535
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "4a2476c20aee865f266877524370bfac15f051736f59a62be8d83555be6dd716",
+      "bytes": 40751
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "05743e03a0c6a27c4982f6ced69ab7ca53480fc63798c83a362e076d6bcd2759",
+      "bytes": 119471
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "694043d9f9cbff2a2b6e76ae9aab82bb44224bf6a1fdb331429c4cdcab79db3d",
+      "bytes": 61871
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "f396311879cdbe430db65cd19d2cdc1f8dd0a481012fdb72462496b7a69307b3",
+      "bytes": 945071
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "a94f8a932fc53ec6d08febe4da1a1f1d57680c602166b32430c989a3ba3bf647",
+      "bytes": 45359
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "4faa67166ecb375cb9283f5a3495cc1e2ea5658640afcffc3a4d6e1460b6c5ae",
+      "bytes": 302639
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/reference-markets.json",
+      "sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+      "bytes": 9239
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/process_capture.py",
+      "sha256": "b3bc45a8bf2805f4da7d8dfbdac602724f3dc48019b67d468108f405219b03d4",
+      "bytes": 4453
+    },
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "69665378b53d5858148ae439876e2f0b0ddec34b48c020f7d791685ce4341e98",
+      "bytes": 7995
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/callback-trace.json",
+      "sha256": "77d96bd98d77117ffd0652ca319e95fe5e205b836964b5fb03f117f6a62be8fa",
+      "bytes": 10275
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/official-trade-state.json",
+      "sha256": "dd22933bebbd2c40bbfb7aba2417484ba7b67c8d4881de644e8a2330a07a168b",
+      "bytes": 1534
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/official-source-authentication.json",
+      "sha256": "a0812392f56f99ef89ba7227cc9a8ef4d7d6121bd50e50c79e75af5793035e1d",
+      "bytes": 5360
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/reference-cli-results.json",
+      "sha256": "c4ff7d3c6af8b848702c445c06f7b838c3ea11aed781121c52b10781d35c72e7",
+      "bytes": 667
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "3bf4b7a59311ea16cda064b89aad105e96f15feea30c428266763abf77c8f61b",
+      "bytes": 38392
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "e156e97e5e48f732a40fb857ef337a3bc77cea5c497a35250529640c764d53d5",
+      "bytes": 467446
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "5535ef7be7d3a06ec88b5740f0603790426fb867606c2144150e5be859f99974",
+      "bytes": 16007
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "2f7da96bbb5c6143b8486cc8c4024b1f683c327feddeb123031d0dd3fc657c3d",
+      "bytes": 16011
+    }
+  },
+  "measurement": {
+    "warmup_runs": 0,
+    "measured_runs": 2,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

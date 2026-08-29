@@ -23,9 +23,8 @@ from .resource_usage import process_peak_rss_bytes
 SIMULATION_JSON_INPUT = "simulation-json"
 FEATHER_VECTOR_INPUT = "feather-vector"
 FULL_VECTOR_INPUT = "full-vector"
-_ENGINE_INPUT_KINDS = frozenset(
-    {SIMULATION_JSON_INPUT, FEATHER_VECTOR_INPUT, FULL_VECTOR_INPUT}
-)
+_ENGINE_INPUT_KINDS = frozenset({SIMULATION_JSON_INPUT, FEATHER_VECTOR_INPUT, FULL_VECTOR_INPUT})
+_PUBLICATION_BUNDLE_SUFFIX = ".nfi-bundle"
 
 
 def build_engine(*, force: bool = False) -> dict[str, Any]:
@@ -33,21 +32,14 @@ def build_engine(*, force: bool = False) -> dict[str, Any]:
     native = _native_module()
     root = _project_root_or_none()
     rust_root = root / "rust" if root is not None else None
-    current_fingerprint = (
-        _rust_source_fingerprint(rust_root) if rust_root is not None else None
-    )
-    native_fingerprint = (
-        _native_source_fingerprint(native) if native is not None else None
-    )
-    native_is_fresh = (
-        native is not None
-        and (
-            root is None
-            or (
-                not force
-                and native_fingerprint is not None
-                and native_fingerprint == current_fingerprint
-            )
+    current_fingerprint = _rust_source_fingerprint(rust_root) if rust_root is not None else None
+    native_fingerprint = _native_source_fingerprint(native) if native is not None else None
+    native_is_fresh = native is not None and (
+        root is None
+        or (
+            not force
+            and native_fingerprint is not None
+            and native_fingerprint == current_fingerprint
         )
     )
     if native_is_fresh and native is not None:
@@ -132,10 +124,13 @@ def run_engine(
     profile_path: str | Path | None = None,
     timeout_seconds: int | None = None,
     events_path: str | Path | None = None,
+    execution_events_path: str | Path | None = None,
     vector_manifest: bool = False,
     input_kind: str | None = None,
     engine_profile_path: str | Path | None = None,
     pair_worker_limit: int | None = None,
+    portfolio_envelope_request: str | Path | None = None,
+    portfolio_events_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run one simulation without per-candle Python calls.
 
@@ -161,16 +156,44 @@ def run_engine(
     destination = Path(output_path).resolve()
     if not source.is_file():
         raise BenchmarkError(f"simulation input does not exist: {source}")
-    if destination.exists():
-        raise BenchmarkError(f"simulation output already exists: {destination}")
-    event_destination = Path(events_path).resolve() if events_path is not None else None
+    scheduler_event_destination = Path(events_path).resolve() if events_path is not None else None
+    execution_event_destination = (
+        Path(execution_events_path).resolve() if execution_events_path is not None else None
+    )
+    if scheduler_event_destination is not None and execution_event_destination is not None:
+        raise BenchmarkError("scheduler and execution event outputs are mutually exclusive")
+    event_destination = scheduler_event_destination or execution_event_destination
+    execution_events = execution_event_destination is not None
+    portfolio_request = (
+        Path(portfolio_envelope_request).resolve()
+        if portfolio_envelope_request is not None
+        else None
+    )
+    portfolio_destination = (
+        Path(portfolio_events_path).resolve() if portfolio_events_path is not None else None
+    )
+    if (portfolio_request is None) != (portfolio_destination is None):
+        raise BenchmarkError("portfolio envelope request and output must be selected together")
+    if portfolio_request is not None and not portfolio_request.is_file():
+        raise BenchmarkError(f"portfolio envelope request does not exist: {portfolio_request}")
+    if portfolio_destination is not None and portfolio_destination.exists():
+        raise BenchmarkError(f"portfolio events output already exists: {portfolio_destination}")
     engine_profile_destination = (
         Path(engine_profile_path).resolve() if engine_profile_path is not None else None
     )
-    if (
-        engine_profile_destination is not None
-        and selected_input_kind == SIMULATION_JSON_INPUT
-    ):
+    publication_bundle = _publication_bundle(destination)
+    if publication_bundle.exists():
+        native = _native_module()
+        recover = getattr(native, "recover_result_publication", None)
+        if callable(recover):
+            try:
+                recover(destination, engine_profile_destination, event_destination)
+            except Exception as exc:
+                raise BenchmarkError(f"Rust publication recovery failed: {exc}") from exc
+        raise BenchmarkError(f"simulation output already exists: {destination}")
+    if destination.exists():
+        raise BenchmarkError(f"simulation output already exists: {destination}")
+    if engine_profile_destination is not None and selected_input_kind == SIMULATION_JSON_INPUT:
         raise BenchmarkError("engine phase profiling requires a vector input")
     if event_destination is not None and event_destination.exists():
         raise BenchmarkError(f"simulation events output already exists: {event_destination}")
@@ -185,6 +208,10 @@ def run_engine(
         engine_profile_destination.parent.mkdir(parents=True, exist_ok=True)
     build = build_engine()
     if build.get("kind") == "pyo3-extension":
+        if portfolio_request is not None:
+            raise BenchmarkError(
+                "portfolio envelope output is not yet available through the PyO3 engine"
+            )
         return _run_native_engine(
             source,
             destination,
@@ -195,6 +222,7 @@ def run_engine(
             input_kind=selected_input_kind,
             engine_profile_destination=engine_profile_destination,
             pair_worker_limit=pair_worker_limit,
+            execution_events=execution_events,
         )
     binary = Path(build["binary_path"])
     # `/usr/bin/time` writes process metrics outside the simulation result.
@@ -217,9 +245,7 @@ def run_engine(
     if os.name == "nt":
         spool_directory = environment.get(SPOOL_DIRECTORY_ENVIRONMENT)
         if spool_directory is not None:
-            environment[SPOOL_DIRECTORY_ENVIRONMENT] = _wsl_path(
-                Path(spool_directory)
-            )
+            environment[SPOOL_DIRECTORY_ENVIRONMENT] = _wsl_path(Path(spool_directory))
         wsl = shutil.which("wsl.exe")
         if wsl is None:
             raise BenchmarkError("WSL is required to run the Linux engine on Windows")
@@ -245,14 +271,15 @@ def run_engine(
             str(destination),
         ]
         engine_argument_index = len(time_prefix) + 1
+    engine_arguments: list[str] = []
     if selected_input_kind != SIMULATION_JSON_INPUT:
-        vector_arguments = [
+        engine_arguments.append(
             "--vector-manifest"
             if selected_input_kind == FEATHER_VECTOR_INPUT
             else "--full-vector-manifest"
-        ]
+        )
         if engine_profile_destination is not None:
-            vector_arguments.extend(
+            engine_arguments.extend(
                 [
                     "--profile-output",
                     (
@@ -263,8 +290,23 @@ def run_engine(
                 ]
             )
         if pair_worker_limit is not None:
-            vector_arguments.extend(["--pair-workers", str(pair_worker_limit)])
-        command[engine_argument_index:engine_argument_index] = vector_arguments
+            engine_arguments.extend(["--pair-workers", str(pair_worker_limit)])
+    if execution_events:
+        engine_arguments.append("--execution-events")
+    if portfolio_request is not None and portfolio_destination is not None:
+        portfolio_destination.parent.mkdir(parents=True, exist_ok=True)
+        engine_arguments.extend(
+            [
+                "--portfolio-envelope",
+                _wsl_path(portfolio_request) if os.name == "nt" else str(portfolio_request),
+                (
+                    _wsl_path(portfolio_destination)
+                    if os.name == "nt"
+                    else str(portfolio_destination)
+                ),
+            ]
+        )
+    command[engine_argument_index:engine_argument_index] = engine_arguments
     if event_destination is not None:
         command.append(_wsl_path(event_destination) if os.name == "nt" else str(event_destination))
 
@@ -284,7 +326,7 @@ def run_engine(
         except subprocess.TimeoutExpired as exc:
             raise BenchmarkError("Rust engine execution timed out") from exc
         wall_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
-        if completed.returncode != 0 or not destination.is_file():
+        if completed.returncode != 0 or not _bundle_artifact(destination).is_file():
             raise BenchmarkError(
                 "Rust engine execution failed: "
                 f"{completed.stderr[-4000:].strip() or completed.stdout[-4000:].strip()}"
@@ -292,14 +334,16 @@ def run_engine(
         resources = _read_resource_record(resource_path)
     finally:
         resource_path.unlink(missing_ok=True)
-    result = read_json(destination)
+    result_source = _bundle_artifact(destination)
+    result = read_json(result_source)
     return {
         "schema_version": "1.0.0",
         "input_kind": selected_input_kind,
         "input_path": str(source),
         "input_sha256": sha256_file(source),
         "output_path": str(destination),
-        "output_sha256": sha256_file(destination),
+        "output_sha256": sha256_file(result_source),
+        "publication_bundle": str(_publication_bundle(destination)),
         "wall_time_seconds": wall_seconds,
         "peak_rss_bytes": resources.get("peak_rss_bytes"),
         "cpu_time_seconds": resources.get("cpu_time_seconds"),
@@ -315,10 +359,30 @@ def run_engine(
                 "bytes": event_destination.stat().st_size,
                 "sha256": sha256_file(event_destination),
             }
-            if event_destination is not None and event_destination.is_file()
+            if not execution_events
+            and event_destination is not None
+            and event_destination.is_file()
             else None
         ),
-        "profile": _engine_profile_record(engine_profile_destination),
+        "execution_events": (
+            {
+                "path": str(event_destination),
+                "bytes": event_destination.stat().st_size,
+                "sha256": sha256_file(event_destination),
+            }
+            if execution_events and event_destination is not None and event_destination.is_file()
+            else None
+        ),
+        "profile": _engine_profile_record(engine_profile_destination, destination),
+        "portfolio_events": (
+            {
+                "path": str(portfolio_destination),
+                "bytes": portfolio_destination.stat().st_size,
+                "sha256": sha256_file(portfolio_destination),
+            }
+            if portfolio_destination is not None and portfolio_destination.is_file()
+            else None
+        ),
     }
 
 
@@ -333,6 +397,7 @@ def _run_native_engine(
     input_kind: str,
     engine_profile_destination: Path | None,
     pair_worker_limit: int | None,
+    execution_events: bool,
 ) -> dict[str, Any]:
     if timeout_seconds is not None and timeout_seconds <= 0:
         raise BenchmarkError("engine timeout must be positive")
@@ -345,6 +410,7 @@ def _run_native_engine(
     rss_before = process_peak_rss_bytes()
     cpu_before = time.process_time()
     started_ns = time.perf_counter_ns()
+    event_options = {"execution_events": True} if execution_events else {}
     try:
         os.environ.update(environment)
         if input_kind == FULL_VECTOR_INPUT and engine_profile_destination is not None:
@@ -354,6 +420,7 @@ def _run_native_engine(
                     destination,
                     engine_profile_destination,
                     event_destination,
+                    **event_options,
                 )
             else:
                 native.simulate_full_vector_file_profiled(
@@ -362,16 +429,20 @@ def _run_native_engine(
                     engine_profile_destination,
                     event_destination,
                     pair_worker_limit,
+                    **event_options,
                 )
         elif input_kind == FULL_VECTOR_INPUT:
             if pair_worker_limit is None:
-                native.simulate_full_vector_file(source, destination, event_destination)
+                native.simulate_full_vector_file(
+                    source, destination, event_destination, **event_options
+                )
             else:
                 native.simulate_full_vector_file(
                     source,
                     destination,
                     event_destination,
                     pair_worker_limit,
+                    **event_options,
                 )
         elif input_kind == FEATHER_VECTOR_INPUT and engine_profile_destination is not None:
             native.simulate_vector_file_profiled(
@@ -379,17 +450,16 @@ def _run_native_engine(
                 destination,
                 engine_profile_destination,
                 event_destination,
+                **event_options,
             )
         elif input_kind == FEATHER_VECTOR_INPUT:
-            native.simulate_vector_file(source, destination, event_destination)
+            native.simulate_vector_file(source, destination, event_destination, **event_options)
         else:
-            native.simulate_file(source, destination, event_destination)
+            native.simulate_file(source, destination, event_destination, **event_options)
     except Exception as exc:
-        destination.unlink(missing_ok=True)
-        if event_destination is not None:
-            event_destination.unlink(missing_ok=True)
-        if engine_profile_destination is not None:
-            engine_profile_destination.unlink(missing_ok=True)
+        # Result/profile/event publication and cleanup are ownership-aware in
+        # Rust. Removing any destination here can delete a concurrent winner
+        # that published after this attempt's initial existence checks.
         raise BenchmarkError(f"Rust engine execution failed: {exc}") from exc
     finally:
         for key, value in previous_environment.items():
@@ -397,17 +467,27 @@ def _run_native_engine(
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+    validator = getattr(native, "validate_result_publication", None)
+    if callable(validator):
+        try:
+            validator(destination, engine_profile_destination, event_destination)
+        except Exception as exc:
+            raise BenchmarkError(f"Rust publication validation failed: {exc}") from exc
     wall_seconds = (time.perf_counter_ns() - started_ns) / 1_000_000_000
     cpu_seconds = time.process_time() - cpu_before
     rss_after = process_peak_rss_bytes()
-    result = read_json(destination)
+    result_source = _bundle_artifact(destination)
+    if not result_source.is_file():
+        raise BenchmarkError("Rust engine did not commit a publication bundle")
+    result = read_json(result_source)
     return {
         "schema_version": "1.0.0",
         "input_kind": input_kind,
         "input_path": str(source),
         "input_sha256": sha256_file(source),
         "output_path": str(destination),
-        "output_sha256": sha256_file(destination),
+        "output_sha256": sha256_file(result_source),
+        "publication_bundle": str(_publication_bundle(destination)),
         "wall_time_seconds": wall_seconds,
         "peak_rss_bytes": max(rss_before, rss_after),
         "cpu_time_seconds": cpu_seconds,
@@ -423,10 +503,21 @@ def _run_native_engine(
                 "bytes": event_destination.stat().st_size,
                 "sha256": sha256_file(event_destination),
             }
-            if event_destination is not None and event_destination.is_file()
+            if not execution_events
+            and event_destination is not None
+            and event_destination.is_file()
             else None
         ),
-        "profile": _engine_profile_record(engine_profile_destination),
+        "execution_events": (
+            {
+                "path": str(event_destination),
+                "bytes": event_destination.stat().st_size,
+                "sha256": sha256_file(event_destination),
+            }
+            if execution_events and event_destination is not None and event_destination.is_file()
+            else None
+        ),
+        "profile": _engine_profile_record(engine_profile_destination, destination),
     }
 
 
@@ -436,20 +527,32 @@ def _resolve_input_kind(*, input_kind: str | None, vector_manifest: bool) -> str
     if input_kind not in _ENGINE_INPUT_KINDS:
         raise BenchmarkError(f"unsupported engine input kind: {input_kind}")
     if vector_manifest and input_kind != FEATHER_VECTOR_INPUT:
-        raise BenchmarkError(
-            "vector_manifest=True conflicts with the explicit engine input kind"
-        )
+        raise BenchmarkError("vector_manifest=True conflicts with the explicit engine input kind")
     return input_kind
 
 
-def _engine_profile_record(path: Path | None) -> dict[str, Any] | None:
-    if path is None or not path.is_file():
+def _publication_bundle(destination: Path) -> Path:
+    return destination.with_name(f"{destination.name}{_PUBLICATION_BUNDLE_SUFFIX}")
+
+
+def _bundle_artifact(destination: Path, *, profile: bool = False) -> Path:
+    return _publication_bundle(destination) / ("profile.json" if profile else "result.json")
+
+
+def _engine_profile_record(
+    path: Path | None,
+    result_destination: Path,
+) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    source = _bundle_artifact(result_destination, profile=True)
+    if not source.is_file():
         return None
     return {
         "path": str(path),
-        "bytes": path.stat().st_size,
-        "sha256": sha256_file(path),
-        "phases": read_json(path),
+        "bytes": source.stat().st_size,
+        "sha256": sha256_file(source),
+        "phases": read_json(source),
     }
 
 
@@ -516,9 +619,7 @@ def _rust_source_fingerprint(rust_root: Path) -> str:
     # still walks every Cargo artifact and made a no-op startup take tens of
     # seconds in a developed checkout.
     for directory, child_directories, names in os.walk(rust_root):
-        child_directories[:] = [
-            name for name in child_directories if name != "target"
-        ]
+        child_directories[:] = [name for name in child_directories if name != "target"]
         parent = Path(directory)
         for name in names:
             path = parent / name

@@ -7,8 +7,8 @@ use serde::Deserialize;
 use crate::protections::ProtectionProgram;
 
 use super::{
-    CallbackProgram, ConfirmProgram, NfiX7TradeManager, PairSeries, ScalarProgramBundle,
-    StakeProgram, StateMachineProgram,
+    CallbackProgram, ConfirmProgram, ExecutableCallbackProgram, NfiX7TradeManager, PairSeries,
+    ScalarProgramBundle, StakeProgram, StateMachineProgram,
 };
 
 const fn default_amount_reserve_percent() -> f64 {
@@ -23,6 +23,27 @@ const fn default_max_entry_position_adjustment() -> i64 {
     -1
 }
 
+const fn default_order_type() -> OrderType {
+    OrderType::Limit
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum OrderType {
+    Limit,
+    Market,
+}
+
+impl OrderType {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Limit => "limit",
+            Self::Market => "market",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SimulationInput {
@@ -33,11 +54,20 @@ pub struct SimulationInput {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(clippy::struct_excessive_bools)] // Flat fields preserve Freqtrade's sealed config wire shape.
 pub struct PortfolioConfig {
     pub starting_balance: f64,
     pub max_open_trades: usize,
     pub stake_amount: f64,
     pub fee_rate: f64,
+    #[serde(default = "default_order_type")]
+    pub entry_order_type: OrderType,
+    #[serde(default = "default_order_type")]
+    pub exit_order_type: OrderType,
+    #[serde(default)]
+    pub entry_rates_by_pair: BTreeMap<String, BTreeMap<i64, f64>>,
+    #[serde(default)]
+    pub exit_rates_by_pair: BTreeMap<String, BTreeMap<i64, f64>>,
     #[serde(default)]
     pub fee_open_rate: Option<f64>,
     #[serde(default)]
@@ -52,6 +82,16 @@ pub struct PortfolioConfig {
     pub liquidation_model: Option<IsolatedLiquidationModel>,
     #[serde(default)]
     pub protection_program: Option<ProtectionProgram>,
+    #[serde(default)]
+    pub minimal_roi: BTreeMap<u64, f64>,
+    #[serde(default)]
+    pub trailing_stop: bool,
+    #[serde(default)]
+    pub trailing_stop_positive: Option<f64>,
+    #[serde(default)]
+    pub trailing_stop_positive_offset: Option<f64>,
+    #[serde(default)]
+    pub trailing_only_offset_is_reached: bool,
     pub stoploss_ratio: f64,
     pub amount_step: f64,
     pub price_step: f64,
@@ -61,6 +101,9 @@ pub struct PortfolioConfig {
     pub adjustment_rule: Option<AdjustmentRule>,
     #[serde(default)]
     pub callback_program: Option<CallbackProgram>,
+    /// Complete source-compiled callback program. Absence preserves legacy behavior.
+    #[serde(default)]
+    pub executable_callback_program: Option<ExecutableCallbackProgram>,
     #[serde(default)]
     pub state_machine_program: Option<StateMachineProgram>,
     #[serde(default)]

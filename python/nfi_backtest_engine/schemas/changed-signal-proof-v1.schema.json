@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/changed-signal-proof-v2.schema.json",
+  "title": "Provenance-bound dual-mode changed signal proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "identity", "capture", "predicate", "modes", "blockers", "native_promotion_allowed", "fingerprint"],
+  "properties": {
+    "schema_version": {"const": "changed-signal-proof-v2"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "freqtrade_version", "image_ref", "image_index_digest", "contract_path", "contract_sha256", "interface_sha256", "method_sha256", "bounded_rows", "network"],
+      "properties": {
+        "kind": {"const": "sealed-freqtrade-backtest"},
+        "freqtrade_version": {"const": "2026.5.1"},
+        "image_ref": {"type": "string", "minLength": 1},
+        "image_index_digest": {"$ref": "#/$defs/digest"},
+        "contract_path": {"type": "string", "minLength": 1},
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "interface_sha256": {"$ref": "#/$defs/sha256"},
+        "method_sha256": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["advise_entry", "advise_exit"],
+          "properties": {"advise_entry": {"$ref": "#/$defs/sha256"}, "advise_exit": {"$ref": "#/$defs/sha256"}}
+        },
+        "bounded_rows": {"const": 5},
+        "network": {"const": "none"}
+      }
+    },
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_id", "callback_target_id", "source_expression", "source_expression_sha256", "source_span", "required_columns", "atomic_terms", "atomic_term_count"],
+      "properties": {
+        "target_id": {"$ref": "#/$defs/sha256"},
+        "callback_target_id": {"$ref": "#/$defs/sha256"},
+        "source_expression": {"type": "string", "minLength": 1},
+        "source_expression_sha256": {"$ref": "#/$defs/sha256"},
+        "source_span": {
+          "type": "object", "additionalProperties": false,
+          "required": ["method", "line", "end_line"],
+          "properties": {"method": {"const": "populate_entry_trend"}, "line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1}}
+        },
+        "required_columns": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "atomic_terms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "atomic_term_count": {"const": 4}
+      }
+    },
+    "modes": {
+      "type": "object", "additionalProperties": false, "required": ["spot", "futures"],
+      "properties": {"spot": {"$ref": "#/$defs/mode"}, "futures": {"$ref": "#/$defs/mode"}}
+    },
+    "blockers": {"type": "array", "maxItems": 0},
+    "native_promotion_allowed": {"const": true},
+    "fingerprint": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["upstream_commit", "source_sha256", "semantic_profile_sha256", "semantic_registry_fingerprint", "freqtrade_digest", "market_data_sha256", "target_id", "callback_target_id"],
+      "properties": {
+        "upstream_commit": {"$ref": "#/$defs/sha"}, "source_sha256": {"$ref": "#/$defs/sha256"},
+        "semantic_profile_sha256": {"$ref": "#/$defs/sha256"}, "semantic_registry_fingerprint": {"$ref": "#/$defs/sha256"},
+        "freqtrade_digest": {"$ref": "#/$defs/digest"}, "market_data_sha256": {"$ref": "#/$defs/sha256"},
+        "target_id": {"$ref": "#/$defs/sha256"}, "callback_target_id": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false, "required": ["role", "path", "sha256", "bytes"],
+      "properties": {"role": {"type": "string", "minLength": 1}, "path": {"type": "string", "minLength": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"type": "integer", "minimum": 1}}
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["producer", "command", "artifacts", "role_bindings_sha256", "raw_output_sha256", "normalized_sha256"],
+      "properties": {
+        "producer": {"enum": ["freqtrade-backtesting", "nfi-native-engine"]},
+        "command": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+        "command_sha256": {"$ref": "#/$defs/sha256"},
+        "execution_command": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+        "execution_command_sha256": {"$ref": "#/$defs/sha256"},
+        "artifacts": {"type": "array", "minItems": 3, "items": {"$ref": "#/$defs/artifact"}},
+        "role_bindings_sha256": {"$ref": "#/$defs/sha256"},
+        "raw_output_sha256": {"$ref": "#/$defs/sha256"}, "normalized_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false, "required": ["passing_rows", "failing_rows", "independent_term_rows"],
+      "properties": {
+        "passing_rows": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0}},
+        "failing_rows": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 0}},
+        "independent_term_rows": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "integer", "minimum": 0}}
+      }
+    },
+    "lane": {
+      "type": "object", "additionalProperties": false, "required": ["signal_tag", "callback_columns", "trades", "full_state"],
+      "properties": {
+        "signal_tag": {"type": "object", "minProperties": 6}, "callback_columns": {"type": "object", "minProperties": 4},
+        "trades": {"type": "array", "items": {"type": "object"}},
+        "full_state": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+      }
+    },
+    "comparison": {
+      "type": "object", "additionalProperties": false, "required": ["exact", "first_difference"],
+      "properties": {"exact": {"const": true}, "first_difference": {"type": "null"}}
+    },
+    "mutation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mutation_id", "kind", "term_index", "source", "official_output", "native_output", "detected", "first_difference"],
+      "properties": {
+        "mutation_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["comparator", "threshold", "source"]},
+        "term_index": {"type": "integer", "minimum": 0, "maximum": 3},
+        "source": {"$ref": "#/$defs/artifact"},
+        "official_output": {"$ref": "#/$defs/artifact"},
+        "native_output": {"$ref": "#/$defs/artifact"},
+        "detected": {"const": true}, "first_difference": {"type": "object"}
+      }
+    },
+    "mode": {
+      "type": "object", "additionalProperties": false,
+      "required": ["execution_contract", "coverage", "official_provenance", "native_provenance", "official", "native", "parity", "mutations"],
+      "properties": {
+        "execution_contract": {
+          "type": "object", "additionalProperties": false,
+          "required": ["can_short", "short_execution_supported", "changed_signal_reached"],
+          "properties": {
+            "can_short": {"type": "boolean"},
+            "short_execution_supported": {"type": "boolean"},
+            "changed_signal_reached": {"const": true}
+          }
+        },
+        "coverage": {"$ref": "#/$defs/coverage"}, "official_provenance": {"$ref": "#/$defs/provenance"}, "native_provenance": {"$ref": "#/$defs/provenance"},
+        "official": {"$ref": "#/$defs/lane"}, "native": {"$ref": "#/$defs/lane"},
+        "parity": {
+          "type": "object", "additionalProperties": false, "required": ["signal_tag", "callback_columns", "trades", "full_state"],
+          "properties": {"signal_tag": {"$ref": "#/$defs/comparison"}, "callback_columns": {"$ref": "#/$defs/comparison"}, "trades": {"$ref": "#/$defs/comparison"}, "full_state": {"$ref": "#/$defs/comparison"}}
+        },
+        "mutations": {"type": "array", "minItems": 12, "maxItems": 12, "items": {"$ref": "#/$defs/mutation"}}
+      }
+    }
+  }
+}

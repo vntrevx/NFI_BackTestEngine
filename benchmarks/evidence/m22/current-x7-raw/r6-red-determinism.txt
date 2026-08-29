@@ -1,0 +1,30 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_complete_published_replay_root_is_byte_deterministic ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1499/test_complete_published_replay0')
+
+    def test_complete_published_replay_root_is_byte_deterministic(
+        tmp_path: Path,
+    ) -> None:
+        # Given: one complete Native replay root from a clean sequential execution.
+        first = replay_changed_signal("spot", "native")
+        first_root = Path(str(first["output"]))
+        snapshot = tmp_path / "first-published-root"
+        shutil.copytree(first_root, snapshot)
+    
+        # When: the same lane is independently replayed from the sealed inputs.
+        second = replay_changed_signal("spot", "native")
+        second_root = Path(str(second["output"]))
+    
+        # Then: every published path and byte must be identical, not only selected files.
+>       assert _recursive_manifest(snapshot) == _recursive_manifest(second_root)
+E       AssertionError: assert (('calibratio...95556e'), ...) == (('calibratio...41881d'), ...)
+E         
+E         At index 0 diff: ('calibrations/c79eba792b57fda1d6ab2abf47610e899c37db8ab675cd453a0e4d06cccf6148.json', '4c99e1c21b35c5aa246d8a38c43b3d135f52f95ba3988375ca66e9e1f233f398') != ('calibrations/c79eba792b57fda1d6ab2abf47610e899c37db8ab675cd453a0e4d06cccf6148.json', '79fe71393dd93778e6b1cca3123c7411def23d9c2cb497d97bca6d179fd97ce6')
+E         Use -v to get more diff
+
+tests/test_task8_r6_replay.py:32: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_task8_r6_replay.py::test_complete_published_replay_root_is_byte_deterministic
+1 failed in 5.87s

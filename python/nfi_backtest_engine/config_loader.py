@@ -4,20 +4,48 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import stat
 from copy import deepcopy
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .errors import SpecValidationError
+from .errors import InputBoundaryError, SpecValidationError
+from .portable_paths import (
+    open_secure_directory,
+    parse_portable_relative_path,
+    validate_portable_filesystem_path,
+)
+from .windows_path_security import open_windows_contained_descriptor
 
 CONFIG_DOCUMENT_VERSION = "1.0.0"
+MAX_CONFIG_FILES = 64
+MAX_CONFIG_DEPTH = 16
+MAX_CONFIG_FILE_BYTES = 4 * 1024 * 1024
+MAX_CONFIG_TOTAL_BYTES = 16 * 1024 * 1024
+MAX_CONFIG_JSON_DEPTH = 100
 _SECRET_PARTS = ("api_key", "apikey", "key", "password", "secret", "token")
 
 
 def load_effective_config(source: str | Path) -> dict[str, Any]:
     """Resolve Freqtrade ``add_config_files`` with deterministic deep merging."""
-    path = Path(source).resolve()
-    config, inputs = _load_config_tree(path, stack=())
+    try:
+        path = validate_portable_filesystem_path(source)
+    except InputBoundaryError as exc:
+        raise SpecValidationError(f"configuration source path is not portable: {source}") from exc
+    root = path.parent
+    root_fd = _open_config_root(root)
+    try:
+        config, inputs = _load_config_tree(
+            path.name,
+            root=root,
+            root_fd=root_fd,
+            stack=(),
+            state={"files": 0, "bytes": 0},
+        )
+    finally:
+        if root_fd is not None:
+            os.close(root_fd)
     exchange = config.get("exchange")
     if not isinstance(exchange, dict) or not isinstance(exchange.get("name"), str):
         raise SpecValidationError("effective config requires exchange.name")
@@ -127,18 +155,44 @@ def freeze_pairlist(
 
 
 def _load_config_tree(
-    path: Path,
+    name: str,
     *,
-    stack: tuple[Path, ...],
+    root: Path,
+    root_fd: int | None,
+    stack: tuple[str, ...],
+    state: dict[str, int],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    if path in stack:
-        chain = " -> ".join(str(item) for item in (*stack, path))
+    path = root / name
+    if len(stack) >= MAX_CONFIG_DEPTH:
+        raise SpecValidationError(f"configuration include depth exceeds {MAX_CONFIG_DEPTH}")
+    if name in stack:
+        chain = " -> ".join((*stack, name))
         raise SpecValidationError(f"configuration include cycle: {chain}")
-    if not path.is_file():
-        raise SpecValidationError(f"configuration file does not exist: {path}")
-    raw = path.read_text(encoding="utf-8")
+    descriptor = _open_config_descriptor(root_fd, root, name)
     try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise SpecValidationError(f"configuration path is not a regular file: {path}")
+        if metadata.st_size > MAX_CONFIG_FILE_BYTES:
+            raise SpecValidationError(f"configuration file exceeds byte limit: {path}")
+        with os.fdopen(descriptor, "rb", closefd=False) as handle:
+            encoded = handle.read(MAX_CONFIG_FILE_BYTES + 1)
+    finally:
+        os.close(descriptor)
+    if len(encoded) > MAX_CONFIG_FILE_BYTES:
+        raise SpecValidationError(f"configuration file exceeds byte limit: {path}")
+    state["files"] += 1
+    state["bytes"] += len(encoded)
+    if state["files"] > MAX_CONFIG_FILES:
+        raise SpecValidationError("configuration include count exceeds limit")
+    if state["bytes"] > MAX_CONFIG_TOTAL_BYTES:
+        raise SpecValidationError("configuration aggregate bytes exceed limit")
+    _validate_config_json_depth(encoded)
+    try:
+        raw = encoded.decode("utf-8")
         document = json.loads(_strip_trailing_commas(_strip_json_comments(raw)))
+    except UnicodeDecodeError as exc:
+        raise SpecValidationError(f"configuration is not UTF-8: {path}") from exc
     except json.JSONDecodeError as exc:
         raise SpecValidationError(
             f"invalid JSON configuration {path}:{exc.lineno}:{exc.colno}: {exc.msg}"
@@ -151,15 +205,19 @@ def _load_config_tree(
     if not isinstance(includes, list) or not all(isinstance(item, str) for item in includes):
         raise SpecValidationError(f"add_config_files must be a list of paths: {path}")
     for include in includes:
+        relative = _canonical_config_include(include)
+        candidate = (PurePosixPath(name).parent / relative).as_posix()
         included, included_inputs = _load_config_tree(
-            (path.parent / include).resolve(),
-            stack=(*stack, path),
+            candidate,
+            root=root,
+            root_fd=root_fd,
+            stack=(*stack, name),
+            state=state,
         )
         merged = _deep_merge(merged, included)
         inputs.extend(included_inputs)
     local = {key: value for key, value in document.items() if key != "add_config_files"}
     merged = _deep_merge(merged, local)
-    encoded = raw.encode()
     inputs.append(
         {
             "path": str(path),
@@ -168,6 +226,105 @@ def _load_config_tree(
         }
     )
     return merged, inputs
+
+
+def _open_config_root(root: Path) -> int | None:
+    try:
+        return open_secure_directory(root)
+    except InputBoundaryError as exc:
+        raise SpecValidationError(
+            f"cannot open trusted configuration root with no-follow containment: {root}"
+        ) from exc
+
+
+def _open_config_descriptor(root_fd: int | None, root: Path, name: str) -> int:
+    if os.name == "nt":
+        return open_windows_contained_descriptor(root, name)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if os.name != "posix" or not nofollow or root_fd is None:
+        raise InputBoundaryError("configuration loading requires kernel no-follow containment")
+    current = os.dup(root_fd)
+    try:
+        parts = PurePosixPath(name).parts
+        for component in parts[:-1]:
+            _config_open_checkpoint(name, component)
+            next_fd = os.open(
+                component,
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_CLOEXEC", 0)
+                | nofollow,
+                dir_fd=current,
+            )
+            os.close(current)
+            current = next_fd
+        _config_open_checkpoint(name, parts[-1])
+        return os.open(
+            parts[-1],
+            os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | nofollow,
+            dir_fd=current,
+        )
+    except OSError as exc:
+        raise InputBoundaryError(
+            f"configuration path traverses a symlink or changed during containment: {name}"
+        ) from exc
+    finally:
+        os.close(current)
+
+
+def _canonical_config_include(include: str) -> PurePosixPath:
+    try:
+        return parse_portable_relative_path(include)
+    except InputBoundaryError as exc:
+        raise SpecValidationError(
+            f"configuration include path must be a canonical portable child: {include}"
+        ) from exc
+
+
+def _validate_config_json_depth(payload: bytes) -> None:
+    depth = 0
+    index = 0
+    in_string = False
+    escaped = False
+    line_comment = False
+    block_comment = False
+    while index < len(payload):
+        byte = payload[index]
+        following = payload[index + 1] if index + 1 < len(payload) else None
+        if line_comment:
+            line_comment = byte not in {0x0A, 0x0D}
+        elif block_comment:
+            if byte == 0x2A and following == 0x2F:
+                block_comment = False
+                index += 1
+        elif in_string:
+            if escaped:
+                escaped = False
+            elif byte == 0x5C:
+                escaped = True
+            elif byte == 0x22:
+                in_string = False
+        elif byte == 0x22:
+            in_string = True
+        elif byte == 0x2F and following == 0x2F:
+            line_comment = True
+            index += 1
+        elif byte == 0x2F and following == 0x2A:
+            block_comment = True
+            index += 1
+        elif byte in {0x5B, 0x7B}:
+            depth += 1
+            if depth > MAX_CONFIG_JSON_DEPTH:
+                raise InputBoundaryError(
+                    f"configuration JSON nesting limit exceeded ({MAX_CONFIG_JSON_DEPTH})"
+                )
+        elif byte in {0x5D, 0x7D}:
+            depth -= 1
+        index += 1
+
+
+def _config_open_checkpoint(_name: str, _component: str) -> None:
+    return
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

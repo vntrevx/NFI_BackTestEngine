@@ -1,0 +1,37 @@
+{
+  "schema_version": "compatibility-hosted-canary-v1",
+  "identity": {
+    "nfi_upstream_sha": "649890f727fce8067a66f7556431b7ce0ee64416",
+    "engine_sha": "f24d055649dca5b112917a75d4c207bdff04d452",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428"
+  },
+  "identity_fingerprint": "2a54cb8d3a2f358fb32a98936a2a1c0b79a7978f7008834d23f471b7f9e79816",
+  "modes": [
+    {
+      "trading_mode": "spot",
+      "static_check_complete": true,
+      "native_compatible": true,
+      "targeted_check_complete": true,
+      "verification_state": "quick_verified",
+      "quick_verified": true,
+      "automation_route": "native_exact",
+      "execution_route": "native",
+      "action_fingerprint": "29992d4480216c77f5b9ca8314e3c82fd019dedd4258970d7710157455adccfb"
+    },
+    {
+      "trading_mode": "futures",
+      "static_check_complete": true,
+      "native_compatible": true,
+      "targeted_check_complete": true,
+      "verification_state": "quick_verified",
+      "quick_verified": true,
+      "automation_route": "native_exact",
+      "execution_route": "native",
+      "action_fingerprint": "477d4d83c39d3a9bf3494aad822c6b1b0356b0895638e0ca0f81927772de2e7b"
+    }
+  ],
+  "complete": true,
+  "identity_advancement_allowed": true,
+  "fingerprint": "de10589d06416c728686e026a61e17f3230323f048a52a28c75a4fc5774d163a"
+}

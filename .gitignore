@@ -21,6 +21,7 @@ rust/target/
 benchmarks/runs/
 benchmarks/work/
 .nfi/
+planning/freqtrade-nfi-semantic-obligation-registry.json
 .gjc/
 .agents/
 .compatibility/

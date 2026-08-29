@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import copy
+from typing import TypedDict
 
 import pytest
+from nfi_backtest_engine.changed_target_workflow import (
+    validate_changed_target_promotion,
+)
 from nfi_backtest_engine.compatibility_automation import (
     classify_compatibility_automation,
 )
@@ -41,6 +45,7 @@ def _documents() -> tuple[dict, dict, dict, dict]:
     }
     qualification = {
         "schema_version": "1.0.0",
+        "trading_mode": "futures",
         "strategy_sha256": source,
         "verification_state": "latest_checked",
         "changed_branch_reached": False,
@@ -60,23 +65,40 @@ def _documents() -> tuple[dict, dict, dict, dict]:
     return identity, difference, compatibility, targeted
 
 
-def _discovery(identity: dict, *, status: str) -> dict:
-    candidate = (
+class CandidateProof(TypedDict):
+    trade_surface_exact: bool
+    full_state_exact: bool
+
+
+class DiscoveryDocument(TypedDict):
+    schema_version: str
+    trading_mode: str
+    status: str
+    fingerprint: str
+    upstream_commit: str
+    engine_commit: str
+    freqtrade_image_digest: str
+    strategy_sha256: str
+    candidate: CandidateProof | None
+
+
+def _discovery(identity: dict, *, status: str) -> DiscoveryDocument:
+    candidate: CandidateProof | None = (
         {"trade_surface_exact": True, "full_state_exact": True}
         if status == "candidate_found"
         else None
     )
-    return {
-        "schema_version": "1.0.0",
-        "trading_mode": "futures",
-        "status": status,
-        "fingerprint": "1" * 64,
-        "upstream_commit": identity["upstream_sha"],
-        "engine_commit": identity["engine_sha"],
-        "freqtrade_image_digest": identity["freqtrade_digest"],
-        "strategy_sha256": identity["source_sha256"],
-        "candidate": candidate,
-    }
+    return DiscoveryDocument(
+        schema_version="1.0.0",
+        trading_mode="futures",
+        status=status,
+        fingerprint="1" * 64,
+        upstream_commit=identity["upstream_sha"],
+        engine_commit=identity["engine_sha"],
+        freqtrade_image_digest=identity["freqtrade_digest"],
+        strategy_sha256=identity["source_sha256"],
+        candidate=candidate,
+    )
 
 
 def test_ir_compatible_targeted_exact_is_the_only_native_promotion() -> None:
@@ -91,13 +113,9 @@ def test_ir_compatible_targeted_exact_is_the_only_native_promotion() -> None:
             "blockers": [],
         }
     )
-    targeted.update(
-        {"complete": True, "verification_state": "quick_verified", "blockers": []}
-    )
+    targeted.update({"complete": True, "verification_state": "quick_verified", "blockers": []})
 
-    report = classify_compatibility_automation(
-        identity, difference, compatibility, targeted
-    )
+    report = classify_compatibility_automation(identity, difference, compatibility, targeted)
 
     assert report["automation_route"] == "native_exact"
     assert report["execution_route"] == "native"
@@ -110,13 +128,9 @@ def test_static_new_opcode_is_official_only_and_routes_to_deduplicated_issue() -
     difference["classification"] = "stateful-review"
     difference["changes"]["opcodes"]["added"] = ["call:new_behavior"]
     compatibility["native_compatible"] = False
-    compatibility["blockers"] = [
-        {"code": "EXACT_LOWERING_REVIEW_REQUIRED", "message": "review"}
-    ]
+    compatibility["blockers"] = [{"code": "EXACT_LOWERING_REVIEW_REQUIRED", "message": "review"}]
 
-    report = classify_compatibility_automation(
-        identity, difference, compatibility, targeted
-    )
+    report = classify_compatibility_automation(identity, difference, compatibility, targeted)
 
     assert report["automation_route"] == "semantic_review_issue"
     assert report["execution_route"] == "official_only"
@@ -135,9 +149,7 @@ def test_static_lowering_change_routes_without_hardcoded_behavior_value() -> Non
         {"code": "EXACT_LOWERING_REVIEW_REQUIRED", "message": "source shape changed"}
     ]
 
-    report = classify_compatibility_automation(
-        identity, difference, compatibility, targeted
-    )
+    report = classify_compatibility_automation(identity, difference, compatibility, targeted)
 
     assert report["automation_route"] == "semantic_review_issue"
     assert report["review_kind"] == "generic_lowering"
@@ -148,9 +160,7 @@ def test_static_lowering_change_routes_without_hardcoded_behavior_value() -> Non
 
 def test_missing_exact_proof_routes_to_bounded_discovery_and_exact_candidate_pr() -> None:
     identity, difference, compatibility, targeted = _documents()
-    initial = classify_compatibility_automation(
-        identity, difference, compatibility, targeted
-    )
+    initial = classify_compatibility_automation(identity, difference, compatibility, targeted)
     candidate = classify_compatibility_automation(
         identity,
         difference,
@@ -206,10 +216,50 @@ def test_terminal_discovery_gap_stays_official_only() -> None:
     assert report["execution_route"] == "official_only"
 
 
+def test_changed_target_hard_blocker_overrides_green_infrastructure() -> None:
+    identity, difference, compatibility, targeted = _documents()
+    qualification = targeted["qualification"]
+    qualification.update(
+        {
+            "verification_state": "quick_verified",
+            "changed_branch_reached": True,
+            "trade_surface_exact": True,
+            "full_state_exact": True,
+            "blockers": [],
+        }
+    )
+    targeted.update({"complete": True, "verification_state": "quick_verified", "blockers": []})
+    decision = classify_compatibility_automation(identity, difference, compatibility, targeted)
+    ledger = {
+        "schema_version": "changed-target-ledger-v1",
+        "identity": {
+            "upstream_head": identity["upstream_sha"],
+            "new_source_sha256": identity["source_sha256"],
+            "freqtrade_digest": identity["freqtrade_digest"],
+            "semantic_profile_sha256": identity["semantic_profile_sha256"],
+        },
+        "targets": [
+            {
+                "affected_modes": ["futures", "spot"],
+                "native_promotion_allowed": False,
+            }
+        ],
+        "summary": {"native_promotion_allowed": False},
+    }
+
+    with pytest.raises(SpecValidationError):
+        validate_changed_target_promotion(
+            ledger,
+            {"futures": decision, "spot": decision | {"trading_mode": "spot"}},
+        )
+
+
 def test_inexact_candidate_and_cross_identity_reports_are_rejected() -> None:
     identity, difference, compatibility, targeted = _documents()
     candidate = _discovery(identity, status="candidate_found")
-    candidate["candidate"]["full_state_exact"] = False
+    candidate_proof = candidate["candidate"]
+    assert candidate_proof is not None
+    candidate_proof["full_state_exact"] = False
     with pytest.raises(SpecValidationError, match="independent exact proof"):
         classify_compatibility_automation(
             identity,

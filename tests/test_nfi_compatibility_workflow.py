@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 WORKFLOW = (
@@ -8,6 +9,14 @@ WORKFLOW = (
     / "workflows"
     / "nfi-compatibility.yml"
 )
+
+
+def _job(text: str, job_id: str) -> str:
+    matches = list(re.finditer(r"(?m)^  [a-z][a-z0-9-]*:\s*$", text))
+    selected = next(index for index, match in enumerate(matches) if match.group() == f"  {job_id}:")
+    start = matches[selected].start()
+    end = matches[selected + 1].start() if selected + 1 < len(matches) else len(text)
+    return text[start:end]
 
 
 def test_workflow_rechecks_four_part_identity_every_four_hours_with_manual_force() -> None:
@@ -59,6 +68,27 @@ def test_workflow_exports_paired_sources_and_four_part_identity() -> None:
     assert ".compatibility/baseline-resolution.json" in text
 
 
+def test_workflow_builds_and_gates_current_head_changed_target_ledger() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    canary = text[text.index("  canary:") : text.index("  publish:")]
+    publish = text[text.index("  publish:") : text.index("  health:")]
+
+    assert "scripts/changed_target_ledger.py" in canary
+    assert "strategy semantic-registry-packaged-integrity" in canary
+    assert "freqtrade-nfi-semantic-obligation-registry.json.gz" in canary
+    assert "--semantic-registry .compatibility/results/semantic-registry.json" in canary
+    assert '--upstream-head "$(jq -er .upstream_sha' in canary
+    assert '--baseline-commit "$(jq -er .baseline_upstream_sha' in canary
+    assert "scripts/validate_changed_target_promotion.py" in canary
+    assert canary.index("Generate current-HEAD changed-target ledger") < canary.index(
+        "Validate four-identity dual-mode completion"
+    )
+    assert "changed-target-ledger.json" in publish
+    assert publish.index("validate_changed_target_promotion.py") < publish.index(
+        "Publish append-only compatibility ledger"
+    )
+
+
 def test_workflow_seals_both_modes_before_atomic_identity_advancement() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     canary = text[text.index("  canary:") : text.index("  publish:")]
@@ -95,8 +125,7 @@ def test_workflow_materializes_only_digest_bound_release_fixtures() -> None:
 def test_workflow_retains_compact_targeted_diagnostics_on_failure() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     diagnostics = text[
-        text.index("Collect compact targeted diagnostics") :
-        text.index("Preserve ledger and reconcile compatibility issue")
+        text.index("Collect compact targeted diagnostics") : text.index("  canary:")
     ]
 
     assert diagnostics.count("if: always()") == 2
@@ -118,6 +147,52 @@ def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
     assert '--stage "canary=${{ needs.canary.result }}"' in text
     assert "semantic-review" not in text
     assert "--stage \"publish=${{ needs.publish.result }}\"" in text
+
+
+def test_product_status_precedes_every_compatibility_mutation() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    product = _job(text, "product-status")
+    publish = _job(text, "publish")
+
+    assert "      - publish\n" not in product
+    assert "      - product-status\n" in publish
+    assert "needs.product-status.result == 'success'" in publish
+    assert publish.index("jq -e '.required_status_passed == true'") < publish.index(
+        "scripts/compatibility_issue.py"
+    )
+    assert publish.index("jq -e '.required_status_passed == true'") < publish.index(
+        "git push --quiet origin HEAD:compatibility-ledger"
+    )
+
+
+def test_unchanged_status_uses_authoritative_ledger_without_fallback_identity() -> None:
+    product = _job(WORKFLOW.read_text(encoding="utf-8"), "product-status")
+
+    assert "compatibility-ledger" in product
+    assert "compatibility-proof-manifest.json" in product
+    assert "latest.json" in product
+    assert "printf '0%.0s'" not in product
+    assert "needs.publish.result" not in product
+
+
+def test_workflow_emits_a_required_product_status_separate_from_health() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    product = _job(text, "product-status")
+    health = text[text.index("  health:") :]
+
+    assert "name: NFI product compatibility" in product
+    assert "if: always()" in product
+    assert "scripts/compatibility_automation.py" in product
+    assert "--workflow-execution" in product
+    assert "--proof-dir" in product
+    assert "--source-run-id" in product
+    assert "--spot-discovery-execution not_required" in product
+    assert "--futures-discovery-execution not_required" in product
+    assert "compatibility-product-status.json" in product
+    assert "if-no-files-found: error" in product
+    assert "jq -e '.required_status_passed == true'" in product
+    assert "      - product-status\n" in health
+    assert '--stage "product-status=${{ needs.product-status.result }}"' in health
 
 
 def test_workflow_routes_blocked_semantics_to_one_issue_and_never_opens_review_prs() -> None:

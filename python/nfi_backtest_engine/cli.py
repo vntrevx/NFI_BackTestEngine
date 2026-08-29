@@ -50,6 +50,16 @@ from .state_trace import TraceMismatch
 from .update_check import maybe_print_update_notice
 
 
+def _bounded_upstream_fetch_timeout(value: str) -> int:
+    try:
+        timeout = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("timeout must be an integer") from exc
+    if not 1 <= timeout <= 600:
+        raise argparse.ArgumentTypeError("timeout must be between 1 and 600 seconds")
+    return timeout
+
+
 def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "source",
@@ -269,6 +279,39 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_FULL_X7_TIMEOUT_SECONDS,
     )
+    platform_attest = platform_commands.add_parser(
+        "attest",
+        help="sign one platform report with the configured release trust key",
+    )
+    platform_prepare = platform_commands.add_parser(
+        "prepare-attestation",
+        help="prepare canonical payload and DSSE PAE bytes without a signing key",
+    )
+    for attestation_parser in (platform_attest, platform_prepare):
+        attestation_parser.add_argument("report", type=Path)
+        attestation_parser.add_argument("--repository", required=True)
+        attestation_parser.add_argument("--repository-ref", required=True)
+        attestation_parser.add_argument("--workflow", required=True)
+        attestation_parser.add_argument("--workflow-ref", required=True)
+        attestation_parser.add_argument("--job", required=True)
+        attestation_parser.add_argument("--commit", required=True)
+        attestation_parser.add_argument("--run-id", required=True)
+        attestation_parser.add_argument("--run-attempt", type=int, required=True)
+        attestation_parser.add_argument("--candidate-id", required=True)
+        attestation_parser.add_argument("--bundle-id", required=True)
+        attestation_parser.add_argument("--challenge", required=True)
+        attestation_parser.add_argument("--nonce", required=True)
+    platform_attest.add_argument("--output", type=Path, required=True)
+    platform_prepare.add_argument("--payload-output", type=Path, required=True)
+    platform_prepare.add_argument("--pae-output", type=Path, required=True)
+    platform_prepare.add_argument("--checksum-output", type=Path, required=True)
+    platform_assemble = platform_commands.add_parser(
+        "assemble-attestation",
+        help="assemble and verify an externally signed DSSE envelope",
+    )
+    platform_assemble.add_argument("--payload", type=Path, required=True)
+    platform_assemble.add_argument("--signature", type=Path, required=True)
+    platform_assemble.add_argument("--output", type=Path, required=True)
     platform_seal = platform_commands.add_parser(
         "seal",
         help="combine Windows, Linux, and macOS benchmark reports",
@@ -279,6 +322,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         required=True,
     )
+    platform_seal.add_argument("--run-id", required=True)
+    platform_seal.add_argument("--run-attempt", type=int, required=True)
+    platform_seal.add_argument("--candidate-id", required=True)
+    platform_seal.add_argument("--bundle-id", required=True)
+    platform_seal.add_argument("--challenge", required=True)
+    platform_seal.add_argument("--candidate-commit", required=True)
     platform_seal.add_argument("--output-dir", type=Path, required=True)
 
     normalize = subcommands.add_parser(
@@ -314,6 +363,36 @@ def build_parser() -> argparse.ArgumentParser:
     trace_verify_schedule.add_argument("native_events", type=Path)
     trace_verify_schedule.add_argument("--contract", type=Path, required=True)
     trace_verify_schedule.add_argument("--output", "-o", type=Path, required=True)
+    trace_verify_portfolio = trace_commands.add_parser(
+        "verify-portfolio",
+        help="compare authenticated official and Native portfolio semantic traces",
+    )
+    trace_verify_portfolio.add_argument("manifest", type=Path)
+    trace_verify_portfolio.add_argument("official_trace", type=Path)
+    trace_verify_portfolio.add_argument("native_events", type=Path)
+    trace_verify_portfolio.add_argument("--output", "-o", type=Path, required=True)
+    trace_verify_execution = trace_commands.add_parser(
+        "verify-execution",
+        help="compare authenticated official and Native execution semantic traces",
+    )
+    trace_verify_execution.add_argument("manifest", type=Path)
+    trace_verify_execution.add_argument("official_trace", type=Path)
+    trace_verify_execution.add_argument("native_events", type=Path)
+    trace_verify_execution.add_argument("--output", "-o", type=Path, required=True)
+    trace_materialize_complete = trace_commands.add_parser(
+        "materialize-complete",
+        help="materialize all Native semantic payloads and complete pair-event state",
+    )
+    trace_materialize_complete.add_argument("manifest", type=Path)
+    trace_materialize_complete.add_argument("native_events", type=Path)
+    trace_materialize_complete.add_argument("--output", "-o", type=Path, required=True)
+    trace_verify_complete = trace_commands.add_parser(
+        "verify-complete",
+        help="compare two materialized complete semantic traces",
+    )
+    trace_verify_complete.add_argument("expected", type=Path)
+    trace_verify_complete.add_argument("actual", type=Path)
+    trace_verify_complete.add_argument("--output", "-o", type=Path, required=True)
 
     profile = subcommands.add_parser("profile", help="aggregate Phase 0 profile spans")
     profile.add_argument("events", type=Path)
@@ -323,7 +402,8 @@ def build_parser() -> argparse.ArgumentParser:
         "benchmark",
         help="measure a command against a sealed fixture",
         description=(
-            "Measure the manifest command, or append `-- <command> [args...]` to override it."
+            "Measure a trusted manifest command. The `-- <command> [args...]` override is "
+            "UNSAFE, research-only, and ineligible for certification."
         ),
     )
     benchmark.add_argument("manifest", type=Path)
@@ -367,6 +447,11 @@ def build_parser() -> argparse.ArgumentParser:
     reference_semantic_observe.add_argument("--profile", type=Path, required=True)
     reference_semantic_observe.add_argument("--output-trace", type=Path, required=True)
     reference_semantic_observe.add_argument("--output-report", type=Path, required=True)
+    reference_semantic_observe.add_argument(
+        "--source-trace",
+        type=Path,
+        help="project a freshly captured official trace instead of the sealed fixture trace",
+    )
     reference_run = reference_commands.add_parser(
         "run", help="run and exact-compare one sealed captured fixture"
     )
@@ -681,7 +766,47 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("benchmarks/fixtures/captured"),
     )
+    strategy_semantic_inventory.add_argument("--source-root", type=Path)
+    strategy_semantic_inventory.add_argument("--upstream-repository")
+    strategy_semantic_inventory.add_argument("--upstream-commit")
+    strategy_semantic_inventory.add_argument("--upstream-ref")
+    strategy_semantic_inventory.add_argument("--upstream-source-path")
+    strategy_semantic_inventory.add_argument(
+        "--upstream-fetch-timeout",
+        type=_bounded_upstream_fetch_timeout,
+        default=180,
+    )
     strategy_semantic_inventory.add_argument("--output", "-o", type=Path)
+    strategy_semantic_registry = strategy_commands.add_parser(
+        "semantic-registry",
+        help="generate the hash-bound Freqtrade/strategy semantic obligation registry",
+    )
+    strategy_semantic_registry.add_argument("source", type=Path)
+    strategy_semantic_registry.add_argument("--class", dest="class_name")
+    strategy_semantic_registry.add_argument("--config", type=Path)
+    strategy_semantic_registry.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+    )
+    strategy_semantic_registry.add_argument("--source-root", type=Path)
+    strategy_semantic_registry.add_argument("--upstream-repository")
+    strategy_semantic_registry.add_argument("--upstream-commit")
+    strategy_semantic_registry.add_argument("--upstream-ref")
+    strategy_semantic_registry.add_argument("--upstream-source-path")
+    strategy_semantic_registry.add_argument(
+        "--upstream-fetch-timeout",
+        type=_bounded_upstream_fetch_timeout,
+        default=180,
+    )
+    strategy_semantic_registry.add_argument("--output", "-o", type=Path, required=True)
+    strategy_commands.add_parser(
+        "semantic-registry-packaged",
+        help="require fresh current-ref proof for the packaged semantic registry",
+    )
+    strategy_commands.add_parser(
+        "semantic-registry-packaged-integrity",
+        help="validate immutable packaged registry integrity without promotion",
+    )
     strategy_indicator_inventory = strategy_commands.add_parser(
         "indicator-inventory",
         help="inventory the indicator/helper DAG, lookbacks, NaN rules, and informative data",
@@ -1190,6 +1315,35 @@ def build_parser() -> argparse.ArgumentParser:
         dest="release_command",
         required=True,
     )
+    release_score = release_commands.add_parser(
+        "score",
+        help="verify sealed proofs and render the Native ten-point scorecard",
+    )
+    release_score.add_argument(
+        "--evidence",
+        type=Path,
+        required=True,
+        help="SHA-bound score evidence manifest",
+    )
+    release_score.add_argument(
+        "--identity",
+        type=Path,
+        required=True,
+        help="expected sealed four-part identity",
+    )
+    release_score.add_argument("--output", "-o", type=Path)
+    release_score.add_argument(
+        "--operation",
+        default="native-score-evaluation",
+        help="canonical identity of the operation authorized by this evaluation",
+    )
+    release_authorize = release_commands.add_parser(
+        "authorize-current",
+        help="obtain a fresh operation-bound current-ref authorization",
+    )
+    release_authorize.add_argument("--evidence", type=Path, required=True)
+    release_authorize.add_argument("--identity", type=Path, required=True)
+    release_authorize.add_argument("--operation", required=True)
     release_combine = release_commands.add_parser(
         "combine",
         help="bind spot and futures certificates into one Full X7 release",
@@ -1203,6 +1357,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="sealed three-OS evidence for one mode; repeat for spot and futures",
     )
+    release_combine.add_argument("--native-score-evidence", type=Path, required=True)
+    release_combine.add_argument("--native-score-identity", type=Path, required=True)
     release_combine.add_argument("--output-dir", type=Path, required=True)
     release_gate = release_commands.add_parser(
         "gate",
@@ -1213,6 +1369,10 @@ def build_parser() -> argparse.ArgumentParser:
     release_gate.add_argument("--certificate-evidence", type=Path, required=True)
     release_gate.add_argument("--platform-evidence", type=Path, required=True)
     release_gate.add_argument("--candidate-commit", required=True)
+    release_gate.add_argument("--native-score-evidence", type=Path, required=True)
+    release_gate.add_argument("--native-score-identity", type=Path, required=True)
+    release_gate.add_argument("--provenance-ledger", type=Path)
+    release_gate.add_argument("--publication-attempt")
     release_gate.add_argument("--output-dir", type=Path, required=True)
     release_combined_gate = release_commands.add_parser(
         "gate-combined",
@@ -1230,6 +1390,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="full-x7-release-result.json produced by release combine",
     )
     release_combined_gate.add_argument("--candidate-commit", required=True)
+    release_combined_gate.add_argument("--native-score-evidence", type=Path, required=True)
+    release_combined_gate.add_argument("--native-score-identity", type=Path, required=True)
+    release_combined_gate.add_argument("--provenance-ledger", type=Path, required=True)
+    release_combined_gate.add_argument("--publication-attempt", required=True)
     release_combined_gate.add_argument("--output-dir", type=Path, required=True)
     release_combined_verify = release_commands.add_parser(
         "verify-combined",
@@ -1240,7 +1404,26 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         required=True,
     )
-    release_combined_verify.add_argument("--candidate-commit")
+    release_combined_verify.add_argument("--candidate-commit", required=True)
+    release_combined_verify.add_argument("--native-score-evidence", type=Path, required=True)
+    release_combined_verify.add_argument("--native-score-identity", type=Path, required=True)
+    release_combined_verify.add_argument("--provenance-ledger", type=Path, required=True)
+    for command_name in ("finalize-combined", "abort-combined"):
+        publication_command = release_commands.add_parser(
+            command_name,
+            help=f"{command_name.split('-')[0]} one durable combined publication",
+        )
+        publication_command.add_argument("--release-dir", type=Path, required=True)
+        publication_command.add_argument("--provenance-ledger", type=Path, required=True)
+        publication_command.add_argument("--publication-attempt", required=True)
+        publication_command.add_argument("--candidate-commit")
+        if command_name == "finalize-combined":
+            publication_command.add_argument(
+                "--native-score-evidence", type=Path, required=True
+            )
+            publication_command.add_argument(
+                "--native-score-identity", type=Path, required=True
+            )
 
     contract = subcommands.add_parser(
         "contract",
@@ -1322,7 +1505,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(raw_args)
     try:
         result = _dispatch_command(args, benchmark_command=benchmark_command)
-        if result == 0 and args.command_name != "update":
+        if result == 0 and args.command_name != "update" and not (
+            args.command_name == "release" and args.release_command == "score"
+        ):
             maybe_print_update_notice(__version__)
         return result
     except ParityMismatch as exc:

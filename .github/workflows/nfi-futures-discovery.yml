@@ -31,9 +31,6 @@ concurrency:
 jobs:
   resolve:
     name: Resolve checked four-part compatibility identity
-    if: >-
-      github.event_name != 'workflow_run'
-      || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.identity.outputs.ready }}
@@ -110,8 +107,17 @@ jobs:
           test "${source_run_id}" = "${ledger_run_id}"
           run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${source_run_id}")"
           jq -e \
-            '.name == "Latest NFI compatibility" and .conclusion == "success"' \
+            '.name == "Latest NFI compatibility" and .status == "completed"' \
             <<<"${run_json}"
+          jobs_json="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${source_run_id}/jobs?per_page=100"
+          )"
+          jq -e \
+            '[.jobs[]
+              | select(.name == "Preserve ledger and reconcile compatibility issue")]
+              | length == 1 and .[0].conclusion == "success"' \
+            <<<"${jobs_json}"
           test "$(jq -r .head_sha <<<"${run_json}")" = "${engine_sha}"
           main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           ready=false
@@ -465,66 +471,189 @@ jobs:
             jq -r .status .discovery/result/discovery-report.json
           )" != "infrastructure_failed"
 
-  publish:
-    name: Preserve ${{ matrix.trading_mode }} cursor and semantic state
+  product-status:
+    name: NFI product compatibility
     needs:
       - resolve
       - discover
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      source_run_id: ${{ steps.status.outputs.source_run_id }}
+    steps:
+      - name: Check out current main for status comparison
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download available discovery results
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: nfi-branch-discovery-*
+          path: .status/discovery
+      - name: Load current authoritative compatibility proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ledger_dir="$(mktemp -d)"
+          git clone --quiet --single-branch --branch compatibility-ledger \
+            "https://github.com/${GITHUB_REPOSITORY}.git" "${ledger_dir}"
+          check_path="$(jq -er .check_path "${ledger_dir}/latest.json")"
+          mkdir -p .status/input
+          cp -a "${ledger_dir}/${check_path}/." .status/input/
+      - name: Classify final two-mode product status
+        id: status
+        continue-on-error: true
+        env:
+          DEEP_SEARCH_REQUIRED: ${{ needs.resolve.outputs.deep_search_required }}
+          DISCOVERY_RESULT: ${{ needs.discover.result }}
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
+          STALE_TRIGGER: ${{ needs.resolve.outputs.stale_trigger }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          proof=.status/input
+          identity="${proof}/compatibility-identity.json"
+          source_run_id="$(jq -er .source_run_id "${proof}/source-run.json")"
+          current_engine_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          current_upstream_sha="$(git ls-remote \
+            https://github.com/iterativv/NostalgiaForInfinity.git \
+            refs/heads/main | awk '{print $1}')"
+          workflow_execution=succeeded
+          discovery_execution=succeeded
+          if [ "${STALE_TRIGGER}" = "true" ]; then
+            workflow_execution=stale
+          elif [ "${RESOLVE_RESULT}" != "success" ]; then
+            case "${RESOLVE_RESULT}" in
+              failure) workflow_execution=failed ;;
+              cancelled) workflow_execution=cancelled ;;
+              skipped) workflow_execution=skipped ;;
+              *) workflow_execution=infrastructure_limited ;;
+            esac
+          elif [ "${DEEP_SEARCH_REQUIRED}" = "false" ]; then
+            discovery_execution=not_required
+          elif [ "${DISCOVERY_RESULT}" != "success" ]; then
+            case "${DISCOVERY_RESULT}" in
+              failure) workflow_execution=failed; discovery_execution=failed ;;
+              cancelled) workflow_execution=cancelled; discovery_execution=cancelled ;;
+              skipped) workflow_execution=skipped; discovery_execution=skipped ;;
+              *) workflow_execution=infrastructure_limited; discovery_execution=failed ;;
+            esac
+          fi
+          if find .status/discovery -name discovery-report.json -type f -print0 \
+            | xargs -0 -r jq -e 'select(.status == "external_data_deferred" and .external_data.http_status == 451)' \
+            >/dev/null; then
+            discovery_execution=external_data_deferred
+          fi
+          echo "source_run_id=${source_run_id}" >> "${GITHUB_OUTPUT}"
+          PYTHONPATH=python python scripts/compatibility_automation.py \
+            --identity "${identity}" \
+            --decision-dir "${proof}" \
+            --proof-dir "${proof}" \
+            --source-run-id "${source_run_id}" \
+            --current-engine-sha "${current_engine_sha}" \
+            --current-upstream-sha "${current_upstream_sha}" \
+            --workflow-execution "${workflow_execution}" \
+            --spot-discovery-execution "${discovery_execution}" \
+            --futures-discovery-execution "${discovery_execution}" \
+            --output .status/compatibility-product-status.json
+      - name: Retain machine-consumed compatibility status
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nfi-discovery-product-status
+          path: .status/compatibility-product-status.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce required product compatibility
+        run: jq -e '.required_status_passed == true' .status/compatibility-product-status.json
+
+  publish:
+    name: Preserve atomic Spot and Futures discovery state
+    needs:
+      - resolve
+      - discover
+      - product-status
     if: >-
       always()
       && needs.resolve.outputs.ready == 'true'
-      && needs.discover.result != 'skipped'
+      && needs.discover.result == 'success'
+      && needs.product-status.result == 'success'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        trading_mode:
-          - spot
-          - futures
     permissions:
       actions: read
       contents: write
       issues: write
     steps:
-      - name: Check out engine
+      - name: Check out current engine identity
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: false
-      - name: Download compact mode result
+      - name: Download paired discovery results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: nfi-branch-discovery-${{ matrix.trading_mode }}
-          path: .discovery/result
-      - name: Reconcile terminal semantic gap
+          pattern: nfi-branch-discovery-*
+          path: .discovery/results
+      - name: Download trusted product status
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: nfi-discovery-product-status
+          path: .discovery/status
+      - name: Recheck paired proof and current refs before mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=.discovery/status/compatibility-product-status.json
+          jq -e '.required_status_passed == true' "${status}"
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
+          for mode in spot futures; do
+            test -s ".discovery/results/nfi-branch-discovery-${mode}/discovery-report.json"
+            test "$(jq -er .trading_mode ".discovery/results/nfi-branch-discovery-${mode}/discovery-report.json")" = "${mode}"
+          done
+      - name: Reconcile paired terminal semantic gaps
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
+          set -euo pipefail
+          status=.discovery/status/compatibility-product-status.json
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
           gh label create nfi-branch-discovery \
             --description "Terminal NFI branch discovery gap" \
             --color 8B0000 --force
-          python scripts/futures_discovery_issue.py \
-            --report .discovery/result/discovery-report.json \
-            --repository "${GITHUB_REPOSITORY}" \
-            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-      - name: Advance append-only same-mode cursor
+          for mode in spot futures; do
+            python scripts/futures_discovery_issue.py \
+              --report ".discovery/results/nfi-branch-discovery-${mode}/discovery-report.json" \
+              --repository "${GITHUB_REPOSITORY}" \
+              --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          done
+      - name: Advance append-only paired cursors atomically
         env:
           ENGINE_SHA: ${{ needs.resolve.outputs.engine_sha }}
           FREQTRADE_DIGEST: ${{ needs.resolve.outputs.freqtrade_digest }}
           SEMANTIC_PROFILE_SHA256: ${{ needs.resolve.outputs.semantic_profile_sha256 }}
+          SOURCE_RUN_ID: ${{ needs.product-status.outputs.source_run_id }}
           GH_TOKEN: ${{ github.token }}
-          MODE: ${{ matrix.trading_mode }}
           ORACLE_KEY: ${{ needs.resolve.outputs.oracle_key }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          report="${GITHUB_WORKSPACE}/.discovery/result/discovery-report.json"
-          if [ "$(jq -r .status "${report}")" = "infrastructure_failed" ]; then
-            exit 0
-          fi
-          fingerprint="$(jq -er .fingerprint "${report}")"
+          status="${GITHUB_WORKSPACE}/.discovery/status/compatibility-product-status.json"
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
           ledger_dir="$(mktemp -d)"
           git clone --quiet --no-checkout \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
@@ -532,59 +661,35 @@ jobs:
           cd "${ledger_dir}"
           git switch --quiet --create compatibility-ledger \
             refs/remotes/origin/compatibility-ledger
-          latest="discovery/${MODE}/latest.json"
-          current_status="$(jq -er .status "${report}")"
-          if [ "${current_status}" = "external_data_deferred" ] \
-            && [ -s "${latest}" ] \
-            && [ "$(jq -r .upstream_sha "${latest}")" = "${UPSTREAM_SHA}" ] \
-            && [ "$(jq -r .engine_sha "${latest}")" = "${ENGINE_SHA}" ] \
-            && [ "$(jq -r .freqtrade_digest "${latest}")" = "${FREQTRADE_DIGEST}" ] \
-            && [ "$(jq -r .semantic_profile_sha256 "${latest}")" = "${SEMANTIC_PROFILE_SHA256}" ] \
-            && [ "$(jq -r .fingerprint "${latest}")" = "${fingerprint}" ]; then
-            previous_path="$(jq -er .run_path "${latest}")"
-            if [ "$(jq -r .status \
-              "${previous_path}/discovery-report.json")" = "external_data_deferred" ]; then
-              exit 0
-            fi
-          fi
-          run_path="discovery/${MODE}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${SEMANTIC_PROFILE_SHA256}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          test ! -e "${run_path}"
-          mkdir -p "${run_path}" "discovery/${MODE}"
-          for file in \
-            discovery-request.json \
-            discovery-report.json \
-            cursor.json \
-            automation-decision.json; do
-            cp "${GITHUB_WORKSPACE}/.discovery/result/${file}" "${run_path}/${file}"
+          for mode in spot futures; do
+            source="${GITHUB_WORKSPACE}/.discovery/results/nfi-branch-discovery-${mode}"
+            fingerprint="$(jq -er .fingerprint "${source}/discovery-report.json")"
+            run_path="discovery/${mode}/checks/${UPSTREAM_SHA}/${ENGINE_SHA}/${ORACLE_KEY}/${SEMANTIC_PROFILE_SHA256}/${fingerprint}/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            test ! -e "${run_path}"
+            mkdir -p "${run_path}" "discovery/${mode}"
+            cp "${source}/discovery-request.json" "${run_path}/discovery-request.json"
+            cp "${source}/discovery-report.json" "${run_path}/discovery-report.json"
+            cp "${source}/cursor.json" "${run_path}/cursor.json"
+            cp "${source}/automation-decision.json" "${run_path}/automation-decision.json"
+            jq -n \
+              --arg upstream_sha "${UPSTREAM_SHA}" \
+              --arg engine_sha "${ENGINE_SHA}" \
+              --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
+              --arg semantic_profile_sha256 "${SEMANTIC_PROFILE_SHA256}" \
+              --arg trading_mode "${mode}" \
+              --arg fingerprint "${fingerprint}" \
+              --arg run_path "${run_path}" \
+              --arg source_run_id "${SOURCE_RUN_ID}" \
+              '{schema_version:"1.1.0",upstream_sha:$upstream_sha,engine_sha:$engine_sha,freqtrade_digest:$freqtrade_digest,semantic_profile_sha256:$semantic_profile_sha256,trading_mode:$trading_mode,fingerprint:$fingerprint,run_path:$run_path,cursor_path:($run_path+"/cursor.json"),source_run_id:$source_run_id}' \
+              > "${run_path}/metadata.json"
+            cp "${run_path}/metadata.json" "discovery/${mode}/latest.json"
           done
-          cursor_path="${run_path}/cursor.json"
-          jq -n \
-            --arg upstream_sha "${UPSTREAM_SHA}" \
-            --arg engine_sha "${ENGINE_SHA}" \
-            --arg freqtrade_digest "${FREQTRADE_DIGEST}" \
-            --arg semantic_profile_sha256 "${SEMANTIC_PROFILE_SHA256}" \
-            --arg trading_mode "${MODE}" \
-            --arg fingerprint "${fingerprint}" \
-            --arg run_path "${run_path}" \
-            --arg cursor_path "${cursor_path}" \
-            --arg run_url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            '{
-              schema_version: "1.1.0",
-              upstream_sha: $upstream_sha,
-              engine_sha: $engine_sha,
-              freqtrade_digest: $freqtrade_digest,
-              semantic_profile_sha256: $semantic_profile_sha256,
-              trading_mode: $trading_mode,
-              fingerprint: $fingerprint,
-              run_path: $run_path,
-              cursor_path: $cursor_path,
-              run_url: $run_url
-            }' > "${run_path}/metadata.json"
-          cp "${run_path}/metadata.json" "discovery/${MODE}/latest.json"
-          git add "discovery/${MODE}"
+          test -s discovery/spot/latest.json
+          test -s discovery/futures/latest.json
+          git add discovery/spot discovery/futures
           git -c user.name=github-actions \
             -c user.email=41898282+github-actions@users.noreply.github.com \
-            commit --quiet -m "discovery(${MODE}): record ${fingerprint}"
+            commit --quiet -m "discovery: record paired ${UPSTREAM_SHA}"
           git push --quiet origin HEAD:compatibility-ledger
 
   candidate-pr:
@@ -592,11 +697,14 @@ jobs:
     needs:
       - resolve
       - discover
+      - product-status
       - publish
     if: >-
       always()
       && needs.resolve.outputs.ready == 'true'
-      && needs.discover.result != 'skipped'
+      && needs.discover.result == 'success'
+      && needs.product-status.result == 'success'
+      && needs.publish.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -620,6 +728,21 @@ jobs:
         with:
           name: nfi-branch-discovery-${{ matrix.trading_mode }}
           path: .discovery/result
+      - name: Download trusted product status
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: nfi-discovery-product-status
+          path: .discovery/status
+      - name: Recheck product status and current refs before PR mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=.discovery/status/compatibility-product-status.json
+          jq -e '.required_status_passed == true' "${status}"
+          test "$(jq -er .observed_identity.engine_sha "${status}")" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
       - name: Check for an exact candidate
         id: candidate
         shell: bash
@@ -646,16 +769,27 @@ jobs:
           MODE: ${{ matrix.trading_mode }}
         shell: bash
         run: |
+          set -euo pipefail
           max_bytes="$(
             jq -er .candidate.max_bytes "planning/${MODE}-discovery-policy.json"
           )"
+          status=.discovery/status/compatibility-product-status.json
+          jq -e '.required_status_passed == true' "${status}"
+          expected_engine_sha="$(jq -er .observed_identity.engine_sha "${status}")"
+          expected_upstream_sha="$(jq -er .observed_identity.upstream_sha "${status}")"
+          test "${expected_engine_sha}" = \
+            "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "${expected_upstream_sha}" = \
+            "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
           uv run python scripts/futures_candidate_pr.py \
             --report .discovery/result/discovery-report.json \
             --candidate-dir .discovery/result/candidate-fixture \
             --repo-root "${GITHUB_WORKSPACE}" \
             --repository "${GITHUB_REPOSITORY}" \
             --base main \
-            --max-bytes "${max_bytes}"
+            --max-bytes "${max_bytes}" \
+            --expected-engine-sha "${expected_engine_sha}" \
+            --expected-upstream-sha "${expected_upstream_sha}"
 
   health:
     name: Reconcile dual-mode discovery health
@@ -664,6 +798,7 @@ jobs:
       - discover
       - publish
       - candidate-pr
+      - product-status
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -674,9 +809,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Reconcile gaps already proven exact by the fast lane
-        if: >-
-          needs.resolve.outputs.ready == 'true'
-          && needs.resolve.outputs.deep_search_required == 'false'
+        if: needs.product-status.result == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
@@ -711,5 +844,6 @@ jobs:
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             --stage "resolve=${{ needs.resolve.result }}" \
             --stage "discover=${{ needs.discover.result }}" \
+            --stage "product-status=${{ needs.product-status.result }}" \
             --stage "publish=${{ needs.publish.result }}" \
             --stage "candidate-pr=${{ needs.candidate-pr.result }}"

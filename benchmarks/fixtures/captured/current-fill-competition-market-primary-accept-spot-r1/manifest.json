@@ -1,0 +1,116 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "current-fill-competition-market-primary-accept-spot-r1",
+  "description": "Pinned Freqtrade 2026.5.1 Spot market-primary-accept fill and exit competition Oracle.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-08-23T11:59:35.257625Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "MarketPrimaryAcceptOracle",
+    "timerange": "20250101-20250102",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": null,
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "MarketPrimaryAcceptOracle",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20250101-20250102",
+      "--pairs",
+      "BTC/USDT",
+      "--fee",
+      "0.001",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "d69866393d2021d8b41004f46b77ac4b2a771db716d1a64d4d64f80564be5c37",
+      "bytes": 4835
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "95d238dac2cae9c6e10dd90ff3f61f02a1c888ce98171251050f4d470574a679",
+      "bytes": 929
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "5732fc91943292c56f61688bee65bc8abb4732b199036d03a53f11e77815f52d",
+      "bytes": 3762
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/reference-markets.json",
+      "sha256": "f6cc81fc15a3d8652c5736668dfa2b183b97b0a32424d867553821394d8ff58f",
+      "bytes": 10572
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/execution-trace-market-primary-accept.json",
+      "sha256": "6970220a11c56ca74813ceb995ac38cd675a6aede2cab2a2d44a0a14d43cd29a",
+      "bytes": 19733
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/001-source-auth-market-primary-accept.json",
+      "sha256": "4b4c9ff7b9c2d25eb9d81cd3727d41a55dee8f2f1fc29e5726ee0d812742b7b1",
+      "bytes": 669
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "2d50d8b85ecbdbc7c45784bc1a44e2f86477ab3bb11396b3bc77ff383f888a31",
+      "bytes": 6261
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "cc4e777afe69572f0c4c0019fd18c118e73ab3e6c9b452e4b97179f2a903f3d8",
+      "bytes": 2214
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "19e32205be115107951faeb9028b9f51a2043055b32a8714da6b65ae5effe8e5",
+      "bytes": 23094
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "e6366203ae6ceea8b9aa64ff85f53f4e45dd25ccd6074e8c45ccc8ecc691ae70",
+      "bytes": 3895
+    }
+  },
+  "measurement": {
+    "warmup_runs": 0,
+    "measured_runs": 2,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

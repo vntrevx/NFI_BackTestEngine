@@ -1,15 +1,12 @@
 //! Side-effect-free scheduling, sizing, precision, and aggregation calculations.
 
-use std::str::FromStr;
 use std::time::Duration;
 
+use crate::domain::{OrderSide, PairSeries, PortfolioConfig, SimError};
+use crate::portfolio::TradeSide;
 use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{One, ToPrimitive, Zero};
-use rust_decimal::Decimal;
-
-use crate::domain::{OrderSide, PairSeries, PortfolioConfig};
-use crate::portfolio::TradeSide;
 
 pub(super) fn duration_ns(duration: Duration) -> u64 {
     u64::try_from(duration.as_nanos()).unwrap_or(u64::MAX)
@@ -43,9 +40,19 @@ pub(super) fn logical_pair_event_count(pairs: &[PairSeries]) -> u64 {
     })
 }
 
-pub(super) fn available_stake_amount(free: f64, tied_up_stake: f64, ratio: f64) -> f64 {
-    let total_stake_amount = (tied_up_stake + free) * ratio;
-    (total_stake_amount - tied_up_stake).min(free).max(0.0)
+pub(super) fn available_stake_amount(
+    free: f64,
+    tied_up_stake: f64,
+    ratio: f64,
+) -> Result<f64, SimError> {
+    let wallet_total = checked_float_sum(&[tied_up_stake, free], "available-stake-total")?;
+    let total_stake_amount =
+        checked_float_product(&[wallet_total, ratio], "available-stake-ratio")?;
+    let available = checked_float_sum(
+        &[total_stake_amount, -tied_up_stake],
+        "available-stake-free",
+    )?;
+    Ok(available.min(free).max(0.0))
 }
 
 pub(super) fn entry_sizing(
@@ -54,26 +61,25 @@ pub(super) fn entry_sizing(
     fee_rate: f64,
     amount_step: f64,
     leverage: f64,
-) -> Option<(f64, f64, f64, f64)> {
+) -> Result<Option<(f64, f64, f64, f64)>, SimError> {
     // Freqtrade treats the callback's stake as collateral/notional and derives
     // amount before accounting for fees (`stake / rate * leverage`). Fees
     // affect profit and wallet proceeds, but do not shrink the requested base
     // amount at entry.
     let raw_amount = requested * leverage / rate;
-    let amount = floor_step(raw_amount, amount_step);
+    let amount = floor_step(raw_amount, amount_step)?;
     if amount <= 0.0 {
-        return None;
+        return Ok(None);
     }
     let notional = precise_product(&[amount, rate])?;
+    // Freqtrade's precision layer represents the amount/rate product through
+    // decimal text before storing collateral. Preserve that boundary here:
+    // direct binary multiplication moves quote-free by one ULP for valid
+    // Binance Futures entries such as 0.186 * 39858.3 / 3.
     let stake = if (leverage - 1.0).abs() < f64::EPSILON {
         notional
     } else {
-        // LocalTrade first stores the ordinary Python-float result of
-        // `amount * rate / leverage`. Its later partial-exit callback feeds
-        // that float into FtPrecise. Replacing the initial operation with
-        // exact decimal arithmetic can move an integer-contract exit one
-        // whole step at values such as 474 - a visible parity difference.
-        (amount * rate) / leverage
+        notional / leverage
     };
     let precise_cost = if (leverage - 1.0).abs() < f64::EPSILON {
         precise_product(&[amount, rate, 1.0 + fee_rate])?
@@ -81,8 +87,13 @@ pub(super) fn entry_sizing(
         let entry_fee = precise_product(&[notional, fee_rate])?;
         precise_sum(&[stake, entry_fee])?
     };
-    let order_cost = (amount * rate) * (1.0 + fee_rate);
-    Some((amount, stake, precise_cost, order_cost))
+    let order_cost = checked_float_product(&[amount, rate, 1.0 + fee_rate], "entry-order-cost")?;
+    if !stake.is_finite() {
+        return Err(SimError::ExactArithmetic {
+            operation: "entry-sizing",
+        });
+    }
+    Ok(Some((amount, stake, precise_cost, order_cost)))
 }
 
 pub(super) fn fee_open(config: &PortfolioConfig) -> f64 {
@@ -107,21 +118,22 @@ pub(super) const fn exit_order_side(side: TradeSide) -> OrderSide {
     }
 }
 
-pub(super) fn floor_step(value: f64, step: f64) -> f64 {
-    exact_step_quantize(value, step, StepQuantize::Floor).unwrap_or_else(|| {
-        let units = (value / step).floor();
-        units * step
+pub(super) fn floor_step(value: f64, step: f64) -> Result<f64, SimError> {
+    exact_step_quantize(value, step, StepQuantize::Floor).ok_or(SimError::ExactArithmetic {
+        operation: "floor-step",
     })
 }
 
-pub(super) fn ceil_step(value: f64, step: f64) -> f64 {
-    exact_step_quantize(value, step, StepQuantize::Ceil)
-        .unwrap_or_else(|| (value / step).ceil() * step)
+pub(super) fn ceil_step(value: f64, step: f64) -> Result<f64, SimError> {
+    exact_step_quantize(value, step, StepQuantize::Ceil).ok_or(SimError::ExactArithmetic {
+        operation: "ceil-step",
+    })
 }
 
-pub(super) fn round_step(value: f64, step: f64) -> f64 {
-    exact_step_quantize(value, step, StepQuantize::Round)
-        .unwrap_or_else(|| (value / step).round() * step)
+pub(super) fn round_step(value: f64, step: f64) -> Result<f64, SimError> {
+    exact_step_quantize(value, step, StepQuantize::Round).ok_or(SimError::ExactArithmetic {
+        operation: "round-step",
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -162,37 +174,78 @@ fn exact_step_quantize(value: f64, step: f64, mode: StepQuantize) -> Option<f64>
             }
         }
     };
-    (step * BigRational::from_integer(units)).to_f64()
+    finite_rational_to_f64(&(step * BigRational::from_integer(units)))
 }
 
-pub(super) fn precise_product(values: &[f64]) -> Option<f64> {
+pub(super) fn checked_float_product(
+    values: &[f64],
+    operation: &'static str,
+) -> Result<f64, SimError> {
+    values.iter().try_fold(1.0, |product, value| {
+        checked_finite(product * value, operation)
+    })
+}
+
+pub(super) fn checked_float_sum(values: &[f64], operation: &'static str) -> Result<f64, SimError> {
     values
+        .iter()
+        .try_fold(0.0, |sum, value| checked_finite(sum + value, operation))
+}
+
+pub(super) fn checked_finite(value: f64, operation: &'static str) -> Result<f64, SimError> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(SimError::ExactArithmetic { operation })
+    }
+}
+
+pub(super) fn precise_product(values: &[f64]) -> Result<f64, SimError> {
+    let product = values
         .iter()
         .try_fold(BigRational::one(), |product, value| {
             exact_rational(*value).map(|number| product * number)
-        })?
-        .to_f64()
+        })
+        .ok_or(SimError::ExactArithmetic {
+            operation: "precise-product",
+        })?;
+    finite_rational_to_f64(&product).ok_or(SimError::ExactArithmetic {
+        operation: "precise-product",
+    })
 }
 
-pub(super) fn precise_sum(values: &[f64]) -> Option<f64> {
-    values
+pub(super) fn precise_sum(values: &[f64]) -> Result<f64, SimError> {
+    let sum = values
         .iter()
         .try_fold(BigRational::zero(), |sum, value| {
             exact_rational(*value).map(|number| sum + number)
-        })?
-        .to_f64()
+        })
+        .ok_or(SimError::ExactArithmetic {
+            operation: "precise-sum",
+        })?;
+    finite_rational_to_f64(&sum).ok_or(SimError::ExactArithmetic {
+        operation: "precise-sum",
+    })
 }
 
-pub(super) fn precise_product_quotient(left: f64, right: f64, denominator: f64) -> Option<f64> {
-    let denominator = exact_rational(denominator)?;
+pub(super) fn precise_product_quotient(
+    left: f64,
+    right: f64,
+    denominator: f64,
+) -> Result<f64, SimError> {
+    let failure = || SimError::ExactArithmetic {
+        operation: "precise-product-quotient",
+    };
+    let denominator = exact_rational(denominator).ok_or_else(failure)?;
     if denominator.is_zero() {
-        return None;
+        return Err(failure());
     }
-    ft_precise_division(
-        &(exact_rational(left)? * exact_rational(right)?),
+    let quotient = ft_precise_division(
+        &(exact_rational(left).ok_or_else(failure)? * exact_rational(right).ok_or_else(failure)?),
         &denominator,
-    )?
-    .to_f64()
+    )
+    .ok_or_else(failure)?;
+    finite_rational_to_f64(&quotient).ok_or_else(failure)
 }
 
 /// Reproduce CCXT `Precise.div(..., precision=18)`.
@@ -216,33 +269,66 @@ pub(super) fn ft_precise_division(
 /// Convert the shortest round-trippable float text into an exact rational.
 ///
 /// CCXT's `Precise`, and therefore Freqtrade's `FtPrecise`, performs decimal
-/// string arithmetic. `rust_decimal` is used only to parse one f64 string
-/// (at most 17 significant digits); multiplication and addition stay exact,
-/// while `ft_precise_division` applies CCXT's explicit division boundary.
+/// string arithmetic. The shortest f64 text is parsed directly into an
+/// unbounded integer ratio, including exponents outside fixed-decimal ranges;
+/// `ft_precise_division` then applies CCXT's explicit division boundary.
 pub(super) fn exact_rational(value: f64) -> Option<BigRational> {
     if !value.is_finite() {
         return None;
     }
     let encoded = value.to_string();
-    let decimal = Decimal::from_str(&encoded)
-        .or_else(|_| Decimal::from_scientific(&encoded))
-        .ok()?;
-    let numerator = BigInt::from(decimal.mantissa());
-    let denominator = BigInt::from(10_u8).pow(decimal.scale());
-    Some(BigRational::new(numerator, denominator))
+    let (mantissa, exponent) = if let Some((mantissa, exponent)) = encoded.split_once(['e', 'E']) {
+        (mantissa, exponent.parse::<i32>().ok()?)
+    } else {
+        (encoded.as_str(), 0_i32)
+    };
+    let negative = mantissa.starts_with('-');
+    let unsigned = mantissa.trim_start_matches(['-', '+']);
+    let (whole, fraction) = if let Some(parts) = unsigned.split_once('.') {
+        parts
+    } else {
+        (unsigned, "")
+    };
+    let digits = format!("{whole}{fraction}");
+    let mut numerator = BigInt::parse_bytes(digits.as_bytes(), 10)?;
+    if negative {
+        numerator = -numerator;
+    }
+    let decimal_exponent = exponent.checked_sub(i32::try_from(fraction.len()).ok()?)?;
+    if decimal_exponent >= 0 {
+        numerator *= BigInt::from(10_u8).pow(u32::try_from(decimal_exponent).ok()?);
+        Some(BigRational::from_integer(numerator))
+    } else {
+        let denominator = BigInt::from(10_u8).pow(decimal_exponent.unsigned_abs());
+        Some(BigRational::new(numerator, denominator))
+    }
 }
 
-pub(super) fn round_eight(value: f64) -> f64 {
+fn finite_rational_to_f64(value: &BigRational) -> Option<f64> {
+    value.to_f64().filter(|number| number.is_finite())
+}
+
+pub(super) fn round_eight(value: f64) -> Result<f64, SimError> {
     // Freqtrade intentionally crosses a text boundary with
     // `float(f"{value:.8f}")`. Rust's numeric `round()` resolves exact halves
     // away from zero, while Python formatting uses ties-to-even. Formatting
     // here mirrors the pinned contract and also avoids a second rounding from
     // multiplying a large binary float by 1e8 first.
+    if !value.is_finite() {
+        return Err(SimError::ExactArithmetic {
+            operation: "round-eight",
+        });
+    }
     format!("{value:.8}")
         .parse::<f64>()
-        .expect("finite simulator profit formats as a finite decimal")
+        .ok()
+        .filter(|rounded| rounded.is_finite())
+        .ok_or(SimError::ExactArithmetic {
+            operation: "round-eight",
+        })
 }
 
+#[cfg(test)]
 pub(super) fn pairwise_sum(values: &[f64]) -> f64 {
     const NUMPY_BLOCK_SIZE: usize = 128;
     if values.len() < 8 {
@@ -277,25 +363,79 @@ pub(super) fn pairwise_sum(values: &[f64]) -> f64 {
     pairwise_sum(&values[..middle]) + pairwise_sum(&values[middle..])
 }
 
-pub(super) fn python_float_sum(values: impl IntoIterator<Item = f64>) -> f64 {
-    // This is CPython 3.14's Neumaier compensated fast path for built-in
-    // sum(float_iterable). Freqtrade 2026.5.1 runs on that interpreter, and
-    // total_volume is exported without decimal rounding. Keeping this small
-    // implementation local makes the parity rule explicit and testable.
-    let mut high = 0.0;
-    let mut low = 0.0;
-    for value in values {
-        let next = high + value;
-        if high.abs() >= value.abs() {
-            low += (high - next) + value;
-        } else {
-            low += (value - next) + high;
+pub(super) fn checked_pairwise_sum(
+    values: &[f64],
+    operation: &'static str,
+) -> Result<f64, SimError> {
+    const NUMPY_BLOCK_SIZE: usize = 128;
+    if values.len() < 8 {
+        return values
+            .iter()
+            .try_fold(-0.0, |sum, value| checked_finite(sum + value, operation));
+    }
+    if values.len() <= NUMPY_BLOCK_SIZE {
+        let mut accumulators = [
+            values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7],
+        ];
+        let mut index = 8;
+        while index + 7 < values.len() {
+            for lane in 0..8 {
+                accumulators[lane] =
+                    checked_finite(accumulators[lane] + values[index + lane], operation)?;
+            }
+            index += 8;
         }
+        let left = checked_float_sum(
+            &[
+                checked_float_sum(&[accumulators[0], accumulators[1]], operation)?,
+                checked_float_sum(&[accumulators[2], accumulators[3]], operation)?,
+            ],
+            operation,
+        )?;
+        let right = checked_float_sum(
+            &[
+                checked_float_sum(&[accumulators[4], accumulators[5]], operation)?,
+                checked_float_sum(&[accumulators[6], accumulators[7]], operation)?,
+            ],
+            operation,
+        )?;
+        let mut result = checked_float_sum(&[left, right], operation)?;
+        while index < values.len() {
+            result = checked_finite(result + values[index], operation)?;
+            index += 1;
+        }
+        return Ok(result);
+    }
+    let mut middle = values.len() / 2;
+    middle -= middle % 8;
+    checked_float_sum(
+        &[
+            checked_pairwise_sum(&values[..middle], operation)?,
+            checked_pairwise_sum(&values[middle..], operation)?,
+        ],
+        operation,
+    )
+}
+
+pub(super) fn checked_python_float_sum(
+    values: impl IntoIterator<Item = f64>,
+    operation: &'static str,
+) -> Result<f64, SimError> {
+    let mut high: f64 = 0.0;
+    let mut low: f64 = 0.0;
+    for value in values {
+        let next = checked_finite(high + value, operation)?;
+        let correction = if high.abs() >= value.abs() {
+            checked_finite((high - next) + value, operation)?
+        } else {
+            checked_finite((value - next) + high, operation)?
+        };
+        low = checked_finite(low + correction, operation)?;
         high = next;
     }
-    if low != 0.0 && low.is_finite() {
-        high + low
+    if low == 0.0 {
+        Ok(high)
     } else {
-        high
+        checked_finite(high + low, operation)
     }
 }

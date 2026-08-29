@@ -1,0 +1,218 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "PortfolioPressureOracle",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250101-20250102"
+  },
+  "summary": {
+    "total_trades": 3,
+    "starting_balance": "1000",
+    "final_balance": "1213.12519",
+    "profit_total_abs": "213.12519",
+    "total_volume": "5808.68421",
+    "rejected_signals": 3,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1735690500000,
+      "close_timestamp_ms": 1735691100000,
+      "open_rate": "100",
+      "close_rate": "110",
+      "amount": "9",
+      "stake_amount": "900",
+      "max_stake_amount": "900",
+      "leverage": "1",
+      "entry_tag": "portfolio-pressure",
+      "exit_reason": "pressure-rotate",
+      "fees": {
+        "open_rate": "0",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "90",
+        "ratio": "0.1"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "1.01",
+      "stop_loss": "1.01",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735690500000,
+          "amount": "9",
+          "price": "100",
+          "cost": "900",
+          "tag": "portfolio-pressure"
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735691100000,
+          "amount": "9",
+          "price": "110",
+          "cost": "990",
+          "tag": "pressure-rotate"
+        }
+      ],
+      "duration_minutes": 10,
+      "is_open": false,
+      "minimum_rate": "99",
+      "maximum_rate": "111",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 2
+    },
+    {
+      "sequence": 1,
+      "pair": "ETH/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1735691100000,
+      "close_timestamp_ms": 1735692300000,
+      "open_rate": "110",
+      "close_rate": "99",
+      "amount": "4.4591",
+      "stake_amount": "490.501",
+      "max_stake_amount": "980.991",
+      "leverage": "1",
+      "entry_tag": "portfolio-pressure",
+      "exit_reason": "pressure-rotate",
+      "fees": {
+        "open_rate": "0",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-71.3451",
+        "ratio": "-0.07272757854047592"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "1.11",
+      "stop_loss": "1.11",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735691100000,
+          "amount": "8.9181",
+          "price": "110",
+          "cost": "980.9910000000001",
+          "tag": "portfolio-pressure"
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735691700000,
+          "amount": "4.459",
+          "price": "105",
+          "cost": "468.19499999999994",
+          "tag": "pressure-partial"
+        },
+        {
+          "sequence": 2,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735692300000,
+          "amount": "4.4591",
+          "price": "99",
+          "cost": "441.45090000000005",
+          "tag": "pressure-rotate"
+        }
+      ],
+      "duration_minutes": 20,
+      "is_open": false,
+      "minimum_rate": "98",
+      "maximum_rate": "111",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 2
+    },
+    {
+      "sequence": 2,
+      "pair": "BTC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1735692300000,
+      "close_timestamp_ms": 1735692900000,
+      "open_rate": "99",
+      "close_rate": "120",
+      "amount": "9.26049",
+      "stake_amount": "916.78851",
+      "max_stake_amount": "916.78851",
+      "leverage": "1",
+      "entry_tag": "portfolio-pressure",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "194.47029",
+        "ratio": "0.21212121212121213"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "1",
+      "stop_loss": "1",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1735692300000,
+          "amount": "9.26049",
+          "price": "99",
+          "cost": "916.7885100000001",
+          "tag": "portfolio-pressure"
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1735692900000,
+          "amount": "9.26049",
+          "price": "120",
+          "cost": "1111.2588",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 10,
+      "is_open": false,
+      "minimum_rate": "98",
+      "maximum_rate": "121",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 2
+    }
+  ]
+}

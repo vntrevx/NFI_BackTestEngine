@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "strategy_sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a",
+  "classification": "vector-only",
+  "verification_state": "quick_verified",
+  "changed_branch_reached": true,
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "blockers": [],
+  "mode_provenance": {
+    "roles": {
+      "fixture_manifest": "f2c456577d250de9b634aa3878e89937094d41542b94f946220e8f4d16e7ec81",
+      "official_signal_tag": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb",
+      "official_trade_surface": "c331bbc8cc741cf31d6310951d827d2eff821dad2b3dd465e64501f06d5dbbf7",
+      "official_full_state": "791da84632a886a8db79ab1ed3eee63a3d137eeb523d1a550bb663193e75d573",
+      "native_signal_tag": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb",
+      "native_trade_surface": "c331bbc8cc741cf31d6310951d827d2eff821dad2b3dd465e64501f06d5dbbf7",
+      "native_full_state": "791da84632a886a8db79ab1ed3eee63a3d137eeb523d1a550bb663193e75d573",
+      "native_input": "0d9022527667584ab73c0fa5978b9f24b469dc1a5d93ab4442942146f7356d04",
+      "native_result": "e139633d6ff459dcfa0c301d382d170c989229a453fcdc6573b22f8fd4b240c3",
+      "native_vector": "94653b259dd458669dc4d0f034b1ce5094f78bbd85b89a022df2aea30cf11c69"
+    },
+    "native_run": {
+      "trading_mode": "spot",
+      "input_sha256": "0d9022527667584ab73c0fa5978b9f24b469dc1a5d93ab4442942146f7356d04",
+      "result_sha256": "e139633d6ff459dcfa0c301d382d170c989229a453fcdc6573b22f8fd4b240c3",
+      "vector_sha256": "94653b259dd458669dc4d0f034b1ce5094f78bbd85b89a022df2aea30cf11c69",
+      "trade_surface_sha256": "c331bbc8cc741cf31d6310951d827d2eff821dad2b3dd465e64501f06d5dbbf7",
+      "full_state_sha256": "791da84632a886a8db79ab1ed3eee63a3d137eeb523d1a550bb663193e75d573",
+      "official_full_state_sha256": "791da84632a886a8db79ab1ed3eee63a3d137eeb523d1a550bb663193e75d573",
+      "fixture_projection_sha256": "6c9cc678b518e0b83a27e91c8826aa1f1d159ad05678527e57d97707b4494980"
+    }
+  }
+}

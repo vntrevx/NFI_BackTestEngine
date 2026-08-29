@@ -1,0 +1,138 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "current-callback-oracle-spot-r1",
+  "description": "Pinned Freqtrade 2026.5.1 spot callback cadence, order, visibility, exception rollback, and same-candle competition oracle.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-08-23T05:28:09Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "Task14CallbackOracle",
+    "timerange": "20250101-20250102",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": null,
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "Task14CallbackOracle",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20250101-20250102",
+      "--pairs",
+      "BTC/USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "auxiliary",
+      "path": "inputs/callback-evidence.json",
+      "sha256": "aa9ac43302004abf09e9230a7d040223a40a05334d13ce0f287364568a292bad",
+      "bytes": 2181
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "cbdfbdf864a576aa487531e780f6eb7715db111e3af9283587a1db498626bf0b",
+      "bytes": 859
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "e5460a3957a4ced1f7ac8eefe324a7468b10a686e7f60d90651dfe0b45a5ee7c",
+      "bytes": 44826
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/reference-markets.json",
+      "sha256": "f6cc81fc15a3d8652c5736668dfa2b183b97b0a32424d867553821394d8ff58f",
+      "bytes": 10572
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/process_capture.py",
+      "sha256": "b3bc45a8bf2805f4da7d8dfbdac602724f3dc48019b67d468108f405219b03d4",
+      "bytes": 4453
+    },
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "addb7c16e3dc9e1d5bc23a34fcf2da7f1bc3fbb9b0b4ab4b4f32e765655233db",
+      "bytes": 8081
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/callback-trace.json",
+      "sha256": "33e335b979f29d09da7acca0f834f4682195078401225321a34f47214c6f63d2",
+      "bytes": 11721
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/official-trade-state.json",
+      "sha256": "25b519f9ba779063251cdff2b725955fec43bdca1ce1dd8c11660ed9ecd9f75b",
+      "bytes": 1552
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/official-source-authentication.json",
+      "sha256": "a0812392f56f99ef89ba7227cc9a8ef4d7d6121bd50e50c79e75af5793035e1d",
+      "bytes": 5360
+    },
+    {
+      "role": "auxiliary",
+      "path": "artifacts/reference-cli-results.json",
+      "sha256": "c4ff7d3c6af8b848702c445c06f7b838c3ea11aed781121c52b10781d35c72e7",
+      "bytes": 667
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "46b85fb99730ba64f7453b36f4313570291d1d73c1b25add89fd4830370ee6b1",
+      "bytes": 42251
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "6bcea30ab020ca73aa6c4439e606a624e661697888e7d97ff5de48c2bf6cff53",
+      "bytes": 465303
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "8ea0fec13e1781e4b0a0ab582f9259a8f697107b99d6487ee016007693134523",
+      "bytes": 17756
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "2240e86d4c92eae9bbfd767dc1daa3109e59d0d46f3b98ceedc90ad9f4c9df41",
+      "bytes": 17760
+    }
+  },
+  "measurement": {
+    "warmup_runs": 0,
+    "measured_runs": 2,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

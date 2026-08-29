@@ -1,0 +1,1 @@
+[{"callbacks":{"callback":null,"phase":"portfolio.after_candle"},"execution":{"closed_trade_count":0,"realized_profit":"0","rejected_signals":0,"trade_id_counter":0},"open_trades":0,"orders":{"filled_order_count":0},"pair":"BTC/USDT","timestamp_ms":1735689900000,"wallet":{"base_balances":[],"quote_free":"1000"}}]

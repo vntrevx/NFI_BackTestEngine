@@ -1,7 +1,7 @@
 {
   "schema_version": "freqtrade-execution-contract-v1",
-  "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
-  "scheduler_contract_sha256": "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a",
+  "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8",
+  "scheduler_contract_sha256": "bbd84f6c1eebd789cc0b70055962be84e90886bbbb34797f470d0696fe93e631",
   "scope": {
     "trading_modes": [
       "spot"
@@ -108,5 +108,5 @@
       "locks"
     ]
   },
-  "fingerprint": "ad3d78db362c872a99bc81dbda77024d3665a5eb230d06fef02fbf7172605ff0"
+  "fingerprint": "15a22468b693039546db79f932159804975bea7fc3c1f428f7e7bd4636b69293"
 }

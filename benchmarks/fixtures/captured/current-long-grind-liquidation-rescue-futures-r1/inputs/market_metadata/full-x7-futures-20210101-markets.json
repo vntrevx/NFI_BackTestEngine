@@ -1,0 +1,6467 @@
+{
+  "schema_version": "1.3.0",
+  "created_at": "2026-07-24T16:27:05.416628Z",
+  "ccxt_version": "4.5.55",
+  "exchange": "binance",
+  "trading_mode": "futures",
+  "precision_mode": 4,
+  "pairs": [
+    "1INCH/USDT:USDT",
+    "AAVE/USDT:USDT",
+    "ADA/USDT:USDT",
+    "ALGO/USDT:USDT",
+    "ATOM/USDT:USDT",
+    "AVAX/USDT:USDT",
+    "AXS/USDT:USDT",
+    "BAND/USDT:USDT",
+    "BAT/USDT:USDT",
+    "BCH/USDT:USDT",
+    "BEL/USDT:USDT",
+    "BNB/USDT:USDT",
+    "BTC/USDT:USDT",
+    "COMP/USDT:USDT",
+    "CRV/USDT:USDT",
+    "DASH/USDT:USDT",
+    "DOGE/USDT:USDT",
+    "DOT/USDT:USDT",
+    "EGLD/USDT:USDT",
+    "ENJ/USDT:USDT",
+    "ETC/USDT:USDT",
+    "ETH/USDT:USDT",
+    "FIL/USDT:USDT",
+    "GRT/USDT:USDT",
+    "ICX/USDT:USDT",
+    "IOST/USDT:USDT",
+    "IOTA/USDT:USDT",
+    "KAVA/USDT:USDT",
+    "KNC/USDT:USDT",
+    "KSM/USDT:USDT",
+    "LINK/USDT:USDT",
+    "LTC/USDT:USDT",
+    "NEAR/USDT:USDT",
+    "NEO/USDT:USDT",
+    "ONT/USDT:USDT",
+    "QTUM/USDT:USDT",
+    "RLC/USDT:USDT",
+    "RSR/USDT:USDT",
+    "RUNE/USDT:USDT",
+    "SKL/USDT:USDT",
+    "SNX/USDT:USDT",
+    "SOL/USDT:USDT",
+    "STORJ/USDT:USDT",
+    "SUSHI/USDT:USDT",
+    "THETA/USDT:USDT",
+    "TRB/USDT:USDT",
+    "TRX/USDT:USDT",
+    "UNI/USDT:USDT",
+    "VET/USDT:USDT",
+    "XLM/USDT:USDT",
+    "XMR/USDT:USDT",
+    "XRP/USDT:USDT",
+    "XTZ/USDT:USDT",
+    "YFI/USDT:USDT",
+    "ZEC/USDT:USDT",
+    "ZEN/USDT:USDT",
+    "ZIL/USDT:USDT",
+    "ZRX/USDT:USDT"
+  ],
+  "leverage_tier_source": {
+    "kind": "freqtrade-bundled-binance-leverage-tiers",
+    "freqtrade_version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "docker_policy": {
+      "schema_version": "1.0.0",
+      "execution_mode": "sequential",
+      "maximum_parallel_containers": 1,
+      "daemon_total_memory_bytes": 50195083264,
+      "daemon_reserve_bytes": 6442450944,
+      "active_container_memory_bytes": 18489834209,
+      "container_memory_limit_bytes": 25262798111,
+      "swap_mode": "disabled",
+      "daemon_swap_bytes": 0,
+      "container_swap_limit_bytes": 0,
+      "container_memory_swap_limit_bytes": 25262798111,
+      "memory_limit_enforced": true,
+      "swap_limit_enforced": true
+    }
+  },
+  "markets": {
+    "1INCH/USDT:USDT": {
+      "symbol": "1INCH/USDT:USDT",
+      "base": "1INCH",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1608879600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 20000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "AAVE/USDT:USDT": {
+      "symbol": "AAVE/USDT:USDT",
+      "base": "AAVE",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1602831600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 1000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 150000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 250.0
+        },
+        {
+          "min_notional": 150000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1000.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 3500.0
+        },
+        {
+          "min_notional": 600000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 18500.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 6000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 168500.0
+        },
+        {
+          "min_notional": 6000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 318500.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 15000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 1256000.0
+        },
+        {
+          "min_notional": 15000000.0,
+          "max_notional": 30000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 5006000.0
+        }
+      ]
+    },
+    "ADA/USDT:USDT": {
+      "symbol": "ADA/USDT:USDT",
+      "base": "ADA",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1580457600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 30000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 50.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 300.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1300.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 6300.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 56300.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 556300.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 25000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 1056300.0
+        },
+        {
+          "min_notional": 25000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 4181300.0
+        },
+        {
+          "min_notional": 50000000.0,
+          "max_notional": 100000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 16681300.0
+        }
+      ]
+    },
+    "ALGO/USDT:USDT": {
+      "symbol": "ALGO/USDT:USDT",
+      "base": "ALGO",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1592298000000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 325.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 175000.0,
+          "maximum_leverage": 15.0,
+          "maintenance_margin_rate": 0.0333,
+          "maintenance_amount": 1155.0
+        },
+        {
+          "min_notional": 175000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 4077.5
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 16577.5
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 35327.5
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 4500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 97877.5
+        },
+        {
+          "min_notional": 4500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 472727.5
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 2347727.5
+        }
+      ]
+    },
+    "ATOM/USDT:USDT": {
+      "symbol": "ATOM/USDT:USDT",
+      "base": "ATOM",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581077400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 2000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.006,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 40.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 80000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 290.0
+        },
+        {
+          "min_notional": 80000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 690.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 1690.0
+        },
+        {
+          "min_notional": 600000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 16690.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 4000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 116690.0
+        },
+        {
+          "min_notional": 4000000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 216690.0
+        },
+        {
+          "min_notional": 5000000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 841690.0
+        },
+        {
+          "min_notional": 12000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 3841690.0
+        }
+      ]
+    },
+    "AVAX/USDT:USDT": {
+      "symbol": "AVAX/USDT:USDT",
+      "base": "AVAX",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1600844400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 500000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 80000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 125.0
+        },
+        {
+          "min_notional": 80000.0,
+          "max_notional": 160000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 525.0
+        },
+        {
+          "min_notional": 160000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1325.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 1600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 5325.0
+        },
+        {
+          "min_notional": 1600000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 45325.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 16000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 445325.0
+        },
+        {
+          "min_notional": 16000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 845325.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 3345325.0
+        },
+        {
+          "min_notional": 40000000.0,
+          "max_notional": 80000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 13345325.0
+        }
+      ]
+    },
+    "AXS/USDT:USDT": {
+      "symbol": "AXS/USDT:USDT",
+      "base": "AXS",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1605855600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "BAND/USDT:USDT": {
+      "symbol": "BAND/USDT:USDT",
+      "base": "BAND",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1596006000000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 4000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "BAT/USDT:USDT": {
+      "symbol": "BAT/USDT:USDT",
+      "base": "BAT",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581581100000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "BCH/USDT:USDT": {
+      "symbol": "BCH/USDT:USDT",
+      "base": "BCH",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1576745700000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 10000.0
+        },
+        "cost": {
+          "min": 20.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 50.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 160000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 550.0
+        },
+        {
+          "min_notional": 160000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1350.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 1600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 5350.0
+        },
+        {
+          "min_notional": 1600000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 45350.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 16000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 445350.0
+        },
+        {
+          "min_notional": 16000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 845350.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 3345350.0
+        },
+        {
+          "min_notional": 40000000.0,
+          "max_notional": 80000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 13345350.0
+        }
+      ]
+    },
+    "BEL/USDT:USDT": {
+      "symbol": "BEL/USDT:USDT",
+      "base": "BEL",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1605682800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 60000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 500.0
+        },
+        {
+          "min_notional": 60000.0,
+          "max_notional": 70000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 2000.0
+        },
+        {
+          "min_notional": 70000.0,
+          "max_notional": 700000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 4919.0
+        },
+        {
+          "min_notional": 700000.0,
+          "max_notional": 2500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 63229.0
+        },
+        {
+          "min_notional": 2500000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 688229.0
+        }
+      ]
+    },
+    "BNB/USDT:USDT": {
+      "symbol": "BNB/USDT:USDT",
+      "base": "BNB",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581321600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.01,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 100000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.006,
+          "maintenance_amount": 10.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 400000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 810.0
+        },
+        {
+          "min_notional": 400000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 4810.0
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 12310.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 15000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 87310.0
+        },
+        {
+          "min_notional": 15000000.0,
+          "max_notional": 30000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 837310.0
+        },
+        {
+          "min_notional": 30000000.0,
+          "max_notional": 37500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 1587310.0
+        },
+        {
+          "min_notional": 37500000.0,
+          "max_notional": 75000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 6274810.0
+        },
+        {
+          "min_notional": 75000000.0,
+          "max_notional": 150000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 25024810.0
+        }
+      ]
+    },
+    "BTC/USDT:USDT": {
+      "symbol": "BTC/USDT:USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1567965300000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.1
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 1000.0
+        },
+        "cost": {
+          "min": 50.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 300000.0,
+          "maximum_leverage": 150.0,
+          "maintenance_margin_rate": 0.004,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 300000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 100.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 300.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 1500.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 12000.0
+        },
+        {
+          "min_notional": 12000000.0,
+          "max_notional": 70000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 132000.0
+        },
+        {
+          "min_notional": 70000000.0,
+          "max_notional": 100000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 482000.0
+        },
+        {
+          "min_notional": 100000000.0,
+          "max_notional": 230000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 2982000.0
+        },
+        {
+          "min_notional": 230000000.0,
+          "max_notional": 480000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 14482000.0
+        },
+        {
+          "min_notional": 480000000.0,
+          "max_notional": 600000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 26482000.0
+        },
+        {
+          "min_notional": 600000000.0,
+          "max_notional": 800000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.15,
+          "maintenance_amount": 41482000.0
+        },
+        {
+          "min_notional": 800000000.0,
+          "max_notional": 1200000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 121482000.0
+        },
+        {
+          "min_notional": 1200000000.0,
+          "max_notional": 1800000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 421482000.0
+        }
+      ]
+    },
+    "COMP/USDT:USDT": {
+      "symbol": "COMP/USDT:USDT",
+      "base": "COMP",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1593507600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 50000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 325.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 175000.0,
+          "maximum_leverage": 15.0,
+          "maintenance_margin_rate": 0.0333,
+          "maintenance_amount": 1155.0
+        },
+        {
+          "min_notional": 175000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 4077.5
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 16577.5
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 35327.5
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 4500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 97877.5
+        },
+        {
+          "min_notional": 4500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 472727.5
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 2347727.5
+        }
+      ]
+    },
+    "CRV/USDT:USDT": {
+      "symbol": "CRV/USDT:USDT",
+      "base": "CRV",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1598943600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 4000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 35.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 80000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 285.0
+        },
+        {
+          "min_notional": 80000.0,
+          "max_notional": 300000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 685.0
+        },
+        {
+          "min_notional": 300000.0,
+          "max_notional": 600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 2185.0
+        },
+        {
+          "min_notional": 600000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 17185.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 6000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 167185.0
+        },
+        {
+          "min_notional": 6000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 317185.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 15000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 1254685.0
+        },
+        {
+          "min_notional": 15000000.0,
+          "max_notional": 30000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 5004685.0
+        }
+      ]
+    },
+    "DASH/USDT:USDT": {
+      "symbol": "DASH/USDT:USDT",
+      "base": "DASH",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1580803500000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 30000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 325.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 175000.0,
+          "maximum_leverage": 15.0,
+          "maintenance_margin_rate": 0.0333,
+          "maintenance_amount": 1155.0
+        },
+        {
+          "min_notional": 175000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 4077.5
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 16577.5
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 35327.5
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 4500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 97877.5
+        },
+        {
+          "min_notional": 4500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 472727.5
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 2347727.5
+        }
+      ]
+    },
+    "DOGE/USDT:USDT": {
+      "symbol": "DOGE/USDT:USDT",
+      "base": "DOGE",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1594371600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 300000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 80000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 80000.0,
+          "max_notional": 150000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 280.0
+        },
+        {
+          "min_notional": 150000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.0125,
+          "maintenance_amount": 655.0
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 6280.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 4000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 16280.0
+        },
+        {
+          "min_notional": 4000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 116280.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 1116280.0
+        },
+        {
+          "min_notional": 40000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 2116280.0
+        },
+        {
+          "min_notional": 50000000.0,
+          "max_notional": 100000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 8366280.0
+        },
+        {
+          "min_notional": 100000000.0,
+          "max_notional": 200000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 33366280.0
+        }
+      ]
+    },
+    "DOT/USDT:USDT": {
+      "symbol": "DOT/USDT:USDT",
+      "base": "DOT",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1598079600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 3000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 35.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 285.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 785.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 3285.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 4000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 23285.0
+        },
+        {
+          "min_notional": 4000000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 223285.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 423285.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 30000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 1673285.0
+        },
+        {
+          "min_notional": 30000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 9173285.0
+        }
+      ]
+    },
+    "EGLD/USDT:USDT": {
+      "symbol": "EGLD/USDT:USDT",
+      "base": "EGLD",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1600066800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 1000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "ENJ/USDT:USDT": {
+      "symbol": "ENJ/USDT:USDT",
+      "base": "ENJ",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1601362800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 30000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "ETC/USDT:USDT": {
+      "symbol": "ETC/USDT:USDT",
+      "base": "ETC",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1579161600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 300000.0
+        },
+        "cost": {
+          "min": 20.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 50.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 80000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 300.0
+        },
+        {
+          "min_notional": 80000.0,
+          "max_notional": 400000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 400000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 2700.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 22700.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 172700.0
+        },
+        {
+          "min_notional": 5000000.0,
+          "max_notional": 7000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 297700.0
+        },
+        {
+          "min_notional": 7000000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 1172700.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 9000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 3172700.0
+        }
+      ]
+    },
+    "ETH/USDT:USDT": {
+      "symbol": "ETH/USDT:USDT",
+      "base": "ETH",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1574840700000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 10000.0
+        },
+        "cost": {
+          "min": 20.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 300000.0,
+          "maximum_leverage": 150.0,
+          "maintenance_margin_rate": 0.004,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 300000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 100.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 300.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 1500.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 12000.0
+        },
+        {
+          "min_notional": 12000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 132000.0
+        },
+        {
+          "min_notional": 50000000.0,
+          "max_notional": 65000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 382000.0
+        },
+        {
+          "min_notional": 65000000.0,
+          "max_notional": 150000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 2007000.0
+        },
+        {
+          "min_notional": 150000000.0,
+          "max_notional": 320000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 9507000.0
+        },
+        {
+          "min_notional": 320000000.0,
+          "max_notional": 400000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 17507000.0
+        },
+        {
+          "min_notional": 400000000.0,
+          "max_notional": 530000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.15,
+          "maintenance_amount": 27507000.0
+        },
+        {
+          "min_notional": 530000000.0,
+          "max_notional": 800000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 80507000.0
+        },
+        {
+          "min_notional": 800000000.0,
+          "max_notional": 1200000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 280507000.0
+        }
+      ]
+    },
+    "FIL/USDT:USDT": {
+      "symbol": "FIL/USDT:USDT",
+      "base": "FIL",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1602828000000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.006,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 350000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 350000.0,
+          "max_notional": 600000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 3200.0
+        },
+        {
+          "min_notional": 600000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 6200.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 31200.0
+        },
+        {
+          "min_notional": 5000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 281200.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 531200.0
+        },
+        {
+          "min_notional": 12500000.0,
+          "max_notional": 25000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 2093700.0
+        },
+        {
+          "min_notional": 25000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 8343700.0
+        }
+      ]
+    },
+    "GRT/USDT:USDT": {
+      "symbol": "GRT/USDT:USDT",
+      "base": "GRT",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1608274800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 50000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "ICX/USDT:USDT": {
+      "symbol": "ICX/USDT:USDT",
+      "base": "ICX",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1600153200000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 30000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "IOST/USDT:USDT": {
+      "symbol": "IOST/USDT:USDT",
+      "base": "IOST",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1582272300000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-07
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 800000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "IOTA/USDT:USDT": {
+      "symbol": "IOTA/USDT:USDT",
+      "base": "IOTA",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581494400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 30000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "KAVA/USDT:USDT": {
+      "symbol": "KAVA/USDT:USDT",
+      "base": "KAVA",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1595919900000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 12000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "KNC/USDT:USDT": {
+      "symbol": "KNC/USDT:USDT",
+      "base": "KNC",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1592815800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 5000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "KSM/USDT:USDT": {
+      "symbol": "KSM/USDT:USDT",
+      "base": "KSM",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1602658800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 2000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "LINK/USDT:USDT": {
+      "symbol": "LINK/USDT:USDT",
+      "base": "LINK",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1579248000000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 200000.0
+        },
+        "cost": {
+          "min": 20.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 50.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 400000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 1050.0
+        },
+        {
+          "min_notional": 400000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 3050.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 1600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 7050.0
+        },
+        {
+          "min_notional": 1600000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 47050.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 16000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 447050.0
+        },
+        {
+          "min_notional": 16000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 847050.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 3347050.0
+        },
+        {
+          "min_notional": 40000000.0,
+          "max_notional": 80000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 13347050.0
+        }
+      ]
+    },
+    "LTC/USDT:USDT": {
+      "symbol": "LTC/USDT:USDT",
+      "base": "LTC",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1578557100000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 20000.0
+        },
+        "cost": {
+          "min": 20.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 50.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 160000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 300.0
+        },
+        {
+          "min_notional": 160000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1100.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 1600000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 5100.0
+        },
+        {
+          "min_notional": 1600000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 45100.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 16000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 445100.0
+        },
+        {
+          "min_notional": 16000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 845100.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 3345100.0
+        },
+        {
+          "min_notional": 40000000.0,
+          "max_notional": 80000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 13345100.0
+        }
+      ]
+    },
+    "NEAR/USDT:USDT": {
+      "symbol": "NEAR/USDT:USDT",
+      "base": "NEAR",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1602748800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 20000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 20000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 100.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1100.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 6100.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 56100.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 556100.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 25000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 1056100.0
+        },
+        {
+          "min_notional": 25000000.0,
+          "max_notional": 30000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 4181100.0
+        },
+        {
+          "min_notional": 30000000.0,
+          "max_notional": 35000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 11681100.0
+        }
+      ]
+    },
+    "NEO/USDT:USDT": {
+      "symbol": "NEO/USDT:USDT",
+      "base": "NEO",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581929100000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 400000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "ONT/USDT:USDT": {
+      "symbol": "ONT/USDT:USDT",
+      "base": "ONT",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581408300000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 12000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 3000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 3000.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 15.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 40.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 90.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 715.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3840.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6965.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17390.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59040.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934040.0
+        }
+      ]
+    },
+    "QTUM/USDT:USDT": {
+      "symbol": "QTUM/USDT:USDT",
+      "base": "QTUM",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1582185900000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 800000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "RLC/USDT:USDT": {
+      "symbol": "RLC/USDT:USDT",
+      "base": "RLC",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1596178800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 2000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "RSR/USDT:USDT": {
+      "symbol": "RSR/USDT:USDT",
+      "base": "RSR",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1603091100000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 500000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "RUNE/USDT:USDT": {
+      "symbol": "RUNE/USDT:USDT",
+      "base": "RUNE",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1599203400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "SKL/USDT:USDT": {
+      "symbol": "SKL/USDT:USDT",
+      "base": "SKL",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1598252400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 200000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "SNX/USDT:USDT": {
+      "symbol": "SNX/USDT:USDT",
+      "base": "SNX",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1597388400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 3000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "SOL/USDT:USDT": {
+      "symbol": "SOL/USDT:USDT",
+      "base": "SOL",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1600066800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.01,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 1000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 100.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 400000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 400000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 1475.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 4000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 11475.0
+        },
+        {
+          "min_notional": 4000000.0,
+          "max_notional": 8000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 31475.0
+        },
+        {
+          "min_notional": 8000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 231475.0
+        },
+        {
+          "min_notional": 40000000.0,
+          "max_notional": 80000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 2231475.0
+        },
+        {
+          "min_notional": 80000000.0,
+          "max_notional": 100000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 4231475.0
+        },
+        {
+          "min_notional": 100000000.0,
+          "max_notional": 200000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 16731475.0
+        },
+        {
+          "min_notional": 200000000.0,
+          "max_notional": 400000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 66731475.0
+        }
+      ]
+    },
+    "STORJ/USDT:USDT": {
+      "symbol": "STORJ/USDT:USDT",
+      "base": "STORJ",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1600239600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "SUSHI/USDT:USDT": {
+      "symbol": "SUSHI/USDT:USDT",
+      "base": "SUSHI",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1599202800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "THETA/USDT:USDT": {
+      "symbol": "THETA/USDT:USDT",
+      "base": "THETA",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1590566400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 6000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 325.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 175000.0,
+          "maximum_leverage": 15.0,
+          "maintenance_margin_rate": 0.0333,
+          "maintenance_amount": 1155.0
+        },
+        {
+          "min_notional": 175000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 4077.5
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 16577.5
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 35327.5
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 4500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 97877.5
+        },
+        {
+          "min_notional": 4500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 472727.5
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 2347727.5
+        }
+      ]
+    },
+    "TRB/USDT:USDT": {
+      "symbol": "TRB/USDT:USDT",
+      "base": "TRB",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1599116400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 1000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 62500.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 700.0
+        },
+        {
+          "min_notional": 62500.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 3825.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 6950.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 17375.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 59025.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1934025.0
+        }
+      ]
+    },
+    "TRX/USDT:USDT": {
+      "symbol": "TRX/USDT:USDT",
+      "base": "TRX",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1579075500000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 20000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.0065,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 90000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 35.0
+        },
+        {
+          "min_notional": 90000.0,
+          "max_notional": 120000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 485.0
+        },
+        {
+          "min_notional": 120000.0,
+          "max_notional": 650000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1085.0
+        },
+        {
+          "min_notional": 650000.0,
+          "max_notional": 800000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 4335.0
+        },
+        {
+          "min_notional": 800000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 24335.0
+        },
+        {
+          "min_notional": 3000000.0,
+          "max_notional": 6000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 174335.0
+        },
+        {
+          "min_notional": 6000000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 324335.0
+        },
+        {
+          "min_notional": 12000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 1824335.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 30000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 6824335.0
+        }
+      ]
+    },
+    "UNI/USDT:USDT": {
+      "symbol": "UNI/USDT:USDT",
+      "base": "UNI",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1600412400000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.006,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 40.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 290.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 790.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 3290.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 28290.0
+        },
+        {
+          "min_notional": 5000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 278290.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 528290.0
+        },
+        {
+          "min_notional": 12500000.0,
+          "max_notional": 25000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 2090790.0
+        },
+        {
+          "min_notional": 25000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 8340790.0
+        }
+      ]
+    },
+    "VET/USDT:USDT": {
+      "symbol": "VET/USDT:USDT",
+      "base": "VET",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1581667200000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 200000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.006,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 20.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 40000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 145.0
+        },
+        {
+          "min_notional": 40000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 345.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 400000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 1345.0
+        },
+        {
+          "min_notional": 400000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 11345.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 61345.0
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 98845.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 2500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 348845.0
+        },
+        {
+          "min_notional": 2500000.0,
+          "max_notional": 3000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 973845.0
+        }
+      ]
+    },
+    "XLM/USDT:USDT": {
+      "symbol": "XLM/USDT:USDT",
+      "base": "XLM",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1579507200000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 50.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 550.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 3050.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 28050.0
+        },
+        {
+          "min_notional": 5000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 278050.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 528050.0
+        },
+        {
+          "min_notional": 12500000.0,
+          "max_notional": 25000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 2090550.0
+        },
+        {
+          "min_notional": 25000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 8340550.0
+        }
+      ]
+    },
+    "XMR/USDT:USDT": {
+      "symbol": "XMR/USDT:USDT",
+      "base": "XMR",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1580716800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 10000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 325.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 175000.0,
+          "maximum_leverage": 15.0,
+          "maintenance_margin_rate": 0.0333,
+          "maintenance_amount": 1155.0
+        },
+        {
+          "min_notional": 175000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 4077.5
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 16577.5
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 35327.5
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 4500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 97877.5
+        },
+        {
+          "min_notional": 4500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 472727.5
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 2347727.5
+        }
+      ]
+    },
+    "XRP/USDT:USDT": {
+      "symbol": "XRP/USDT:USDT",
+      "base": "XRP",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1578298800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 10000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 40000.0,
+          "maximum_leverage": 100.0,
+          "maintenance_margin_rate": 0.005,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 40000.0,
+          "max_notional": 80000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.006,
+          "maintenance_amount": 40.0
+        },
+        {
+          "min_notional": 80000.0,
+          "max_notional": 150000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 360.0
+        },
+        {
+          "min_notional": 150000.0,
+          "max_notional": 400000.0,
+          "maximum_leverage": 40.0,
+          "maintenance_margin_rate": 0.0125,
+          "maintenance_amount": 735.0
+        },
+        {
+          "min_notional": 400000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 3735.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 8735.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 58735.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 558735.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 25000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 1058735.0
+        },
+        {
+          "min_notional": 25000000.0,
+          "max_notional": 50000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 4183735.0
+        },
+        {
+          "min_notional": 50000000.0,
+          "max_notional": 100000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 16683735.0
+        }
+      ]
+    },
+    "XTZ/USDT:USDT": {
+      "symbol": "XTZ/USDT:USDT",
+      "base": "XTZ",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1580976000000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 4000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 100000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 325.0
+        },
+        {
+          "min_notional": 100000.0,
+          "max_notional": 175000.0,
+          "maximum_leverage": 15.0,
+          "maintenance_margin_rate": 0.0333,
+          "maintenance_amount": 1155.0
+        },
+        {
+          "min_notional": 175000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 4077.5
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 750000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 16577.5
+        },
+        {
+          "min_notional": 750000.0,
+          "max_notional": 1500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 35327.5
+        },
+        {
+          "min_notional": 1500000.0,
+          "max_notional": 4500000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 97877.5
+        },
+        {
+          "min_notional": 4500000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 472727.5
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 2347727.5
+        }
+      ]
+    },
+    "YFI/USDT:USDT": {
+      "symbol": "YFI/USDT:USDT",
+      "base": "YFI",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1598857200000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 1.0
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 500.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "ZEC/USDT:USDT": {
+      "symbol": "ZEC/USDT:USDT",
+      "base": "ZEC",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1580889600000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 20000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 20000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 20000.0,
+          "max_notional": 200000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 100.0
+        },
+        {
+          "min_notional": 200000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 1100.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 2000000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 6100.0
+        },
+        {
+          "min_notional": 2000000.0,
+          "max_notional": 5000000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 56100.0
+        },
+        {
+          "min_notional": 5000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 306100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 10000000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 493600.0
+        },
+        {
+          "min_notional": 10000000.0,
+          "max_notional": 20000000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 1743600.0
+        },
+        {
+          "min_notional": 20000000.0,
+          "max_notional": 40000000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 6743600.0
+        }
+      ]
+    },
+    "ZEN/USDT:USDT": {
+      "symbol": "ZEN/USDT:USDT",
+      "base": "ZEN",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1606201200000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 2000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "ZIL/USDT:USDT": {
+      "symbol": "ZIL/USDT:USDT",
+      "base": "ZIL",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1592470800000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 300000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    },
+    "ZRX/USDT:USDT": {
+      "symbol": "ZRX/USDT:USDT",
+      "base": "ZRX",
+      "quote": "USDT",
+      "settle": "USDT",
+      "active": true,
+      "spot": false,
+      "margin": false,
+      "swap": true,
+      "future": false,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "contractSize": 1.0,
+      "created": 1592989200000,
+      "marginModes": {
+        "cross": true,
+        "isolated": true
+      },
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 7000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": null
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.0005,
+      "leverage_tiers": [
+        {
+          "min_notional": 0.0,
+          "max_notional": 5000.0,
+          "maximum_leverage": 75.0,
+          "maintenance_margin_rate": 0.01,
+          "maintenance_amount": 0.0
+        },
+        {
+          "min_notional": 5000.0,
+          "max_notional": 10000.0,
+          "maximum_leverage": 50.0,
+          "maintenance_margin_rate": 0.015,
+          "maintenance_amount": 25.0
+        },
+        {
+          "min_notional": 10000.0,
+          "max_notional": 25000.0,
+          "maximum_leverage": 25.0,
+          "maintenance_margin_rate": 0.02,
+          "maintenance_amount": 75.0
+        },
+        {
+          "min_notional": 25000.0,
+          "max_notional": 50000.0,
+          "maximum_leverage": 20.0,
+          "maintenance_margin_rate": 0.025,
+          "maintenance_amount": 200.0
+        },
+        {
+          "min_notional": 50000.0,
+          "max_notional": 125000.0,
+          "maximum_leverage": 10.0,
+          "maintenance_margin_rate": 0.05,
+          "maintenance_amount": 1450.0
+        },
+        {
+          "min_notional": 125000.0,
+          "max_notional": 250000.0,
+          "maximum_leverage": 5.0,
+          "maintenance_margin_rate": 0.1,
+          "maintenance_amount": 7700.0
+        },
+        {
+          "min_notional": 250000.0,
+          "max_notional": 500000.0,
+          "maximum_leverage": 4.0,
+          "maintenance_margin_rate": 0.125,
+          "maintenance_amount": 13950.0
+        },
+        {
+          "min_notional": 500000.0,
+          "max_notional": 1000000.0,
+          "maximum_leverage": 3.0,
+          "maintenance_margin_rate": 0.1667,
+          "maintenance_amount": 34800.0
+        },
+        {
+          "min_notional": 1000000.0,
+          "max_notional": 7500000.0,
+          "maximum_leverage": 2.0,
+          "maintenance_margin_rate": 0.25,
+          "maintenance_amount": 118100.0
+        },
+        {
+          "min_notional": 7500000.0,
+          "max_notional": 12500000.0,
+          "maximum_leverage": 1.0,
+          "maintenance_margin_rate": 0.5,
+          "maintenance_amount": 1993100.0
+        }
+      ]
+    }
+  }
+}

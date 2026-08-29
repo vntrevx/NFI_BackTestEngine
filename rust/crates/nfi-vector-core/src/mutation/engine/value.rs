@@ -118,6 +118,34 @@ impl RuntimeValue {
         }
     }
 
+    pub(super) fn string_cast_at(
+        &self,
+        node: &str,
+        row: usize,
+    ) -> Result<Option<String>, VectorCoreError> {
+        match self {
+            Self::Null => Ok(None),
+            Self::Bool(value) => Ok(Some(if *value { "True" } else { "False" }.to_owned())),
+            Self::Integer(value) => Ok(Some(value.to_string())),
+            Self::Float(value) => Ok(float_string(*value)),
+            Self::Text(value) => Ok(Some(value.clone())),
+            Self::Column(column) => match column.as_view().value_type() {
+                ValueType::Bool => Ok(column
+                    .as_view()
+                    .bool_at(row)
+                    .map(|value| if value { "True" } else { "False" }.to_owned())),
+                ValueType::I64 => Ok(column.as_view().i64_at(row).map(|value| value.to_string())),
+                ValueType::F64 => column
+                    .as_view()
+                    .f64_at(row)
+                    .map_or(Ok(None), |value| Ok(float_string(value))),
+                ValueType::Text => Ok(column.as_view().text_at(row).map(str::to_owned)),
+                ValueType::TimestampMs => Err(type_error(node, "castable to string")),
+            },
+            _ => Err(type_error(node, "castable to string")),
+        }
+    }
+
     pub(super) fn text_at(&self, node: &str, row: usize) -> Result<&str, VectorCoreError> {
         self.text_at_optional(node, row)?
             .ok_or_else(|| type_error(node, "non-null text"))
@@ -480,6 +508,23 @@ pub(super) fn f64_as_i64(value: f64) -> Result<i64, VectorCoreError> {
     Ok(value as i64)
 }
 
+fn float_string(value: f64) -> Option<String> {
+    if value.is_nan() {
+        return None;
+    }
+    if value == f64::INFINITY {
+        return Some("inf".to_owned());
+    }
+    if value == f64::NEG_INFINITY {
+        return Some("-inf".to_owned());
+    }
+    let mut rendered = value.to_string();
+    if value.fract() == 0.0 && !rendered.contains('e') && !rendered.contains('E') {
+        rendered.push_str(".0");
+    }
+    Some(rendered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -500,6 +545,45 @@ mod tests {
         assert_eq!(column.numeric_at("column", 0).unwrap(), Some(0.0));
         assert_eq!(column.numeric_at("column", 1).unwrap(), None);
         assert_eq!(column.numeric_at("column", 2).unwrap(), Some(1.0));
+    }
+
+    #[test]
+    fn nullable_string_cast_matches_pandas_for_text_numeric_boolean_and_null() {
+        let values = [
+            RuntimeValue::Column(OwnedColumn::text(vec![Some("alpha".to_owned()), None])),
+            RuntimeValue::Column(OwnedColumn::i64(vec![Some(1), None])),
+            RuntimeValue::Column(OwnedColumn::f64(vec![Some(1.0), Some(2.5), None])),
+            RuntimeValue::Column(OwnedColumn::boolean(vec![Some(true), Some(false), None])),
+        ];
+
+        assert_eq!(
+            values[0].string_cast_at("text", 0).unwrap(),
+            Some("alpha".to_owned())
+        );
+        assert_eq!(values[0].string_cast_at("text", 1).unwrap(), None);
+        assert_eq!(
+            values[1].string_cast_at("integer", 0).unwrap(),
+            Some("1".to_owned())
+        );
+        assert_eq!(values[1].string_cast_at("integer", 1).unwrap(), None);
+        assert_eq!(
+            values[2].string_cast_at("float", 0).unwrap(),
+            Some("1.0".to_owned())
+        );
+        assert_eq!(
+            values[2].string_cast_at("float", 1).unwrap(),
+            Some("2.5".to_owned())
+        );
+        assert_eq!(values[2].string_cast_at("float", 2).unwrap(), None);
+        assert_eq!(
+            values[3].string_cast_at("bool", 0).unwrap(),
+            Some("True".to_owned())
+        );
+        assert_eq!(
+            values[3].string_cast_at("bool", 1).unwrap(),
+            Some("False".to_owned())
+        );
+        assert_eq!(values[3].string_cast_at("bool", 2).unwrap(), None);
     }
 
     #[test]

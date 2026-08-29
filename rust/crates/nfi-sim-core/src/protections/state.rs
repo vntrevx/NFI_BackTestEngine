@@ -2,8 +2,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::calculations::python_float_sum;
-use crate::domain::ClosedTrade;
+use crate::calculations::{checked_finite, checked_float_sum, checked_python_float_sum};
+use crate::domain::{ClosedTrade, SimError};
 use crate::portfolio::TradeSide;
 
 use super::{DrawdownMode, PairLockState, ProtectionHandler, ProtectionProgram, ProtectionTiming};
@@ -37,10 +37,10 @@ impl ProtectionState {
         closed_trade: &ClosedTrade,
         closed_trades: &[ClosedTrade],
         starting_balance: f64,
-    ) {
+    ) -> Result<(), SimError> {
         let side = trade_side(closed_trade);
         for handler in &program.handlers {
-            if let Some(request) = handler.local_lock(closed_trade, closed_trades, side) {
+            if let Some(request) = handler.local_lock(closed_trade, closed_trades, side)? {
                 self.add_local_lock(
                     &closed_trade.pair,
                     closed_trade.close_timestamp_ms,
@@ -51,7 +51,7 @@ impl ProtectionState {
         }
         for handler in &program.handlers {
             if let Some(request) =
-                handler.global_lock(closed_trade, closed_trades, side, starting_balance)
+                handler.global_lock(closed_trade, closed_trades, side, starting_balance)?
             {
                 self.add_global_lock(
                     closed_trade.close_timestamp_ms,
@@ -60,6 +60,7 @@ impl ProtectionState {
                 );
             }
         }
+        Ok(())
     }
 
     fn add_local_lock(&mut self, pair: &str, now_ms: i64, request: LockRequest, timeframe_ms: i64) {
@@ -117,8 +118,8 @@ impl ProtectionHandler {
         closed_trade: &ClosedTrade,
         closed_trades: &[ClosedTrade],
         side: TradeSide,
-    ) -> Option<LockRequest> {
-        match self {
+    ) -> Result<Option<LockRequest>, SimError> {
+        Ok(match self {
             Self::CooldownPeriod { timing } => {
                 let trades = recent_trades(
                     closed_trades,
@@ -161,9 +162,9 @@ impl ProtectionHandler {
                 closed_trade,
                 side,
                 closed_trades,
-            ),
+            )?,
             Self::MaxDrawdown { .. } => None,
-        }
+        })
     }
 
     fn global_lock(
@@ -172,8 +173,8 @@ impl ProtectionHandler {
         closed_trades: &[ClosedTrade],
         side: TradeSide,
         starting_balance: f64,
-    ) -> Option<LockRequest> {
-        match self {
+    ) -> Result<Option<LockRequest>, SimError> {
+        Ok(match self {
             Self::StoplossGuard {
                 timing,
                 trade_limit,
@@ -203,9 +204,9 @@ impl ProtectionHandler {
                 closed_trade.close_timestamp_ms,
                 closed_trades,
                 starting_balance,
-            ),
+            )?,
             _ => None,
-        }
+        })
     }
 }
 
@@ -270,7 +271,7 @@ fn low_profit_lock(
     closed_trade: &ClosedTrade,
     side: TradeSide,
     closed_trades: &[ClosedTrade],
-) -> Option<LockRequest> {
+) -> Result<Option<LockRequest>, SimError> {
     let trades = recent_trades(
         closed_trades,
         closed_trade.close_timestamp_ms,
@@ -279,18 +280,19 @@ fn low_profit_lock(
     );
     // Freqtrade checks the unfiltered pair count before applying only_per_side.
     if trades.len() < trade_limit {
-        return None;
+        return Ok(None);
     }
-    let profit = python_float_sum(
+    let profit = checked_python_float_sum(
         trades
             .iter()
             .filter(|trade| !only_per_side || trade_side(trade) == side)
             .filter_map(|trade| (trade.profit_ratio != 0.0).then_some(trade.profit_ratio)),
-    );
+        "protection-low-profit-total",
+    )?;
     if profit >= required_profit {
-        return None;
+        return Ok(None);
     }
-    timing.lock_end(&trades).map(|until_ms| LockRequest {
+    Ok(timing.lock_end(&trades).map(|until_ms| LockRequest {
         until_ms,
         reason: format!(
             "{} < {} in {}, locking {}.",
@@ -300,7 +302,7 @@ fn low_profit_lock(
             timing.lock_text
         ),
         side: lock_side(only_per_side, side),
-    })
+    }))
 }
 
 fn max_drawdown_lock(
@@ -311,34 +313,38 @@ fn max_drawdown_lock(
     now_ms: i64,
     closed_trades: &[ClosedTrade],
     starting_balance: f64,
-) -> Option<LockRequest> {
+) -> Result<Option<LockRequest>, SimError> {
     let trades = recent_trades(closed_trades, now_ms, timing.lookback_ms, None);
     if trades.len() < trade_limit {
-        return None;
+        return Ok(None);
     }
     let drawdown = match calculation_mode {
         DrawdownMode::Ratios => {
-            maximum_drawdown(trades.iter().map(|trade| trade.profit_ratio), 0.0, false)
+            maximum_drawdown(trades.iter().map(|trade| trade.profit_ratio), 0.0, false)?
         }
         DrawdownMode::Equity => {
             let cutoff = now_ms - timing.lookback_ms;
-            let profit_before_window = python_float_sum(
+            let profit_before_window = checked_python_float_sum(
                 closed_trades
                     .iter()
                     .filter(|trade| trade.close_timestamp_ms <= cutoff)
                     .map(|trade| trade.profit_abs),
-            );
+                "protection-prior-profit-total",
+            )?;
             maximum_drawdown(
                 trades.iter().map(|trade| trade.profit_abs),
-                starting_balance + profit_before_window,
+                checked_float_sum(
+                    &[starting_balance, profit_before_window],
+                    "protection-starting-equity",
+                )?,
                 true,
-            )
+            )?
         }
     };
     if drawdown <= maximum_allowed_drawdown {
-        return None;
+        return Ok(None);
     }
-    timing.lock_end(&trades).map(|until_ms| LockRequest {
+    Ok(timing.lock_end(&trades).map(|until_ms| LockRequest {
         until_ms,
         reason: format!(
             "{} passed {} in {}, locking {}.",
@@ -348,29 +354,39 @@ fn max_drawdown_lock(
             timing.lock_text
         ),
         side: "*",
-    })
+    }))
 }
 
 fn maximum_drawdown(
     values: impl IntoIterator<Item = f64>,
     starting_balance: f64,
     relative: bool,
-) -> f64 {
+) -> Result<f64, SimError> {
     let mut cumulative = 0.0_f64;
     let mut high = 0.0_f64;
     let mut maximum = 0.0_f64;
     for value in values {
-        cumulative += value;
+        cumulative = checked_float_sum(&[cumulative, value], "protection-drawdown-cumulative")?;
         high = high.max(cumulative);
         let drawdown = if relative {
-            let high_balance = starting_balance + high;
-            (high_balance - (starting_balance + cumulative)) / high_balance
+            let high_balance = checked_float_sum(
+                &[starting_balance, high],
+                "protection-drawdown-high-balance",
+            )?;
+            let current_balance = checked_float_sum(
+                &[starting_balance, cumulative],
+                "protection-drawdown-current-balance",
+            )?;
+            checked_finite(
+                (high_balance - current_balance) / high_balance,
+                "protection-relative-drawdown",
+            )?
         } else {
-            high - cumulative
+            checked_finite(high - cumulative, "protection-absolute-drawdown")?
         };
         maximum = maximum.max(drawdown);
     }
-    maximum
+    Ok(maximum)
 }
 
 fn trade_side(trade: &ClosedTrade) -> TradeSide {

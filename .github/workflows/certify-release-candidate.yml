@@ -164,6 +164,8 @@ jobs:
             --certificate-evidence "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" \
             --platform-evidence "$platform_report" \
             --candidate-commit "$CANDIDATE_COMMIT" \
+            --native-score-evidence candidate/native-score/score-evidence.json \
+            --native-score-identity candidate/native-score/identity.json \
             --output-dir .host-gate-check
 
           mkdir host-certificate
@@ -215,6 +217,10 @@ jobs:
               .immutable-head.json
             upload_status="reused"
           else
+            .certificate-venv/bin/nfi-bte release authorize-current \
+              --operation "certification-immutable-upload:$MODE:$CANDIDATE_COMMIT:$bundle_sha256" \
+              --evidence candidate/native-score/score-evidence.json \
+              --identity candidate/native-score/identity.json
             if aws s3api put-object \
               --bucket "$EVIDENCE_BUCKET" \
               --key "$object_key" \

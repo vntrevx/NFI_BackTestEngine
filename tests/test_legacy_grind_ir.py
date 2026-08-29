@@ -354,7 +354,7 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert manager is not None
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
-    assert operation["schema_version"] == "0.29.0"
+    assert operation["schema_version"] == "0.30.0"
     assert manager["remaining_steps"] == []
     assert manager["backtest_exclusions"] == [
         {

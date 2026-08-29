@@ -121,7 +121,8 @@
         "portable_package",
         "three_os_both_modes",
         "preview_rejected",
-        "public_asset_set"
+        "public_asset_set",
+        "native_scorecard"
       ],
       "properties": {
         "candidate_manifest": {
@@ -149,6 +150,9 @@
           "const": true
         },
         "public_asset_set": {
+          "const": true
+        },
+        "native_scorecard": {
           "const": true
         }
       }

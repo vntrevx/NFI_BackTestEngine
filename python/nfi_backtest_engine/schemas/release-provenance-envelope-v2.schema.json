@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/release-provenance-envelope-v2.schema.json",
+  "title": "NFI release provenance DSSE envelope v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["payloadType", "payload", "signatures"],
+  "properties": {
+    "payloadType": {"const": "application/vnd.nfi.release-provenance.v2+json"},
+    "payload": {"type": "string", "contentEncoding": "base64"},
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["keyid", "sig"],
+        "properties": {
+          "keyid": {"type": "string", "minLength": 1},
+          "sig": {"type": "string", "contentEncoding": "base64"}
+        }
+      }
+    }
+  }
+}

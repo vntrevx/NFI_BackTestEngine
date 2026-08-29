@@ -1,4 +1,6 @@
-use crate::calculations::python_float_sum;
+use crate::calculations::{
+    checked_finite, checked_float_product, checked_float_sum, checked_python_float_sum,
+};
 use crate::domain::{
     Candle, EntrySignal, LeverageTier, NfiLeverageProgram, PairSeries, PortfolioConfig, SimError,
 };
@@ -153,74 +155,100 @@ pub(super) fn apply_funding(
     trade: &mut OpenTrade,
     candle: &Candle,
     funding_fee_interval_ms: Option<i64>,
-) {
+) -> Result<(), SimError> {
     let scheduled_refresh =
         funding_fee_interval_ms.is_some_and(|interval| candle.timestamp_ms % interval == 0);
     let mut changed = false;
     if scheduled_refresh {
         if let Some(seed) = trade.funding_rebase_seed.take() {
-            reset_running_funding(trade, seed);
+            reset_running_funding(trade, seed)?;
             changed = true;
         }
     }
 
-    if let Some(signed) = funding_fee_at_candle(trade.side, trade.amount, candle) {
+    if let Some(signed) = funding_fee_at_candle(trade.side, trade.amount, candle)? {
         // Inputs created before the refresh cadence became explicit still
         // rebase on the next sparse event. Exact X7 manifests always carry the
         // cadence and take the scheduled branch above.
         if funding_fee_interval_ms.is_none() {
             if let Some(seed) = trade.funding_rebase_seed.take() {
-                reset_running_funding(trade, seed);
+                reset_running_funding(trade, seed)?;
             }
         }
-        add_running_funding(trade, signed);
+        add_running_funding(trade, signed)?;
         changed = true;
     }
 
     if changed {
         // `Trade.set_funding_fees()` separately performs Python `sum()` over
         // the already-filled orders, then adds the current running segment.
-        let prior_funding = python_float_sum(trade.orders.iter().map(|order| order.funding_fee));
-        trade.funding_fees_total = prior_funding + trade.funding_fees;
+        let prior_funding = checked_python_float_sum(
+            trade.orders.iter().map(|order| order.funding_fee),
+            "funding-prior-total",
+        )?;
+        trade.funding_fees_total = checked_float_sum(
+            &[prior_funding, trade.funding_fees],
+            "funding-visible-total",
+        )?;
     }
+    Ok(())
 }
 
-fn funding_fee_at_candle(side: TradeSide, amount: f64, candle: &Candle) -> Option<f64> {
+fn funding_fee_at_candle(
+    side: TradeSide,
+    amount: f64,
+    candle: &Candle,
+) -> Result<Option<f64>, SimError> {
     let (Some(rate), Some(mark_price)) = (candle.funding_rate, candle.funding_mark_price) else {
-        return None;
+        return Ok(None);
     };
     // Pandas evaluates Freqtrade's expression left-to-right as
     // `(open_fund * open_mark) * amount`. Multiplying amount first is
     // mathematically equivalent but changes exported float tokens.
-    let fee = rate * mark_price * amount;
+    let fee = checked_float_product(&[rate, mark_price, amount], "funding-fee-product")?;
     // Freqtrade's persisted convention is positive when the trade receives
     // funding and negative when it pays. A positive market funding rate is
     // therefore income for shorts and a cost for longs.
-    Some(match side {
+    Ok(Some(match side {
         TradeSide::Long => -fee,
         TradeSide::Short => fee,
-    })
+    }))
 }
 
-fn add_running_funding(trade: &mut OpenTrade, signed: f64) {
+fn add_running_funding(trade: &mut OpenTrade, signed: f64) -> Result<(), SimError> {
     // `Exchange.calculate_funding_fees()` uses Python `sum()` over all
     // funding rows since the most recent filled order. CPython 3.14 uses a
     // Neumaier correction for float iterables, so a plain `+=` can differ by
     // an exported ulp on long-running adjustment trades.
-    let next = trade.funding_sum_high + signed;
-    if trade.funding_sum_high.abs() >= signed.abs() {
-        trade.funding_sum_low += (trade.funding_sum_high - next) + signed;
+    let next = checked_float_sum(&[trade.funding_sum_high, signed], "funding-running-high")?;
+    let correction = if trade.funding_sum_high.abs() >= signed.abs() {
+        checked_float_sum(
+            &[trade.funding_sum_high - next, signed],
+            "funding-running-correction",
+        )?
     } else {
-        trade.funding_sum_low += (signed - next) + trade.funding_sum_high;
-    }
+        checked_float_sum(
+            &[signed - next, trade.funding_sum_high],
+            "funding-running-correction",
+        )?
+    };
+    trade.funding_sum_low =
+        checked_float_sum(&[trade.funding_sum_low, correction], "funding-running-low")?;
     trade.funding_sum_high = next;
-    trade.funding_fees = compensated_sum_result(trade.funding_sum_high, trade.funding_sum_low);
+    trade.funding_fees = compensated_sum_result(
+        trade.funding_sum_high,
+        trade.funding_sum_low,
+        "funding-running-total",
+    )?;
+    Ok(())
 }
 
-fn reset_running_funding(trade: &mut OpenTrade, value: f64) {
+fn reset_running_funding(trade: &mut OpenTrade, value: f64) -> Result<(), SimError> {
+    let value = checked_finite(value, "funding-running-reset")?;
     trade.funding_sum_high = value;
     trade.funding_sum_low = 0.0;
     trade.funding_fees = value;
+    Ok(())
 }
 
 /// Reproduce Freqtrade's forced funding refresh after an additional entry.
@@ -235,8 +263,8 @@ pub(super) fn reapply_inclusive_funding_after_entry_fill(
     trade: &mut OpenTrade,
     candle: &Candle,
     funding_fee_interval_ms: Option<i64>,
-) {
-    apply_funding(trade, candle, funding_fee_interval_ms);
+) -> Result<(), SimError> {
+    apply_funding(trade, candle, funding_fee_interval_ms)
 }
 
 /// Preserve Freqtrade's two-stage funding state after a partial exit.
@@ -252,25 +280,29 @@ pub(super) fn preserve_partial_exit_funding_refresh(
     trade: &mut OpenTrade,
     candle: &Candle,
     amount_before_fill: f64,
-) {
-    let Some(pre_exit_fee) = funding_fee_at_candle(trade.side, amount_before_fill, candle) else {
-        return;
+) -> Result<(), SimError> {
+    let Some(pre_exit_fee) = funding_fee_at_candle(trade.side, amount_before_fill, candle)? else {
+        return Ok(());
     };
-    let post_exit_fee = funding_fee_at_candle(trade.side, trade.amount, candle)
-        .expect("the same validated funding candle remains available");
-    reset_running_funding(trade, pre_exit_fee);
+    let post_exit_fee = funding_fee_at_candle(trade.side, trade.amount, candle)?.ok_or(
+        SimError::ExactArithmetic {
+            operation: "funding-partial-exit-refresh",
+        },
+    )?;
+    reset_running_funding(trade, pre_exit_fee)?;
     trade.funding_rebase_seed = Some(post_exit_fee);
     // `recalc_trade_from_orders()` runs after the forced refresh and resets
     // `funding_fees` to filled-order funding without clearing the separate
     // running value.
-    recalculate_order_funding_total(trade);
+    recalculate_order_funding_total(trade)?;
+    Ok(())
 }
 
-fn compensated_sum_result(high: f64, low: f64) -> f64 {
-    if low != 0.0 && low.is_finite() {
-        high + low
+fn compensated_sum_result(high: f64, low: f64, operation: &'static str) -> Result<f64, SimError> {
+    if low == 0.0 {
+        checked_finite(high, operation)
     } else {
-        high
+        checked_float_sum(&[high, low], operation)
     }
 }
 
@@ -279,11 +311,14 @@ fn compensated_sum_result(high: f64, low: f64) -> f64 {
 /// Freqtrade resets `funding_fee_running` after every non-stoploss fill. The
 /// compensated state must be reset at the same boundary or later segments
 /// would retain an invisible correction from an earlier order.
-pub(super) fn take_running_funding(trade: &mut OpenTrade) -> f64 {
+pub(super) fn take_running_funding(trade: &mut OpenTrade) -> Result<f64, SimError> {
     trade.funding_sum_high = 0.0;
     trade.funding_sum_low = 0.0;
     trade.funding_rebase_seed = None;
-    std::mem::take(&mut trade.funding_fees)
+    checked_finite(
+        std::mem::take(&mut trade.funding_fees),
+        "funding-take-running",
+    )
 }
 
 /// Mirror the ordinary left-to-right accumulation in
@@ -291,9 +326,9 @@ pub(super) fn take_running_funding(trade: &mut OpenTrade) -> f64 {
 ///
 /// This intentionally does not use `python_float_sum`: Freqtrade's order
 /// replay is an explicit `+=` loop, which has different rounding behavior.
-pub(super) fn recalculate_order_funding_total(trade: &mut OpenTrade) {
-    trade.funding_fees_total = trade
-        .orders
-        .iter()
-        .fold(0.0, |total, order| total + order.funding_fee);
+pub(super) fn recalculate_order_funding_total(trade: &mut OpenTrade) -> Result<(), SimError> {
+    trade.funding_fees_total = trade.orders.iter().try_fold(0.0, |total, order| {
+        checked_float_sum(&[total, order.funding_fee], "funding-order-replay-total")
+    })?;
+    Ok(())
 }

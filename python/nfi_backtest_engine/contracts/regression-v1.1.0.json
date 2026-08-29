@@ -14,20 +14,20 @@
     {
       "kind": "schema",
       "path": "python/nfi_backtest_engine/schemas/benchmark-fixture.schema.json",
-      "bytes": 4767,
-      "sha256": "123d891b3904990d6f3fe4c3f1e19c96155f39c24e4fe2dbf730fa52346e3f48"
+      "bytes": 4824,
+      "sha256": "2fbbde114080c747c1d66aa71737e550c1431315d5418b22dbdbbf2e2e6a1c85"
     },
     {
       "kind": "schema",
       "path": "python/nfi_backtest_engine/schemas/benchmark-fixture-v2.schema.json",
-      "bytes": 5839,
-      "sha256": "609f932a3d1d0b3b3907f4d7d545b7b64a4ad835117be0bc65ed071eab67f80a"
+      "bytes": 5896,
+      "sha256": "3230430f1c0645f0db22eea68cae62f5ac1ea998a65a4e592dbe6eed4b3fa3b3"
     },
     {
       "kind": "schema",
       "path": "python/nfi_backtest_engine/schemas/benchmark-fixture-v3.schema.json",
-      "bytes": 8945,
-      "sha256": "7ecc77993f0b82dea2d7af014a2564be4c69403ef5ad654fbd310c420b2804b0"
+      "bytes": 9101,
+      "sha256": "d16998b601d401a9fb5c013aa1990d6a9a75bdfc6475a53f486c3f5bc357ab28"
     },
     {
       "kind": "schema",
@@ -323,10 +323,6 @@
         "source": "python/nfi_backtest_engine/generic_adapter.py"
       },
       {
-        "code": "TRAILING_STOP_UNSUPPORTED",
-        "source": "python/nfi_backtest_engine/generic_adapter.py"
-      },
-      {
         "code": "POSITION_ADJUSTMENT_IR_REQUIRED",
         "source": "python/nfi_backtest_engine/generic_adapter.py"
       },
@@ -376,14 +372,6 @@
       },
       {
         "code": "ROI_TABLE_INVALID",
-        "source": "python/nfi_backtest_engine/generic_adapter.py"
-      },
-      {
-        "code": "ROI_BOUND_INVALID",
-        "source": "python/nfi_backtest_engine/generic_adapter.py"
-      },
-      {
-        "code": "ROI_TABLE_REACHABLE",
         "source": "python/nfi_backtest_engine/generic_adapter.py"
       },
       {

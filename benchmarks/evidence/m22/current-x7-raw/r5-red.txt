@@ -1,0 +1,100 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+___ test_promotion_rejects_fully_resealed_trust_anchor_substitution[source] ____
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1477/test_promotion_rejects_fully_r0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b2a6114cf80>
+attack = 'source'
+
+    @pytest.mark.parametrize("attack", ["source", "capture", "combined"])
+    def test_promotion_rejects_fully_resealed_trust_anchor_substitution(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        attack: str,
+    ) -> None:
+        # Given: an evidence owner changes trusted implementation bytes and refreshes every
+        # locally controlled artifact, role, aggregate, normalized, and proof identity.
+        root = _attack_root(tmp_path, monkeypatch)
+        document = read_json(PROOF)
+        if attack in {"source", "combined"}:
+            source = root / SOURCE
+            source.write_bytes(source.read_bytes() + b"\n# attacker-controlled source bytes\n")
+            _reseal_role(document, root, "source_input")
+        if attack in {"capture", "combined"}:
+            capture = root / OFFICIAL_CAPTURE
+            capture.write_bytes(capture.read_bytes() + b"\n# attacker-controlled capture bytes\n")
+            _reseal_role(document, root, "capture_input")
+        _reseal(document)
+    
+        # When / Then: promotion must consult authority outside the resealed evidence root.
+>       with pytest.raises(SpecValidationError, match="source|capture|git|contract"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r5.py:109: Failed
+___ test_promotion_rejects_fully_resealed_trust_anchor_substitution[capture] ___
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1477/test_promotion_rejects_fully_r1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b2a5bf9fb90>
+attack = 'capture'
+
+    @pytest.mark.parametrize("attack", ["source", "capture", "combined"])
+    def test_promotion_rejects_fully_resealed_trust_anchor_substitution(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        attack: str,
+    ) -> None:
+        # Given: an evidence owner changes trusted implementation bytes and refreshes every
+        # locally controlled artifact, role, aggregate, normalized, and proof identity.
+        root = _attack_root(tmp_path, monkeypatch)
+        document = read_json(PROOF)
+        if attack in {"source", "combined"}:
+            source = root / SOURCE
+            source.write_bytes(source.read_bytes() + b"\n# attacker-controlled source bytes\n")
+            _reseal_role(document, root, "source_input")
+        if attack in {"capture", "combined"}:
+            capture = root / OFFICIAL_CAPTURE
+            capture.write_bytes(capture.read_bytes() + b"\n# attacker-controlled capture bytes\n")
+            _reseal_role(document, root, "capture_input")
+        _reseal(document)
+    
+        # When / Then: promotion must consult authority outside the resealed evidence root.
+>       with pytest.raises(SpecValidationError, match="source|capture|git|contract"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r5.py:109: Failed
+__ test_promotion_rejects_fully_resealed_trust_anchor_substitution[combined] ___
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1477/test_promotion_rejects_fully_r2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b2a57586c00>
+attack = 'combined'
+
+    @pytest.mark.parametrize("attack", ["source", "capture", "combined"])
+    def test_promotion_rejects_fully_resealed_trust_anchor_substitution(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        attack: str,
+    ) -> None:
+        # Given: an evidence owner changes trusted implementation bytes and refreshes every
+        # locally controlled artifact, role, aggregate, normalized, and proof identity.
+        root = _attack_root(tmp_path, monkeypatch)
+        document = read_json(PROOF)
+        if attack in {"source", "combined"}:
+            source = root / SOURCE
+            source.write_bytes(source.read_bytes() + b"\n# attacker-controlled source bytes\n")
+            _reseal_role(document, root, "source_input")
+        if attack in {"capture", "combined"}:
+            capture = root / OFFICIAL_CAPTURE
+            capture.write_bytes(capture.read_bytes() + b"\n# attacker-controlled capture bytes\n")
+            _reseal_role(document, root, "capture_input")
+        _reseal(document)
+    
+        # When / Then: promotion must consult authority outside the resealed evidence root.
+>       with pytest.raises(SpecValidationError, match="source|capture|git|contract"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r5.py:109: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r5.py::test_promotion_rejects_fully_resealed_trust_anchor_substitution[source]
+FAILED tests/test_task8_r5.py::test_promotion_rejects_fully_resealed_trust_anchor_substitution[capture]
+FAILED tests/test_task8_r5.py::test_promotion_rejects_fully_resealed_trust_anchor_substitution[combined]
+3 failed in 11.02s

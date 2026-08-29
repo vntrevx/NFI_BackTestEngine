@@ -1,0 +1,130 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "current-portfolio-pressure-3p-aave-eth-btc-r1",
+  "description": "Pinned Freqtrade 2026.5.1 shared wallet/slot pressure Oracle for configured order AAVE/USDT, ETH/USDT, BTC/USDT.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-08-23T09:40:17.906796Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "PortfolioPressureOracle",
+    "timerange": "20250101-20250102",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": null,
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "PortfolioPressureOracle",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20250101-20250102",
+      "--pairs",
+      "AAVE/USDT",
+      "ETH/USDT",
+      "BTC/USDT",
+      "--fee",
+      "0",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "d61db0900a36042d54f85e3bba754133aedec9b9087fb8a4cb526589ad267fd4",
+      "bytes": 3825
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "dfc4dd8401f3374a3e0559789ea772c7c694d57ade7c816372ed72ca667f0ec3",
+      "bytes": 996
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "f34f6c2ae29f305d51b1ea127e1d5a225cf40820dba63900152c206bf030def5",
+      "bytes": 3842
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ETH_USDT-5m.feather",
+      "sha256": "f34f6c2ae29f305d51b1ea127e1d5a225cf40820dba63900152c206bf030def5",
+      "bytes": 3842
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/AAVE_USDT-5m.feather",
+      "sha256": "f34f6c2ae29f305d51b1ea127e1d5a225cf40820dba63900152c206bf030def5",
+      "bytes": 3842
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/reference-markets.json",
+      "sha256": "d2dbc03e3aef6eea9906e7b1e84b256e5de8e683901bb42e894de599d428c360",
+      "bytes": 22596
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/portfolio-trace-3p-aave-eth-btc.json",
+      "sha256": "597ab6520bf89a2c324d33bcbc597f903a6c609ba7a34b32db6ebec111d41476",
+      "bytes": 41306
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/001-official-source-authentication-3p-aave-eth-btc.json",
+      "sha256": "f6b9cca0e4a9879f80c4b5b5a1b1935d419fa6ce9772e06da6ed17fc4abe5ab5",
+      "bytes": 825
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "5e3d976bb406fff04cf7c98b55681ce212d44580bee53e7d7964f119fe0280d6",
+      "bytes": 7207
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "3207c00b47b12cf6d8ac2dae1cf9a5be5918a8ed1ff8d10f0007052cf7ee00fd",
+      "bytes": 5700
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "dfddac5cf29c37d7aec5b8bc6035dd218cd26fd91861d5b04c4689d020f246ef",
+      "bytes": 227236
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "d03abf74587b624e482dd2635b33bab3a3891780568e4cb51c4341c2fa38acba",
+      "bytes": 17216
+    }
+  },
+  "measurement": {
+    "warmup_runs": 0,
+    "measured_runs": 2,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

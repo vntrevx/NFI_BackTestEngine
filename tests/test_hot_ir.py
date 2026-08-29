@@ -604,7 +604,7 @@ def test_bounded_custom_stake_ast_lowers_without_python_execution(
         "        enter_tags = entry_tag.split()\n"
         "        def scaled_stake(stake_multiplier):\n"
         "            stake = proposed_stake * stake_multiplier\n"
-        "            return stake if stake > min_stake else min_stake\n"
+        "            return stake if (min_stake is None) or (stake > min_stake) else min_stake\n"
         "        if side == 'long':\n"
         "            if all(c in rebuy_tags for c in enter_tags):\n"
         "                return scaled_stake(multiplier)\n"

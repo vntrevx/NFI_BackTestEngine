@@ -17,8 +17,8 @@ from nfi_backtest_engine.stateful_execution_policy import (
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 
 _X7_SOURCE = Path(
-    "benchmarks/fixtures/captured/"
-    "x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/strategy.py"
+    "benchmarks/evidence/m22/current-x7-raw/"
+    "upstream-NostalgiaForInfinityX7.source"
 )
 
 
@@ -221,7 +221,7 @@ def test_signal_only_lane_does_not_claim_a_stateful_shadow() -> None:
     assert policy["legacy_shadow"]["enabled"] is False
 
 
-def test_captured_x7_contract_selects_nine_generic_stateful_roots() -> None:
+def test_current_x7_contract_selects_ten_generic_stateful_roots() -> None:
     analysis = analyze_strategy(_X7_SOURCE, class_name="NostalgiaForInfinityX7")
     hot_ir = build_hot_callback_ir(
         analysis,
@@ -234,6 +234,6 @@ def test_captured_x7_contract_selects_nine_generic_stateful_roots() -> None:
 
     assert policy["adapter_lane"] == X7_GENERIC_STATEFUL_LANE
     assert policy["native_ready"] is True
-    assert len(policy["programs"]) == 9
+    assert len(policy["programs"]) == 10
     assert policy["legacy_shadow"]["program_count"] == 0
     assert {program["execution_mode"] for program in policy["programs"]} == {"primary"}

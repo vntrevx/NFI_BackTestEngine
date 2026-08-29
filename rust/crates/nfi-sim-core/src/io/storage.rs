@@ -76,11 +76,12 @@ impl FeatureColumn {
                 kind,
             } => match kind {
                 FileBackedFeatureKind::Number => {
-                    scalar_number_value(rows.feature_number(index, *feature_index)?)
+                    scalar_number_value(rows.feature_number(index, *feature_index).ok()??)
                 }
-                FileBackedFeatureKind::Boolean => {
-                    rows.feature_boolean(index, *feature_index).map(Value::Bool)
-                }
+                FileBackedFeatureKind::Boolean => rows
+                    .feature_boolean(index, *feature_index)
+                    .ok()?
+                    .map(Value::Bool),
             },
         }
     }
@@ -97,7 +98,7 @@ impl FeatureColumn {
                 rows,
                 feature_index,
                 kind: FileBackedFeatureKind::Number,
-            } => rows.feature_number(index, *feature_index),
+            } => rows.feature_number(index, *feature_index).ok().flatten(),
         }
     }
 
@@ -113,7 +114,7 @@ impl FeatureColumn {
                 rows,
                 feature_index,
                 kind: FileBackedFeatureKind::Boolean,
-            } => rows.feature_boolean(index, *feature_index),
+            } => rows.feature_boolean(index, *feature_index).ok().flatten(),
         }
     }
 }
@@ -190,19 +191,26 @@ impl CandleSeries {
         self.len() == 0
     }
 
+    pub(crate) fn try_get(
+        &self,
+        index: usize,
+    ) -> Result<Option<Cow<'_, Candle>>, crate::domain::SimError> {
+        match self {
+            Self::Owned(candles) => Ok(candles.get(index).map(Cow::Borrowed)),
+            Self::FileBacked(rows) => rows.candle(index).map(|candle| candle.map(Cow::Owned)),
+        }
+    }
+
     #[must_use]
     pub fn get(&self, index: usize) -> Option<Cow<'_, Candle>> {
-        match self {
-            Self::Owned(candles) => candles.get(index).map(Cow::Borrowed),
-            Self::FileBacked(rows) => rows.candle(index).map(Cow::Owned),
-        }
+        self.try_get(index).ok().flatten()
     }
 
     #[must_use]
     pub fn timestamp_ms(&self, index: usize) -> Option<i64> {
         match self {
             Self::Owned(candles) => candles.get(index).map(|candle| candle.timestamp_ms),
-            Self::FileBacked(rows) => rows.timestamp_ms(index),
+            Self::FileBacked(rows) => rows.timestamp_ms(index).ok().flatten(),
         }
     }
 
@@ -212,7 +220,7 @@ impl CandleSeries {
             Self::Owned(candles) => candles
                 .get(index)
                 .map(|candle| candle.enter_long.is_some() || candle.enter_short.is_some()),
-            Self::FileBacked(rows) => rows.has_entry_signal(index),
+            Self::FileBacked(rows) => rows.has_entry_signal(index).ok().flatten(),
         }
     }
 
@@ -229,7 +237,14 @@ impl CandleSeries {
                             .then_some(index)
                     })
             }
-            Self::FileBacked(rows) => rows.next_entry_index(start),
+            Self::FileBacked(rows) => rows.next_entry_index(start).ok().flatten(),
+        }
+    }
+
+    pub(crate) fn backing_failure(&self) -> Option<crate::domain::SimError> {
+        match self {
+            Self::Owned(_) => None,
+            Self::FileBacked(rows) => rows.failure(),
         }
     }
 
@@ -239,9 +254,17 @@ impl CandleSeries {
         }
     }
 
+    pub(crate) fn try_last(&self) -> Result<Option<Cow<'_, Candle>>, crate::domain::SimError> {
+        if let Some(index) = self.len().checked_sub(1) {
+            self.try_get(index)
+        } else {
+            Ok(None)
+        }
+    }
+
     #[must_use]
     pub fn last(&self) -> Option<Cow<'_, Candle>> {
-        self.len().checked_sub(1).and_then(|index| self.get(index))
+        self.try_last().ok().flatten()
     }
 
     #[must_use]

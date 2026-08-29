@@ -95,12 +95,26 @@ pub(crate) fn nfi_profit_snapshot(
     close_fee_rate: f64,
     is_futures: bool,
 ) -> Option<NfiProfitSnapshot> {
+    nfi_profit_snapshot_checked(trade, exit_rate, open_fee_rate, close_fee_rate, is_futures)
+        .ok()
+        .flatten()
+}
+
+pub(crate) fn nfi_profit_snapshot_checked(
+    trade: &OpenTrade,
+    exit_rate: f64,
+    open_fee_rate: f64,
+    close_fee_rate: f64,
+    is_futures: bool,
+) -> Result<Option<NfiProfitSnapshot>, crate::domain::SimError> {
+    use crate::calculations::{checked_finite, checked_float_product, checked_float_sum};
+
     if !exit_rate.is_finite()
         || !open_fee_rate.is_finite()
         || !close_fee_rate.is_finite()
         || trade.orders.is_empty()
     {
-        return None;
+        return Ok(None);
     }
     let mut total_amount = 0.0;
     let mut total_stake = 0.0;
@@ -112,48 +126,80 @@ pub(crate) fn nfi_profit_snapshot(
     };
     let mut first_entry_cost = None;
     for order in &trade.orders {
-        let stake = order.amount * order.price;
+        let stake = checked_float_product(&[order.amount, order.price], "nfi-profit-order-stake")?;
         if order.is_entry {
             first_entry_cost.get_or_insert(stake);
-            let entry_stake = stake * open_multiplier;
-            total_amount += order.amount;
-            total_stake += entry_stake;
-            if trade.side == TradeSide::Short {
-                total_profit += entry_stake;
-            } else {
-                total_profit -= entry_stake;
-            }
+            let entry_stake =
+                checked_float_product(&[stake, open_multiplier], "nfi-profit-entry-stake")?;
+            total_amount =
+                checked_float_sum(&[total_amount, order.amount], "nfi-profit-total-amount")?;
+            total_stake = checked_float_sum(&[total_stake, entry_stake], "nfi-profit-total-stake")?;
+            total_profit = checked_float_sum(
+                &[
+                    total_profit,
+                    if trade.side == TradeSide::Short {
+                        entry_stake
+                    } else {
+                        -entry_stake
+                    },
+                ],
+                "nfi-profit-entry-total",
+            )?;
         } else {
-            let exit_stake = stake * close_multiplier;
-            total_amount -= order.amount;
-            if trade.side == TradeSide::Short {
-                total_profit -= exit_stake;
-            } else {
-                total_profit += exit_stake;
-            }
+            let exit_stake =
+                checked_float_product(&[stake, close_multiplier], "nfi-profit-exit-stake")?;
+            total_amount =
+                checked_float_sum(&[total_amount, -order.amount], "nfi-profit-total-amount")?;
+            total_profit = checked_float_sum(
+                &[
+                    total_profit,
+                    if trade.side == TradeSide::Short {
+                        -exit_stake
+                    } else {
+                        exit_stake
+                    },
+                ],
+                "nfi-profit-exit-total",
+            )?;
         }
     }
-    let current_stake = total_amount * exit_rate * close_multiplier;
-    if trade.side == TradeSide::Short {
-        total_profit -= current_stake;
-    } else {
-        total_profit += current_stake;
-    }
+    let current_stake = checked_float_product(
+        &[total_amount, exit_rate, close_multiplier],
+        "nfi-profit-current-stake",
+    )?;
+    total_profit = checked_float_sum(
+        &[
+            total_profit,
+            if trade.side == TradeSide::Short {
+                -current_stake
+            } else {
+                current_stake
+            },
+        ],
+        "nfi-profit-current-total",
+    )?;
     if is_futures {
-        // NFI reads `trade.funding_fees`, which Freqtrade keeps as the
-        // cumulative fee across filled orders plus the current running
-        // interval. A partial exit realizes part of the position but does not
-        // reduce this callback-visible cumulative value.
-        total_profit += trade.funding_fees_total;
+        total_profit = checked_float_sum(
+            &[total_profit, trade.funding_fees_total],
+            "nfi-profit-funding-total",
+        )?;
     }
-    let first_entry_cost = first_entry_cost?;
+    let Some(first_entry_cost) = first_entry_cost else {
+        return Ok(None);
+    };
     if total_stake == 0.0 || current_stake == 0.0 || first_entry_cost == 0.0 {
-        return None;
+        return Ok(None);
     }
-    Some(NfiProfitSnapshot {
+    Ok(Some(NfiProfitSnapshot {
         stake: total_profit,
-        ratio: total_profit / total_stake,
-        current_stake_ratio: total_profit / current_stake,
-        initial_stake_ratio: total_profit / first_entry_cost,
-    })
+        ratio: checked_finite(total_profit / total_stake, "nfi-profit-ratio")?,
+        current_stake_ratio: checked_finite(
+            total_profit / current_stake,
+            "nfi-profit-current-stake-ratio",
+        )?,
+        initial_stake_ratio: checked_finite(
+            total_profit / first_entry_cost,
+            "nfi-profit-initial-stake-ratio",
+        )?,
+    }))
 }

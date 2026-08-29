@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi-backtest-engine.dev/schemas/executable-callback-program-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "identity", "registers", "required_custom_state", "required_inputs", "entrypoints"],
+  "properties": {
+    "schema_version": {"const": "executable-callback-program-v1"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "registers": {"type": "array", "maxItems": 256, "items": {"$ref": "#/$defs/register"}},
+    "required_custom_state": {"type": "array", "items": {"$ref": "#/$defs/customState"}},
+    "required_inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
+    "entrypoints": {
+      "type": "object", "additionalProperties": false,
+      "required": ["loop_cadence_startup_lookback", "bot_loop_start", "leverage", "custom_stake_amount", "confirm_trade_entry", "order_filled", "adjust_trade_position", "custom_stoploss", "custom_exit", "confirm_trade_exit"],
+      "properties": {
+        "loop_cadence_startup_lookback": {"$ref": "#/$defs/entrypoint"},
+        "bot_loop_start": {"$ref": "#/$defs/entrypoint"}, "leverage": {"$ref": "#/$defs/entrypoint"},
+        "custom_stake_amount": {"$ref": "#/$defs/entrypoint"}, "confirm_trade_entry": {"$ref": "#/$defs/entrypoint"},
+        "order_filled": {"$ref": "#/$defs/entrypoint"}, "adjust_trade_position": {"$ref": "#/$defs/entrypoint"},
+        "custom_stoploss": {"$ref": "#/$defs/entrypoint"}, "custom_exit": {"$ref": "#/$defs/entrypoint"},
+        "confirm_trade_exit": {"$ref": "#/$defs/entrypoint"}
+      }
+    }
+  },
+  "$defs": {
+    "hex": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "type": {
+      "type": "object", "additionalProperties": false, "required": ["kind"],
+      "properties": {"kind": {"enum": ["bool", "i64", "f64", "string", "timestamp_ms", "null", "list", "record"]}, "item": {"$ref": "#/$defs/type"}, "max_length": {"type": "integer", "minimum": 0, "maximum": 65536}, "fields": {"type": "array"}}
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["callback_contract_file_sha256", "callback_contract_fingerprint", "callback_execution_ir_fingerprint", "program_fingerprint", "run_mode", "selected_class_ast_sha256", "source_closure", "source_predicates", "trading_mode"],
+      "properties": {
+        "callback_contract_file_sha256": {"$ref": "#/$defs/hex"}, "callback_contract_fingerprint": {"$ref": "#/$defs/hex"},
+        "callback_execution_ir_fingerprint": {"$ref": "#/$defs/hex"}, "program_fingerprint": {"$ref": "#/$defs/hex"},
+        "run_mode": {"enum": ["backtest", "hyperopt"]}, "selected_class_ast_sha256": {"$ref": "#/$defs/hex"},
+        "trading_mode": {"enum": ["spot", "futures"]},
+        "source_closure": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/sourceRef"}},
+        "source_predicates": {"type": "array", "items": {"$ref": "#/$defs/predicate"}}
+      }
+    },
+    "sourceRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "logical_owner_id", "logical_method_id", "ast_sha256", "source_body_sha256", "diagnostic_path"],
+      "properties": {"source_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "logical_owner_id": {"type": "string", "minLength": 1}, "logical_method_id": {"type": "string", "minLength": 1}, "ast_sha256": {"$ref": "#/$defs/hex"}, "source_body_sha256": {"$ref": "#/$defs/hex"}, "diagnostic_path": {"type": "string"}}
+    },
+    "predicate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "producer_method_id", "expression", "ast_sha256", "source_order"],
+      "properties": {"id": {"type": "string", "pattern": "^p[1-9][0-9]*$"}, "producer_method_id": {"type": "string"}, "expression": {"type": "string"}, "ast_sha256": {"$ref": "#/$defs/hex"}, "source_order": {"type": "integer", "minimum": 0}}
+    },
+    "register": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "logical_name_hash", "scope", "type", "initial"],
+      "properties": {"id": {"type": "string", "pattern": "^r[1-9][0-9]*$"}, "logical_name_hash": {"$ref": "#/$defs/hex"}, "scope": {"const": "strategy_run"}, "type": {"$ref": "#/$defs/type"}, "initial": {"$ref": "#/$defs/expression"}}
+    },
+    "customState": {
+      "type": "object", "additionalProperties": false, "required": ["key", "type"],
+      "properties": {"key": {"type": "string", "minLength": 1}, "type": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/type"}]}}
+    },
+    "input": {
+      "type": "object", "additionalProperties": false, "required": ["entrypoint", "name", "type"],
+      "properties": {"entrypoint": {"type": "string"}, "name": {"type": "string", "minLength": 1}, "type": {"$ref": "#/$defs/type"}}
+    },
+    "entrypoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "active", "cadence", "accepted_returns", "exception_fallback", "instructions", "max_steps", "order", "predicate_ids", "transaction_policy", "visibility"],
+      "properties": {
+        "name": {"type": "string"}, "active": {"type": "boolean"},
+        "cadence": {"enum": ["once_per_main_candle", "per_initial_entry", "per_fill", "per_open_trade_candle", "per_exit_candidate", "synthetic_lifecycle"]},
+        "accepted_returns": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "exception_fallback": {"type": "object", "additionalProperties": false, "required": ["class", "value"], "properties": {"class": {"enum": ["none", "boolean", "number", "string", "stake", "leverage", "stoploss", "adjustment", "exit_reason", "lifecycle_transition"]}, "value": {}}},
+        "instructions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/statement"}},
+        "max_steps": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "order": {"type": "object", "additionalProperties": false, "required": ["phase", "after", "before"], "properties": {"phase": {"type": "integer", "minimum": 0}, "after": {"type": "array", "items": {"type": "string"}}, "before": {"type": "array", "items": {"type": "string"}}}},
+        "predicate_ids": {"type": "array", "items": {"type": "string", "pattern": "^p[1-9][0-9]*$"}},
+        "transaction_policy": {"type": "object", "additionalProperties": false, "required": ["ordinary_trade", "scheduler_prior", "shared_custom_state", "strategy_registers"], "properties": {"ordinary_trade": {"const": "commit_on_success_rollback_on_exception"}, "scheduler_prior": {"const": "preserve"}, "shared_custom_state": {"const": "commit_executed_writes"}, "strategy_registers": {"const": "commit_executed_writes"}}},
+        "visibility": {"type": "object", "additionalProperties": false, "required": ["callback_dataframe_completed_candle_lag", "signal_row_offset", "successful_state_visible"], "properties": {"callback_dataframe_completed_candle_lag": {"const": 2}, "signal_row_offset": {"const": -1}, "successful_state_visible": {"const": "next_callback_in_scheduler_order"}}}
+      }
+    },
+    "statement": {
+      "type": "object", "required": ["op", "id", "predicate_ids"],
+      "properties": {
+        "op": {"enum": ["let", "set_register", "set_register_item", "set_custom_state", "delete_custom_state", "if", "for_range", "return", "raise_callback", "emit_observation"]},
+        "id": {"type": "string", "pattern": "^i[1-9][0-9]*$"}, "predicate_ids": {"type": "array", "items": {"type": "string"}},
+        "name": {"type": "string"}, "register_id": {"type": "string"}, "key": {"type": "string"},
+        "value": {"$ref": "#/$defs/expression"}, "condition": {"$ref": "#/$defs/expression"},
+        "then": {"type": "array", "items": {"$ref": "#/$defs/statement"}}, "otherwise": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+        "target": {"type": "string"}, "bounds": {"type": "array", "items": {"$ref": "#/$defs/expression"}}, "body": {"type": "array", "items": {"$ref": "#/$defs/statement"}},
+        "result": {"type": "object", "additionalProperties": false, "required": ["class", "value"], "properties": {"class": {"enum": ["none", "boolean", "number", "string", "stake", "leverage", "stoploss", "adjustment", "exit_reason", "lifecycle_transition"]}, "value": {}}},
+        "exception_class": {"type": "string"}, "message": {"$ref": "#/$defs/expression"}, "channel": {"const": "strategy_stdout_json"}, "payload": {"$ref": "#/$defs/expression"}
+      }, "additionalProperties": false
+    },
+    "expression": {
+      "type": "object", "required": ["op"],
+      "properties": {
+        "op": {"enum": ["literal", "read_input", "read_local", "read_register", "read_trade", "read_order", "read_candle", "read_wallet", "read_custom_state", "record", "list", "tuple", "index", "unary", "binary", "compare", "and", "or", "choose", "call_builtin", "timestamp_ms", "map_get"]},
+        "value": {}, "name": {"type": "string"}, "register_id": {"type": "string"}, "field": {"type": "string"}, "key": {"type": "string"}, "default": {"$ref": "#/$defs/expression"},
+        "fields": {"type": "array", "items": {"type": "object"}}, "items": {"type": "array", "items": {"$ref": "#/$defs/expression"}}, "index": {"$ref": "#/$defs/expression"},
+        "operator": {"type": "string"}, "left": {"$ref": "#/$defs/expression"}, "right": {"$ref": "#/$defs/expression"}, "comparisons": {"type": "array", "items": {"type": "object"}},
+        "values": {"type": "array", "items": {"$ref": "#/$defs/expression"}}, "condition": {"$ref": "#/$defs/expression"}, "then": {"$ref": "#/$defs/expression"}, "otherwise": {"$ref": "#/$defs/expression"}, "args": {"type": "array", "items": {"$ref": "#/$defs/expression"}}
+      }, "additionalProperties": false
+    }
+  }
+}

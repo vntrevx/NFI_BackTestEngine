@@ -85,6 +85,7 @@ def execute(
             args.profile,
             args.output_trace,
             report_path=args.output_report,
+            source_trace_path=args.source_trace,
         )
         print(
             "official semantic observer: "

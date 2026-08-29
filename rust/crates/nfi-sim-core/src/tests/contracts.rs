@@ -43,7 +43,7 @@ fn nfi_profit_snapshot_uses_filled_order_cashflows_and_first_entry_basis() {
     )
     .expect("valid entry")
     .expect("sized entry");
-    let initial_aggregates = trade.filled_order_aggregates();
+    let initial_aggregates = trade.filled_order_aggregates().expect("finite aggregates");
     assert_eq!(initial_aggregates.order_count(), 1);
     assert_eq!(
         initial_aggregates
@@ -54,19 +54,21 @@ fn nfi_profit_snapshot_uses_filled_order_cashflows_and_first_entry_basis() {
     );
     let first = trade.orders[0].clone();
     let exit_amount = first.amount * 0.25;
-    trade.push_filled_order(FilledOrder {
-        id: 2,
-        funding_fee: 0.0,
-        sequence: 1,
-        side: OrderSide::Sell,
-        is_entry: false,
-        filled_timestamp_ms: 2,
-        amount: exit_amount,
-        price: 110.0,
-        cost: exit_amount * 110.0,
-        tag: Some("d1".to_owned()),
-    });
-    let updated_aggregates = trade.filled_order_aggregates();
+    trade
+        .push_filled_order(FilledOrder {
+            id: 2,
+            funding_fee: 0.0,
+            sequence: 1,
+            side: OrderSide::Sell,
+            is_entry: false,
+            filled_timestamp_ms: 2,
+            amount: exit_amount,
+            price: 110.0,
+            cost: exit_amount * 110.0,
+            tag: Some("d1".to_owned()),
+        })
+        .expect("finite aggregate append");
+    let updated_aggregates = trade.filled_order_aggregates().expect("finite aggregates");
     assert_eq!(updated_aggregates.order_count(), 2);
     assert_eq!(
         updated_aggregates

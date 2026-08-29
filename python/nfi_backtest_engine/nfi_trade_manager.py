@@ -2,6 +2,7 @@
 
 from .x7.adjustments import _adjustment_literal_policy
 from .x7.legacy import _legacy_futures_fallback_loss_threshold
+from .x7.liquidation_rescue import _legacy_liquidation_rescue_policy
 from .x7.routes import _extract_rebuy_terminal_exit, _method_ast_sha256
 from .x7.trade_manager import NFI_TRADE_MANAGER_IR_VERSION, build_nfi_trade_manager_ir
 
@@ -10,6 +11,7 @@ __all__ = [
     "_adjustment_literal_policy",
     "_extract_rebuy_terminal_exit",
     "_legacy_futures_fallback_loss_threshold",
+    "_legacy_liquidation_rescue_policy",
     "_method_ast_sha256",
     "build_nfi_trade_manager_ir",
 ]

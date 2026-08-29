@@ -20,11 +20,14 @@ _DERISK_TAG = re.compile(r"^derisk_level_(\d+)$")
 _GRIND_TAG = re.compile(r"^grind_(\d+)_(entry|exit|derisk)$")
 _GRIND_VARIABLE = re.compile(r"^grind_(\d+)_(.+)$")
 _DERISK_VARIABLE = re.compile(r"^is_derisk_(\d+)(?:_found)?$")
+_DERISK_ENABLE_VARIABLE = re.compile(r"^derisk_(\d+)_enable$")
+_DERISK_VALUE_VARIABLE = re.compile(r"^derisk_(\d+)_(stake|threshold)$")
 _MAXIMUM_KEY = re.compile(r"^grind_(\d+)_cluster_max_profit_(stake|rate)$")
 _BUILTIN_NAMES = {"abs", "all", "any", "bool", "float", "int", "len", "max", "min", "str"}
 
 _COMMON_BINDINGS = {
     "current_rate": "current-rate",
+    "derisk_enable": "derisk-enabled-global",
     "current_stake_amount": "current-stake-amount",
     "exit_rate": "exit-rate",
     "fee_close_rate": "fee-close-rate",
@@ -395,8 +398,11 @@ def _compile_exit_program(
     method: ast.FunctionDef,
     constants: Mapping[str, Any],
 ) -> dict[str, Any]:
-    lowerer = _ActionLowerer(none_result="continue")
     body = copy.deepcopy(method.body)
+    lowerer = _ActionLowerer(
+        none_result="continue",
+        observability_only_locals=_observability_only_config_locals(body),
+    )
     lowered = [node for statement in body if (node := lowerer.visit(statement)) is not None]
     fragment = _decision_fragment("__system_adjustment_grind_exit", lowered)
     bindings = _bindings_for_fragment(fragment, None)
@@ -425,16 +431,82 @@ class _FirstEntryAmountLowerer(ast.NodeTransformer):
         return visited
 
 
+_DISCARDED_REPORTING_LOCALS = frozenset({"grind_profit", "stake_fmt"})
+_DISCARDED_REPORTING_CALLS = frozenset(
+    {"send_msg", "log.info", "self.dp.send_msg"}
+)
+
+
+def _observability_only_config_locals(body: list[ast.stmt]) -> frozenset[str]:
+    module = ast.Module(body=body, type_ignores=[])
+    parents = {
+        id(child): parent
+        for parent in ast.walk(module)
+        for child in ast.iter_child_nodes(parent)
+    }
+    candidates = {
+        target.id
+        for node in ast.walk(module)
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance((target := node.targets[0]), ast.Name)
+        and isinstance(node.value, ast.Subscript)
+        and isinstance(node.value.value, ast.Attribute)
+        and isinstance(node.value.value.value, ast.Name)
+        and node.value.value.value.id == "self"
+        and node.value.value.attr == "config"
+        and isinstance(node.value.slice, ast.Constant)
+        and isinstance(node.value.slice.value, str)
+    }
+    result: set[str] = set()
+    for candidate in candidates:
+        loads = [
+            node
+            for node in ast.walk(module)
+            if isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id == candidate
+        ]
+        if all(_load_is_discarded(node, parents) for node in loads):
+            result.add(candidate)
+    return frozenset(result)
+
+
+def _load_is_discarded(node: ast.Name, parents: Mapping[int, ast.AST]) -> bool:
+    current: ast.AST = node
+    while (parent := parents.get(id(current))) is not None:
+        if (
+            isinstance(parent, ast.Expr)
+            and isinstance(parent.value, ast.Call)
+            and _call_path(parent.value.func) in _DISCARDED_REPORTING_CALLS
+        ):
+            return True
+        if (
+            isinstance(parent, ast.Assign)
+            and len(parent.targets) == 1
+            and isinstance(parent.targets[0], ast.Name)
+            and parent.targets[0].id in _DISCARDED_REPORTING_LOCALS
+        ):
+            return True
+        current = parent
+    return False
+
+
 class _ActionLowerer(ast.NodeTransformer):
-    def __init__(self, *, none_result: str) -> None:
+    def __init__(
+        self,
+        *,
+        none_result: str,
+        observability_only_locals: frozenset[str] = frozenset(),
+    ) -> None:
         self.none_result = none_result
+        self.observability_only_locals = observability_only_locals
 
     def visit_Expr(self, node: ast.Expr) -> ast.stmt | None:
-        if isinstance(node.value, ast.Call) and _call_path(node.value.func) in {
-            "send_msg",
-            "log.info",
-            "self.dp.send_msg",
-        }:
+        if (
+            isinstance(node.value, ast.Call)
+            and _call_path(node.value.func) in _DISCARDED_REPORTING_CALLS
+        ):
             return None
         raise StrategyAnalysisError("system adjustment action contains an uncompiled expression")
 
@@ -442,7 +514,8 @@ class _ActionLowerer(ast.NodeTransformer):
         if (
             len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id in {"grind_profit", "stake_fmt"}
+            and node.targets[0].id
+            in _DISCARDED_REPORTING_LOCALS | self.observability_only_locals
         ):
             return None
         visited = self.generic_visit(node)
@@ -456,7 +529,14 @@ class _ActionLowerer(ast.NodeTransformer):
             raise StrategyAnalysisError("system adjustment action loop changed")
         return None
 
-    def visit_If(self, node: ast.If) -> ast.stmt:
+    def visit_If(self, node: ast.If) -> ast.stmt | None:
+        if not node.orelse and node.body and all(
+            isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and _call_path(statement.value.func) in _DISCARDED_REPORTING_CALLS
+            for statement in node.body
+        ):
+            return None
         if isinstance(node.test, ast.Name) and node.test.id == "has_order_tags":
             if len(node.body) != 1 or not isinstance(node.body[0], ast.Return):
                 raise StrategyAnalysisError("system adjustment tagged return changed")
@@ -530,6 +610,26 @@ def _bindings_for_fragment(
         derisk = _DERISK_VARIABLE.fullmatch(name)
         if derisk is not None:
             result.append({"name": name, "kind": "derisk-found", "level": int(derisk.group(1))})
+            continue
+        derisk_enable = _DERISK_ENABLE_VARIABLE.fullmatch(name)
+        if derisk_enable is not None:
+            level = int(derisk_enable.group(1))
+            if action_level is not None and level != action_level:
+                raise StrategyAnalysisError(f"unsupported system adjustment input: {name}")
+            result.append({"name": name, "kind": "derisk-enabled", "level": level})
+            continue
+        derisk_value = _DERISK_VALUE_VARIABLE.fullmatch(name)
+        if derisk_value is not None:
+            level = int(derisk_value.group(1))
+            if action_level is not None and level != action_level:
+                raise StrategyAnalysisError(f"unsupported system adjustment input: {name}")
+            result.append(
+                {
+                    "name": name,
+                    "kind": f"derisk-{derisk_value.group(2)}",
+                    "level": level,
+                }
+            )
             continue
         cluster = _GRIND_VARIABLE.fullmatch(name)
         if cluster is not None:

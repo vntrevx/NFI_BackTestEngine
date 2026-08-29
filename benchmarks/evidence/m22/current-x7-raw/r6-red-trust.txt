@@ -1,0 +1,169 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+___________ test_promotion_rejects_trusted_hardlink_aliases[roles0] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1495/test_promotion_rejects_trusted0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7503a84a4b30>
+roles = ('source',)
+
+    @pytest.mark.parametrize("roles", [("source",), ("capture",), ("source", "capture")])
+    def test_promotion_rejects_trusted_hardlink_aliases(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: exact trusted bytes remain at each consumed path but an attacker owns
+        # another name for the same inode.
+        root = attack_root(tmp_path, monkeypatch)
+        for role in roles:
+            path = root / (SOURCE if role == "source" else OFFICIAL_CAPTURE)
+            alias = path.with_suffix(f"{path.suffix}.attacker")
+            path.replace(alias)
+            os.link(alias, path)
+    
+        # When / Then: promotion must reject multi-link trusted files before hashing.
+>       with pytest.raises(SpecValidationError, match="link|alias|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r6.py:42: Failed
+___________ test_promotion_rejects_trusted_hardlink_aliases[roles1] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1495/test_promotion_rejects_trusted1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75036c56b440>
+roles = ('capture',)
+
+    @pytest.mark.parametrize("roles", [("source",), ("capture",), ("source", "capture")])
+    def test_promotion_rejects_trusted_hardlink_aliases(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: exact trusted bytes remain at each consumed path but an attacker owns
+        # another name for the same inode.
+        root = attack_root(tmp_path, monkeypatch)
+        for role in roles:
+            path = root / (SOURCE if role == "source" else OFFICIAL_CAPTURE)
+            alias = path.with_suffix(f"{path.suffix}.attacker")
+            path.replace(alias)
+            os.link(alias, path)
+    
+        # When / Then: promotion must reject multi-link trusted files before hashing.
+>       with pytest.raises(SpecValidationError, match="link|alias|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r6.py:42: Failed
+___________ test_promotion_rejects_trusted_hardlink_aliases[roles2] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1495/test_promotion_rejects_trusted2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x75036cd60f50>
+roles = ('source', 'capture')
+
+    @pytest.mark.parametrize("roles", [("source",), ("capture",), ("source", "capture")])
+    def test_promotion_rejects_trusted_hardlink_aliases(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        roles: tuple[str, ...],
+    ) -> None:
+        # Given: exact trusted bytes remain at each consumed path but an attacker owns
+        # another name for the same inode.
+        root = attack_root(tmp_path, monkeypatch)
+        for role in roles:
+            path = root / (SOURCE if role == "source" else OFFICIAL_CAPTURE)
+            alias = path.with_suffix(f"{path.suffix}.attacker")
+            path.replace(alias)
+            os.link(alias, path)
+    
+        # When / Then: promotion must reject multi-link trusted files before hashing.
+>       with pytest.raises(SpecValidationError, match="link|alias|source|capture"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r6.py:42: Failed
+___________ test_promotion_rejects_active_equivalent_git_replacement ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1495/test_promotion_rejects_active_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7503a84f51c0>
+
+    def test_promotion_rejects_active_equivalent_git_replacement(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: the immutable commit is replaced by an attacker commit with the same tree,
+        # preserving the checked strategy blob while changing the object graph.
+        root = attack_root(tmp_path, monkeypatch)
+        git_root = root / ".nfi/upstream-nfi"
+        commit = "eebaf97c1434bd8f208b7cd9c417606646e1e478"
+        tree = subprocess.run(
+            ("git", "-C", git_root.as_posix(), "rev-parse", f"{commit}^{{tree}}"),
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        environment = {
+            "PATH": os.environ["PATH"],
+            "GIT_AUTHOR_NAME": "attacker",
+            "GIT_AUTHOR_EMAIL": "attacker@example.invalid",
+            "GIT_AUTHOR_DATE": "2000-01-01T00:00:00Z",
+            "GIT_COMMITTER_NAME": "attacker",
+            "GIT_COMMITTER_EMAIL": "attacker@example.invalid",
+            "GIT_COMMITTER_DATE": "2000-01-01T00:00:00Z",
+        }
+        replacement = subprocess.run(
+            ("git", "-C", git_root.as_posix(), "commit-tree", tree),
+            input="attacker replacement\n",
+            check=True,
+            capture_output=True,
+            text=True,
+            env=environment,
+        ).stdout.strip()
+        subprocess.run(
+            ("git", "-C", git_root.as_posix(), "replace", commit, replacement),
+            check=True,
+        )
+    
+        # When / Then: equivalent replacement graphs are not canonical authority.
+>       with pytest.raises(SpecValidationError, match="replace|Git|object"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r6.py:84: Failed
+_________ test_promotion_rejects_configured_upstream_main_ref_movement _________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1495/test_promotion_rejects_configu0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x750367b17860>
+
+    def test_promotion_rejects_configured_upstream_main_ref_movement(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: the pinned commit remains available while the configured current branch
+        # moves to its parent entirely offline.
+        root = attack_root(tmp_path, monkeypatch)
+        git_root = root / ".nfi/upstream-nfi"
+        parent = subprocess.run(
+            (
+                "git",
+                "-C",
+                git_root.as_posix(),
+                "rev-parse",
+                "eebaf97c1434bd8f208b7cd9c417606646e1e478^",
+            ),
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        subprocess.run(
+            ("git", "-C", git_root.as_posix(), "update-ref", "refs/heads/main", parent),
+            check=True,
+        )
+    
+        # When / Then: current-HEAD movement fails typed even though pinned objects exist.
+>       with pytest.raises(SpecValidationError, match="ref|head|commit|Git"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r6.py:114: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r6.py::test_promotion_rejects_trusted_hardlink_aliases[roles0]
+FAILED tests/test_task8_r6.py::test_promotion_rejects_trusted_hardlink_aliases[roles1]
+FAILED tests/test_task8_r6.py::test_promotion_rejects_trusted_hardlink_aliases[roles2]
+FAILED tests/test_task8_r6.py::test_promotion_rejects_active_equivalent_git_replacement
+FAILED tests/test_task8_r6.py::test_promotion_rejects_configured_upstream_main_ref_movement
+5 failed in 34.43s

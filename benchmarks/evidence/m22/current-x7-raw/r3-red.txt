@@ -1,0 +1,187 @@
+F...FF                                                                   [100%]
+=================================== FAILURES ===================================
+______________ test_changed_signal_execution_is_mode_appropriate _______________
+
+    def test_changed_signal_execution_is_mode_appropriate() -> None:
+        # Given / When
+        document = _document()
+        spot = document["modes"]["spot"]
+        futures = document["modes"]["futures"]
+    
+        # Then: Spot reaches the short signal but cannot execute shorts by Freqtrade contract.
+>       assert spot["execution_contract"] == {
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "can_short": False,
+            "short_execution_supported": False,
+            "changed_signal_reached": True,
+        }
+E       KeyError: 'execution_contract'
+
+tests/test_task8_r3.py:46: KeyError
+____________ test_replay_inventory_contains_every_clean_room_input _____________
+
+    def test_replay_inventory_contains_every_clean_room_input() -> None:
+        # Given / When
+        document = _document()
+    
+        # Then
+        required = {
+            "strategy_input",
+            "config_input",
+            "candle_input",
+            "market_input",
+            "replay_manifest",
+        }
+        for mode_name, mode in document["modes"].items():
+            official_roles = {
+                artifact["role"] for artifact in mode["official_provenance"]["artifacts"]
+            }
+>           assert official_roles >= required
+E           AssertionError: assert {'config_inpu...l_trade', ...} >= {'candle_inpu...rategy_input'}
+E             
+E             Extra items in the right set:
+E             'candle_input'
+E             'market_input'
+E             'replay_manifest'
+
+tests/test_task8_r3.py:112: AssertionError
+______ test_compiled_nullable_string_matches_pandas_for_supported_values _______
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1418/test_compiled_nullable_string_0')
+
+    def test_compiled_nullable_string_matches_pandas_for_supported_values(tmp_path: Path) -> None:
+        # Given
+        source = tmp_path / "StringContract.py"
+        source.write_text(
+            "import pandas as pd\n"
+            "from freqtrade.strategy import IStrategy\n"
+            "class StringContract(IStrategy):\n"
+            "    timeframe = '5m'\n"
+            "    def populate_entry_trend(self, dataframe, metadata):\n"
+            "        dataframe.loc[:, 'enter_tag'] = pd.array(dataframe['value'], dtype='string')\n"
+            "        return dataframe\n"
+            "    def populate_exit_trend(self, dataframe, metadata):\n"
+            "        return dataframe\n",
+            encoding="utf-8",
+        )
+        program = compile_tag_program(source, class_name="StringContract")
+        cases = [
+            ["alpha", "beta"],
+            [1, 2],
+            [1.0, 2.5],
+            [True, False],
+            [None, pd.NA],
+            ["x", 1, 2.5, True, None, pd.NA],
+        ]
+    
+        # When / Then
+        for values in cases:
+>           actual = _rust.execute_numeric_mutation_program(
+                json.dumps(program, separators=(",", ":")),
+                {"value": values},
+                {},
+                ["enter_tag"],
+            )["enter_tag"]["values"]
+E           TypeError: must be real number, not str
+E           while processing 'columns'
+
+tests/test_task8_r3.py:144: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_task8_r3.py::test_changed_signal_execution_is_mode_appropriate
+FAILED tests/test_task8_r3.py::test_replay_inventory_contains_every_clean_room_input
+FAILED tests/test_task8_r3.py::test_compiled_nullable_string_matches_pandas_for_supported_values
+3 failed, 3 passed in 0.38s
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+___ test_resealed_raw_artifact_attacks_fail_semantic_derivation[invalid-zip] ___
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1419/test_resealed_raw_artifact_att0')
+attack = 'invalid-zip'
+
+    @pytest.mark.parametrize("attack", ["invalid-zip", "fabricated-state", "copied-raw-lane"])
+    def test_resealed_raw_artifact_attacks_fail_semantic_derivation(
+        tmp_path: Path,
+        attack: str,
+    ) -> None:
+        # Given
+        document = _document()
+        mode = document["modes"]["futures"]
+        if attack == "invalid-zip":
+            payload = ROOT / "tests/test_task8_r3.py"
+            artifact = next(
+                item
+                for item in mode["official_provenance"]["artifacts"]
+                if item["role"] == "official_execution"
+            )
+            artifact["path"] = "tests/test_task8_r3.py"
+            artifact["sha256"] = hashlib.sha256(payload.read_bytes()).hexdigest()
+        elif attack == "fabricated-state":
+            mode["official"]["full_state"] = deepcopy(mode["official"]["full_state"][:2])
+        else:
+            official = {
+                artifact["role"]: artifact
+                for artifact in mode["official_provenance"]["artifacts"]
+            }
+            for artifact in mode["native_provenance"]["artifacts"]:
+                role = artifact["role"]
+                if role == "native_execution":
+                    artifact["path"] = official["official_execution"]["path"]
+                    artifact["sha256"] = official["official_execution"]["sha256"]
+                elif role == "native_state":
+                    artifact["path"] = official["official_state"]["path"]
+                    artifact["sha256"] = official["official_state"]["sha256"]
+        _reseal(document)
+    
+        # When / Then
+>       with pytest.raises(SpecValidationError):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r3.py:114: Failed
+_ test_resealed_raw_artifact_attacks_fail_semantic_derivation[copied-raw-lane] _
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1419/test_resealed_raw_artifact_att2')
+attack = 'copied-raw-lane'
+
+    @pytest.mark.parametrize("attack", ["invalid-zip", "fabricated-state", "copied-raw-lane"])
+    def test_resealed_raw_artifact_attacks_fail_semantic_derivation(
+        tmp_path: Path,
+        attack: str,
+    ) -> None:
+        # Given
+        document = _document()
+        mode = document["modes"]["futures"]
+        if attack == "invalid-zip":
+            payload = ROOT / "tests/test_task8_r3.py"
+            artifact = next(
+                item
+                for item in mode["official_provenance"]["artifacts"]
+                if item["role"] == "official_execution"
+            )
+            artifact["path"] = "tests/test_task8_r3.py"
+            artifact["sha256"] = hashlib.sha256(payload.read_bytes()).hexdigest()
+        elif attack == "fabricated-state":
+            mode["official"]["full_state"] = deepcopy(mode["official"]["full_state"][:2])
+        else:
+            official = {
+                artifact["role"]: artifact
+                for artifact in mode["official_provenance"]["artifacts"]
+            }
+            for artifact in mode["native_provenance"]["artifacts"]:
+                role = artifact["role"]
+                if role == "native_execution":
+                    artifact["path"] = official["official_execution"]["path"]
+                    artifact["sha256"] = official["official_execution"]["sha256"]
+                elif role == "native_state":
+                    artifact["path"] = official["official_state"]["path"]
+                    artifact["sha256"] = official["official_state"]["sha256"]
+        _reseal(document)
+    
+        # When / Then
+>       with pytest.raises(SpecValidationError):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r3.py:114: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r3.py::test_resealed_raw_artifact_attacks_fail_semantic_derivation[invalid-zip]
+FAILED tests/test_task8_r3.py::test_resealed_raw_artifact_attacks_fail_semantic_derivation[copied-raw-lane]
+2 failed, 1 passed in 0.39s
