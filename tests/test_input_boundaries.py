@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from pathlib import Path
 
+import psutil
 import pytest
 from nfi_backtest_engine import benchmark, canonical, windows_job
 from nfi_backtest_engine.canonical import read_json, write_json
@@ -520,8 +521,11 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
             with pytest.raises(BenchmarkError, match="timed out"):
                 future.result(timeout=deadline_seconds + 5)
 
-    with pytest.raises(ProcessLookupError):
-        os.kill(child_pid, 0)
+    if os.name == "nt":
+        assert not psutil.pid_exists(child_pid)
+    else:
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
     assert not (tmp_path / "report.json").exists()
     assert not (tmp_path / "report.files").exists()
 
