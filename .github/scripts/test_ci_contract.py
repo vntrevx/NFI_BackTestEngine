@@ -490,7 +490,9 @@ class CiContractTests(unittest.TestCase):
             "--validation-plan-json",
         ):
             self.assertIn(trusted_argument, workflow)
-        self.assertIn("CACHE_LOCK_SHA256: ${{ hashFiles('uv.lock') }}", workflow)
+        self.assertIn('cache_lock_sha256="$(sha256sum uv.lock | cut -d \' \' -f 1)"', workflow)
+        self.assertIn('--expected-cache-sha256 "$cache_lock_sha256"', workflow)
+        self.assertNotIn("CACHE_LOCK_SHA256: ${{ hashFiles('uv.lock') }}", workflow)
         self.assertIn("--job-result \"timing=$TIMING_RESULT\"", workflow)
         self.assertEqual(timing["comparison_run_count"], 3)
         self.assertEqual(timing["rust_compiler_cache"], "sccache-gha-v0.10.0")

@@ -452,23 +452,24 @@ jobs:
           merge-multiple: true
       - name: Validate complete timing coverage and identity
         env:
-          CACHE_LOCK_SHA256: ${{ hashFiles('uv.lock') }}
           VALIDATION_PLAN_JSON: ${{ needs.changes.outputs.validation_plan_json }}
-        run: >-
-          python .github/scripts/ci_timing.py validate
-          --reports .ci/timing-reports
-          --expected-repository "${{ github.repository }}"
-          --expected-workflow "${{ github.workflow }}"
-          --expected-workflow-ref .github/workflows/ci.yml
-          --expected-baseline-id ci-timing-v1
-          --expected-run-id "${{ github.run_id }}"
-          --expected-run-attempt "${{ github.run_attempt }}"
-          --expected-commit-sha "${{ github.sha }}"
-          --expected-candidate-commit "${{ github.sha }}"
-          --cache-file uv.lock
-          --expected-cache-sha256 "$CACHE_LOCK_SHA256"
-          --validation-plan-json "$VALIDATION_PLAN_JSON"
-          --output .ci/ci-timing-report.json
+        run: |
+          set -euo pipefail
+          cache_lock_sha256="$(sha256sum uv.lock | cut -d ' ' -f 1)"
+          python .github/scripts/ci_timing.py validate \
+            --reports .ci/timing-reports \
+            --expected-repository "${{ github.repository }}" \
+            --expected-workflow "${{ github.workflow }}" \
+            --expected-workflow-ref .github/workflows/ci.yml \
+            --expected-baseline-id ci-timing-v1 \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-run-attempt "${{ github.run_attempt }}" \
+            --expected-commit-sha "${{ github.sha }}" \
+            --expected-candidate-commit "${{ github.sha }}" \
+            --cache-file uv.lock \
+            --expected-cache-sha256 "$cache_lock_sha256" \
+            --validation-plan-json "$VALIDATION_PLAN_JSON" \
+            --output .ci/ci-timing-report.json
       - name: Upload aggregate timing report
         if: success()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
