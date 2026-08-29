@@ -96,7 +96,7 @@ def materialized_fixture(
     if not isinstance(retained, _RetainedFixtureManifest):
         raise SpecValidationError("fixture validation did not retain immutable payloads")
     with tempfile.TemporaryDirectory(prefix="nfi-fixture-snapshot-") as temporary:
-        root = Path(temporary)
+        root = Path(temporary).resolve(strict=True)
         manifest_name = validate_portable_filesystem_path(manifest_path).name
         (root / manifest_name).write_bytes(retained.manifest_payload)
         for relative, payload in retained.payloads.items():

@@ -21,6 +21,25 @@ def test_contract_fixture_is_fully_sealed(fixture_name: str) -> None:
     assert manifest["evidence_status"] == "contract-only"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX no-follow traversal only")
+def test_materialized_fixture_resolves_a_symlinked_system_temp_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = CONTRACT_FIXTURES / "stops-only" / "manifest.json"
+    manifest = validate_fixture(source)
+    real_temp_root = tmp_path / "real-temp"
+    real_temp_root.mkdir()
+    linked_temp_root = tmp_path / "linked-temp"
+    linked_temp_root.symlink_to(real_temp_root, target_is_directory=True)
+    monkeypatch.setattr(fixture.tempfile, "tempdir", os.fspath(linked_temp_root))
+
+    with fixture.materialized_fixture(source, manifest) as (snapshot, retained):
+        replayed = validate_fixture(snapshot)
+
+    assert replayed["fixture_id"] == retained["fixture_id"]
+
+
 def test_v3_fixture_semantics_use_only_retained_payloads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
