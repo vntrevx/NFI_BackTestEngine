@@ -19,10 +19,10 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.7.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.7.0) |
+| Latest public release | [v1.6.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.1) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.7.0 product candidate; no new combined Full X7 certification claim |
+| Current `main` | v1.7.0 source candidate; Linux/macOS verified, public release pending production Native score evidence |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -33,6 +33,12 @@ commit `b22cc60d1c018eeb984cb02a125bb790042bebd0`: Spot and Futures both have
 source-compiled stateful closure with no reachable gaps. Release distribution still
 replays the immutable v17.4.473 Spot/Futures regression fixtures. Current-source
 static closure is not a new full-state or continuous performance certificate.
+
+Current `main` is usable from source for supported X7 workloads on Linux, macOS, and
+Windows through WSL2. Its wheel and sdist candidates completed exact Spot and Futures
+trade/state regression checks, and the merged commit passed same-commit Required CI
+on Linux and macOS. It is not yet a public release: publication remains fail-closed
+until candidate-bound production Native score evidence is available.
 
 ## Certified performance
 
@@ -175,7 +181,16 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` return `nfi-bte 1.7.0`.
+The latest public installer currently returns `nfi-bte 1.6.1`. To use the verified
+v1.7.0 source candidate before its public assets are published:
+
+```bash
+git clone https://github.com/vntrevx/NFI_BackTestEngine.git
+cd NFI_BackTestEngine
+uv sync --extra dev --frozen
+uv run maturin develop --release --locked
+uv run nfi-bte --version
+```
 
 ### Keep the CLI updated
 
