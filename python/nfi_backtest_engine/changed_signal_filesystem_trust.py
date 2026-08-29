@@ -172,10 +172,17 @@ def _read_descriptor(descriptor: int) -> bytes:
 
 
 def _validate_descriptor(path: Path, descriptor: FileMetadata) -> None:
-    try:
-        path_metadata = _metadata(path.lstat())
-    except OSError as exc:
-        raise SpecValidationError("changed signal trusted role path changed") from exc
+    if os.name == "nt":
+        current_fd = _open_descriptor(path)
+        try:
+            path_metadata = _metadata(os.fstat(current_fd))
+        finally:
+            os.close(current_fd)
+    else:
+        try:
+            path_metadata = _metadata(path.lstat())
+        except OSError as exc:
+            raise SpecValidationError("changed signal trusted role path changed") from exc
     if (
         (os.name != "nt" and path.resolve() != path)
         or not stat.S_ISREG(descriptor.mode)
