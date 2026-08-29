@@ -233,7 +233,11 @@ def _snapshot_source(
             raise ValueError("certification source exceeds byte limit")
         output_fd = os.open(
             destination,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0),
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | getattr(os, "O_BINARY", 0)
+            | getattr(os, "O_CLOEXEC", 0),
             0o600,
         )
         digest = hashlib.sha256()
@@ -306,8 +310,13 @@ def _verify_staged_archive(
             raise ValueError("staged certification archive member set differs")
         for name, (size, digest) in expected.items():
             payload = read_zip_member(archive, members[name])
-            if len(payload) != size or hashlib.sha256(payload).hexdigest() != digest:
-                raise ValueError("staged certification archive bytes differ from manifest")
+            actual_digest = hashlib.sha256(payload).hexdigest()
+            if len(payload) != size or actual_digest != digest:
+                raise ValueError(
+                    "staged certification archive bytes differ from manifest: "
+                    f"{name!r} expected ({size}, {digest}), "
+                    f"observed ({len(payload)}, {actual_digest})"
+                )
 
 
 def _fsync_file(path: Path) -> None:

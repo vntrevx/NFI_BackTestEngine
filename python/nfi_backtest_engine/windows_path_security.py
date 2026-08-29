@@ -116,7 +116,10 @@ def open_windows_locked_executable_descriptor(path: Path) -> int:
             raise InputBoundaryError("trusted executable handle is not a disk file")
         import msvcrt
 
-        descriptor = msvcrt.open_osfhandle(int(handle), os.O_RDONLY)
+        descriptor = msvcrt.open_osfhandle(
+            int(handle),
+            os.O_RDONLY | getattr(os, "O_BINARY", 0),
+        )
         handle = None
         return descriptor
     finally:
@@ -217,7 +220,10 @@ def open_windows_contained_descriptor(
                 )
             import msvcrt
 
-            descriptor = msvcrt.open_osfhandle(file_handle, os.O_RDONLY)
+            descriptor = msvcrt.open_osfhandle(
+                file_handle,
+                os.O_RDONLY | getattr(os, "O_BINARY", 0),
+            )
             file_handle = None  # ownership transferred to the CRT descriptor
             return descriptor
         finally:
