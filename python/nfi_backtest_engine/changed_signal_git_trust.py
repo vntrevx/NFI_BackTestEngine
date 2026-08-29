@@ -17,6 +17,7 @@ from .changed_signal_git_environment import (
     active_git_rewrite_environment,
 )
 from .errors import SpecValidationError
+from .windows_path_security import windows_root_identity
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +107,15 @@ def resolve_upstream_source(repository_root: Path) -> bytes:
 def _validate_repository_layout(git_root: Path) -> None:
     lexical = git_root.absolute()
     git_directory = lexical / ".git"
+    if os.name == "nt":
+        try:
+            windows_root_identity(lexical)
+            windows_root_identity(git_directory)
+        except SpecValidationError as exc:
+            raise SpecValidationError(
+                "changed signal upstream Git repository is missing"
+            ) from exc
+        return
     if (
         lexical.is_symlink()
         or lexical.resolve() != lexical
