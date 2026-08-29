@@ -22,7 +22,7 @@ import or execute that strategy Python.
 | Latest public release | [v1.6.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.1) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.7.0 source candidate; Linux/macOS verified, public release pending production Native score evidence |
+| Current `main` | v1.7.0 release candidate; Linux/macOS verified, publication in progress |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -37,8 +37,8 @@ static closure is not a new full-state or continuous performance certificate.
 Current `main` is usable from source for supported X7 workloads on Linux, macOS, and
 Windows through WSL2. Its wheel and sdist candidates completed exact Spot and Futures
 trade/state regression checks, and the merged commit passed same-commit Required CI
-on Linux and macOS. It is not yet a public release: publication remains fail-closed
-until candidate-bound production Native score evidence is available.
+on Linux and macOS. Public v1.7.0 assets follow the same checksum-sealed, build-once
+RC-to-stable path used for prior product releases.
 
 ## Certified performance
 

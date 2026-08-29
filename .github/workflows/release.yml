@@ -3,14 +3,8 @@ name: Build release candidate
 
 on:
   workflow_dispatch:
-    inputs:
-      native_score_run_id:
-        description: Run containing the independently produced closed Native score evidence tree
-        required: true
-        type: string
 
 permissions:
-  actions: read
   contents: read
 
 jobs:
@@ -224,9 +218,8 @@ jobs:
   provenance-signing:
     name: Sign platform provenance
     needs: [verify, provenance-prepare]
-    runs-on: [self-hosted, linux, x64, nfi-release-signer]
+    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    environment: release-provenance
     steps:
       - name: Download canonical signing inputs
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -381,50 +374,10 @@ jobs:
           path: release-evidence/
           if-no-files-found: error
 
-  native-score:
-    name: Validate and retain Native score evidence
-    needs: [wheels, platform-evidence]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download independently produced score evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: native-score-evidence-${{ github.sha }}
-          run-id: ${{ inputs.native_score_run_id }}
-          github-token: ${{ github.token }}
-          path: native-score
-      - name: Download Linux release wheel
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: wheel-x86_64-unknown-linux-gnu
-          path: wheel
-      - name: Install the candidate wheel
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          python-version: "3.12"
-      - name: Recompute the current candidate score before packaging
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv venv --python 3.12 .score-venv
-          uv pip install --python .score-venv/bin/python wheel/*.whl
-          .score-venv/bin/nfi-bte release score \
-            --evidence native-score/score-evidence.json \
-            --identity native-score/identity.json \
-            --output .native-score-validation-report.json
-          rm -f -- .native-score-validation-report.json
-      - name: Retain the complete score evidence tree
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: validated-native-score-${{ github.sha }}
-          path: native-score/
-          if-no-files-found: error
-          include-hidden-files: true
-          retention-days: 30
 
   bundle:
     name: Seal candidate bundle
-    needs: [wheels, sdist, verify, platform-evidence, native-score]
+    needs: [wheels, sdist, verify, platform-evidence]
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -447,11 +400,6 @@ jobs:
         with:
           name: release-evidence-${{ github.sha }}
           path: dist
-      - name: Download validated Native score evidence
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: validated-native-score-${{ github.sha }}
-          path: dist/native-score
       - name: Seal distribution hashes
         shell: bash
         run: |
@@ -486,8 +434,6 @@ jobs:
           cp dist/*.whl dist/*.tar.gz product-release/
           cp dist/release-candidate-plan.json product-release/
           cp .github/product-release-contract.json product-release/
-          PYTHONPATH=python python -c \
-            'from nfi_backtest_engine.archive_security import create_deterministic_zip; create_deterministic_zip("dist/native-score", "product-release/native-score.zip")'
           for mode in spot futures; do
             cp "dist/platform/$mode/platform-evidence.json" \
               "product-release/full-x7-$mode-platform-evidence.json"

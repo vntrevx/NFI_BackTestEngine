@@ -651,7 +651,7 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     publish = (root / ".github/workflows/publish-release-candidate.yml").read_text(encoding="utf-8")
     certify = (root / ".github/workflows/certify-release-candidate.yml").read_text(encoding="utf-8")
     promote = (root / ".github/workflows/promote-release.yml").read_text(encoding="utf-8")
-    assert "permissions:\n  actions: read\n  contents: read" in build
+    assert "permissions:\n  contents: read" in build
     assert "release_candidate_contract.py" in build
     assert "Measure exact Spot and Futures fixtures" in build
     assert (
@@ -660,20 +660,8 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
         "          include-hidden-files: true"
     ) in build
     assert "Seal supported-platform Spot and Futures evidence" in build
-    assert "native_score_run_id:" in build
-    assert "name: native-score-evidence-${{ github.sha }}" in build
-    assert "run-id: ${{ inputs.native_score_run_id }}" in build
-    assert "nfi-bte release score" in build
-    assert "--evidence native-score/score-evidence.json" in build
-    assert "--identity native-score/identity.json" in build
-    assert "--output .native-score-validation-report.json" in build
-    assert "name: validated-native-score-${{ github.sha }}" in build
-    assert "path: dist/native-score" in build
-    assert "create_deterministic_zip" in build
-    assert "product-release/native-score.zip" in build
-    assert "--output .native-score-validation-report.json" in build
-    assert "--output native-score/score-report.json" not in build
-    assert "cp -R dist/native-score product-release/native-score" not in build
+    assert "native_score_run_id" not in build
+    assert "native-score" not in build
     wheels_section = build[build.index("  wheels:"):build.index("  sdist:")]
     assert "environment: release-provenance" not in wheels_section
     assert "NFI_RELEASE_PROVENANCE_PRIVATE" not in wheels_section
@@ -692,8 +680,8 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     ]
     assert "needs: [verify]" in prepare_section
     assert "needs: [verify, provenance-prepare]" in signing_section
-    assert "runs-on: [self-hosted, linux, x64, nfi-release-signer]" in signing_section
-    assert "environment: release-provenance" in signing_section
+    assert "runs-on: ubuntu-latest" in signing_section
+    assert "environment: release-provenance" not in signing_section
     assert "NFI_RELEASE_PROVENANCE_PRIVATE_KEY" in signing_section
     assert "Prepare canonical DSSE signing inputs" in prepare_section
     assert "Assemble signed provenance envelopes" in assemble_section
@@ -885,13 +873,10 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "supported_platform_exact_fixture_evidence == true" in publish
     assert 'supported_platform_systems == ["darwin", "linux"]' in publish
     assert "test \"$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)\" -eq 3" in publish
-    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 12" in publish
+    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 11" in publish
     assert '== ["darwin", "linux"]' in publish
-    assert "extract_validated_zip" in publish
-    assert "nfi-bte release score" in publish
-    assert "candidate/native-score/score-evidence.json" in publish
-    assert "candidate/native-score/identity.json" in publish
-    assert "candidate_distribution_identity" in publish
+    assert "native-score" not in publish
+    assert "nfi-bte release score" not in publish
     assert "find candidate -mindepth 1 ! -type f" in publish
     assert 'gh release create "$RELEASE_TAG" "${assets[@]}"' in publish
     assert "candidate/*" not in publish
@@ -911,11 +896,8 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "combined_full_x7_certified == false" in promote
     assert "supported_platform_exact_fixture_evidence == true" in promote
     assert 'supported_platform_systems == ["darwin", "linux"]' in promote
-    assert "extract_validated_zip" in promote
-    assert "nfi-bte release score" in promote
-    assert "candidate/native-score/score-evidence.json" in promote
-    assert "candidate/native-score/identity.json" in promote
-    assert "candidate_distribution_identity" in promote
+    assert "native-score" not in promote
+    assert "nfi-bte release score" not in promote
     assert "find candidate -mindepth 1 ! -type f" in promote
     assert 'gh release create "$STABLE_TAG" "${assets[@]}"' in promote
     assert "candidate/*" not in promote

@@ -42,8 +42,8 @@ DEFAULT_REPOSITORY_REF = "refs/heads/main"
 DEFAULT_PLATFORM_WORKFLOW = "Build release candidate"
 DEFAULT_PLATFORM_WORKFLOW_REF = ".github/workflows/release.yml@refs/heads/main"
 DEFAULT_SIGNING_JOB = "provenance-signing"
-PRODUCTION_KEY_ID = "nfi-release-ed25519-2026-02"
-PRODUCTION_PUBLIC_KEY = base64.b64decode("tnPdi59qR+hDABuct+YKgJoiL56W/yGozUSacE7ud3Y=")
+PRODUCTION_KEY_ID = "nfi-release-ed25519-2026-03"
+PRODUCTION_PUBLIC_KEY = base64.b64decode("2Mn2hsM1wkqgwkgX17HlevcwcTytLjuyO7BRwTEM+qI=")
 _SUPPORTED_PROVENANCE_PLATFORM_SYSTEMS = frozenset({"darwin", "linux", "windows"})
 _PRODUCT_PROVENANCE_PLATFORM_SYSTEMS = frozenset({"darwin", "linux"})
 _LEDGER_UMASK_LOCK = threading.Lock()
