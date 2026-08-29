@@ -1624,6 +1624,7 @@ def _build_source_closure(
         raise StrategyAnalysisError(f"strategy source does not exist: {source}")
     if source.is_symlink():
         raise StrategyAnalysisError(f"strategy source must not be a symbolic link: {source}")
+    source = source.resolve()
     if not source.is_relative_to(root):
         raise StrategyAnalysisError(f"strategy source is outside its source root: {source}")
 

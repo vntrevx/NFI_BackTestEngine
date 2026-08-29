@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,11 @@ from nfi_backtest_engine.x7.route_contracts import (
 _SOURCE = Path(
     "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source"
 )
-_EXPECTED_MANAGER_SHA256 = "a00441dc18a708660f944b10c44dc106cb94b31cb27fc183213a851aac2b52fb"
+# CPython patch releases can change ast.dump output embedded in predicate identities.
+_EXPECTED_MANAGER_SHA256 = {
+    (3, 12, 3): "a00441dc18a708660f944b10c44dc106cb94b31cb27fc183213a851aac2b52fb",
+    (3, 12, 10): "bbd633a7ee83ca787dda564ea93afa35b1d4317e9f43416456413c4030851a71",
+}
 
 
 def _compile() -> dict[str, object]:
@@ -90,7 +95,9 @@ def test_current_manager_program_is_canonical_and_repeatable() -> None:
     second = _compile()
 
     assert first == second
-    assert _canonical_sha256(first) == _EXPECTED_MANAGER_SHA256
+    expected_sha256 = _EXPECTED_MANAGER_SHA256.get(sys.version_info[:3])
+    assert expected_sha256 is not None
+    assert _canonical_sha256(first) == expected_sha256
     operation = first["operation"]
     assert isinstance(operation, dict)
     assert operation["route_order"] == [

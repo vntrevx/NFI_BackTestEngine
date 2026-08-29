@@ -26,6 +26,7 @@ from nfi_backtest_engine.normalize import normalize_file, read_freqtrade_export
 from nfi_backtest_engine.release_gate import _validate_certificate_archive
 
 ROOT = Path(__file__).parents[1]
+SEALED_MEMFD_AVAILABLE = sys.platform.startswith("linux") and hasattr(os, "memfd_create")
 OFFICIAL_FIXTURE = (
     ROOT
     / "benchmarks/fixtures/captured/stops-only-spot-2025-01-01_04"
@@ -306,7 +307,10 @@ def test_trusted_benchmark_rejects_ambient_path_executable_before_staging(
     assert not (tmp_path / "report.json").exists()
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor execution regression")
+@pytest.mark.skipif(
+    not SEALED_MEMFD_AVAILABLE,
+    reason="requires sealed memfd descriptor execution",
+)
 def test_trusted_executable_replacement_after_hash_cannot_execute_replacement(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -357,7 +361,10 @@ def test_trusted_executable_replacement_after_hash_cannot_execute_replacement(
     assert not (tmp_path / "report.files").exists()
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX immutable snapshot regression")
+@pytest.mark.skipif(
+    not SEALED_MEMFD_AVAILABLE,
+    reason="requires sealed memfd immutable snapshot",
+)
 @pytest.mark.parametrize("mutation", ["truncate-rewrite", "mmap-write", "interpreter"])
 def test_trusted_executable_mutation_after_snapshot_fails_before_staging(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str

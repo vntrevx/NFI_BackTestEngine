@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform
+import shutil
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -206,7 +207,14 @@ def test_failed_native_attempt_never_deletes_concurrently_published_pair(
 def test_checked_in_feather_replay_has_zero_recursive_result_delta(tmp_path: Path) -> None:
     native = engine_runtime._native_module()
     assert native is not None
-    fixture = Path(__file__).parents[1] / ".nfi" / "m11-generic-state-machine-fixture" / "engine"
+    fixture_source = (
+        Path(__file__).parents[1]
+        / "benchmarks/evidence/m22/current-head-649890f7/native/spot"
+    )
+    fixture = tmp_path / "fixture"
+    shutil.copytree(fixture_source, fixture)
+    (fixture / "vectors").mkdir()
+    shutil.copy2(fixture / "vector.feather", fixture / "vectors/BTC_USDT.feather")
     output = tmp_path / "result.json"
 
     native.simulate_vector_file(fixture / "simulation-input.manifest.json", output)

@@ -6,6 +6,7 @@ import os
 import sqlite3
 import stat
 import subprocess
+import sys
 from contextlib import closing
 from pathlib import Path
 
@@ -29,6 +30,12 @@ from provenance_support import (
     TEST_PRIVATE_KEY,
     TEST_PUBLIC_KEY,
     sign_report,
+)
+
+DURABLE_LEDGER_AVAILABLE = (
+    os.name == "posix"
+    and hasattr(os, "O_NOATIME")
+    and Path("/proc/self/fd").is_dir()
 )
 
 
@@ -209,6 +216,10 @@ def test_cross_bundle_challenge_replay_is_rejected(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="requires the pinned Linux OpenSSL signing contract",
+)
 def test_secretless_prepare_and_openssl_signer_interoperate(tmp_path: Path) -> None:
     from cryptography.hazmat.primitives.serialization import (
         Encoding,
@@ -524,6 +535,10 @@ def _exact_ledger_snapshot(path: Path) -> tuple[bytes, tuple[int, ...], tuple[st
     )
 
 
+@pytest.mark.skipif(
+    not DURABLE_LEDGER_AVAILABLE,
+    reason="requires the durable publication ledger platform contract",
+)
 @pytest.mark.parametrize(
     ("contents", "old_atime"),
     [
@@ -637,6 +652,10 @@ def test_preexisting_ledger_replacement_after_preflight_touches_neither_inode(
     assert _exact_ledger_snapshot(trusted)[:2] == trusted_snapshot[:2]
 
 
+@pytest.mark.skipif(
+    not DURABLE_LEDGER_AVAILABLE,
+    reason="requires the durable publication ledger platform contract",
+)
 def test_preexisting_hardlinked_ledger_rejects_without_mutation(tmp_path: Path) -> None:
     secure = tmp_path / "secure"
     secure.mkdir(mode=0o700)

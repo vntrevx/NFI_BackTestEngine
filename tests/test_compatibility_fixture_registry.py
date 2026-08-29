@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import importlib.util
+import os
 import tarfile
 from io import BytesIO
 from pathlib import Path
@@ -11,6 +13,10 @@ from nfi_backtest_engine.canonical import read_json
 
 ROOT = Path(__file__).parents[1]
 REGISTRY = ROOT / "planning" / "compatibility-fixtures.json"
+MATERIALIZATION_AVAILABLE = os.name == "nt" or (
+    Path("/proc/self/fd").is_dir()
+    and getattr(ctypes.CDLL(None), "renameat2", None) is not None
+)
 SPEC = importlib.util.spec_from_file_location(
     "compatibility_fixture_registry",
     ROOT / "scripts" / "compatibility_fixture_registry.py",
@@ -79,6 +85,10 @@ def test_archive_validation_rejects_portable_device_member() -> None:
         MODULE._validate_archive_members([reserved])
 
 
+@pytest.mark.skipif(
+    not MATERIALIZATION_AVAILABLE,
+    reason="requires atomic no-clobber fixture materialization",
+)
 def test_complete_valid_bundle_publishes_exact_fixture(tmp_path: Path) -> None:
     fixture = ROOT / "benchmarks" / "fixtures" / "contract" / "stops-only"
     asset = tmp_path / "bundle.tar.gz"
@@ -117,6 +127,10 @@ def test_complete_valid_bundle_publishes_exact_fixture(tmp_path: Path) -> None:
     assert not list(tmp_path.glob(".public.stage-*"))
 
 
+@pytest.mark.skipif(
+    not MATERIALIZATION_AVAILABLE,
+    reason="requires atomic no-clobber fixture materialization",
+)
 def test_hostile_archive_failure_leaves_no_public_destination(tmp_path: Path) -> None:
     asset = tmp_path / "bundle.tar.gz"
     with tarfile.open(asset, "w:gz") as archive:

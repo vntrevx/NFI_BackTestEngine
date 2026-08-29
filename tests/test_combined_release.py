@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sqlite3
 import threading
@@ -52,6 +53,11 @@ def _stable_current_ref_authorization(monkeypatch: pytest.MonkeyPatch) -> None:
 WHEEL_SHA = "a" * 64
 NATIVE_SHA = "b" * 64
 STRATEGY_SHA = "c" * 64
+DURABLE_LEDGER_AVAILABLE = (
+    os.name == "posix"
+    and hasattr(os, "O_NOATIME")
+    and Path("/proc/self/fd").is_dir()
+)
 
 
 def _certificate(
@@ -377,6 +383,8 @@ def test_combined_release_rejects_platform_base_strategy_mismatch(
 
 
 def _combined_gate_inputs(tmp_path: Path) -> dict[str, Any]:
+    if not DURABLE_LEDGER_AVAILABLE:
+        pytest.skip("requires the durable publication ledger platform contract")
     candidate = tmp_path / "candidate"
     candidate.mkdir()
     wheel_names = (

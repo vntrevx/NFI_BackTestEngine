@@ -106,6 +106,10 @@ CASES = [
 ]
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="workflow shell simulation requires the Linux GitHub runner contract",
+)
 @pytest.mark.parametrize("case", CASES, ids=lambda case: f"{case.workflow_name}-{case.scenario}")
 def test_product_score_step_cleans_transaction_private_state_on_every_exit(
     tmp_path: Path,
