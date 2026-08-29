@@ -84,6 +84,16 @@ jobs:
               '.platform_evidence.modes[] | [.slug, .manifest] | @tsv' \
               .release-candidate-plan.json
           )
+      - name: Upload platform failure diagnostics
+        if: failure() && matrix.portable_evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: platform-failure-${{ matrix.target }}
+          path: |
+            .platform-evidence/**/*.log
+            .platform-evidence/**/run.json
+          if-no-files-found: warn
+          include-hidden-files: true
       - name: Upload platform benchmark
         if: matrix.portable_evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
