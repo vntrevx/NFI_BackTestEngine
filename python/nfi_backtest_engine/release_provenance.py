@@ -44,6 +44,8 @@ DEFAULT_PLATFORM_WORKFLOW_REF = ".github/workflows/release.yml@refs/heads/main"
 DEFAULT_SIGNING_JOB = "provenance-signing"
 PRODUCTION_KEY_ID = "nfi-release-ed25519-2026-02"
 PRODUCTION_PUBLIC_KEY = base64.b64decode("tnPdi59qR+hDABuct+YKgJoiL56W/yGozUSacE7ud3Y=")
+_SUPPORTED_PROVENANCE_PLATFORM_SYSTEMS = frozenset({"darwin", "linux", "windows"})
+_PRODUCT_PROVENANCE_PLATFORM_SYSTEMS = frozenset({"darwin", "linux"})
 _LEDGER_UMASK_LOCK = threading.Lock()
 _LEDGER_SCHEMA = (
     "CREATE TABLE IF NOT EXISTS certificate_publications ("
@@ -413,8 +415,9 @@ def verify_embedded_platform_evidence(
     expected_candidate_id: str | None = None,
     expected_bundle_id: str | None = None,
     expected_challenge: str | None = None,
+    required_platform_systems: frozenset[str] = _SUPPORTED_PROVENANCE_PLATFORM_SYSTEMS,
 ) -> dict[str, Any]:
-    """Recompute a complete embedded graph under one challenge and candidate."""
+    """Recompute a complete embedded graph for the required platforms."""
     provenance = document.get("provenance")
     attestations = provenance.get("attestations") if isinstance(provenance, dict) else None
     if document.get("schema_version") != PLATFORM_EVIDENCE_VERSION or not isinstance(
@@ -422,7 +425,15 @@ def verify_embedded_platform_evidence(
     ):
         raise SpecValidationError("platform evidence has no signed provenance graph")
     assert isinstance(provenance, dict)
-    if provenance.get("policy_id") != policy.policy_id or len(attestations) != 3:
+    if required_platform_systems not in (
+        _PRODUCT_PROVENANCE_PLATFORM_SYSTEMS,
+        _SUPPORTED_PROVENANCE_PLATFORM_SYSTEMS,
+    ):
+        raise SpecValidationError("platform evidence required systems are unauthorized")
+    if (
+        provenance.get("policy_id") != policy.policy_id
+        or len(attestations) != len(required_platform_systems)
+    ):
         raise SpecValidationError("platform evidence provenance policy or cardinality differs")
     graph_bundle_id = provenance.get("bundle_id")
     graph_candidate_id = provenance.get("candidate_id")
@@ -467,13 +478,19 @@ def verify_embedded_platform_evidence(
     run_identities = {
         (item["producer"]["run_id"], item["producer"]["run_attempt"]) for item in verified
     }
-    if len(attestation_ids) != 3 or len(nonces) != 3 or len(run_identities) != 1:
+    if (
+        len(attestation_ids) != len(required_platform_systems)
+        or len(nonces) != len(required_platform_systems)
+        or len(run_identities) != 1
+    ):
         raise SpecValidationError("platform provenance run, nonce, or attestation was replayed")
     commits = {item["producer"]["commit"] for item in verified}
     if len(commits) != 1:
         raise SpecValidationError("platform provenance commits differ")
     commit = next(iter(commits))
-    _verify_evidence_projection(document, reports, commit)
+    _verify_evidence_projection(
+        document, reports, commit, required_platform_systems=required_platform_systems
+    )
     return {
         "commit": commit,
         "candidate_id": graph_candidate_id,
@@ -1110,11 +1127,15 @@ def _recompute_platform_success(report: Mapping[str, Any]) -> None:
 
 
 def _verify_evidence_projection(
-    document: Mapping[str, Any], reports: list[dict[str, Any]], commit: str
+    document: Mapping[str, Any],
+    reports: list[dict[str, Any]],
+    commit: str,
+    *,
+    required_platform_systems: frozenset[str],
 ) -> None:
     systems = {report["platform"]["system"] for report in reports}
     projections = document.get("platforms")
-    if systems != {"windows", "linux", "darwin"} or not isinstance(projections, list):
+    if systems != required_platform_systems or not isinstance(projections, list):
         raise SpecValidationError("platform provenance systems are incomplete")
     report_by_system = {report["platform"]["system"]: report for report in reports}
     for item in projections:

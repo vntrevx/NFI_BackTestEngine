@@ -16,6 +16,7 @@ from .canonical import canonical_decimal, read_json, write_json
 from .data_seal import timeframe_milliseconds
 from .engine_runtime import run_engine
 from .errors import BenchmarkError, StrategyAnalysisError
+from .execution_platform import require_supported_execution_platform
 from .fixture import (
     fixture_input_sha256,
     materialized_fixture,
@@ -61,6 +62,7 @@ def run_fixture_engine(
     verification_level: VerificationLevel = "quick",
 ) -> dict[str, Any]:
     """Adapt one retained contract fixture, run Rust, and verify exact parity."""
+    require_supported_execution_platform()
     manifest_file = Path(manifest_path).absolute()
     manifest = validate_fixture(
         manifest_file,

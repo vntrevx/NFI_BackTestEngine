@@ -24,13 +24,13 @@ The affected-path plan always runs the Ubuntu 3.12 Python lane and Python qualit
 checks for Python runtime changes. Python runtime changes also run the two native
 parity fixtures. Rust changes add Rust format, test, and Clippy checks; AST-sensitive
 indicator/strategy changes add the Ubuntu 3.13 and 3.14 identity lanes; and the
-allowlisted platform-boundary files add Windows and macOS 3.12. General Python tests
-run the Ubuntu 3.12 Python and quality lanes, while parity fixtures and reference
-inputs also add native parity.
+allowlisted platform-boundary files add macOS 3.12. General Python tests run the
+Ubuntu 3.12 Python and quality lanes, while parity fixtures and reference inputs also
+add native parity.
 
 Build-identity changes (`pyproject.toml`, `uv.lock`, the Rust workspace manifests and
 lockfile, or the Rust toolchain file), an empty or unavailable diff, manual dispatch,
-and every unknown path fail closed to the full five-entry Python matrix, Python and
+and every unknown path fail closed to the full four-entry Python matrix, Python and
 Rust quality jobs, and native parity. Mixed changes take the union of capabilities.
 `Required CI` authenticates the emitted plan by recomputing it from the changed paths,
 then requires every selected job to succeed and every unselected conditional job to

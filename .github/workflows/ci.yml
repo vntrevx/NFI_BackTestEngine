@@ -130,9 +130,6 @@ jobs:
     needs: changes
     if: contains(fromJSON(needs.changes.outputs.selected_jobs_json), 'python')
     runs-on: ${{ matrix.os }}
-    # Windows performs the same suite but its filesystem-heavy fixtures are
-    # materially slower. Fail-fast preserves diagnostics while this ceiling
-    # allows a successful complete run to finish.
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -189,13 +186,8 @@ jobs:
       - name: Show Rust compiler cache statistics
         if: always() && matrix.suite == 'full'
         run: sccache --show-stats
-      - name: Verify Windows containment and Job Object runtime
-        if: matrix.suite == 'full' && matrix.os == 'windows-latest'
-        run: >-
-          uv run pytest -q tests/test_input_boundaries.py
-          -k 'windows_runtime_rejects_intermediate_reparse or windows_runtime_parent_swap or windows_runtime_creation_fault_reaps_exactly or trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event'
       - name: Run Python tests
-        if: matrix.suite == 'full' && matrix.os != 'windows-latest'
+        if: matrix.suite == 'full'
         run: >-
           python .github/scripts/ci_timing.py run-step
           --report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
@@ -206,20 +198,6 @@ jobs:
           --timing-report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
           --slowest-count 20
           -- -q
-      - name: Run Python tests (Windows fail-fast)
-        if: matrix.suite == 'full' && matrix.os == 'windows-latest'
-        # Passing still executes the complete suite. On failure, stop at the
-        # first traceback instead of losing every diagnostic to the job limit.
-        run: >-
-          python .github/scripts/ci_timing.py run-step
-          --report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
-          --step python-tests
-          --timeout-seconds 2400
-          -- uv run python .github/scripts/ci_pytest.py
-          --output .ci/pytest-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
-          --timing-report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
-          --slowest-count 20
-          -- -q -x
       - name: Check version-stable AST identity
         if: matrix.suite == 'ast-compat'
         run: >-

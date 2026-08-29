@@ -7,9 +7,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from nfi_backtest_engine import engine_runtime
+from nfi_backtest_engine import engine_runtime, execution_platform
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError
+from nfi_backtest_engine.execution_platform import NATIVE_WINDOWS_UNSUPPORTED_MESSAGE
 
 
 def _commit_mock_bundle(result: Path, profile: Path | None = None) -> None:
@@ -52,6 +53,34 @@ def test_project_root_ignores_a_release_venv_nested_in_a_checkout(
 
     monkeypatch.setattr(engine_runtime, "__file__", str(wheel_module))
     assert engine_runtime._project_root_or_none() is None
+
+
+def test_direct_engine_entrypoints_reject_native_windows_before_engine_work(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(execution_platform.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(
+        engine_runtime,
+        "_native_module",
+        lambda: pytest.fail("native engine must not load"),
+    )
+
+    with pytest.raises(BenchmarkError) as build_error:
+        engine_runtime.build_engine()
+    assert str(build_error.value) == NATIVE_WINDOWS_UNSUPPORTED_MESSAGE
+
+    with pytest.raises(BenchmarkError) as run_error:
+        engine_runtime.run_engine(tmp_path / "missing.json", tmp_path / "result.json")
+    assert str(run_error.value) == NATIVE_WINDOWS_UNSUPPORTED_MESSAGE
+
+
+def test_execution_platform_accepts_linux_abi_including_wsl2(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(execution_platform.platform, "system", lambda: "Linux")
+
+    execution_platform.require_supported_execution_platform()
 
 
 def test_build_engine_uses_native_only_when_checkout_source_matches(

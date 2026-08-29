@@ -125,11 +125,6 @@
       ],
       "platform": [
         {
-          "os": "windows-latest",
-          "python-version": "3.12",
-          "suite": "full"
-        },
-        {
           "os": "macos-14",
           "python-version": "3.12",
           "suite": "full"
@@ -163,7 +158,6 @@
       "timeout_minutes": 45,
       "matrix": [
         "ubuntu-latest",
-        "windows-latest",
         "macos-14",
         "3.12",
         "3.13",
@@ -284,9 +278,7 @@
     "cache_file": "uv.lock",
     "artifact_retention_days": 14,
     "comparison_run_count": 3,
-    "windows_process_lifecycle": "suspended-job-object-kill-on-close",
     "rust_compiler_cache": "sccache-gha-v0.10.0",
-    "windows_cleanup_event": "active-process-zero",
     "pytest_slowest_count": 20,
     "pytest_ownership_groups": [
       "compatibility",
@@ -313,18 +305,6 @@
       {
         "job": "python",
         "os": "ubuntu-latest",
-        "python": "3.12",
-        "suite": "full",
-        "step_timeout_seconds": 2400,
-        "required_steps": [
-          "dependency-sync",
-          "native-build",
-          "python-tests"
-        ]
-      },
-      {
-        "job": "python",
-        "os": "windows-latest",
         "python": "3.12",
         "suite": "full",
         "step_timeout_seconds": 2400,

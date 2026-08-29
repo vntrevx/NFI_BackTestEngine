@@ -29,10 +29,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             manylinux: "2_17"
             portable_evidence: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            manylinux: "off"
-            portable_evidence: true
           - os: macos-14
             target: aarch64-apple-darwin
             manylinux: "off"
@@ -60,7 +56,6 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           args: --release --locked --compatibility pypi --out dist
       - name: Verify wheel on Unix target
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -71,24 +66,8 @@ jobs:
             benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json \
             --output-dir .wheel-check \
             --level full
-      - name: Verify wheel on Windows target
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          python -m venv .wheel-venv
-          $wheel = (Get-ChildItem -Path dist -Filter *.whl -File -Recurse).FullName
-          if ($wheel.Count -ne 1) {
-            throw "Expected exactly one wheel, found $($wheel.Count)"
-          }
-          .\.wheel-venv\Scripts\python.exe -m pip install $wheel
-          .\.wheel-venv\Scripts\nfi-bte.exe --version
-          .\.wheel-venv\Scripts\nfi-bte.exe engine fixture `
-            benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
-            --output-dir .wheel-check `
-            --level full
       - name: Measure exact Spot and Futures fixtures on Unix target
-        if: matrix.portable_evidence && runner.os != 'Windows'
+        if: matrix.portable_evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -111,24 +90,6 @@ jobs:
               '.platform_evidence.modes[] | [.slug, .manifest] | @tsv' \
               .release-candidate-plan.json
           )
-      - name: Measure exact Spot and Futures fixtures on Windows target
-        if: matrix.portable_evidence && runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $wheel = (Get-ChildItem -Path dist -Filter *.whl -File -Recurse).FullName
-          if ($wheel.Count -ne 1) {
-            throw "Expected exactly one wheel, found $($wheel.Count)"
-          }
-          $plan = Get-Content .release-candidate-plan.json -Raw | ConvertFrom-Json
-          foreach ($mode in $plan.platform_evidence.modes) {
-            .\.wheel-venv\Scripts\nfi-bte.exe platform fixture-benchmark `
-              $mode.manifest `
-              --wheel $wheel `
-              --output-dir (Join-Path .platform-evidence $mode.slug) `
-              --runs $plan.platform_evidence.runs `
-              --timeout $plan.platform_evidence.timeout_seconds
-          }
       - name: Upload platform benchmark
         if: matrix.portable_evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -346,7 +307,7 @@ jobs:
           include-hidden-files: true
 
   platform-evidence:
-    name: Seal three-OS Spot and Futures evidence
+    name: Seal supported-platform Spot and Futures evidence
     needs: [provenance-assemble]
     runs-on: ubuntu-latest
     steps:
@@ -383,7 +344,7 @@ jobs:
                 -path "*/$slug/platform-benchmark.json" \
                 | LC_ALL=C sort
             )
-            test "${#mode_reports[@]}" -eq 3
+            test "${#mode_reports[@]}" -eq 2
             arguments=()
             for report in "${mode_reports[@]}"; do
               jq -e \
@@ -511,7 +472,8 @@ jobs:
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.sha256_manifest_required == true
              and .distribution_policy.required_ci_commit_match == true
-             and .distribution_policy.three_os_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             .github/product-release-contract.json
           cd dist

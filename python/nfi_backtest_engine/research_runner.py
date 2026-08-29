@@ -23,6 +23,7 @@ from .data_seal import DATA_SEAL_VERSION, prepare_data, validate_data_seal
 from .engine_runtime import FULL_VECTOR_INPUT, run_engine
 from .errors import BenchmarkError, SpecValidationError, StrategyAnalysisError
 from .executable_callback_program import compile_executable_callback_program
+from .execution_platform import require_supported_execution_platform
 from .fixture import sha256_file
 from .full_native_calibration import resolve_full_native_pair_workers
 from .full_vector_runtime import (
@@ -107,6 +108,7 @@ def run_research_backtest(
     portfolio_envelope_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
+    require_supported_execution_platform()
     pipeline_started_ns = time.perf_counter_ns()
     pipeline_started_at = _utc_now()
     stage_started_ns = pipeline_started_ns

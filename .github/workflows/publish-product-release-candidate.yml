@@ -115,12 +115,13 @@ jobs:
              and .distribution_policy.build_once == true
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.required_ci_commit_match == true
-             and .distribution_policy.three_os_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
              and .certification_boundary.latest_same_candidate_spot_certificate == false
              and .certification_boundary.latest_same_candidate_futures_certificate == false
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             candidate/product-release-contract.json
-          test "$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 4
+          test "$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 3
           test "$(find candidate -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
           test "$(find candidate -mindepth 1 -maxdepth 1 | wc -l)" -eq 12
           test -f candidate/full-x7-spot-platform-evidence.json
@@ -135,7 +136,7 @@ jobs:
                and .lane == "exact-fixture"
                and .package_version == $version
                and ([.platforms[].system] | sort)
-                 == ["darwin", "linux", "windows"]' \
+                 == ["darwin", "linux"]' \
               "candidate/full-x7-$mode-platform-evidence.json"
           done
           jq -s -e \
@@ -245,25 +246,6 @@ jobs:
           diff -qr candidate published
           (cd published && sha256sum --check SHA256SUMS.txt)
           ./install.sh
-
-  windows-installer:
-    name: Audit Windows product installer
-    needs: publish
-    runs-on: windows-latest
-    steps:
-      - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ needs.publish.outputs.candidate_sha }}
-          persist-credentials: false
-      - name: Verify Windows release selection
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: >-
-          .\install.ps1
-          -Version "${{ needs.publish.outputs.release_tag }}"
-          -DryRun
 
   macos-installer:
     name: Audit macOS product installer

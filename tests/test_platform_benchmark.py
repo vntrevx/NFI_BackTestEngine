@@ -33,9 +33,9 @@ def _report(
     }
     package = {
         "version": "1.0.0",
-        "wheel_sha256": {"windows": "a", "linux": "b", "darwin": "c"}[system] * 64,
-        "native_extension_sha256": {"windows": "1", "linux": "2", "darwin": "3"}[system] * 64,
-        "installed_extension_sha256": {"windows": "1", "linux": "2", "darwin": "3"}[system] * 64,
+        "wheel_sha256": {"linux": "b", "darwin": "c"}[system] * 64,
+        "native_extension_sha256": {"linux": "2", "darwin": "3"}[system] * 64,
+        "installed_extension_sha256": {"linux": "2", "darwin": "3"}[system] * 64,
         "installed_extension_equal": True,
         "portable_package_sha256": "c" * 64,
     }
@@ -137,13 +137,9 @@ def test_portable_workload_uses_last_complete_year_of_release_timerange() -> Non
     assert _portable_timerange("20210101-20260101") == "20250101-20260101"
 
 
-def test_platform_seal_requires_three_systems_and_one_result(tmp_path: Path) -> None:
+def test_platform_seal_requires_supported_systems_and_one_result(tmp_path: Path) -> None:
     paths = []
-    for system, machine in (
-        ("windows", "amd64"),
-        ("linux", "x86_64"),
-        ("darwin", "arm64"),
-    ):
+    for system, machine in (("linux", "x86_64"), ("darwin", "arm64")):
         path = tmp_path / f"{system}.json"
         write_json(path, _report(system, machine))
         sign_report(path, run_id=1)
@@ -159,17 +155,32 @@ def test_platform_seal_requires_three_systems_and_one_result(tmp_path: Path) -> 
         evidence["workload"]
     )
     assert evidence["result_sha256"] == "a" * 64
-    assert [item["system"] for item in evidence["platforms"]] == [
-        "darwin",
-        "linux",
-        "windows",
-    ]
+    assert [item["system"] for item in evidence["platforms"]] == ["darwin", "linux"]
 
 
-def test_platform_seal_rejects_cross_os_result_drift(tmp_path: Path) -> None:
+def test_platform_seal_rejects_native_windows_report(tmp_path: Path) -> None:
+    paths = []
+    for system, machine in (("linux", "x86_64"), ("darwin", "arm64")):
+        path = tmp_path / f"{system}.json"
+        write_json(path, _report(system, machine))
+        sign_report(path, run_id=1)
+        paths.append(path)
+    windows_report = _report("linux", "x86_64")
+    windows_report["platform"] = {"system": "windows", "machine": "amd64", "wsl": False}
+    windows_path = tmp_path / "windows.json"
+    write_json(windows_path, windows_report)
+    sign_report(windows_path, run_id=1)
+    paths.append(windows_path)
+
+    with pytest.raises(SpecValidationError, match="unsupported platform evidence system"):
+        seal_platform_evidence(
+            paths, tmp_path / "sealed", provenance_policy=TEST_POLICY
+        )
+
+
+def test_platform_seal_rejects_cross_system_result_drift(tmp_path: Path) -> None:
     paths = []
     for system, machine, result in (
-        ("windows", "amd64", "a" * 64),
         ("linux", "x86_64", "a" * 64),
         ("darwin", "arm64", "b" * 64),
     ):
@@ -186,11 +197,7 @@ def test_platform_seal_rejects_cross_os_result_drift(tmp_path: Path) -> None:
 
 def test_platform_seal_accepts_exact_fixture_lane(tmp_path: Path) -> None:
     paths = []
-    for system, machine in (
-        ("windows", "amd64"),
-        ("linux", "x86_64"),
-        ("darwin", "arm64"),
-    ):
+    for system, machine in (("linux", "x86_64"), ("darwin", "arm64")):
         path = tmp_path / f"{system}.json"
         write_json(path, _report(system, machine, lane=EXACT_FIXTURE_LANE))
         sign_report(path, run_id=1)
@@ -206,7 +213,7 @@ def test_platform_seal_accepts_exact_fixture_lane(tmp_path: Path) -> None:
     assert {
         item["system"]: item["native_extension_sha256"]
         for item in evidence["platforms"]
-    } == {"windows": "1" * 64, "linux": "2" * 64, "darwin": "3" * 64}
+    } == {"linux": "2" * 64, "darwin": "3" * 64}
 
 
 def test_fixture_result_identity_ignores_host_paths() -> None:

@@ -150,7 +150,19 @@ def test_machine_timing_policy_covers_retention_jobs_os_and_steps() -> None:
         for report in reports
         if report["job"] == "python" and report["suite"] == "full"
     }
-    assert full_python_os == {"ubuntu-latest", "windows-latest", "macos-14"}
+    assert full_python_os == {"ubuntu-latest", "macos-14"}
+    assert "windows-latest" not in workflow
+    assert "windows_process_lifecycle" not in policy
+    assert "windows_cleanup_event" not in policy
+    ast_python_lanes = {
+        (report["os"], report["python"])
+        for report in reports
+        if report["job"] == "python" and report["suite"] == "ast-compat"
+    }
+    assert ast_python_lanes == {
+        ("ubuntu-latest", "3.13"),
+        ("ubuntu-latest", "3.14"),
+    }
     assert {report["job"] for report in reports} == {
         "python",
         "python-quality",
@@ -188,8 +200,8 @@ def test_actionable_pytest_resources_and_slowest_are_machine_validated(
         contract=contract,
     )
 
-    assert aggregate["pytest"]["report_count"] == 3
-    assert aggregate["pytest"]["test_count"] == 6
+    assert aggregate["pytest"]["report_count"] == 2
+    assert aggregate["pytest"]["test_count"] == 4
     for record in aggregate["pytest"]["tests"]:
         assert re.fullmatch(r"[0-9a-f]{64}", record["test_id"])
         assert record["owner"] in contract["timing"]["pytest_ownership_groups"]
@@ -243,7 +255,8 @@ def test_missing_os_or_required_job_is_rejected(tmp_path: Path) -> None:
     )
     reports, _, lock_sha = _complete_reports(timing, contract, tmp_path)
     for missing_job, missing_os in (
-        ("python", "windows-latest"),
+        ("python", "ubuntu-latest"),
+        ("python", "macos-14"),
         ("python-quality", None),
         ("rust-quality", None),
     ):

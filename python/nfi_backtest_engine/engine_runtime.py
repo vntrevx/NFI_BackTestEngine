@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import os
 import platform
-import shlex
 import shutil
 import subprocess
 import tempfile
@@ -16,8 +15,9 @@ from typing import Any
 
 from .canonical import read_json, write_json
 from .errors import BenchmarkError
+from .execution_platform import require_supported_execution_platform
 from .fixture import sha256_file
-from .hardware import SPOOL_DIRECTORY_ENVIRONMENT, load_execution_profile
+from .hardware import load_execution_profile
 from .resource_usage import process_peak_rss_bytes
 
 SIMULATION_JSON_INPUT = "simulation-json"
@@ -29,6 +29,7 @@ _PUBLICATION_BUNDLE_SUFFIX = ".nfi-bundle"
 
 def build_engine(*, force: bool = False) -> dict[str, Any]:
     """Return the packaged engine, or build the source-checkout CLI fallback."""
+    require_supported_execution_platform()
     native = _native_module()
     root = _project_root_or_none()
     rust_root = root / "rust" if root is not None else None
@@ -70,25 +71,10 @@ def build_engine(*, force: bool = False) -> dict[str, Any]:
             return existing
 
     started_ns = time.perf_counter_ns()
-    if os.name == "nt":
-        wsl = shutil.which("wsl.exe")
-        if wsl is None:
-            raise BenchmarkError("WSL is required to build the Linux engine on Windows")
-        command = [
-            wsl,
-            "-e",
-            "bash",
-            "-lc",
-            (
-                f"cd {shlex.quote(_wsl_path(rust_root))} && "
-                "cargo build --release --locked -p nfi-sim-cli"
-            ),
-        ]
-    else:
-        cargo = shutil.which("cargo")
-        if cargo is None:
-            raise BenchmarkError("Cargo is not installed or not on PATH")
-        command = [cargo, "build", "--release", "--locked", "-p", "nfi-sim-cli"]
+    cargo = shutil.which("cargo")
+    if cargo is None:
+        raise BenchmarkError("Cargo is not installed or not on PATH")
+    command = [cargo, "build", "--release", "--locked", "-p", "nfi-sim-cli"]
     completed = subprocess.run(
         command,
         cwd=rust_root,
@@ -139,6 +125,7 @@ def run_engine(
     ``vector_manifest=True`` spelling remains an alias for ``feather-vector``.
     No transport is inferred from a filename.
     """
+    require_supported_execution_platform()
     selected_input_kind = _resolve_input_kind(
         input_kind=input_kind,
         vector_manifest=vector_manifest,
@@ -242,35 +229,14 @@ def run_engine(
         profile = load_execution_profile(profile_path)
         environment.update(profile["environment"])
 
-    if os.name == "nt":
-        spool_directory = environment.get(SPOOL_DIRECTORY_ENVIRONMENT)
-        if spool_directory is not None:
-            environment[SPOOL_DIRECTORY_ENVIRONMENT] = _wsl_path(Path(spool_directory))
-        wsl = shutil.which("wsl.exe")
-        if wsl is None:
-            raise BenchmarkError("WSL is required to run the Linux engine on Windows")
-        command = [
-            wsl,
-            "-e",
-            "/usr/bin/time",
-            "-f",
-            "max_rss_kib=%M\nuser_seconds=%U\nsystem_seconds=%S",
-            "-o",
-            _wsl_path(resource_path),
-            _wsl_path(binary),
-            _wsl_path(source),
-            _wsl_path(destination),
-        ]
-        engine_argument_index = len(command) - 2
-    else:
-        time_prefix = _gnu_time_prefix(resource_path)
-        command = [
-            *time_prefix,
-            str(binary),
-            str(source),
-            str(destination),
-        ]
-        engine_argument_index = len(time_prefix) + 1
+    time_prefix = _gnu_time_prefix(resource_path)
+    command = [
+        *time_prefix,
+        str(binary),
+        str(source),
+        str(destination),
+    ]
+    engine_argument_index = len(time_prefix) + 1
     engine_arguments: list[str] = []
     if selected_input_kind != SIMULATION_JSON_INPUT:
         engine_arguments.append(
@@ -282,11 +248,7 @@ def run_engine(
             engine_arguments.extend(
                 [
                     "--profile-output",
-                    (
-                        _wsl_path(engine_profile_destination)
-                        if os.name == "nt"
-                        else str(engine_profile_destination)
-                    ),
+                    str(engine_profile_destination),
                 ]
             )
         if pair_worker_limit is not None:
@@ -298,17 +260,13 @@ def run_engine(
         engine_arguments.extend(
             [
                 "--portfolio-envelope",
-                _wsl_path(portfolio_request) if os.name == "nt" else str(portfolio_request),
-                (
-                    _wsl_path(portfolio_destination)
-                    if os.name == "nt"
-                    else str(portfolio_destination)
-                ),
+                str(portfolio_request),
+                str(portfolio_destination),
             ]
         )
     command[engine_argument_index:engine_argument_index] = engine_arguments
     if event_destination is not None:
-        command.append(_wsl_path(event_destination) if os.name == "nt" else str(event_destination))
+        command.append(str(event_destination))
 
     started_ns = time.perf_counter_ns()
     try:
@@ -666,12 +624,3 @@ def _project_root_or_none() -> Path | None:
     ):
         return root
     return None
-
-
-def _wsl_path(path: Path) -> str:
-    resolved = path.resolve()
-    drive = resolved.drive
-    if not drive or len(drive) < 2:
-        raise BenchmarkError(f"cannot map Windows path into WSL: {resolved}")
-    tail = resolved.as_posix()[len(drive) :].lstrip("/")
-    return f"/mnt/{drive[0].lower()}/{tail}"

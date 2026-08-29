@@ -16,7 +16,11 @@ from nfi_backtest_engine import native_scorecard, release_gate
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
-from nfi_backtest_engine.platform_benchmark import EXACT_FIXTURE_LANE, seal_platform_evidence
+from nfi_backtest_engine.platform_benchmark import (
+    EXACT_FIXTURE_LANE,
+    LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    seal_platform_evidence,
+)
 from nfi_backtest_engine.release_contract import (
     FUTURES_RELEASE_CONTRACT,
     SPOT_RELEASE_CONTRACT,
@@ -317,6 +321,7 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Any]:
         report_paths,
         sealed_platform,
         provenance_policy=TEST_POLICY,
+        required_platform_systems=LEGACY_REQUIRED_PLATFORM_SYSTEMS,
     )
     platform = candidate / "full-x7-futures-platform-evidence.json"
     platform.write_bytes((sealed_platform / "platform-evidence.json").read_bytes())
@@ -654,7 +659,7 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
         "          if-no-files-found: error\n"
         "          include-hidden-files: true"
     ) in build
-    assert "Seal three-OS Spot and Futures evidence" in build
+    assert "Seal supported-platform Spot and Futures evidence" in build
     assert "native_score_run_id:" in build
     assert "name: native-score-evidence-${{ github.sha }}" in build
     assert "run-id: ${{ inputs.native_score_run_id }}" in build
@@ -853,7 +858,8 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "byte_identical_rc_stable": True,
             "sha256_manifest_required": True,
             "required_ci_commit_match": True,
-            "three_os_exact_fixture_evidence": True,
+            "supported_platform_exact_fixture_evidence": True,
+            "supported_platform_systems": ["darwin", "linux"],
         },
         "certification_boundary": {
             "latest_same_candidate_spot_certificate": False,
@@ -863,6 +869,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "futures_certificate_tag": "v1.1.0",
         },
     }
+    assert "x86_64-pc-windows-msvc" not in build
     assert "cp .github/product-release-contract.json" in build
     assert "name: product-release-bundle-${{ github.sha }}" in build
     assert "full-x7-$mode-platform-evidence.json" in build
@@ -875,6 +882,11 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "actions/workflows/ci.yml/runs?head_sha=" in publish
     assert "product-release-bundle-${{ steps.candidate.outputs.sha }}" in publish
     assert "combined_full_x7_certified == false" in publish
+    assert "supported_platform_exact_fixture_evidence == true" in publish
+    assert 'supported_platform_systems == ["darwin", "linux"]' in publish
+    assert "test \"$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)\" -eq 3" in publish
+    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 12" in publish
+    assert '== ["darwin", "linux"]' in publish
     assert "extract_validated_zip" in publish
     assert "nfi-bte release score" in publish
     assert "candidate/native-score/score-evidence.json" in publish
@@ -885,9 +897,9 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "candidate/*" not in publish
     assert "test ! -e candidate/release-gate.json" in publish
     assert "test ! -e candidate/full-x7-release-result.json" in publish
-    assert "Audit Windows product installer" in publish
+    assert "windows-latest" not in publish
     assert "Audit macOS product installer" in publish
-    assert publish.count("GITHUB_TOKEN: ${{ github.token }}") >= 2
+    assert publish.count("GITHUB_TOKEN: ${{ github.token }}") == 1
     assert publish.index("sha256sum --check SHA256SUMS.txt") < publish.index(
         "gh release create"
     )
@@ -897,6 +909,8 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "actions/workflows/publish-product-release-candidate.yml/runs" in promote
     assert "candidate and promotion workflow commits differ" in promote
     assert "combined_full_x7_certified == false" in promote
+    assert "supported_platform_exact_fixture_evidence == true" in promote
+    assert 'supported_platform_systems == ["darwin", "linux"]' in promote
     assert "extract_validated_zip" in promote
     assert "nfi-bte release score" in promote
     assert "candidate/native-score/score-evidence.json" in promote
@@ -906,16 +920,13 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert 'gh release create "$STABLE_TAG" "${assets[@]}"' in promote
     assert "candidate/*" not in promote
     assert "diff -qr candidate stable" in promote
-    assert "Audit latest Windows installer" in promote
+    assert "windows-latest" not in promote
     assert "Audit latest macOS installer" in promote
-    assert promote.count("GITHUB_TOKEN: ${{ github.token }}") >= 2
+    assert promote.count("GITHUB_TOKEN: ${{ github.token }}") == 1
     assert promote.index("sha256sum --check SHA256SUMS.txt") < promote.index(
         "gh release create"
     )
-    windows_installer = (root / "install.ps1").read_text(encoding="utf-8")
     unix_installer = (root / "install.sh").read_text(encoding="utf-8")
-    assert 'GetEnvironmentVariable("GITHUB_TOKEN")' in windows_installer
-    assert 'GetEnvironmentVariable("GH_TOKEN")' in windows_installer
     assert 'os.environ.get("GITHUB_TOKEN")' in unix_installer
     assert 'os.environ.get("GH_TOKEN")' in unix_installer
 

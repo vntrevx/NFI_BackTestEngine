@@ -47,10 +47,8 @@ def _report(system: str, machine: str) -> dict:
         "platform": {"system": system, "machine": machine, "wsl": False},
         "package": {
             "version": "1.6.1",
-            "wheel_sha256": {"windows": "a", "linux": "b", "darwin": "d"}[system] * 64,
-            "native_extension_sha256": {
-                "windows": "1", "linux": "2", "darwin": "3"
-            }[system] * 64,
+            "wheel_sha256": {"linux": "b", "darwin": "d"}[system] * 64,
+            "native_extension_sha256": {"linux": "2", "darwin": "3"}[system] * 64,
             "installed_extension_equal": True,
             "portable_package_sha256": "c" * 64,
         },
@@ -77,7 +75,7 @@ def _report(system: str, machine: str) -> dict:
 def _reports(tmp_path: Path, *, signed: bool = True) -> list[Path]:
     paths: list[Path] = []
     for _run_id, (system, machine) in enumerate(
-        (("windows", "amd64"), ("linux", "x86_64"), ("darwin", "arm64")), start=10
+        (("linux", "x86_64"), ("darwin", "arm64")), start=10
     ):
         path = tmp_path / f"{system}.json"
         write_json(path, _report(system, machine))
@@ -87,7 +85,7 @@ def _reports(tmp_path: Path, *, signed: bool = True) -> list[Path]:
     return paths
 
 
-def test_three_fabricated_matching_unsigned_reports_cannot_certify(tmp_path: Path) -> None:
+def test_two_fabricated_matching_unsigned_reports_cannot_certify(tmp_path: Path) -> None:
     paths = _reports(tmp_path, signed=False)
     with pytest.raises(SpecValidationError, match="no signed provenance"):
         seal_platform_evidence(paths, tmp_path / "sealed", provenance_policy=TEST_POLICY)
@@ -213,6 +211,7 @@ def test_cross_bundle_challenge_replay_is_rejected(tmp_path: Path) -> None:
             policy=TEST_POLICY,
             expected_bundle_id=TEST_BUNDLE_ID,
             expected_challenge="0" * 64,
+            required_platform_systems=platform_benchmark.REQUIRED_PLATFORM_SYSTEMS,
         )
 
 
@@ -873,4 +872,8 @@ def test_embedded_graph_rejects_resealed_self_asserted_release_success(tmp_path:
     evidence["platforms"][0]["wheel_sha256"] = "0" * 64
     evidence["release_certified"] = True
     with pytest.raises(SpecValidationError, match="projection differs"):
-        verify_embedded_platform_evidence(evidence, policy=TEST_POLICY)
+        verify_embedded_platform_evidence(
+            evidence,
+            policy=TEST_POLICY,
+            required_platform_systems=platform_benchmark.REQUIRED_PLATFORM_SYSTEMS,
+        )

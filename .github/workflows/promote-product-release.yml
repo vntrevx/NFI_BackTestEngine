@@ -107,6 +107,8 @@ jobs:
              and .release_kind == "product"
              and .combined_full_x7_certified == false
              and .distribution_policy.byte_identical_rc_stable == true
+             and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             candidate/product-release-contract.json
           test ! -e candidate/release-gate.json
@@ -215,22 +217,6 @@ jobs:
           done
           test "$latest_tag" = "$STABLE_TAG"
           ./install.sh
-
-  windows-installer:
-    name: Audit latest Windows installer
-    needs: promote
-    runs-on: windows-latest
-    steps:
-      - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ needs.promote.outputs.candidate_sha }}
-          persist-credentials: false
-      - name: Verify latest Windows release selection
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: .\install.ps1 -Version latest -DryRun
 
   macos-installer:
     name: Audit latest macOS installer

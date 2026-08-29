@@ -274,6 +274,29 @@ class CiContractTests(unittest.TestCase):
         base = self.contract["affected_validation"]["python_matrix"]["base"]
         ast = self.contract["affected_validation"]["python_matrix"]["ast"]
         platform = self.contract["affected_validation"]["python_matrix"]["platform"]
+        self.assertEqual(
+            base,
+            [{"os": "ubuntu-latest", "python-version": "3.12", "suite": "full"}],
+        )
+        self.assertEqual(
+            platform,
+            [{"os": "macos-14", "python-version": "3.12", "suite": "full"}],
+        )
+        self.assertEqual(
+            ast,
+            [
+                {
+                    "os": "ubuntu-latest",
+                    "python-version": "3.13",
+                    "suite": "ast-compat",
+                },
+                {
+                    "os": "ubuntu-latest",
+                    "python-version": "3.14",
+                    "suite": "ast-compat",
+                },
+            ],
+        )
         cases = (
             (
                 "python/nfi_backtest_engine/cli.py",
@@ -413,6 +436,7 @@ class CiContractTests(unittest.TestCase):
         self.assertIn("name: Rust quality checks", workflow)
         self.assertIn("name: Native full-parity fixtures", workflow)
         self.assertNotIn("  quality:\n", workflow)
+        self.assertNotIn("windows-latest", workflow)
 
     def test_workflow_exposes_stable_aggregate_and_lane_conditions(self) -> None:
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
@@ -469,11 +493,6 @@ class CiContractTests(unittest.TestCase):
         self.assertIn("CACHE_LOCK_SHA256: ${{ hashFiles('uv.lock') }}", workflow)
         self.assertIn("--job-result \"timing=$TIMING_RESULT\"", workflow)
         self.assertEqual(timing["comparison_run_count"], 3)
-        self.assertEqual(
-            timing["windows_process_lifecycle"],
-            "suspended-job-object-kill-on-close",
-        )
-        self.assertEqual(timing["windows_cleanup_event"], "active-process-zero")
         self.assertEqual(timing["rust_compiler_cache"], "sccache-gha-v0.10.0")
 
     def test_workflow_uses_bounded_rust_compiler_caching(self) -> None:
@@ -491,19 +510,23 @@ class CiContractTests(unittest.TestCase):
 
     def test_timing_report_rejects_missing_operating_system(self) -> None:
         timing = _load_timing_module()
-        reports = [
-            report
-            for report in _complete_timing_reports()
-            if report["identity"]["os"] != "windows-latest"  # type: ignore[index]
-        ]
+        for missing_os in ("ubuntu-latest", "macos-14"):
+            with self.subTest(missing_os=missing_os):
+                reports = [
+                    report
+                    for report in _complete_timing_reports()
+                    if report["identity"]["os"] != missing_os  # type: ignore[index]
+                ]
 
-        with self.assertRaisesRegex(ValueError, "missing timing reports.*windows-latest"):
-            timing.validate_timing_reports(
-                reports,
-                contract=self.contract,
-                expected_run_id="9001",
-                expected_commit_sha="a" * 40,
-            )
+                with self.assertRaisesRegex(
+                    ValueError, f"missing timing reports.*{missing_os}"
+                ):
+                    timing.validate_timing_reports(
+                        reports,
+                        contract=self.contract,
+                        expected_run_id="9001",
+                        expected_commit_sha="a" * 40,
+                    )
 
     def test_timing_validation_accepts_only_the_authenticated_selected_subset(
         self,

@@ -18,7 +18,7 @@
         "source_identity_sha256": {"$ref": "#/$defs/sha256"},
         "candidate_identity_sha256": {"$ref": "#/$defs/sha256"},
         "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
-        "platform": {"enum": ["darwin", "linux", "windows"]},
+        "platform": {"enum": ["darwin", "linux"]},
         "workload_sha256": {"$ref": "#/$defs/sha256"},
         "run_id": {"$ref": "#/$defs/nonempty"},
         "nonce": {"$ref": "#/$defs/sha256"}

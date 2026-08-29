@@ -2,13 +2,13 @@
 
 ## Product boundary
 
-Version 1.0.0 is supported by its published continuous five-year Spot certificate.
-Version 1.1.0 adds an independent continuous five-year
-`binance-usdtm-isolated` Futures certificate. It does not extend either certificate
-to the other mode by inference. A combined latest-revision Full X7 release still
-requires both mode certificates to use the same strategy and candidate wheel and
-requires sealed Windows, Linux, and macOS native evidence. A missing or mismatched
-mode produces `preview`.
+Versions 1.0.0 and 1.1.0 are supported by their published continuous five-year Spot
+and Futures certificates. Their historical combined-release gate required both mode
+certificates to use the same strategy and candidate wheel and preserved sealed Windows,
+Linux, and macOS native evidence. That historical evidence does not extend native
+Windows support to the current product: v1.7 supports Linux and macOS; Windows users
+run the Linux build and ABI under WSL2, and native Windows fails closed with `native
+Windows is unsupported; run nfi-bte under WSL2 (Linux)`.
 
 Each mode certificate binds the benchmark, exact parity, native package,
 hardware/data preparation, X7 vectors, checkpointed research pipeline, strategy
@@ -148,7 +148,8 @@ Before tagging:
 12. On a Docker host, verify daemon-resource inspection, one managed official fixture,
     cgroup memory reporting, and zero remaining owned containers
 13. Run `nfi-bte strategy check` against the latest upstream X7 source
-14. Dry-run the Windows and Unix release installers against the published assets
+14. Dry-run the supported Linux/macOS release installer, including the Linux ABI path
+    inside WSL2
 15. Run the representative workload with an empty vector cache and `--recalibrate`;
     retain its workload calibration, engine phase profile, process-tree peak, and exact
     official confirmation
@@ -161,22 +162,23 @@ Before tagging:
     5%; never repeat the multi-year official oracle merely to calculate native timing
     variance.
 
-The CI workflow runs tests on Linux, Windows, and macOS and repeats native full parity
-on Linux. Release-candidate wheels additionally run one sealed Futures full-state
-fixture on Windows x86_64, Linux x86_64, and macOS arm64 with one excluded warmup and
-three measured fresh processes, extending to five above 5% spread. This
-`exact-fixture` lane records each OS median and peak RSS and proves wheel portability;
-it is not presented as the representative five-year speed claim. Docker-free CI
-validates portable resource and command contracts, while the release gate additionally
-exercises the managed container path on a real Docker Desktop or Docker Engine host.
+The CI workflow runs tests on Linux and macOS and repeats native full parity on Linux.
+Release-candidate wheels additionally run one sealed Futures full-state fixture on
+Linux x86_64, Linux aarch64, and macOS arm64 with one excluded warmup and three measured
+fresh processes, extending to five above 5% spread. This `exact-fixture` lane records
+each supported-platform median and peak RSS and proves wheel portability; WSL2 uses the
+Linux ABI rather than a separate native Windows lane. It is not presented as the
+representative five-year speed claim. Docker-free CI validates portable resource and
+command contracts, while the release gate additionally exercises the managed container
+path on a real Docker Engine host.
 
 ## Publishing
 
-The `Build release candidate` workflow builds ABI3 wheels and a source distribution
-once, verifies the Linux wheel, and stores a SHA-256-sealed candidate bundle for:
+The `Build release candidate` workflow builds three ABI3 wheels and one source
+distribution once, verifies the Linux wheel, and stores a SHA-256-sealed candidate
+bundle for:
 
 - Linux x86_64 and aarch64, manylinux 2.17;
-- Windows x86_64;
 - macOS arm64;
 - source distribution.
 
@@ -188,10 +190,11 @@ rebuilding them. Both publishing workflows download their own result and compare
 asset byte before succeeding. This makes the certified candidate, prerelease, and
 stable distribution files identical.
 
-GitHub Releases is the only supported registry. `install.ps1` and `install.sh` select
-the native wheel, verify its asset digest, and call `uv tool install`. Candidate build
-jobs remain read-only; only the two explicitly dispatched publishing workflows receive
-`contents: write`.
+GitHub Releases is the only supported registry. `install.sh` selects the supported
+Linux or macOS wheel, verifies its asset digest, and calls `uv tool install`. On
+Windows, run that installer inside WSL2, which uses the Linux build and ABI; native
+Windows fails closed. Candidate build jobs remain read-only; only the two explicitly
+dispatched publishing workflows receive `contents: write`.
 
 ## Full X7 v1 gates
 

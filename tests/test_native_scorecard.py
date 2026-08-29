@@ -109,6 +109,7 @@ def _stable_current_ref_authorization(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_scorecard_baseline_release_scope_identity_is_derived() -> None:
+    assert SYSTEMS == ("darwin", "linux")
     for contract in (SPOT_RELEASE_CONTRACT, FUTURES_RELEASE_CONTRACT):
         scope = contract.scope_fields()
         assert release_contract_for_scope(scope) is contract

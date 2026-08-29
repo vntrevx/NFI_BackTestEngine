@@ -64,16 +64,16 @@ _IDENTITY_FIELDS = (
 _AUTHORITY_FIELDS = ("bundle_id", "challenge")
 _TRUSTED_SCORE_SCHEMA_IDENTITIES = {
     NATIVE_SCORE_DOMAIN_EVIDENCE_SCHEMA: (
-        7_590,
-        "8d71a2ce94c967f25c0d99a97d20e52508ee632114bfadc2f0fc350e6b16b850",
+        7_579,
+        "dc7efaeb493709dec7ba6b289a983ceceaf32ac91be77f99f800612bb9b485e4",
     ),
     NATIVE_SCORE_RAW_EVIDENCE_SCHEMA: (
-        16_275,
-        "fa67fcbd6fcd451b1578712e8cc5050b148ac5abe83284d47a537a9171fc64e3",
+        16_264,
+        "97850b7123bd84d3b8a9d9948af3bb4dcacb38893c53a1a8e18fffa6d250803e",
     ),
     NATIVE_SCORE_MACHINE_RECORD_SCHEMA: (
-        3_218,
-        "bff7f023dc1717f148bc63b04fe4980fa0e343f948b52d413413a23bcf9533a7",
+        3_207,
+        "e0793fae08949e181aebd328eafa0750446cc50aece1251dd01ebb2a7997c6da",
     ),
 }
 _REQUIRED_MODE_CONTRACTS = frozenset({SPOT_RELEASE_CONTRACT_ID, FUTURES_RELEASE_CONTRACT_ID})
@@ -1109,6 +1109,7 @@ def _verify_signed_subject_graphs(
             expected_candidate_id=manifest_identity["engine_artifact_sha256"],
             expected_bundle_id=expected_authority["bundle_id"],
             expected_challenge=expected_authority["challenge"],
+            required_platform_systems=REQUIRED_PLATFORM_SYSTEMS,
         )
         reports = graph["reports"]
         if graph_document.get("mode_contract") != mode or {

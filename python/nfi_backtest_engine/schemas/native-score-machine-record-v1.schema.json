@@ -28,7 +28,7 @@
         "source_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "candidate_identity_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
-        "platform": {"enum": ["darwin", "linux", "windows"]},
+        "platform": {"enum": ["darwin", "linux"]},
         "workload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "run_id": {"type": "string", "minLength": 1},
         "nonce": {"type": "string", "pattern": "^[0-9a-f]{64}$"}

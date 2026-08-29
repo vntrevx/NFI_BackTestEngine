@@ -81,8 +81,9 @@ indicator volume and 1.43× spool-write difference rule out data size or disk I/
 the primary cause.
 
 The Native cold pipelines differed by only 1.97× because the lowered Rust state loop
-does not pay the same Python callback overhead. The remaining differences include X7
-v17.4.421 versus v17.4.435 and Windows/Docker Desktop versus native Linux.
+does not pay the same Python callback overhead. The historical benchmark environments
+differed in X7 revision and host configuration, including Windows/Docker Desktop versus
+native Linux.
 
 Both certificates still prove exact parity for their sealed workloads. They do not
 form a controlled Spot-versus-Futures performance test, so this project makes no
@@ -151,21 +152,20 @@ Installation targets advanced users who are comfortable with the shell and, for
 data downloads or Freqtrade confirmation, with Docker and basic Ubuntu/Linux
 commands.
 
-Windows PowerShell:
+Supported hosts are Linux and macOS. On Windows, install a WSL2 Linux distribution,
+open its Linux shell, and use the Linux installer below: WSL2 runs the Linux build and
+ABI. Native Windows and PowerShell are unsupported; product execution fails closed
+with `native Windows is unsupported; run nfi-bte under WSL2 (Linux)`.
 
-```powershell
-irm https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.ps1 | iex
-```
-
-Linux x86_64/aarch64 or macOS Apple Silicon:
+Linux x86_64/aarch64 (including WSL2) or macOS Apple Silicon:
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.sh | sh
 ```
 
-The installer downloads the matching wheel from the latest public GitHub release,
-checks its published SHA-256 digest, and installs `nfi-bte` in an isolated `uv`
-environment.
+The installer downloads the matching supported wheel from the latest public GitHub
+release, checks its published SHA-256 digest, and installs `nfi-bte` in an isolated
+`uv` environment.
 
 Close and reopen your terminal (or open a new shell) after installation so the
 `nfi-bte` command is picked up on `PATH`, then verify:
@@ -200,8 +200,8 @@ Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
 
 Run the first-time wizard with an NFI strategy:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py
 ```
 
 The wizard discovers the class, Freqtrade config, candle directory, pair whitelist,
@@ -210,25 +210,25 @@ reusable project settings under `.nfi/project.json`.
 
 Accept every safely discovered value:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py --yes
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py --yes
 ```
 
 Resume the saved project:
 
-```powershell
+```bash
 nfi-bte run
 ```
 
 Use explicit inputs when discovery is not appropriate:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py `
-  --class NostalgiaForInfinityX7 `
-  --config user_data\config.json `
-  --datadir user_data\data\binance `
-  --timerange 20210101-20260101 `
-  --output-dir artifacts\x7-research `
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 \
+  --config user_data/config.json \
+  --datadir user_data/data/binance \
+  --timerange 20210101-20260101 \
+  --output-dir artifacts/x7-research \
   --yes
 ```
 
@@ -238,8 +238,8 @@ default. Add `--no-download` for an offline, fail-if-missing run.
 For a newer NFI revision whose active callbacks are not yet supported by Native, run
 the exact sealed workload through official Freqtrade:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py --fallback official
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py --fallback official
 ```
 
 The default `--fallback ask` requests consent only in an interactive terminal;
@@ -272,19 +272,19 @@ available for sealed evidence replay. See
 
 Run the pinned official reference from a completed native result:
 
-```powershell
-nfi-bte reference research artifacts\x7-research `
-  --output-dir artifacts\x7-research-official
+```bash
+nfi-bte reference research artifacts/x7-research \
+  --output-dir artifacts/x7-research-official
 ```
 
 Or compare an existing Freqtrade export:
 
-```powershell
-nfi-bte confirm `
-  artifacts\x7-research `
-  path\to\backtest-result.zip `
-  --strategy NostalgiaForInfinityX7 `
-  --output-dir artifacts\x7-confirmation
+```bash
+nfi-bte confirm \
+  artifacts/x7-research \
+  path/to/backtest-result.zip \
+  --strategy NostalgiaForInfinityX7 \
+  --output-dir artifacts/x7-confirmation
 ```
 
 The comparison has no floating-point tolerance. It never concatenates independent
@@ -322,9 +322,9 @@ Every run is an ordinary hash-linked directory:
 
 Regenerate presentation files without rerunning the simulation:
 
-```powershell
-nfi-bte report artifacts\x7-research
-nfi-bte report artifacts\x7-research --full-report
+```bash
+nfi-bte report artifacts/x7-research
+nfi-bte report artifacts/x7-research --full-report
 ```
 
 ## Storage
@@ -367,12 +367,15 @@ Use `nfi-bte COMMAND --help` for the complete interface.
 
 ## Platforms and requirements
 
-Native wheels are built for:
+Native wheels are built for supported hosts:
 
-- Windows x64
 - Linux x86_64
 - Linux aarch64
 - macOS Apple Silicon
+
+On Windows, use a WSL2 Linux distribution; it runs the Linux wheel and ABI. Native
+Windows product execution fails closed with `native Windows is unsupported; run nfi-bte
+under WSL2 (Linux)`.
 
 Requirements:
 
@@ -399,9 +402,9 @@ uv run pytest -q
 
 Required CI is risk-tiered. README, documentation, and roadmap bookkeeping use a
 fast text/JSON lane (29 seconds observed); CI-policy changes took 44 seconds in the
-rollout acceptance run. Runtime changes still require the full Python 3OS, Rust, and
-native parity matrix, and mixed changes automatically escalate. Protected merges are
-not tested a second time on `main`; release paths retain same-commit checks. See the
+rollout acceptance run. Runtime changes still require the full Linux/macOS native
+parity matrix; WSL2 exercises the Linux ABI. Protected merges are not tested a second
+time on `main`; release paths retain same-commit checks. See the
 [CI policy](docs/ci-policy.md).
 
 Architecture, contracts, and detailed workflows:

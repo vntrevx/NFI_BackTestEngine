@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from .errors import BenchmarkError
+from .execution_platform import require_supported_execution_platform
 from .fixture import _validate_fixture_retained, sha256_file, validate_fixture
 from .portable_paths import parse_portable_relative_path, validate_new_output_path
 from .profiling import PROFILE_ENV, aggregate_profile_events
@@ -137,6 +138,7 @@ def run_benchmark(
     trusted_timeout_seconds: float = DEFAULT_TRUSTED_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     """Measure a trusted sealed command or an explicit unsafe research override."""
+    require_supported_execution_platform()
     try:
         import psutil
     except ImportError as exc:

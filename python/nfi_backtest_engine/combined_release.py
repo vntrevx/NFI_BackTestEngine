@@ -19,6 +19,7 @@ from .certification_policy import validate_certification_semantics
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import write_evidence_bundle
 from .fixture import sha256_file
+from .platform_benchmark import REQUIRED_PLATFORM_SYSTEMS as PRODUCT_PLATFORM_SYSTEMS
 from .release_contract import (
     FUTURES_RELEASE_CONTRACT_ID,
     SPOT_RELEASE_CONTRACT_ID,
@@ -1017,6 +1018,11 @@ def _verify_public_combined_bundle(
                         policy=provenance_policy,
                         expected_commit=expected_commit,
                         expected_candidate_id=expected_candidate_id,
+                        required_platform_systems=(
+                            PRODUCT_PLATFORM_SYSTEMS
+                            if relative.parts[:2] == ("evidence", "native-score")
+                            else REQUIRED_PLATFORM_SYSTEMS
+                        ),
                     )
             if set(names) != {*records, "bundle-manifest.json"}:
                 raise SpecValidationError("combined public bundle members differ from its manifest")

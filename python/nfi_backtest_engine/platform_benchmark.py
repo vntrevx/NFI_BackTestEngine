@@ -17,6 +17,7 @@ from .canonical import loads_json_bytes, read_json, write_json
 from .engine_runtime import build_engine
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import public_hardware_record, write_evidence_bundle
+from .execution_platform import require_supported_execution_platform
 from .fixture import materialized_fixture, sha256_file, validate_fixture
 from .full_x7_certification import (
     validate_full_x7_inputs,
@@ -42,11 +43,15 @@ PLATFORM_BENCHMARK_VERSION = "1.2.0"
 RAW_INPUT_LANE = "portable-raw-input"
 EXACT_FIXTURE_LANE = "exact-fixture"
 PORTABLE_PAIR_COUNT = 20
-REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
-REQUIRED_PLATFORM_MACHINES = {
+REQUIRED_PLATFORM_SYSTEMS = frozenset({"linux", "darwin"})
+LEGACY_REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
+_PLATFORM_MACHINES = {
     "windows": frozenset({"amd64", "x86_64"}),
     "linux": frozenset({"amd64", "x86_64"}),
     "darwin": frozenset({"arm64", "aarch64"}),
+}
+REQUIRED_PLATFORM_MACHINES = {
+    system: _PLATFORM_MACHINES[system] for system in REQUIRED_PLATFORM_SYSTEMS
 }
 
 
@@ -66,6 +71,7 @@ def run_platform_benchmark(
     pair_count: int = PORTABLE_PAIR_COUNT,
 ) -> dict[str, Any]:
     """Measure a portable raw-input pipeline using only the installed wheel."""
+    require_supported_execution_platform()
     if repetitions < MIN_CERTIFICATION_REPETITIONS:
         raise BenchmarkError(
             f"platform benchmark requires at least {MIN_CERTIFICATION_REPETITIONS} runs"
@@ -222,6 +228,7 @@ def run_platform_fixture_benchmark(
     state transition stream.  It deliberately does not replace the representative
     80-pair, five-year performance certificate.
     """
+    require_supported_execution_platform()
     if repetitions < MIN_CERTIFICATION_REPETITIONS:
         raise BenchmarkError(
             f"platform benchmark requires at least {MIN_CERTIFICATION_REPETITIONS} runs"
@@ -403,8 +410,9 @@ def seal_platform_evidence(
     expected_candidate_id: str | None = None,
     expected_bundle_id: str | None = None,
     expected_challenge: str | None = None,
+    required_platform_systems: frozenset[str] = REQUIRED_PLATFORM_SYSTEMS,
 ) -> dict[str, Any]:
-    """Recompute and authenticate three host reports before certifying them."""
+    """Recompute and authenticate supported-host reports before certifying them."""
     output = Path(output_directory).resolve()
     if output.exists() and any(output.iterdir()):
         raise BenchmarkError(f"platform evidence output must be empty: {output}")
@@ -412,10 +420,17 @@ def seal_platform_evidence(
     reports = [loads_json_bytes(payload) for payload in report_bytes]
     if not reports:
         raise SpecValidationError("at least one platform report is required")
+    if required_platform_systems not in (
+        REQUIRED_PLATFORM_SYSTEMS,
+        LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    ):
+        raise SpecValidationError("platform evidence required systems are unauthorized")
     envelopes: list[dict[str, Any]] = []
     statements: list[dict[str, Any]] = []
     for path, report, payload in zip(report_paths, reports, report_bytes, strict=True):
-        _validate_platform_report(report)
+        _validate_platform_report(
+            report, required_platform_systems=required_platform_systems
+        )
         envelope_path = Path(f"{path}.provenance.json")
         if not envelope_path.is_file():
             raise SpecValidationError(f"platform report has no signed provenance: {path}")
@@ -439,7 +454,7 @@ def seal_platform_evidence(
         envelopes.append(envelope)
 
     systems = {report["platform"]["system"] for report in reports}
-    missing = sorted(REQUIRED_PLATFORM_SYSTEMS - systems)
+    missing = sorted(required_platform_systems - systems)
     if missing:
         raise SpecValidationError(
             "platform evidence is missing systems: " + ", ".join(missing)
@@ -710,16 +725,18 @@ def _relative_spread(runs: list[dict[str, Any]]) -> float:
     return (max(values) - min(values)) / median if median > 0 else 0.0
 
 
-def _validate_platform_report(report: Any) -> None:
+def _validate_platform_report(
+    report: Any, *, required_platform_systems: frozenset[str]
+) -> None:
     if not isinstance(report, dict) or report.get("schema_version") != (
         PLATFORM_BENCHMARK_VERSION
     ):
         raise SpecValidationError("unsupported platform benchmark report")
     system = report.get("platform", {}).get("system")
-    if system not in REQUIRED_PLATFORM_SYSTEMS:
+    if system not in required_platform_systems:
         raise SpecValidationError(f"unsupported platform evidence system: {system!r}")
     machine = str(report.get("platform", {}).get("machine", "")).lower()
-    if machine not in REQUIRED_PLATFORM_MACHINES[system]:
+    if machine not in _PLATFORM_MACHINES[system]:
         raise SpecValidationError(
             f"{system} platform evidence has unsupported machine: {machine!r}"
         )

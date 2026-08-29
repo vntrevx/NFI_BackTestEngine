@@ -915,9 +915,6 @@ def _valid_timing_contract(value: Any, jobs: Mapping[str, Any]) -> bool:
         or not isinstance(value.get("artifact_retention_days"), int)
         or value["artifact_retention_days"] <= 0
         or value.get("comparison_run_count") != 3
-        or value.get("windows_process_lifecycle")
-        != "suspended-job-object-kill-on-close"
-        or value.get("windows_cleanup_event") != "active-process-zero"
         or not isinstance(value.get("pytest_slowest_count"), int)
         or value["pytest_slowest_count"] <= 0
         or not _string_list(value.get("pytest_ownership_groups"))

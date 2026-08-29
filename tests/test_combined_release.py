@@ -24,7 +24,11 @@ from nfi_backtest_engine.combined_release import (
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.evidence_bundle import write_evidence_bundle
 from nfi_backtest_engine.fixture import sha256_file
-from nfi_backtest_engine.platform_benchmark import EXACT_FIXTURE_LANE, seal_platform_evidence
+from nfi_backtest_engine.platform_benchmark import (
+    EXACT_FIXTURE_LANE,
+    LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    seal_platform_evidence,
+)
 from nfi_backtest_engine.release_gate import RELEASE_CHECKSUMS_NAME
 from nfi_backtest_engine.release_provenance import candidate_distribution_identity
 from provenance_support import TEST_POLICY, sign_report
@@ -238,7 +242,12 @@ def _platform_evidence(
             candidate_id=candidate_id or "2" * 64,
         )
         paths.append(path)
-    seal_platform_evidence(paths, root / "sealed", provenance_policy=TEST_POLICY)
+    seal_platform_evidence(
+        paths,
+        root / "sealed",
+        provenance_policy=TEST_POLICY,
+        required_platform_systems=LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    )
     return root / "sealed" / "platform-evidence.json"
 
 

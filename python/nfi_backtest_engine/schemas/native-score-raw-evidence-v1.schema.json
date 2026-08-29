@@ -74,7 +74,7 @@
         "source_identity_sha256": {"$ref": "#/$defs/sha256"},
         "candidate_identity_sha256": {"$ref": "#/$defs/sha256"},
         "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
-        "platform": {"enum": ["darwin", "linux", "windows"]},
+        "platform": {"enum": ["darwin", "linux"]},
         "workload_sha256": {"$ref": "#/$defs/sha256"},
         "run_id": {"$ref": "#/$defs/nonempty"},
         "nonce": {"$ref": "#/$defs/sha256"},
@@ -160,19 +160,19 @@
     },
     "identity_gate": {
       "if": {"properties": {"gate_id": {"const": "immutable_identity_scope"}}},
-      "then": {"properties": {"records": {"minItems": 30, "maxItems": 30, "items": {"properties": {"record_type": {"enum": ["identity_component", "provenance_identity"]}}}}}}
+      "then": {"properties": {"records": {"minItems": 20, "maxItems": 20, "items": {"properties": {"record_type": {"enum": ["identity_component", "provenance_identity"]}}}}}}
     },
     "independence_gate": {
       "if": {"properties": {"gate_id": {"const": "evidence_independence"}}},
-      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "producer_run"}}}}}}
+      "then": {"properties": {"records": {"minItems": 4, "maxItems": 4, "items": {"properties": {"record_type": {"const": "producer_run"}}}}}}
     },
     "purity_gate": {
       "if": {"properties": {"gate_id": {"const": "native_purity"}}},
       "then": {
         "properties": {
           "records": {
-            "minItems": 6,
-            "maxItems": 6,
+            "minItems": 4,
+            "maxItems": 4,
             "items": {
               "properties": {
                 "record_type": {"const": "execution_trace"},
@@ -207,31 +207,31 @@
     },
     "semantic_gate": {
       "if": {"properties": {"gate_id": {"const": "semantic_closure"}}},
-      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "semantic_obligation"}}}}}}
+      "then": {"properties": {"records": {"minItems": 4, "maxItems": 4, "items": {"properties": {"record_type": {"const": "semantic_obligation"}}}}}}
     },
     "coverage_gate": {
       "if": {"properties": {"gate_id": {"const": "changed_path_coverage_completeness"}}},
-      "then": {"properties": {"records": {"minItems": 24, "maxItems": 24, "items": {"properties": {"record_type": {"enum": ["obligation_coverage", "changed_target", "mcdc_term", "transition"]}}}}}}
+      "then": {"properties": {"records": {"minItems": 16, "maxItems": 16, "items": {"properties": {"record_type": {"enum": ["obligation_coverage", "changed_target", "mcdc_term", "transition"]}}}}}}
     },
     "comparison_gate": {
       "if": {"properties": {"gate_id": {"const": "vector_callback_exactness"}}},
-      "then": {"properties": {"records": {"minItems": 24, "maxItems": 24, "items": {"properties": {"record_type": {"enum": ["vector", "decision", "callback", "state_delta"]}}}}}}
+      "then": {"properties": {"records": {"minItems": 16, "maxItems": 16, "items": {"properties": {"record_type": {"enum": ["vector", "decision", "callback", "state_delta"]}}}}}}
     },
     "state_gate": {
       "if": {"properties": {"gate_id": {"const": "execution_complete_state_exactness"}}},
-      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "execution_state"}}}}}}
+      "then": {"properties": {"records": {"minItems": 4, "maxItems": 4, "items": {"properties": {"record_type": {"const": "execution_state"}}}}}}
     },
     "generative_gate": {
       "if": {"properties": {"gate_id": {"const": "generative_metamorphic_mutation_proof"}}},
-      "then": {"properties": {"records": {"minItems": 18, "maxItems": 18, "items": {"properties": {"record_type": {"enum": ["generative_case", "metamorphic_case", "mutant_outcome"]}}}}}}
+      "then": {"properties": {"records": {"minItems": 12, "maxItems": 12, "items": {"properties": {"record_type": {"enum": ["generative_case", "metamorphic_case", "mutant_outcome"]}}}}}}
     },
     "portfolio_gate": {
       "if": {"properties": {"gate_id": {"const": "same_candidate_portfolio_platform_certification"}}},
-      "then": {"properties": {"records": {"minItems": 6, "maxItems": 6, "items": {"properties": {"record_type": {"const": "portfolio_certificate"}}}}}}
+      "then": {"properties": {"records": {"minItems": 4, "maxItems": 4, "items": {"properties": {"record_type": {"const": "portfolio_certificate"}}}}}}
     },
     "performance_gate": {
       "if": {"properties": {"gate_id": {"const": "deterministic_performance_resource_proof"}}},
-      "then": {"properties": {"records": {"minItems": 72, "maxItems": 72, "items": {"properties": {"record_type": {"const": "performance_process_sample"}}}}}}
+      "then": {"properties": {"records": {"minItems": 48, "maxItems": 48, "items": {"properties": {"record_type": {"const": "performance_process_sample"}}}}}}
     }
   }
 }

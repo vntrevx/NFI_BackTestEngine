@@ -39,6 +39,7 @@ from .commands import (
 )
 from .config_loader import load_effective_config
 from .errors import NfiBacktestError
+from .execution_platform import require_supported_execution_platform
 from .hardware import create_execution_profile
 from .parity import ParityMismatch
 from .product_contract import (
@@ -314,7 +315,7 @@ def build_parser() -> argparse.ArgumentParser:
     platform_assemble.add_argument("--output", type=Path, required=True)
     platform_seal = platform_commands.add_parser(
         "seal",
-        help="combine Windows, Linux, and macOS benchmark reports",
+        help="combine Linux and macOS benchmark reports",
     )
     platform_seal.add_argument(
         "--report",
@@ -1504,6 +1505,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raw_args = raw_args[:separator]
     args = build_parser().parse_args(raw_args)
     try:
+        require_supported_execution_platform()
         result = _dispatch_command(args, benchmark_command=benchmark_command)
         if result == 0 and args.command_name != "update" and not (
             args.command_name == "release" and args.release_command == "score"

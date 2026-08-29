@@ -19,8 +19,8 @@ All notable changes are recorded here. This project follows Semantic Versioning.
   distribution regression identity; this release does not claim a new continuous
   five-year or combined Spot/Futures certificate.
 - Retained build-once release publication, SHA-256 manifests, required-CI
-  commit matching, three-OS exact-fixture evidence, and byte-identical RC-to-stable
-  promotion.
+  commit matching, Linux/macOS exact-fixture evidence, and byte-identical RC-to-stable
+  promotion. Native Windows is unsupported; WSL2 runs the Linux build and ABI.
 
 ## 1.6.1 - 2026-08-16
 
