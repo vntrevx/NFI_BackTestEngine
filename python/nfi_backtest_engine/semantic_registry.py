@@ -758,11 +758,12 @@ def write_semantic_obligation_registry(
             handle.flush()
             os.fsync(handle.fileno())
         temporary.replace(destination)
-        directory_descriptor = os.open(destination.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
+        if os.name == "posix":
+            directory_descriptor = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_descriptor)
+            finally:
+                os.close(directory_descriptor)
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -1581,12 +1582,13 @@ def package_semantic_obligation_registry(
         payload_published = True
         manifest_temporary.replace(manifest_destination)
         manifest_published = True
-        for directory in {destination_path.parent, manifest_destination.parent}:
-            directory_descriptor = os.open(directory, os.O_RDONLY)
-            try:
-                os.fsync(directory_descriptor)
-            finally:
-                os.close(directory_descriptor)
+        if os.name == "posix":
+            for directory in {destination_path.parent, manifest_destination.parent}:
+                directory_descriptor = os.open(directory, os.O_RDONLY)
+                try:
+                    os.fsync(directory_descriptor)
+                finally:
+                    os.close(directory_descriptor)
         return manifest
     except BaseException:
         if manifest_published:

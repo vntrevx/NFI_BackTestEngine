@@ -173,11 +173,12 @@ def _publish(destination: Path, report: Mapping[str, Any]) -> None:
             os.fsync(handle.fileno())
         _publication_checkpoint(temporary)
         temporary.replace(destination)
-        parent_descriptor = os.open(destination.parent, os.O_RDONLY)
-        try:
-            os.fsync(parent_descriptor)
-        finally:
-            os.close(parent_descriptor)
+        if os.name == "posix":
+            parent_descriptor = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(parent_descriptor)
+            finally:
+                os.close(parent_descriptor)
     finally:
         temporary.unlink(missing_ok=True)
 

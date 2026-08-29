@@ -92,17 +92,19 @@ def reseal_regression_contract_repository_files(
     )
     temporary = Path(temporary_name)
     try:
-        os.fchmod(descriptor, original_mode)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, original_mode)
         with os.fdopen(descriptor, "wb") as handle:
             handle.write(serialized)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, destination)
-        directory_fd = os.open(destination.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        if os.name == "posix":
+            directory_fd = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
     finally:
         temporary.unlink(missing_ok=True)
 
