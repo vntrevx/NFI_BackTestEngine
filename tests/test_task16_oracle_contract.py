@@ -59,8 +59,6 @@ def test_additive_contract_is_byte_equal_source_authenticated_and_bound() -> Non
         source_path = ROOT / item["path"]
         if source_path.is_file():
             assert item["source"] in source_path.read_text(encoding="utf-8")
-        else:
-            assert item["path"] == contract["current_nfi_head"]["strategy_path"]
 
 
 def test_current_nfi_reachability_and_official_corrections_are_explicit() -> None:

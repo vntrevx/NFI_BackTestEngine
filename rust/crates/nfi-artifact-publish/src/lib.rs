@@ -996,14 +996,18 @@ fn sync_directory(path: &Path) -> Result<(), PublicationError> {
         // BACKUP_SEMANTICS opens directories; OPEN_REPARSE_POINT prevents
         // following a substituted junction while establishing durability.
         .custom_flags(0x0200_0000 | 0x0020_0000);
-    match options
+    let directory = options
         .open(path)
-        .and_then(|directory| directory.sync_all())
-    {
+        .map_err(|source| PublicationError::Durability {
+            path: path.to_path_buf(),
+            source,
+        })?;
+    match directory.sync_all() {
         Ok(()) => Ok(()),
-        // FAT and some network providers do not support directory flush.
+        // Windows filesystems may reject directory FlushFileBuffers with
+        // ERROR_ACCESS_DENIED, ERROR_INVALID_FUNCTION, or ERROR_NOT_SUPPORTED.
         // Payload handles remain synced and the rename remains atomic.
-        Err(source) if matches!(source.raw_os_error(), Some(1) | Some(50)) => Ok(()),
+        Err(source) if matches!(source.raw_os_error(), Some(1 | 5 | 50)) => Ok(()),
         Err(source) => Err(PublicationError::Durability {
             path: path.to_path_buf(),
             source,
