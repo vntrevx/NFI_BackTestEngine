@@ -16,8 +16,13 @@ from ..archive_security import read_zip_member, validate_zip_archive
 from ..canonical import write_json
 from ..fixture import sha256_file
 from ..portable_paths import (
+    open_secure_directory,
     parse_portable_relative_path,
     validate_portable_filesystem_path,
+)
+from ..windows_path_security import (
+    open_windows_contained_descriptor,
+    windows_root_identity,
 )
 
 MAX_CERTIFICATION_SOURCE_BYTES = 256 * 1024 * 1024
@@ -125,7 +130,8 @@ def _write_certification_publication(
             staged_bundle = stage / bundle_path.name
             snapshot_root = stage / "sources"
             snapshot_root.mkdir()
-            root_fd = _open_certification_root(root)
+            root_fd = open_secure_directory(root)
+            windows_identity = windows_root_identity(root) if os.name == "nt" else None
             staged_sources: list[_StagedSource] = []
             staged_total = 0
             try:
@@ -134,6 +140,7 @@ def _write_certification_publication(
                         source,
                         root=root,
                         root_fd=root_fd,
+                        windows_identity=windows_identity,
                         snapshot_root=snapshot_root,
                         max_bytes=min(
                             MAX_CERTIFICATION_SOURCE_BYTES,
@@ -143,7 +150,8 @@ def _write_certification_publication(
                     staged_sources.append(staged)
                     staged_total += staged.size
             finally:
-                os.close(root_fd)
+                if root_fd is not None:
+                    os.close(root_fd)
             _fsync_directory(snapshot_root)
             _certification_checkpoint("after-source-snapshot")
             manifest = {
@@ -200,7 +208,8 @@ def _snapshot_source(
     source: Path,
     *,
     root: Path,
-    root_fd: int,
+    root_fd: int | None,
+    windows_identity: tuple[str, tuple[int, int, int]] | None,
     snapshot_root: Path,
     max_bytes: int,
 ) -> _StagedSource:
@@ -208,7 +217,14 @@ def _snapshot_source(
     portable = parse_portable_relative_path(name)
     destination = snapshot_root.joinpath(*portable.parts)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    source_fd = _open_certification_source(root_fd, portable)
+    if root_fd is None:
+        source_fd = open_windows_contained_descriptor(
+            root,
+            name,
+            expected_root_identity=windows_identity,
+        )
+    else:
+        source_fd = _open_certification_source(root_fd, portable)
     try:
         metadata = os.fstat(source_fd)
         if not stat.S_ISREG(metadata.st_mode):
@@ -247,14 +263,6 @@ def _snapshot_source(
         os.close(source_fd)
 
 
-def _open_certification_root(root: Path) -> int:
-    nofollow = getattr(os, "O_NOFOLLOW", 0)
-    if os.name != "posix" or not nofollow or not hasattr(os, "O_DIRECTORY"):
-        raise ValueError("legacy certification snapshots require POSIX no-follow support")
-    return os.open(
-        root,
-        os.O_RDONLY | os.O_DIRECTORY | nofollow | getattr(os, "O_CLOEXEC", 0),
-    )
 
 
 def _open_certification_source(root_fd: int, relative: PurePosixPath) -> int:
@@ -303,11 +311,13 @@ def _verify_staged_archive(
 
 
 def _fsync_file(path: Path) -> None:
-    with path.open("rb") as handle:
+    with path.open("r+b") as handle:
         os.fsync(handle.fileno())
 
 
 def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
     if os.name != "posix" or not hasattr(os, "O_DIRECTORY"):
         raise ValueError("durable certification publication requires directory fsync")
     descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
