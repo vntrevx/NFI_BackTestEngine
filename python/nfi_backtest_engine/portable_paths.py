@@ -71,7 +71,12 @@ def parse_portable_relative_path(value: str) -> PurePosixPath:
 def validate_portable_filesystem_path(value: str | Path) -> Path:
     """Validate every non-anchor component and preserve caller spelling checks."""
     raw = os.fspath(value)
-    if not isinstance(raw, str) or not raw or "\x00" in raw or "\\" in raw:
+    if (
+        not isinstance(raw, str)
+        or not raw
+        or "\x00" in raw
+        or ("\\" in raw and isinstance(value, str))
+    ):
         raise InputBoundaryError(f"filesystem path is not portable: {raw!r}")
     # pathlib normalizes duplicate separators and dot components, so reject them
     # before constructing the returned path whenever the caller supplied text.
