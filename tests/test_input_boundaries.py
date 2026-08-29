@@ -142,9 +142,6 @@ def test_config_include_rejects_cross_platform_path_aliases(
 def test_config_include_rejects_windows_component_aliases_on_every_host(
     tmp_path: Path, include: str
 ) -> None:
-    target = tmp_path.joinpath(*include.split("/"))
-    target.parent.mkdir(parents=True, exist_ok=True)
-    _config(target)
     _config(tmp_path / "config.json", includes=[include])
 
     with pytest.raises(SpecValidationError, match="include path|portable component"):
