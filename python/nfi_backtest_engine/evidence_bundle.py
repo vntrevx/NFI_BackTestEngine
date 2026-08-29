@@ -188,11 +188,12 @@ def _canonical_bundle_name(source: str | Path, root: Path) -> str:
     raw = os.fspath(source)
     lexical = Path(raw)
     if lexical.is_absolute():
-        raw_parts = raw.split("/")
-        if "\\" in raw or any(part in {"", ".", ".."} for part in raw_parts[1:]):
-            raise InputBoundaryError(
-                f"evidence path is not a canonical absolute spelling: {raw}"
-            )
+        if isinstance(source, str):
+            raw_parts = raw.split("/")
+            if "\\" in raw or any(part in {"", ".", ".."} for part in raw_parts[1:]):
+                raise InputBoundaryError(
+                    f"evidence path is not a canonical absolute spelling: {raw}"
+                )
         try:
             relative = lexical.relative_to(root)
         except ValueError as exc:
