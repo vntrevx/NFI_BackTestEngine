@@ -1274,7 +1274,7 @@ def _publish_report_atomic(destination: Path, report: dict[str, Any]) -> None:
     try:
         write_json(stage, report)
         stage.chmod(0o600)
-        with stage.open("rb") as handle:
+        with stage.open("r+b") as handle:
             os.fsync(handle.fileno())
         _publication_checkpoint("after-stage-fsync")
         try:
