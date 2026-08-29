@@ -12,6 +12,8 @@ import pytest
 from nfi_backtest_engine import benchmark
 from nfi_backtest_engine.errors import BenchmarkError
 
+SEALED_MEMFD_AVAILABLE = sys.platform.startswith("linux") and hasattr(os, "memfd_create")
+
 
 def _sealed_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
     environment = tmp_path / "sealed"
@@ -23,7 +25,7 @@ def _sealed_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tupl
     return environment, environment / "freqtrade"
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 @pytest.mark.parametrize("kind", ["shell", "python", "elf"])
 def test_snapshot_preserves_actual_executable_semantics(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str
@@ -61,7 +63,7 @@ def test_snapshot_preserves_actual_executable_semantics(
     )
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 def test_snapshot_preserves_kernel_shebang_optional_argument_as_one_value(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -81,7 +83,7 @@ def test_snapshot_preserves_kernel_shebang_optional_argument_as_one_value(
         sealed.close()
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 def test_snapshot_rejects_oversized_sparse_executable_before_copy(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -99,7 +101,7 @@ def test_snapshot_rejects_oversized_sparse_executable_before_copy(
     assert len(list(Path("/proc/self/fd").iterdir())) == before
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 @pytest.mark.parametrize("mutation", ["grow", "truncate"])
 def test_snapshot_rejects_size_change_during_copy_and_closes_snapshot(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str
@@ -127,7 +129,7 @@ def test_snapshot_rejects_size_change_during_copy_and_closes_snapshot(
     assert len(list(Path("/proc/self/fd").iterdir())) == before
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 @pytest.mark.parametrize("mutation", ["in-place", "hardlink"])
 @pytest.mark.parametrize("checkpoint", ["after-stat", "after-chunk"])
 def test_snapshot_rejects_same_size_executable_mutation_at_copy_checkpoint(
@@ -164,7 +166,7 @@ def test_snapshot_rejects_same_size_executable_mutation_at_copy_checkpoint(
     assert triggered
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 def test_snapshot_rejects_truncated_elf_before_launch(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -178,7 +180,7 @@ def test_snapshot_rejects_truncated_elf_before_launch(
         benchmark._resolve_sealed_freqtrade({"freqtrade": {"version": "2026.5.1"}})
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 @pytest.mark.parametrize("malformation", ["no-program-headers", "segment-out-of-bounds", "machine"])
 def test_snapshot_rejects_malformed_complete_elf_before_launch(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, malformation: str
@@ -200,7 +202,7 @@ def test_snapshot_rejects_malformed_complete_elf_before_launch(
         benchmark._resolve_sealed_freqtrade({"freqtrade": {"version": "2026.5.1"}})
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 def test_snapshot_rejects_oversized_shebang_interpreter(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -218,7 +220,7 @@ def test_snapshot_rejects_oversized_shebang_interpreter(
         )
 
 
-@pytest.mark.skipif(os.name != "posix", reason="requires sealed memfd execution")
+@pytest.mark.skipif(not SEALED_MEMFD_AVAILABLE, reason="requires sealed memfd execution")
 @pytest.mark.parametrize("first_line", [b"#!\n", b"#!" + b"x" * 300 + b"\n", b"plain text\n"])
 def test_snapshot_rejects_malformed_or_unsupported_format_before_staging(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, first_line: bytes
