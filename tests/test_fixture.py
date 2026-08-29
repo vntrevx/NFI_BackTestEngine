@@ -84,7 +84,7 @@ def test_fixture_final_file_swap_never_reads_outside(
             swapped = True
 
     monkeypatch.setattr(fixture, "_fixture_file_checkpoint", swap)
-    with pytest.raises(SpecValidationError, match="changed|symlink|identity"):
+    with pytest.raises(SpecValidationError, match="changed|symlink|reparse|identity"):
         validate_fixture(root / "manifest.json")
 
     assert swapped
