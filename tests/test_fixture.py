@@ -91,7 +91,20 @@ def test_fixture_final_file_swap_never_reads_outside(
     assert outside.read_bytes() == target.with_suffix(".trusted").read_bytes()
 
 
-@pytest.mark.parametrize("mutation", ["in-place", "hardlink", "parent-swap"])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "in-place",
+        "hardlink",
+        pytest.param(
+            "parent-swap",
+            marks=pytest.mark.skipif(
+                os.name == "nt",
+                reason="Windows prevents renaming the opened fixture root",
+            ),
+        ),
+    ],
+)
 def test_fixture_mutation_checkpoints_reject_without_outside_read(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str
 ) -> None:
@@ -128,7 +141,7 @@ def test_fixture_mutation_checkpoints_reject_without_outside_read(
         triggered = True
 
     monkeypatch.setattr(fixture, "_fixture_file_checkpoint", mutate)
-    with pytest.raises(SpecValidationError, match="changed|identity|symlink|reparse|containment"):
+    with pytest.raises(SpecValidationError, match="changed|identity|symlink|containment"):
         validate_fixture(root / "manifest.json")
 
     assert triggered
