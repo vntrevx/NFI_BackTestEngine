@@ -460,8 +460,7 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
 ) -> None:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text("{}", encoding="utf-8")
-    script = tmp_path / "backtesting"
-    script.write_text(
+    script_source = (
         "import os,socket,subprocess,sys,threading\n"
         "child=subprocess.Popen([\n"
         "    sys.executable,'-c','import threading; threading.Event().wait()'\n"
@@ -469,8 +468,7 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
         "port=int(os.environ['NFI_TEST_READY_PORT'])\n"
         "with socket.create_connection(('127.0.0.1',port)) as ready:\n"
         "    ready.sendall(str(child.pid).encode())\n"
-        "threading.Event().wait()\n",
-        encoding="utf-8",
+        "threading.Event().wait()\n"
     )
     manifest = {
         "fixture_id": "trusted-deadline",
@@ -486,6 +484,11 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
         lambda _manifest: benchmark._SealedExecutable(
             Path(sys.executable), "a" * 64, None
         ),
+    )
+    monkeypatch.setattr(
+        benchmark._SealedExecutable,
+        "launch_command",
+        lambda _self, _command: [sys.executable, "-c", script_source],
     )
     deadline_seconds = 10.0 if os.name == "nt" else 2.0
     with socket.socket() as listener:
