@@ -9,6 +9,7 @@ import socket
 import stat
 import subprocess
 import sys
+import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
@@ -494,7 +495,7 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
-        listener.settimeout(deadline_seconds + 5)
+        listener.settimeout(0.1)
         monkeypatch.setenv("NFI_TEST_READY_PORT", str(listener.getsockname()[1]))
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(
@@ -503,7 +504,16 @@ def test_trusted_benchmark_deadline_reaps_descendants_on_exact_ready_event(
                 tmp_path / "report.json",
                 trusted_timeout_seconds=deadline_seconds,
             )
-            connection, _address = listener.accept()
+            ready_deadline = time.monotonic() + deadline_seconds + 5
+            while True:
+                try:
+                    connection, _address = listener.accept()
+                    break
+                except TimeoutError:
+                    if future.done():
+                        future.result()
+                    if time.monotonic() >= ready_deadline:
+                        raise
             with connection:
                 connection.settimeout(5)
                 child_pid = int(connection.recv(32).decode())
