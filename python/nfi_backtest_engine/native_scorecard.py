@@ -1267,7 +1267,7 @@ def _publish_report_atomic(destination: Path, report: dict[str, Any]) -> None:
     parent = destination.parent
     if parent.is_symlink() or not parent.is_dir():
         raise SpecValidationError("scorecard output parent must be an existing directory")
-    if parent.stat().st_uid != os.geteuid():
+    if os.name == "posix" and parent.stat().st_uid != os.geteuid():
         raise SpecValidationError("scorecard output parent is not owned by this process")
     stage = parent / f".{destination.name}.stage-{secrets.token_hex(16)}"
     published = False
@@ -1284,27 +1284,32 @@ def _publish_report_atomic(destination: Path, report: dict[str, Any]) -> None:
                 f"scorecard output must not already exist: {destination}"
             ) from exc
         published = True
-        directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        _fsync_directory(parent)
         _publication_checkpoint("after-atomic-publication")
     except BaseException:
         if published:
             try:
                 if destination.stat().st_ino == stage.stat().st_ino:
                     destination.unlink()
-                    directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY)
-                    try:
-                        os.fsync(directory_fd)
-                    finally:
-                        os.close(directory_fd)
+                    _fsync_directory(parent)
             except FileNotFoundError:
                 pass
         raise
     finally:
         stage.unlink(missing_ok=True)
+
+
+def _fsync_directory(path: Path) -> None:
+    if os.name != "posix":
+        return
+    descriptor = os.open(
+        path,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0),
+    )
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _verify_closed_evidence_tree(
