@@ -23,7 +23,7 @@ MAX_DECOMPRESSION_RATIO = 200
 def validate_zip_archive(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
     """Validate the complete central directory before any member is decompressed."""
     if isinstance(archive.filename, (str, os.PathLike)):
-        validate_portable_filesystem_path(archive.filename)
+        validate_portable_filesystem_path(Path(archive.filename))
     infos = archive.infolist()
     if len(infos) > MAX_ARCHIVE_MEMBERS:
         raise InputBoundaryError(f"too many archive members (limit {MAX_ARCHIVE_MEMBERS})")
