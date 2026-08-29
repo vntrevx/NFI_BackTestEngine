@@ -217,8 +217,7 @@ def _semantic_callers(
     return sorted(
         method
         for method in _RUNTIME_METHODS
-        if method in method_features
-        and selected & _reachable_methods(method_features, [method])
+        if method in method_features and selected & _reachable_methods(method_features, [method])
     )
 
 
@@ -238,5 +237,3 @@ def _source_spans(
         if isinstance((record := callbacks.get(method)), Mapping)
         and isinstance(record.get("location"), Mapping)
     ]
-
-

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 FREQTRADE_VERSION = "2026.5.1"
 FREQTRADE_COMMIT = "6fa470939cc74bf0672e0e348a4d9b293072e43c"
-FREQTRADE_METHOD_MERKLE = (
-    "54e428105e8b2108b76a5ae1fbdf4d948e1a27a853b1c0bcdee6f1ac5d1b0192"
-)
+FREQTRADE_METHOD_MERKLE = "54e428105e8b2108b76a5ae1fbdf4d948e1a27a853b1c0bcdee6f1ac5d1b0192"
 SOURCE_METHODS = {
     ("freqtrade.optimize.backtesting.Backtesting", "_check_adjust_trade_for_candle"): (
         "900e3ec7f067fb67b56f190babed637712e26f5c08cb9e90ee5fd0df9849af8d"
@@ -184,4 +182,3 @@ CALLBACK_SPECS = (
     ),
 )
 REQUIRED_CALLBACKS = tuple(spec[0] for spec in CALLBACK_SPECS)
-

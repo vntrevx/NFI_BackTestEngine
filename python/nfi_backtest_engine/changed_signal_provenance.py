@@ -107,12 +107,8 @@ def _validate_reconstructed_lane(
         _validate_manifest_output(
             provenance, manifest_path, ("official_execution", "freqtrade_result")
         )
-        _validate_manifest_output(
-            provenance, manifest_path, ("official_trace", "state_trace")
-        )
-        _validate_manifest_output(
-            provenance, manifest_path, ("official_state", "state_projection")
-        )
+        _validate_manifest_output(provenance, manifest_path, ("official_trace", "state_trace"))
+        _validate_manifest_output(provenance, manifest_path, ("official_state", "state_projection"))
         _validate_trace_identity(
             provenance,
             manifest,
@@ -218,4 +214,3 @@ def _repository_path(value: str) -> Path:
     if not path.is_relative_to(_REPOSITORY) or not path.is_file():
         raise SpecValidationError("changed signal artifact path escapes repository")
     return path
-

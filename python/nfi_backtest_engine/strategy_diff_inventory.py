@@ -28,6 +28,7 @@ _VECTOR_METHODS = {
     "populate_exit_trend",
 }
 
+
 def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
     analysis = analyze_strategy(path, class_name=class_name)
     strategies = analysis.get("strategies")
@@ -91,9 +92,7 @@ def _inventory(path: Path, *, class_name: str | None) -> dict[str, Any]:
         method_signals = {
             token for tag in method_tags if _SIGNAL_TAG.fullmatch(tag) for token in tag.split()
         }
-        method_signals.update(
-            route for route in method_routes if _SIGNAL_TAG.fullmatch(route)
-        )
+        method_signals.update(route for route in method_routes if _SIGNAL_TAG.fullmatch(route))
         method_features[method.name] = {
             "signals": method_signals,
             "tags": method_tags,
@@ -176,5 +175,3 @@ def _boolean_mapping_changes(
                     }
                 )
     return changes
-
-

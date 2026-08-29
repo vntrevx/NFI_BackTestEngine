@@ -208,4 +208,3 @@ def _mapping(value: Mapping[str, Any], key: str) -> Mapping[str, Any]:
 
 def _file_sha256(relative: Path | str) -> str:
     return hashlib.sha256((_REPOSITORY / relative).read_bytes()).hexdigest()
-

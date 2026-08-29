@@ -20,6 +20,7 @@ _ROUTE_SELECTOR = re.compile(
     r"condition.*(?:index|id)|(?:index|id).*condition)"
 )
 
+
 def _changed_source_spans(
     _old_inventory: Mapping[str, Any],
     new_inventory: Mapping[str, Any],
@@ -198,5 +199,3 @@ def _method_opcodes(method: ast.AST) -> set[str]:
         elif isinstance(node, ast.Call):
             result.add(f"call:{ast.unparse(node.func).split('.')[-1]}")
     return result
-
-

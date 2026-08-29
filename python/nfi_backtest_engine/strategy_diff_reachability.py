@@ -14,6 +14,7 @@ _VECTOR_METHODS = {
 }
 _RUNTIME_METHODS = STRATEGY_CALLBACKS | _VECTOR_METHODS
 
+
 def _feature_methods(
     inventory: Mapping[str, Any],
     field: str,
@@ -78,5 +79,3 @@ def _reachable_methods(
             str(called) for called in features.get("calls", set()) if str(called) not in reached
         )
     return reached
-
-

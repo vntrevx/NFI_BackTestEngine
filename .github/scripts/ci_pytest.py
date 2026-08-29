@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import hashlib
+import importlib
 import json
 import math
 import os
@@ -15,8 +16,6 @@ import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
-
-import pytest
 
 PYTEST_REPORT_SCHEMA_VERSION = "1.0.0"
 VALID_OUTCOMES = {"passed", "failed", "skipped", "xfailed", "xpassed", "error"}
@@ -223,7 +222,6 @@ class _TimingPlugin:
     def pytest_runtest_logreport(self, report: Any) -> None:
         self._phase_reports.setdefault(str(report.nodeid), []).append(report)
 
-    @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_protocol(self, item: Any, nextitem: Any) -> Any:
         del nextitem
         nodeid = str(item.nodeid)
@@ -265,8 +263,10 @@ def run_pytest(
     identity = source.get("identity")
     if not isinstance(identity, dict):
         raise ValueError("timing report identity must be an object")
+    pytest_module = importlib.import_module("pytest")
+    pytest_module.hookimpl(hookwrapper=True)(_TimingPlugin.pytest_runtest_protocol)
     plugin = _TimingPlugin()
-    exit_code = int(pytest.main(list(pytest_args), plugins=[plugin]))
+    exit_code = int(pytest_module.main(list(pytest_args), plugins=[plugin]))
     report = build_pytest_report(
         plugin.records,
         slowest_count=slowest_count,
