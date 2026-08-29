@@ -684,6 +684,9 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "environment: release-provenance" not in signing_section
     assert "NFI_RELEASE_PROVENANCE_PRIVATE_KEY" in signing_section
     assert "Prepare canonical DSSE signing inputs" in prepare_section
+    assert "reports/provenance-coordinator.json" in prepare_section
+    assert '--arg run_id "$GITHUB_RUN_ID"' in prepare_section
+    assert '--argjson run_attempt "$GITHUB_RUN_ATTEMPT"' in prepare_section
     assert "Assemble signed provenance envelopes" in assemble_section
     assert "NFI_RELEASE_PROVENANCE_PRIVATE" not in prepare_section
     assert "NFI_RELEASE_PROVENANCE_PRIVATE" not in assemble_section

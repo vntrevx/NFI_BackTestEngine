@@ -198,6 +198,22 @@ jobs:
           candidate_id="$(.prepare-venv/bin/python -c 'from pathlib import Path; from nfi_backtest_engine.fixture import sha256_file; from nfi_backtest_engine.release_provenance import candidate_distribution_identity; root=Path("dist"); print(candidate_distribution_identity({p.name: sha256_file(p) for p in root.iterdir() if p.name.endswith((".whl", ".tar.gz"))}))')"
           challenge="$(openssl rand -hex 32)"
           bundle_id="$(printf '%s:%s' "$candidate_id" "$challenge" | sha256sum | cut -d' ' -f1)"
+          jq -n \
+            --arg commit "$GITHUB_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --argjson run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg candidate_id "$candidate_id" \
+            --arg bundle_id "$bundle_id" \
+            --arg challenge "$challenge" \
+            '{
+              commit: $commit,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              candidate_id: $candidate_id,
+              bundle_id: $bundle_id,
+              challenge: $challenge
+            }' \
+            > reports/provenance-coordinator.json
           while IFS= read -r report; do
             nonce="$(openssl rand -hex 32)"
             .prepare-venv/bin/nfi-bte platform prepare-attestation "$report" \
