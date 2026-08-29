@@ -128,7 +128,7 @@ def test_fixture_mutation_checkpoints_reject_without_outside_read(
         triggered = True
 
     monkeypatch.setattr(fixture, "_fixture_file_checkpoint", mutate)
-    with pytest.raises(SpecValidationError, match="changed|identity|symlink|containment"):
+    with pytest.raises(SpecValidationError, match="changed|identity|symlink|reparse|containment"):
         validate_fixture(root / "manifest.json")
 
     assert triggered
