@@ -1,0 +1,139 @@
+{
+  "schema_version": "changed-target-ledger-v1",
+  "identity": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_ref": "refs/heads/main",
+    "upstream_head": "649890f727fce8067a66f7556431b7ce0ee64416",
+    "baseline_commit": "eebaf97c1434bd8f208b7cd9c417606646e1e478",
+    "old_source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+    "new_source_sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a",
+    "source_closure_merkle_root": "33a3205a243cecaae1e0c195d833834dbdbd7ec7abb9d415aa07bee495d59798",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "semantic_registry_fingerprint": "3aeb86b38a00aa0ab018a7a298565f3d6ef1a678e1c340d5555fc7494d08cd1e"
+  },
+  "targets": [
+    {
+      "target_id": "34d150c5cc2e338f371f7ec631bbb65ee36788803e3912cae50eb0e77f7f1a84",
+      "kind": "signal",
+      "change": "changed",
+      "value": "665",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "dependencies": [],
+      "affected_modes": [
+        "futures",
+        "spot"
+      ],
+      "ownership": {
+        "mapping": "compiled-program",
+        "semantic_owners": [
+          "nfi-strategy"
+        ],
+        "obligation_count": 1252,
+        "obligation_ids_sha256": "0485eb66d7a0ed1222aff4a3f1e478b6c98df79b4d5c5ca0e03ff9e51acf4b29",
+        "duplicate_obligation_count": 0,
+        "reachable": true
+      },
+      "reachability": {
+        "static": true,
+        "transitive": false
+      },
+      "mode_proofs": [
+        {
+          "trading_mode": "futures",
+          "fixture_identity": "exact",
+          "fixture_ids": [
+            "current-signal665-futures-r1"
+          ],
+          "oracle_proof": true,
+          "native_action_proof": true,
+          "full_state_proof": true,
+          "target_resolved": true
+        },
+        {
+          "trading_mode": "spot",
+          "fixture_identity": "exact",
+          "fixture_ids": [
+            "current-signal665-spot-r1"
+          ],
+          "oracle_proof": true,
+          "native_action_proof": true,
+          "full_state_proof": true,
+          "target_resolved": true
+        }
+      ],
+      "hard_blockers": [],
+      "native_promotion_allowed": true
+    },
+    {
+      "target_id": "81aa7c5473b5fbf8b669eff94acb63171d11354f86372b7978b520bc3359242e",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "dependencies": [],
+      "affected_modes": [
+        "futures",
+        "spot"
+      ],
+      "ownership": {
+        "mapping": "compiled-program",
+        "semantic_owners": [
+          "nfi-strategy"
+        ],
+        "obligation_count": 1241,
+        "obligation_ids_sha256": "1cce9e8d8b234e461b26108ea82995add18c784e7aca04856f5cad6cf73fce72",
+        "duplicate_obligation_count": 0,
+        "reachable": true
+      },
+      "reachability": {
+        "static": true,
+        "transitive": false
+      },
+      "mode_proofs": [
+        {
+          "trading_mode": "futures",
+          "fixture_identity": "exact",
+          "fixture_ids": [
+            "current-signal665-futures-r1"
+          ],
+          "oracle_proof": true,
+          "native_action_proof": true,
+          "full_state_proof": true,
+          "target_resolved": true
+        },
+        {
+          "trading_mode": "spot",
+          "fixture_identity": "exact",
+          "fixture_ids": [
+            "current-signal665-spot-r1"
+          ],
+          "oracle_proof": true,
+          "native_action_proof": true,
+          "full_state_proof": true,
+          "target_resolved": true
+        }
+      ],
+      "hard_blockers": [],
+      "native_promotion_allowed": true
+    }
+  ],
+  "hard_blockers": [],
+  "summary": {
+    "target_count": 2,
+    "blocked_target_count": 0,
+    "hard_blocker_count": 0,
+    "native_promotion_allowed": true
+  },
+  "fingerprint": "e73cb3605b0a916b7b05f8d516f7ede329594bfcaee6d7e108445a82bd868a76"
+}

@@ -50,11 +50,22 @@ def analyze_strategy(
     path = Path(source).resolve()
     if not path.is_file():
         raise StrategyAnalysisError(f"strategy source does not exist: {path}")
+    return analyze_strategy_bytes(path.read_bytes(), source_name=path, class_name=class_name)
+
+
+def analyze_strategy_bytes(
+    payload: bytes,
+    *,
+    source_name: str | Path,
+    class_name: str | None = None,
+) -> dict[str, Any]:
+    """Analyze exact caller-retained source bytes without reopening a pathname."""
+    path = Path(source_name)
     try:
         # Decode bytes directly instead of using universal-newline text I/O.
         # The bundle identity is the exact file supplied by the user, so CRLF
         # sources on Windows must keep the same hash after analysis and copy.
-        text = path.read_bytes().decode("utf-8")
+        text = payload.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise StrategyAnalysisError(f"strategy source is not UTF-8: {path}") from exc
     try:

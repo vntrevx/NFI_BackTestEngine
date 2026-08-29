@@ -42,6 +42,23 @@ def test_timestamp_and_date_must_agree() -> None:
         normalize_freqtrade_result(raw)
 
 
+def test_normalize_rejects_symlinked_output_parent(tmp_path: Path) -> None:
+    fixture = CONTRACT_FIXTURES / "stops-only"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    linked.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(NormalizationError, match="symlink|parent|boundary"):
+        normalize_file(
+            fixture / "freqtrade-result.json",
+            linked / "surface.json",
+            strategy="ContractStopsOnly",
+        )
+
+    assert not (outside / "surface.json").exists()
+
+
 def test_official_zip_export_is_read_without_extracting(tmp_path: Path) -> None:
     fixture = CONTRACT_FIXTURES / "stops-only"
     archive_path = tmp_path / "backtest-result.zip"

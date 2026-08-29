@@ -103,6 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           (cd candidate && sha256sum --check SHA256SUMS.txt)
+          test -z "$(find candidate -mindepth 1 ! -type f -print -quit)"
           version="${RELEASE_TAG#v}"
           version="${version%%-rc.*}"
           jq -e \
@@ -114,18 +115,20 @@ jobs:
              and .distribution_policy.build_once == true
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.required_ci_commit_match == true
-             and .distribution_policy.three_os_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
              and .certification_boundary.latest_same_candidate_spot_certificate == false
              and .certification_boundary.latest_same_candidate_futures_certificate == false
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             candidate/product-release-contract.json
-          test "$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 4
+          test "$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 3
           test "$(find candidate -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
           test "$(find candidate -mindepth 1 -maxdepth 1 | wc -l)" -eq 12
           test -f candidate/full-x7-spot-platform-evidence.json
           test -f candidate/full-x7-spot-platform-evidence.zip
           test -f candidate/full-x7-futures-platform-evidence.json
           test -f candidate/full-x7-futures-platform-evidence.zip
+          test -f candidate/native-score.zip
           for mode in spot futures; do
             jq -e \
               --arg version "$version" \
@@ -133,7 +136,7 @@ jobs:
                and .lane == "exact-fixture"
                and .package_version == $version
                and ([.platforms[].system] | sort)
-                 == ["darwin", "linux", "windows"]' \
+                 == ["darwin", "linux"]' \
               "candidate/full-x7-$mode-platform-evidence.json"
           done
           jq -s -e \
@@ -165,6 +168,27 @@ jobs:
           test "${#wheels[@]}" -eq 1
           uv venv --python 3.12 .publish-venv
           uv pip install --python .publish-venv/bin/python "${wheels[0]}"
+          score_root=candidate/native-score
+          score_stage="candidate/.native-score.extract-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          score_report=.publish-native-score-report.json
+          cleanup_private_score() {
+            rm -rf -- "$score_root" "$score_stage" "$score_report"
+            rm -f -- ".${score_report}.stage-"*
+          }
+          trap cleanup_private_score EXIT
+          .publish-venv/bin/python -c \
+            'from nfi_backtest_engine.archive_security import extract_validated_zip; extract_validated_zip("candidate/native-score.zip", "'"$score_stage"'")'
+          mv -- "$score_stage" "$score_root"
+          candidate_id="$(
+            .publish-venv/bin/python -c \
+              'from pathlib import Path; from nfi_backtest_engine.fixture import sha256_file; from nfi_backtest_engine.release_provenance import candidate_distribution_identity; root=Path("candidate"); print(candidate_distribution_identity({path.name: sha256_file(path) for path in root.iterdir() if path.name.endswith((".whl", ".tar.gz"))}))'
+          )"
+          test "$(jq -er .engine_artifact_sha256 candidate/native-score/identity.json)" \
+            = "$candidate_id"
+          .publish-venv/bin/nfi-bte release score \
+            --evidence candidate/native-score/score-evidence.json \
+            --identity candidate/native-score/identity.json \
+            --output "$score_report"
           package_version="${RELEASE_TAG#v}"
           package_version="${package_version%%-rc.*}"
           test "$(.publish-venv/bin/nfi-bte --version)" \
@@ -182,7 +206,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$RELEASE_TAG" candidate/* \
+          test -z "$(find candidate -mindepth 1 ! -type f -print -quit)"
+          mapfile -d '' -t assets < <(find candidate -mindepth 1 -maxdepth 1 -type f -print0 | LC_ALL=C sort -z)
+          score_root=candidate/native-score
+          score_stage="candidate/.native-score.extract-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          score_report=.publish-native-score-report.json
+          cleanup_private_score() {
+            rm -rf -- "$score_root" "$score_stage" "$score_report"
+            rm -f -- ".${score_report}.stage-"*
+          }
+          trap cleanup_private_score EXIT
+          .publish-venv/bin/python -c \
+            'from nfi_backtest_engine.archive_security import extract_validated_zip; extract_validated_zip("candidate/native-score.zip", "'"$score_stage"'")'
+          mv -- "$score_stage" "$score_root"
+          .publish-venv/bin/nfi-bte release score \
+            --evidence candidate/native-score/score-evidence.json \
+            --identity candidate/native-score/identity.json \
+            --operation "product-candidate-create:${RELEASE_TAG}:$CANDIDATE_SHA" \
+            --output "$score_report"
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$CANDIDATE_SHA" \
             --title "NFI Backtest Engine $RELEASE_TAG" \
@@ -204,25 +246,6 @@ jobs:
           diff -qr candidate published
           (cd published && sha256sum --check SHA256SUMS.txt)
           ./install.sh
-
-  windows-installer:
-    name: Audit Windows product installer
-    needs: publish
-    runs-on: windows-latest
-    steps:
-      - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ needs.publish.outputs.candidate_sha }}
-          persist-credentials: false
-      - name: Verify Windows release selection
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: >-
-          .\install.ps1
-          -Version "${{ needs.publish.outputs.release_tag }}"
-          -DryRun
 
   macos-installer:
     name: Audit macOS product installer

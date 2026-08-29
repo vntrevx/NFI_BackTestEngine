@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 
@@ -22,11 +23,43 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
+class CandidateRecord(TypedDict):
+    fixture_id: str
+    manifest_sha256: str
+    trade_surface_exact: bool
+    full_state_exact: bool
+    logical_bytes: int
+    target_ids: list[str]
+    pair: str
+    timerange: str
+
+
+class CandidateReport(TypedDict):
+    status: str
+    trading_mode: str
+    fingerprint: str
+    upstream_commit: str
+    engine_commit: str
+    strategy_sha256: str
+    candidate: CandidateRecord
+
+
+class PublicationPlan(TypedDict):
+    branch: str
+    trading_mode: str
+    fixture_id: str
+    fingerprint: str
+    upstream_commit: str
+    engine_commit: str
+    target_ids: list[str]
+    logical_bytes: int
+
+
 def _bytes(path: Path) -> int:
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
 
-def _report() -> dict:
+def _report() -> CandidateReport:
     logical_bytes = _bytes(FIXTURE)
     manifest = MODULE.validate_fixture(FIXTURE / "manifest.json")
     return {
@@ -129,6 +162,93 @@ def test_candidate_plan_rejects_symlinked_input(tmp_path: Path) -> None:
             tmp_path / "repo",
             max_bytes=30 * 1024 * 1024,
         )
+
+
+def _publication_plan() -> PublicationPlan:
+    return {
+        "branch": "automation/futures-fixture-deadbeef",
+        "trading_mode": "futures",
+        "fixture_id": "candidate",
+        "fingerprint": "a" * 64,
+        "upstream_commit": "d" * 40,
+        "engine_commit": "c" * 40,
+        "target_ids": ["target"],
+        "logical_bytes": 1,
+    }
+
+
+def test_candidate_pr_rechecks_refs_immediately_before_create(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(arguments: list[str], **_kwargs) -> str:
+        calls.append(arguments)
+        if arguments[:3] == ["git", "ls-remote", "--heads"]:
+            return "existing branch"
+        if arguments[:3] == ["git", "ls-remote", "origin"]:
+            return "c" * 40
+        if arguments[:2] == ["git", "ls-remote"]:
+            return "d" * 40
+        if arguments[:3] == ["gh", "pr", "create"]:
+            return "https://example.invalid/pr"
+        return ""
+
+    monkeypatch.setattr(MODULE, "_open_pr", lambda *_args: None)
+    monkeypatch.setattr(MODULE, "_run", fake_run)
+
+    MODULE.publish_candidate(
+        _publication_plan(),
+        repository_root=tmp_path,
+        repository="owner/repository",
+        base="main",
+    )
+
+    create = next(index for index, call in enumerate(calls) if call[:3] == ["gh", "pr", "create"])
+    assert calls[create - 2] == ["git", "ls-remote", "origin", "refs/heads/main"]
+    assert calls[create - 1] == [
+        "git",
+        "ls-remote",
+        "https://github.com/iterativv/NostalgiaForInfinity.git",
+        "refs/heads/main",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("engine", "upstream"),
+    [("9" * 40, "d" * 40), ("c" * 40, "9" * 40)],
+)
+def test_candidate_pr_rejects_stale_ref_before_create(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    engine: str,
+    upstream: str,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(arguments: list[str], **_kwargs) -> str:
+        calls.append(arguments)
+        if arguments[:3] == ["git", "ls-remote", "--heads"]:
+            return "existing branch"
+        if arguments[:3] == ["git", "ls-remote", "origin"]:
+            return engine
+        if arguments[:2] == ["git", "ls-remote"]:
+            return upstream
+        return ""
+
+    monkeypatch.setattr(MODULE, "_open_pr", lambda *_args: None)
+    monkeypatch.setattr(MODULE, "_run", fake_run)
+
+    with pytest.raises(ValueError, match="current refs changed"):
+        MODULE.publish_candidate(
+            _publication_plan(),
+            repository_root=tmp_path,
+            repository="owner/repository",
+            base="main",
+        )
+
+    assert not any(call[:3] == ["gh", "pr", "create"] for call in calls)
 
 
 def test_candidate_pr_deduplication_includes_closed_and_merged_prs(

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/native-score-domain-evidence-v1.json",
+  "title": "Native score domain evidence v1",
+  "oneOf": [
+    {"$ref": "#/$defs/domain"},
+    {"$ref": "#/$defs/process"},
+    {"$ref": "#/$defs/replay"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonempty": {"type": "string", "minLength": 1},
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_identity_sha256", "candidate_identity_sha256", "mode_contract", "platform", "workload_sha256", "run_id", "nonce"],
+      "properties": {
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
+        "platform": {"enum": ["darwin", "linux"]},
+        "workload_sha256": {"$ref": "#/$defs/sha256"},
+        "run_id": {"$ref": "#/$defs/nonempty"},
+        "nonce": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "identity_sha256", "issued_at", "expires_at", "run_id", "nonce"],
+      "properties": {
+        "role": {"$ref": "#/$defs/nonempty"},
+        "identity_sha256": {"$ref": "#/$defs/sha256"},
+        "issued_at": {"type": "string", "format": "date-time"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "run_id": {"$ref": "#/$defs/nonempty"},
+        "nonce": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "machine-records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "object", "minProperties": 2}
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "document_type", "producer", "context", "observation"],
+      "properties": {
+        "schema_version": {"const": "native-score-domain-evidence-v1"},
+        "document_type": {"enum": ["observer-trace", "native-execution-trace", "semantic-obligation-coverage", "coverage-witness", "exact-comparison", "complete-state-trace", "generated-corpus", "mutation-execution"]},
+        "producer": {"$ref": "#/$defs/producer"},
+        "context": {"$ref": "#/$defs/context"},
+        "observation": {"type": "object"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"document_type": {"const": "observer-trace"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["events", "complete"], "properties": {"events": {"$ref": "#/$defs/machine-records"}, "complete": {"const": true}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "native-execution-trace"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["events", "complete"], "properties": {"events": {"$ref": "#/$defs/machine-records"}, "complete": {"const": true}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "semantic-obligation-coverage"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["registry_fingerprint", "obligation_count", "ordered_coverage_encoding", "coverage_bits_base64"], "properties": {"registry_fingerprint": {"$ref": "#/$defs/sha256"}, "obligation_count": {"type": "integer", "minimum": 1}, "ordered_coverage_encoding": {"const": "registry-order-bitset-v1"}, "coverage_bits_base64": {"type": "string", "minLength": 1}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "coverage-witness"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["semantic_id", "observations"], "properties": {"semantic_id": {"$ref": "#/$defs/nonempty"}, "observations": {"$ref": "#/$defs/machine-records"}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "exact-comparison"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["semantic_id", "records"], "properties": {"semantic_id": {"$ref": "#/$defs/nonempty"}, "records": {"$ref": "#/$defs/machine-records"}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "complete-state-trace"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["semantic_id", "state_fields", "events"], "properties": {"semantic_id": {"$ref": "#/$defs/nonempty"}, "state_fields": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"type": "string"}}, "events": {"$ref": "#/$defs/machine-records"}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "generated-corpus"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["domain", "case_id", "seed", "records"], "properties": {"domain": {"$ref": "#/$defs/nonempty"}, "case_id": {"$ref": "#/$defs/nonempty"}, "seed": {"type": "integer"}, "relation": {"$ref": "#/$defs/nonempty"}, "records": {"$ref": "#/$defs/machine-records"}}}}}
+        },
+        {
+          "if": {"properties": {"document_type": {"const": "mutation-execution"}}},
+          "then": {"properties": {"observation": {"type": "object", "additionalProperties": false, "required": ["mutant_id", "operator", "executions"], "properties": {"mutant_id": {"$ref": "#/$defs/nonempty"}, "operator": {"$ref": "#/$defs/nonempty"}, "executions": {"$ref": "#/$defs/machine-records"}}}}}
+        }
+      ]
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "producer", "context", "runtime", "population", "sample_index", "process", "output"],
+      "properties": {
+        "schema_version": {"const": "native-score-process-evidence-v1"},
+        "producer": {"$ref": "#/$defs/producer"},
+        "context": {"$ref": "#/$defs/context"},
+        "runtime": {"enum": ["official", "native"]},
+        "population": {"enum": ["cold", "reuse"]},
+        "sample_index": {"type": "integer", "minimum": 0, "maximum": 2},
+        "process": {
+          "type": "object", "additionalProperties": false,
+          "required": ["exit_code", "wall_seconds", "cpu_seconds", "peak_rss_bytes", "memory_limit_bytes", "oom", "swap_bytes"],
+          "properties": {"exit_code": {"const": 0}, "wall_seconds": {"type": "number", "exclusiveMinimum": 0}, "cpu_seconds": {"type": "number", "minimum": 0}, "peak_rss_bytes": {"type": "integer", "minimum": 0}, "memory_limit_bytes": {"type": "integer", "minimum": 1}, "oom": {"const": false}, "swap_bytes": {"const": 0}}
+        },
+        "output": {"type": "object", "additionalProperties": false, "required": ["sha256", "bytes", "bounded"], "properties": {"sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"type": "integer", "minimum": 1}, "bounded": {"const": true}}}
+      }
+    },
+    "replay": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "certificate_sha256", "candidate_identity_sha256", "context", "exact", "complete"],
+      "properties": {"schema_version": {"const": "full-x7-certificate-replay-v1"}, "certificate_sha256": {"$ref": "#/$defs/sha256"}, "candidate_identity_sha256": {"$ref": "#/$defs/sha256"}, "context": {"$ref": "#/$defs/context"}, "exact": {"const": true}, "complete": {"const": true}}
+    }
+  }
+}

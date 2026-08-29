@@ -1,0 +1,15 @@
+{
+  "schema_version": "packaged-semantic-obligation-registry-v1",
+  "compression": "gzip-mtime-zero-v1",
+  "registry_schema_id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/semantic-obligation-registry-v1.schema.json",
+  "registry_schema_version": "semantic-obligation-registry-v1",
+  "registry_schema_bytes": 20881,
+  "registry_schema_sha256": "b68588db19867595d626f674c3abbd85ef8678ceef5fe214999d53e462406083",
+  "compressed_sha256": "757e9f1455f49beeb3260c67c1909ccf3405d6f8f4d8a996d7072c51bd73457c",
+  "uncompressed_bytes": 157513493,
+  "uncompressed_sha256": "8c5f4f4237703c9fe427e8a20820f5a0113670c67663f3ce05a9aee0645c0035",
+  "registry_fingerprint": "bd83b422c073c5a8133d539870c432de9737e30ea1b365ed822ea1833f532084",
+  "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+  "upstream_ref": "refs/heads/main",
+  "upstream_commit": "b22cc60d1c018eeb984cb02a125bb790042bebd0"
+}

@@ -47,6 +47,9 @@ pub struct NfiX7TradeManager {
     pub long_grind: Option<NfiLongGrindRoute>,
     #[serde(default)]
     pub long_btc: Option<NfiLongGrindRoute>,
+    /// Independently source-compiled legacy short Grind route.
+    #[serde(default)]
+    pub short_grind: Option<NfiLongGrindRoute>,
     pub rebuy_adjustment: NfiX7RebuyAdjustment,
     pub short_rebuy_adjustment: NfiX7ShortRebuyAdjustment,
     #[serde(default)]
@@ -100,6 +103,7 @@ pub(crate) struct NfiDispatchPlan {
     pub short_rebuy_route: Option<usize>,
     pub long_grind_tags: Vec<NfiTagId>,
     pub long_btc_tags: Vec<NfiTagId>,
+    pub short_grind_tags: Vec<NfiTagId>,
     /// Sorted names behind scalar handles; executable programs remain owned
     /// by the manager so startup never deep-clones immutable bytecode.
     pub program_names: Vec<String>,
@@ -539,6 +543,8 @@ pub struct CompiledLegacyGrindProgram {
     pub schema_version: String,
     pub execution_mode: CompiledLegacyGrindExecutionMode,
     pub source_callback: String,
+    #[serde(default)]
+    pub side: CompiledLegacyGrindSide,
     pub source_order: Vec<CompiledLegacyGrindTransition>,
     pub order_scan: CompiledLegacyGrindOrderScan,
     pub policy: CompiledLegacyGrindPolicy,
@@ -551,6 +557,38 @@ pub struct CompiledLegacyGrindProgram {
 pub enum CompiledLegacyGrindExecutionMode {
     PrimaryWithLegacyShadow,
     Primary,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyGrindSide {
+    #[default]
+    Long,
+    Short,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompiledLegacyComparison {
+    #[default]
+    LessThan,
+    GreaterThan,
+}
+
+/// Source-extracted one-shot Futures liquidation rescue for one Grind level.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiLegacyLiquidationRescuePolicy {
+    #[serde(default)]
+    pub side: CompiledLegacyGrindSide,
+    pub cluster_level: usize,
+    pub loss_threshold: f64,
+    #[serde(default)]
+    pub profit_comparison: CompiledLegacyComparison,
+    pub liquidation_multiplier: f64,
+    #[serde(default)]
+    pub liquidation_comparison: CompiledLegacyComparison,
+    pub used_state_key: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -579,6 +617,8 @@ pub enum CompiledLegacyGrindTransition {
         append_entry_ids: bool,
         #[serde(default)]
         futures_fallback_loss_threshold: Option<f64>,
+        #[serde(default)]
+        liquidation_rescue: Option<NfiLegacyLiquidationRescuePolicy>,
         location: ManagedExitSourceLocation,
     },
     /// One bounded de-risk exit -> Buyback -> partial de-risk cycle.
@@ -798,6 +838,10 @@ pub enum CompiledSystemAdjustmentInputKind {
     TradeLeverage,
     TradeStakeAmount,
     DeriskFound,
+    DeriskEnabled,
+    DeriskEnabledGlobal,
+    DeriskStake,
+    DeriskThreshold,
     ClusterCount,
     ClusterMaximumCount,
     ClusterDistance,

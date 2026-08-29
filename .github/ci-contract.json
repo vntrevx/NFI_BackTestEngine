@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.3.0",
   "workflow": ".github/workflows/ci.yml",
   "required_check": {
     "job_id": "required",
@@ -32,9 +32,12 @@
       ".github/ci-contract.json",
       ".github/dependabot.yml",
       ".github/scripts/ci_contract.py",
+      ".github/scripts/ci_pytest.py",
+      ".github/scripts/ci_timing.py",
       ".github/scripts/test_ci_contract.py",
       ".github/workflows/ci.yml",
       ".gitignore",
+      "tests/test_ci_policy.py",
       ".python-version"
     ]
   },
@@ -49,6 +52,92 @@
       "tests/test_compatibility_issue.py",
       "tests/test_compatibility_review_pr.py",
       "tests/test_nfi_compatibility_workflow.py"
+    ]
+  },
+  "affected_validation": {
+    "schema_version": "affected-validation-plan-v1",
+    "full_files": [
+      "pyproject.toml",
+      "rust/Cargo.lock",
+      "rust/Cargo.toml",
+      "rust/rust-toolchain.toml",
+      "uv.lock"
+    ],
+    "semantic_prefixes": [
+      "benchmarks/fixtures/",
+      "benchmarks/reference/",
+      "planning/freqtrade-",
+      "python/nfi_backtest_engine/",
+      "rust/",
+      "tests/parity/"
+    ],
+    "ast_prefixes": [
+      "python/nfi_backtest_engine/indicator_",
+      "python/nfi_backtest_engine/strategy/"
+    ],
+    "ast_files": [
+      "python/nfi_backtest_engine/strategy_ir.py",
+      "tests/test_strategy_ir.py"
+    ],
+    "platform_prefixes": [
+      "rust/crates/nfi-py/"
+    ],
+    "platform_files": [
+      "python/nfi_backtest_engine/benchmark.py",
+      "python/nfi_backtest_engine/config_loader.py",
+      "python/nfi_backtest_engine/docker_runtime.py",
+      "python/nfi_backtest_engine/engine_runtime.py",
+      "python/nfi_backtest_engine/evidence_bundle.py",
+      "python/nfi_backtest_engine/fixture.py",
+      "python/nfi_backtest_engine/portable_paths.py",
+      "python/nfi_backtest_engine/reference/execution.py",
+      "python/nfi_backtest_engine/windows_job.py",
+      "python/nfi_backtest_engine/windows_path_security.py",
+      "tests/test_benchmark_snapshot.py",
+      "tests/test_config_loader.py",
+      "tests/test_docker_runtime.py",
+      "tests/test_engine_runtime.py",
+      "tests/test_evidence_bundle.py",
+      "tests/test_fixture.py",
+      "tests/test_input_boundaries.py",
+      "tests/test_portable_paths.py",
+      "tests/test_reference_runtime.py"
+    ],
+    "python_matrix": {
+      "base": [
+        {
+          "os": "ubuntu-latest",
+          "python-version": "3.12",
+          "suite": "full"
+        }
+      ],
+      "ast": [
+        {
+          "os": "ubuntu-latest",
+          "python-version": "3.13",
+          "suite": "ast-compat"
+        },
+        {
+          "os": "ubuntu-latest",
+          "python-version": "3.14",
+          "suite": "ast-compat"
+        }
+      ],
+      "platform": [
+        {
+          "os": "macos-14",
+          "python-version": "3.12",
+          "suite": "full"
+        }
+      ]
+    },
+    "job_order": [
+      "policy",
+      "python",
+      "python-quality",
+      "rust-quality",
+      "parity",
+      "timing"
     ]
   },
   "jobs": {
@@ -66,23 +155,30 @@
     },
     "python": {
       "name": "Python ${{ matrix.os }} / ${{ matrix.python-version }}",
-      "timeout_minutes": 30,
+      "timeout_minutes": 45,
       "matrix": [
         "ubuntu-latest",
-        "windows-latest",
         "macos-14",
         "3.12",
         "3.13",
         "3.14"
       ]
     },
-    "quality": {
-      "name": "Static and Rust checks",
+    "python-quality": {
+      "name": "Python quality checks",
+      "timeout_minutes": 45
+    },
+    "rust-quality": {
+      "name": "Rust quality checks",
       "timeout_minutes": 45
     },
     "parity": {
       "name": "Native full-parity fixtures",
       "timeout_minutes": 30
+    },
+    "timing": {
+      "name": "Validate CI timing evidence",
+      "timeout_minutes": 10
     },
     "required": {
       "name": "Required CI",
@@ -92,8 +188,10 @@
   "conditional_job_ids": [
     "policy",
     "python",
-    "quality",
-    "parity"
+    "python-quality",
+    "rust-quality",
+    "parity",
+    "timing"
   ],
   "classifications": {
     "docs-only": [],
@@ -105,20 +203,23 @@
     ],
     "code": [
       "python",
-      "quality",
-      "parity"
+      "python-quality",
+      "rust-quality",
+      "parity",
+      "timing"
     ]
   },
   "coverage": {
     "text_integrity": "documentation",
     "ci_policy": "policy",
     "compatibility_automation": "policy",
-    "quality": "quality",
+    "python_quality": "python-quality",
     "python_linux": "python",
-    "rust_tests": "quality",
+    "rust_tests": "rust-quality",
     "platform_smoke": "python",
     "contract_parity": "parity",
-    "evidence_integrity": "python"
+    "evidence_integrity": "python",
+    "ci_timing": "timing"
   },
   "pull_request": {
     "event": "pull_request",
@@ -143,12 +244,13 @@
       ],
       "code": [
         "text_integrity",
-        "quality",
+        "python_quality",
         "python_linux",
         "rust_tests",
         "platform_smoke",
         "contract_parity",
-        "evidence_integrity"
+        "evidence_integrity",
+        "ci_timing"
       ]
     }
   },
@@ -166,6 +268,122 @@
   "concurrency": {
     "group": "ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
     "cancel_in_progress": true
+  },
+  "timing": {
+    "schema_version": "1.0.0",
+    "baseline_id": "ci-timing-v1",
+    "workflow_name": "CI",
+    "workflow_ref": ".github/workflows/ci.yml",
+    "repository": "vntrevx/NFI_BackTestEngine",
+    "cache_file": "uv.lock",
+    "artifact_retention_days": 14,
+    "comparison_run_count": 3,
+    "rust_compiler_cache": "sccache-gha-v0.10.0",
+    "pytest_slowest_count": 20,
+    "pytest_ownership_groups": [
+      "compatibility",
+      "core",
+      "external",
+      "parity",
+      "release_ci",
+      "runtime"
+    ],
+    "step_categories": {
+      "dependency-sync": "dependency_sync",
+      "native-build": "native_build",
+      "python-tests": "python_test",
+      "python-ast-identity": "python_test",
+      "python-lint": "static_check",
+      "python-type-check": "static_check",
+      "rust-format": "rust_check",
+      "rust-tests": "rust_check",
+      "rust-lint": "rust_check",
+      "parity-normal-routing": "parity",
+      "parity-stops-only": "parity"
+    },
+    "reports": [
+      {
+        "job": "python",
+        "os": "ubuntu-latest",
+        "python": "3.12",
+        "suite": "full",
+        "step_timeout_seconds": 2400,
+        "required_steps": [
+          "dependency-sync",
+          "native-build",
+          "python-tests"
+        ]
+      },
+      {
+        "job": "python",
+        "os": "macos-14",
+        "python": "3.12",
+        "suite": "full",
+        "step_timeout_seconds": 2400,
+        "required_steps": [
+          "dependency-sync",
+          "native-build",
+          "python-tests"
+        ]
+      },
+      {
+        "job": "python",
+        "os": "ubuntu-latest",
+        "python": "3.13",
+        "suite": "ast-compat",
+        "step_timeout_seconds": 2400,
+        "required_steps": [
+          "python-ast-identity"
+        ]
+      },
+      {
+        "job": "python",
+        "os": "ubuntu-latest",
+        "python": "3.14",
+        "suite": "ast-compat",
+        "step_timeout_seconds": 2400,
+        "required_steps": [
+          "python-ast-identity"
+        ]
+      },
+      {
+        "job": "python-quality",
+        "os": "ubuntu-latest",
+        "python": "3.12",
+        "suite": "static-python",
+        "step_timeout_seconds": 2400,
+        "required_steps": [
+          "dependency-sync",
+          "python-lint",
+          "python-type-check"
+        ]
+      },
+      {
+        "job": "rust-quality",
+        "os": "ubuntu-latest",
+        "python": "3.12",
+        "suite": "rust",
+        "step_timeout_seconds": 2400,
+        "required_steps": [
+          "rust-format",
+          "rust-tests",
+          "rust-lint"
+        ]
+      },
+      {
+        "job": "parity",
+        "os": "ubuntu-latest",
+        "python": "3.12",
+        "suite": "full-parity",
+        "step_timeout_seconds": 1500,
+        "required_steps": [
+          "dependency-sync",
+          "native-build",
+          "parity-normal-routing",
+          "parity-stops-only"
+        ]
+      }
+    ]
   },
   "nightly": {
     "workflow": ".github/workflows/nightly.yml",

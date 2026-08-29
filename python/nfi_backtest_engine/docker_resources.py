@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .docker_environment import docker_subprocess_environment
 from .errors import BenchmarkError, SpecValidationError
 
 GIB = 1024**3
@@ -56,6 +57,7 @@ def inspect_docker_daemon(
             capture_output=True,
             check=False,
             timeout=timeout_seconds,
+            env=docker_subprocess_environment(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BenchmarkError(f"cannot inspect Docker daemon resources: {exc}") from exc
@@ -133,6 +135,7 @@ def inspect_docker_swap_capacity(
             capture_output=True,
             check=False,
             timeout=timeout_seconds,
+            env=docker_subprocess_environment(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BenchmarkError(f"cannot inspect Docker daemon swap: {exc}") from exc
@@ -270,6 +273,7 @@ def _inspect_active_container_usage(
             capture_output=True,
             check=False,
             timeout=timeout_seconds,
+            env=docker_subprocess_environment(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BenchmarkError(f"cannot inspect active Docker memory: {exc}") from exc

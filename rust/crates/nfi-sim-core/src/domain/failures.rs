@@ -2,8 +2,18 @@
 
 use thiserror::Error;
 
+use super::ExecutableCallbackError;
+
 #[derive(Debug, Error, PartialEq)]
 pub enum SimError {
+    #[error("code=spool_io operation={operation} row={row} kind={kind}")]
+    SpoolIo {
+        operation: &'static str,
+        row: usize,
+        kind: &'static str,
+    },
+    #[error("code=exact_arithmetic operation={operation} reason=unrepresentable")]
+    ExactArithmetic { operation: &'static str },
     #[error("unsupported simulator schema {0:?}")]
     UnsupportedSchema(String),
     #[error("configuration field {0} must be finite and positive")]
@@ -36,6 +46,10 @@ pub enum SimError {
     InvalidLiquidationPrice { pair: String, timestamp_ms: i64 },
     #[error("callback program contains an invalid key, tag, or value")]
     InvalidCallbackProgram,
+    #[error("native callback phase, outcome, or transaction is invalid")]
+    InvalidCallbackRuntime,
+    #[error(transparent)]
+    ExecutableCallback(#[from] ExecutableCallbackError),
     #[error("generic state-machine program or runtime value is invalid")]
     InvalidStateMachineProgram,
     #[error("compiled custom stake program is invalid for {pair:?} at {timestamp_ms}")]

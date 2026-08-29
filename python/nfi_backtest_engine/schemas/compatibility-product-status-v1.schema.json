@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi-backtest-engine.dev/schemas/compatibility-product-status-v1.schema.json",
+  "title": "NFI compatibility product status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "identity",
+    "observed_identity",
+    "workflow",
+    "product",
+    "discovery_execution",
+    "same_engine_proof",
+    "required_status_passed",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": "compatibility-product-status-v1"},
+    "identity": {
+      "oneOf": [{"$ref": "#/$defs/identity"}, {"type": "null"}]
+    },
+    "observed_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine_sha", "upstream_sha"],
+      "properties": {
+        "engine_sha": {"$ref": "#/$defs/sha"},
+        "upstream_sha": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "infrastructure_limited",
+            "stale",
+            "cancelled",
+            "skipped"
+          ]
+        }
+      }
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason"],
+      "properties": {
+        "state": {"enum": ["compatible", "blocked", "inconclusive"]},
+        "reason": {
+          "enum": [
+            "same_engine_proof_complete",
+            "stale_engine",
+            "stale_upstream",
+            "infrastructure_limited",
+            "workflow_failed",
+            "workflow_cancelled",
+            "workflow_skipped",
+            "stale_trigger",
+            "missing_artifacts",
+            "malformed_artifacts",
+            "malformed_identity",
+            "missing_identity",
+            "missing_authoritative_proof",
+            "invalid_authoritative_proof",
+            "discovery_skipped",
+            "external_data_deferred",
+            "branch_proof_missing"
+          ]
+        }
+      }
+    },
+    "discovery_execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spot", "futures"],
+      "properties": {
+        "spot": {"$ref": "#/$defs/discoveryExecution"},
+        "futures": {"$ref": "#/$defs/discoveryExecution"}
+      }
+    },
+    "same_engine_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "engine_sha",
+        "source_run_id",
+        "manifest_sha256",
+        "artifact_sha256"
+      ],
+      "properties": {
+        "complete": {"type": "boolean"},
+        "engine_sha": {"$ref": "#/$defs/sha"},
+        "source_run_id": {"type": ["string", "null"]},
+        "manifest_sha256": {
+          "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        },
+        "artifact_sha256": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "required_status_passed": {"type": "boolean"},
+    "fingerprint": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"required_status_passed": {"const": true}}},
+      "then": {
+        "properties": {
+          "workflow": {"properties": {"state": {"const": "succeeded"}}},
+          "product": {
+            "properties": {
+              "state": {"const": "compatible"},
+              "reason": {"const": "same_engine_proof_complete"}
+            }
+          },
+          "same_engine_proof": {"properties": {"complete": {"const": true}}}
+        }
+      },
+      "else": {
+        "properties": {
+          "product": {"properties": {"state": {"enum": ["blocked", "inconclusive"]}}},
+          "same_engine_proof": {"properties": {"complete": {"const": false}}}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "discoveryExecution": {
+      "enum": [
+        "succeeded",
+        "skipped",
+        "failed",
+        "cancelled",
+        "external_data_deferred",
+        "not_required"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upstream_sha",
+        "engine_sha",
+        "freqtrade_digest",
+        "semantic_profile_sha256",
+        "strategy_sha256"
+      ],
+      "properties": {
+        "upstream_sha": {"$ref": "#/$defs/sha"},
+        "engine_sha": {"$ref": "#/$defs/sha"},
+        "freqtrade_digest": {"$ref": "#/$defs/digest"},
+        "semantic_profile_sha256": {"$ref": "#/$defs/sha256"},
+        "strategy_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

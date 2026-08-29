@@ -224,7 +224,7 @@ def test_data_download_flattens_host_relative_config_includes(
     command = observed["command"]
     assert isinstance(command, list)
     owner = data_directory.stat()
-    assert command[command.index("--user") + 1] == "0:0"
+    assert command[command.index("--user") + 1] == f"{owner.st_uid}:{owner.st_gid}"
     assert f"NFI_BIND_UID={owner.st_uid}" in command
     assert f"NFI_BIND_GID={owner.st_gid}" in command
     assert command[command.index("--entrypoint") + 1] == "/bin/sh"

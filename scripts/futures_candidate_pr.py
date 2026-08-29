@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Publish one size-bounded Spot or Futures fixture candidate as a draft PR."""
+"""Publish one validated discovery fixture candidate as a draft PR."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import shutil
 import subprocess
 from collections.abc import Mapping
@@ -13,114 +12,18 @@ from pathlib import Path
 from typing import Any
 
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.compatibility_candidate_plan import (
+    CandidatePublicationError,
+    build_candidate_plan,
+)
 from nfi_backtest_engine.fixture import sha256_file, validate_fixture
 
-_FINGERPRINT = re.compile(r"[0-9a-f]{64}")
-_FIXTURE_ID = re.compile(r"[a-z0-9][a-z0-9.-]*")
-_COMMIT = re.compile(r"[0-9a-f]{40}")
-_MODES = {"spot", "futures"}
-
-
-def build_candidate_plan(
-    report: Mapping[str, Any],
-    candidate_directory: str | Path,
-    repository_root: str | Path,
-    *,
-    max_bytes: int,
-) -> dict[str, Any]:
-    """Validate candidate identity, exactness, size, and repository destinations."""
-    root = Path(repository_root).resolve()
-    candidate_input = Path(candidate_directory)
-    if candidate_input.is_symlink():
-        raise ValueError("fixture candidate root must not be a symlink")
-    candidate_root = candidate_input.resolve()
-    if not candidate_root.is_dir():
-        raise ValueError("fixture candidate directory is missing")
-    for path in candidate_root.rglob("*"):
-        if path.is_symlink() or not (path.is_file() or path.is_dir()):
-            raise ValueError("fixture candidate contains a symlink or special file")
-    if report.get("status") != "candidate_found":
-        raise ValueError("discovery report does not contain a fixture candidate")
-    fingerprint = report.get("fingerprint")
-    trading_mode = report.get("trading_mode")
-    candidate = report.get("candidate")
-    if (
-        _FINGERPRINT.fullmatch(str(fingerprint)) is None
-        or trading_mode not in _MODES
-        or not isinstance(candidate, Mapping)
-    ):
-        raise ValueError("discovery candidate identity is invalid")
-    if (
-        candidate.get("trade_surface_exact") is not True
-        or candidate.get("full_state_exact") is not True
-    ):
-        raise ValueError("fixture candidate lacks independent exact evidence")
-    manifest_path = candidate_root / "manifest.json"
-    if not manifest_path.is_file():
-        raise ValueError("fixture candidate manifest is missing")
-    manifest = validate_fixture(manifest_path)
-    manifest_sha256 = sha256_file(manifest_path)
-    fixture_id = manifest.get("fixture_id")
-    if (
-        not isinstance(fixture_id, str)
-        or _FIXTURE_ID.fullmatch(fixture_id) is None
-        or ".." in fixture_id
-    ):
-        raise ValueError("fixture candidate id is not a repository-safe slug")
-    upstream_commit = report.get("upstream_commit")
-    engine_commit = report.get("engine_commit")
-    provenance = manifest.get("strategy_provenance")
-    if (
-        _COMMIT.fullmatch(str(upstream_commit)) is None
-        or _COMMIT.fullmatch(str(engine_commit)) is None
-        or not isinstance(provenance, Mapping)
-        or provenance.get("upstream_commit") != upstream_commit
-        or provenance.get("effective_source_sha256") != report.get("strategy_sha256")
-        or manifest.get("freqtrade", {}).get("trading_mode") != trading_mode
-        or candidate.get("fixture_id") != fixture_id
-        or candidate.get("manifest_sha256") != manifest_sha256
-    ):
-        raise ValueError("fixture candidate identity differs from its sealed manifest")
-    logical_bytes = sum(
-        path.stat().st_size for path in candidate_root.rglob("*") if path.is_file()
-    )
-    if (
-        not isinstance(max_bytes, int)
-        or isinstance(max_bytes, bool)
-        or max_bytes <= 0
-        or logical_bytes > max_bytes
-        or candidate.get("logical_bytes") != logical_bytes
-    ):
-        raise ValueError("fixture candidate exceeds or differs from its sealed size")
-    suffix = str(fingerprint)[:16]
-    fixture_relative = Path("benchmarks") / "fixtures" / "captured" / fixture_id
-    evidence_relative = Path("benchmarks") / "evidence" / (
-        f"future-nfi-{trading_mode}-{suffix}.json"
-    )
-    if (root / fixture_relative).exists() or (root / evidence_relative).exists():
-        raise ValueError("fixture candidate destination already exists")
-    target_ids = candidate.get("target_ids")
-    if not isinstance(target_ids, list) or not target_ids or not all(
-        isinstance(value, str) and value for value in target_ids
-    ):
-        raise ValueError("fixture candidate target ids are invalid")
-    return {
-        "fingerprint": fingerprint,
-        "branch": f"automation/{trading_mode}-fixture-{suffix}",
-        "trading_mode": trading_mode,
-        "fixture_id": fixture_id,
-        "fixture_source": str(candidate_root),
-        "fixture_destination": fixture_relative.as_posix(),
-        "evidence_destination": evidence_relative.as_posix(),
-        "logical_bytes": logical_bytes,
-        "manifest_sha256": manifest_sha256,
-        "target_ids": sorted(target_ids),
-        "upstream_commit": upstream_commit,
-        "engine_commit": engine_commit,
-        "strategy_sha256": report.get("strategy_sha256"),
-        "timerange": candidate.get("timerange"),
-        "pair": candidate.get("pair"),
-    }
+__all__ = [
+    "build_candidate_plan",
+    "publish_candidate",
+    "sha256_file",
+    "validate_fixture",
+]
 
 
 def publish_candidate(
@@ -130,7 +33,7 @@ def publish_candidate(
     repository: str,
     base: str,
 ) -> dict[str, Any]:
-    """Push the allowlisted files, open a draft PR, and dispatch required CI."""
+    """Push allowlisted files and recheck current refs immediately before Draft PR creation."""
     root = Path(repository_root).resolve()
     branch = str(plan["branch"])
     existing = _open_pr(repository, branch)
@@ -149,7 +52,7 @@ def publish_candidate(
     )
     if not remote_exists:
         if _run(["git", "status", "--porcelain"], cwd=root).strip():
-            raise ValueError("candidate publisher requires a clean worktree")
+            raise CandidatePublicationError("candidate publisher requires a clean worktree")
         _run(["git", "switch", "--create", branch], cwd=root)
         fixture_destination = root / str(plan["fixture_destination"])
         fixture_destination.parent.mkdir(parents=True, exist_ok=True)
@@ -161,8 +64,7 @@ def publish_candidate(
                 "schema_version": "1.0.0",
                 "claim_boundary": (
                     f"Branch-reaching {plan['trading_mode']} fixture candidate. "
-                    "This is compact "
-                    "quick-verification evidence, not a five-year certificate."
+                    "This is compact quick-verification evidence, not a five-year certificate."
                 ),
                 "fingerprint": plan["fingerprint"],
                 "trading_mode": plan["trading_mode"],
@@ -198,7 +100,9 @@ def publish_candidate(
             or path.startswith(f"{plan['fixture_destination']}/")
             for path in changed
         ):
-            raise ValueError("candidate publisher staged a path outside its allowlist")
+            raise CandidatePublicationError(
+                "candidate publisher staged a path outside its allowlist"
+            )
         _run(
             [
                 "git",
@@ -208,18 +112,13 @@ def publish_candidate(
                 "user.email=41898282+github-actions@users.noreply.github.com",
                 "commit",
                 "-m",
-                (
-                    f"test({plan['trading_mode']}): add discovered fixture "
-                    f"{plan['fixture_id']}"
-                ),
+                f"test({plan['trading_mode']}): add discovered fixture {plan['fixture_id']}",
             ],
             cwd=root,
         )
+        _validate_current_refs(plan, root, base)
         _run(["git", "push", "origin", f"HEAD:{branch}"], cwd=root)
-    title = (
-        f"test({plan['trading_mode']}): add discovered fixture "
-        f"{plan['fixture_id']}"
-    )
+    title = f"test({plan['trading_mode']}): add discovered fixture {plan['fixture_id']}"
     body = (
         f"Automated bounded {plan['trading_mode']} branch discovery candidate.\n\n"
         f"- Fingerprint: `{plan['fingerprint']}`\n"
@@ -231,6 +130,7 @@ def publish_candidate(
         "- Independent official/Native full state: exact\n\n"
         "This PR is never approved or merged automatically."
     )
+    _validate_current_refs(plan, root, base)
     url = _run(
         [
             "gh",
@@ -251,16 +151,7 @@ def publish_candidate(
         cwd=root,
     ).strip()
     _run(
-        [
-            "gh",
-            "workflow",
-            "run",
-            "ci.yml",
-            "--repo",
-            repository,
-            "--ref",
-            branch,
-        ],
+        ["gh", "workflow", "run", "ci.yml", "--repo", repository, "--ref", branch],
         cwd=root,
     )
     return {
@@ -271,6 +162,25 @@ def publish_candidate(
     }
 
 
+def _validate_current_refs(plan: Mapping[str, Any], root: Path, base: str) -> None:
+    current_engine_sha = _run(
+        ["git", "ls-remote", "origin", f"refs/heads/{base}"], cwd=root
+    ).split()[0]
+    current_upstream_sha = _run(
+        [
+            "git",
+            "ls-remote",
+            "https://github.com/iterativv/NostalgiaForInfinity.git",
+            "refs/heads/main",
+        ],
+        cwd=root,
+    ).split()[0]
+    if current_engine_sha != plan.get("engine_commit") or current_upstream_sha != plan.get(
+        "upstream_commit"
+    ):
+        raise CandidatePublicationError("current refs changed before external mutation")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path, required=True)
@@ -279,17 +189,24 @@ def main() -> int:
     parser.add_argument("--repository", required=True)
     parser.add_argument("--base", default="main")
     parser.add_argument("--max-bytes", type=int, required=True)
+    parser.add_argument("--expected-engine-sha", required=True)
+    parser.add_argument("--expected-upstream-sha", required=True)
     parser.add_argument("--github-output", type=Path)
     args = parser.parse_args()
     report = read_json(args.report)
     if not isinstance(report, dict):
-        raise ValueError("discovery report must be an object")
+        raise CandidatePublicationError("discovery report must be an object")
     plan = build_candidate_plan(
         report,
         args.candidate_dir,
         args.repo_root,
         max_bytes=args.max_bytes,
     )
+    if (
+        plan.get("engine_commit") != args.expected_engine_sha
+        or plan.get("upstream_commit") != args.expected_upstream_sha
+    ):
+        raise CandidatePublicationError("workflow refs differ from candidate proof")
     result = publish_candidate(
         plan,
         repository_root=args.repo_root,
@@ -299,9 +216,8 @@ def main() -> int:
     if args.github_output is not None:
         with args.github_output.open("a", encoding="utf-8") as handle:
             for key, value in result.items():
-                handle.write(
-                    f"{key}={str(value).lower() if isinstance(value, bool) else value}\n"
-                )
+                rendered = str(value).lower() if isinstance(value, bool) else value
+                handle.write(f"{key}={rendered}\n")
     print(json.dumps(result, sort_keys=True))
     return 0
 
@@ -324,7 +240,7 @@ def _open_pr(repository: str, branch: str) -> dict[str, Any] | None:
     )
     records = json.loads(output)
     if not isinstance(records, list):
-        raise ValueError("GitHub returned an invalid pull request list")
+        raise CandidatePublicationError("GitHub returned an invalid pull request list")
     return records[0] if records else None
 
 

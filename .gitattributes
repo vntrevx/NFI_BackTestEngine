@@ -11,6 +11,10 @@
 # Captured inputs are third-party snapshots, not project implementation code.
 /benchmarks/fixtures/** linguist-vendored
 
+# Captured diagnostic transcripts are content-addressed evidence.
+/benchmarks/evidence/m22/current-x7-raw/*.txt -text
+/benchmarks/evidence/m22/current-x7-raw/*.txt whitespace=-trailing-space
+
 *.zip binary
 *.feather binary
 *.parquet binary

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "strategy": "LimitTrailingOracle",
+  "timeframe": "5m",
+  "dataformat_ohlcv": "feather",
+  "max_open_trades": 1,
+  "stake_currency": "USDT",
+  "stake_amount": 100,
+  "tradable_balance_ratio": 0.99,
+  "dry_run": true,
+  "dry_run_wallet": 1000,
+  "trading_mode": "spot",
+  "margin_mode": "",
+  "fee": 0.001,
+  "unfilledtimeout": {
+    "entry": 10,
+    "exit": 10,
+    "unit": "minutes"
+  },
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": false
+  },
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": false
+  },
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "pair_whitelist": [
+      "BTC/USDT"
+    ],
+    "pair_blacklist": []
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+  "use_exit_signal": true,
+  "exit_profit_only": false,
+  "ignore_roi_if_entry_signal": false
+}

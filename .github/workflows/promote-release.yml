@@ -19,7 +19,10 @@ permissions:
 jobs:
   promote:
     name: Promote byte-identical assets
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, nfi-release-signer]
+    environment: release-publication
+    env:
+      PROVENANCE_LEDGER: /var/lib/nfi-release/provenance/used-certificates.sqlite
     steps:
       - name: Validate release identities
         id: identity
@@ -77,9 +80,17 @@ jobs:
           test "${#wheels[@]}" -eq 1
           uv venv --python 3.12 .promote-venv
           uv pip install --python .promote-venv/bin/python "${wheels[0]}"
+          mkdir .promotion-score
+          unzip -q candidate/full-x7-release-bundle.zip \
+            'evidence/native-score/*' -d .promotion-score
           .promote-venv/bin/nfi-bte release verify-combined \
             --release-dir candidate \
-            --candidate-commit "$CANDIDATE_SHA"
+            --candidate-commit "$CANDIDATE_SHA" \
+            --native-score-evidence \
+              .promotion-score/evidence/native-score/score-evidence.json \
+            --native-score-identity \
+              .promotion-score/evidence/native-score/identity.json \
+            --provenance-ledger "$PROVENANCE_LEDGER"
       - name: Create stable release from candidate files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -88,6 +99,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          .promote-venv/bin/nfi-bte release authorize-current \
+            --operation "combined-stable-create:$STABLE_TAG:$CANDIDATE_SHA" \
+            --evidence \
+              .promotion-score/evidence/native-score/score-evidence.json \
+            --identity \
+              .promotion-score/evidence/native-score/identity.json
           gh release create "$STABLE_TAG" candidate/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$CANDIDATE_SHA" \
@@ -97,6 +114,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           STABLE_TAG: ${{ inputs.stable_tag }}
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -108,4 +126,10 @@ jobs:
           (cd stable && sha256sum --check SHA256SUMS.txt)
           (cd stable && sha256sum --check RELEASE-SHA256SUMS.txt)
           .promote-venv/bin/nfi-bte release verify-combined \
-            --release-dir stable
+            --release-dir stable \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --native-score-evidence \
+              .promotion-score/evidence/native-score/score-evidence.json \
+            --native-score-identity \
+              .promotion-score/evidence/native-score/identity.json \
+            --provenance-ledger "$PROVENANCE_LEDGER"

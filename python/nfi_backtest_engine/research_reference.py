@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -12,17 +13,21 @@ from typing import Any
 from .canonical import read_json, write_json
 from .config_loader import config_sha256, strip_service_only_settings
 from .data_seal import validate_data_seal
+from .docker_environment import docker_subprocess_environment
 from .docker_runtime import (
     BIND_OWNER_EXECUTABLE_FUNCTION,
     RUN_AS_BIND_OWNER_SCRIPT,
     docker_root_with_bind_owner_arguments,
     managed_docker_run,
     run_managed_container,
+    validate_final_managed_command,
+    validate_managed_run_prefix,
 )
 from .errors import BenchmarkError
 from .fixture import sha256_file
 from .normalize import normalize_file
 from .parity import first_difference
+from .reference import execution as reference_execution
 from .reference_assets import reference_package_root, reference_tracer_root
 from .reference_runtime import (
     REFERENCE_CCXT_VERSION,
@@ -41,6 +46,13 @@ RESEARCH_REFERENCE_VERSION = "1.4.0"
 REFERENCE_PURPOSES = frozenset({"verification", "fallback"})
 
 _RESOURCE_CAPTURE_SCRIPT = BIND_OWNER_EXECUTABLE_FUNCTION + """\
+if [ -d /reference-deps ]; then
+  /usr/local/bin/python \
+    /nfi-python/nfi_backtest_engine/reference/dependency_seal.py \
+    /reference-deps /nfi-deps/site \
+    blake3-1.0.9-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl \
+    f65d77eb05331495485048f6804f53885b192b998acb7e6fe1487d941bf08435 || exit 126
+fi
 run_as_bind_owner freqtrade "$@"
 status=$?
 if [ -r /sys/fs/cgroup/memory.peak ]; then
@@ -157,7 +169,14 @@ def run_research_reference(
         raise BenchmarkError("reference storage mode must be 'in-memory' or 'spooled'")
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         try:
-            with managed_docker_run(
+            dependency_guard = (
+                reference_execution.reference_dependency_lock(project_root)
+                if dependency_directory is not None
+                else nullcontext()
+            )
+            with dependency_guard, reference_execution.reference_runtime_volume(
+                docker_config
+            ) as runtime_volume, managed_docker_run(
                 docker_config=docker_config,
                 role="reference",
                 swap_mode=(
@@ -168,6 +187,10 @@ def run_research_reference(
                     REFERENCE_IMAGE_REF if reference_memory_mode == "certification-swap" else None
                 ),
             ) as lease:
+                if dependency_directory is not None:
+                    reference_execution.validate_reference_dependencies(
+                        dependency_directory
+                    )
                 resources = {
                     "daemon": lease["daemon"],
                     "policy": lease["policy"],
@@ -185,6 +208,7 @@ def run_research_reference(
                     storage_mode=reference_storage_mode,
                     trace_identity=validated_trace_identity,
                     dependency_directory=dependency_directory,
+                    runtime_volume=runtime_volume,
                 )
                 completed = subprocess.run(
                     command,
@@ -193,6 +217,7 @@ def run_research_reference(
                     stderr=stderr,
                     check=False,
                     timeout=timeout_seconds,
+                    env=docker_subprocess_environment(),
                 )
                 exit_code = completed.returncode
         except subprocess.TimeoutExpired:
@@ -342,17 +367,19 @@ def capture_research_markets(
     (output / "user_data").mkdir(exist_ok=True)
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
-    command = build_research_market_capture_command(
-        input_directory=inputs,
-        output_directory=output,
-    )
-    completed, resources = run_managed_container(
-        command,
-        docker_config=docker_config,
-        role="market-capture",
-        capture_output=True,
-        timeout=timeout_seconds,
-    )
+    with reference_execution.reference_runtime_volume(docker_config) as runtime_volume:
+        command = build_research_market_capture_command(
+            input_directory=inputs,
+            output_directory=output,
+            runtime_volume=runtime_volume,
+        )
+        completed, resources = run_managed_container(
+            command,
+            docker_config=docker_config,
+            role="market-capture",
+            capture_output=True,
+            timeout=timeout_seconds,
+        )
     if completed.returncode != 0 or not target.is_file():
         detail = completed.stderr[-2000:].strip() or completed.stdout[-2000:].strip()
         raise BenchmarkError(f"failed to capture research markets: {detail}")
@@ -372,6 +399,7 @@ def build_research_market_capture_command(
     *,
     input_directory: Path,
     output_directory: Path,
+    runtime_volume: str | None = None,
 ) -> list[str]:
     """Build the lightweight Freqtrade command that triggers CCXT market loading.
 
@@ -381,7 +409,7 @@ def build_research_market_capture_command(
     """
     tracer_root = reference_tracer_root()
     package_root = reference_package_root()
-    return [
+    command = [
         "--platform",
         REFERENCE_PLATFORM,
         *docker_root_with_bind_owner_arguments(output_directory),
@@ -396,7 +424,12 @@ def build_research_market_capture_command(
         "--volume",
         f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
         "--env",
-        "PYTHONPATH=/nfi-reference-tracer:/nfi-python",
+        "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
+        + (
+            ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+            if runtime_volume is not None
+            else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+        ),
         "--env",
         "NFI_MARKET_CAPTURE_PATH=/output/reference-markets.json",
         "--entrypoint",
@@ -412,6 +445,13 @@ def build_research_market_capture_command(
         "--userdir",
         "/output/user_data",
     ]
+    if runtime_volume is not None:
+        image_index = command.index(REFERENCE_IMAGE_REF)
+        command[image_index:image_index] = [
+            "--mount",
+            f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly",
+        ]
+    return command
 
 
 def build_research_reference_command(
@@ -427,10 +467,12 @@ def build_research_reference_command(
     storage_mode: str = "spooled",
     trace_identity: dict[str, str] | None = None,
     dependency_directory: Path | None = None,
+    runtime_volume: str | None = None,
 ) -> list[str]:
     """Build a shell-safe Docker argv for one official research rerun."""
     tracer_root = reference_tracer_root()
     package_root = reference_package_root()
+    validate_managed_run_prefix(run_prefix)
     command = [
         *run_prefix,
         "--platform",
@@ -452,7 +494,12 @@ def build_research_reference_command(
         f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
         "--env",
         "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
-        + (":/reference-deps" if dependency_directory is not None else ""),
+        + (":/nfi-deps/site" if dependency_directory is not None else "")
+        + (
+            ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+            if runtime_volume is not None
+            else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+        ),
         "--env",
         "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
     ]
@@ -481,6 +528,13 @@ def build_research_reference_command(
         )
     if dependency_directory is not None:
         command.extend(["--volume", f"{dependency_directory}:/reference-deps:ro"])
+    if runtime_volume is not None:
+        command.extend(
+            [
+                "--mount",
+                f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly",
+            ]
+        )
     if trace_identity is not None:
         command.extend(
             [
@@ -528,6 +582,71 @@ def build_research_reference_command(
             "--backtest-directory",
             "/output",
         ]
+    )
+    owner = output_directory.stat()
+    expected_volumes = [
+        f"{input_directory}:/input:ro",
+        f"{output_directory}:/output",
+        f"{data_directory}:/data:ro",
+        f"{tracer_root}:/nfi-reference-tracer:ro",
+        f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
+    ]
+    if dependency_directory is not None:
+        expected_volumes.append(f"{dependency_directory}:/reference-deps:ro")
+    expected_mounts = (
+        [f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly"]
+        if runtime_volume is not None
+        else []
+    )
+    expected_environment = [
+        f"NFI_BIND_UID={owner.st_uid}",
+        f"NFI_BIND_GID={owner.st_gid}",
+        "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
+        + (":/nfi-deps/site" if dependency_directory is not None else "")
+        + (
+            ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+            if runtime_volume is not None
+            else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+        ),
+        "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
+    ]
+    if storage_mode == "spooled":
+        expected_environment.extend(
+            [
+                "NFI_REFERENCE_DATASTORE=spooled",
+                "NFI_REFERENCE_STORAGE_REPORT=/output/reference-storage.json",
+                "NFI_REFERENCE_SPOOL_DIRECTORY=/tmp/nfi-reference-spool",
+            ]
+        )
+    if audit_timestamps_ms:
+        expected_environment.extend(
+            [
+                "NFI_CALLBACK_AUDIT_PATH=/output/callback-audit.json",
+                "NFI_CALLBACK_AUDIT_TIMESTAMPS_MS="
+                + ",".join(str(value) for value in audit_timestamps_ms),
+            ]
+        )
+    if trace_identity is not None:
+        expected_environment.extend(
+            [
+                "NFI_TRACE_PATH=/output/state-trace.nfitrace",
+                f"NFI_TRACE_RUN_ID={trace_identity['run_id']}",
+                f"NFI_TRACE_INPUT_SHA256={trace_identity['input_sha256']}",
+                f"NFI_TRACE_STRATEGY_SHA256={trace_identity['strategy_sha256']}",
+                f"NFI_TRACE_PROFILE_SHA256={trace_identity['profile_sha256']}",
+                "NFI_TRACE_INCLUDE_STATE=1",
+            ]
+        )
+    validate_final_managed_command(
+        command,
+        image=REFERENCE_IMAGE_REF,
+        platform=REFERENCE_PLATFORM,
+        user=f"{owner.st_uid}:{owner.st_gid}",
+        workdir="/input",
+        entrypoint="/bin/sh",
+        volumes=expected_volumes,
+        mounts=expected_mounts,
+        environment=expected_environment,
     )
     return command
 

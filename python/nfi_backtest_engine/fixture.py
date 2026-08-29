@@ -4,14 +4,45 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
+import os
+import stat
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .branch_coverage import validate_fixture_coverage
-from .canonical import read_json, write_json
-from .errors import SpecValidationError
+from .canonical import loads_json_bytes, write_json
+from .errors import InputBoundaryError, SpecValidationError
+from .portable_paths import (
+    open_secure_directory,
+    parse_portable_relative_path,
+    validate_portable_filesystem_path,
+)
 from .specs import validate_fixture_manifest, validate_trade_surface
-from .state_trace import trace_summary
+from .state_trace import trace_summary_bytes
+from .windows_path_security import (
+    open_windows_contained_descriptor,
+    windows_root_identity,
+)
+
+MAX_FIXTURE_MANIFEST_BYTES = 64 * 1024 * 1024
+MAX_FIXTURE_FILE_BYTES = 256 * 1024 * 1024
+
+
+class _RetainedFixtureManifest(dict[str, Any]):
+    """Validated fixture document carrying the exact bytes consumed at its boundary."""
+
+    def __init__(
+        self,
+        document: dict[str, Any],
+        manifest_payload: bytes,
+        payloads: dict[str, bytes],
+    ) -> None:
+        super().__init__(document)
+        self.manifest_payload = manifest_payload
+        self.payloads = payloads
 
 
 def sha256_file(path: str | Path) -> str:
@@ -22,67 +53,320 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def _fixture_file_checkpoint(_checkpoint: str, _name: str) -> None:
+    return
+
+
 def validate_fixture(
     manifest_path: str | Path,
     *,
     verify_hashes: bool = True,
     validate_trace_semantics: bool = True,
 ) -> dict[str, Any]:
-    """Validate schema, semantic rules, file boundaries, hashes, and surface artifact."""
-    manifest_file = Path(manifest_path).resolve()
-    manifest = read_json(manifest_file)
-    validate_fixture_manifest(manifest)
-    root = manifest_file.parent
+    """Validate schema and consume every fixture byte from contained descriptors."""
+    manifest, manifest_payload, payloads = _validate_fixture_retained(
+        manifest_path,
+        verify_hashes=verify_hashes,
+        validate_trace_semantics=validate_trace_semantics,
+    )
+    return _RetainedFixtureManifest(manifest, manifest_payload, payloads)
 
-    references = [*manifest["inputs"], *manifest["artifacts"].values()]
-    seen: set[str] = set()
-    for reference in references:
-        relative = reference["path"]
-        if relative in seen:
-            raise SpecValidationError(f"duplicate fixture file reference: {relative}")
-        seen.add(relative)
-        target = _safe_fixture_path(root, relative)
-        if not target.is_file():
-            raise SpecValidationError(f"fixture file does not exist: {relative}")
-        if target.stat().st_size != reference["bytes"]:
+
+def validate_fixture_from_directory(
+    directory_descriptor: int,
+    manifest_path: str,
+) -> dict[str, Any]:
+    """Validate a relative fixture from an already retained directory descriptor."""
+    manifest, manifest_payload, payloads = _validate_fixture_retained(
+        manifest_path,
+        directory_descriptor=directory_descriptor,
+    )
+    return _RetainedFixtureManifest(manifest, manifest_payload, payloads)
+
+
+@contextmanager
+def materialized_fixture(
+    manifest_path: str | Path,
+    manifest: dict[str, Any],
+) -> Iterator[tuple[Path, dict[str, Any]]]:
+    """Materialize only retained fixture bytes into an owner-private consumer stage."""
+    retained = manifest
+    if not isinstance(retained, _RetainedFixtureManifest):
+        retained = validate_fixture(manifest_path)
+    if not isinstance(retained, _RetainedFixtureManifest):
+        raise SpecValidationError("fixture validation did not retain immutable payloads")
+    with tempfile.TemporaryDirectory(prefix="nfi-fixture-snapshot-") as temporary:
+        root = Path(temporary)
+        manifest_name = validate_portable_filesystem_path(manifest_path).name
+        (root / manifest_name).write_bytes(retained.manifest_payload)
+        for relative, payload in retained.payloads.items():
+            target = root.joinpath(*parse_portable_relative_path(relative).parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
+        yield root / manifest_name, retained
+
+
+def _validate_fixture_retained(
+    manifest_path: str | Path,
+    *,
+    verify_hashes: bool = True,
+    validate_trace_semantics: bool = True,
+    directory_descriptor: int | None = None,
+) -> tuple[dict[str, Any], bytes, dict[str, bytes]]:
+    """Return validation plus exact bytes retained from parent-relative handles."""
+    if directory_descriptor is None:
+        try:
+            manifest_file = validate_portable_filesystem_path(manifest_path)
+        except InputBoundaryError as exc:
+            raise SpecValidationError("fixture manifest path is not portable") from exc
+        root: Path | None = manifest_file.parent
+        root_fd = _open_fixture_root(root)
+        windows_identity = windows_root_identity(root) if os.name == "nt" else None
+    else:
+        try:
+            relative_manifest = parse_portable_relative_path(os.fspath(manifest_path))
+        except InputBoundaryError as exc:
+            raise SpecValidationError("fixture manifest path is not portable") from exc
+        if os.name != "posix" or not getattr(os, "O_NOFOLLOW", 0):
             raise SpecValidationError(
-                f"{relative}: byte size differs; expected {reference['bytes']}, "
-                f"actual {target.stat().st_size}"
+                "descriptor-relative fixture validation requires no-follow support"
             )
-        if verify_hashes:
-            actual_hash = sha256_file(target)
-            if actual_hash != reference["sha256"]:
-                raise SpecValidationError(
-                    f"{relative}: SHA-256 differs; expected {reference['sha256']}, "
-                    f"actual {actual_hash}"
-                )
+        manifest_file = Path(relative_manifest.name)
+        root = None
+        root_fd = _open_fixture_relative_root(
+            directory_descriptor,
+            relative_manifest.parent.parts,
+        )
+        windows_identity = None
+    try:
+        manifest_payload = _read_fixture_bytes(
+            root_fd,
+            root,
+            manifest_file.name,
+            expected_size=None,
+            max_bytes=MAX_FIXTURE_MANIFEST_BYTES,
+            windows_identity=windows_identity,
+        )
+        manifest = loads_json_bytes(manifest_payload)
+        if not isinstance(manifest, dict):
+            raise SpecValidationError("fixture manifest must be an object")
+        validate_fixture_manifest(manifest)
 
-    surface_path = _safe_fixture_path(root, manifest["artifacts"]["trade_surface"]["path"])
-    validate_trade_surface(read_json(surface_path))
-    if manifest["schema_version"] in {"2.0.0", "3.0.0"} and validate_trace_semantics:
-        strategy = _one_input(manifest["inputs"], "strategy")
-        config = _one_input(manifest["inputs"], "config")
-        expected_input_hash = fixture_input_sha256(manifest["inputs"])
-        trace_names = ["state_trace"]
-        if "state_projection" in manifest["artifacts"]:
-            trace_names.append("state_projection")
-        for trace_name in trace_names:
-            trace_path = _safe_fixture_path(
+        references = [*manifest["inputs"], *manifest["artifacts"].values()]
+        seen: set[str] = set()
+        payloads: dict[str, bytes] = {}
+        for reference in references:
+            relative = reference["path"]
+            if relative in seen:
+                raise SpecValidationError(f"duplicate fixture file reference: {relative}")
+            seen.add(relative)
+            payload = _read_fixture_bytes(
+                root_fd,
                 root,
-                manifest["artifacts"][trace_name]["path"],
+                relative,
+                expected_size=reference["bytes"],
+                max_bytes=MAX_FIXTURE_FILE_BYTES,
+                windows_identity=windows_identity,
             )
-            trace = trace_summary(trace_path)
-            _validate_trace_binding(
-                trace,
-                trace_name=trace_name,
-                strategy_sha256=strategy["sha256"],
-                config_sha256=config["sha256"],
-                input_sha256=expected_input_hash,
-                trading_mode=manifest["freqtrade"]["trading_mode"],
+            if verify_hashes and hashlib.sha256(payload).hexdigest() != reference["sha256"]:
+                raise SpecValidationError(f"{relative}: SHA-256 differs from sealed identity")
+            payloads[relative] = payload
+
+        surface_name = manifest["artifacts"]["trade_surface"]["path"]
+        surface = loads_json_bytes(payloads[surface_name])
+        validate_trade_surface(surface)
+        if manifest["schema_version"] in {"2.0.0", "3.0.0"} and validate_trace_semantics:
+            strategy = _one_input(manifest["inputs"], "strategy")
+            config = _one_input(manifest["inputs"], "config")
+            expected_input_hash = fixture_input_sha256(manifest["inputs"])
+            trace_names = ["state_trace"]
+            if "state_projection" in manifest["artifacts"]:
+                trace_names.append("state_projection")
+            for trace_name in trace_names:
+                trace_relative = manifest["artifacts"][trace_name]["path"]
+                trace = trace_summary_bytes(payloads[trace_relative], label=trace_relative)
+                _validate_trace_binding(
+                    trace,
+                    trace_name=trace_name,
+                    strategy_sha256=strategy["sha256"],
+                    config_sha256=config["sha256"],
+                    input_sha256=expected_input_hash,
+                    trading_mode=manifest["freqtrade"]["trading_mode"],
+                )
+        if manifest["schema_version"] == "3.0.0" and validate_trace_semantics:
+            # The descriptor-bound validation above runs first. Coverage remains a
+            # semantic verifier over those same sealed identities.
+            validate_fixture_coverage(
+                manifest_file, manifest, retained_payloads=payloads
             )
-        if manifest["schema_version"] == "3.0.0":
-            validate_fixture_coverage(manifest_file, manifest)
-    return manifest
+        return manifest, manifest_payload, payloads
+    finally:
+        if root_fd is not None:
+            os.close(root_fd)
+
+
+def _read_fixture_bytes(
+    root_fd: int | None,
+    root: Path | None,
+    relative: str,
+    *,
+    expected_size: int | None,
+    max_bytes: int,
+    windows_identity: tuple[str, tuple[int, int, int]] | None,
+) -> bytes:
+    portable = _portable_fixture_name(relative)
+    descriptor = _open_fixture_descriptor(
+        root_fd, root, portable, windows_identity=windows_identity
+    )
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise SpecValidationError(f"fixture path is not a regular file: {relative}")
+        if metadata.st_size > max_bytes:
+            raise SpecValidationError(f"fixture file exceeds byte limit: {relative}")
+        if expected_size is not None and metadata.st_size != expected_size:
+            raise SpecValidationError(f"{relative}: byte size differs from sealed identity")
+        identity = (metadata.st_dev, metadata.st_ino)
+        _fixture_file_checkpoint("after-open", relative)
+        limit = metadata.st_size
+        content = bytearray()
+        while len(content) <= limit:
+            chunk = os.read(descriptor, min(1024 * 1024, limit + 1 - len(content)))
+            if not chunk:
+                break
+            content.extend(chunk)
+        if len(content) != limit:
+            raise SpecValidationError(f"fixture file changed while reading: {relative}")
+        _fixture_file_checkpoint("after-read", relative)
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        second = _read_exact_descriptor(descriptor, limit)
+        if second != bytes(content):
+            raise SpecValidationError(f"fixture file bytes changed during validation: {relative}")
+        _verify_fixture_root(root_fd, root)
+        current = _open_fixture_descriptor(
+            root_fd, root, portable, windows_identity=windows_identity
+        )
+        try:
+            current_metadata = os.fstat(current)
+            if (current_metadata.st_dev, current_metadata.st_ino) != identity:
+                raise SpecValidationError(f"fixture path identity changed: {relative}")
+        finally:
+            os.close(current)
+        return bytes(content)
+    finally:
+        os.close(descriptor)
+
+
+def _read_exact_descriptor(descriptor: int, size: int) -> bytes:
+    content = bytearray()
+    while len(content) < size:
+        chunk = os.read(descriptor, min(1024 * 1024, size - len(content)))
+        if not chunk:
+            break
+        content.extend(chunk)
+    if len(content) != size or os.read(descriptor, 1):
+        raise SpecValidationError("fixture descriptor size changed during validation")
+    return bytes(content)
+
+
+def _portable_fixture_name(relative: str) -> str:
+    try:
+        return parse_portable_relative_path(relative).as_posix()
+    except InputBoundaryError as exc:
+        raise SpecValidationError(
+            f"fixture path must be a canonical portable relative path: {relative}"
+        ) from exc
+
+
+def _open_fixture_root(root: Path) -> int | None:
+    try:
+        return open_secure_directory(root)
+    except InputBoundaryError as exc:
+        raise SpecValidationError("cannot open fixture root securely") from exc
+
+
+def _verify_fixture_root(root_fd: int | None, root: Path | None) -> None:
+    if os.name == "nt" or root_fd is None or root is None:
+        return
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    try:
+        current = os.open(
+            root,
+            os.O_RDONLY
+            | getattr(os, "O_DIRECTORY", 0)
+            | getattr(os, "O_CLOEXEC", 0)
+            | nofollow,
+        )
+    except OSError as exc:
+        raise SpecValidationError("fixture root identity changed during validation") from exc
+    try:
+        expected = os.fstat(root_fd)
+        actual = os.fstat(current)
+        if (expected.st_dev, expected.st_ino) != (actual.st_dev, actual.st_ino):
+            raise SpecValidationError("fixture root identity changed during validation")
+    finally:
+        os.close(current)
+
+
+def _open_fixture_relative_root(
+    directory_descriptor: int,
+    components: tuple[str, ...],
+) -> int:
+    current = os.dup(directory_descriptor)
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    try:
+        for component in components:
+            next_descriptor = os.open(component, flags, dir_fd=current)
+            os.close(current)
+            current = next_descriptor
+        return current
+    except OSError as exc:
+        os.close(current)
+        raise SpecValidationError(
+            "fixture root traverses a symlink or changed during containment"
+        ) from exc
+
+
+def _open_fixture_descriptor(
+    root_fd: int | None,
+    root: Path | None,
+    name: str,
+    *,
+    windows_identity: tuple[str, tuple[int, int, int]] | None,
+) -> int:
+    if os.name == "nt":
+        if root is None:
+            raise SpecValidationError("fixture root path is unavailable on Windows")
+        return open_windows_contained_descriptor(
+            root, name, expected_root_identity=windows_identity
+        )
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if os.name != "posix" or not nofollow or root_fd is None:
+        raise SpecValidationError("fixture containment requires no-follow descriptor support")
+    parts = PurePosixPath(name).parts
+    current = os.dup(root_fd)
+    cloexec = getattr(os, "O_CLOEXEC", 0)
+    try:
+        for component in parts[:-1]:
+            next_fd = os.open(
+                component,
+                os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow | cloexec,
+                dir_fd=current,
+            )
+            os.close(current)
+            current = next_fd
+        return os.open(parts[-1], os.O_RDONLY | nofollow | cloexec, dir_fd=current)
+    except OSError as exc:
+        raise SpecValidationError(
+            f"fixture path traverses a symlink or changed during containment: {name}"
+        ) from exc
+    finally:
+        os.close(current)
 
 
 def _validate_trace_binding(
@@ -111,9 +395,11 @@ def _validate_trace_binding(
 
 
 def seal_fixture(manifest_path: str | Path) -> dict[str, Any]:
-    """Refresh declared file byte counts and hashes, then validate the sealed fixture."""
-    manifest_file = Path(manifest_path).resolve()
-    manifest = read_json(manifest_file)
+    """Refresh declared byte counts and hashes for trusted repository maintenance."""
+    manifest_file = validate_portable_filesystem_path(manifest_path)
+    manifest = loads_json_bytes(manifest_file.read_bytes())
+    if not isinstance(manifest, dict):
+        raise SpecValidationError("fixture manifest must be an object")
     validate_fixture_manifest(manifest)
     root = manifest_file.parent
     for reference in [*manifest["inputs"], *manifest["artifacts"].values()]:
@@ -127,17 +413,21 @@ def seal_fixture(manifest_path: str | Path) -> dict[str, Any]:
 
 
 def _safe_fixture_path(root: Path, relative: str) -> Path:
-    candidate = Path(relative)
-    if candidate.is_absolute():
-        raise SpecValidationError(f"fixture path must be relative: {relative}")
-    target = (root / candidate).resolve()
+    candidate = Path(*parse_portable_relative_path(relative).parts)
+    lexical = root / candidate
+    current = lexical
+    while current != root:
+        if current.is_symlink():
+            raise SpecValidationError(f"fixture path traverses a symlink: {relative}")
+        current = current.parent
+    target = lexical.resolve()
     if not target.is_relative_to(root):
         raise SpecValidationError(f"fixture path escapes its directory: {relative}")
     return target
 
 
 def fixture_input_sha256(inputs: list[dict[str, Any]]) -> str:
-    """Hash the ordered, behavior-affecting input identity without file contents in memory."""
+    """Hash the ordered behavior-affecting input identity."""
     identity = [
         {
             "role": item["role"],

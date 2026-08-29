@@ -2,7 +2,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::domain::FilledOrder;
+use crate::calculations::checked_float_sum;
+use crate::domain::{FilledOrder, SimError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FilledOrderSelector {
@@ -29,10 +30,16 @@ pub(crate) struct FilledOrderSummary {
 }
 
 impl FilledOrderSummary {
-    fn observe(&mut self, order: &FilledOrder) {
-        self.count += 1;
-        self.total_amount += order.amount;
-        self.total_cost += order.cost;
+    fn observe(&mut self, order: &FilledOrder) -> Result<(), SimError> {
+        self.count = self.count.checked_add(1).ok_or(SimError::ExactArithmetic {
+            operation: "order-aggregate-count",
+        })?;
+        self.total_amount = checked_float_sum(
+            &[self.total_amount, order.amount],
+            "order-aggregate-total-amount",
+        )?;
+        self.total_cost =
+            checked_float_sum(&[self.total_cost, order.cost], "order-aggregate-total-cost")?;
         self.order_ids.push(order.id);
         self.latest = Some(LatestFilledOrder {
             id: order.id,
@@ -40,6 +47,7 @@ impl FilledOrderSummary {
             price: order.price,
             timestamp_ms: order.filled_timestamp_ms,
         });
+        Ok(())
     }
 }
 
@@ -51,13 +59,14 @@ struct FilledOrderGroup {
 }
 
 impl FilledOrderGroup {
-    fn observe(&mut self, order: &FilledOrder) {
-        self.all.observe(order);
+    fn observe(&mut self, order: &FilledOrder) -> Result<(), SimError> {
+        self.all.observe(order)?;
         if order.is_entry {
-            self.entries.observe(order);
+            self.entries.observe(order)?;
         } else {
-            self.exits.observe(order);
+            self.exits.observe(order)?;
         }
+        Ok(())
     }
 
     fn select(&self, selector: FilledOrderSelector) -> &FilledOrderSummary {
@@ -77,22 +86,30 @@ pub(crate) struct FilledOrderAggregates {
 }
 
 impl FilledOrderAggregates {
-    pub(crate) fn from_orders(orders: &[FilledOrder]) -> Self {
+    pub(crate) fn from_orders(orders: &[FilledOrder]) -> Result<Self, SimError> {
         let mut aggregates = Self::default();
         for order in orders {
-            aggregates.push(order);
+            aggregates.push(order)?;
         }
-        aggregates
+        Ok(aggregates)
     }
 
     /// Extend an initialized projection after the immutable order log appends.
-    pub(crate) fn push(&mut self, order: &FilledOrder) {
-        self.totals.observe(order);
-        self.by_tag
-            .entry(order.tag.clone())
-            .or_default()
-            .observe(order);
-        self.order_count += 1;
+    pub(crate) fn push(&mut self, order: &FilledOrder) -> Result<(), SimError> {
+        let mut totals = self.totals.clone();
+        totals.observe(order)?;
+        let mut tagged = self.by_tag.get(&order.tag).cloned().unwrap_or_default();
+        tagged.observe(order)?;
+        let order_count = self
+            .order_count
+            .checked_add(1)
+            .ok_or(SimError::ExactArithmetic {
+                operation: "order-aggregate-count",
+            })?;
+        self.totals = totals;
+        self.by_tag.insert(order.tag.clone(), tagged);
+        self.order_count = order_count;
+        Ok(())
     }
 
     pub(crate) const fn order_count(&self) -> usize {
@@ -155,7 +172,7 @@ mod tests {
             order(3, 2, false, 0.5, 110.0, Some("exit-a")),
             order(4, 3, true, 0.25, 80.0, None),
         ];
-        let aggregates = FilledOrderAggregates::from_orders(&orders);
+        let aggregates = FilledOrderAggregates::from_orders(&orders).expect("finite aggregates");
 
         assert_eq!(aggregates.order_count(), orders.len());
         assert_eq!(
@@ -200,17 +217,42 @@ mod tests {
     }
 
     #[test]
+    fn non_finite_running_totals_are_typed_exact_arithmetic_errors() {
+        let orders = vec![
+            FilledOrder {
+                cost: f64::MAX,
+                ..order(1, 0, true, 1.0, 1.0, Some("a"))
+            },
+            FilledOrder {
+                cost: f64::MAX,
+                ..order(2, 1, true, 1.0, 1.0, Some("a"))
+            },
+        ];
+
+        assert_eq!(
+            FilledOrderAggregates::from_orders(&orders),
+            Err(SimError::ExactArithmetic {
+                operation: "order-aggregate-total-cost"
+            })
+        );
+    }
+
+    #[test]
     fn incremental_append_matches_a_complete_rebuild() {
         let mut orders = vec![
             order(1, 0, true, 2.0, 100.0, Some("entry-a")),
             order(2, 1, true, 1.0, 90.0, Some("entry-a")),
         ];
-        let mut incremental = FilledOrderAggregates::from_orders(&orders);
+        let mut incremental =
+            FilledOrderAggregates::from_orders(&orders).expect("finite aggregates");
         let appended = order(3, 2, false, 0.5, 110.0, Some("exit-a"));
 
-        incremental.push(&appended);
+        incremental.push(&appended).expect("finite append");
         orders.push(appended);
 
-        assert_eq!(incremental, FilledOrderAggregates::from_orders(&orders));
+        assert_eq!(
+            incremental,
+            FilledOrderAggregates::from_orders(&orders).expect("finite rebuild")
+        );
     }
 }

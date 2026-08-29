@@ -1,0 +1,192 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "current-long-grind-liquidation-rescue-wallet-boundary-futures-r1",
+  "description": "Current eebaf97c GD5 rescue with insufficient adjustment wallet",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-08-22T20:12:26.403154Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "CurrentLongGrindRescueContract",
+    "timerange": "1648531200-1649721600",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "CurrentLongGrindRescueContract",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "1648531200-1649721600",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "45685bdc8172256b1819ba7455848c4f0168f4599f57d5bd549cfb64e7f27c21",
+      "bytes": 2662
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "4cfe6d0a3a8a838c328b707577d3d174447cf7e5e0d16cea3769483834a2835c",
+      "bytes": 812
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "57b9d74c54cb4532db4e6284e370786937ef81de5cc7bea2f62f9b9468c5c6db",
+      "bytes": 127535
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "4a2476c20aee865f266877524370bfac15f051736f59a62be8d83555be6dd716",
+      "bytes": 40751
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "05743e03a0c6a27c4982f6ced69ab7ca53480fc63798c83a362e076d6bcd2759",
+      "bytes": 119471
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "694043d9f9cbff2a2b6e76ae9aab82bb44224bf6a1fdb331429c4cdcab79db3d",
+      "bytes": 61871
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "f396311879cdbe430db65cd19d2cdc1f8dd0a481012fdb72462496b7a69307b3",
+      "bytes": 945071
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "a94f8a932fc53ec6d08febe4da1a1f1d57680c602166b32430c989a3ba3bf647",
+      "bytes": 45359
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "4faa67166ecb375cb9283f5a3495cc1e2ea5658640afcffc3a4d6e1460b6c5ae",
+      "bytes": 302639
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/full-x7-futures-20210101-markets.json",
+      "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+      "bytes": 171531
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+      "bytes": 9239
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "27b13edbfe43d5b55fd72ab667b6005b50081437b2c76dd779ac06e20e7a5c42",
+      "bytes": 76132
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "81c87afe61a7dd0cfcf500477a2df1cab0a185a70f609256d40d9d4ff509180a",
+      "bytes": 2329
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "280986699c1aa6647de323083fbea588ec2b9f91648d35d4e8f49cdbf05663a8",
+      "bytes": 9889950
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "90ceecdfdf7ed211e9844033c7618d5532717303af10dfa656fde4196abf1069",
+      "bytes": 682
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "4ceed6976a6f799c86a9bfa22afa516b020a2f8b57f4ee54cd05d2704e4325cd",
+      "bytes": 1898361
+    },
+    "native_vector_manifest": {
+      "path": "inputs/native/simulation-input.manifest.json",
+      "sha256": "d261f6be4d5e8bf5fac73a21a68baaa8a8ee3de18f6291fc64434036c5cac7f7",
+      "bytes": 5035529
+    },
+    "native_vector": {
+      "path": "inputs/native/vectors/BTC_USDT_USDT.feather",
+      "sha256": "4bab5bbcf77e725f7854a69addfaa9883870aefbd35ac79f169cae70a1c9ffb3",
+      "bytes": 1886066
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "callback-route",
+  "strategy_provenance": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "eebaf97c1434bd8f208b7cd9c417606646e1e478",
+    "base_source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+    "effective_source_sha256": "45685bdc8172256b1819ba7455848c4f0168f4599f57d5bd549cfb64e7f27c21",
+    "transformations": [
+      {
+        "kind": "config-override",
+        "description": "Compact authenticated GD5 liquidation-rescue execution contract"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [
+      "adjust_trade_position"
+    ],
+    "entry_tags": [
+      "120"
+    ],
+    "compound_tags": [],
+    "protection_methods": [],
+    "exit_reasons": [
+      "exit_signal"
+    ],
+    "sides": [
+      "long"
+    ],
+    "minimum_lock_count": 0,
+    "minimum_distinct_leverages": 1,
+    "minimum_funded_trades": 0,
+    "require_rejected_locked_entry": false
+  }
+}

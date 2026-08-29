@@ -19,14 +19,20 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.6.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.6.1) |
+| Latest public release | [v1.7.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.7.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.6.1 product update; no new combined Full X7 certification claim |
+| Current `main` | v1.7.0 product candidate; no new combined Full X7 certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
+
+v1.7.0 freezes a current-source compatibility check for X7 v17.4.580 at upstream
+commit `b22cc60d1c018eeb984cb02a125bb790042bebd0`: Spot and Futures both have
+source-compiled stateful closure with no reachable gaps. Release distribution still
+replays the immutable v17.4.473 Spot/Futures regression fixtures. Current-source
+static closure is not a new full-state or continuous performance certificate.
 
 ## Certified performance
 
@@ -75,8 +81,9 @@ indicator volume and 1.43× spool-write difference rule out data size or disk I/
 the primary cause.
 
 The Native cold pipelines differed by only 1.97× because the lowered Rust state loop
-does not pay the same Python callback overhead. The remaining differences include X7
-v17.4.421 versus v17.4.435 and Windows/Docker Desktop versus native Linux.
+does not pay the same Python callback overhead. The historical benchmark environments
+differed in X7 revision and host configuration, including Windows/Docker Desktop versus
+native Linux.
 
 Both certificates still prove exact parity for their sealed workloads. They do not
 form a controlled Spot-versus-Futures performance test, so this project makes no
@@ -130,6 +137,10 @@ design; it is the final semantic authority.
 | Futures | Freqtrade and exchange leverage, funding, mark price, and liquidation contracts | Exact sparse funding/mark joins, leverage and liquidation state, side-aware PnL, and recalculation after fills | Funding is never forward-filled; invalid or incomplete economics fail before a result is claimed |
 | Result proof | Official Freqtrade export and captured full state | Canonical trade surface plus every-candle state projection and stream hash | Zero tolerance: Native promotion requires both trade-surface and full-state equality |
 
+Official and Native traces retain complete materialized records at their own event
+granularities; their raw event counts and schemas are not a one-to-one parity claim.
+Zero-tolerance comparison is defined on the common every-candle projection.
+
 The Rust core keeps these responsibilities in separate vector, simulation, portfolio,
 Futures, NFI state-machine, protection, I/O, profiling, and result modules. Optimization
 is driven by IR structure and measured profiles, never by strategy version, pair,
@@ -141,21 +152,20 @@ Installation targets advanced users who are comfortable with the shell and, for
 data downloads or Freqtrade confirmation, with Docker and basic Ubuntu/Linux
 commands.
 
-Windows PowerShell:
+Supported hosts are Linux and macOS. On Windows, install a WSL2 Linux distribution,
+open its Linux shell, and use the Linux installer below: WSL2 runs the Linux build and
+ABI. Native Windows and PowerShell are unsupported; product execution fails closed
+with `native Windows is unsupported; run nfi-bte under WSL2 (Linux)`.
 
-```powershell
-irm https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.ps1 | iex
-```
-
-Linux x86_64/aarch64 or macOS Apple Silicon:
+Linux x86_64/aarch64 (including WSL2) or macOS Apple Silicon:
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.sh | sh
 ```
 
-The installer downloads the matching wheel from the latest public GitHub release,
-checks its published SHA-256 digest, and installs `nfi-bte` in an isolated `uv`
-environment.
+The installer downloads the matching supported wheel from the latest public GitHub
+release, checks its published SHA-256 digest, and installs `nfi-bte` in an isolated
+`uv` environment.
 
 Close and reopen your terminal (or open a new shell) after installation so the
 `nfi-bte` command is picked up on `PATH`, then verify:
@@ -165,7 +175,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer and a source checkout of `main` return `nfi-bte 1.6.1`.
+The latest public installer and a source checkout of `main` return `nfi-bte 1.7.0`.
 
 ### Keep the CLI updated
 
@@ -179,7 +189,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.6.0 -> 1.6.1. Run `nfi-bte update`.
+Update available: 1.6.1 -> 1.7.0. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -190,8 +200,8 @@ Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
 
 Run the first-time wizard with an NFI strategy:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py
 ```
 
 The wizard discovers the class, Freqtrade config, candle directory, pair whitelist,
@@ -200,25 +210,25 @@ reusable project settings under `.nfi/project.json`.
 
 Accept every safely discovered value:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py --yes
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py --yes
 ```
 
 Resume the saved project:
 
-```powershell
+```bash
 nfi-bte run
 ```
 
 Use explicit inputs when discovery is not appropriate:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py `
-  --class NostalgiaForInfinityX7 `
-  --config user_data\config.json `
-  --datadir user_data\data\binance `
-  --timerange 20210101-20260101 `
-  --output-dir artifacts\x7-research `
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 \
+  --config user_data/config.json \
+  --datadir user_data/data/binance \
+  --timerange 20210101-20260101 \
+  --output-dir artifacts/x7-research \
   --yes
 ```
 
@@ -228,8 +238,8 @@ default. Add `--no-download` for an offline, fail-if-missing run.
 For a newer NFI revision whose active callbacks are not yet supported by Native, run
 the exact sealed workload through official Freqtrade:
 
-```powershell
-nfi-bte run path\to\NostalgiaForInfinityX7.py --fallback official
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py --fallback official
 ```
 
 The default `--fallback ask` requests consent only in an interactive terminal;
@@ -262,19 +272,19 @@ available for sealed evidence replay. See
 
 Run the pinned official reference from a completed native result:
 
-```powershell
-nfi-bte reference research artifacts\x7-research `
-  --output-dir artifacts\x7-research-official
+```bash
+nfi-bte reference research artifacts/x7-research \
+  --output-dir artifacts/x7-research-official
 ```
 
 Or compare an existing Freqtrade export:
 
-```powershell
-nfi-bte confirm `
-  artifacts\x7-research `
-  path\to\backtest-result.zip `
-  --strategy NostalgiaForInfinityX7 `
-  --output-dir artifacts\x7-confirmation
+```bash
+nfi-bte confirm \
+  artifacts/x7-research \
+  path/to/backtest-result.zip \
+  --strategy NostalgiaForInfinityX7 \
+  --output-dir artifacts/x7-confirmation
 ```
 
 The comparison has no floating-point tolerance. It never concatenates independent
@@ -312,9 +322,9 @@ Every run is an ordinary hash-linked directory:
 
 Regenerate presentation files without rerunning the simulation:
 
-```powershell
-nfi-bte report artifacts\x7-research
-nfi-bte report artifacts\x7-research --full-report
+```bash
+nfi-bte report artifacts/x7-research
+nfi-bte report artifacts/x7-research --full-report
 ```
 
 ## Storage
@@ -357,12 +367,15 @@ Use `nfi-bte COMMAND --help` for the complete interface.
 
 ## Platforms and requirements
 
-Native wheels are built for:
+Native wheels are built for supported hosts:
 
-- Windows x64
 - Linux x86_64
 - Linux aarch64
 - macOS Apple Silicon
+
+On Windows, use a WSL2 Linux distribution; it runs the Linux wheel and ABI. Native
+Windows product execution fails closed with `native Windows is unsupported; run nfi-bte
+under WSL2 (Linux)`.
 
 Requirements:
 
@@ -389,9 +402,9 @@ uv run pytest -q
 
 Required CI is risk-tiered. README, documentation, and roadmap bookkeeping use a
 fast text/JSON lane (29 seconds observed); CI-policy changes took 44 seconds in the
-rollout acceptance run. Runtime changes still require the full Python 3OS, Rust, and
-native parity matrix, and mixed changes automatically escalate. Protected merges are
-not tested a second time on `main`; release paths retain same-commit checks. See the
+rollout acceptance run. Runtime changes still require the full Linux/macOS native
+parity matrix; WSL2 exercises the Linux ABI. Protected merges are not tested a second
+time on `main`; release paths retain same-commit checks. See the
 [CI policy](docs/ci-policy.md).
 
 Architecture, contracts, and detailed workflows:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -258,6 +259,12 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             trading_mode=args.trading_mode,
             config_path=args.config,
             fixtures_root=args.fixtures_root,
+            source_root=args.source_root,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            upstream_ref=args.upstream_ref,
+            upstream_source_path=args.upstream_source_path,
+            upstream_fetch_timeout_seconds=args.upstream_fetch_timeout,
             output_path=args.output,
         )
         summary = report["summary"]
@@ -271,6 +278,54 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         )
         if args.output:
             print(f"semantic inventory report: {args.output}")
+        return 0 if summary["native_promotion"] else 1
+    if args.strategy_command == "semantic-registry":
+        from ..semantic_inventory import build_semantic_obligation_registry
+
+        registry = build_semantic_obligation_registry(
+            args.source,
+            class_name=args.class_name,
+            trading_mode=args.trading_mode,
+            config_path=args.config,
+            source_root=args.source_root,
+            upstream_repository=args.upstream_repository,
+            upstream_commit=args.upstream_commit,
+            upstream_ref=args.upstream_ref,
+            upstream_source_path=args.upstream_source_path,
+            upstream_fetch_timeout_seconds=args.upstream_fetch_timeout,
+            output_path=args.output,
+        )
+        summary = registry["summary"]
+        print(
+            "semantic registry: "
+            f"class={registry['strategy']['selected_class']}, "
+            f"obligations={summary['total_obligations']}, "
+            f"unknown={summary['unknown_obligations']}, "
+            f"native_promotion={summary['native_promotion']}"
+        )
+        print(f"semantic registry report: {args.output}")
+        return 0 if summary["native_promotion"] else 1
+    if args.strategy_command == "semantic-registry-packaged":
+        from ..semantic_registry import load_packaged_semantic_obligation_registry
+
+        registry = load_packaged_semantic_obligation_registry()
+        summary = registry["summary"]
+        upstream = registry["strategy"]["upstream"]
+        print(
+            "packaged semantic registry current-ref proof: "
+            f"commit={upstream['observed_commit']}, "
+            f"obligations={summary['total_obligations']}, "
+            f"unknown={summary['unknown_obligations']}, "
+            "native_promotion=True"
+        )
+        return 0
+    if args.strategy_command == "semantic-registry-packaged-integrity":
+        from ..semantic_registry import (
+            validate_packaged_semantic_obligation_registry_integrity,
+        )
+
+        integrity = validate_packaged_semantic_obligation_registry_integrity()
+        print(json.dumps(integrity, sort_keys=True, separators=(",", ":")))
         return 0
     if args.strategy_command == "indicator-inventory":
         from ..indicator_inventory import build_indicator_inventory
@@ -446,9 +501,7 @@ def _execute_strategy(args: argparse.Namespace) -> int:
         )
         changes = report["changes"]
         callbacks = changes["callbacks"]
-        callback_change_count = sum(
-            len(callbacks[key]) for key in ("added", "removed", "changed")
-        )
+        callback_change_count = sum(len(callbacks[key]) for key in ("added", "removed", "changed"))
         print(
             "strategy diff: "
             f"classification={report['classification']}, "
@@ -511,20 +564,14 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             as_of = date.fromisoformat(args.as_of) if args.as_of else None
         except ValueError as exc:
             raise NfiBacktestError("--as-of must be a valid YYYY-MM-DD date") from exc
-        trading_mode = (
-            args.trading_mode
-            if args.strategy_command == "discover"
-            else "futures"
-        )
+        trading_mode = args.trading_mode if args.strategy_command == "discover" else "futures"
         policy = (
             args.policy
             if args.policy is not None
             else Path(f"planning/{trading_mode}-discovery-policy.json")
         )
         service = (
-            discover_targets
-            if args.strategy_command == "discover"
-            else discover_futures_targets
+            discover_targets if args.strategy_command == "discover" else discover_futures_targets
         )
         report = service(
             args.source,
@@ -551,10 +598,7 @@ def _execute_strategy(args: argparse.Namespace) -> int:
             f"next={report['next_shard']} -> "
             f"{args.output_dir / 'discovery-report.json'}"
         )
-        print(
-            f"{report['message']} "
-            "Official Freqtrade fallback: available."
-        )
+        print(f"{report['message']} Official Freqtrade fallback: available.")
         return 1 if report["status"] == "infrastructure_failed" else 0
     if args.strategy_command == "state-machine":
         from ..state_machine_ir import compile_state_machine_program

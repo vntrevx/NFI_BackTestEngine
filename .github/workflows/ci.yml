@@ -29,6 +29,9 @@ jobs:
       policy_changes: ${{ steps.paths.outputs.policy_changes }}
       code_changes: ${{ steps.paths.outputs.code_changes }}
       changed_paths_json: ${{ steps.paths.outputs.changed_paths_json }}
+      selected_jobs_json: ${{ steps.paths.outputs.selected_jobs_json }}
+      python_matrix_json: ${{ steps.paths.outputs.python_matrix_json }}
+      validation_plan_json: ${{ steps.paths.outputs.validation_plan_json }}
     steps:
       - name: Check out source and comparison history
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -125,64 +128,99 @@ jobs:
   python:
     name: Python ${{ matrix.os }} / ${{ matrix.python-version }}
     needs: changes
-    if: needs.changes.outputs.code_changes == 'true'
+    if: contains(fromJSON(needs.changes.outputs.selected_jobs_json), 'python')
     runs-on: ${{ matrix.os }}
-    # Windows performs the same suite but its filesystem-heavy fixtures are
-    # materially slower. Fail-fast preserves diagnostics while this ceiling
-    # allows a successful complete run to finish.
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            python-version: "3.12"
-            suite: full
-          - os: windows-latest
-            python-version: "3.12"
-            suite: full
-          - os: macos-14
-            python-version: "3.12"
-            suite: full
-          - os: ubuntu-latest
-            python-version: "3.13"
-            suite: ast-compat
-          - os: ubuntu-latest
-            python-version: "3.14"
-            suite: ast-compat
+      matrix: ${{ fromJSON(needs.changes.outputs.python_matrix_json) }}
     steps:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Initialize Python timing evidence
+        run: >-
+          python .github/scripts/ci_timing.py init
+          --output .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --job python
+          --os ${{ matrix.os }}
+          --python ${{ matrix.python-version }}
+          --suite ${{ matrix.suite }}
+          --workflow "${{ github.workflow }}"
+          --repository "${{ github.repository }}"
+          --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}"
+          --commit-sha "${{ github.sha }}"
+          --cache-file uv.lock
       - name: Install uv and Python
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: ${{ matrix.suite == 'full' }}
           cache-dependency-glob: "uv.lock"
+      - name: Configure Rust compiler cache
+        if: matrix.suite == 'full'
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        with:
+          version: "v0.10.0"
       - name: Sync locked environment
         if: matrix.suite == 'full'
-        run: uv sync --extra dev --frozen
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --step dependency-sync
+          --timeout-seconds 2400
+          -- uv sync --extra dev --frozen
       - name: Build editable native extension
         if: matrix.suite == 'full'
-        run: uv run maturin develop --locked
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: sccache
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --step native-build
+          --timeout-seconds 2400
+          -- uv run maturin develop --locked
+      - name: Show Rust compiler cache statistics
+        if: always() && matrix.suite == 'full'
+        run: sccache --show-stats
       - name: Run Python tests
-        if: matrix.suite == 'full' && matrix.os != 'windows-latest'
-        run: uv run pytest -q
-      - name: Run Python tests (Windows fail-fast)
-        if: matrix.suite == 'full' && matrix.os == 'windows-latest'
-        # Passing still executes the complete suite. On failure, stop at the
-        # first traceback instead of losing every diagnostic to the job limit.
-        run: uv run pytest -q -x
+        if: matrix.suite == 'full'
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --step python-tests
+          --timeout-seconds 2400
+          -- uv run python .github/scripts/ci_pytest.py
+          --output .ci/pytest-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --timing-report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --slowest-count 20
+          -- -q
       - name: Check version-stable AST identity
         if: matrix.suite == 'ast-compat'
-        run: python .github/scripts/test_python_ast_identity.py
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          --step python-ast-identity
+          --timeout-seconds 2400
+          -- python .github/scripts/test_python_ast_identity.py
+      - name: Upload Python timing evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}
+          path: |
+            .ci/timing-python-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+            .ci/pytest-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.suite }}.json
+          if-no-files-found: error
+          retention-days: 14
 
-  quality:
-    name: Static and Rust checks
+  python-quality:
+    name: Python quality checks
     needs: changes
-    if: needs.changes.outputs.code_changes == 'true'
+    if: contains(fromJSON(needs.changes.outputs.selected_jobs_json), 'python-quality')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -190,6 +228,20 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Initialize Python quality timing evidence
+        run: >-
+          python .github/scripts/ci_timing.py init
+          --output .ci/timing-python-quality-ubuntu-latest-3.12-static-python.json
+          --job python-quality
+          --os ubuntu-latest
+          --python 3.12
+          --suite static-python
+          --workflow "${{ github.workflow }}"
+          --repository "${{ github.repository }}"
+          --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}"
+          --commit-sha "${{ github.sha }}"
+          --cache-file uv.lock
       - name: Install uv and Python
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
@@ -197,25 +249,110 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Sync locked environment
-        run: uv sync --extra dev --frozen
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-quality-ubuntu-latest-3.12-static-python.json
+          --step dependency-sync
+          --timeout-seconds 2400
+          -- uv sync --extra dev --frozen
       - name: Python lint
-        run: uv run ruff check .
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-quality-ubuntu-latest-3.12-static-python.json
+          --step python-lint
+          --timeout-seconds 2400
+          -- uv run ruff check .
       - name: Python type check
-        run: uv run basedpyright --level error python/nfi_backtest_engine
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-python-quality-ubuntu-latest-3.12-static-python.json
+          --step python-type-check
+          --timeout-seconds 2400
+          -- uv run basedpyright --level error python/nfi_backtest_engine
+      - name: Upload Python quality timing evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-timing-python-quality-ubuntu-latest-3.12-static-python
+          path: .ci/timing-python-quality-ubuntu-latest-3.12-static-python.json
+          if-no-files-found: error
+          retention-days: 14
+
+  rust-quality:
+    name: Rust quality checks
+    needs: changes
+    if: contains(fromJSON(needs.changes.outputs.selected_jobs_json), 'rust-quality')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Initialize Rust quality timing evidence
+        run: >-
+          python .github/scripts/ci_timing.py init
+          --output .ci/timing-rust-quality-ubuntu-latest-3.12-rust.json
+          --job rust-quality
+          --os ubuntu-latest
+          --python 3.12
+          --suite rust
+          --workflow "${{ github.workflow }}"
+          --repository "${{ github.repository }}"
+          --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}"
+          --commit-sha "${{ github.sha }}"
+          --cache-file uv.lock
+      - name: Configure Rust compiler cache
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        with:
+          version: "v0.10.0"
       - name: Rust format
-        working-directory: rust
-        run: cargo fmt --all -- --check
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-rust-quality-ubuntu-latest-3.12-rust.json
+          --step rust-format
+          --timeout-seconds 2400
+          --cwd rust
+          -- cargo fmt --all -- --check
       - name: Rust tests
-        working-directory: rust
-        run: cargo test --workspace --locked
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: sccache
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-rust-quality-ubuntu-latest-3.12-rust.json
+          --step rust-tests
+          --timeout-seconds 2400
+          --cwd rust
+          -- cargo test --workspace --locked
       - name: Rust lint
-        working-directory: rust
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: sccache
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-rust-quality-ubuntu-latest-3.12-rust.json
+          --step rust-lint
+          --timeout-seconds 2400
+          --cwd rust
+          -- cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Show Rust compiler cache statistics
+        if: always()
+        run: sccache --show-stats
+      - name: Upload Rust quality timing evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-timing-rust-quality-ubuntu-latest-3.12-rust
+          path: .ci/timing-rust-quality-ubuntu-latest-3.12-rust.json
+          if-no-files-found: error
+          retention-days: 14
 
   parity:
     name: Native full-parity fixtures
     needs: changes
-    if: needs.changes.outputs.code_changes == 'true'
+    if: contains(fromJSON(needs.changes.outputs.selected_jobs_json), 'parity')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -223,33 +360,129 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Initialize parity timing evidence
+        run: >-
+          python .github/scripts/ci_timing.py init
+          --output .ci/timing-parity-ubuntu-latest-3.12-full-parity.json
+          --job parity
+          --os ubuntu-latest
+          --python 3.12
+          --suite full-parity
+          --workflow "${{ github.workflow }}"
+          --repository "${{ github.repository }}"
+          --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}"
+          --commit-sha "${{ github.sha }}"
+          --cache-file uv.lock
       - name: Install uv and Python
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           python-version: "3.12"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - name: Sync and build native extension
-        run: |
-          uv sync --extra dev --frozen
-          uv run maturin develop --locked
+      - name: Configure Rust compiler cache
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        with:
+          version: "v0.10.0"
+      - name: Sync locked parity environment
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-parity-ubuntu-latest-3.12-full-parity.json
+          --step dependency-sync
+          --timeout-seconds 1500
+          -- uv sync --extra dev --frozen
+      - name: Build parity native extension
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+          RUSTC_WRAPPER: sccache
+        run: >-
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-parity-ubuntu-latest-3.12-full-parity.json
+          --step native-build
+          --timeout-seconds 1500
+          -- uv run maturin develop --locked
+      - name: Show Rust compiler cache statistics
+        if: always()
+        run: sccache --show-stats
       - name: Normal-routing full parity
         run: >-
-          uv run nfi-bte engine fixture
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-parity-ubuntu-latest-3.12-full-parity.json
+          --step parity-normal-routing
+          --timeout-seconds 1500
+          -- uv run nfi-bte engine fixture
           benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json
           --output-dir .ci/normal-routing
           --level full
       - name: Stops-only full parity
         run: >-
-          uv run nfi-bte engine fixture
+          python .github/scripts/ci_timing.py run-step
+          --report .ci/timing-parity-ubuntu-latest-3.12-full-parity.json
+          --step parity-stops-only
+          --timeout-seconds 1500
+          -- uv run nfi-bte engine fixture
           benchmarks/fixtures/captured/stops-only-spot-2025-01-01_04/manifest.json
           --output-dir .ci/stops-only
           --level full
+      - name: Upload parity timing evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-timing-parity-ubuntu-latest-3.12-full-parity
+          path: .ci/timing-parity-ubuntu-latest-3.12-full-parity.json
+          if-no-files-found: error
+          retention-days: 14
+
+  timing:
+    name: Validate CI timing evidence
+    needs: [changes, python, python-quality, rust-quality, parity]
+    if: always() && contains(fromJSON(needs.changes.outputs.selected_jobs_json), 'timing')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out CI timing contract
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Download per-job timing evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ci-timing-*
+          path: .ci/timing-reports
+          merge-multiple: true
+      - name: Validate complete timing coverage and identity
+        env:
+          VALIDATION_PLAN_JSON: ${{ needs.changes.outputs.validation_plan_json }}
+        run: |
+          set -euo pipefail
+          cache_lock_sha256="$(sha256sum uv.lock | cut -d ' ' -f 1)"
+          python .github/scripts/ci_timing.py validate \
+            --reports .ci/timing-reports \
+            --expected-repository "${{ github.repository }}" \
+            --expected-workflow "${{ github.workflow }}" \
+            --expected-workflow-ref .github/workflows/ci.yml \
+            --expected-baseline-id ci-timing-v1 \
+            --expected-run-id "${{ github.run_id }}" \
+            --expected-run-attempt "${{ github.run_attempt }}" \
+            --expected-commit-sha "${{ github.sha }}" \
+            --expected-candidate-commit "${{ github.sha }}" \
+            --cache-file uv.lock \
+            --expected-cache-sha256 "$cache_lock_sha256" \
+            --validation-plan-json "$VALIDATION_PLAN_JSON" \
+            --output .ci/ci-timing-report.json
+      - name: Upload aggregate timing report
+        if: success()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ci-timing-report-${{ github.run_id }}
+          path: .ci/ci-timing-report.json
+          if-no-files-found: error
+          retention-days: 14
 
   required:
     name: Required CI
     if: always()
-    needs: [changes, documentation, policy, python, quality, parity]
+    needs: [changes, documentation, policy, python, python-quality, rust-quality, parity, timing]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -260,20 +493,26 @@ jobs:
       - name: Require the selected job matrix
         env:
           CLASSIFICATION: ${{ needs.changes.outputs.classification }}
+          VALIDATION_PLAN_JSON: ${{ needs.changes.outputs.validation_plan_json }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           POLICY_RESULT: ${{ needs.policy.result }}
           PYTHON_RESULT: ${{ needs.python.result }}
-          QUALITY_RESULT: ${{ needs.quality.result }}
+          PYTHON_QUALITY_RESULT: ${{ needs.python-quality.result }}
+          RUST_QUALITY_RESULT: ${{ needs.rust-quality.result }}
           PARITY_RESULT: ${{ needs.parity.result }}
+          TIMING_RESULT: ${{ needs.timing.result }}
         shell: bash
         run: |
           set -euo pipefail
           python .github/scripts/ci_contract.py verify-results \
             --classification "$CLASSIFICATION" \
+            --validation-plan-json "$VALIDATION_PLAN_JSON" \
             --changes-result "$CHANGES_RESULT" \
             --documentation-result "$DOCUMENTATION_RESULT" \
             --job-result "policy=$POLICY_RESULT" \
             --job-result "python=$PYTHON_RESULT" \
-            --job-result "quality=$QUALITY_RESULT" \
-            --job-result "parity=$PARITY_RESULT"
+            --job-result "python-quality=$PYTHON_QUALITY_RESULT" \
+            --job-result "rust-quality=$RUST_QUALITY_RESULT" \
+            --job-result "parity=$PARITY_RESULT" \
+            --job-result "timing=$TIMING_RESULT"

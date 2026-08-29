@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import ctypes
+import hashlib
 import importlib.util
+import os
 import tarfile
 from io import BytesIO
 from pathlib import Path
@@ -10,6 +13,10 @@ from nfi_backtest_engine.canonical import read_json
 
 ROOT = Path(__file__).parents[1]
 REGISTRY = ROOT / "planning" / "compatibility-fixtures.json"
+MATERIALIZATION_AVAILABLE = os.name == "nt" or (
+    Path("/proc/self/fd").is_dir()
+    and getattr(ctypes.CDLL(None), "renameat2", None) is not None
+)
 SPEC = importlib.util.spec_from_file_location(
     "compatibility_fixture_registry",
     ROOT / "scripts" / "compatibility_fixture_registry.py",
@@ -68,6 +75,80 @@ def test_archive_validation_rejects_traversal_and_links() -> None:
         MODULE._validate_archive_members([traversal])
     with pytest.raises(ValueError, match="unsafe"):
         MODULE._validate_archive_members([link])
+
+
+def test_archive_validation_rejects_portable_device_member() -> None:
+    reserved = tarfile.TarInfo("fixture/NUL.txt")
+    reserved.size = 1
+
+    with pytest.raises(ValueError, match="unsafe|portable"):
+        MODULE._validate_archive_members([reserved])
+
+
+@pytest.mark.skipif(
+    not MATERIALIZATION_AVAILABLE,
+    reason="requires atomic no-clobber fixture materialization",
+)
+def test_complete_valid_bundle_publishes_exact_fixture(tmp_path: Path) -> None:
+    fixture = ROOT / "benchmarks" / "fixtures" / "contract" / "stops-only"
+    asset = tmp_path / "bundle.tar.gz"
+    with tarfile.open(asset, "w:gz") as archive:
+        archive.add(fixture, arcname="stops-only")
+    expected = {
+        path.relative_to(fixture).as_posix(): path.read_bytes()
+        for path in fixture.rglob("*")
+        if path.is_file()
+    }
+    bundle = {
+        "id": "contract-stops-only",
+        "trading_mode": "spot",
+        "source_sha256": "1" * 64,
+        "freqtrade_image_digest": "sha256:" + "2" * 64,
+        "asset_bytes": asset.stat().st_size,
+        "asset_sha256": hashlib.sha256(asset.read_bytes()).hexdigest(),
+        "extracted_bytes": sum(len(payload) for payload in expected.values()),
+        "fixture_ids": ["contract-stops-only-v1"],
+    }
+    output = tmp_path / "public"
+
+    report = MODULE.materialize_bundle(
+        bundle,
+        asset_path=asset,
+        output_directory=output,
+    )
+
+    assert report["fixture_ids"] == ["contract-stops-only-v1"]
+    assert report["extracted_bytes"] == bundle["extracted_bytes"]
+    assert {
+        path.relative_to(output / "stops-only").as_posix(): path.read_bytes()
+        for path in (output / "stops-only").rglob("*")
+        if path.is_file()
+    } == expected
+    assert not list(tmp_path.glob(".public.stage-*"))
+
+
+@pytest.mark.skipif(
+    not MATERIALIZATION_AVAILABLE,
+    reason="requires atomic no-clobber fixture materialization",
+)
+def test_hostile_archive_failure_leaves_no_public_destination(tmp_path: Path) -> None:
+    asset = tmp_path / "bundle.tar.gz"
+    with tarfile.open(asset, "w:gz") as archive:
+        member = tarfile.TarInfo("NUL.txt")
+        payload = b"hostile"
+        member.size = len(payload)
+        archive.addfile(member, BytesIO(payload))
+    bundle = {
+        "asset_bytes": asset.stat().st_size,
+        "asset_sha256": MODULE._sha256_file(asset),
+    }
+    output = tmp_path / "public"
+
+    with pytest.raises(ValueError, match="unsafe|portable"):
+        MODULE.materialize_bundle(bundle, asset_path=asset, output_directory=output)
+
+    assert not output.exists()
+    assert not list(tmp_path.glob(".public.stage-*"))
 
 
 def test_archive_validation_counts_only_regular_file_bytes() -> None:

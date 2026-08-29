@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "strategy_sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a",
+  "classification": "vector-only",
+  "verification_state": "quick_verified",
+  "changed_branch_reached": true,
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "blockers": [],
+  "mode_provenance": {
+    "roles": {
+      "fixture_manifest": "4af232e9907658f578bf900b7b1be672b1170556258362e58d1deedce308cd94",
+      "official_signal_tag": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb",
+      "official_trade_surface": "8d98f9898b95c27048a41cc3286a9a69d99bac921fd046e0fd488bfcf24cc420",
+      "official_full_state": "32b308cb2841547a2d024b68dea63c15c5db35dde7eaf294d60b7ead7414027d",
+      "native_signal_tag": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb",
+      "native_trade_surface": "8d98f9898b95c27048a41cc3286a9a69d99bac921fd046e0fd488bfcf24cc420",
+      "native_full_state": "32b308cb2841547a2d024b68dea63c15c5db35dde7eaf294d60b7ead7414027d",
+      "native_input": "81765519cdad143c33bdaab972cd13bf0c3e581b882234d2263133ea1e1141cc",
+      "native_result": "ee44b66524770f183a2ced020f53688d6e031a7394d73229a41b1a776b938b49",
+      "native_vector": "c46cca54912938c8edc9928a38e0ae5052dc59770f14c20e1a248c8c6f46e84d"
+    },
+    "native_run": {
+      "trading_mode": "futures",
+      "input_sha256": "81765519cdad143c33bdaab972cd13bf0c3e581b882234d2263133ea1e1141cc",
+      "result_sha256": "ee44b66524770f183a2ced020f53688d6e031a7394d73229a41b1a776b938b49",
+      "vector_sha256": "c46cca54912938c8edc9928a38e0ae5052dc59770f14c20e1a248c8c6f46e84d",
+      "trade_surface_sha256": "8d98f9898b95c27048a41cc3286a9a69d99bac921fd046e0fd488bfcf24cc420",
+      "full_state_sha256": "32b308cb2841547a2d024b68dea63c15c5db35dde7eaf294d60b7ead7414027d",
+      "official_full_state_sha256": "32b308cb2841547a2d024b68dea63c15c5db35dde7eaf294d60b7ead7414027d",
+      "fixture_projection_sha256": "71560ad61628b0e3040ef6259c9c33f38b25915740528a3ffd0e9524352be213"
+    }
+  }
+}

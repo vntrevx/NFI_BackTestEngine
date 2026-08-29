@@ -46,6 +46,26 @@ def _build_long_grind_route(
     )
 
 
+def _build_short_grind_route(
+    constants: Any,
+    methods: dict[str, ast.FunctionDef],
+    method_records: Any,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Describe the independently source-compiled short tag-620 route."""
+    return _build_legacy_grind_route(
+        constants,
+        methods,
+        method_records,
+        route_name="short-grind",
+        mode_constant="short_grind_mode_name",
+        tags_constant="short_grind_mode_tags",
+        stateful_methods=("short_exit_grind", "short_grind_adjust_trade_position"),
+        adjustment_scope="grind-backtest-v2",
+        grind_mode=True,
+        decision_program="short_grind_entry_v3",
+    )
+
+
 def _build_long_btc_route(
     constants: Any,
     methods: dict[str, ast.FunctionDef],
@@ -91,6 +111,7 @@ def _build_legacy_grind_route(
     adjustment_scope: str,
     grind_mode: bool,
     regular_mode: bool = False,
+    decision_program: str = _MANAGED_LONG_ADJUSTMENT_PROGRAM,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Compile one structurally validated route into the generic Grind program."""
     if not isinstance(constants, dict):
@@ -101,7 +122,10 @@ def _build_legacy_grind_route(
     if not route_declared:
         return None, {}
     if not isinstance(mode_name, str) or not mode_name:
-        raise StrategyAnalysisError(f"NFI {route_name} mode name must be frozen")
+        # The current short callback inherits this display value at runtime.
+        # Its exact attribute is still proven by the exit wrapper below; derive
+        # the value from that source-bound attribute rather than guessing it.
+        mode_name = mode_constant.removesuffix("_mode_name")
     if (
         not isinstance(entry_tags, list)
         or not entry_tags
@@ -157,13 +181,13 @@ def _build_legacy_grind_route(
         ),
         "adjustment_scope": adjustment_scope,
         "grind_mode": grind_mode,
-        "decision_program": _MANAGED_LONG_ADJUSTMENT_PROGRAM,
+        "decision_program": decision_program,
         "first_entry_profit_threshold_spot": constants[
             "grind_mode_first_entry_profit_threshold_spot"
         ],
         "first_entry_stop_threshold_spot": constants["grind_mode_first_entry_stop_threshold_spot"],
         "futures_fallback_loss_threshold": _legacy_futures_fallback_loss_threshold(
-            methods["long_grind_adjust_trade_position"]
+            methods[stateful_methods[1]]
         ),
         "derisk_use_grind_stops": derisk,
         "stateful_input_contract": {
@@ -172,7 +196,7 @@ def _build_legacy_grind_route(
         "constants": legacy_constants,
     }
     route["program"] = compile_legacy_grind_ir(
-        methods["long_grind_adjust_trade_position"],
+        methods[stateful_methods[1]],
         {
             **legacy_constants,
             "first_entry_profit_threshold_spot": route[
@@ -182,6 +206,7 @@ def _build_legacy_grind_route(
                 "first_entry_stop_threshold_spot"
             ],
         },
+        side="short" if route_name == "short-grind" else "long",
     )
     buyback = next(
         transition

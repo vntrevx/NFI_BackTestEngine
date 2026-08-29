@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import json
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from .canonical import canonical_decimal, read_json
 from .errors import TraceError
 from .fixture import fixture_input_sha256, validate_fixture
+from .reference_tracer.nfi_reference_trace import REFERENCE_STATE_SCHEMA_VERSION
 from .state_trace import StateTraceWriter, iter_validated_trace_events
 
 PROJECTED_PHASE = "portfolio.after_candle"
-FUTURES_QUOTE_BALANCE_QUANTUM = Decimal("0.000000001")
 
 
 def project_reference_trace(
@@ -21,6 +21,7 @@ def project_reference_trace(
     destination: str | Path,
     *,
     manifest: dict[str, Any] | None = None,
+    source_trace_path: str | Path | None = None,
 ) -> dict[str, Any]:
     manifest_file = Path(manifest_path).resolve()
     manifest = manifest or validate_fixture(
@@ -28,7 +29,11 @@ def project_reference_trace(
         validate_trace_semantics=False,
     )
     root = manifest_file.parent
-    trace_path = root / manifest["artifacts"]["state_trace"]["path"]
+    trace_path = (
+        root / manifest["artifacts"]["state_trace"]["path"]
+        if source_trace_path is None
+        else Path(source_trace_path).resolve()
+    )
     config = read_json(root / _one_input(manifest, "config")["path"])
     quote_currency = config["stake_currency"]
     trading_mode = manifest["freqtrade"]["trading_mode"]
@@ -105,13 +110,34 @@ def _reference_state(
             if currency != quote_currency and Decimal(str(values[1])) != 0
         ]
     )
+    trades = state.get("trades")
+    if not isinstance(trades, list):
+        raise TraceError("reference state trades must be an array")
+    state_schema = state.get("schema_version")
+    if state_schema is None:
+        closed_trade_count = len(trades)
+    elif state_schema == REFERENCE_STATE_SCHEMA_VERSION:
+        open_trade_count = 0
+        for index, trade in enumerate(trades):
+            if not isinstance(trade, dict) or not isinstance(trade.get("is_open"), bool):
+                raise TraceError(
+                    f"reference state trade {index} requires boolean is_open"
+                )
+            open_trade_count += int(trade["is_open"])
+        if open_trade_count != state["open_trade_count"]:
+            raise TraceError(
+                "reference state open trade records differ from open_trade_count"
+            )
+        closed_trade_count = len(trades) - open_trade_count
+    else:
+        raise TraceError(f"unsupported reference state schema: {state_schema!r}")
     counters = state["counters"]
     projected = {
-        "quote_free": _quote_balance(quote[1], trading_mode),
+        "quote_free": _quote_balance(quote[1]),
         "base_balances": base_balances,
         "open_trade_count": state["open_trade_count"],
         "realized_profit": _decimal(state["total_profit"]),
-        "closed_trade_count": len(state["trades"]),
+        "closed_trade_count": closed_trade_count,
         "rejected_signals": counters["rejected_signals"],
         "trade_id_counter": counters["trade_id"],
         "order_id_counter": counters["order_id"],
@@ -131,7 +157,7 @@ def _reference_state(
 
 def _engine_state(state: dict[str, Any], trading_mode: str) -> dict[str, Any]:
     projected = {
-        "quote_free": _quote_balance(state["quote_free"], trading_mode),
+        "quote_free": _quote_balance(state["quote_free"]),
         "base_balances": (
             []
             if trading_mode == "futures"
@@ -194,24 +220,10 @@ def _decimal(value: Any) -> str:
     return result
 
 
-def _quote_balance(value: Any, trading_mode: str) -> str:
-    """Canonicalize sub-exchange-precision futures wallet float noise.
+def _quote_balance(value: Any) -> str:
+    """Canonicalize the exact caller-provided wallet representation."""
 
-    Freqtrade derives futures free balance as ``wallet total - used`` while the
-    native engine derives it from realized PnL and tied stake. Both routes are
-    economically identical but can differ by one f64 unit in the twelfth
-    decimal place after partial exits. One nano-USDT remains finer than the
-    exchange precision while giving both official and native traces one stable
-    byte representation.
-    """
-
-    if trading_mode != "futures":
-        return _decimal(value)
-    normalized = Decimal(str(value)).quantize(
-        FUTURES_QUOTE_BALANCE_QUANTUM,
-        rounding=ROUND_HALF_EVEN,
-    )
-    return _decimal(normalized)
+    return _decimal(value)
 
 
 def _projected_locks(

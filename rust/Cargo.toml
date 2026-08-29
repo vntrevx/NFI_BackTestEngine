@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/nfi-artifact-publish",
     "crates/nfi-sim-core",
     "crates/nfi-vector-core",
     "crates/nfi-vector-io",
@@ -9,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.6.1"
+version = "1.7.0"
 edition = "2021"
 license = "MIT"
 rust-version = "1.83"

@@ -122,7 +122,7 @@ fn ft_precise_partial_exit_division_preserves_integer_contract() {
     // These are the pinned X7 trade values immediately before order 145.
     // Unlimited rational division lands just below 2604 and loses one
     // integer contract; CCXT Precise's 18-place division lands above it.
-    assert_eq!(floor_step(raw_amount, 1.0), 2_604.0);
+    assert_eq!(floor_step(raw_amount, 1.0), Ok(2_604.0));
 }
 
 #[test]
@@ -523,6 +523,44 @@ fn execution_start_index_must_point_to_a_candle() {
 }
 
 #[test]
+fn checked_ieee_families_preserve_left_to_right_bits_and_reject_overflow() {
+    let families: &[&[f64]] = &[
+        &[0.1, 0.2, 0.3],
+        &[1.0e16, 1.0, -1.0e16],
+        &[-0.0, 2.0, -0.5, 0.25],
+        &[f64::MIN_POSITIVE, 0.5, 2.0],
+    ];
+    for values in families {
+        let expected_sum = values.iter().fold(0.0, |total, value| total + value);
+        let expected_product = values.iter().fold(1.0, |total, value| total * value);
+        assert_eq!(
+            checked_float_sum(values, "family-sum")
+                .expect("finite family sum")
+                .to_bits(),
+            expected_sum.to_bits()
+        );
+        assert_eq!(
+            checked_float_product(values, "family-product")
+                .expect("finite family product")
+                .to_bits(),
+            expected_product.to_bits()
+        );
+    }
+    assert_eq!(
+        checked_float_sum(&[f64::MAX, f64::MAX], "family-sum"),
+        Err(SimError::ExactArithmetic {
+            operation: "family-sum"
+        })
+    );
+    assert_eq!(
+        checked_float_product(&[f64::MAX, 2.0], "family-product"),
+        Err(SimError::ExactArithmetic {
+            operation: "family-product"
+        })
+    );
+}
+
+#[test]
 fn pairwise_profit_sum_matches_numpy_reduction_order() {
     let profits = [
         13.433_598_31,
@@ -540,6 +578,10 @@ fn pairwise_profit_sum_matches_numpy_reduction_order() {
     ];
 
     assert_eq!(pairwise_sum(&profits), 43.429_898_200_000_025);
+    assert_eq!(
+        checked_pairwise_sum(&profits, "test-profit-total"),
+        Ok(43.429_898_200_000_025)
+    );
 }
 
 #[test]
@@ -582,6 +624,9 @@ fn total_volume_uses_cpython_compensated_sum() {
         12.908_996_1,
     ];
 
-    assert_eq!(python_float_sum(costs), 456.963_807_299_999_9);
+    assert_eq!(
+        checked_python_float_sum(costs, "test-total-volume"),
+        Ok(456.963_807_299_999_9)
+    );
     assert_ne!(costs.into_iter().sum::<f64>(), 456.963_807_299_999_9);
 }

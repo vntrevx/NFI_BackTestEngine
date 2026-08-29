@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .docker_environment import docker_subprocess_environment
 from .docker_resources import (
     derive_docker_policy,
     inspect_docker_daemon,
@@ -78,6 +79,7 @@ def _docker_checks() -> tuple[list[dict[str, str]], dict[str, Any] | None]:
             capture_output=True,
             check=False,
             timeout=10,
+            env=docker_subprocess_environment(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return (
@@ -149,6 +151,7 @@ def _docker_checks() -> tuple[list[dict[str, str]], dict[str, Any] | None]:
             capture_output=True,
             check=False,
             timeout=10,
+            env=docker_subprocess_environment(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         checks.append(_check("reference_image", False, str(exc), warning=True))

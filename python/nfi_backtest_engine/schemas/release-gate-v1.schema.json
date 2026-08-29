@@ -125,7 +125,8 @@
         "candidate_wheel",
         "portable_package",
         "three_os_evidence",
-        "preview_rejected"
+        "preview_rejected",
+        "native_scorecard"
       ],
       "properties": {
         "candidate_manifest": {
@@ -147,6 +148,9 @@
           "const": true
         },
         "preview_rejected": {
+          "const": true
+        },
+        "native_scorecard": {
           "const": true
         }
       }

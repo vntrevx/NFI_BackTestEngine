@@ -1,0 +1,300 @@
+{
+  "schema_version": "current-head-qualification-v1",
+  "identity": {
+    "upstream_commit": "649890f727fce8067a66f7556431b7ce0ee64416",
+    "source_sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a",
+    "source_bytes": 3436521,
+    "engine_commit": "f24d055649dca5b112917a75d4c207bdff04d452",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+    "semantic_registry_fingerprint": "3aeb86b38a00aa0ab018a7a298565f3d6ef1a678e1c340d5555fc7494d08cd1e",
+    "source_closure_merkle_root": "33a3205a243cecaae1e0c195d833834dbdbd7ec7abb9d415aa07bee495d59798"
+  },
+  "changed_target_ids": [
+    "34d150c5cc2e338f371f7ec631bbb65ee36788803e3912cae50eb0e77f7f1a84",
+    "81aa7c5473b5fbf8b669eff94acb63171d11354f86372b7978b520bc3359242e"
+  ],
+  "artifacts": [
+    {
+      "path": "CurrentSignal665Contract.source",
+      "sha256": "92b6161637ef4d04909ed24b941daab20004f1a79b0c5727afa0559f9c363135"
+    },
+    {
+      "path": "automation-decision-futures.json",
+      "sha256": "a2946c965608c836308d04a14a102566b43028aacf2f293872d2d3232b0392c5"
+    },
+    {
+      "path": "automation-decision-spot.json",
+      "sha256": "24bf912fd3eeadb3055ed40bf0602b3ab3bcce360ed1ffb0151299779d77ead4"
+    },
+    {
+      "path": "changed-target-ledger.json",
+      "sha256": "dec9fc20a01b7ae57e59e0e71bfb8ce1760ec7f0d0266080e8bc91af7f7fcef0"
+    },
+    {
+      "path": "compatibility-identity.json",
+      "sha256": "3a06c1e4e965b55506d1009ae9f6b51e10bb5f0cd42444536ef8ecef54b7f7c0"
+    },
+    {
+      "path": "fixture-manifest-futures.json",
+      "sha256": "4af232e9907658f578bf900b7b1be672b1170556258362e58d1deedce308cd94"
+    },
+    {
+      "path": "fixture-manifest-spot.json",
+      "sha256": "f2c456577d250de9b634aa3878e89937094d41542b94f946220e8f4d16e7ec81"
+    },
+    {
+      "path": "fixture-registry.json",
+      "sha256": "ef0281fd66a84e147a285200cda7f51eebe7b183a7244adb9b68596b56e50f33"
+    },
+    {
+      "path": "hosted-canary.json",
+      "sha256": "52975bd700270ee26973cbec1c2ee78e5604b84485ed96311c6f9837b5b02b00"
+    },
+    {
+      "path": "mutation-proof.json",
+      "sha256": "2873e350b00c96858652d6f16a969bc606759b61a268eeab49cb3c26e7b2cf94"
+    },
+    {
+      "path": "native/futures/data-seal.json",
+      "sha256": "89ddff2ce26364fe0af0b4cb8c97961a1d254192e2bed776053bbb1f597810c9"
+    },
+    {
+      "path": "native/futures/engine-events.jsonl",
+      "sha256": "236f7b6090a5bd350337789d752607202001de08c8b737bb853eca54634d89fe"
+    },
+    {
+      "path": "native/futures/simulation-input.manifest.json",
+      "sha256": "81765519cdad143c33bdaab972cd13bf0c3e581b882234d2263133ea1e1141cc"
+    },
+    {
+      "path": "native/futures/simulation-result.json",
+      "sha256": "ee44b66524770f183a2ced020f53688d6e031a7394d73229a41b1a776b938b49"
+    },
+    {
+      "path": "native/futures/vector.feather",
+      "sha256": "c46cca54912938c8edc9928a38e0ae5052dc59770f14c20e1a248c8c6f46e84d"
+    },
+    {
+      "path": "native/spot/data-seal.json",
+      "sha256": "8993fcdb2c97d20457b28331b778e6a1fe3872b65280c9d640605a66aa0a8b02"
+    },
+    {
+      "path": "native/spot/engine-events.jsonl",
+      "sha256": "476dda1e9665dfa412045a6e5f2aa9396ae8567ef216023fe8190462df53e0a7"
+    },
+    {
+      "path": "native/spot/simulation-input.manifest.json",
+      "sha256": "0d9022527667584ab73c0fa5978b9f24b469dc1a5d93ab4442942146f7356d04"
+    },
+    {
+      "path": "native/spot/simulation-result.json",
+      "sha256": "e139633d6ff459dcfa0c301d382d170c989229a453fcdc6573b22f8fd4b240c3"
+    },
+    {
+      "path": "native/spot/vector.feather",
+      "sha256": "94653b259dd458669dc4d0f034b1ce5094f78bbd85b89a022df2aea30cf11c69"
+    },
+    {
+      "path": "native-full-state-futures.json",
+      "sha256": "32b308cb2841547a2d024b68dea63c15c5db35dde7eaf294d60b7ead7414027d"
+    },
+    {
+      "path": "native-full-state-spot.json",
+      "sha256": "791da84632a886a8db79ab1ed3eee63a3d137eeb523d1a550bb663193e75d573"
+    },
+    {
+      "path": "native-signal-futures.json",
+      "sha256": "11576ea4d6f3b2ee9e630992091a9088f3326b22e5f9d23ac51a2a0eafd96bd7"
+    },
+    {
+      "path": "native-signal-spot.json",
+      "sha256": "293983e361940371bfb7861c8b7b2244e33481c9853a000a53500dd80a35a3f3"
+    },
+    {
+      "path": "native-signal-surface-futures.json",
+      "sha256": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb"
+    },
+    {
+      "path": "native-signal-surface-spot.json",
+      "sha256": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb"
+    },
+    {
+      "path": "native-trades-futures.json",
+      "sha256": "8d98f9898b95c27048a41cc3286a9a69d99bac921fd046e0fd488bfcf24cc420"
+    },
+    {
+      "path": "native-trades-spot.json",
+      "sha256": "c331bbc8cc741cf31d6310951d827d2eff821dad2b3dd465e64501f06d5dbbf7"
+    },
+    {
+      "path": "official-full-state-futures.json",
+      "sha256": "32b308cb2841547a2d024b68dea63c15c5db35dde7eaf294d60b7ead7414027d"
+    },
+    {
+      "path": "official-full-state-spot.json",
+      "sha256": "791da84632a886a8db79ab1ed3eee63a3d137eeb523d1a550bb663193e75d573"
+    },
+    {
+      "path": "official-signal-futures.json",
+      "sha256": "13111d42a7962a122a4290dd0edefa7da10e8ce09861527e5691af9a4ca7ba06"
+    },
+    {
+      "path": "official-signal-spot.json",
+      "sha256": "539cf7bb76f5410d2643263185c1700faf108ca6f3cd3ad8f5247ee7c8b24df1"
+    },
+    {
+      "path": "official-signal-surface-futures.json",
+      "sha256": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb"
+    },
+    {
+      "path": "official-signal-surface-spot.json",
+      "sha256": "faa2fe7cf4665e17d1125b14bc8fcbfa4cd7b7748445651754c68be59232c3bb"
+    },
+    {
+      "path": "official-trades-futures.json",
+      "sha256": "8d98f9898b95c27048a41cc3286a9a69d99bac921fd046e0fd488bfcf24cc420"
+    },
+    {
+      "path": "official-trades-spot.json",
+      "sha256": "c331bbc8cc741cf31d6310951d827d2eff821dad2b3dd465e64501f06d5dbbf7"
+    },
+    {
+      "path": "qualification-futures.json",
+      "sha256": "b4698a2a3d442a1b0df8f26a8504134e1911fac1cca821519a34aaa50f63d8b0"
+    },
+    {
+      "path": "qualification-spot.json",
+      "sha256": "e0933c3cebf7a4c302e98debf451b3837e9cde42264f2ff0110bd3a53fa9658b"
+    },
+    {
+      "path": "report-futures.json",
+      "sha256": "625a4fba37c08d3906d46216aabe926ef7435564cdc71016d3dfa5523a652904"
+    },
+    {
+      "path": "report-spot.json",
+      "sha256": "065cfcc57df6075f996d86abea6a87e7fcca3f95c7d08bd1630716b1f098c8e5"
+    },
+    {
+      "path": "semantic-profile.json",
+      "sha256": "9fb6fcf33913ef6aadc9c0b6a5f5cdd8e0bada2e34521ce83ac6b8368a3cffc5"
+    },
+    {
+      "path": "semantic-registry-summary.json",
+      "sha256": "ac03e1983c514b79f4735d4a6851e4da627a047838f5c89c4883c2bcd961c0ee"
+    },
+    {
+      "path": "semantic-registry.json.gz",
+      "sha256": "860c7fcfdad40f1fa7b47f0ede28055d26c89f00a488a938aacc55077253ba6c"
+    },
+    {
+      "path": "signal-665-obligations.json",
+      "sha256": "7e3bb7ece1b448a9b28d76ada663372f79e9073ea5bc1929f6c68fd5de97f02b"
+    },
+    {
+      "path": "signal-program-futures.json",
+      "sha256": "7dc5548a5275694fb09785f8c0fdc1abcb4a4862d25b93d825d47a4c9a10f548"
+    },
+    {
+      "path": "signal-program-spot.json",
+      "sha256": "889a47b51c3ffc8307aab6e90bb1117814ad3fa072bf1c0934a3848bb8523a40"
+    },
+    {
+      "path": "source-run.json",
+      "sha256": "950da6f82812648e2766929b5b696545f0e25e27762cad3a0f57a703651821ff"
+    },
+    {
+      "path": "strategy-diff.json",
+      "sha256": "ef10caaaae73bc44e8efd729246064f1176d65a1353013d93c7602a31b6f57fa"
+    },
+    {
+      "path": "tag-program-futures.json",
+      "sha256": "ab8d4d41605407d883664584243a9fa817578fcf2dd97551f563cfac45cd8810"
+    },
+    {
+      "path": "tag-program-spot.json",
+      "sha256": "5db262ac9832411937a4419b580dbc97baac04f1ad713527d64abf3972caaf38"
+    },
+    {
+      "path": "targeted-report-futures.json",
+      "sha256": "2b6c70670fd706da27e65b0d4ae0f1f9c3f1ccba8acc41581fd904f6ef2469a3"
+    },
+    {
+      "path": "targeted-report-spot.json",
+      "sha256": "d9355661b9c4b6ef89c89aabe83a56b052fec0ba5e8b86c650c10f52780f33a4"
+    }
+  ],
+  "modes": {
+    "spot": {
+      "verification_state": "quick_verified",
+      "target_gaps": [],
+      "unknown_compiler_constructs": [],
+      "signal_tag_first_difference": null,
+      "trade_surface_first_difference": null,
+      "full_state_first_difference": null,
+      "official": {
+        "signal_tag": "official-signal-surface-spot.json",
+        "trade_surface": "official-trades-spot.json",
+        "full_state": "official-full-state-spot.json"
+      },
+      "native": {
+        "signal_tag": "native-signal-surface-spot.json",
+        "trade_surface": "native-trades-spot.json",
+        "full_state": "native-full-state-spot.json"
+      },
+      "fixture_manifest": "fixture-manifest-spot.json",
+      "fixture_manifest_sha256": "f2c456577d250de9b634aa3878e89937094d41542b94f946220e8f4d16e7ec81",
+      "native_input_sha256": "0d9022527667584ab73c0fa5978b9f24b469dc1a5d93ab4442942146f7356d04",
+      "native_result_sha256": "e139633d6ff459dcfa0c301d382d170c989229a453fcdc6573b22f8fd4b240c3",
+      "native_trade_surface_sha256": "c331bbc8cc741cf31d6310951d827d2eff821dad2b3dd465e64501f06d5dbbf7",
+      "changed_clause_count": 41,
+      "atomic_term_count": 123,
+      "native_input": "native/spot/simulation-input.manifest.json",
+      "native_result": "native/spot/simulation-result.json",
+      "native_vector": "native/spot/vector.feather",
+      "native_vector_sha256": "94653b259dd458669dc4d0f034b1ce5094f78bbd85b89a022df2aea30cf11c69",
+      "trading_mode": "spot",
+      "qualification": "qualification-spot.json",
+      "qualification_sha256": "e0933c3cebf7a4c302e98debf451b3837e9cde42264f2ff0110bd3a53fa9658b"
+    },
+    "futures": {
+      "verification_state": "quick_verified",
+      "target_gaps": [],
+      "unknown_compiler_constructs": [],
+      "signal_tag_first_difference": null,
+      "trade_surface_first_difference": null,
+      "full_state_first_difference": null,
+      "official": {
+        "signal_tag": "official-signal-surface-futures.json",
+        "trade_surface": "official-trades-futures.json",
+        "full_state": "official-full-state-futures.json"
+      },
+      "native": {
+        "signal_tag": "native-signal-surface-futures.json",
+        "trade_surface": "native-trades-futures.json",
+        "full_state": "native-full-state-futures.json"
+      },
+      "fixture_manifest": "fixture-manifest-futures.json",
+      "fixture_manifest_sha256": "4af232e9907658f578bf900b7b1be672b1170556258362e58d1deedce308cd94",
+      "native_input_sha256": "81765519cdad143c33bdaab972cd13bf0c3e581b882234d2263133ea1e1141cc",
+      "native_result_sha256": "ee44b66524770f183a2ced020f53688d6e031a7394d73229a41b1a776b938b49",
+      "native_trade_surface_sha256": "8d98f9898b95c27048a41cc3286a9a69d99bac921fd046e0fd488bfcf24cc420",
+      "changed_clause_count": 41,
+      "atomic_term_count": 123,
+      "native_input": "native/futures/simulation-input.manifest.json",
+      "native_result": "native/futures/simulation-result.json",
+      "native_vector": "native/futures/vector.feather",
+      "native_vector_sha256": "c46cca54912938c8edc9928a38e0ae5052dc59770f14c20e1a248c8c6f46e84d",
+      "trading_mode": "futures",
+      "qualification": "qualification-futures.json",
+      "qualification_sha256": "b4698a2a3d442a1b0df8f26a8504134e1911fac1cca821519a34aaa50f63d8b0"
+    }
+  },
+  "promotion": {
+    "native_promotion_allowed": true,
+    "hosted_canary_fingerprint": "de10589d06416c728686e026a61e17f3230323f048a52a28c75a4fc5774d163a",
+    "public_native_10_of_10_allowed": false,
+    "boundary": "quick current-HEAD qualification only; long-horizon/public 10/10 remains out of scope"
+  },
+  "fingerprint": "b99b7e23cde1afa502f1bfa53dbf0e680701616438194a45e3ae1e5e057a1abf"
+}

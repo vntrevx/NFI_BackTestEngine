@@ -2,15 +2,25 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sqlite3
 import zipfile
+from contextlib import closing
 from pathlib import Path
+from threading import Event
 from tomllib import load
 from types import ModuleType
+from typing import Any
 
 import pytest
+from nfi_backtest_engine import native_scorecard, release_gate
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.platform_benchmark import (
+    EXACT_FIXTURE_LANE,
+    LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    seal_platform_evidence,
+)
 from nfi_backtest_engine.release_contract import (
     FUTURES_RELEASE_CONTRACT,
     SPOT_RELEASE_CONTRACT,
@@ -22,6 +32,28 @@ from nfi_backtest_engine.release_gate import (
     seal_release_gate,
     verify_release_gate,
 )
+from nfi_backtest_engine.release_provenance import candidate_distribution_identity
+from provenance_support import TEST_POLICY, sign_report
+from test_native_scorecard import _current_ref_proof, _scorecard_inputs
+
+
+@pytest.fixture(autouse=True)
+def _stable_current_ref_authorization(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        native_scorecard,
+        "begin_packaged_semantic_registry_authorization",
+        _current_ref_proof,
+    )
+    monkeypatch.setattr(
+        native_scorecard,
+        "finalize_packaged_semantic_registry_authorization",
+        lambda _proof: None,
+    )
+    monkeypatch.setattr(
+        native_scorecard,
+        "require_fresh_current_ref_for_authorization",
+        lambda _evidence, _identity, _operation: None,
+    )
 
 
 def _config(
@@ -223,40 +255,76 @@ def _write_certificate_evidence(
         )
 
 
-def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
+def _release_gate_inputs(tmp_path: Path) -> dict[str, Any]:
     candidate = tmp_path / "candidate"
     candidate.mkdir()
     wheel = candidate / ("nfi_backtest_engine-1.1.0-cp312-cp312-manylinux_2_17_x86_64.whl")
     wheel.write_bytes(b"sealed candidate wheel")
     (candidate / "nfi_backtest_engine-1.1.0.tar.gz").write_bytes(b"sealed source distribution")
     wheel_sha256 = sha256_file(wheel)
-    platform = candidate / "full-x7-futures-platform-evidence.json"
-    write_json(
-        platform,
+    candidate_id = candidate_distribution_identity(
         {
-            "schema_version": "1.0.0",
-            "created_at": "2026-07-28T00:00:00Z",
-            "release_certified": True,
-            "lane": "exact-fixture",
-            "mode_contract": "binance-usdtm-isolated",
-            "workload_identity_sha256": "8" * 64,
-            "workload": {},
-            "result_sha256": "9" * 64,
-            "package_version": "1.1.0",
-            "portable_package_sha256": PORTABLE_PACKAGE_SHA,
-            "platforms": [
-                {
-                    "system": system,
-                    "wheel_sha256": (wheel_sha256 if system == "linux" else digest * 64),
-                }
-                for system, digest in (
-                    ("windows", "a"),
-                    ("linux", "0"),
-                    ("darwin", "f"),
-                )
-            ],
-        },
+            path.name: sha256_file(path)
+            for path in candidate.iterdir()
+            if path.name.endswith(".whl") or path.name.endswith(".tar.gz")
+        }
     )
+    report_root = tmp_path / "platform-reports"
+    report_root.mkdir()
+    report_paths: list[str | Path] = []
+    for _run_id, (system, machine, digest) in enumerate(
+        (("windows", "amd64", "a"), ("linux", "x86_64", "0"), ("darwin", "arm64", "f")),
+        start=1,
+    ):
+        report_path = report_root / f"{system}.json"
+        write_json(
+            report_path,
+            {
+                "schema_version": "1.2.0",
+                "complete": True,
+                "lane": EXACT_FIXTURE_LANE,
+                "platform": {"system": system, "machine": machine, "wsl": False},
+                "package": {
+                    "version": "1.1.0",
+                    "wheel_sha256": wheel_sha256 if system == "linux" else digest * 64,
+                    "native_extension_sha256": "7" * 64 if system == "linux" else digest * 64,
+                    "installed_extension_equal": True,
+                    "portable_package_sha256": PORTABLE_PACKAGE_SHA,
+                },
+                "workload": {
+                    "lane": EXACT_FIXTURE_LANE,
+                    "mode_contract": "binance-usdtm-isolated",
+                    "fixture_id": "x7-futures",
+                    "manifest_sha256": "8" * 64,
+                    "strategy_sha256": "1" * 64,
+                    "base_strategy_sha256": "1" * 64,
+                    "verification_level": "full",
+                    "identity_sha256": "9" * 64,
+                },
+                "measurement": {
+                    "result_sha256": ["9" * 64],
+                    "wall_time_seconds": {"median": 1.0},
+                    "peak_rss_bytes": {"maximum": 1000},
+                    "measured_repetitions": 3,
+                },
+            },
+        )
+        sign_report(
+            report_path,
+            run_id=1,
+            commit=RELEASE_COMMIT,
+            candidate_id=candidate_id,
+        )
+        report_paths.append(report_path)
+    sealed_platform = tmp_path / "sealed-platform"
+    seal_platform_evidence(
+        report_paths,
+        sealed_platform,
+        provenance_policy=TEST_POLICY,
+        required_platform_systems=LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    )
+    platform = candidate / "full-x7-futures-platform-evidence.json"
+    platform.write_bytes((sealed_platform / "platform-evidence.json").read_bytes())
     candidate_assets = sorted(candidate.iterdir(), key=lambda item: item.name)
     (candidate / "SHA256SUMS.txt").write_text(
         "".join(f"{sha256_file(asset)}  {asset.name}\n" for asset in candidate_assets),
@@ -266,6 +334,11 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
     _release_certificate(certificate, wheel_sha256=wheel_sha256)
     certificate_evidence = tmp_path / "full-x7-certification-bundle.zip"
     _write_certificate_evidence(certificate_evidence, certificate)
+    score_evidence, score_identity = _scorecard_inputs(
+        tmp_path / "native-score",
+        engine_artifact_sha256=candidate_id,
+        candidate_commit=RELEASE_COMMIT,
+    )
     return {
         "candidate_directory": candidate,
         "certificate_path": certificate,
@@ -273,6 +346,9 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Path | str]:
         "platform_evidence_path": platform,
         "candidate_commit": RELEASE_COMMIT,
         "output_directory": tmp_path / "release",
+        "provenance_policy": TEST_POLICY,
+        "native_score_evidence_path": score_evidence,
+        "native_score_identity_path": score_identity,
     }
 
 
@@ -298,7 +374,11 @@ def test_release_gate_binds_certificate_and_complete_asset_manifest(
 
     result = seal_release_gate(**inputs)
     release = Path(inputs["output_directory"])
-    verified = verify_release_gate(release, expected_commit=RELEASE_COMMIT)
+    verified = verify_release_gate(
+        release,
+        expected_commit=RELEASE_COMMIT,
+        provenance_policy=TEST_POLICY,
+    )
     checksums = {
         line.partition("  ")[2]
         for line in (release / RELEASE_CHECKSUMS_NAME).read_text(encoding="utf-8").splitlines()
@@ -310,6 +390,119 @@ def test_release_gate_binds_certificate_and_complete_asset_manifest(
     assert checksums == {
         path.name for path in release.iterdir() if path.name != RELEASE_CHECKSUMS_NAME
     }
+
+
+def _publication_inputs(
+    root: Path,
+    *,
+    ledger: Path,
+    attempt: str,
+) -> dict[str, Any]:
+    root.mkdir()
+    inputs = _release_gate_inputs(root)
+    inputs["provenance_ledger_path"] = ledger
+    inputs["publication_attempt_id"] = attempt
+    return inputs
+
+
+def test_release_gate_durable_first_winner_publishes_exact_asset_set(
+    tmp_path: Path,
+) -> None:
+    ledger_parent = tmp_path / "durable"
+    ledger_parent.mkdir(mode=0o700)
+    inputs = _publication_inputs(
+        tmp_path / "winner",
+        ledger=ledger_parent / "ledger.sqlite",
+        attempt="run-winner",
+    )
+
+    seal_release_gate(**inputs)
+
+    output = Path(inputs["output_directory"])
+    assert len([path for path in output.rglob("*") if path.is_file()]) == 8
+    with closing(sqlite3.connect(inputs["provenance_ledger_path"])) as connection:
+        assert connection.execute(
+            "SELECT attempt_id, state FROM certificate_publications"
+        ).fetchone() == ("run-winner", "published")
+    assert not list(output.parent.glob(f".{output.name}.stage-*"))
+
+
+@pytest.mark.parametrize("attempt", ["run-winner", "run-loser"])
+def test_release_gate_durable_replay_exposes_no_loser_output(
+    tmp_path: Path,
+    attempt: str,
+) -> None:
+    ledger_parent = tmp_path / "durable"
+    ledger_parent.mkdir(mode=0o700)
+    ledger = ledger_parent / "ledger.sqlite"
+    winner = _publication_inputs(
+        tmp_path / "winner",
+        ledger=ledger,
+        attempt="run-winner",
+    )
+    seal_release_gate(**winner)
+    loser = _publication_inputs(
+        tmp_path / "loser",
+        ledger=ledger,
+        attempt=attempt,
+    )
+
+    with pytest.raises(SpecValidationError, match="already used|already published"):
+        seal_release_gate(**loser)
+
+    output = Path(loser["output_directory"])
+    assert not output.exists()
+    assert not list(output.parent.glob(f".{output.name}.stage-*"))
+
+
+@pytest.mark.parametrize(
+    ("checkpoint", "visible_after_interrupt", "interrupted_state"),
+    [
+        ("after-reservation", False, "aborted"),
+        ("after-publication-before-finalize", True, "reserved"),
+    ],
+)
+def test_release_gate_same_owner_recovers_exact_interruption_without_residue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    checkpoint: str,
+    visible_after_interrupt: bool,
+    interrupted_state: str,
+) -> None:
+    ledger_parent = tmp_path / "durable"
+    ledger_parent.mkdir(mode=0o700)
+    inputs = _publication_inputs(
+        tmp_path / "winner",
+        ledger=ledger_parent / "ledger.sqlite",
+        attempt="run-recovery",
+    )
+    reached = Event()
+
+    def interrupt(name: str) -> None:
+        if name == checkpoint:
+            reached.set()
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(release_gate, "_publication_checkpoint", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        seal_release_gate(**inputs)
+    assert reached.is_set()
+
+    output = Path(inputs["output_directory"])
+    assert output.exists() is visible_after_interrupt
+    assert not list(output.parent.glob(f".{output.name}.stage-*"))
+    with closing(sqlite3.connect(inputs["provenance_ledger_path"])) as connection:
+        assert connection.execute(
+            "SELECT state FROM certificate_publications"
+        ).fetchone() == (interrupted_state,)
+
+    monkeypatch.setattr(release_gate, "_publication_checkpoint", lambda _name: None)
+    seal_release_gate(**inputs)
+    assert len([path for path in output.rglob("*") if path.is_file()]) == 8
+    with closing(sqlite3.connect(inputs["provenance_ledger_path"])) as connection:
+        assert connection.execute(
+            "SELECT state FROM certificate_publications"
+        ).fetchone() == ("published",)
 
 
 def test_release_gate_rejects_mismatched_candidate_wheel(
@@ -371,6 +564,53 @@ def test_release_gate_rejects_missing_host_certificate(tmp_path: Path) -> None:
     assert not Path(inputs["output_directory"]).exists()
 
 
+def test_release_gate_rejects_semantically_failed_certificate_with_true_gates(
+    tmp_path: Path,
+) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    certificate = Path(inputs["certificate_path"])
+    document = json.loads(certificate.read_text(encoding="utf-8"))
+    document["status"] = "failed"
+    document["release_certified"] = False
+    for gate in document["gates"].values():
+        gate["met"] = True
+    document["gates"]["installed_wheel"]["installed_extension_equal"] = True
+    write_json(certificate, document)
+    _write_certificate_evidence(Path(inputs["certificate_evidence_path"]), certificate)
+
+    with pytest.raises(SpecValidationError, match="failed|incomplete|certified"):
+        seal_release_gate(**inputs)
+
+    assert not Path(inputs["output_directory"]).exists()
+
+
+@pytest.mark.parametrize(
+    ("semantic_field", "semantic_value"),
+    [
+        ("exact", False),
+        ("complete", False),
+        ("certification_eligible", False),
+        ("execution_mode", "unsafe_research_override"),
+    ],
+)
+def test_release_gate_rejects_nested_semantic_failure_despite_true_gates(
+    tmp_path: Path,
+    semantic_field: str,
+    semantic_value: object,
+) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    certificate = Path(inputs["certificate_path"])
+    document = json.loads(certificate.read_text(encoding="utf-8"))
+    document["runs"]["official_reference"] = {semantic_field: semantic_value}
+    write_json(certificate, document)
+    _write_certificate_evidence(Path(inputs["certificate_evidence_path"]), certificate)
+
+    with pytest.raises(SpecValidationError, match="exact|incomplete|ineligible|unsafe"):
+        seal_release_gate(**inputs)
+
+    assert not Path(inputs["output_directory"]).exists()
+
+
 def test_release_gate_rejects_preview_certificate(tmp_path: Path) -> None:
     inputs = _release_gate_inputs(tmp_path)
     certificate = Path(inputs["certificate_path"])
@@ -401,7 +641,7 @@ def test_release_gate_rejects_portable_package_identity_drift(
     write_json(platform, document)
     _reseal_candidate_manifest(Path(inputs["candidate_directory"]))
 
-    with pytest.raises(SpecValidationError, match="portable package differs"):
+    with pytest.raises(SpecValidationError, match="recomputed fields differ"):
         seal_release_gate(**inputs)
 
 
@@ -411,16 +651,68 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     publish = (root / ".github/workflows/publish-release-candidate.yml").read_text(encoding="utf-8")
     certify = (root / ".github/workflows/certify-release-candidate.yml").read_text(encoding="utf-8")
     promote = (root / ".github/workflows/promote-release.yml").read_text(encoding="utf-8")
-
-    assert "permissions:\n  contents: read" in build
+    assert "permissions:\n  actions: read\n  contents: read" in build
     assert "release_candidate_contract.py" in build
     assert "Measure exact Spot and Futures fixtures" in build
     assert (
-        "path: .platform-evidence/*/platform-benchmark.json\n"
+        "path: .platform-evidence/*/platform-benchmark*.json\n"
         "          if-no-files-found: error\n"
         "          include-hidden-files: true"
     ) in build
-    assert "Seal three-OS Spot and Futures evidence" in build
+    assert "Seal supported-platform Spot and Futures evidence" in build
+    assert "native_score_run_id:" in build
+    assert "name: native-score-evidence-${{ github.sha }}" in build
+    assert "run-id: ${{ inputs.native_score_run_id }}" in build
+    assert "nfi-bte release score" in build
+    assert "--evidence native-score/score-evidence.json" in build
+    assert "--identity native-score/identity.json" in build
+    assert "--output .native-score-validation-report.json" in build
+    assert "name: validated-native-score-${{ github.sha }}" in build
+    assert "path: dist/native-score" in build
+    assert "create_deterministic_zip" in build
+    assert "product-release/native-score.zip" in build
+    assert "--output .native-score-validation-report.json" in build
+    assert "--output native-score/score-report.json" not in build
+    assert "cp -R dist/native-score product-release/native-score" not in build
+    wheels_section = build[build.index("  wheels:"):build.index("  sdist:")]
+    assert "environment: release-provenance" not in wheels_section
+    assert "NFI_RELEASE_PROVENANCE_PRIVATE" not in wheels_section
+    assert "sccache: true" in wheels_section
+    sdist_section = build[build.index("  sdist:"):build.index("  provenance-prepare:")]
+    assert "sccache: true" not in sdist_section
+    assert "  provenance-prepare:" in build
+    prepare_section = build[
+        build.index("  provenance-prepare:"):build.index("  provenance-signing:")
+    ]
+    signing_section = build[
+        build.index("  provenance-signing:"):build.index("  provenance-assemble:")
+    ]
+    assemble_section = build[
+        build.index("  provenance-assemble:"):build.index("  platform-evidence:")
+    ]
+    assert "needs: [verify]" in prepare_section
+    assert "needs: [verify, provenance-prepare]" in signing_section
+    assert "runs-on: [self-hosted, linux, x64, nfi-release-signer]" in signing_section
+    assert "environment: release-provenance" in signing_section
+    assert "NFI_RELEASE_PROVENANCE_PRIVATE_KEY" in signing_section
+    assert "Prepare canonical DSSE signing inputs" in prepare_section
+    assert "Assemble signed provenance envelopes" in assemble_section
+    assert "NFI_RELEASE_PROVENANCE_PRIVATE" not in prepare_section
+    assert "NFI_RELEASE_PROVENANCE_PRIVATE" not in assemble_section
+    secret_step = signing_section[
+        signing_section.index("      - name: Sign canonical DSSE PAE bytes"):
+        signing_section.index("      - name: Upload isolated signatures")
+    ]
+    assert "openssl pkeyutl -sign -rawin" in secret_step
+    assert "sha256sum --check" in secret_step
+    assert ".sign-venv" not in secret_step
+    assert "nfi-bte" not in secret_step
+    assert "python" not in secret_step
+    assert "jq " not in secret_step
+    assert "platform prepare-attestation" in prepare_section
+    assert "platform assemble-attestation" in assemble_section
+    assert "actions/checkout" not in signing_section
+    assert "setup-uv" not in signing_section
     assert "find . -type f ! -name SHA256SUMS.txt" in build
     assert "name: Certify release candidate" in certify
     assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in certify
@@ -436,10 +728,60 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "full-x7-certifications" not in certify
     assert "candidate and certification commits differ" in certify
     assert "nfi-bte release gate" in certify
+    assert "--native-score-evidence candidate/native-score/score-evidence.json" in certify
+    assert "--native-score-identity candidate/native-score/identity.json" in certify
+    assert "runs-on: [self-hosted, linux, x64, nfi-release-signer]" in promote
+    assert "environment: release-publication" in promote
+    assert promote.count(
+        "/var/lib/nfi-release/provenance/used-certificates.sqlite"
+    ) == 1
+    assert promote.count("--provenance-ledger \"$PROVENANCE_LEDGER\"") == 2
+    assert "runs-on: ubuntu-latest" not in promote
+    combined_consumers = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in (root / ".github/workflows").glob("*.yml")
+        if "release verify-combined" in path.read_text(encoding="utf-8")
+    }
+    assert set(combined_consumers) == {
+        "publish-release-candidate.yml",
+        "promote-release.yml",
+    }
+    for consumer_workflow in combined_consumers.values():
+        assert "runs-on: [self-hosted, linux, x64, nfi-release-signer]" in consumer_workflow
+        assert "environment: release-publication" in consumer_workflow
+        assert "/var/lib/nfi-release/provenance/used-certificates.sqlite" in consumer_workflow
+        remaining = consumer_workflow
+        while "release verify-combined" in remaining:
+            invocation = remaining[remaining.index("release verify-combined"):]
+            command = invocation.split("\n      - name:", 1)[0]
+            assert "--provenance-ledger \"$PROVENANCE_LEDGER\"" in command
+            assert "--native-score-evidence" in command
+            assert "--native-score-identity" in command
+            remaining = invocation[len("release verify-combined"):]
     assert "candidate/release-candidate-plan.json" in certify
     assert "host-certificate-${{ inputs.mode }}-${{ github.sha }}" in certify
     assert 'cp "$OUTPUT_DIRECTORY/bundle.json" host-certificate/' in certify
     assert "contents: write" not in certify
+    assert "runs-on: [self-hosted, linux, x64, nfi-release-signer]" in publish
+    assert "environment: release-publication" in publish
+    assert publish.count(
+        "/var/lib/nfi-release/provenance/used-certificates.sqlite"
+    ) == 1
+    assert publish.count("--provenance-ledger \"$PROVENANCE_LEDGER\"") >= 3
+    assert publish.index("release gate-combined") < publish.index(
+        "gh release create \"$RELEASE_TAG\" --draft"
+    ) < publish.index("release finalize-combined")
+    assert "gh release create \"$RELEASE_TAG\" --draft" in publish
+    assert "gh release edit \"$RELEASE_TAG\" --draft=false" in publish
+    assert "release finalize-combined" in publish
+    assert "release abort-combined" in publish
+    assert "existing release tag targets another candidate" in publish
+    assert "existing draft targets another candidate" in publish
+    assert "tag already exists" not in publish
+    assert "NFI_RELEASE_PROVENANCE_LEDGER_PATH" not in publish
+    assert "runner.temp" not in publish
+    assert "/tmp/" not in publish
+    assert "runs-on: ubuntu-latest" not in publish
     assert "spot_certificate_run_id:" in publish
     assert "futures_certificate_run_id:" in publish
     assert "host-certificate-spot-${{ steps.candidate.outputs.sha }}" in publish
@@ -447,13 +789,45 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "candidate and host certificate commits differ" in publish
     assert "nfi-bte release combine" in publish
     assert "nfi-bte release gate-combined" in publish
+    assert publish.count("--native-score-evidence candidate/native-score/score-evidence.json") == 4
+    assert publish.count("--native-score-identity candidate/native-score/identity.json") == 4
     assert "nfi-bte release verify-combined" in publish
     assert "RELEASE-SHA256SUMS.txt" in publish
     assert publish.index("nfi-bte release combine") < publish.index("nfi-bte release gate-combined")
     assert publish.index("nfi-bte release gate-combined") < publish.index("gh release create")
     assert "RELEASE-SHA256SUMS.txt" in promote
     assert "nfi-bte release verify-combined" in promote
+    assert "--native-score-evidence" in promote
+    assert "--native-score-identity" in promote
     assert promote.index("nfi-bte release verify-combined") < promote.index("gh release create")
+
+
+def test_external_certificate_and_combined_publication_reauthorize_each_write() -> None:
+    root = Path(__file__).parents[1] / ".github/workflows"
+    certify = (root / "certify-release-candidate.yml").read_text(encoding="utf-8")
+    publish = (root / "publish-release-candidate.yml").read_text(encoding="utf-8")
+    promote = (root / "promote-release.yml").read_text(encoding="utf-8")
+
+    assert (
+        'release authorize-current \\\n              --operation "certification-immutable-upload:'
+        in certify
+    )
+    assert certify.index("release authorize-current") < certify.index("aws s3api put-object")
+    for operation, consequence in (
+        ("combined-draft-create:", 'gh release create "$RELEASE_TAG" --draft'),
+        ("combined-draft-upload:", 'gh release upload "$RELEASE_TAG" release/*'),
+        ("combined-draft-publish:", 'gh release edit "$RELEASE_TAG" --draft=false'),
+    ):
+        authorization = publish.index(f'--operation "{operation}')
+        write = publish.index(consequence)
+        assert authorization < write
+        assert "release authorize-current" in publish[authorization - 100 : authorization]
+    stable_authorization = promote.index('--operation "combined-stable-create:')
+    stable_write = promote.index('gh release create "$STABLE_TAG" candidate/*')
+    assert stable_authorization < stable_write
+    assert "release authorize-current" in promote[
+        stable_authorization - 100 : stable_authorization
+    ]
 
 
 def test_product_release_workflows_preserve_non_combined_boundary() -> None:
@@ -476,7 +850,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert contract["package_version"] == project_version
     assert contract == {
         "schema_version": "1.0.0",
-        "package_version": "1.6.1",
+        "package_version": "1.7.0",
         "release_kind": "product",
         "combined_full_x7_certified": False,
         "distribution_policy": {
@@ -484,7 +858,8 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "byte_identical_rc_stable": True,
             "sha256_manifest_required": True,
             "required_ci_commit_match": True,
-            "three_os_exact_fixture_evidence": True,
+            "supported_platform_exact_fixture_evidence": True,
+            "supported_platform_systems": ["darwin", "linux"],
         },
         "certification_boundary": {
             "latest_same_candidate_spot_certificate": False,
@@ -494,6 +869,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "futures_certificate_tag": "v1.1.0",
         },
     }
+    assert "x86_64-pc-windows-msvc" not in build
     assert "cp .github/product-release-contract.json" in build
     assert "name: product-release-bundle-${{ github.sha }}" in build
     assert "full-x7-$mode-platform-evidence.json" in build
@@ -506,11 +882,24 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "actions/workflows/ci.yml/runs?head_sha=" in publish
     assert "product-release-bundle-${{ steps.candidate.outputs.sha }}" in publish
     assert "combined_full_x7_certified == false" in publish
+    assert "supported_platform_exact_fixture_evidence == true" in publish
+    assert 'supported_platform_systems == ["darwin", "linux"]' in publish
+    assert "test \"$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)\" -eq 3" in publish
+    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 12" in publish
+    assert '== ["darwin", "linux"]' in publish
+    assert "extract_validated_zip" in publish
+    assert "nfi-bte release score" in publish
+    assert "candidate/native-score/score-evidence.json" in publish
+    assert "candidate/native-score/identity.json" in publish
+    assert "candidate_distribution_identity" in publish
+    assert "find candidate -mindepth 1 ! -type f" in publish
+    assert 'gh release create "$RELEASE_TAG" "${assets[@]}"' in publish
+    assert "candidate/*" not in publish
     assert "test ! -e candidate/release-gate.json" in publish
     assert "test ! -e candidate/full-x7-release-result.json" in publish
-    assert "Audit Windows product installer" in publish
+    assert "windows-latest" not in publish
     assert "Audit macOS product installer" in publish
-    assert publish.count("GITHUB_TOKEN: ${{ github.token }}") >= 2
+    assert publish.count("GITHUB_TOKEN: ${{ github.token }}") == 1
     assert publish.index("sha256sum --check SHA256SUMS.txt") < publish.index(
         "gh release create"
     )
@@ -520,17 +909,24 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "actions/workflows/publish-product-release-candidate.yml/runs" in promote
     assert "candidate and promotion workflow commits differ" in promote
     assert "combined_full_x7_certified == false" in promote
+    assert "supported_platform_exact_fixture_evidence == true" in promote
+    assert 'supported_platform_systems == ["darwin", "linux"]' in promote
+    assert "extract_validated_zip" in promote
+    assert "nfi-bte release score" in promote
+    assert "candidate/native-score/score-evidence.json" in promote
+    assert "candidate/native-score/identity.json" in promote
+    assert "candidate_distribution_identity" in promote
+    assert "find candidate -mindepth 1 ! -type f" in promote
+    assert 'gh release create "$STABLE_TAG" "${assets[@]}"' in promote
+    assert "candidate/*" not in promote
     assert "diff -qr candidate stable" in promote
-    assert "Audit latest Windows installer" in promote
+    assert "windows-latest" not in promote
     assert "Audit latest macOS installer" in promote
-    assert promote.count("GITHUB_TOKEN: ${{ github.token }}") >= 2
+    assert promote.count("GITHUB_TOKEN: ${{ github.token }}") == 1
     assert promote.index("sha256sum --check SHA256SUMS.txt") < promote.index(
         "gh release create"
     )
-    windows_installer = (root / "install.ps1").read_text(encoding="utf-8")
     unix_installer = (root / "install.sh").read_text(encoding="utf-8")
-    assert 'GetEnvironmentVariable("GITHUB_TOKEN")' in windows_installer
-    assert 'GetEnvironmentVariable("GH_TOKEN")' in windows_installer
     assert 'os.environ.get("GITHUB_TOKEN")' in unix_installer
     assert 'os.environ.get("GH_TOKEN")' in unix_installer
 
@@ -874,15 +1270,27 @@ def test_ci_contract_requires_only_the_selected_job_matrix() -> None:
     root = Path(__file__).parents[1]
     module = _ci_contract_module()
     contract = module.load_contract(root / ".github/ci-contract.json")
+    paths_by_classification = {
+        module.DOCS_CLASSIFICATION: ["README.md"],
+        module.POLICY_CLASSIFICATION: [".github/workflows/ci.yml"],
+        module.AUTOMATION_CLASSIFICATION: [".github/workflows/nfi-compatibility.yml"],
+        module.CODE_CLASSIFICATION: ["pyproject.toml"],
+    }
     conditional_jobs = contract["conditional_job_ids"]
-    for classification, selected_jobs in contract["classifications"].items():
-        selected = set(selected_jobs)
+    for classification, paths in paths_by_classification.items():
+        plan = module.plan_affected_validation(
+            paths,
+            contract,
+            event_name="pull_request",
+        )
+        selected = set(plan["selected_jobs"])
         expected = {
             job: "success" if job in selected else "skipped"
             for job in conditional_jobs
         }
         assert module.required_results_pass(
             classification,
+            validation_plan=plan,
             changes_result="success",
             documentation_result="success",
             job_results=expected,
@@ -894,6 +1302,7 @@ def test_ci_contract_requires_only_the_selected_job_matrix() -> None:
         )
         assert not module.required_results_pass(
             classification,
+            validation_plan=plan,
             changes_result="success",
             documentation_result="success",
             job_results=broken,
@@ -924,8 +1333,7 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
         assert f"  {job_id}:" in workflow
         assert f"    name: {job['name']}" in workflow
         assert f"    timeout-minutes: {job['timeout_minutes']}" in workflow
-    for platform in contract["jobs"]["python"]["matrix"]:
-        assert platform in workflow
+    assert "matrix: ${{ fromJSON(needs.changes.outputs.python_matrix_json) }}" in workflow
     for job_id in contract["conditional_job_ids"]:
         start = workflow.index(f"  {job_id}:")
         following = [
@@ -935,11 +1343,14 @@ def test_ci_workflow_matches_machine_readable_policy() -> None:
             and (position := workflow.find(f"\n  {other_id}:", start + 1)) != -1
         ]
         end = min(following, default=len(workflow))
-        section = workflow[start:] if end == -1 else workflow[start:end]
+        section = workflow[start:end]
         expected_condition = (
             "if: needs.changes.outputs.policy_changes == 'true'"
             if job_id == "policy"
-            else "if: needs.changes.outputs.code_changes == 'true'"
+            else (
+                "contains(fromJSON(needs.changes.outputs.selected_jobs_json), "
+                f"'{job_id}')"
+            )
         )
         assert expected_condition in section
     assert "    name: Required CI" in workflow

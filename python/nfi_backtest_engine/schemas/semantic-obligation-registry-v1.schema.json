@@ -1,0 +1,837 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/semantic-obligation-registry-v1.schema.json",
+  "title": "Pinned Freqtrade and strategy semantic obligation registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "identity",
+    "freqtrade",
+    "strategy",
+    "source_closure",
+    "obligation_groups",
+    "blockers",
+    "summary",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "semantic-obligation-registry-v1"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "freqtrade": {
+      "$ref": "#/$defs/freqtrade"
+    },
+    "strategy": {
+      "$ref": "#/$defs/strategy"
+    },
+    "source_closure": {
+      "$ref": "#/$defs/source_closure"
+    },
+    "obligation_groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/obligation_group"
+      },
+      "minItems": 1
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "docker_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "obligation_id_algorithm",
+        "registry_fingerprint_algorithm",
+        "source_closure_algorithm"
+      ],
+      "properties": {
+        "obligation_id_algorithm": {
+          "const": "sha256-canonical-semantic-preimage-v1"
+        },
+        "registry_fingerprint_algorithm": {
+          "const": "sha256-canonical-semantic-content-v1"
+        },
+        "source_closure_algorithm": {
+          "const": "sha256-merkle-source-closure-v1"
+        }
+      }
+    },
+    "nullable_string": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      ]
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "image",
+        "image_index_digest",
+        "image_platform_digest",
+        "image_config_digest",
+        "platform",
+        "ccxt_version"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "image": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "image_index_digest": {
+          "$ref": "#/$defs/docker_digest"
+        },
+        "image_platform_digest": {
+          "$ref": "#/$defs/docker_digest"
+        },
+        "image_config_digest": {
+          "$ref": "#/$defs/docker_digest"
+        },
+        "platform": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "ccxt_version": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "semantic_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "fingerprint",
+        "file_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "freqtrade_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "commit",
+        "identity_kind",
+        "observed_method_count",
+        "observed_method_merkle_root"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}(?![\\s\\S])"
+        },
+        "identity_kind": {
+          "const": "git-commit-and-observed-method-merkle-v1"
+        },
+        "observed_method_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_method_merkle_root": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "schema_version",
+        "fingerprint",
+        "file_sha256"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "scheduler",
+            "execution",
+            "futures"
+          ]
+        },
+        "schema_version": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "freqtrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semantic_profile",
+        "reference",
+        "source",
+        "contracts"
+      ],
+      "properties": {
+        "semantic_profile": {
+          "$ref": "#/$defs/semantic_profile"
+        },
+        "reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "source": {
+          "$ref": "#/$defs/freqtrade_source"
+        },
+        "contracts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contract"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "ref",
+        "configured_commit",
+        "observed_commit",
+        "observed_commit_timestamp",
+        "source_path",
+        "observation_method"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "ref": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "configured_commit": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "observed_commit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}(?![\\s\\S])"
+            }
+          ]
+        },
+        "observed_commit_timestamp": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "source_path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "observation_method": {
+          "enum": [
+            "git-fetch-depth-1-v1",
+            "offline-unverified-commit-v1",
+            "offline-unverified-source-v1",
+            "unconfigured-local-source-v1",
+            "unresolved-upstream-ref-v1",
+            "invalid-upstream-configuration-v1",
+            "invalid-upstream-ref-v1",
+            "invalid-upstream-commit-v1",
+            "invalid-upstream-source-v1",
+            "upstream-fetch-failed-v1",
+            "upstream-fetch-timeout-v1",
+            "upstream-ref-not-commit-v1",
+            "upstream-source-missing-v1"
+          ]
+        },
+        "observation_status": {
+          "enum": [
+            "invalid-configuration",
+            "invalid-ref",
+            "invalid-commit",
+            "invalid-source-path",
+            "fetch-failed",
+            "fetch-timeout",
+            "requested-object-missing",
+            "unresolved",
+            "not-a-commit",
+            "source-missing"
+          ]
+        }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_class",
+        "source",
+        "upstream"
+      ],
+      "properties": {
+        "selected_class": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source": {
+          "$ref": "#/$defs/source_identity"
+        },
+        "upstream": {
+          "$ref": "#/$defs/upstream"
+        }
+      }
+    },
+    "source_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "role",
+        "bytes",
+        "sha256",
+        "imports"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "role": {
+          "enum": [
+            "strategy-root",
+            "transitive-local-source"
+          ]
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "source_closure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "root_path",
+        "complete",
+        "file_count",
+        "files",
+        "external_imports",
+        "missing_local_imports",
+        "merkle_root"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256-merkle-source-closure-v1"
+        },
+        "root_path": {
+          "const": "."
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_file"
+          },
+          "minItems": 1
+        },
+        "external_imports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "uniqueItems": true
+        },
+        "missing_local_imports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "uniqueItems": true
+        },
+        "merkle_root": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "obligation_id": {
+      "type": "string",
+      "pattern": "^obl-[a-z0-9-]+-[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "obligation_preimage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "normalized_semantics"
+      ],
+      "properties": {
+        "source": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "string",
+              "pattern": "^(@strategy|@semantic-contract|@source/.+)(?![\\s\\S])"
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 4,
+                  "maxItems": 4
+                }
+              ]
+            }
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "normalized_semantics": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/non_empty_string"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "obligation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "obligation_id",
+        "preimage"
+      ],
+      "properties": {
+        "obligation_id": {
+          "$ref": "#/$defs/obligation_id"
+        },
+        "preimage": {
+          "$ref": "#/$defs/obligation_preimage"
+        }
+      }
+    },
+    "obligation_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "semantic_owner",
+        "mapping",
+        "reachability",
+        "proof",
+        "preimage_version",
+        "obligations"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "ast-node",
+            "operator",
+            "call",
+            "callable",
+            "decision-outcome",
+            "mcdc-term",
+            "threshold-boundary",
+            "signal",
+            "tag",
+            "callback-action",
+            "callback-state-mutation",
+            "callback-exception",
+            "state-machine-edge",
+            "state-machine-two-edge-sequence",
+            "scheduler-transition",
+            "wallet-transition",
+            "order-transition",
+            "futures-path",
+            "protection",
+            "freqtrade-source",
+            "ir-node",
+            "source-closure"
+          ]
+        },
+        "semantic_owner": {
+          "enum": [
+            "nfi-strategy",
+            "freqtrade",
+            "freqtrade-and-exchange"
+          ]
+        },
+        "mapping": {
+          "enum": [
+            "generic-runtime",
+            "compiled-program",
+            "official-only-blocker",
+            "machine-proven-unreachable"
+          ]
+        },
+        "reachability": {
+          "enum": [
+            "reachable",
+            "machine-proven-unreachable"
+          ]
+        },
+        "proof": {
+          "enum": [
+            "source-and-compiler-inventory",
+            "pinned-contract-source",
+            "static-call-graph-no-path",
+            "typed-unsupported-construct"
+          ]
+        },
+        "preimage_version": {
+          "const": "semantic-obligation-preimage-v1"
+        },
+        "obligations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/obligation_record"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "line",
+        "column",
+        "end_line",
+        "end_column"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "obligation_id",
+        "message",
+        "source"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+(?![\\s\\S])"
+        },
+        "obligation_id": {
+          "$ref": "#/$defs/obligation_id"
+        },
+        "message": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/location"
+            }
+          ]
+        }
+      }
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_obligations",
+        "mapped_obligations",
+        "active_obligations",
+        "statically_witnessed_obligations",
+        "machine_proven_unreachable_obligations",
+        "generic_runtime_obligations",
+        "compiled_program_obligations",
+        "official_only_blocker_obligations",
+        "unknown_obligations",
+        "source_node_obligations",
+        "ast_node_obligations",
+        "operator_obligations",
+        "call_obligations",
+        "callable_obligations",
+        "ir_node_obligations",
+        "decision_outcomes",
+        "mcdc_terms",
+        "threshold_boundaries",
+        "signal_obligations",
+        "tag_obligations",
+        "callback_action_obligations",
+        "callback_state_mutation_obligations",
+        "callback_exception_obligations",
+        "state_machine_edges",
+        "state_machine_two_edge_sequences",
+        "scheduler_transitions",
+        "wallet_transitions",
+        "order_transitions",
+        "futures_paths",
+        "protection_obligations",
+        "historical_non_observation_exclusions",
+        "duplicate_obligation_ids",
+        "every_obligation_mapped_once",
+        "all_obligations_accounted",
+        "active_obligations_accounted",
+        "source_closure_complete",
+        "native_promotion"
+      ],
+      "properties": {
+        "total_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "mapped_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "active_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "statically_witnessed_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "machine_proven_unreachable_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "generic_runtime_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "compiled_program_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "official_only_blocker_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "unknown_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "source_node_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "ast_node_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "operator_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "call_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "callable_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "ir_node_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "decision_outcomes": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "mcdc_terms": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "threshold_boundaries": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "signal_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "tag_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "callback_action_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "callback_state_mutation_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "callback_exception_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "state_machine_edges": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "state_machine_two_edge_sequences": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "scheduler_transitions": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "wallet_transitions": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "order_transitions": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "futures_paths": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "protection_obligations": {
+          "$ref": "#/$defs/non_negative_integer"
+        },
+        "historical_non_observation_exclusions": {
+          "const": 0
+        },
+        "duplicate_obligation_ids": {
+          "const": 0
+        },
+        "every_obligation_mapped_once": {
+          "const": true
+        },
+        "all_obligations_accounted": {
+          "const": true
+        },
+        "active_obligations_accounted": {
+          "const": true
+        },
+        "source_closure_complete": {
+          "type": "boolean"
+        },
+        "native_promotion": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

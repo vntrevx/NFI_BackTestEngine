@@ -6,6 +6,9 @@ import argparse
 import ast
 import hashlib
 import json
+import os
+import stat
+import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Mapping, Sequence
@@ -13,7 +16,10 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from .canonical import read_json
+from jsonschema.exceptions import SchemaError
+from jsonschema.validators import validator_for
+
+from .canonical import loads_json_bytes, read_json
 from .errors import SpecValidationError
 from .fixture import sha256_file, validate_fixture
 from .specs import validate_regression_contract
@@ -38,6 +44,69 @@ def load_regression_contract(manifest_path: str | Path | None = None) -> tuple[d
     if not isinstance(document, dict):
         raise SpecValidationError("regression contract must be a JSON object")
     return document, label
+
+
+def reseal_regression_contract_repository_files(
+    contract_path: str | Path,
+    *,
+    repository_root: str | Path,
+    relative_paths: Sequence[str],
+) -> None:
+    """Atomically refresh selected repository identities from validated exact bytes."""
+    destination = Path(contract_path).absolute()
+    if destination.is_symlink() or not destination.is_file():
+        raise SpecValidationError("regression contract must be a regular non-symlink file")
+    document = read_json(destination)
+    if not isinstance(document, dict):
+        raise SpecValidationError("regression contract must be a JSON object")
+    validate_regression_contract(document)
+    if not relative_paths or len(relative_paths) != len(set(relative_paths)):
+        raise SpecValidationError("reseal paths must be non-empty and unique")
+    root = Path(repository_root).resolve()
+    records = document["repository_files"]
+    by_path = {record["path"]: record for record in records}
+    refreshed: dict[str, tuple[int, str]] = {}
+    for relative in relative_paths:
+        record = by_path.get(relative)
+        if record is None:
+            raise SpecValidationError(f"repository file is not sealed by the contract: {relative}")
+        target = _safe_repository_path(root, relative)
+        payload = target.read_bytes()
+        if record["kind"] == "schema":
+            schema = loads_json_bytes(payload)
+            if not isinstance(schema, dict):
+                raise SpecValidationError(f"sealed schema must be a JSON object: {relative}")
+            try:
+                validator_for(schema).check_schema(schema)
+            except SchemaError as exc:
+                raise SpecValidationError(f"sealed schema is invalid: {relative}") from exc
+        refreshed[relative] = (len(payload), hashlib.sha256(payload).hexdigest())
+    for relative, (size, digest) in refreshed.items():
+        by_path[relative]["bytes"] = size
+        by_path[relative]["sha256"] = digest
+    validate_regression_contract(document)
+    serialized = (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode()
+    original_mode = stat.S_IMODE(destination.stat().st_mode)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, original_mode)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(serialized)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+        if os.name == "posix":
+            directory_fd = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def verify_regression_contract(

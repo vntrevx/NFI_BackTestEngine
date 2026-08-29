@@ -1,5 +1,7 @@
 //! Canonical JSON parsing and result serialization.
 
+use std::io::{Error, ErrorKind};
+
 use crate::domain::{SimulationInput, SimulationResult};
 
 /// Parse one simulator document for both native frontends.
@@ -24,5 +26,11 @@ pub fn parse_simulation_input(encoded: &[u8]) -> Result<SimulationInput, serde_j
 pub fn serialize_simulation_result(
     result: &SimulationResult,
 ) -> Result<Vec<u8>, serde_json::Error> {
+    if !result.numbers_are_finite() {
+        return Err(serde_json::Error::io(Error::new(
+            ErrorKind::InvalidData,
+            "simulation result contains a non-finite number",
+        )));
+    }
     serde_json::to_vec(result)
 }

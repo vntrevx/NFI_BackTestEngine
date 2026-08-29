@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "package_version": "1.6.1",
+  "package_version": "1.7.0",
   "release_kind": "product",
   "combined_full_x7_certified": false,
   "distribution_policy": {
@@ -8,7 +8,8 @@
     "byte_identical_rc_stable": true,
     "sha256_manifest_required": true,
     "required_ci_commit_match": true,
-    "three_os_exact_fixture_evidence": true
+    "supported_platform_exact_fixture_evidence": true,
+    "supported_platform_systems": ["darwin", "linux"]
   },
   "certification_boundary": {
     "latest_same_candidate_spot_certificate": false,

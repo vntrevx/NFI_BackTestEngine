@@ -20,6 +20,8 @@
     "active_source_boundaries",
     "fixture_coverage",
     "compilation_errors",
+    "obligation_registry",
+    "blockers",
     "summary",
     "fingerprint"
   ],
@@ -103,6 +105,27 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "obligation_registry": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "fingerprint"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "semantic-obligation-registry-v1"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocker"
       }
     },
     "summary": {
@@ -552,6 +575,37 @@
         }
       }
     },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "obligation_id",
+        "message",
+        "source"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "obligation_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "message": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object"
+            }
+          ]
+        }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -563,6 +617,9 @@
         "source_bound_callback_count",
         "route_count",
         "exact_source_fixture_count",
+        "obligation_count",
+        "unknown_obligation_count",
+        "native_promotion",
         "inventory_complete"
       ],
       "properties": {
@@ -593,6 +650,17 @@
         "exact_source_fixture_count": {
           "type": "integer",
           "minimum": 0
+        },
+        "obligation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown_obligation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "native_promotion": {
+          "type": "boolean"
         },
         "inventory_complete": {
           "type": "boolean"

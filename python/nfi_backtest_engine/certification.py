@@ -11,11 +11,12 @@ from .certification_parts.gates import _full_state_equal
 from .certification_parts.packaging import (
     _artifact_record,
     _bundle_files,
-    _write_reproducible_zip,
+    _write_certification_publication,
 )
 from .errors import BenchmarkError
 from .fixture import sha256_file
 from .performance_gate import PerformanceLevel, run_performance_gate
+from .portable_paths import validate_new_output_path
 from .product_contract import (
     CERTIFICATION_SPREAD_THRESHOLD,
     DEFAULT_CERTIFICATION_REPETITIONS,
@@ -26,6 +27,8 @@ from .product_contract import (
 from .specs import CERTIFICATION_REPORT_SCHEMA, validate_schema
 
 CERTIFICATION_REPORT_VERSION = "1.1.0"
+
+
 def run_certification(
     manifest_path: str | Path,
     output_directory: str | Path,
@@ -50,10 +53,11 @@ def run_certification(
     if not probe_manifests:
         raise BenchmarkError("release certification requires at least one full-state probe")
     manifest = Path(manifest_path).resolve()
-    output = Path(output_directory).resolve()
-    if output.exists() and any(output.iterdir()):
-        raise BenchmarkError(f"certification output directory must be empty: {output}")
-    output.mkdir(parents=True, exist_ok=True)
+    try:
+        output = validate_new_output_path(output_directory)
+    except ValueError as exc:
+        raise BenchmarkError(f"certification output is not publishable: {exc}") from exc
+    output.mkdir(parents=True, exist_ok=False)
 
     performance_directory = output / "measurements"
     performance = run_performance_gate(
@@ -145,30 +149,14 @@ def run_certification(
     write_json(report_path, report)
 
     included = _bundle_files(output)
-    bundle_manifest = {
-        "schema_version": "1.0.0",
-        "fixture_id": performance["fixture_id"],
-        "files": [
-            _artifact_record(path, relative_to=output)
-            for path in included
-        ],
-    }
-    bundle_manifest_path = output / "bundle-manifest.json"
-    write_json(bundle_manifest_path, bundle_manifest)
-    included.append(bundle_manifest_path)
-
-    archive_path = output / "certification-bundle.zip"
-    _write_reproducible_zip(archive_path, output, included)
-    bundle_record = {
-        "schema_version": "1.0.0",
-        "fixture_id": performance["fixture_id"],
+    bundle_record = _write_certification_publication(
+        output,
+        included,
+        fixture_id=performance["fixture_id"],
         # The bundle publishes the combined verdict. The representative performance
         # fixture can pass while a branch-reaching full-state probe fails.
-        "release_certified": release_certified,
-        "archive": _artifact_record(archive_path, relative_to=output),
-        "manifest": _artifact_record(bundle_manifest_path, relative_to=output),
-    }
-    write_json(output / "bundle.json", bundle_record)
+        release_certified=release_certified,
+    )
     return {
         **report,
         "bundle": bundle_record,

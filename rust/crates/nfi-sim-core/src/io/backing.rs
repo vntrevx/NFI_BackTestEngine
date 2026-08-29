@@ -11,7 +11,24 @@ use super::{
     CALLBACK_FEATURE_LOOKBACK_ROWS, FILE_BACKED_FEATURE_BYTES, FILE_BACKED_READ_BUFFER_BYTES,
     FILE_BACKED_ROW_HEADER_BYTES,
 };
-use crate::domain::{Candle, EntrySignal, ExitSignal};
+use crate::domain::{Candle, EntrySignal, ExitSignal, SimError};
+
+#[derive(Clone, Copy)]
+struct SpoolFailure {
+    operation: &'static str,
+    row: usize,
+    kind: &'static str,
+}
+
+impl SpoolFailure {
+    const fn into_error(self) -> SimError {
+        SimError::SpoolIo {
+            operation: self.operation,
+            row: self.row,
+            kind: self.kind,
+        }
+    }
+}
 
 struct FileBackedState {
     file: File,
@@ -33,6 +50,9 @@ pub struct FileBackedRows {
     feature_count: usize,
     tags: Vec<String>,
     entry_indices: OnceLock<Vec<usize>>,
+    failure: RefCell<Option<SpoolFailure>>,
+    #[cfg(test)]
+    injected_failure: RefCell<Option<SpoolFailure>>,
 }
 
 impl fmt::Debug for FileBackedRows {
@@ -75,7 +95,10 @@ impl FileBackedRows {
             std::io::Error::new(std::io::ErrorKind::InvalidData, "pair spool is too large")
         })?;
         let actual_bytes = file.seek(SeekFrom::End(0))?;
-        if actual_bytes != u64::try_from(expected_bytes).unwrap_or(u64::MAX) {
+        let expected_bytes_u64 = u64::try_from(expected_bytes).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "pair spool is too large")
+        })?;
+        if actual_bytes != expected_bytes_u64 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!(
@@ -100,6 +123,9 @@ impl FileBackedRows {
             feature_count,
             tags,
             entry_indices: OnceLock::new(),
+            failure: RefCell::new(None),
+            #[cfg(test)]
+            injected_failure: RefCell::new(None),
         }))
     }
 
@@ -113,15 +139,26 @@ impl FileBackedRows {
         self.row_count == 0
     }
 
-    fn with_row<T>(&self, index: usize, read: impl FnOnce(&[u8]) -> T) -> Option<T> {
+    fn with_row<T>(
+        &self,
+        index: usize,
+        read: impl FnOnce(&[u8]) -> T,
+    ) -> Result<Option<T>, SimError> {
         if index >= self.row_count {
-            return None;
+            return Ok(None);
+        }
+        #[cfg(test)]
+        if let Some(failure) = self.injected_failure.borrow_mut().take() {
+            *self.failure.borrow_mut() = Some(failure);
+            return Err(failure.into_error());
         }
         let mut state = self.state.borrow_mut();
         let window_end = state
             .window_start
             .checked_add(state.window_row_count)
-            .expect("validated read window remains representable");
+            .ok_or(SimError::ExactArithmetic {
+                operation: "spool-window-end",
+            })?;
         if index < state.window_start || index >= window_end {
             let rows_per_window = state.window.len() / self.row_stride;
             // Include the callback-visible lookback in the same window as the
@@ -135,28 +172,63 @@ impl FileBackedRows {
             let file_offset = window_start
                 .checked_mul(self.row_stride)
                 .and_then(|value| u64::try_from(value).ok())
-                .expect("validated pair spool offset remains representable");
-            let window_bytes = window_row_count
-                .checked_mul(self.row_stride)
-                .expect("validated pair read window remains representable");
+                .ok_or(SimError::ExactArithmetic {
+                    operation: "spool-file-offset",
+                })?;
+            let window_bytes =
+                window_row_count
+                    .checked_mul(self.row_stride)
+                    .ok_or(SimError::ExactArithmetic {
+                        operation: "spool-window-size",
+                    })?;
             {
                 let FileBackedState { file, window, .. } = &mut *state;
-                file.seek(SeekFrom::Start(file_offset))
-                    .and_then(|_| file.read_exact(&mut window[..window_bytes]))
-                    .expect("private verified pair spool remains readable");
+                if let Err(error) = file.seek(SeekFrom::Start(file_offset)) {
+                    return Err(self.record_io_failure("seek", index, &error));
+                }
+                if let Err(error) = file.read_exact(&mut window[..window_bytes]) {
+                    return Err(self.record_io_failure("read", index, &error));
+                }
             }
             state.window_start = window_start;
             state.window_row_count = window_row_count;
         }
         let row_offset = (index - state.window_start)
             .checked_mul(self.row_stride)
-            .expect("validated pair row offset remains representable");
-        Some(read(
-            &state.window[row_offset..row_offset + self.row_stride],
-        ))
+            .ok_or(SimError::ExactArithmetic {
+                operation: "spool-row-offset",
+            })?;
+        let row_end = row_offset
+            .checked_add(self.row_stride)
+            .ok_or(SimError::ExactArithmetic {
+                operation: "spool-row-end",
+            })?;
+        Ok(Some(read(&state.window[row_offset..row_end])))
     }
 
-    pub(super) fn candle(&self, index: usize) -> Option<Candle> {
+    fn record_io_failure(
+        &self,
+        operation: &'static str,
+        row: usize,
+        error: &std::io::Error,
+    ) -> SimError {
+        let failure = SpoolFailure {
+            operation,
+            row,
+            kind: io_error_kind(error.kind()),
+        };
+        let mut recorded = self.failure.borrow_mut();
+        if recorded.is_none() {
+            *recorded = Some(failure);
+        }
+        failure.into_error()
+    }
+
+    pub(crate) fn failure(&self) -> Option<SimError> {
+        self.failure.borrow().map(SpoolFailure::into_error)
+    }
+
+    pub(super) fn candle(&self, index: usize) -> Result<Option<Candle>, SimError> {
         self.with_row(index, |row| {
             let flags = row[72];
             let entry_tag = self.tag(read_u32(row, 73));
@@ -193,23 +265,28 @@ impl FileBackedRows {
         })
     }
 
-    pub(crate) fn timestamp_ms(&self, index: usize) -> Option<i64> {
+    pub(crate) fn timestamp_ms(&self, index: usize) -> Result<Option<i64>, SimError> {
         self.with_row(index, |row| read_i64(row, 0))
     }
 
-    pub(super) fn has_entry_signal(&self, index: usize) -> Option<bool> {
+    pub(super) fn has_entry_signal(&self, index: usize) -> Result<Option<bool>, SimError> {
         self.with_row(index, |row| {
             let flags = row[72];
             flag(flags, 3) || flag(flags, 4)
         })
     }
 
-    pub(crate) fn next_entry_index(&self, start: usize) -> Option<usize> {
+    pub(crate) fn next_entry_index(&self, start: usize) -> Result<Option<usize>, SimError> {
         if let Some(indices) = self.entry_indices.get() {
             let offset = indices.partition_point(|index| *index < start);
-            return indices.get(offset).copied();
+            return Ok(indices.get(offset).copied());
         }
-        (start..self.row_count).find(|index| self.has_entry_signal(*index) == Some(true))
+        for index in start..self.row_count {
+            if self.has_entry_signal(index)? == Some(true) {
+                return Ok(Some(index));
+            }
+        }
+        Ok(None)
     }
 
     pub(crate) fn install_entry_indices(&self, indices: Vec<usize>) {
@@ -219,9 +296,13 @@ impl FileBackedRows {
         let _ = self.entry_indices.set(indices);
     }
 
-    pub(crate) fn feature_number(&self, row_index: usize, feature_index: usize) -> Option<f64> {
+    pub(crate) fn feature_number(
+        &self,
+        row_index: usize,
+        feature_index: usize,
+    ) -> Result<Option<f64>, SimError> {
         if feature_index >= self.feature_count {
-            return None;
+            return Ok(None);
         }
         self.with_row(row_index, |row| {
             read_f64(
@@ -231,9 +312,13 @@ impl FileBackedRows {
         })
     }
 
-    pub(super) fn feature_boolean(&self, row_index: usize, feature_index: usize) -> Option<bool> {
+    pub(super) fn feature_boolean(
+        &self,
+        row_index: usize,
+        feature_index: usize,
+    ) -> Result<Option<bool>, SimError> {
         self.feature_number(row_index, feature_index)
-            .map(|value| value != 0.0)
+            .map(|value| value.map(|number| number != 0.0))
     }
 
     fn tag(&self, encoded: u32) -> Option<String> {
@@ -242,6 +327,15 @@ impl FileBackedRows {
             .and_then(|index| usize::try_from(index).ok())
             .and_then(|index| self.tags.get(index))
             .cloned()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_failure(&self, operation: &'static str, row: usize, kind: &'static str) {
+        *self.injected_failure.borrow_mut() = Some(SpoolFailure {
+            operation,
+            row,
+            kind,
+        });
     }
 
     #[cfg(test)]
@@ -255,30 +349,39 @@ impl FileBackedRows {
     }
 }
 
+const fn io_error_kind(kind: std::io::ErrorKind) -> &'static str {
+    match kind {
+        std::io::ErrorKind::UnexpectedEof => "unexpected-eof",
+        std::io::ErrorKind::PermissionDenied => "permission-denied",
+        std::io::ErrorKind::NotFound => "not-found",
+        std::io::ErrorKind::InvalidInput => "invalid-input",
+        std::io::ErrorKind::InvalidData => "invalid-data",
+        std::io::ErrorKind::Interrupted => "interrupted",
+        std::io::ErrorKind::WouldBlock => "would-block",
+        std::io::ErrorKind::TimedOut => "timed-out",
+        std::io::ErrorKind::StorageFull => "storage-full",
+        _ => "other",
+    }
+}
+
 const fn flag(flags: u8, bit: u8) -> bool {
     flags & (1 << bit) != 0
 }
 
 fn read_i64(row: &[u8], offset: usize) -> i64 {
-    i64::from_le_bytes(
-        row[offset..offset + 8]
-            .try_into()
-            .expect("validated row scalar width"),
-    )
+    let mut encoded = [0_u8; 8];
+    encoded.copy_from_slice(&row[offset..offset + 8]);
+    i64::from_le_bytes(encoded)
 }
 
 fn read_u32(row: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes(
-        row[offset..offset + 4]
-            .try_into()
-            .expect("validated row scalar width"),
-    )
+    let mut encoded = [0_u8; 4];
+    encoded.copy_from_slice(&row[offset..offset + 4]);
+    u32::from_le_bytes(encoded)
 }
 
 fn read_f64(row: &[u8], offset: usize) -> f64 {
-    f64::from_bits(u64::from_le_bytes(
-        row[offset..offset + 8]
-            .try_into()
-            .expect("validated row scalar width"),
-    ))
+    let mut encoded = [0_u8; 8];
+    encoded.copy_from_slice(&row[offset..offset + 8]);
+    f64::from_bits(u64::from_le_bytes(encoded))
 }

@@ -15,13 +15,15 @@ mod calculations;
 mod callbacks;
 #[cfg(test)]
 use calculations::{
-    ceil_step, entry_sizing, exact_rational, fee_close, fee_open, floor_step, ft_precise_division,
-    pairwise_sum, precise_product, precise_product_quotient, python_float_sum, round_eight,
+    ceil_step, checked_float_product, checked_float_sum, checked_pairwise_sum,
+    checked_python_float_sum, entry_sizing, exact_rational, fee_close, fee_open, floor_step,
+    ft_precise_division, pairwise_sum, precise_product, precise_product_quotient, round_eight,
     round_step,
 };
 mod domain;
 mod execution_contract;
 pub use execution_contract::contract_json as execution_contract_json;
+mod execution_observer;
 mod io;
 #[cfg(test)]
 use io::CALLBACK_FEATURE_LOOKBACK_ROWS;
@@ -36,6 +38,7 @@ mod profiling;
 mod scheduler;
 pub use scheduler::contract_json as scheduler_contract_json;
 mod scalar_vm;
+mod scheduler_observer;
 mod state_machine_vm;
 mod validation;
 #[cfg(test)]
@@ -58,10 +61,10 @@ mod execution;
 pub use domain::*;
 #[cfg(test)]
 use execution::{
-    adjustment_minimum_pair_stake, enter_trade, evaluate_confirm_program,
+    adjustment_minimum_pair_stake, close_trade, enter_trade, evaluate_confirm_program,
     evaluate_exit_confirm_program, evaluate_stake_program, evaluate_state_machine_adjustment,
-    evaluate_state_machine_exit, exit_decision, minimum_pair_stake, pair_price_step, ConfirmInputs,
-    EntryRequest, EntryStake, StakeInputs,
+    evaluate_state_machine_exit, exit_decision, minimum_pair_stake, pair_price_step,
+    replay_spot_profit, ConfirmInputs, EntryRequest, EntryStake, StakeInputs,
 };
 #[cfg(test)]
 use validation::nfi_managed_short_route_supports_tags;
@@ -101,7 +104,7 @@ pub const fn simulator_available() -> bool {
 /// validated immutable pair array. Public input cannot construct that state.
 #[allow(clippy::too_many_lines)]
 pub fn simulate(input: &SimulationInput) -> Result<SimulationResult, SimError> {
-    simulate_internal(input, None).map(|(result, _)| result)
+    simulate_internal(input, None, None, None).map(|(result, _)| result)
 }
 
 /// Run the simulator and stream one compact state projection after each
@@ -123,7 +126,23 @@ pub fn simulate_with_observer<F>(
 where
     F: FnMut(&SimulationEvent),
 {
-    simulate_internal(input, Some(&mut observer)).map(|(result, _)| result)
+    simulate_internal(input, Some(&mut observer), None, None).map(|(result, _)| result)
+}
+
+/// Run the simulator and stream exact ordered portfolio mutation boundaries,
+/// including the separate final force-exit pass.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_with_portfolio_observer<F>(
+    input: &SimulationInput,
+    mut observer: F,
+) -> Result<SimulationResult, SimError>
+where
+    F: FnMut(&PortfolioBoundaryEvent),
+{
+    simulate_internal(input, None, Some(&mut observer), None).map(|(result, _)| result)
 }
 
 /// Run the simulator and return aggregate phase timings beside the result.
@@ -134,7 +153,40 @@ where
 pub fn simulate_profiled(
     input: &SimulationInput,
 ) -> Result<(SimulationResult, SimulationProfile), SimError> {
-    simulate_internal(input, None)
+    simulate_internal(input, None, None, None)
+}
+
+/// Run the production simulator and stream direct execution boundaries.
+///
+/// The observer is additive and source ordered. Ordinary simulation does not
+/// build or serialize these events.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_with_execution_observer<F>(
+    input: &SimulationInput,
+    mut observer: F,
+) -> Result<SimulationResult, SimError>
+where
+    F: FnMut(&ExecutionBoundaryEvent),
+{
+    simulate_internal(input, None, None, Some(&mut observer)).map(|(result, _)| result)
+}
+
+/// Run the production simulator with direct execution boundaries and aggregate phase timings.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_with_execution_observer_profiled<F>(
+    input: &SimulationInput,
+    mut observer: F,
+) -> Result<(SimulationResult, SimulationProfile), SimError>
+where
+    F: FnMut(&ExecutionBoundaryEvent),
+{
+    simulate_internal(input, None, None, Some(&mut observer))
 }
 
 /// Run with an observer and return aggregate phase timings.
@@ -154,7 +206,67 @@ pub fn simulate_with_observer_profiled<F>(
 where
     F: FnMut(&SimulationEvent),
 {
-    simulate_internal(input, Some(&mut observer))
+    simulate_internal(input, Some(&mut observer), None, None)
+}
+
+/// Run with the portfolio observer and return aggregate phase timings.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_with_portfolio_observer_profiled<F>(
+    input: &SimulationInput,
+    mut observer: F,
+) -> Result<(SimulationResult, SimulationProfile), SimError>
+where
+    F: FnMut(&PortfolioBoundaryEvent),
+{
+    simulate_internal(input, None, Some(&mut observer), None)
+}
+
+/// Run both ordered production observers in one simulation.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_with_observers<F, P>(
+    input: &SimulationInput,
+    mut observer: F,
+    mut portfolio_observer: P,
+) -> Result<SimulationResult, SimError>
+where
+    F: FnMut(&SimulationEvent),
+    P: FnMut(&PortfolioBoundaryEvent),
+{
+    simulate_internal(
+        input,
+        Some(&mut observer),
+        Some(&mut portfolio_observer),
+        None,
+    )
+    .map(|(result, _)| result)
+}
+
+/// Run both ordered production observers with aggregate phase timings.
+///
+/// # Errors
+///
+/// Returns the same validation and semantic errors as [`simulate`].
+pub fn simulate_with_observers_profiled<F, P>(
+    input: &SimulationInput,
+    mut observer: F,
+    mut portfolio_observer: P,
+) -> Result<(SimulationResult, SimulationProfile), SimError>
+where
+    F: FnMut(&SimulationEvent),
+    P: FnMut(&PortfolioBoundaryEvent),
+{
+    simulate_internal(
+        input,
+        Some(&mut observer),
+        Some(&mut portfolio_observer),
+        None,
+    )
 }
 
 #[cfg(test)]

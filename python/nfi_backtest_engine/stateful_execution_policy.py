@@ -29,8 +29,29 @@ def build_native_execution_policy(
     hot_ir: dict[str, Any],
     *,
     state_machine_program: dict[str, Any] | None,
+    executable_callback_program: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Describe and validate the Native primary lane without strategy identity gates."""
+
+    if executable_callback_program is not None:
+        return _finalize_policy(
+            {
+                "schema_version": STATEFUL_EXECUTION_POLICY_VERSION,
+                "adapter_lane": "generic-executable-callback",
+                "transport": GENERIC_VECTOR_TRANSPORT,
+                "primary": "source-compiled-executable-callback-program",
+                "programs": [
+                    {
+                        "path": "executable_callback.program",
+                        "schema_version": executable_callback_program.get("schema_version"),
+                        "execution_mode": "primary",
+                    }
+                ],
+                "legacy_shadow": _shadow_contract(0),
+                "official_fallback": _official_fallback_contract(),
+                "blockers": [],
+            }
+        )
 
     if state_machine_program is not None and not hot_ir.get("hot_loop_ready"):
         return _finalize_policy(

@@ -6,16 +6,60 @@ from pathlib import Path
 
 import pytest
 from nfi_backtest_engine import cli
-from nfi_backtest_engine.canonical import write_json
+from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import SpecValidationError
 from nfi_backtest_engine.regression_contract import (
     load_regression_contract,
     parse_release_asset_roots,
+    reseal_regression_contract_repository_files,
     verify_regression_contract,
 )
 from nfi_backtest_engine.specs import validate_regression_contract
 
 ROOT = Path(__file__).parents[1]
+
+
+def test_bundled_contract_seals_current_fixture_schema_identity() -> None:
+    manifest, _ = load_regression_contract()
+    records = {
+        item["path"]: item
+        for item in manifest["repository_files"]
+        if Path(item["path"]).name.startswith("benchmark-fixture")
+    }
+
+    for relative, record in records.items():
+        payload = (ROOT / relative).read_bytes()
+        assert {"bytes": record["bytes"], "sha256": record["sha256"]} == {
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
+
+def test_regression_contract_reseal_updates_exact_identity_atomically(tmp_path: Path) -> None:
+    manifest, _ = load_regression_contract()
+    relative = "python/nfi_backtest_engine/schemas/benchmark-fixture.schema.json"
+    record = next(item for item in manifest["repository_files"] if item["path"] == relative)
+    record["bytes"] = 1
+    record["sha256"] = "0" * 64
+    contract = tmp_path / "contract.json"
+    write_json(contract, manifest)
+    contract.chmod(0o640)
+
+    reseal_regression_contract_repository_files(
+        contract,
+        repository_root=ROOT,
+        relative_paths=[relative],
+    )
+
+    refreshed = read_json(contract)
+    refreshed_record = next(
+        item for item in refreshed["repository_files"] if item["path"] == relative
+    )
+    payload = (ROOT / relative).read_bytes()
+    assert refreshed_record["bytes"] == len(payload)
+    assert refreshed_record["sha256"] == hashlib.sha256(payload).hexdigest()
+    assert contract.stat().st_mode & 0o777 == 0o640
+    assert not list(tmp_path.glob(".contract.json.*.tmp"))
 
 
 def test_bundled_v11_contract_verifies_all_repository_evidence_offline() -> None:
@@ -28,7 +72,7 @@ def test_bundled_v11_contract_verifies_all_repository_evidence_offline() -> None
         "repository_files": 12,
         "full_state_fixtures": 9,
         "public_command_paths": 64,
-        "stable_error_codes": 48,
+        "stable_error_codes": 45,
         "behavior_contracts": 7,
         "release_assets": 0,
         "release_certificates": 0,

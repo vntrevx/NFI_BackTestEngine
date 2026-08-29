@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use crate::calculations::{fee_close, fee_open};
-use crate::domain::{ConfirmProgram, PortfolioConfig};
+use crate::domain::{ConfirmProgram, OrderType, PortfolioConfig};
 use crate::nfi::nfi_profit_snapshot;
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{integer_value, number_value};
@@ -24,6 +24,7 @@ pub(crate) struct ConfirmInputs<'a> {
     pub(crate) open_trades: &'a [OpenTrade],
     pub(crate) max_open_trades: usize,
     pub(crate) is_futures: bool,
+    pub(crate) order_type: OrderType,
 }
 
 pub(crate) enum ConfirmControl {
@@ -76,7 +77,10 @@ pub(crate) fn evaluate_confirm_program(
     );
     let mut variables = BTreeMap::from([
         ("pair".to_owned(), Value::String(inputs.pair.to_owned())),
-        ("order_type".to_owned(), Value::String("limit".to_owned())),
+        (
+            "order_type".to_owned(),
+            Value::String(inputs.order_type.as_str().to_owned()),
+        ),
         ("amount".to_owned(), number_value(inputs.amount)?),
         ("rate".to_owned(), number_value(inputs.rate)?),
         ("time_in_force".to_owned(), Value::String("gtc".to_owned())),
@@ -161,7 +165,10 @@ pub(crate) fn evaluate_exit_confirm_program(
     let mut variables = BTreeMap::from([
         ("pair".to_owned(), Value::String(trade.pair.clone())),
         ("trade".to_owned(), trade_value),
-        ("order_type".to_owned(), Value::String("limit".to_owned())),
+        (
+            "order_type".to_owned(),
+            Value::String(config.exit_order_type.as_str().to_owned()),
+        ),
         ("amount".to_owned(), number_value(trade.amount)?),
         ("rate".to_owned(), number_value(rate)?),
         ("time_in_force".to_owned(), Value::String("gtc".to_owned())),

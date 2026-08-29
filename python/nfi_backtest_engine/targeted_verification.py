@@ -52,6 +52,12 @@ def verify_targeted_strategy(
     output.mkdir(parents=True, exist_ok=True)
     difference = _document(strategy_diff, "strategy diff")
     compatibility = _document(compatibility_report, "compatibility report")
+    compatibility_mode = compatibility.get("trading_mode")
+    if compatibility_mode is not None and compatibility_mode != trading_mode:
+        raise SpecValidationError(
+            "compatibility report trading mode conflicts with requested trading mode"
+        )
+    mode_bound_compatibility = {**compatibility, "trading_mode": trading_mode}
     plan = plan_targeted_verification(
         difference,
         fixtures_root,
@@ -174,7 +180,7 @@ def verify_targeted_strategy(
             "full_state_exact": bool(runs) and all(run["full_state_exact"] for run in runs),
         }
     qualification = qualify_compatibility(
-        compatibility,
+        mode_bound_compatibility,
         difference,
         branch_proof=proof,
         output_path=output / "qualification.json",
@@ -188,6 +194,7 @@ def verify_targeted_strategy(
     report = {
         "schema_version": "1.0.0",
         "trading_mode": trading_mode,
+        "upstream_commit": upstream_commit,
         "source_sha256": compatibility.get("source", {}).get("sha256"),
         "plan": {
             "status": plan["status"],

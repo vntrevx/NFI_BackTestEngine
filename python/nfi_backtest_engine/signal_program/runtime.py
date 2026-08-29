@@ -300,6 +300,8 @@ def _unary(name: str, value: Any) -> Any:
 
 
 def _cast(value: Any, target: str) -> Any:
+    if target == "string-array":
+        return pd.array(value, dtype="string")
     dtype = {"bool": bool, "float": float, "int": int, "array": None}.get(target)
     if target == "array":
         return np.asarray(value)

@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from nfi_backtest_engine import docker_resources, docker_runtime
+from nfi_backtest_engine import docker_resources, docker_runtime, doctor
 from nfi_backtest_engine.docker_resources import (
     GIB,
     derive_docker_policy,
@@ -17,6 +17,7 @@ from nfi_backtest_engine.docker_runtime import (
     cleanup_stopped_managed_containers,
     docker_root_with_bind_owner_arguments,
     managed_docker_run,
+    validate_managed_run_prefix,
 )
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 
@@ -43,16 +44,69 @@ def test_private_image_executable_drops_to_dynamic_bind_owner(
 
     assert arguments == [
         "--user",
-        "0:0",
+        f"{owner.st_uid}:{owner.st_gid}",
         "--env",
         f"NFI_BIND_UID={owner.st_uid}",
         "--env",
         f"NFI_BIND_GID={owner.st_gid}",
     ]
-    assert 'command -v "$1"' in BIND_OWNER_EXECUTABLE_FUNCTION
-    assert 'getent passwd "${nfi_image_uid}"' in BIND_OWNER_EXECUTABLE_FUNCTION
-    assert "--reuid=\"${NFI_BIND_UID}\"" in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "/usr/local/bin/python -m freqtrade" in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert 'id -u' in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "setpriv" not in BIND_OWNER_EXECUTABLE_FUNCTION
     assert "ftuser" not in BIND_OWNER_EXECUTABLE_FUNCTION
+
+
+def test_doctor_drops_ambient_docker_selection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    environments: list[dict[str, str]] = []
+
+    def fake_run(command: list[str], **kwargs):
+        environments.append(kwargs["env"])
+        return subprocess.CompletedProcess(command, 1, "", "unavailable")
+
+    monkeypatch.setenv("DOCKER_HOST", "tcp://attacker.invalid:2375")
+    monkeypatch.setenv("DOCKER_CONTEXT", "attacker")
+    monkeypatch.setattr(doctor.shutil, "which", lambda _name: "docker")
+    monkeypatch.setattr(doctor, "ensure_docker_config", lambda: tmp_path)
+    monkeypatch.setattr(doctor.subprocess, "run", fake_run)
+    doctor._docker_checks()
+
+    assert environments
+    assert all("DOCKER_HOST" not in item for item in environments)
+    assert all("DOCKER_CONTEXT" not in item for item in environments)
+
+
+def test_daemon_inspection_drops_ambient_docker_selection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    environments: list[dict[str, str]] = []
+    payload = {
+        "ServerVersion": "29.7.1",
+        "OperatingSystem": "Linux",
+        "OSType": "linux",
+        "Architecture": "x86_64",
+        "NCPU": 4,
+        "MemTotal": 8 * GIB,
+        "MemoryLimit": True,
+        "SwapLimit": True,
+    }
+
+    def fake_run(command: list[str], **kwargs):
+        environments.append(kwargs["env"])
+        stdout = "" if "stats" in command else json.dumps(payload)
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    monkeypatch.setenv("DOCKER_HOST", "tcp://attacker.invalid:2375")
+    monkeypatch.setenv("DOCKER_CONTEXT", "attacker")
+    monkeypatch.setattr(docker_resources.subprocess, "run", fake_run)
+    inspect_docker_daemon(docker_config=tmp_path)
+
+    assert environments
+    assert all("DOCKER_HOST" not in item for item in environments)
+    assert all("DOCKER_CONTEXT" not in item for item in environments)
 
 
 def test_daemon_inspection_reads_resources_visible_inside_docker(
@@ -167,6 +221,69 @@ def test_active_container_usage_is_subtracted_without_stopping_it() -> None:
         derive_docker_policy(daemon)
 
 
+def _complete_managed_prefix() -> list[str]:
+    return [
+        "docker",
+        "--config",
+        "/trusted-config",
+        "run",
+        "--rm",
+        "--cidfile",
+        "/trusted.cid",
+        "--label",
+        "io.nfi-backtest-engine.managed=true",
+        "--label",
+        "io.nfi-backtest-engine.role=reference",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,nodev",
+        "--tmpfs",
+        "/nfi-deps:rw,exec,nosuid,nodev",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges=true",
+        "--pids-limit",
+        "512",
+        "--ulimit",
+        "nofile=4096:4096",
+        "--memory",
+        str(8 * GIB),
+        "--memory-swap",
+        str(8 * GIB),
+    ]
+
+
+@pytest.mark.parametrize(
+    "injected",
+    [
+        ["--volume", "/:/host-root"],
+        ["--privileged=true"],
+        ["--memory=0"],
+        ["--network", "none", "--network", "host"],
+        ["--user", "1000:1000", "--user", "0:0"],
+        ["--cap-drop", "ALL"],
+        ["--security-opt", "no-new-privileges=true"],
+        ["--pids-limit", "512"],
+        ["--memory", str(8 * GIB)],
+        ["--memory-swap", str(8 * GIB)],
+        ["--mount", "type=bind,source=/,target=/host-root"],
+        ["--tmpfs", "/tmp:rw,noexec,nosuid,nodev"],
+    ],
+)
+def test_managed_prefix_rejects_unknown_duplicate_or_weakened_options(
+    injected: list[str],
+) -> None:
+    with pytest.raises(BenchmarkError, match="sandbox"):
+        validate_managed_run_prefix([*_complete_managed_prefix(), *injected])
+
+
+def test_bind_owner_wrapper_has_no_pinned_home_traversal_dependency() -> None:
+    assert "/home/ftuser" not in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "getent passwd" not in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "nfi_image_home" not in BIND_OWNER_EXECUTABLE_FUNCTION
+
+
 def test_managed_prefix_labels_limits_and_reclaims_the_exact_container(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -202,6 +319,16 @@ def test_managed_prefix_labels_limits_and_reclaims_the_exact_container(
         prefix = lease["command_prefix"]
         assert "--cidfile" in prefix
         assert "io.nfi-backtest-engine.managed=true" in prefix
+        assert "--read-only" in prefix
+        assert prefix[prefix.index("--tmpfs") + 1].startswith(
+            "/tmp:rw,noexec,nosuid,nodev"
+        )
+        assert prefix[prefix.index("--cap-drop") + 1] == "ALL"
+        assert prefix[prefix.index("--security-opt") + 1] == (
+            "no-new-privileges=true"
+        )
+        assert prefix[prefix.index("--pids-limit") + 1] == "512"
+        assert prefix[prefix.index("--ulimit") + 1] == "nofile=4096:4096"
         assert "io.nfi-backtest-engine.role=reference" in prefix
         assert prefix[prefix.index("--memory") + 1] == str(
             lease["policy"]["container_memory_limit_bytes"]

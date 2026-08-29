@@ -40,6 +40,7 @@ def _inputs() -> tuple[dict, dict, dict, dict, dict, dict]:
     qualifications = {
         mode: {
             "schema_version": "1.0.0",
+            "trading_mode": mode,
             "strategy_sha256": source_sha256,
             "verification_state": "quick_verified",
             "blockers": [],
@@ -82,6 +83,26 @@ def test_canary_seals_four_identities_and_both_modes() -> None:
         "spot",
         "futures",
     ]
+
+
+def test_canary_rejects_crossed_mode_qualifications() -> None:
+    identity, difference, reports, targeted, qualifications, profile = _inputs()
+    qualifications["spot"], qualifications["futures"] = (
+        qualifications["futures"],
+        qualifications["spot"],
+    )
+    targeted["spot"]["qualification"] = qualifications["spot"]
+    targeted["futures"]["qualification"] = qualifications["futures"]
+
+    with pytest.raises(ValueError, match="different trading mode"):
+        MODULE.build_hosted_canary(
+            identity,
+            difference,
+            reports,
+            targeted,
+            qualifications,
+            semantic_profile=profile,
+        )
 
 
 def test_canary_rejects_an_incomplete_mode_set() -> None:

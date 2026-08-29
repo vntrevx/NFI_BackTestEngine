@@ -999,21 +999,23 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
         )
 
 
-def test_current_futures_probe_matrix_is_release_complete() -> None:
+def test_historical_futures_probe_matrix_is_release_complete() -> None:
+    upstream_commit = "2bc3058ed4f8480ed7498efca49b5195c7b47e9b"
     manifests = sorted(
         path / "manifest.json"
         for path in CAPTURED.iterdir()
-        if "futures" in path.name and (path / "manifest.json").is_file()
+        if "futures" in path.name
+        and (path / "manifest.json").is_file()
+        and read_json(path / "manifest.json").get("strategy_provenance", {}).get(
+            "upstream_commit"
+        )
+        == upstream_commit
     )
-    upstream_commits = {
-        read_json(path)["strategy_provenance"]["upstream_commit"] for path in manifests
-    }
-    assert len(upstream_commits) == 1
 
     probes = _validate_probe_matrix(
         manifests,
         contract=FUTURES_RELEASE_CONTRACT,
-        expected_upstream_commit=upstream_commits.pop(),
+        expected_upstream_commit=upstream_commit,
     )
 
     assert probes

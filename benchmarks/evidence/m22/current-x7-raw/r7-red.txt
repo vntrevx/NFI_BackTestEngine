@@ -1,0 +1,85 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+______ test_promotion_rejects_synchronized_atomic_trusted_source_rotation ______
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1514/test_promotion_rejects_synchro0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b4ff9223e90>
+
+    def test_promotion_rejects_synchronized_atomic_trusted_source_rotation(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: a synchronized worker continuously atomically replaces the trusted path
+        # with canonical bytes on fresh single-link regular inodes during promotion.
+        root = attack_root(tmp_path, monkeypatch)
+        source = root / SOURCE
+        payload = source.read_bytes()
+        started = Event()
+        stop = Event()
+        replacements: list[int] = []
+        failures: list[OSError] = []
+    
+        def rotate() -> None:
+            index = 0
+            try:
+                while not stop.is_set():
+                    candidate = source.with_name(f".{source.name}.rotation-{index % 3}")
+                    candidate.write_bytes(payload)
+                    os.replace(candidate, source)
+                    replacements.append(source.stat().st_ino)
+                    started.set()
+                    index += 1
+            except OSError as exc:
+                failures.append(exc)
+                started.set()
+    
+        worker = Thread(target=rotate, name="task8-r7-source-rotation")
+        worker.start()
+        assert started.wait(timeout=10)
+        try:
+            # When / Then: promotion cannot mix path identities across separate reopens.
+>           with pytest.raises(SpecValidationError, match="snapshot|changed|identity|source"):
+E           Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r7.py:59: Failed
+____________ test_promotion_rejects_git_config_parameters_injection ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1514/test_promotion_rejects_git_con0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b4fbe9f7c80>
+
+    def test_promotion_rejects_git_config_parameters_injection(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: Git's command-level config injection carries the verifier's exact override.
+        attack_root(tmp_path, monkeypatch)
+        monkeypatch.setenv(
+            "GIT_CONFIG_PARAMETERS",
+            "'core.alternateRefsCommand=echo attacker'",
+        )
+    
+        # When / Then: the original caller environment fails typed before sanitization.
+>       with pytest.raises(SpecValidationError, match="environment|config|Git"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r7.py:81: Failed
+_______ test_promotion_rejects_official_mutants_without_capture_contract _______
+
+    def test_promotion_rejects_official_mutants_without_capture_contract() -> None:
+        # Given: all 24 current sealed official mutant records omit registry attestation.
+        document = read_json(PROOF)
+        for mode in ("spot", "futures"):
+            for record in document["modes"][mode]["mutations"]:
+                path = Path(__file__).resolve().parents[1] / record["official_output"]["path"]
+                assert "capture_contract" not in read_json(path)
+    
+        # When / Then: stale official records cannot satisfy production promotion.
+>       with pytest.raises(SpecValidationError, match="capture|mutant|attestation"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r7.py:94: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r7.py::test_promotion_rejects_synchronized_atomic_trusted_source_rotation
+FAILED tests/test_task8_r7.py::test_promotion_rejects_git_config_parameters_injection
+FAILED tests/test_task8_r7.py::test_promotion_rejects_official_mutants_without_capture_contract
+3 failed in 12.06s

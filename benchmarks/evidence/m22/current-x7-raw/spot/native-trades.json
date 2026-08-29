@@ -1,0 +1,27 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "CurrentChangedPredicateContract",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250101-20250102"
+  },
+  "summary": {
+    "total_trades": 0,
+    "starting_balance": "1000",
+    "final_balance": "1000",
+    "profit_total_abs": "0",
+    "total_volume": "0",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": []
+}

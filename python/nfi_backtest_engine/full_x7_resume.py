@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import copy
-import json
 import shutil
 import stat
 import zipfile
@@ -12,7 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .canonical import read_json, write_json
+from .archive_security import read_zip_member, validate_zip_archive
+from .canonical import loads_json_bytes, read_json, write_json
 from .config_loader import config_sha256
 from .errors import BenchmarkError
 from .fixture import sha256_file
@@ -580,18 +580,23 @@ def _official_result_scope_matches(
         return False
     try:
         with zipfile.ZipFile(result_path) as archive:
-            meta_members = [name for name in archive.namelist() if name.endswith(".meta.json")]
+            members = validate_zip_archive(archive)
+            meta_members = [name for name in members if name.endswith(".meta.json")]
             if len(meta_members) == 1:
-                metadata = json.loads(archive.read(meta_members[0]))
+                metadata = loads_json_bytes(
+                    read_zip_member(archive, members[meta_members[0]])
+                )
             elif not meta_members:
                 result_members = [
                     name
-                    for name in archive.namelist()
+                    for name in members
                     if name.endswith(".json") and not name.endswith("_config.json")
                 ]
                 if len(result_members) != 1:
                     return False
-                result = json.loads(archive.read(result_members[0]))
+                result = loads_json_bytes(
+                    read_zip_member(archive, members[result_members[0]])
+                )
                 metadata = result.get("strategy") if isinstance(result, dict) else None
             else:
                 return False

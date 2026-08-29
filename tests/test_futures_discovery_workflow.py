@@ -1,10 +1,29 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).parents[1]
 DISCOVERY = ROOT / ".github" / "workflows" / "nfi-futures-discovery.yml"
 COMPATIBILITY = ROOT / ".github" / "workflows" / "nfi-compatibility.yml"
+
+
+def _job(text: str, job_id: str) -> str:
+    matches = list(re.finditer(r"(?m)^  [a-z][a-z0-9-]*:\s*$", text))
+    selected = next(index for index, match in enumerate(matches) if match.group() == f"  {job_id}:")
+    start = matches[selected].start()
+    end = matches[selected + 1].start() if selected + 1 < len(matches) else len(text)
+    return text[start:end]
+
+
+def _steps(job: str) -> list[str]:
+    matches = list(re.finditer(r"(?m)^      - name: .+$", job))
+    return [
+        job[match.start() : matches[index + 1].start() if index + 1 < len(matches) else len(job)]
+        for index, match in enumerate(matches)
+    ]
 
 
 def test_fast_lane_exports_identity_for_separate_deep_search() -> None:
@@ -30,7 +49,7 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert r"split(\"/\")" not in text
     assert "cancel-in-progress: false" in text
     assert "timeout-minutes: 125" in text
-    assert "github.event.workflow_run.conclusion == 'success'" in text
+    assert "github.event.workflow_run.conclusion == 'success'" not in text
     assert "stale_trigger: ${{ steps.identity.outputs.stale_trigger }}" in text
     assert 'EVENT_NAME: ${{ github.event_name }}' in text
     assert '[ "${EVENT_NAME}" = "workflow_run" ]' in text
@@ -47,7 +66,7 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert "--cursor .discovery/previous-cursor.json" in text
     assert "--baseline-source .discovery/input/old.py" in text
     assert '--baseline-upstream-commit "${baseline_commit}"' in text
-    assert '"discovery/${MODE}/latest.json"' in text
+    assert '"discovery/${mode}/latest.json"' in text
     assert "${ORACLE_KEY}" in text
     assert "retry_deferred:" in text
     assert "mkdir -p .discovery" in text
@@ -63,7 +82,8 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert ".storage.compact_artifact_retention_days" in text
     assert ".candidate.artifact_retention_days" in text
     assert "retention-days: ${{ steps.retention.outputs.days }}" in text
-    assert 'current_status}" = "external_data_deferred"' in text
+    assert 'current_status}" = "external_data_deferred"' not in text
+    assert "discovery_execution=external_data_deferred" in text
     assert 'steps.candidate.outputs.found == \'true\'' in text
     assert "deep_search_required: ${{ steps.identity.outputs.deep_search_required }}" in text
     assert "spot_search_required: ${{ steps.identity.outputs.spot_search_required }}" in text
@@ -80,9 +100,85 @@ def test_exact_fast_lane_closes_discovery_gaps_without_running_deep_search() -> 
     health = text[text.index("  health:") :]
 
     assert "Reconcile gaps already proven exact by the fast lane" in health
-    assert "needs.resolve.outputs.deep_search_required == 'false'" in health
+    assert "needs.product-status.result == 'success'" in health
     assert 'status: "complete"' in health
     assert "python scripts/futures_discovery_issue.py" in health
+
+
+def test_discovery_product_status_fails_closed_and_recovers_on_same_engine_proof() -> None:
+    text = DISCOVERY.read_text(encoding="utf-8")
+    resolve = text[text.index("  resolve:") : text.index("  discover:")]
+    product = _job(text, "product-status")
+
+    assert "github.event.workflow_run.conclusion == 'success'" not in resolve
+    assert '.name == "Latest NFI compatibility" and .status == "completed"' in resolve
+    assert 'select(.name == "Preserve ledger and reconcile compatibility issue")' in resolve
+    assert "name: NFI product compatibility" in product
+    assert "if: always()" in product
+    assert "git ls-remote origin refs/heads/main" in product
+    assert "refs/heads/main" in product
+    assert "compatibility-product-status.json" in product
+    assert "--workflow-execution" in product
+    assert "STALE_TRIGGER: ${{ needs.resolve.outputs.stale_trigger }}" in product
+    assert "workflow_execution=stale" in product
+    assert "workflow_execution=infrastructure_limited" in product
+    assert "--spot-discovery-execution" in product
+    assert "--futures-discovery-execution" in product
+    assert "if-no-files-found: error" in product
+    assert "jq -e '.required_status_passed == true'" in product
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "cancelled", "skipped"])
+def test_discovery_side_effects_reject_every_non_success_conclusion(conclusion: str) -> None:
+    text = DISCOVERY.read_text(encoding="utf-8")
+    publish = _job(text, "publish")
+    candidate = _job(text, "candidate-pr")
+
+    assert "needs.discover.result == 'success'" in publish
+    assert "needs.product-status.result == 'success'" in publish
+    assert "needs.discover.result == 'success'" in candidate
+    assert "needs.product-status.result == 'success'" in candidate
+    assert "result != 'skipped'" not in publish + candidate
+    assert conclusion not in {"success"}
+
+
+def test_discovery_status_precedes_atomic_publication_and_issue_mutation() -> None:
+    text = DISCOVERY.read_text(encoding="utf-8")
+    product = _job(text, "product-status")
+    publish = _job(text, "publish")
+    candidate = _job(text, "candidate-pr")
+    health = _job(text, "health")
+
+    assert "      - publish\n" not in product
+    assert "      - candidate-pr\n" not in product
+    assert "      - product-status\n" in publish
+    assert "      - product-status\n" in candidate
+    assert "matrix:" not in publish
+    assert "discovery/spot/latest.json" in publish
+    assert "discovery/futures/latest.json" in publish
+    assert "source_run_id" in publish
+    assert "needs.product-status.result == 'success'" in health
+
+
+def test_candidate_pr_rechecks_current_refs_immediately_at_mutation_boundary() -> None:
+    candidate = _job(DISCOVERY.read_text(encoding="utf-8"), "candidate-pr")
+    mutation = next(step for step in _steps(candidate) if "futures_candidate_pr.py" in step)
+
+    assert "needs.discover.result == 'success'" in candidate
+    assert "needs.product-status.result == 'success'" in candidate
+    assert "needs.publish.result == 'success'" in candidate
+    engine_check = mutation.index("git ls-remote origin refs/heads/main")
+    upstream_check = mutation.index("iterativv/NostalgiaForInfinity.git")
+    invocation = mutation.index("futures_candidate_pr.py")
+    assert engine_check < upstream_check < invocation
+    between = mutation[upstream_check:invocation]
+    assert "actions/checkout" not in between
+    assert "uv sync" not in between
+    assert "git commit" not in between
+    assert "git push" not in between
+    assert "curl " not in between
+    assert "--expected-engine-sha" in mutation
+    assert "--expected-upstream-sha" in mutation
 
 
 def test_candidate_job_has_scoped_write_permissions_and_never_merges() -> None:
@@ -112,7 +208,7 @@ def test_discovery_semantic_and_infrastructure_issues_are_separate() -> None:
     assert "nfi-branch-discovery-health" in text
 
 
-def test_discovery_binds_all_checked_runtime_identities_and_keeps_modes_independent() -> None:
+def test_discovery_binds_all_checked_runtime_identities_and_advances_modes_atomically() -> None:
     text = DISCOVERY.read_text(encoding="utf-8")
 
     assert "freqtrade_digest: ${{ steps.identity.outputs.freqtrade_digest }}" in text
@@ -122,9 +218,9 @@ def test_discovery_binds_all_checked_runtime_identities_and_keeps_modes_independ
     assert ".freqtrade_digest == $freqtrade" in text
     assert ".semantic_profile_sha256 == $semantic_profile" in text
     assert 'name: nfi-branch-discovery-${{ matrix.trading_mode }}' in text
-    assert 'run_path="discovery/${MODE}/checks/' in text
+    assert 'run_path="discovery/${mode}/checks/' in text
     assert "${SEMANTIC_PROFILE_SHA256}" in text
-    assert 'git add "discovery/${MODE}"' in text
+    assert "git add discovery/spot discovery/futures" in text
 
 
 def test_deferred_reuse_requires_a_fail_closed_classification_canary() -> None:

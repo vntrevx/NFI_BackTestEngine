@@ -785,6 +785,13 @@ impl<'program> MutationEngine<'program> {
         if target == "array" {
             return Ok(input_value.clone());
         }
+        if target == "string-array" {
+            return Ok(RuntimeValue::Column(OwnedColumn::text(
+                (0..rows)
+                    .map(|row| input_value.string_cast_at(input, row))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )));
+        }
         match target {
             "int" => Ok(RuntimeValue::Column(OwnedColumn::i64(
                 (0..rows)

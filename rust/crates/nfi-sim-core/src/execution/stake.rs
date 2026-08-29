@@ -139,7 +139,9 @@ pub(crate) fn evaluate_stake_expression(
     variables: &BTreeMap<String, Value>,
 ) -> Option<Value> {
     match expression {
-        StakeExpression::Literal { value } => valid_vm_value(value).then(|| value.clone()),
+        StakeExpression::Literal { value } => {
+            (value.is_null() || valid_vm_value(value)).then(|| value.clone())
+        }
         StakeExpression::Variable { name } => variables.get(name).cloned(),
         StakeExpression::Multiply { left, right } => number_value(
             evaluate_stake_expression(left, variables)?.as_f64()?
@@ -222,5 +224,37 @@ pub(crate) fn evaluate_stake_expression(
                     .is_some_and(|values| values.contains(item))
             })))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use serde_json::{json, Value};
+
+    use crate::domain::StakeExpression;
+
+    use super::evaluate_stake_expression;
+
+    #[test]
+    fn optional_minimum_identity_is_evaluated_exactly() {
+        let expression: StakeExpression = serde_json::from_value(json!({
+            "op": "equal",
+            "left": {"op": "variable", "name": "min_stake"},
+            "right": {"op": "literal", "value": null}
+        }))
+        .expect("valid optional minimum expression");
+        let mut variables = BTreeMap::from([("min_stake".to_owned(), Value::Null)]);
+
+        assert_eq!(
+            evaluate_stake_expression(&expression, &variables),
+            Some(Value::Bool(true))
+        );
+        variables.insert("min_stake".to_owned(), json!(10.0));
+        assert_eq!(
+            evaluate_stake_expression(&expression, &variables),
+            Some(Value::Bool(false))
+        );
     }
 }

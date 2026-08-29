@@ -1,0 +1,54 @@
+{
+  "schema_version": "task14-callback-evidence-v1",
+  "fixture_id": "current-callback-oracle-spot-r1",
+  "reference": {
+    "version": "2026.5.1",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "trading_mode": "spot"
+  },
+  "callback_contract": {
+    "repository_path": "planning/freqtrade-callback-order-contract-v1.json",
+    "sha256": "a2cd2bf7ea60b131885122a2b5a308ba64f610942ce3869fda08c6dc3a258576",
+    "bytes": 73959,
+    "fingerprint": "7c26cbaea6853a20b93932dbc0f3bc788cf0d43e58f243e9985029a727d6ec7f"
+  },
+  "semantic_profile": {
+    "repository_path": "planning/freqtrade-semantic-profile.json",
+    "sha256": "9fb6fcf33913ef6aadc9c0b6a5f5cdd8e0bada2e34521ce83ac6b8368a3cffc5",
+    "fingerprint": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428"
+  },
+  "sealed_callback_evidence": [
+    {
+      "role": "callback_trace",
+      "path": "artifacts/callback-trace.json",
+      "sha256": "33e335b979f29d09da7acca0f834f4682195078401225321a34f47214c6f63d2",
+      "bytes": 11721
+    },
+    {
+      "role": "official_trade_state",
+      "path": "artifacts/official-trade-state.json",
+      "sha256": "25b519f9ba779063251cdff2b725955fec43bdca1ce1dd8c11660ed9ecd9f75b",
+      "bytes": 1552
+    },
+    {
+      "role": "source_authentication",
+      "path": "artifacts/official-source-authentication.json",
+      "sha256": "a0812392f56f99ef89ba7227cc9a8ef4d7d6121bd50e50c79e75af5793035e1d",
+      "bytes": 5360
+    },
+    {
+      "role": "reference_cli_results",
+      "path": "artifacts/reference-cli-results.json",
+      "sha256": "c4ff7d3c6af8b848702c445c06f7b838c3ea11aed781121c52b10781d35c72e7",
+      "bytes": 667
+    }
+  ],
+  "deterministic_recapture": {
+    "runs": 2,
+    "callback_trace_sha256": "33e335b979f29d09da7acca0f834f4682195078401225321a34f47214c6f63d2",
+    "official_trade_state_sha256": "25b519f9ba779063251cdff2b725955fec43bdca1ce1dd8c11660ed9ecd9f75b",
+    "comparison": "canonical callback trace and official trade/state byte-identical"
+  }
+}

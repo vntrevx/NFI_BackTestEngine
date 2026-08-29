@@ -12,9 +12,14 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from .canonical import read_json
+from .canonical import loads_json_bytes, read_json
 from .errors import SpecValidationError
-from .state_trace import iter_validated_trace_events, trace_summary
+from .state_trace import (
+    iter_validated_trace_events,
+    iter_validated_trace_events_bytes,
+    trace_summary,
+    trace_summary_bytes,
+)
 
 COVERAGE_REPORT_VERSION = "1.0.0"
 _OBSERVED_FIELDS = {
@@ -33,12 +38,42 @@ _OBSERVED_FIELDS = {
 def validate_fixture_coverage(
     manifest_path: str | Path,
     manifest: dict[str, Any],
+    *,
+    retained_payloads: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     """Validate a v3 observer report and require every declared branch."""
     root = Path(manifest_path).resolve().parent
     artifacts = manifest["artifacts"]
-    report_path = root / artifacts["coverage_report"]["path"]
-    report = read_json(report_path)
+    report_name = artifacts["coverage_report"]["path"]
+    trace_name = artifacts["state_trace"]["path"]
+    surface_name = artifacts["trade_surface"]["path"]
+    if retained_payloads is None:
+        report_path = root / report_name
+        report = read_json(report_path)
+        surface = read_json(root / surface_name)
+        trace = trace_summary(root / trace_name)
+        protection_methods = configured_protection_methods(
+            root / _one_input(manifest, "strategy")["path"],
+            root / _one_input(manifest, "config")["path"],
+            class_name=manifest["freqtrade"]["strategy"],
+        )
+        events = list(iter_validated_trace_events(root / trace_name))
+    else:
+        report_path = Path(report_name)
+        report = loads_json_bytes(retained_payloads[report_name])
+        surface = loads_json_bytes(retained_payloads[surface_name])
+        trace = trace_summary_bytes(retained_payloads[trace_name], label=trace_name)
+        protection_methods = configured_protection_methods_bytes(
+            retained_payloads[_one_input(manifest, "strategy")["path"]],
+            retained_payloads[_one_input(manifest, "config")["path"]],
+            strategy_name=_one_input(manifest, "strategy")["path"],
+            class_name=manifest["freqtrade"]["strategy"],
+        )
+        events = list(
+            iter_validated_trace_events_bytes(
+                retained_payloads[trace_name], label=trace_name
+            )
+        )
     _validate_report_shape(report)
     expected_bindings = {
         "trade_surface_sha256": artifacts["trade_surface"]["sha256"],
@@ -48,21 +83,14 @@ def validate_fixture_coverage(
         raise SpecValidationError(
             "coverage report is not bound to the fixture trade surface and state trace"
         )
-
-    surface = read_json(root / artifacts["trade_surface"]["path"])
-    trace_path = root / artifacts["state_trace"]["path"]
-    trace = trace_summary(trace_path)
+    if not isinstance(surface, dict):
+        raise SpecValidationError("v3 branch fixture trade surface must be an object")
     if not trace["include_state"]:
         raise SpecValidationError("v3 branch fixture requires a materialized full-state trace")
 
-    protection_methods = configured_protection_methods(
-        root / _one_input(manifest, "strategy")["path"],
-        root / _one_input(manifest, "config")["path"],
-        class_name=manifest["freqtrade"]["strategy"],
-    )
-    derived = derive_fixture_observed(
+    derived = derive_fixture_observed_events(
         surface,
-        trace_path,
+        events,
         configured_protection_methods=protection_methods,
     )
     observed = report["observed"]
@@ -184,6 +212,20 @@ def derive_fixture_observed(
     configured_protection_methods: list[str] | None = None,
 ) -> dict[str, Any]:
     """Derive coverage only from sealed inputs and official runtime artifacts."""
+    return derive_fixture_observed_events(
+        surface,
+        list(iter_validated_trace_events(trace_path)),
+        configured_protection_methods=configured_protection_methods,
+    )
+
+
+def derive_fixture_observed_events(
+    surface: dict[str, Any],
+    events: list[dict[str, Any]],
+    *,
+    configured_protection_methods: list[str] | None = None,
+) -> dict[str, Any]:
+    """Derive coverage from an already-contained validated event stream."""
     trades = surface["trades"]
     complete_tags = sorted(
         {
@@ -200,7 +242,6 @@ def derive_fixture_observed(
             if token
         }
     )
-    events = list(iter_validated_trace_events(trace_path))
     callbacks = sorted(
         {
             callback
@@ -262,6 +303,29 @@ def configured_protection_methods(
     if not isinstance(config, dict) or config.get("enable_protections") is not True:
         return []
     analysis = analyze_strategy(strategy_path, class_name=class_name)
+    return _protection_methods_from_analysis(analysis)
+
+
+def configured_protection_methods_bytes(
+    strategy_payload: bytes,
+    config_payload: bytes,
+    *,
+    strategy_name: str,
+    class_name: str,
+) -> list[str]:
+    """Return protection methods from exact caller-retained fixture bytes."""
+    from .strategy_ir import analyze_strategy_bytes
+
+    config = loads_json_bytes(config_payload)
+    if not isinstance(config, dict) or config.get("enable_protections") is not True:
+        return []
+    analysis = analyze_strategy_bytes(
+        strategy_payload, source_name=strategy_name, class_name=class_name
+    )
+    return _protection_methods_from_analysis(analysis)
+
+
+def _protection_methods_from_analysis(analysis: dict[str, Any]) -> list[str]:
     strategies = analysis.get("strategies")
     if not isinstance(strategies, list) or len(strategies) != 1:
         raise SpecValidationError("protection probe must select exactly one strategy")

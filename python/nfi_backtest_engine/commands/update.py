@@ -36,8 +36,6 @@ def _wheel_suffix() -> str:
         return "manylinux2014_aarch64.whl"
     if system == "Darwin" and machine == "arm64":
         return "macosx_11_0_arm64.whl"
-    if system == "Windows" and machine in {"amd64", "x86_64"}:
-        return "win_amd64.whl"
     raise NfiBacktestError(f"no release wheel is available for {system} {machine}")
 
 

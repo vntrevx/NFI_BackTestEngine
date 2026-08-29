@@ -8,6 +8,7 @@ from nfi_backtest_engine.state_trace import (
     StateTraceWriter,
     TraceMismatch,
     compare_state_traces,
+    first_trace_difference,
     read_state_trace,
 )
 
@@ -66,13 +67,18 @@ def test_first_state_difference_reports_field_and_event(tmp_path: Path) -> None:
     assert difference.actual == "999"
 
 
-def test_hash_only_trace_is_valid_and_comparable(tmp_path: Path) -> None:
-    expected = tmp_path / "expected.nfitrace"
-    actual = tmp_path / "actual.nfitrace"
-    _write_trace(expected, include_state=False)
-    _write_trace(actual, include_state=False)
-
-    compare_state_traces(expected, actual)
+def test_hash_only_trace_is_rejected() -> None:
+    with pytest.raises(TraceError, match="materialized source records"):
+        StateTraceWriter(
+            "unused.nfitrace",
+            source="engine",
+            run_id="run-1",
+            input_sha256=HASH,
+            strategy_sha256=HASH,
+            profile_sha256=HASH,
+            trading_mode="futures",
+            include_state=False,
+        )
 
 
 def test_binary_float_is_rejected(tmp_path: Path) -> None:
@@ -107,5 +113,42 @@ def test_trace_comparator_does_not_materialize_complete_traces(
         "nfi_backtest_engine.state_trace.read_state_trace",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not materialize")),
     )
-
     compare_state_traces(expected, actual)
+
+
+
+def test_legacy_comparison_allows_one_unchanged_terminal_state_repeat(tmp_path: Path) -> None:
+    expected = tmp_path / "expected.nfitrace"
+    actual = tmp_path / "actual.nfitrace"
+    state = {
+        "wallet": {"available": "1000", "reserved": "0", "total": "1000"},
+        "open_slots": 6,
+        "trades": [],
+    }
+    for path, timestamps in ((expected, (1,)), (actual, (1, 2))):
+        with StateTraceWriter(
+            path,
+            source="engine",
+            run_id="run-1",
+            input_sha256=HASH,
+            strategy_sha256=HASH,
+            profile_sha256=HASH,
+            trading_mode="futures",
+        ) as trace:
+            for timestamp in timestamps:
+                trace.append(
+                    timestamp_ms=timestamp,
+                    phase="portfolio.after_candle",
+                    pair="BTC/USDT:USDT",
+                    state=state,
+                )
+
+    assert first_trace_difference(expected, actual) is not None
+    assert (
+        first_trace_difference(
+            expected,
+            actual,
+            allow_actual_terminal_state_repeat=True,
+        )
+        is None
+    )

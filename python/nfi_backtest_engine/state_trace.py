@@ -6,12 +6,13 @@ The on-disk format is deliberately small:
 * UTF-8 canonical JSON records, each prefixed by an unsigned 32-bit length;
 * one header, zero or more events, and one trailer.
 
-Large production traces can omit materialized state and retain only state/event
-hashes. Diagnostic fixtures keep state so the comparator can report a field path.
+Certification traces always retain materialized state. Hashes index and authenticate
+records; they are never accepted as a substitute for retrievable source records.
 """
 
 from __future__ import annotations
 
+import io
 import json
 import struct
 from collections.abc import Iterator, Mapping
@@ -78,8 +79,10 @@ class StateTraceWriter:
         strategy_sha256: str,
         profile_sha256: str,
         trading_mode: str,
-        include_state: bool = False,
+        include_state: bool = True,
     ) -> None:
+        if not include_state:
+            raise TraceError("state traces require materialized source records")
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self.path.open("wb")
@@ -191,43 +194,55 @@ def iter_trace_records(path: str | Path) -> Iterator[dict[str, Any]]:
     source = Path(path)
     try:
         with source.open("rb") as handle:
-            magic = handle.read(len(MAGIC))
-            if magic != MAGIC:
-                raise TraceError(f"{source}: invalid state trace magic")
-            record_index = 0
-            while True:
-                raw_length = handle.read(_LENGTH.size)
-                if not raw_length:
-                    return
-                if len(raw_length) != _LENGTH.size:
-                    raise TraceError(f"{source}: truncated record length at index {record_index}")
-                (length,) = _LENGTH.unpack(raw_length)
-                if length == 0 or length > MAX_RECORD_BYTES:
-                    raise TraceError(
-                        f"{source}: invalid record length {length} at index {record_index}"
-                    )
-                payload = handle.read(length)
-                if len(payload) != length:
-                    raise TraceError(f"{source}: truncated record at index {record_index}")
-                try:
-                    record = json.loads(payload.decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                    raise TraceError(
-                        f"{source}: invalid JSON record at index {record_index}"
-                    ) from exc
-                if not isinstance(record, dict):
-                    raise TraceError(f"{source}: record {record_index} must be an object")
-                if canonical_trace_bytes(record) != payload:
-                    raise TraceError(f"{source}: record {record_index} is not canonical")
-                yield record
-                record_index += 1
+            yield from _iter_trace_handle(handle, str(source))
     except OSError as exc:
         raise TraceError(f"{source}: cannot read state trace: {exc}") from exc
+
+
+def _iter_trace_handle(handle: BinaryIO, label: str) -> Iterator[dict[str, Any]]:
+    magic = handle.read(len(MAGIC))
+    if magic != MAGIC:
+        raise TraceError(f"{label}: invalid state trace magic")
+    record_index = 0
+    while True:
+        raw_length = handle.read(_LENGTH.size)
+        if not raw_length:
+            return
+        if len(raw_length) != _LENGTH.size:
+            raise TraceError(f"{label}: truncated record length at index {record_index}")
+        (length,) = _LENGTH.unpack(raw_length)
+        if length == 0 or length > MAX_RECORD_BYTES:
+            raise TraceError(f"{label}: invalid record length {length} at index {record_index}")
+        payload = handle.read(length)
+        if len(payload) != length:
+            raise TraceError(f"{label}: truncated record at index {record_index}")
+        try:
+            record = json.loads(payload.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise TraceError(f"{label}: invalid JSON record at index {record_index}") from exc
+        if not isinstance(record, dict):
+            raise TraceError(f"{label}: record {record_index} must be an object")
+        if canonical_trace_bytes(record) != payload:
+            raise TraceError(f"{label}: record {record_index} is not canonical")
+        yield record
+        record_index += 1
 
 
 def iter_validated_trace_events(path: str | Path) -> Iterator[dict[str, Any]]:
     """Yield fully validated events in one bounded-memory pass."""
     trace = _TraceStream(path)
+    yield from _iter_validated_events(trace)
+
+
+def iter_validated_trace_events_bytes(
+    payload: bytes, *, label: str
+) -> Iterator[dict[str, Any]]:
+    """Yield validated events from exact caller-retained trace bytes."""
+    trace = _TraceStream(records=_iter_trace_handle(io.BytesIO(payload), label), label=label)
+    yield from _iter_validated_events(trace)
+
+
+def _iter_validated_events(trace: _TraceStream) -> Iterator[dict[str, Any]]:
     while True:
         event = trace.next_event()
         if event is None:
@@ -268,10 +283,13 @@ def first_trace_difference(
     actual_path: str | Path,
     *,
     compare_input_identity: bool = True,
+    allow_actual_terminal_state_repeat: bool = False,
 ) -> TraceDifference | None:
     """Return the first exact difference using bounded memory."""
     expected = _TraceStream(expected_path)
     actual = _TraceStream(actual_path)
+    if not expected.header["include_state"] or not actual.header["include_state"]:
+        raise TraceError("state trace comparison requires materialized source records")
 
     comparable_fields = (
         _COMPARABLE_HEADER_FIELDS
@@ -290,12 +308,14 @@ def first_trace_difference(
                 reason="header value differs",
             )
 
+    last_expected_event: dict[str, Any] | None = None
     index = 0
     while True:
         expected_event = expected.next_event()
         actual_event = actual.next_event()
         if expected_event is None or actual_event is None:
             break
+        last_expected_event = expected_event
         expected_key = _event_key(expected_event)
         actual_key = _event_key(actual_event)
         if expected_key != actual_key:
@@ -318,6 +338,15 @@ def first_trace_difference(
             event_key=expected_key,
         )
 
+    if (
+        allow_actual_terminal_state_repeat
+        and expected_event is None
+        and actual_event is not None
+        and last_expected_event is not None
+        and _is_terminal_state_repeat(last_expected_event, actual_event)
+        and actual.next_event() is None
+    ):
+        return None
     if expected_event is not None or actual_event is not None:
         expected_count = expected.finish()
         actual_count = actual.finish()
@@ -331,6 +360,18 @@ def first_trace_difference(
     return None
 
 
+def _is_terminal_state_repeat(expected: Mapping[str, Any], actual: Mapping[str, Any]) -> bool:
+    return (
+        expected.get("phase") == actual.get("phase") == "portfolio.after_candle"
+        and expected.get("pair") == actual.get("pair")
+        and expected.get("callback") == actual.get("callback")
+        and isinstance(expected.get("timestamp_ms"), int)
+        and isinstance(actual.get("timestamp_ms"), int)
+        and actual["timestamp_ms"] > expected["timestamp_ms"]
+        and expected.get("state") == actual.get("state")
+    )
+
+
 def compare_state_traces(expected_path: str | Path, actual_path: str | Path) -> None:
     """Raise on the first exact state-trace difference."""
     difference = first_trace_difference(expected_path, actual_path)
@@ -340,6 +381,16 @@ def compare_state_traces(expected_path: str | Path, actual_path: str | Path) -> 
 
 def trace_summary(path: str | Path) -> dict[str, Any]:
     trace = _TraceStream(path)
+    return _trace_summary(trace)
+
+
+def trace_summary_bytes(payload: bytes, *, label: str) -> dict[str, Any]:
+    """Validate summary fields from already-contained immutable bytes."""
+    trace = _TraceStream(records=_iter_trace_handle(io.BytesIO(payload), label), label=label)
+    return _trace_summary(trace)
+
+
+def _trace_summary(trace: _TraceStream) -> dict[str, Any]:
     event_count = trace.finish()
     assert trace.trailer is not None
     return {
@@ -359,9 +410,17 @@ def trace_summary(path: str | Path) -> dict[str, Any]:
 class _TraceStream:
     """Validate one trace incrementally while exposing one event at a time."""
 
-    def __init__(self, path: str | Path) -> None:
-        self.path = Path(path)
-        self._records = iter(iter_trace_records(self.path))
+    def __init__(
+        self,
+        path: str | Path | None = None,
+        *,
+        records: Iterator[dict[str, Any]] | None = None,
+        label: str | None = None,
+    ) -> None:
+        if path is None and records is None:
+            raise TraceError("state trace source is required")
+        self.path = Path(path) if path is not None else Path(label or "<bytes>")
+        self._records = iter(iter_trace_records(self.path) if records is None else records)
         try:
             self.header = next(self._records)
         except StopIteration as exc:

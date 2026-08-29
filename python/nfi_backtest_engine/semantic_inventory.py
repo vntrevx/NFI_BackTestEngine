@@ -4,13 +4,28 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
+import re
+import subprocess
+import tempfile
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config
 from .errors import StrategyAnalysisError
 from .hot_ir import build_hot_callback_ir
+from .semantic_registry import (
+    build_semantic_obligation_registry as _build_semantic_obligation_registry,
+)
+from .semantic_registry import (
+    load_semantic_obligation_registry as load_semantic_obligation_registry,
+)
+from .semantic_registry import (
+    validate_semantic_obligation_registry as validate_semantic_obligation_registry,
+)
+from .semantic_registry import (
+    write_semantic_obligation_registry as write_semantic_obligation_registry,
+)
 from .specs import SEMANTIC_INVENTORY_SCHEMA, validate_schema
 from .strategy_ir import analyze_strategy
 
@@ -119,9 +134,79 @@ def build_semantic_inventory(
     trading_mode: str | None = None,
     config_path: str | Path | None = None,
     fixtures_root: str | Path | None = None,
+    source_root: str | Path | None = None,
+    upstream_repository: str | None = None,
+    upstream_commit: str | None = None,
+    upstream_ref: str | None = None,
+    upstream_source_path: str | None = None,
+    upstream_fetch_timeout_seconds: int = 180,
     output_path: str | Path | None = None,
+    _upstream_observation: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Inventory current execution ownership without executing strategy Python."""
+    if upstream_ref is not None and _upstream_observation is None:
+        logical_source = upstream_source_path or Path(source).name
+        if upstream_repository is None or not upstream_repository:
+            _upstream_observation = _failed_upstream_observation(
+                upstream_ref,
+                logical_source,
+                method="invalid-upstream-configuration-v1",
+                status="invalid-configuration",
+                blocker_code="INVALID_UPSTREAM_CONFIGURATION",
+            )
+        elif not _is_exact_upstream_ref(upstream_ref):
+            _upstream_observation = _failed_upstream_observation(
+                upstream_ref,
+                logical_source,
+                method="invalid-upstream-ref-v1",
+                status="invalid-ref",
+                blocker_code="INVALID_UPSTREAM_REF",
+            )
+        elif upstream_commit is not None and re.fullmatch(
+            r"[0-9a-f]{40}", upstream_commit
+        ) is None:
+            _upstream_observation = _failed_upstream_observation(
+                upstream_ref,
+                logical_source,
+                method="invalid-upstream-commit-v1",
+                status="invalid-commit",
+                blocker_code="INVALID_UPSTREAM_COMMIT",
+            )
+        elif upstream_source_path is None:
+            _upstream_observation = _failed_upstream_observation(
+                upstream_ref,
+                logical_source,
+                method="invalid-upstream-configuration-v1",
+                status="invalid-configuration",
+                blocker_code="INVALID_UPSTREAM_CONFIGURATION",
+            )
+        else:
+            with tempfile.TemporaryDirectory(prefix="nfi-semantic-upstream-") as temporary:
+                checkout, observation = _fetch_upstream_ref_once(
+                    Path(temporary),
+                    repository=upstream_repository,
+                    ref=upstream_ref,
+                    source_path=upstream_source_path,
+                    timeout_seconds=upstream_fetch_timeout_seconds,
+                )
+                if checkout is not None:
+                    return build_semantic_inventory(
+                        checkout / observation["source_path"],
+                        class_name=class_name,
+                        trading_mode=trading_mode,
+                        config_path=config_path,
+                        fixtures_root=fixtures_root,
+                        source_root=checkout,
+                        upstream_repository=upstream_repository,
+                        upstream_commit=upstream_commit,
+                        upstream_ref=upstream_ref,
+                        upstream_source_path=observation["source_path"],
+                        upstream_fetch_timeout_seconds=upstream_fetch_timeout_seconds,
+                        output_path=output_path,
+                        _upstream_observation=observation,
+                    )
+                _upstream_observation = observation
+
     analysis = analyze_strategy(source, class_name=class_name)
     _require_selected_static_strategy(analysis)
     strategy = analysis["strategies"][0]
@@ -165,6 +250,8 @@ def build_semantic_inventory(
     callbacks = _callback_inventory(strategy, hot_ir, exact_fixtures)
     routes = _route_inventory(hot_ir, exact_fixtures)
     source_boundaries = _source_boundary_inventory(callbacks, hot_ir, exact_fixtures)
+    lowering_complete = hot_ir is not None
+    del hot_ir
     vector_methods = [
         {
             "name": method["name"],
@@ -178,6 +265,25 @@ def build_semantic_inventory(
         for method in strategy["methods"]
         if method["name"] in set(strategy.get("vector_methods", []))
     ]
+    obligation_registry = _build_semantic_obligation_registry(
+        source,
+        class_name=strategy["name"],
+        analysis=analysis,
+        strategy=strategy,
+        runtime_inventory={
+            "vector_methods": vector_methods,
+            "callbacks": callbacks,
+            "routes": routes,
+            "compilation_errors": compilation_errors,
+        },
+        source_root=source_root,
+        upstream_repository=upstream_repository,
+        upstream_commit=upstream_commit,
+        upstream_ref=upstream_ref,
+        upstream_source_path=upstream_source_path,
+        upstream_observation=_upstream_observation,
+    )
+    obligation_summary = obligation_registry["summary"]
 
     report: dict[str, Any] = {
         "schema_version": SEMANTIC_INVENTORY_VERSION,
@@ -195,6 +301,8 @@ def build_semantic_inventory(
         "active_source_boundaries": source_boundaries,
         "fixture_coverage": fixture_coverage,
         "compilation_errors": compilation_errors,
+        "obligation_registry": obligation_registry,
+        "blockers": obligation_registry["blockers"],
         "summary": {
             "vector_method_count": len(vector_methods),
             "callback_count": len(callbacks),
@@ -209,7 +317,16 @@ def build_semantic_inventory(
             ),
             "route_count": len(routes),
             "exact_source_fixture_count": len(exact_fixtures),
-            "inventory_complete": hot_ir is not None,
+            "obligation_count": obligation_summary["total_obligations"],
+            "unknown_obligation_count": obligation_summary["unknown_obligations"],
+            "native_promotion": bool(
+                lowering_complete and obligation_summary["native_promotion"]
+            ),
+            "inventory_complete": bool(
+                lowering_complete
+                and obligation_summary["unknown_obligations"] == 0
+                and obligation_summary["source_closure_complete"]
+            ),
         },
     }
     report["fingerprint"] = _fingerprint(report)
@@ -217,6 +334,237 @@ def build_semantic_inventory(
     if output_path is not None:
         write_json(output_path, report)
     return report
+
+
+def build_semantic_obligation_registry(
+    source: str | Path,
+    *,
+    class_name: str | None = None,
+    trading_mode: str | None = None,
+    config_path: str | Path | None = None,
+    source_root: str | Path | None = None,
+    upstream_repository: str | None = None,
+    upstream_commit: str | None = None,
+    upstream_ref: str | None = None,
+    upstream_source_path: str | None = None,
+    upstream_fetch_timeout_seconds: int = 180,
+    output_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Generate the standalone typed registry through the reviewed lowering path."""
+    inventory = build_semantic_inventory(
+        source,
+        class_name=class_name,
+        trading_mode=trading_mode,
+        config_path=config_path,
+        fixtures_root=Path(source).resolve(),
+        source_root=source_root,
+        upstream_repository=upstream_repository,
+        upstream_commit=upstream_commit,
+        upstream_ref=upstream_ref,
+        upstream_source_path=upstream_source_path,
+        upstream_fetch_timeout_seconds=upstream_fetch_timeout_seconds,
+    )
+    registry = inventory["obligation_registry"]
+    if output_path is not None:
+        write_semantic_obligation_registry(output_path, registry)
+    return registry
+
+
+def _failed_upstream_observation(
+    ref: str,
+    source_path: str,
+    *,
+    method: str,
+    status: str,
+    blocker_code: str,
+) -> dict[str, str]:
+    return {
+        "ref": ref,
+        "source_path": source_path or "@unconfigured",
+        "observation_method": method,
+        "observation_status": status,
+        "blocker_code": blocker_code,
+    }
+
+
+def _is_exact_upstream_ref(ref: str) -> bool:
+    if not ref.startswith("refs/") or ref.endswith(("/", ".")):
+        return False
+    if any(ord(character) < 32 or ord(character) == 127 for character in ref):
+        return False
+    if any(character in ref for character in " ~^:?*[\\"):
+        return False
+    if "//" in ref or ".." in ref or "@{" in ref:
+        return False
+    return all(
+        part
+        and not part.startswith(".")
+        and not part.endswith((".", ".lock"))
+        for part in ref.split("/")
+    )
+
+
+class _UpstreamGitFailure(Exception):
+    def __init__(self, method: str, status: str, blocker_code: str) -> None:
+        super().__init__(blocker_code)
+        self.method = method
+        self.status = status
+        self.blocker_code = blocker_code
+
+
+def _fetch_upstream_ref_once(
+    temporary_root: Path,
+    *,
+    repository: str,
+    ref: str,
+    source_path: str,
+    timeout_seconds: int = 180,
+) -> tuple[Path | None, dict[str, str]]:
+    logical_path = PurePosixPath(source_path)
+    if (
+        not logical_path.parts
+        or logical_path.is_absolute()
+        or logical_path.as_posix() != source_path
+        or "\\" in source_path
+        or any(ord(character) < 32 or ord(character) == 127 for character in source_path)
+        or any(part in {"", ".", ".."} for part in logical_path.parts)
+    ):
+        return None, _failed_upstream_observation(
+            ref,
+            source_path,
+            method="invalid-upstream-source-v1",
+            status="invalid-source-path",
+            blocker_code="INVALID_UPSTREAM_SOURCE_PATH",
+        )
+    checkout = temporary_root / "checkout"
+    try:
+        checkout.mkdir(parents=True)
+    except OSError:
+        return None, _failed_upstream_observation(
+            ref,
+            logical_path.as_posix(),
+            method="upstream-fetch-failed-v1",
+            status="fetch-failed",
+            blocker_code="UPSTREAM_FETCH_FAILED",
+        )
+
+    def git(
+        *arguments: str,
+        failure: tuple[str, str, str] = (
+            "upstream-fetch-failed-v1",
+            "fetch-failed",
+            "UPSTREAM_FETCH_FAILED",
+        ),
+    ) -> str:
+        try:
+            completed = subprocess.run(
+                ["git", "-C", str(checkout), *arguments],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise _UpstreamGitFailure(
+                "upstream-fetch-timeout-v1",
+                "fetch-timeout",
+                "UPSTREAM_FETCH_TIMEOUT",
+            ) from exc
+        except (OSError, UnicodeError, ValueError, subprocess.SubprocessError) as exc:
+            raise _UpstreamGitFailure(*failure) from exc
+        if not isinstance(completed.stdout, str):
+            raise _UpstreamGitFailure(*failure)
+        return completed.stdout.strip()
+
+    internal_ref = "refs/nfi-semantic-observation/requested"
+    try:
+        git("init", "--quiet")
+        git(
+            "fetch",
+            "--quiet",
+            "--depth=1",
+            "--no-tags",
+            "--",
+            repository,
+            f"+{ref}:{internal_ref}",
+        )
+        observed_object = git(
+            "show-ref",
+            "--verify",
+            "--hash",
+            internal_ref,
+            failure=(
+                "unresolved-upstream-ref-v1",
+                "requested-object-missing",
+                "UNOBSERVED_UPSTREAM_REF",
+            ),
+        )
+        if re.fullmatch(r"[0-9a-f]{40}", observed_object) is None:
+            raise _UpstreamGitFailure(
+                "unresolved-upstream-ref-v1",
+                "requested-object-missing",
+                "UNOBSERVED_UPSTREAM_REF",
+            )
+        observed_commit = git(
+            "rev-parse",
+            "--verify",
+            f"{internal_ref}^{{commit}}",
+            failure=(
+                "upstream-ref-not-commit-v1",
+                "not-a-commit",
+                "UPSTREAM_REF_NOT_COMMIT",
+            ),
+        )
+        object_type = git(
+            "cat-file",
+            "-t",
+            observed_commit,
+            failure=(
+                "upstream-ref-not-commit-v1",
+                "not-a-commit",
+                "UPSTREAM_REF_NOT_COMMIT",
+            ),
+        )
+        if re.fullmatch(r"[0-9a-f]{40}", observed_commit) is None or object_type != "commit":
+            raise _UpstreamGitFailure(
+                "upstream-ref-not-commit-v1",
+                "not-a-commit",
+                "UPSTREAM_REF_NOT_COMMIT",
+            )
+        git("checkout", "--quiet", "--detach", observed_commit)
+        observed_timestamp = git("show", "-s", "--format=%cI", observed_commit)
+    except _UpstreamGitFailure as failure:
+        return None, _failed_upstream_observation(
+            ref,
+            logical_path.as_posix(),
+            method=failure.method,
+            status=failure.status,
+            blocker_code=failure.blocker_code,
+        )
+
+    resolved_source = checkout.joinpath(*logical_path.parts)
+    source_parts = [
+        checkout.joinpath(*logical_path.parts[:index])
+        for index in range(1, len(logical_path.parts) + 1)
+    ]
+    if (
+        not resolved_source.is_file()
+        or any(part.is_symlink() for part in source_parts)
+    ):
+        return None, _failed_upstream_observation(
+            ref,
+            logical_path.as_posix(),
+            method="upstream-source-missing-v1",
+            status="source-missing",
+            blocker_code="UPSTREAM_SOURCE_MISSING",
+        )
+    return checkout, {
+        "ref": ref,
+        "observed_commit": observed_commit,
+        "observed_commit_timestamp": observed_timestamp,
+        "source_path": logical_path.as_posix(),
+        "observation_method": "git-fetch-depth-1-v1",
+    }
 
 
 def _require_selected_static_strategy(analysis: dict[str, Any]) -> None:
@@ -494,6 +842,8 @@ def _fingerprint(report: dict[str, Any]) -> str:
             "diagnostics": fixture_coverage["diagnostics"],
         },
         "compilation_errors": report["compilation_errors"],
+        "obligation_registry": report["obligation_registry"],
+        "blockers": report["blockers"],
         "summary": report["summary"],
     }
     payload = json.dumps(

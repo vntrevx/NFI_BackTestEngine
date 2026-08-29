@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "nfi-backtest-engine"
-version = "1.6.1"
+version = "1.7.0"
 description = "Exact-parity research backtesting infrastructure for NFI strategies"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -19,7 +19,6 @@ classifiers = [
     "Environment :: Console",
     "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
-    "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
@@ -31,6 +30,7 @@ classifiers = [
 dependencies = [
     "blake3==1.0.9",
     "ccxt==4.5.55",
+    "cryptography==49.0.0",
     "jsonschema==4.26.0",
     "numpy==2.4.5",
     "pandas==3.0.3",
@@ -79,7 +79,17 @@ failOnWarnings = true
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-exclude = ["benchmarks/fixtures"]
+exclude = [
+    ".commandcode",
+    ".gjc",
+    ".nfi",
+    ".omo",
+    "artifacts",
+    "benchmarks",
+    "dist",
+    "p!mp_test",
+    "rust/target",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

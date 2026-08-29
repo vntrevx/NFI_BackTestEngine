@@ -18,8 +18,8 @@ ordering. The resulting Feather files are SHA-256 sealed; Rust projects only the
 callback columns declared by the source-compiled IR and runs one global chronological
 portfolio loop.
 
-For the reviewed X7 source shape through v17.4.435, these callback families execute in
-Rust:
+For the source-compiled X7 shape qualified through v17.4.580, these callback families
+execute in Rust:
 
 - backtest lifecycle no-op delegation and first-entry `order_filled` state writes;
 - source-compiled custom stake and entry/exit confirmation programs;
@@ -80,9 +80,9 @@ switches. Probe-only source changes are AST-bound to the expected class attribut
 old literal; routine upstream edits fail closed instead of silently changing the wrong
 line.
 
-Static exact lowering also passes for X7 v17.4.435 at upstream commit
-`2bc3058ed4f8480ed7498efca49b5195c7b47e9b`. Its source SHA-256 is
-`6bb2aae39223e8e6d1980534f4159edc14b857d304c9410c92ed53320982d64a`.
+Static exact lowering passes for X7 v17.4.580 at upstream commit
+`b22cc60d1c018eeb984cb02a125bb790042bebd0`. Its source SHA-256 is
+`40796e8be7ad11ba14dc51607ee1d002d1c7cce743f1476f67ddfac5283a5aeb`.
 The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
 de-risk state dependencies, and late grind predicates as typed operands and
 comparisons. Rust therefore does not carry release-specific grind 4/5 thresholds.
@@ -93,6 +93,13 @@ amount-based legacy-Grind continuation. Funding is included in the futures callb
 profit snapshot before branch selection. Promotion required an independent reviewed
 shadow to agree exactly; current payloads register no legacy shadow, and the preserved
 comparison remains evidence rather than a runtime branch.
+
+The v1.7.0 current-source qualification is deliberately separate from the immutable
+distribution regression fixtures. Spot and Futures static reachability both report
+zero reachable stateful gaps, complete closure, and Native compatibility for
+v17.4.580. The release-candidate contract continues to replay the sealed v17.4.473
+fixtures; static current-source closure does not convert those historical fixtures
+into a current-source full-state certificate.
 
 A narrow v17.4.435 runtime check additionally records exact final-surface parity for
 one spot interval and one isolated-futures interval in
@@ -247,8 +254,8 @@ The engine rejects rather than approximates:
 - dynamic or structurally new leverage callback programs;
 - dynamic protection properties, unsupported protection methods, and direct live
   pair-lock mutation outside the compiled protection program;
-- broader shared-wallet pressure and multi-pair tie-breaks beyond the captured
-  APE/AAVE equal-timestamp fixture.
+- arbitrary portfolio-scale shared-wallet pressure or multi-pair tie-breaks beyond
+  the captured two- and three-pair configured-order permutations.
 
 ## Required path to the full certificate
 

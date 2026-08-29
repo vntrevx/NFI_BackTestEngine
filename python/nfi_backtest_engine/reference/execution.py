@@ -2,20 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import tempfile
+import uuid
+import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from ..canonical import read_json
+from ..docker_environment import docker_subprocess_environment
 from ..docker_runtime import (
     docker_bind_owner_arguments,
     docker_root_with_bind_owner_arguments,
     managed_docker_run,
     run_managed_container,
+    validate_final_managed_command,
+    validate_managed_run_prefix,
 )
 from ..errors import BenchmarkError
 from ..fixture import fixture_input_sha256, validate_fixture
@@ -23,7 +31,7 @@ from ..reference_assets import reference_package_root, reference_tracer_root
 from .contracts import (
     _BINANCE_TIER_EXPORT,
     _CGROUP_CAPTURE_SCRIPT,
-    REFERENCE_BLAKE3_VERSION,
+    REFERENCE_DEPENDENCY_WHEELS,
     REFERENCE_DOCKER_IMAGE_IDS,
     REFERENCE_IMAGE,
     REFERENCE_IMAGE_REF,
@@ -33,6 +41,7 @@ from .contracts import (
     REFERENCE_VERSION,
     SUPPORTED_REFERENCE_TRACER_VERSIONS,
 )
+from .dependency_seal import safe_member, validate_archive_bounds, validate_inventory
 from .storage import _file_record, _one_input
 
 
@@ -47,6 +56,7 @@ def build_reference_docker_command(
     docker_config: Path,
     market_snapshot: dict[str, Any],
     run_prefix: list[str] | None = None,
+    runtime_volume: str | None = None,
 ) -> list[str]:
     """Build argv without shell interpolation so fixture values cannot become commands."""
     freqtrade_args = _reference_freqtrade_args(manifest["freqtrade"]["command"])
@@ -61,8 +71,32 @@ def build_reference_docker_command(
             str(docker_config),
             "run",
             "--rm",
+            "--cidfile",
+            str(docker_config / "reference-command.cid"),
+            "--label",
+            "io.nfi-backtest-engine.managed=true",
+            "--label",
+            "io.nfi-backtest-engine.role=reference-command",
+            "--read-only",
+            "--tmpfs",
+            "/tmp:rw,noexec,nosuid,nodev",
+            "--tmpfs",
+            "/nfi-deps:rw,exec,nosuid,nodev",
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges=true",
+            "--pids-limit",
+            "512",
+            "--ulimit",
+            "nofile=4096:4096",
+            "--memory",
+            str(1024**3),
+            "--memory-swap",
+            str(1024**3),
         ]
     )
+    validate_managed_run_prefix(command)
     command.extend(
         [
             "--platform",
@@ -82,13 +116,25 @@ def build_reference_docker_command(
             f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
             "--env",
             "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
-            + (":/reference-deps" if dependency_directory is not None else ""),
+            + (":/nfi-deps/site" if dependency_directory is not None else "")
+            + (
+                ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+                if runtime_volume is not None
+                else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+            ),
             "--env",
             f"NFI_MARKET_SNAPSHOT_PATH=/fixture/{market_snapshot['path']}",
         ]
     )
     if dependency_directory is not None:
         command.extend(["--volume", f"{dependency_directory}:/reference-deps:ro"])
+    if runtime_volume is not None:
+        command.extend(
+            [
+                "--mount",
+                f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly",
+            ]
+        )
     if profile:
         command.extend(["--env", "NFI_BTE_PROFILE_EVENTS=/output/profile.jsonl"])
     if trace_mode != "off":
@@ -121,6 +167,58 @@ def build_reference_docker_command(
             *freqtrade_args,
         ]
     )
+    owner = output_directory.stat()
+    expected_volumes = [
+        f"{fixture_root}:/fixture:ro",
+        f"{output_directory}:/output",
+        f"{tracer_root}:/nfi-reference-tracer:ro",
+        f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
+    ]
+    if dependency_directory is not None:
+        expected_volumes.append(f"{dependency_directory}:/reference-deps:ro")
+    expected_mounts = (
+        [f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly"]
+        if runtime_volume is not None
+        else []
+    )
+    expected_environment = [
+        f"NFI_BIND_UID={owner.st_uid}",
+        f"NFI_BIND_GID={owner.st_gid}",
+        "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
+        + (":/nfi-deps/site" if dependency_directory is not None else "")
+        + (
+            ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+            if runtime_volume is not None
+            else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+        ),
+        f"NFI_MARKET_SNAPSHOT_PATH=/fixture/{market_snapshot['path']}",
+    ]
+    if profile:
+        expected_environment.append("NFI_BTE_PROFILE_EVENTS=/output/profile.jsonl")
+    if trace_mode != "off":
+        strategy = _one_input(manifest["inputs"], "strategy")
+        config = _one_input(manifest["inputs"], "config")
+        expected_environment.extend(
+            [
+                "NFI_TRACE_PATH=/output/state-trace.nfitrace",
+                f"NFI_TRACE_RUN_ID={manifest['fixture_id']}",
+                f"NFI_TRACE_INPUT_SHA256={fixture_input_sha256(manifest['inputs'])}",
+                f"NFI_TRACE_STRATEGY_SHA256={strategy['sha256']}",
+                f"NFI_TRACE_PROFILE_SHA256={config['sha256']}",
+                f"NFI_TRACE_INCLUDE_STATE={'1' if trace_mode == 'full' else '0'}",
+            ]
+        )
+    validate_final_managed_command(
+        command,
+        image=REFERENCE_IMAGE_REF,
+        platform=REFERENCE_PLATFORM,
+        user=f"{owner.st_uid}:{owner.st_gid}",
+        workdir="/fixture",
+        entrypoint="/bin/sh",
+        volumes=expected_volumes,
+        mounts=expected_mounts,
+        environment=expected_environment,
+    )
     return command
 
 
@@ -148,7 +246,7 @@ def capture_reference_markets(
         output = Path(temporary)
         (output / "user_data").mkdir()
         try:
-            with managed_docker_run(
+            with reference_runtime_volume(docker_config) as runtime_volume, managed_docker_run(
                 docker_config=docker_config,
                 role="market-capture",
             ) as lease:
@@ -168,7 +266,10 @@ def capture_reference_markets(
                     "--volume",
                     f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
                     "--env",
-                    "PYTHONPATH=/nfi-reference-tracer:/nfi-python",
+                    "PYTHONPATH=/nfi-reference-tracer:/nfi-python:"
+                    "/nfi-runtime/lib/python3.14/site-packages:/freqtrade",
+                    "--mount",
+                    f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly",
                     "--env",
                     "NFI_MARKET_CAPTURE_PATH=/output/market-snapshot.json",
                     "--entrypoint",
@@ -188,6 +289,7 @@ def capture_reference_markets(
                     capture_output=True,
                     check=False,
                     timeout=timeout_seconds,
+                    env=docker_subprocess_environment(),
                 )
         except subprocess.TimeoutExpired as exc:
             raise BenchmarkError("timed out while capturing reference markets") from exc
@@ -319,43 +421,237 @@ def ensure_reference_image(*, docker_config: Path) -> None:
         )
 
 
-def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) -> Path:
-    """Build an ignored Linux wheel target used only by the reference tracer."""
-    dependency_directory = project_root / "artifacts" / "docker" / "reference-deps"
-    marker = dependency_directory / "blake3" / "blake3.cpython-314-x86_64-linux-gnu.so"
-    if marker.is_file():
-        return dependency_directory
-    dependency_directory.mkdir(parents=True, exist_ok=True)
-    arguments = [
-        "--platform",
-        REFERENCE_PLATFORM,
-        *docker_bind_owner_arguments(dependency_directory),
-        "--volume",
-        f"{dependency_directory}:/reference-deps",
-        "--entrypoint",
-        "python",
-        REFERENCE_IMAGE_REF,
-        "-m",
-        "pip",
-        "install",
-        "--disable-pip-version-check",
-        "--no-deps",
-        "--target",
-        "/reference-deps",
-        f"blake3=={REFERENCE_BLAKE3_VERSION}",
-    ]
-    completed, _resources = run_managed_container(
-        arguments,
-        docker_config=docker_config,
-        role="reference-dependencies",
-        capture_output=True,
+@contextmanager
+def reference_dependency_lock(project_root: Path) -> Iterator[None]:
+    """Serialize dependency builds and every use across processes."""
+    build_root = project_root / "artifacts" / "docker"
+    build_root.mkdir(parents=True, exist_ok=True)
+    with (build_root / "reference-dependencies.lock").open("a+b") as handle:
+        _lock_dependency_file(handle)
+        try:
+            yield
+        finally:
+            _unlock_dependency_file(handle)
+
+
+@contextmanager
+def reference_runtime_volume(docker_config: Path) -> Iterator[str]:
+    """Expose the pinned image user runtime at a universally traversable mount."""
+    token = uuid.uuid4().hex
+    volume = f"nfi-reference-runtime-{token}"
+    helper = f"nfi-reference-runtime-init-{token}"
+    created = _run_docker(
+        docker_config,
+        [
+            "volume",
+            "create",
+            "--label",
+            "io.nfi-backtest-engine.managed=true",
+            "--label",
+            "io.nfi-backtest-engine.role=reference-runtime",
+            volume,
+        ],
     )
-    if completed.returncode != 0 or not marker.is_file():
-        raise BenchmarkError(
-            "failed to prepare pinned reference tracer dependency: "
-            f"{completed.stderr.strip() or completed.stdout.strip()}"
+    if created.returncode != 0:
+        raise BenchmarkError("cannot create the private reference runtime volume")
+    try:
+        initialized = _run_docker(
+            docker_config,
+            [
+                "create",
+                "--name",
+                helper,
+                "--platform",
+                REFERENCE_PLATFORM,
+                "--network",
+                "none",
+                "--read-only",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges=true",
+                "--label",
+                "io.nfi-backtest-engine.managed=true",
+                "--label",
+                "io.nfi-backtest-engine.role=reference-runtime-init",
+                "--mount",
+                f"type=volume,source={volume},target=/home/ftuser/.local",
+                REFERENCE_IMAGE_REF,
+            ],
         )
-    return dependency_directory
+        if initialized.returncode != 0:
+            raise BenchmarkError("cannot initialize the private reference runtime volume")
+        _run_docker(docker_config, ["container", "rm", helper])
+        yield volume
+    finally:
+        _run_docker(docker_config, ["container", "rm", "--force", helper])
+        _run_docker(docker_config, ["volume", "rm", "--force", volume])
+
+
+def ensure_reference_dependencies(*, project_root: Path, docker_config: Path) -> Path:
+    """Materialize and verify the complete hash-pinned tracer dependency inventory."""
+    with reference_dependency_lock(project_root):
+        return _ensure_reference_dependencies_unlocked(
+            project_root=project_root,
+            docker_config=docker_config,
+        )
+
+
+def _ensure_reference_dependencies_unlocked(*, project_root: Path, docker_config: Path) -> Path:
+    build_root = project_root / "artifacts" / "docker"
+    dependency_directory = build_root / "reference-deps"
+    if _reference_dependency_inventory_is_valid(dependency_directory):
+        return dependency_directory
+
+    build_root.mkdir(parents=True, exist_ok=True)
+    for interrupted_pattern in (
+        ".reference-deps.build-*",
+        ".reference-deps.replaced-*",
+    ):
+        for interrupted in build_root.glob(interrupted_pattern):
+            if interrupted.is_dir():
+                shutil.rmtree(interrupted)
+    staging = Path(tempfile.mkdtemp(prefix=".reference-deps.build-", dir=build_root))
+    requirements = staging.parent / f".{staging.name}.requirements.txt"
+    requirements.write_text(
+        "".join(
+            f"{url} --hash=sha256:{digest}\n"
+            for _name, url, digest in REFERENCE_DEPENDENCY_WHEELS
+        ),
+        encoding="utf-8",
+    )
+    try:
+        (staging / ".wheels").mkdir()
+        arguments = [
+            "--platform",
+            REFERENCE_PLATFORM,
+            *docker_bind_owner_arguments(staging),
+            "--volume",
+            f"{staging}:/reference-deps",
+            "--volume",
+            f"{requirements}:/nfi-requirements.txt:ro",
+            "--entrypoint",
+            "python",
+            REFERENCE_IMAGE_REF,
+            "-m",
+            "pip",
+            "download",
+            "--disable-pip-version-check",
+            "--no-deps",
+            "--only-binary=:all:",
+            "--require-hashes",
+            "--dest",
+            "/reference-deps/.wheels",
+            "--requirement",
+            "/nfi-requirements.txt",
+        ]
+        completed, _resources = run_managed_container(
+            arguments,
+            docker_config=docker_config,
+            role="reference-dependencies",
+            capture_output=True,
+        )
+        if completed.returncode != 0:
+            raise BenchmarkError(
+                "failed to download hash-pinned reference tracer dependencies: "
+                f"{completed.stderr.strip() or completed.stdout.strip()}"
+            )
+        _extract_reference_dependency_wheels(staging)
+        validate_reference_dependencies(staging)
+
+        displaced = build_root / f".reference-deps.replaced-{uuid.uuid4().hex}"
+        if dependency_directory.exists():
+            dependency_directory.replace(displaced)
+        try:
+            staging.replace(dependency_directory)
+        except OSError:
+            if displaced.exists() and not dependency_directory.exists():
+                displaced.replace(dependency_directory)
+            raise
+        if displaced.exists():
+            shutil.rmtree(displaced)
+        return dependency_directory
+    finally:
+        requirements.unlink(missing_ok=True)
+        if staging.exists():
+            shutil.rmtree(staging)
+
+
+def _lock_dependency_file(handle: BinaryIO) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        if handle.read(1) == b"":
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_dependency_file(handle: BinaryIO) -> None:
+    handle.seek(0)
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def validate_reference_dependencies(dependency_directory: Path) -> None:
+    """Fail unless every cached byte exactly matches every pinned wheel member."""
+    if not _reference_dependency_inventory_is_valid(dependency_directory):
+        raise BenchmarkError("reference dependency inventory is incomplete or untrusted")
+
+
+def _reference_dependency_inventory_is_valid(dependency_directory: Path) -> bool:
+    if not dependency_directory.is_dir():
+        return False
+    wheels = tuple(
+        (wheel_name, wheel_sha256)
+        for wheel_name, _url, wheel_sha256 in REFERENCE_DEPENDENCY_WHEELS
+    )
+    try:
+        validate_inventory(dependency_directory, wheels)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def _extract_reference_dependency_wheels(dependency_directory: Path) -> None:
+    for wheel_name, _url, wheel_sha256 in REFERENCE_DEPENDENCY_WHEELS:
+        wheel = dependency_directory / ".wheels" / wheel_name
+        if not wheel.is_file() or _sha256_file(wheel) != wheel_sha256:
+            raise BenchmarkError(f"hash-pinned reference wheel is missing or changed: {wheel_name}")
+        try:
+            with zipfile.ZipFile(wheel) as archive:
+                members = archive.infolist()
+                validate_archive_bounds(members)
+                for member in members:
+                    relative = safe_member(member)
+                    if relative is None:
+                        continue
+                    target = dependency_directory / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with archive.open(member) as source, target.open("wb") as destination:
+                        shutil.copyfileobj(source, destination)
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
+            raise BenchmarkError(f"cannot extract pinned reference wheel: {wheel_name}") from exc
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _reference_freqtrade_args(command: list[str]) -> list[str]:
@@ -429,6 +725,7 @@ def _run_docker(docker_config: Path, args: list[str]) -> subprocess.CompletedPro
             errors="replace",
             capture_output=True,
             check=False,
+            env=docker_subprocess_environment(),
         )
     except OSError as exc:
         raise BenchmarkError(f"cannot execute Docker: {exc}") from exc

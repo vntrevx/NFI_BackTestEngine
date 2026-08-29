@@ -23,11 +23,7 @@ def qualify_compatibility(
 
     check = _document(compatibility, "compatibility")
     difference = _document(strategy_diff, "strategy diff")
-    proof = (
-        _document(branch_proof, "branch proof")
-        if branch_proof is not None
-        else None
-    )
+    proof = _document(branch_proof, "branch proof") if branch_proof is not None else None
     blockers: list[dict[str, str]] = []
     if check.get("native_compatible") is not True:
         blockers.append(
@@ -58,20 +54,20 @@ def qualify_compatibility(
                         "message": f"branch proof requires {field}=true",
                     }
                 )
+    trading_mode = check.get("trading_mode")
+    if trading_mode not in {"spot", "futures"}:
+        raise SpecValidationError("compatibility trading mode is invalid")
     report = {
         "schema_version": COMPATIBILITY_QUALIFICATION_VERSION,
+        "trading_mode": trading_mode,
         "strategy_sha256": _source_sha(check),
         "classification": difference.get("classification"),
         "verification_state": "quick_verified" if not blockers else "latest_checked",
         "changed_branch_reached": (
             proof.get("changed_branch_reached") if proof is not None else False
         ),
-        "trade_surface_exact": (
-            proof.get("trade_surface_exact") if proof is not None else None
-        ),
-        "full_state_exact": (
-            proof.get("full_state_exact") if proof is not None else None
-        ),
+        "trade_surface_exact": (proof.get("trade_surface_exact") if proof is not None else None),
+        "full_state_exact": (proof.get("full_state_exact") if proof is not None else None),
         "blockers": blockers,
     }
     if output_path is not None:
@@ -83,11 +79,7 @@ def _document(
     value: Mapping[str, Any] | str | Path,
     label: str,
 ) -> dict[str, Any]:
-    document = (
-        read_json(value)
-        if isinstance(value, str | Path)
-        else dict(value)
-    )
+    document = read_json(value) if isinstance(value, str | Path) else dict(value)
     if not isinstance(document, dict):
         raise SpecValidationError(f"{label} must be an object")
     return document

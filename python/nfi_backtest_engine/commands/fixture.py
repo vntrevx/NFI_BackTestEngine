@@ -115,7 +115,7 @@ def execute(
         elif args.trace_command == "compare":
             compare_state_traces(args.expected, args.actual)
             print(f"exact state parity: {args.expected} == {args.actual}")
-        else:
+        elif args.trace_command == "verify-schedule":
             from ..scheduler_verification import verify_scheduler_events
 
             report = verify_scheduler_events(
@@ -131,6 +131,60 @@ def execute(
                 f"events={report['event_count']} -> {args.output}"
             )
             return 0 if report["event_order_exact"] else 1
+        elif args.trace_command == "verify-portfolio":
+            from ..portfolio_trace import verify_portfolio_trace
+
+            report = verify_portfolio_trace(
+                args.manifest,
+                args.official_trace,
+                args.native_events,
+                output_path=args.output,
+            )
+            print(
+                "portfolio semantic trace: "
+                f"exact={report['exact']}, events={report['event_count']} -> {args.output}"
+            )
+            return 0 if report["exact"] else 1
+        elif args.trace_command == "materialize-complete":
+            from ..complete_semantic_trace import materialize_native_complete_trace
+
+            report = materialize_native_complete_trace(
+                args.manifest,
+                args.native_events,
+                args.output,
+            )
+            print(
+                "complete semantic trace materialized: "
+                f"events={report['event_count']} -> {args.output}"
+            )
+        elif args.trace_command == "verify-complete":
+            from ..complete_semantic_trace import verify_complete_semantic_traces
+
+            report = verify_complete_semantic_traces(
+                args.expected,
+                args.actual,
+                output_path=args.output,
+            )
+            print(
+                "complete semantic trace: "
+                f"exact={report['exact']}, "
+                f"events={report['actual_event_count']} -> {args.output}"
+            )
+            return 0 if report["exact"] else 1
+        else:
+            from ..execution_trace import verify_execution_trace
+
+            report = verify_execution_trace(
+                args.manifest,
+                args.official_trace,
+                args.native_events,
+                output_path=args.output,
+            )
+            print(
+                "execution semantic trace: "
+                f"exact={report['exact']}, events={report['event_count']} -> {args.output}"
+            )
+            return 0 if report["exact"] else 1
         return 0
 
     if args.command_name == "profile":

@@ -4,16 +4,29 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import json
+import os
 import re
+import shutil
 import tarfile
+import tempfile
+import unicodedata
 from collections.abc import Mapping, Sequence
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 from nfi_backtest_engine.canonical import read_json
-from nfi_backtest_engine.fixture import validate_fixture
+from nfi_backtest_engine.fixture import (
+    validate_fixture,
+    validate_fixture_from_directory,
+)
+from nfi_backtest_engine.portable_paths import (
+    open_secure_parent,
+    parse_portable_relative_path,
+    validate_portable_filesystem_path,
+)
 
 _SHA = re.compile(r"[0-9a-f]{40}")
 _DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -21,6 +34,7 @@ _IMAGE_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 _SAFE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _MODES = {"spot", "futures"}
 _MAX_BUNDLE_BYTES = 64 * 1024 * 1024
+_MAX_BUNDLE_MEMBERS = 1024
 
 
 def select_bundle(
@@ -51,27 +65,69 @@ def materialize_bundle(
     output_directory: str | Path,
 ) -> dict[str, Any]:
     """Verify one immutable asset, extract regular files, and validate fixtures."""
-    asset = Path(asset_path).resolve()
-    output = Path(output_directory).resolve()
+    asset = validate_portable_filesystem_path(asset_path)
+    output = validate_portable_filesystem_path(output_directory)
     if not asset.is_file() or asset.stat().st_size != bundle["asset_bytes"]:
         raise ValueError("compatibility fixture asset size differs from registry")
     if _sha256_file(asset) != bundle["asset_sha256"]:
         raise ValueError("compatibility fixture asset digest differs from registry")
-    if output.exists() and any(output.iterdir()):
-        raise ValueError("compatibility fixture output directory must be empty")
-    output.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(asset, mode="r:gz") as archive:
-        members = archive.getmembers()
-        extracted_bytes = _validate_archive_members(members)
-        if extracted_bytes != bundle["extracted_bytes"]:
-            raise ValueError("compatibility fixture extracted size differs from registry")
-        archive.extractall(output, members=members, filter="data")
-    fixture_ids = []
-    for manifest_path in sorted(output.rglob("manifest.json")):
-        manifest = validate_fixture(manifest_path)
-        fixture_ids.append(str(manifest["fixture_id"]))
-    if sorted(fixture_ids) != sorted(bundle["fixture_ids"]):
-        raise ValueError("compatibility fixture ids differ from registry")
+    try:
+        parent_descriptor = open_secure_parent(output, create=True)
+    except ValueError as exc:
+        raise ValueError("compatibility fixture output parent is unsafe") from exc
+    stage_parent = (
+        Path(f"/proc/self/fd/{parent_descriptor}")
+        if parent_descriptor is not None
+        else output.parent
+    )
+    stage = None
+    stage_descriptor = None
+    try:
+        stage = Path(tempfile.mkdtemp(prefix=f".{output.name}.stage-", dir=stage_parent))
+        if parent_descriptor is not None:
+            stage_descriptor = os.open(
+                stage.name,
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_CLOEXEC", 0)
+                | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=parent_descriptor,
+            )
+        with tarfile.open(asset, mode="r:gz") as archive:
+            members = archive.getmembers()
+            extracted_bytes = _validate_archive_members(members)
+            if extracted_bytes != bundle["extracted_bytes"]:
+                raise ValueError("compatibility fixture extracted size differs from registry")
+            archive.extractall(stage, members=members, filter="data")
+        manifest_names = sorted(
+            member.name
+            for member in members
+            if member.isfile() and member.name.rsplit("/", 1)[-1] == "manifest.json"
+        )
+        fixture_ids = []
+        for manifest_name in manifest_names:
+            manifest = (
+                validate_fixture(stage / manifest_name)
+                if stage_descriptor is None
+                else validate_fixture_from_directory(stage_descriptor, manifest_name)
+            )
+            fixture_ids.append(str(manifest["fixture_id"]))
+        if sorted(fixture_ids) != sorted(bundle["fixture_ids"]):
+            raise ValueError("compatibility fixture ids differ from registry")
+        _publish_directory_no_clobber(
+            stage,
+            output,
+            parent_descriptor=parent_descriptor,
+        )
+        if parent_descriptor is not None:
+            os.fsync(parent_descriptor)
+    finally:
+        if stage_descriptor is not None:
+            os.close(stage_descriptor)
+        if stage is not None:
+            shutil.rmtree(stage, ignore_errors=True)
+        if parent_descriptor is not None:
+            os.close(parent_descriptor)
     return {
         "schema_version": "1.0.0",
         "bundle_id": bundle["id"],
@@ -83,6 +139,47 @@ def materialize_bundle(
         "fixture_ids": sorted(fixture_ids),
         "output_directory": str(output),
     }
+
+
+def _publish_directory_no_clobber(
+    stage: Path,
+    output: Path,
+    *,
+    parent_descriptor: int | None,
+) -> None:
+    if os.name == "nt":
+        try:
+            os.rename(stage, output)
+        except FileExistsError as exc:
+            raise ValueError("compatibility fixture output already exists") from exc
+        return
+    library = ctypes.CDLL(None, use_errno=True)
+    renameat2 = getattr(library, "renameat2", None)
+    if renameat2 is None:
+        raise ValueError("atomic no-clobber directory publication is unavailable")
+    renameat2.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    renameat2.restype = ctypes.c_int
+    source_directory = -100 if parent_descriptor is None else parent_descriptor
+    destination_directory = -100 if parent_descriptor is None else parent_descriptor
+    source_name = stage if parent_descriptor is None else Path(stage.name)
+    destination_name = output if parent_descriptor is None else Path(output.name)
+    if renameat2(
+        source_directory,
+        os.fsencode(source_name),
+        destination_directory,
+        os.fsencode(destination_name),
+        1,
+    ) != 0:
+        error = ctypes.get_errno()
+        if error == 17:
+            raise ValueError("compatibility fixture output already exists")
+        raise OSError(error, os.strerror(error), output)
 
 
 def main() -> int:
@@ -198,18 +295,24 @@ def _validate_bundle(bundle: Mapping[str, Any]) -> None:
 
 
 def _validate_archive_members(members: Sequence[tarfile.TarInfo]) -> int:
+    if len(members) > _MAX_BUNDLE_MEMBERS:
+        raise ValueError("compatibility fixture archive has too many members")
     total = 0
-    seen: set[PurePosixPath] = set()
+    seen: set[str] = set()
     for member in members:
-        path = PurePosixPath(member.name)
+        try:
+            path = parse_portable_relative_path(member.name)
+        except ValueError as exc:
+            raise ValueError(
+                "compatibility fixture archive contains an unsafe member"
+            ) from exc
         if (
             path.is_absolute()
-            or ".." in path.parts
-            or path in seen
+            or unicodedata.normalize("NFC", path.as_posix()).casefold() in seen
             or not (member.isfile() or member.isdir())
         ):
             raise ValueError("compatibility fixture archive contains an unsafe member")
-        seen.add(path)
+        seen.add(unicodedata.normalize("NFC", path.as_posix()).casefold())
         if member.isfile():
             if member.size < 0:
                 raise ValueError("compatibility fixture archive size is invalid")

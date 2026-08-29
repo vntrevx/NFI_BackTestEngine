@@ -7,6 +7,9 @@ use serde_json::Value;
 
 use super::nfi::AdjustmentState;
 use super::order_aggregates::FilledOrderAggregates;
+use crate::calculations::{checked_float_sum, precise_sum};
+use crate::domain::SimError;
+
 use super::{ClosedTrade, FilledOrder};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +65,7 @@ pub(crate) struct OpenTrade {
     pub(crate) liquidation_price_is_explicit: bool,
     pub(crate) initial_stop_loss: f64,
     pub(crate) stop_loss: f64,
+    pub(crate) custom_stop_loss_ratio: Option<f64>,
     pub(crate) minimum_rate: f64,
     pub(crate) maximum_rate: f64,
     pub(crate) orders: Vec<FilledOrder>,
@@ -98,17 +102,25 @@ impl OpenTrade {
         &self.entry_tag_cache().words
     }
 
-    pub(crate) fn push_filled_order(&mut self, order: FilledOrder) {
+    pub(crate) fn push_filled_order(&mut self, order: FilledOrder) -> Result<(), SimError> {
         if let Some(aggregates) = self.filled_order_aggregates.get_mut() {
-            aggregates.push(&order);
+            aggregates.push(&order)?;
         }
         self.orders.push(order);
         self.nfi_adjustment_state = None;
+        Ok(())
     }
 
-    pub(crate) fn filled_order_aggregates(&self) -> &FilledOrderAggregates {
+    pub(crate) fn filled_order_aggregates(&self) -> Result<&FilledOrderAggregates, SimError> {
+        if self.filled_order_aggregates.get().is_none() {
+            let aggregates = FilledOrderAggregates::from_orders(&self.orders)?;
+            let _ = self.filled_order_aggregates.set(aggregates);
+        }
         self.filled_order_aggregates
-            .get_or_init(|| FilledOrderAggregates::from_orders(&self.orders))
+            .get()
+            .ok_or(SimError::ExactArithmetic {
+                operation: "order-aggregate-storage",
+            })
     }
 }
 
@@ -116,21 +128,94 @@ pub(super) fn wallet_free(
     starting_balance: f64,
     open_trades: &[OpenTrade],
     closed_trades: &[ClosedTrade],
-) -> f64 {
-    let realized_profit = closed_trades
-        .iter()
-        .map(|trade| trade.profit_abs)
-        .sum::<f64>();
-    let tied_up_stake = open_trades
-        .iter()
-        .map(|trade| trade.stake_amount)
-        .sum::<f64>();
-    let open_realized_profit = open_trades
-        .iter()
-        .map(|trade| trade.realized_partial_profit)
-        .sum::<f64>();
-    // Freqtrade does not settle a running funding value into its backtest
-    // wallet. It becomes available only through a realized partial exit or a
-    // closed trade, both of which are already included above.
-    starting_balance + realized_profit + open_realized_profit - tied_up_stake
+) -> Result<f64, SimError> {
+    let realized_profit = checked_float_sum(
+        &closed_trades
+            .iter()
+            .map(|trade| trade.profit_abs)
+            .collect::<Vec<_>>(),
+        "wallet-realized-profit",
+    )?;
+    let tied_up_stake = checked_float_sum(
+        &open_trades
+            .iter()
+            .map(|trade| trade.stake_amount)
+            .collect::<Vec<_>>(),
+        "wallet-tied-up-stake",
+    )?;
+    let open_realized_profit = checked_float_sum(
+        &open_trades
+            .iter()
+            .map(|trade| trade.realized_partial_profit)
+            .collect::<Vec<_>>(),
+        "wallet-open-realized-profit",
+    )?;
+    // Freqtrade first merges closed and open realized profit, then adds the
+    // result to starting capital, and only then subtracts collateral.
+    // Reassociating these operations changes exact quote-free tokens.
+    wallet_free_from_totals(
+        starting_balance,
+        realized_profit,
+        open_realized_profit,
+        tied_up_stake,
+    )
+}
+
+fn wallet_free_from_totals(
+    starting_balance: f64,
+    realized_profit: f64,
+    open_realized_profit: f64,
+    tied_up_stake: f64,
+) -> Result<f64, SimError> {
+    let total_profit = checked_float_sum(
+        &[realized_profit, open_realized_profit],
+        "wallet-total-profit",
+    )?;
+    if total_profit == 0.0 || tied_up_stake == 0.0 {
+        // Freqtrade's ungrouped wallet paths preserve decimal-text balance
+        // arithmetic. Binary addition/subtraction alone moves valid entry and
+        // fully-closed wallet boundaries by several ULPs.
+        return precise_sum(&[starting_balance, total_profit, -tied_up_stake]).map_err(|_| {
+            SimError::ExactArithmetic {
+                operation: "wallet-final-balance",
+            }
+        });
+    }
+    checked_float_sum(
+        &[starting_balance, total_profit, -tied_up_stake],
+        "wallet-final-balance",
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wallet_free_from_totals;
+
+    #[test]
+    fn wallet_free_preserves_freqtrade_profit_grouping_boundary() {
+        let quote_free = wallet_free_from_totals(
+            10_000.0,
+            1_707.555_080_630_000_2,
+            -509.448_001_5,
+            9_273.294_6,
+        )
+        .expect("finite wallet");
+
+        assert_eq!(quote_free.to_bits(), 1_924.812_479_130_001_5_f64.to_bits());
+    }
+
+    #[test]
+    fn wallet_free_preserves_no_profit_decimal_boundary() {
+        let quote_free = wallet_free_from_totals(110.0, 0.0, 0.0, 95.9792).expect("finite wallet");
+
+        assert_eq!(quote_free.to_bits(), 14.0208_f64.to_bits());
+    }
+
+    #[test]
+    fn wallet_free_preserves_fully_closed_decimal_boundary() {
+        let quote_free =
+            wallet_free_from_totals(110.0, -67.585_389_07, 0.0, 0.0).expect("finite wallet");
+
+        assert_eq!(quote_free.to_bits(), 42.414_610_93_f64.to_bits());
+    }
 }

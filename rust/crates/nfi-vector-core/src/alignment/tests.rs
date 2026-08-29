@@ -83,6 +83,39 @@ fn stream_is_exact_at_the_five_minute_hour_boundary() {
 }
 
 #[test]
+fn future_informative_mutation_does_not_change_pre_visibility_rows() {
+    let base = NumericFrame {
+        identity: identity("ETH/USDT", "5m"),
+        timestamps_ms: vec![
+            ms("2024-01-01T00:55:00Z"),
+            ms("2024-01-01T01:00:00Z"),
+            ms("2024-01-01T01:05:00Z"),
+        ],
+        columns: BTreeMap::from([("base".to_owned(), vec![Some(1.0), Some(2.0), Some(3.0)])]),
+    };
+    let informative = NumericFrame {
+        identity: identity("ETH/USDT", "1h"),
+        timestamps_ms: vec![ms("2024-01-01T00:00:00Z"), ms("2024-01-01T01:00:00Z")],
+        columns: BTreeMap::from([("info".to_owned(), vec![Some(9.0), Some(10.0)])]),
+    };
+    let spec = MergeSpec {
+        base: base.identity.clone(),
+        informative: informative.identity.clone(),
+        ffill: true,
+        append_timeframe: true,
+        suffix: None,
+        date_column: "date".to_owned(),
+        source: source(),
+    };
+    let expected = merge(&base, &informative, &spec).expect("baseline merge");
+    let mut mutated = informative;
+    mutated.columns.get_mut("info").expect("informative column")[1] = Some(999.0);
+    let actual = merge(&base, &mutated, &spec).expect("mutated merge");
+
+    assert_merged_bits(&actual, &expected);
+}
+
+#[test]
 fn empty_base_informative_chunk_is_retained_for_the_next_exact_chunk() {
     let base = NumericFrame {
         identity: identity("ETH/USDT", "5m"),

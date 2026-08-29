@@ -112,6 +112,8 @@
         "trade_surface": {"$ref": "#/$defs/file"},
         "state_trace": {"$ref": "#/$defs/file"},
         "state_projection": {"$ref": "#/$defs/file"},
+        "native_vector_manifest": {"$ref": "#/$defs/file"},
+        "native_vector": {"$ref": "#/$defs/file"},
         "coverage_report": {"$ref": "#/$defs/file"}
       }
     },
@@ -261,7 +263,8 @@
         "command": {
           "type": "array",
           "minItems": 1,
-          "items": {"type": "string"}
+          "maxItems": 64,
+          "items": {"type": "string", "maxLength": 4096}
         }
       }
     },

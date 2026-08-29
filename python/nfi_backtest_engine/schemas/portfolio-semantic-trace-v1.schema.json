@@ -1,0 +1,22 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://github.com/vntrevx/NFI_BackTestEngine/schemas/portfolio-semantic-trace-v1.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","header","events","final_force_exit_trade_ids","final_trades"],
+  "properties":{
+    "schema_version":{"const":"portfolio-semantic-trace-v1"},"header":{"$ref":"#/$defs/header"},
+    "events":{"type":"array","items":{"$ref":"#/$defs/event"}},
+    "final_force_exit_trade_ids":{"type":"array","items":{"type":"integer","minimum":1}},
+    "final_trades":{"type":"array","items":{"$ref":"#/$defs/finalTrade"}}
+  },
+  "$defs":{
+    "sha":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "decimal":{"type":"string","pattern":"^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"},
+    "header":{"type":"object","additionalProperties":false,"required":["fixture_id","fixture_manifest_sha256","source_sha256","contract_sha256","configured_pairs","slot_limit"],"properties":{"fixture_id":{"type":"string","minLength":1},"fixture_manifest_sha256":{"$ref":"#/$defs/sha"},"source_sha256":{"$ref":"#/$defs/sha"},"contract_sha256":{"$ref":"#/$defs/sha"},"configured_pairs":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}},"slot_limit":{"type":"integer","minimum":1}}},
+    "wallet":{"type":"object","additionalProperties":false,"required":["free","tied","realized_partial"],"properties":{"free":{"$ref":"#/$defs/decimal"},"tied":{"$ref":"#/$defs/decimal"},"realized_partial":{"$ref":"#/$defs/decimal"}}},
+    "slot":{"type":"object","additionalProperties":false,"required":["occupied","limit"],"properties":{"occupied":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1}}},
+    "openTrade":{"type":"object","additionalProperties":false,"required":["trade_id","pair"],"properties":{"trade_id":{"type":"integer","minimum":1},"pair":{"type":"string","minLength":1}}},
+    "event":{"type":"object","additionalProperties":false,"required":["sequence","timestamp_ms","batch_index","batch_position","configured_pair_index","phase","pair","open_trade_insertion_order","wallet","slots","decision","trade_ids","order_ids","partial_exit","compounding_base"],"properties":{"sequence":{"type":"integer","minimum":0},"timestamp_ms":{"type":"integer","minimum":0},"batch_index":{"type":"integer","minimum":0},"batch_position":{"type":"integer","minimum":0},"configured_pair_index":{"type":"integer","minimum":0},"phase":{"enum":["open-trade","remaining-pair"]},"pair":{"type":"string","minLength":1},"open_trade_insertion_order":{"type":"array","items":{"$ref":"#/$defs/openTrade"}},"wallet":{"type":"object","additionalProperties":false,"required":["before","after"],"properties":{"before":{"$ref":"#/$defs/wallet"},"after":{"$ref":"#/$defs/wallet"}}},"slots":{"type":"object","additionalProperties":false,"required":["before","after"],"properties":{"before":{"$ref":"#/$defs/slot"},"after":{"$ref":"#/$defs/slot"}}},"decision":{"type":"object","additionalProperties":false,"required":["accepted","rejection_reason"],"properties":{"accepted":{"type":"boolean"},"rejection_reason":{"type":["string","null"]}}},"trade_ids":{"type":"object","additionalProperties":false,"required":["next_before","allocated"],"properties":{"next_before":{"type":"integer","minimum":1},"allocated":{"type":["integer","null"],"minimum":1}}},"order_ids":{"type":"object","additionalProperties":false,"required":["next_before","allocated"],"properties":{"next_before":{"type":"integer","minimum":1},"allocated":{"type":["integer","null"],"minimum":1}}},"partial_exit":{"type":"object","additionalProperties":false,"required":["wallet_release","slot_retained"],"properties":{"wallet_release":{"$ref":"#/$defs/decimal"},"slot_retained":{"type":"boolean"}}},"compounding_base":{"$ref":"#/$defs/decimal"}}},
+    "finalTrade":{"type":"object","additionalProperties":false,"required":["force_exit_sequence","trade_id","pair","order_ids"],"properties":{"force_exit_sequence":{"type":"integer","minimum":0},"trade_id":{"type":"integer","minimum":1},"pair":{"type":"string","minLength":1},"order_ids":{"type":"array","items":{"type":"integer","minimum":1}}}}
+  }
+}

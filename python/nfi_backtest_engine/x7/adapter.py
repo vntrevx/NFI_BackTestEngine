@@ -38,7 +38,7 @@ from .vectors import (
     _x7_signal_candles,
 )
 
-X7_ADAPTER_VERSION = "0.29.0"
+X7_ADAPTER_VERSION = "0.30.0"
 
 
 def build_x7_simulation_input(

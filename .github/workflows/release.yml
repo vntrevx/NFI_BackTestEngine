@@ -3,8 +3,14 @@ name: Build release candidate
 
 on:
   workflow_dispatch:
+    inputs:
+      native_score_run_id:
+        description: Run containing the independently produced closed Native score evidence tree
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -23,10 +29,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             manylinux: "2_17"
             portable_evidence: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            manylinux: "off"
-            portable_evidence: true
           - os: macos-14
             target: aarch64-apple-darwin
             manylinux: "off"
@@ -48,12 +50,12 @@ jobs:
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           maturin-version: v1.11.5
+          sccache: true
           rust-toolchain: "1.83"
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           args: --release --locked --compatibility pypi --out dist
       - name: Verify wheel on Unix target
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -64,24 +66,8 @@ jobs:
             benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json \
             --output-dir .wheel-check \
             --level full
-      - name: Verify wheel on Windows target
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          python -m venv .wheel-venv
-          $wheel = (Get-ChildItem -Path dist -Filter *.whl -File -Recurse).FullName
-          if ($wheel.Count -ne 1) {
-            throw "Expected exactly one wheel, found $($wheel.Count)"
-          }
-          .\.wheel-venv\Scripts\python.exe -m pip install $wheel
-          .\.wheel-venv\Scripts\nfi-bte.exe --version
-          .\.wheel-venv\Scripts\nfi-bte.exe engine fixture `
-            benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json `
-            --output-dir .wheel-check `
-            --level full
       - name: Measure exact Spot and Futures fixtures on Unix target
-        if: matrix.portable_evidence && runner.os != 'Windows'
+        if: matrix.portable_evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -104,30 +90,12 @@ jobs:
               '.platform_evidence.modes[] | [.slug, .manifest] | @tsv' \
               .release-candidate-plan.json
           )
-      - name: Measure exact Spot and Futures fixtures on Windows target
-        if: matrix.portable_evidence && runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $wheel = (Get-ChildItem -Path dist -Filter *.whl -File -Recurse).FullName
-          if ($wheel.Count -ne 1) {
-            throw "Expected exactly one wheel, found $($wheel.Count)"
-          }
-          $plan = Get-Content .release-candidate-plan.json -Raw | ConvertFrom-Json
-          foreach ($mode in $plan.platform_evidence.modes) {
-            .\.wheel-venv\Scripts\nfi-bte.exe platform fixture-benchmark `
-              $mode.manifest `
-              --wheel $wheel `
-              --output-dir (Join-Path .platform-evidence $mode.slug) `
-              --runs $plan.platform_evidence.runs `
-              --timeout $plan.platform_evidence.timeout_seconds
-          }
       - name: Upload platform benchmark
         if: matrix.portable_evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: platform-report-${{ matrix.target }}
-          path: .platform-evidence/*/platform-benchmark.json
+          path: .platform-evidence/*/platform-benchmark*.json
           if-no-files-found: error
           include-hidden-files: true
       - name: Upload wheel
@@ -191,9 +159,156 @@ jobs:
             --output-dir .release-check \
             --level full
 
+  provenance-prepare:
+    name: Prepare platform provenance signing inputs
+    needs: [verify]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Download platform reports
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: platform-report-*
+          path: reports
+      - name: Download distributions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - name: Download source distribution
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: sdist
+          path: dist
+      - name: Install release wheel without signing material
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Prepare canonical DSSE signing inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 .prepare-venv
+          uv pip install --python .prepare-venv/bin/python dist/*manylinux*x86_64.whl
+          candidate_id="$(.prepare-venv/bin/python -c 'from pathlib import Path; from nfi_backtest_engine.fixture import sha256_file; from nfi_backtest_engine.release_provenance import candidate_distribution_identity; root=Path("dist"); print(candidate_distribution_identity({p.name: sha256_file(p) for p in root.iterdir() if p.name.endswith((".whl", ".tar.gz"))}))')"
+          challenge="$(openssl rand -hex 32)"
+          bundle_id="$(printf '%s:%s' "$candidate_id" "$challenge" | sha256sum | cut -d' ' -f1)"
+          while IFS= read -r report; do
+            nonce="$(openssl rand -hex 32)"
+            .prepare-venv/bin/nfi-bte platform prepare-attestation "$report" \
+              --payload-output "$report.provenance.payload" \
+              --pae-output "$report.provenance.pae" \
+              --checksum-output "$report.provenance.signing.sha256" \
+              --repository "$GITHUB_REPOSITORY" \
+              --repository-ref "$GITHUB_REF" \
+              --workflow "Build release candidate" \
+              --workflow-ref ".github/workflows/release.yml@$GITHUB_REF" \
+              --job "provenance-signing" \
+              --commit "$GITHUB_SHA" \
+              --run-id "$GITHUB_RUN_ID" \
+              --run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --candidate-id "$candidate_id" \
+              --bundle-id "$bundle_id" \
+              --challenge "$challenge" \
+              --nonce "$nonce"
+          done < <(find reports -type f -name platform-benchmark.json | LC_ALL=C sort)
+      - name: Upload canonical signing inputs
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: provenance-signing-inputs-${{ github.sha }}
+          path: reports/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  provenance-signing:
+    name: Sign platform provenance
+    needs: [verify, provenance-prepare]
+    runs-on: [self-hosted, linux, x64, nfi-release-signer]
+    if: github.ref == 'refs/heads/main'
+    environment: release-provenance
+    steps:
+      - name: Download canonical signing inputs
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: provenance-signing-inputs-${{ github.sha }}
+          path: reports
+      - name: Sign canonical DSSE PAE bytes
+        env:
+          NFI_RELEASE_PROVENANCE_PRIVATE_KEY: ${{ secrets.NFI_RELEASE_PROVENANCE_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          signing_key="$(/usr/bin/mktemp)"
+          trap '/usr/bin/shred -u "$signing_key" 2>/dev/null || /usr/bin/rm -f "$signing_key"' EXIT
+          printf '%s' "$NFI_RELEASE_PROVENANCE_PRIVATE_KEY" > "$signing_key"
+          while IFS= read -r manifest; do
+            test ! -L "$manifest"
+            test "$(/usr/bin/wc -l < "$manifest")" -eq 2
+            /usr/bin/grep -Eq '^[0-9a-f]{64}  platform-benchmark\.json\.provenance\.payload$' "$manifest"
+            /usr/bin/grep -Eq '^[0-9a-f]{64}  platform-benchmark\.json\.provenance\.pae$' "$manifest"
+            directory="$(/usr/bin/dirname "$manifest")"
+            (cd "$directory" && /usr/bin/sha256sum --check "$(/usr/bin/basename "$manifest")")
+            pae="${manifest%.signing.sha256}.pae"
+            test -f "$pae" && test ! -L "$pae"
+            /usr/bin/openssl pkeyutl -sign -rawin \
+              -inkey "$signing_key" \
+              -in "$pae" \
+              -out "${pae%.pae}.signature"
+          done < <(/usr/bin/find reports -type f -name '*.provenance.signing.sha256' | LC_ALL=C /usr/bin/sort)
+      - name: Upload isolated signatures
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: provenance-signatures-${{ github.sha }}
+          path: reports/
+          if-no-files-found: error
+          include-hidden-files: true
+
+  provenance-assemble:
+    name: Assemble platform provenance envelopes
+    needs: [provenance-prepare, provenance-signing]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Download signed inputs
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: provenance-signatures-${{ github.sha }}
+          path: reports
+      - name: Download Linux release wheel
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: wheel-x86_64-unknown-linux-gnu
+          path: wheel
+      - name: Install release wheel after signing material is gone
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Assemble signed provenance envelopes
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 .assemble-venv
+          uv pip install --python .assemble-venv/bin/python wheel/*.whl
+          while IFS= read -r payload; do
+            prefix="${payload%.payload}"
+            .assemble-venv/bin/nfi-bte platform assemble-attestation \
+              --payload "$payload" \
+              --signature "$prefix.signature" \
+              --output "$prefix.json"
+          done < <(find reports -type f -name '*.provenance.payload' | LC_ALL=C sort)
+      - name: Upload signed platform reports
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: signed-platform-reports-${{ github.sha }}
+          path: reports/
+          if-no-files-found: error
+          include-hidden-files: true
+
   platform-evidence:
-    name: Seal three-OS Spot and Futures evidence
-    needs: [wheels]
+    name: Seal supported-platform Spot and Futures evidence
+    needs: [provenance-assemble]
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -203,7 +318,7 @@ jobs:
       - name: Download platform reports
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          pattern: platform-report-*
+          name: signed-platform-reports-${{ github.sha }}
           path: reports
       - name: Download Linux release wheel
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -229,7 +344,7 @@ jobs:
                 -path "*/$slug/platform-benchmark.json" \
                 | LC_ALL=C sort
             )
-            test "${#mode_reports[@]}" -eq 3
+            test "${#mode_reports[@]}" -eq 2
             arguments=()
             for report in "${mode_reports[@]}"; do
               jq -e \
@@ -239,8 +354,15 @@ jobs:
               arguments+=(--report "$report")
             done
             sealed="sealed/$slug"
+            coordinator="reports/provenance-coordinator.json"
             .seal-venv/bin/nfi-bte platform seal \
               "${arguments[@]}" \
+              --run-id "$(jq -er .run_id "$coordinator")" \
+              --run-attempt "$(jq -er .run_attempt "$coordinator")" \
+              --candidate-id "$(jq -er .candidate_id "$coordinator")" \
+              --bundle-id "$(jq -er .bundle_id "$coordinator")" \
+              --challenge "$(jq -er .challenge "$coordinator")" \
+              --candidate-commit "$(jq -er .commit "$coordinator")" \
               --output-dir "$sealed"
             destination="release-evidence/platform/$slug"
             mkdir -p "$destination"
@@ -259,9 +381,50 @@ jobs:
           path: release-evidence/
           if-no-files-found: error
 
+  native-score:
+    name: Validate and retain Native score evidence
+    needs: [wheels, platform-evidence]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download independently produced score evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: native-score-evidence-${{ github.sha }}
+          run-id: ${{ inputs.native_score_run_id }}
+          github-token: ${{ github.token }}
+          path: native-score
+      - name: Download Linux release wheel
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: wheel-x86_64-unknown-linux-gnu
+          path: wheel
+      - name: Install the candidate wheel
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Recompute the current candidate score before packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 .score-venv
+          uv pip install --python .score-venv/bin/python wheel/*.whl
+          .score-venv/bin/nfi-bte release score \
+            --evidence native-score/score-evidence.json \
+            --identity native-score/identity.json \
+            --output .native-score-validation-report.json
+          rm -f -- .native-score-validation-report.json
+      - name: Retain the complete score evidence tree
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: validated-native-score-${{ github.sha }}
+          path: native-score/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
+
   bundle:
     name: Seal candidate bundle
-    needs: [wheels, sdist, verify, platform-evidence]
+    needs: [wheels, sdist, verify, platform-evidence, native-score]
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -284,6 +447,11 @@ jobs:
         with:
           name: release-evidence-${{ github.sha }}
           path: dist
+      - name: Download validated Native score evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: validated-native-score-${{ github.sha }}
+          path: dist/native-score
       - name: Seal distribution hashes
         shell: bash
         run: |
@@ -304,7 +472,8 @@ jobs:
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.sha256_manifest_required == true
              and .distribution_policy.required_ci_commit_match == true
-             and .distribution_policy.three_os_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             .github/product-release-contract.json
           cd dist
@@ -317,6 +486,8 @@ jobs:
           cp dist/*.whl dist/*.tar.gz product-release/
           cp dist/release-candidate-plan.json product-release/
           cp .github/product-release-contract.json product-release/
+          PYTHONPATH=python python -c \
+            'from nfi_backtest_engine.archive_security import create_deterministic_zip; create_deterministic_zip("dist/native-score", "product-release/native-score.zip")'
           for mode in spot futures; do
             cp "dist/platform/$mode/platform-evidence.json" \
               "product-release/full-x7-$mode-platform-evidence.json"
@@ -324,7 +495,7 @@ jobs:
               "product-release/full-x7-$mode-platform-evidence.zip"
           done
           cd product-release
-          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 \
+          find . -type f ! -name SHA256SUMS.txt -print0 \
             | LC_ALL=C sort -z \
             | xargs -0 sha256sum > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt

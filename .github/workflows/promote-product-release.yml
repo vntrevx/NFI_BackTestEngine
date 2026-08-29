@@ -94,6 +94,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --dir candidate
           (cd candidate && sha256sum --check SHA256SUMS.txt)
+          test -z "$(find candidate -mindepth 1 ! -type f -print -quit)"
       - name: Prove non-combined product boundary
         env:
           STABLE_TAG: ${{ inputs.stable_tag }}
@@ -106,6 +107,8 @@ jobs:
              and .release_kind == "product"
              and .combined_full_x7_certified == false
              and .distribution_policy.byte_identical_rc_stable == true
+             and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             candidate/product-release-contract.json
           test ! -e candidate/release-gate.json
@@ -127,6 +130,27 @@ jobs:
           test "${#wheels[@]}" -eq 1
           uv venv --python 3.12 .promote-venv
           uv pip install --python .promote-venv/bin/python "${wheels[0]}"
+          score_root=candidate/native-score
+          score_stage="candidate/.native-score.extract-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          score_report=.promote-native-score-report.json
+          cleanup_private_score() {
+            rm -rf -- "$score_root" "$score_stage" "$score_report"
+            rm -f -- ".${score_report}.stage-"*
+          }
+          trap cleanup_private_score EXIT
+          .promote-venv/bin/python -c \
+            'from nfi_backtest_engine.archive_security import extract_validated_zip; extract_validated_zip("candidate/native-score.zip", "'"$score_stage"'")'
+          mv -- "$score_stage" "$score_root"
+          candidate_id="$(
+            .promote-venv/bin/python -c \
+              'from pathlib import Path; from nfi_backtest_engine.fixture import sha256_file; from nfi_backtest_engine.release_provenance import candidate_distribution_identity; root=Path("candidate"); print(candidate_distribution_identity({path.name: sha256_file(path) for path in root.iterdir() if path.name.endswith((".whl", ".tar.gz"))}))'
+          )"
+          test "$(jq -er .engine_artifact_sha256 candidate/native-score/identity.json)" \
+            = "$candidate_id"
+          .promote-venv/bin/nfi-bte release score \
+            --evidence candidate/native-score/score-evidence.json \
+            --identity candidate/native-score/identity.json \
+            --output "$score_report"
           test "$(.promote-venv/bin/nfi-bte --version)" \
             = "nfi-bte ${STABLE_TAG#v}"
           .promote-venv/bin/nfi-bte engine fixture \
@@ -142,7 +166,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$STABLE_TAG" candidate/* \
+          test -z "$(find candidate -mindepth 1 ! -type f -print -quit)"
+          mapfile -d '' -t assets < <(find candidate -mindepth 1 -maxdepth 1 -type f -print0 | LC_ALL=C sort -z)
+          score_root=candidate/native-score
+          score_stage="candidate/.native-score.extract-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          score_report=.promote-native-score-report.json
+          cleanup_private_score() {
+            rm -rf -- "$score_root" "$score_stage" "$score_report"
+            rm -f -- ".${score_report}.stage-"*
+          }
+          trap cleanup_private_score EXIT
+          .promote-venv/bin/python -c \
+            'from nfi_backtest_engine.archive_security import extract_validated_zip; extract_validated_zip("candidate/native-score.zip", "'"$score_stage"'")'
+          mv -- "$score_stage" "$score_root"
+          .promote-venv/bin/nfi-bte release score \
+            --evidence candidate/native-score/score-evidence.json \
+            --identity candidate/native-score/identity.json \
+            --operation "product-stable-create:${STABLE_TAG}:$CANDIDATE_SHA" \
+            --output "$score_report"
+          gh release create "$STABLE_TAG" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$CANDIDATE_SHA" \
             --title "NFI Backtest Engine $STABLE_TAG" \
@@ -175,22 +217,6 @@ jobs:
           done
           test "$latest_tag" = "$STABLE_TAG"
           ./install.sh
-
-  windows-installer:
-    name: Audit latest Windows installer
-    needs: promote
-    runs-on: windows-latest
-    steps:
-      - name: Check out release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ needs.promote.outputs.candidate_sha }}
-          persist-credentials: false
-      - name: Verify latest Windows release selection
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: pwsh
-        run: .\install.ps1 -Version latest -DryRun
 
   macos-installer:
     name: Audit latest macOS installer

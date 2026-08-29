@@ -9,7 +9,9 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::calculations::{fee_close, fee_open};
+use crate::calculations::{
+    checked_finite, checked_float_product, checked_float_sum, fee_close, fee_open,
+};
 use crate::callbacks::insert_projected_feature_window;
 use crate::domain::{
     AdjustmentSignal, Candle, CompiledOrderSequence, CompiledOrderSide,
@@ -66,20 +68,40 @@ struct RegularCluster {
 }
 
 impl RegularCluster {
-    fn add_entry(&mut self, order: &FilledOrder) {
-        self.count += 1;
-        self.total_amount += order.amount;
-        self.total_cost += order.amount * order.price;
+    fn add_entry(&mut self, order: &FilledOrder) -> Option<()> {
+        self.count = self.count.checked_add(1)?;
+        self.total_amount = checked_float_sum(
+            &[self.total_amount, order.amount],
+            "nfi-regular-cluster-total-amount",
+        )
+        .ok()?;
+        let cost = checked_float_product(
+            &[order.amount, order.price],
+            "nfi-regular-cluster-order-cost",
+        )
+        .ok()?;
+        self.total_cost =
+            checked_float_sum(&[self.total_cost, cost], "nfi-regular-cluster-total-cost").ok()?;
         self.entry_ids.push(order.id);
         self.latest_entry_price.get_or_insert(order.price);
+        Some(())
     }
 
-    fn finish(&mut self, rate: f64) {
+    fn finish(&mut self, rate: f64) -> Option<()> {
         if self.count == 0 {
-            return;
+            return Some(());
         }
-        self.open_rate = self.total_cost / self.total_amount;
-        self.profit_rate = (rate - self.open_rate) / self.open_rate;
+        self.open_rate = checked_finite(
+            self.total_cost / self.total_amount,
+            "nfi-regular-cluster-open-rate",
+        )
+        .ok()?;
+        self.profit_rate = checked_finite(
+            (rate - self.open_rate) / self.open_rate,
+            "nfi-regular-cluster-profit-rate",
+        )
+        .ok()?;
+        Some(())
     }
 
     fn latest_distance(&self, rate: f64) -> f64 {
@@ -606,10 +628,10 @@ fn rebuild_regular_state(
         if order.is_entry && order.id != first_entry.id {
             if let Some(index) = regular_grind_entry_index(full_tag, &contract.grinds) {
                 if !grind_closed.get(index).copied()? {
-                    grinds.get_mut(index)?.add_entry(order);
+                    grinds.get_mut(index)?.add_entry(order)?;
                 }
             } else if !rebuy_closed && !contract.rebuy_entry_excluded(full_tag) {
-                rebuy.add_entry(order);
+                rebuy.add_entry(order)?;
             }
             continue;
         }
@@ -652,9 +674,9 @@ fn rebuild_regular_state(
         }
     }
 
-    rebuy.finish(rate);
+    rebuy.finish(rate)?;
     for cluster in &mut grinds {
-        cluster.finish(rate);
+        cluster.finish(rate)?;
     }
     Some(RegularState {
         rebuy,

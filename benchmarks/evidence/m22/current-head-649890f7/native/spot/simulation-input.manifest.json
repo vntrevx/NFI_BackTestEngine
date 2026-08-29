@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.2.0",
+  "config": {
+    "starting_balance": 1000.0,
+    "max_open_trades": 1,
+    "stake_amount": 100.0,
+    "fee_rate": 0.001,
+    "fee_open_rate": 0.001,
+    "fee_close_rate": 0.001,
+    "leverage": 1.0,
+    "stoploss_ratio": -0.5,
+    "amount_step": 1e-05,
+    "price_step": 0.01,
+    "is_futures": false,
+    "custom_exit_after_ms": null,
+    "adjustment_rule": null
+  },
+  "pairs": [
+    {
+      "pair": "BTC/USDT",
+      "execution_start_index": 1,
+      "amount_step": 1e-05,
+      "price_step": 0.01,
+      "price_steps": [
+        {
+          "timestamp_ms": 1735689600000,
+          "step": 0.01
+        }
+      ],
+      "minimum_stake": null,
+      "minimum_amount": null,
+      "minimum_cost": null,
+      "vector": {
+        "path": "vectors/BTC_USDT.feather",
+        "sha256": "94653b259dd458669dc4d0f034b1ce5094f78bbd85b89a022df2aea30cf11c69",
+        "rows": 289,
+        "format": "feather-ipc"
+      },
+      "feature_columns": [],
+      "can_short": false,
+      "use_exit_signal": true,
+      "include_funding": false,
+      "include_previous_close": false
+    }
+  ]
+}

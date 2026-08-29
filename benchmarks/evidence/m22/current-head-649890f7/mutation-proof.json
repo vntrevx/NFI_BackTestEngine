@@ -1,0 +1,2467 @@
+{
+  "all_detected": true,
+  "mutant_count": 246,
+  "records": [
+    {
+      "detected": true,
+      "first_difference": 1,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ade16ddbecca999f7e9a63bad2971b3dd029dafbbf7ee0ab6c6224b1e031d8ab",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 1,
+      "term_index": 0
+    },
+    {
+      "detected": true,
+      "first_difference": 1,
+      "mode": "spot",
+      "mutant_program_fingerprint": "7a47d3935b80a46d25f0f10b49d54a544e9123958d24bd15826cb7bc69e208ea",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 2,
+      "term_index": 1
+    },
+    {
+      "detected": true,
+      "first_difference": 1,
+      "mode": "spot",
+      "mutant_program_fingerprint": "136432ad3e58b181d849bd93c65ff22e6f048b2a9a00fa3bf23d892a7733552b",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 3,
+      "term_index": 2
+    },
+    {
+      "detected": true,
+      "first_difference": 4,
+      "mode": "spot",
+      "mutant_program_fingerprint": "1ab60df30ecdbf1ca2bb3594c642f87d56df8d5c5f7d6f68c1152b755207a59c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 4,
+      "term_index": 3
+    },
+    {
+      "detected": true,
+      "first_difference": 4,
+      "mode": "spot",
+      "mutant_program_fingerprint": "202018fd70a148dd5ec35b531e2e7b6284155d01f8e1e1b45e1b1c146a7ca28c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 5,
+      "term_index": 4
+    },
+    {
+      "detected": true,
+      "first_difference": 4,
+      "mode": "spot",
+      "mutant_program_fingerprint": "3c257d06cfc63d42d0cfec2e6eaa867268ed7981fd59e447b53f8f61e9bba0cd",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 6,
+      "term_index": 5
+    },
+    {
+      "detected": true,
+      "first_difference": 7,
+      "mode": "spot",
+      "mutant_program_fingerprint": "20d709178fd56fbac930ec1add664821d7f346ba9ffcf872a6b991b5e919cb62",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 7,
+      "term_index": 6
+    },
+    {
+      "detected": true,
+      "first_difference": 7,
+      "mode": "spot",
+      "mutant_program_fingerprint": "7f351adb1f96368145f69a355a8c8692de3f0e3b5a88c5e7e9d90c2a6d238d8b",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 8,
+      "term_index": 7
+    },
+    {
+      "detected": true,
+      "first_difference": 7,
+      "mode": "spot",
+      "mutant_program_fingerprint": "6996bd63ea726dab618fbab8893d343b558e835d5ad52b21c4e7f0b5e0ef9659",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 9,
+      "term_index": 8
+    },
+    {
+      "detected": true,
+      "first_difference": 10,
+      "mode": "spot",
+      "mutant_program_fingerprint": "c9ed463e3e7ca1bbb03ab67ee921438ddf787dbf3d0e3b4370be2ecb1267dfbd",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 10,
+      "term_index": 9
+    },
+    {
+      "detected": true,
+      "first_difference": 10,
+      "mode": "spot",
+      "mutant_program_fingerprint": "732eb550a2a70a21ff7cb29d96df54f2ecce974c69f765d85cf2975c4ae5dc93",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 11,
+      "term_index": 10
+    },
+    {
+      "detected": true,
+      "first_difference": 10,
+      "mode": "spot",
+      "mutant_program_fingerprint": "7596b17266724cbea492d829ed86480a8bb1171447340cce9e87052ae672e9c2",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 12,
+      "term_index": 11
+    },
+    {
+      "detected": true,
+      "first_difference": 13,
+      "mode": "spot",
+      "mutant_program_fingerprint": "515d98e52d494590c145979e647eb8641c3ad8952ca366e552f421e754a30705",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 13,
+      "term_index": 12
+    },
+    {
+      "detected": true,
+      "first_difference": 13,
+      "mode": "spot",
+      "mutant_program_fingerprint": "787e257e8886fd84d6bfc1a6494ff2778284fb74f8dcd49a2cae8d930c41740e",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 14,
+      "term_index": 13
+    },
+    {
+      "detected": true,
+      "first_difference": 13,
+      "mode": "spot",
+      "mutant_program_fingerprint": "155a83baa1017613085b4272fd14ba2a4cf00de214d8e16ae9da7a2ecbfa5469",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 15,
+      "term_index": 14
+    },
+    {
+      "detected": true,
+      "first_difference": 16,
+      "mode": "spot",
+      "mutant_program_fingerprint": "aac81b4e0ad906659e338e0365097ed3474b4a0019dc0b97d6f64d6344780637",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 16,
+      "term_index": 15
+    },
+    {
+      "detected": true,
+      "first_difference": 16,
+      "mode": "spot",
+      "mutant_program_fingerprint": "8d92af4c3038636cedb40cbc15aec4f4d62125f940133ffde7a0378072400c1a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 17,
+      "term_index": 16
+    },
+    {
+      "detected": true,
+      "first_difference": 16,
+      "mode": "spot",
+      "mutant_program_fingerprint": "b6a53fad469f66dae641a533b95719e46d4536c2c0118a02f98571aed62640e5",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 18,
+      "term_index": 17
+    },
+    {
+      "detected": true,
+      "first_difference": 19,
+      "mode": "spot",
+      "mutant_program_fingerprint": "b0bd195191733495de65b9e525e23da6a0b8a5b09c325b352ea07988fed0c96b",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 19,
+      "term_index": 18
+    },
+    {
+      "detected": true,
+      "first_difference": 19,
+      "mode": "spot",
+      "mutant_program_fingerprint": "47c17b0117271635f43254f3d5ab8d2955143e725a0951729f23df873dcf0a3c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 20,
+      "term_index": 19
+    },
+    {
+      "detected": true,
+      "first_difference": 19,
+      "mode": "spot",
+      "mutant_program_fingerprint": "dbfbbd70f942e64c764d33b58d0e222a4987be94ad384bd4e028b081419398be",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 21,
+      "term_index": 20
+    },
+    {
+      "detected": true,
+      "first_difference": 22,
+      "mode": "spot",
+      "mutant_program_fingerprint": "167ae22a67d51bd85454ccd694bd607f3b2582e74881a797a83f052511104f42",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 22,
+      "term_index": 21
+    },
+    {
+      "detected": true,
+      "first_difference": 22,
+      "mode": "spot",
+      "mutant_program_fingerprint": "8037bca94141490c687fb74a5dfc8bfcc11b015aaaceaddf32e9452979c61792",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 23,
+      "term_index": 22
+    },
+    {
+      "detected": true,
+      "first_difference": 22,
+      "mode": "spot",
+      "mutant_program_fingerprint": "2686dcede7bfe4704fd780959e9844ea6fe398c688535cb92914592f6e8a1964",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 24,
+      "term_index": 23
+    },
+    {
+      "detected": true,
+      "first_difference": 25,
+      "mode": "spot",
+      "mutant_program_fingerprint": "af9a0b6ef1d4887fb8c83715009cd94b9a898fd4207c758e123cee712a8ce0d6",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 25,
+      "term_index": 24
+    },
+    {
+      "detected": true,
+      "first_difference": 25,
+      "mode": "spot",
+      "mutant_program_fingerprint": "c9bba1e0b73faf958ef1339c5eb62a32084544baf2949b41fdcc2de92c9a59cb",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 26,
+      "term_index": 25
+    },
+    {
+      "detected": true,
+      "first_difference": 25,
+      "mode": "spot",
+      "mutant_program_fingerprint": "791c9eaed122f16f80140773647666247e4ce0c28b0367f3a257c57589f5bff7",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 27,
+      "term_index": 26
+    },
+    {
+      "detected": true,
+      "first_difference": 28,
+      "mode": "spot",
+      "mutant_program_fingerprint": "1746dbf6800c5ac437de2f6357fa10b54b0e0a9c1a893d70e908cf40101a9cf1",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 28,
+      "term_index": 27
+    },
+    {
+      "detected": true,
+      "first_difference": 28,
+      "mode": "spot",
+      "mutant_program_fingerprint": "7ad85b9644caa293fc785ad660aa11637924e3e57b43ebe0d4b2fd0b139f9020",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 29,
+      "term_index": 28
+    },
+    {
+      "detected": true,
+      "first_difference": 30,
+      "mode": "spot",
+      "mutant_program_fingerprint": "573469212b2171d27779f7f1dd929f3cd3cb4ffbd6b39db7456d2d0b2e02b89a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 30,
+      "term_index": 29
+    },
+    {
+      "detected": true,
+      "first_difference": 31,
+      "mode": "spot",
+      "mutant_program_fingerprint": "62ccce1fde5d47f3933b8254736d16aa6783c5431461d15a7422e31ba973b7a8",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 31,
+      "term_index": 30
+    },
+    {
+      "detected": true,
+      "first_difference": 31,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ace79955d45a76dbc76dccc28e6325d7217cf144467c774ee4e564197486e256",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 32,
+      "term_index": 31
+    },
+    {
+      "detected": true,
+      "first_difference": 33,
+      "mode": "spot",
+      "mutant_program_fingerprint": "5f39b468f27893cf40df8cd79e2c1088a1378362eecd077ee8b37f7b32c139fb",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 33,
+      "term_index": 32
+    },
+    {
+      "detected": true,
+      "first_difference": 34,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a3afee429004120215396ea221597e11f2c57aca4c941a7ee5b573791e7d7c08",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 34,
+      "term_index": 33
+    },
+    {
+      "detected": true,
+      "first_difference": 34,
+      "mode": "spot",
+      "mutant_program_fingerprint": "495391fbe664220eacec49bae720ff2a998932e0c675be83befed1f3af5c6d25",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 35,
+      "term_index": 34
+    },
+    {
+      "detected": true,
+      "first_difference": 34,
+      "mode": "spot",
+      "mutant_program_fingerprint": "e5759033694afebad2483e7626b4fdccf35c582438b203f7f9539f464065a33c",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 36,
+      "term_index": 35
+    },
+    {
+      "detected": true,
+      "first_difference": 37,
+      "mode": "spot",
+      "mutant_program_fingerprint": "d59841af7633e498823e80af7564e561abf073bd8fb8856f0a4ea7d04d915657",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 37,
+      "term_index": 36
+    },
+    {
+      "detected": true,
+      "first_difference": 37,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a9cf3d86ce11fee3f699699ab37e4ac5955a38a54beb20d83418c7018379eb66",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 38,
+      "term_index": 37
+    },
+    {
+      "detected": true,
+      "first_difference": 37,
+      "mode": "spot",
+      "mutant_program_fingerprint": "5ffc3bdd51478211a3677f6bbd8b82eeb3554c7309825a28b0c31c10b9826a2e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 39,
+      "term_index": 38
+    },
+    {
+      "detected": true,
+      "first_difference": 40,
+      "mode": "spot",
+      "mutant_program_fingerprint": "8f53c69bd7750d4c97bdd58d4d632873a3a8d09b17da97f2c10af9a4df9bef94",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 40,
+      "term_index": 39
+    },
+    {
+      "detected": true,
+      "first_difference": 40,
+      "mode": "spot",
+      "mutant_program_fingerprint": "8328b223415e313bcf9fcb05a2c70fd0b02146c0acbb39802a4596e3dac39715",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 41,
+      "term_index": 40
+    },
+    {
+      "detected": true,
+      "first_difference": 40,
+      "mode": "spot",
+      "mutant_program_fingerprint": "c2574b15cef4409327e6721e9c89000ffdb229e4790ef4f7e12feff4e1f6de80",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 42,
+      "term_index": 41
+    },
+    {
+      "detected": true,
+      "first_difference": 43,
+      "mode": "spot",
+      "mutant_program_fingerprint": "0eced01661f2d9b27f0a64419048c6203e7ebcae7b79c3e161f645978adcf390",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 43,
+      "term_index": 42
+    },
+    {
+      "detected": true,
+      "first_difference": 43,
+      "mode": "spot",
+      "mutant_program_fingerprint": "81c92751bf2bfbf4860ef3dee4fd05e61c4a62c841007d0eab5ddb0743417019",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 44,
+      "term_index": 43
+    },
+    {
+      "detected": true,
+      "first_difference": 43,
+      "mode": "spot",
+      "mutant_program_fingerprint": "3763e5323e4e6902402578aa8fcd52f3ad0532ec389c5a916505b840ef529c6a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 45,
+      "term_index": 44
+    },
+    {
+      "detected": true,
+      "first_difference": 46,
+      "mode": "spot",
+      "mutant_program_fingerprint": "4748ecdb0654d710d7172430746c14cba8c639392c71e61fd84aa6465334d92c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 46,
+      "term_index": 45
+    },
+    {
+      "detected": true,
+      "first_difference": 46,
+      "mode": "spot",
+      "mutant_program_fingerprint": "7cf571624fbb549d99fc27e8fb0321663c52ffcf5b3adc87aef88392167bc62a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 47,
+      "term_index": 46
+    },
+    {
+      "detected": true,
+      "first_difference": 46,
+      "mode": "spot",
+      "mutant_program_fingerprint": "9d6c5771b09ec993d4dec2fad0af3fb7d03448b57f62b7758b124cc51276a841",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 48,
+      "term_index": 47
+    },
+    {
+      "detected": true,
+      "first_difference": 49,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ce4796cedd1c1f8c2b7de4ef9f9048ae79c5457a1d6ea55cadca1b349d357d9d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 49,
+      "term_index": 48
+    },
+    {
+      "detected": true,
+      "first_difference": 50,
+      "mode": "spot",
+      "mutant_program_fingerprint": "416b541c33c15684b0cbb78656697f2d38e3fa5647c5d0cba902e71b917f00a9",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 50,
+      "term_index": 49
+    },
+    {
+      "detected": true,
+      "first_difference": 49,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a5398180e98859fa2b0c945a28eb5b1951eda0c2ff861533624b75606763924c",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 51,
+      "term_index": 50
+    },
+    {
+      "detected": true,
+      "first_difference": 52,
+      "mode": "spot",
+      "mutant_program_fingerprint": "06fa09984e6b312c082430f7790391d9719b8f7ef13948a60317e4b0d111a2ef",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 52,
+      "term_index": 51
+    },
+    {
+      "detected": true,
+      "first_difference": 52,
+      "mode": "spot",
+      "mutant_program_fingerprint": "b144f78d1c94877100915c0e679e250c01b550890358fc5301d137ceefef2e42",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 53,
+      "term_index": 52
+    },
+    {
+      "detected": true,
+      "first_difference": 52,
+      "mode": "spot",
+      "mutant_program_fingerprint": "52e8176c242116fee58fc76ddc3b606dd5a44e87f77ac046a29e668290de06b7",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 54,
+      "term_index": 53
+    },
+    {
+      "detected": true,
+      "first_difference": 55,
+      "mode": "spot",
+      "mutant_program_fingerprint": "82c3290a371c78285abcd4b7292f03086563e5768dd3dbd092aa21b3ea783c55",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 55,
+      "term_index": 54
+    },
+    {
+      "detected": true,
+      "first_difference": 55,
+      "mode": "spot",
+      "mutant_program_fingerprint": "0737f7a2d0ae73c5b9b06dbae2d426190a9b2589204e0a74a7ec6facc3d5519d",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 56,
+      "term_index": 55
+    },
+    {
+      "detected": true,
+      "first_difference": 55,
+      "mode": "spot",
+      "mutant_program_fingerprint": "f78fa225f46710dd94d3c742c0006f5d8c18f53f7e76fd6bef4d5a21c5b7c346",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 57,
+      "term_index": 56
+    },
+    {
+      "detected": true,
+      "first_difference": 58,
+      "mode": "spot",
+      "mutant_program_fingerprint": "89a8f0f25e878c20fa24a37d59254ab63660c0e8265d25c9f61705131fb816f9",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 58,
+      "term_index": 57
+    },
+    {
+      "detected": true,
+      "first_difference": 58,
+      "mode": "spot",
+      "mutant_program_fingerprint": "5e8e2012d5e5474712733bfa70e9e7e336ef33a010085b96fdc1785bc7864496",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 59,
+      "term_index": 58
+    },
+    {
+      "detected": true,
+      "first_difference": 58,
+      "mode": "spot",
+      "mutant_program_fingerprint": "cf8e67d3096d464bda05bb87af93a7170541f79c9559dff1992ac624611b992d",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 60,
+      "term_index": 59
+    },
+    {
+      "detected": true,
+      "first_difference": 61,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a6f55cb8098a3a6fa891632b1475280af71e1c5e20df0aacc4e111c982adb456",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 61,
+      "term_index": 60
+    },
+    {
+      "detected": true,
+      "first_difference": 61,
+      "mode": "spot",
+      "mutant_program_fingerprint": "d3fe3d5c07fcf11d185a176daebd6b9d0b0a1ea57de1e02cd6f04856b38d37f2",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 62,
+      "term_index": 61
+    },
+    {
+      "detected": true,
+      "first_difference": 61,
+      "mode": "spot",
+      "mutant_program_fingerprint": "d90f7d484e9aa2be0d988715de540002a175b2261f231cf08497515f54fb8615",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 63,
+      "term_index": 62
+    },
+    {
+      "detected": true,
+      "first_difference": 64,
+      "mode": "spot",
+      "mutant_program_fingerprint": "244b1dd7b8c6ab50a7ae589c7c4ef2e2d00f09ff29721ad969547eb7d9270b1a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 64,
+      "term_index": 63
+    },
+    {
+      "detected": true,
+      "first_difference": 64,
+      "mode": "spot",
+      "mutant_program_fingerprint": "de76b2deea407da20c9c16306aa5ae283c0096ca7fb5b338c5197b2361be91ba",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 65,
+      "term_index": 64
+    },
+    {
+      "detected": true,
+      "first_difference": 64,
+      "mode": "spot",
+      "mutant_program_fingerprint": "889c60cf5b7206c7a352ab16fb9ae80b4fa5e76e755939a5befe91d57103ff39",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 66,
+      "term_index": 65
+    },
+    {
+      "detected": true,
+      "first_difference": 67,
+      "mode": "spot",
+      "mutant_program_fingerprint": "5e4798879ff27bfc1ae9a51244a297465fae5b6e6215800847ef29270d7c38cc",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 67,
+      "term_index": 66
+    },
+    {
+      "detected": true,
+      "first_difference": 67,
+      "mode": "spot",
+      "mutant_program_fingerprint": "602968ddd14b65a3705eb20f187b997b462f3249c78577f118bd401a5dce8b35",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 68,
+      "term_index": 67
+    },
+    {
+      "detected": true,
+      "first_difference": 67,
+      "mode": "spot",
+      "mutant_program_fingerprint": "11a4995ac39fb21d50553476a550f9175d93668ba31d3360cb75f071bce363ca",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 69,
+      "term_index": 68
+    },
+    {
+      "detected": true,
+      "first_difference": 70,
+      "mode": "spot",
+      "mutant_program_fingerprint": "9029a96bf5fbaa1384951edae9496ce77482e927c51b909dc69f5bd0f4632e7a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 70,
+      "term_index": 69
+    },
+    {
+      "detected": true,
+      "first_difference": 70,
+      "mode": "spot",
+      "mutant_program_fingerprint": "3ec03b8f375c975f66b4f58b69bcff2854581231da3321085ac6d5d3ebe91158",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 71,
+      "term_index": 70
+    },
+    {
+      "detected": true,
+      "first_difference": 72,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ddbafa520579342e91d871342ea7f3fd077076b76c78ca00abc9953adbd9b6de",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 72,
+      "term_index": 71
+    },
+    {
+      "detected": true,
+      "first_difference": 73,
+      "mode": "spot",
+      "mutant_program_fingerprint": "674ed569d9adc654c519ce9ea568844bca4acb87cea38798b45e084312322a82",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 73,
+      "term_index": 72
+    },
+    {
+      "detected": true,
+      "first_difference": 73,
+      "mode": "spot",
+      "mutant_program_fingerprint": "d211cfa3c6d281e8f3a1c75b7f658ccaded0ace9416ca2a77e52b767249bab52",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 74,
+      "term_index": 73
+    },
+    {
+      "detected": true,
+      "first_difference": 73,
+      "mode": "spot",
+      "mutant_program_fingerprint": "84a488a6f0e0ae05f779897890d06a4a8173aa005e053da072151ac220cc3cdd",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 75,
+      "term_index": 74
+    },
+    {
+      "detected": true,
+      "first_difference": 76,
+      "mode": "spot",
+      "mutant_program_fingerprint": "79e796c4469f205fc7048f69414747b94470e018fd7e5dd8068ea263607f7b41",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 76,
+      "term_index": 75
+    },
+    {
+      "detected": true,
+      "first_difference": 77,
+      "mode": "spot",
+      "mutant_program_fingerprint": "75fac9cd0d3267b773788d708b0d4550aa815727050d9c1f3c0d558a1b777504",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 77,
+      "term_index": 76
+    },
+    {
+      "detected": true,
+      "first_difference": 76,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a5e977f0057d4d86b8c0b1f9dc99b5f1bc10aa966a7fee5427c6c13c1af05a17",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 78,
+      "term_index": 77
+    },
+    {
+      "detected": true,
+      "first_difference": 79,
+      "mode": "spot",
+      "mutant_program_fingerprint": "129166fc5ffc2127e6237eaf091c4d02a20a978a3957770bca877a2b0a514c36",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 79,
+      "term_index": 78
+    },
+    {
+      "detected": true,
+      "first_difference": 79,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ca2288adbefbe4202d7d575c590c0f2d8e244efc935d7356c8c85b29f03eb52a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 80,
+      "term_index": 79
+    },
+    {
+      "detected": true,
+      "first_difference": 79,
+      "mode": "spot",
+      "mutant_program_fingerprint": "518ab8da4a8e137ccbcdc3719d6266f228c72ad5c00c9dd355b1820294390718",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 81,
+      "term_index": 80
+    },
+    {
+      "detected": true,
+      "first_difference": 82,
+      "mode": "spot",
+      "mutant_program_fingerprint": "74d4625da97b50cad2562611c21169d46e72cdda67a0f2471a47d800f209f233",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 82,
+      "term_index": 81
+    },
+    {
+      "detected": true,
+      "first_difference": 82,
+      "mode": "spot",
+      "mutant_program_fingerprint": "1152c2550f76a9795b2bade956ff772856759def8d36d009a3a76d567845e216",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 83,
+      "term_index": 82
+    },
+    {
+      "detected": true,
+      "first_difference": 82,
+      "mode": "spot",
+      "mutant_program_fingerprint": "d016d3779cbc198a2e0d9b6cc750293a53a111abf9cea4101dcfd3658526fcda",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 84,
+      "term_index": 83
+    },
+    {
+      "detected": true,
+      "first_difference": 85,
+      "mode": "spot",
+      "mutant_program_fingerprint": "0856f8e7174c7fe1e33efc4ef9d6b3c16828425d1da1eda85a5f8043cfa441b8",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 85,
+      "term_index": 84
+    },
+    {
+      "detected": true,
+      "first_difference": 85,
+      "mode": "spot",
+      "mutant_program_fingerprint": "38047bb0d1e9c7432439a5b8083c787acc5ca58a39b8d00da69deed47b3d9bdc",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 86,
+      "term_index": 85
+    },
+    {
+      "detected": true,
+      "first_difference": 85,
+      "mode": "spot",
+      "mutant_program_fingerprint": "dc1ba9b407aa7da2d1609032d0f993fd641c2a043e93122759dc3b1e3ea6b871",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 87,
+      "term_index": 86
+    },
+    {
+      "detected": true,
+      "first_difference": 88,
+      "mode": "spot",
+      "mutant_program_fingerprint": "2a6fc5591fc31d6fcf9d8818b835f7529418d566301238c6e72f18738d8eef67",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 88,
+      "term_index": 87
+    },
+    {
+      "detected": true,
+      "first_difference": 88,
+      "mode": "spot",
+      "mutant_program_fingerprint": "702e5233802a169b1464374e8150d0660e073698791f66f84d791c91c80780aa",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 89,
+      "term_index": 88
+    },
+    {
+      "detected": true,
+      "first_difference": 88,
+      "mode": "spot",
+      "mutant_program_fingerprint": "d8d3dd98028d3b2b748fcea665c670abf0e691d2caae793e0b8d3b96ce43d967",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 90,
+      "term_index": 89
+    },
+    {
+      "detected": true,
+      "first_difference": 91,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a83877f99a83113ac4f40b16c60c6108a0d2983e89765e20c55e21400509b0d8",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 91,
+      "term_index": 90
+    },
+    {
+      "detected": true,
+      "first_difference": 92,
+      "mode": "spot",
+      "mutant_program_fingerprint": "c0556a6dd5a908599740b1150fae3074775e92f970f0ee2d6d8507592bb49aae",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 92,
+      "term_index": 91
+    },
+    {
+      "detected": true,
+      "first_difference": 91,
+      "mode": "spot",
+      "mutant_program_fingerprint": "6086549a15cb50309ada1f0167732f9fef543823fb62d40dfef6c05d22672cff",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 93,
+      "term_index": 92
+    },
+    {
+      "detected": true,
+      "first_difference": 94,
+      "mode": "spot",
+      "mutant_program_fingerprint": "953ba5ebe4adad0f0bb16a6f4f1911644cf2c32a892711c81576ad9f076682a3",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 94,
+      "term_index": 93
+    },
+    {
+      "detected": true,
+      "first_difference": 94,
+      "mode": "spot",
+      "mutant_program_fingerprint": "f708e41fb11154bd8c758d0bb1036247df1bd2897fa324acbe7586be19d8fdca",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 95,
+      "term_index": 94
+    },
+    {
+      "detected": true,
+      "first_difference": 94,
+      "mode": "spot",
+      "mutant_program_fingerprint": "256320bcdaf4e3b95cc85fe7d53e82a56ad787cae047a4f52c9f6f58e386ebc0",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 96,
+      "term_index": 95
+    },
+    {
+      "detected": true,
+      "first_difference": 97,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ea4f4e77d9f3bab5dd00d7c71e7b25d64eeb3499f059cee01ff99d8f0db69854",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 97,
+      "term_index": 96
+    },
+    {
+      "detected": true,
+      "first_difference": 97,
+      "mode": "spot",
+      "mutant_program_fingerprint": "698f4f9409c311b7252f42fd44c72e30a4db440d82ff32af8986af419db7eefe",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 98,
+      "term_index": 97
+    },
+    {
+      "detected": true,
+      "first_difference": 97,
+      "mode": "spot",
+      "mutant_program_fingerprint": "844cb185369262c4548bab14260f3546ed0399d3444180ad6d6bb026c674a156",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 99,
+      "term_index": 98
+    },
+    {
+      "detected": true,
+      "first_difference": 100,
+      "mode": "spot",
+      "mutant_program_fingerprint": "acddd71fc96de9ddc424b10542755337b0e73510014f83586a05e1c7e6981b6d",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 100,
+      "term_index": 99
+    },
+    {
+      "detected": true,
+      "first_difference": 100,
+      "mode": "spot",
+      "mutant_program_fingerprint": "22c5cc00c856ef55eac76c8d75621e32861de3ec5ef27507f7b4399a6b6bd004",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 101,
+      "term_index": 100
+    },
+    {
+      "detected": true,
+      "first_difference": 100,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ef148821ccb4ae0b37ce4656f3dddc27bac26a1aae13c478f614d892aa0dd7c6",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 102,
+      "term_index": 101
+    },
+    {
+      "detected": true,
+      "first_difference": 103,
+      "mode": "spot",
+      "mutant_program_fingerprint": "3f1bf40184e2991ddcdb3bf47333992a84e962cb2f2d2937a868740db1138249",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 103,
+      "term_index": 102
+    },
+    {
+      "detected": true,
+      "first_difference": 103,
+      "mode": "spot",
+      "mutant_program_fingerprint": "4912c9a3ae54012df3dc224727045bfcbda7831846843da0834f8adca723f88c",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 104,
+      "term_index": 103
+    },
+    {
+      "detected": true,
+      "first_difference": 103,
+      "mode": "spot",
+      "mutant_program_fingerprint": "66a15451adca75dbbffc39984a20e8d596cd5d9cd1229c6f8ca72882f3deabe4",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 105,
+      "term_index": 104
+    },
+    {
+      "detected": true,
+      "first_difference": 106,
+      "mode": "spot",
+      "mutant_program_fingerprint": "024df10a87990af565bbb4a05cf1ae349c5de922deceb660263624103ed39b68",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 106,
+      "term_index": 105
+    },
+    {
+      "detected": true,
+      "first_difference": 106,
+      "mode": "spot",
+      "mutant_program_fingerprint": "f6719a90b1f9d26321f742712170d6e9e515153ad054073b5bd649c09da434c4",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 107,
+      "term_index": 106
+    },
+    {
+      "detected": true,
+      "first_difference": 106,
+      "mode": "spot",
+      "mutant_program_fingerprint": "a74a11d21fd8e7ea4ab047fb1df86de6e121622bbc3cd3ba576dc82e817d4d9e",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 108,
+      "term_index": 107
+    },
+    {
+      "detected": true,
+      "first_difference": 109,
+      "mode": "spot",
+      "mutant_program_fingerprint": "b2d18fbb87c43752741e3c755c49173624f1534d13b0baed210f8bbeefab0ed2",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 109,
+      "term_index": 108
+    },
+    {
+      "detected": true,
+      "first_difference": 109,
+      "mode": "spot",
+      "mutant_program_fingerprint": "9659fbe26ce573d6e5e9265ddcfe3ce2b02db27ff9138293d497b4b12bba24c5",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 110,
+      "term_index": 109
+    },
+    {
+      "detected": true,
+      "first_difference": 109,
+      "mode": "spot",
+      "mutant_program_fingerprint": "e3c3e603d6c08a9c0ac54439b35d2d3db504a99cfc09dfbe455adf4050c0bdf9",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 111,
+      "term_index": 110
+    },
+    {
+      "detected": true,
+      "first_difference": 112,
+      "mode": "spot",
+      "mutant_program_fingerprint": "f201ac715e39be59f569e865b3bba44d3550414351a149223a94a9e69949a0c5",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 112,
+      "term_index": 111
+    },
+    {
+      "detected": true,
+      "first_difference": 112,
+      "mode": "spot",
+      "mutant_program_fingerprint": "9cd7e5cd07c0abcc10af081c5e4db54d07eb767328540a5160e82a2d1c755c19",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 113,
+      "term_index": 112
+    },
+    {
+      "detected": true,
+      "first_difference": 112,
+      "mode": "spot",
+      "mutant_program_fingerprint": "0f64430ad8e6fe4b2f7829247485c77124f253f18c4a376230a081c3bda82138",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 114,
+      "term_index": 113
+    },
+    {
+      "detected": true,
+      "first_difference": 115,
+      "mode": "spot",
+      "mutant_program_fingerprint": "9d94316ef1106bd0bb65d6461d6a5739525642e57f06b61f88353df2c717178e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 115,
+      "term_index": 114
+    },
+    {
+      "detected": true,
+      "first_difference": 115,
+      "mode": "spot",
+      "mutant_program_fingerprint": "5ccf911cc6af3ab5c78acdbe1aff5a352f8a7345f67575425ee68865df1d6025",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 116,
+      "term_index": 115
+    },
+    {
+      "detected": true,
+      "first_difference": 115,
+      "mode": "spot",
+      "mutant_program_fingerprint": "31ef05001ae6de6152c3891dc6ffcf7eb711346e08837282ba418763e08930f0",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 117,
+      "term_index": 116
+    },
+    {
+      "detected": true,
+      "first_difference": 118,
+      "mode": "spot",
+      "mutant_program_fingerprint": "9f256a19f5788987c810d69f384c5d1fd25e6046dc0d5858c3535e742c9f62f6",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 118,
+      "term_index": 117
+    },
+    {
+      "detected": true,
+      "first_difference": 118,
+      "mode": "spot",
+      "mutant_program_fingerprint": "fa0dd5f4bcd332855d219d30eb42a0c8d4dfbe3061109719ef08d21316944254",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 119,
+      "term_index": 118
+    },
+    {
+      "detected": true,
+      "first_difference": 118,
+      "mode": "spot",
+      "mutant_program_fingerprint": "4620b67564bc721d815599e01e99fc69a513827740487d4da59d9b39444017c0",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 120,
+      "term_index": 119
+    },
+    {
+      "detected": true,
+      "first_difference": 121,
+      "mode": "spot",
+      "mutant_program_fingerprint": "8acae87b1c3a3aa55087a5d06aaa8a9e6e0203763ac783f5908c36cece2c97b4",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 121,
+      "term_index": 120
+    },
+    {
+      "detected": true,
+      "first_difference": 121,
+      "mode": "spot",
+      "mutant_program_fingerprint": "5d9dfe8ab600ae4e3401bb89ffd7a983961267c82ef3d5cf4bbc19725eca1c89",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 122,
+      "term_index": 121
+    },
+    {
+      "detected": true,
+      "first_difference": 121,
+      "mode": "spot",
+      "mutant_program_fingerprint": "ac0dcbba3e1d68d4742ef8d7481591fe915808c40e9176631c3764088f4f9d22",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 123,
+      "term_index": 122
+    },
+    {
+      "detected": true,
+      "first_difference": 1,
+      "mode": "futures",
+      "mutant_program_fingerprint": "8bf187e8d3a7d50e323169bf54e2dd368c9e038b48f957cb0ab58b1a4ea09c71",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 1,
+      "term_index": 0
+    },
+    {
+      "detected": true,
+      "first_difference": 1,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d0424b3d489528540157997316ca7ca581b0ac383e20c481f73e29b9b166210f",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 2,
+      "term_index": 1
+    },
+    {
+      "detected": true,
+      "first_difference": 1,
+      "mode": "futures",
+      "mutant_program_fingerprint": "2cfd6f99e8a9d375ae64ac1f4deb84ddf9a9777d6cc90040b3ceb09a6da6776e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 3,
+      "term_index": 2
+    },
+    {
+      "detected": true,
+      "first_difference": 4,
+      "mode": "futures",
+      "mutant_program_fingerprint": "11681ac3397d2c6c93e7ff8171d29950ef744c5bb6de470b466199f3891de589",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 4,
+      "term_index": 3
+    },
+    {
+      "detected": true,
+      "first_difference": 4,
+      "mode": "futures",
+      "mutant_program_fingerprint": "2e6a127934dfe76fc4d5668736b4d20a8b7174254fd65422f0bfe415f94994ce",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 5,
+      "term_index": 4
+    },
+    {
+      "detected": true,
+      "first_difference": 4,
+      "mode": "futures",
+      "mutant_program_fingerprint": "c7c0b00517b48655569300b6353efdbb19afbfa0f71645c82612832408612bdc",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 6,
+      "term_index": 5
+    },
+    {
+      "detected": true,
+      "first_difference": 7,
+      "mode": "futures",
+      "mutant_program_fingerprint": "3d08a27af154781fe5bf20b8d23f45751ee898ee81cf50133b6a321c357c86fa",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 7,
+      "term_index": 6
+    },
+    {
+      "detected": true,
+      "first_difference": 7,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f5498ca5318bc28fd8ead496436d2ff1904149954483dfbea63e9c430a3a94d4",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 8,
+      "term_index": 7
+    },
+    {
+      "detected": true,
+      "first_difference": 7,
+      "mode": "futures",
+      "mutant_program_fingerprint": "e7e4ba8f22e6b2c3bd8117176e2dc5df65a09c0d11f29089ef671aba1627014e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 9,
+      "term_index": 8
+    },
+    {
+      "detected": true,
+      "first_difference": 10,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d0953549ec0e36bc8f2f605cb370c159394b1f455a3a4d1e46aeda3f00323242",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 10,
+      "term_index": 9
+    },
+    {
+      "detected": true,
+      "first_difference": 10,
+      "mode": "futures",
+      "mutant_program_fingerprint": "eaaf3dee68447c1ec08015230adecd64fe74ff53babd5bd54614e82d430f2960",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 11,
+      "term_index": 10
+    },
+    {
+      "detected": true,
+      "first_difference": 10,
+      "mode": "futures",
+      "mutant_program_fingerprint": "6bdd9eb7693cb144dc005bf6832b49f12023dbd9eb1565a9a9d2f9294cb2135d",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 12,
+      "term_index": 11
+    },
+    {
+      "detected": true,
+      "first_difference": 13,
+      "mode": "futures",
+      "mutant_program_fingerprint": "03d21a518c418c01561ec8329b32b531cb3ff9e16447854847b05934b5c89868",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 13,
+      "term_index": 12
+    },
+    {
+      "detected": true,
+      "first_difference": 13,
+      "mode": "futures",
+      "mutant_program_fingerprint": "422209d3995acff6530de77ddd46cf7d642d817b64f55ffddfda91e12440aae9",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 14,
+      "term_index": 13
+    },
+    {
+      "detected": true,
+      "first_difference": 13,
+      "mode": "futures",
+      "mutant_program_fingerprint": "fcad77e98b93eacdbf6c1db13d3b7b6330aae81e101a3410f17fd936d4945e00",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 15,
+      "term_index": 14
+    },
+    {
+      "detected": true,
+      "first_difference": 16,
+      "mode": "futures",
+      "mutant_program_fingerprint": "c82809b805a5e2f275dd244c516e9c757fcaef6056fd03dbdf5a66773d633463",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 16,
+      "term_index": 15
+    },
+    {
+      "detected": true,
+      "first_difference": 16,
+      "mode": "futures",
+      "mutant_program_fingerprint": "b1738f915a868be587cc93ef812a5133d3eb6c7fb1e6a01ab4cdce074b31802a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 17,
+      "term_index": 16
+    },
+    {
+      "detected": true,
+      "first_difference": 16,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f038d73cf9d87ac913395fe021f1b0c93caceda09865fbf898aa373f8df3484c",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 18,
+      "term_index": 17
+    },
+    {
+      "detected": true,
+      "first_difference": 19,
+      "mode": "futures",
+      "mutant_program_fingerprint": "dc1c0a45ffbcdef6b601358326b0cb938e83afb40be337fe3f0a5a76b6296fca",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 19,
+      "term_index": 18
+    },
+    {
+      "detected": true,
+      "first_difference": 19,
+      "mode": "futures",
+      "mutant_program_fingerprint": "ae964bbea3a79ca21833d99a7870ce95b24b10d17b353aa9b020fff2634df63e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 20,
+      "term_index": 19
+    },
+    {
+      "detected": true,
+      "first_difference": 19,
+      "mode": "futures",
+      "mutant_program_fingerprint": "31a465c234eeb54df98263116e6fbd084dd0e8e48d48944b7c6339ce56ba1b42",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 21,
+      "term_index": 20
+    },
+    {
+      "detected": true,
+      "first_difference": 22,
+      "mode": "futures",
+      "mutant_program_fingerprint": "c86f782bd00f2439e80a1faef941b4397bab64a0bffb4ac1692e8ba929ec6574",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 22,
+      "term_index": 21
+    },
+    {
+      "detected": true,
+      "first_difference": 22,
+      "mode": "futures",
+      "mutant_program_fingerprint": "30364ab646ad92b3eb0f57d2a0e36dce78ab975234891b441908375c5857df5d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 23,
+      "term_index": 22
+    },
+    {
+      "detected": true,
+      "first_difference": 22,
+      "mode": "futures",
+      "mutant_program_fingerprint": "ebdf5299f8fffd7115078ae0f0bf04c72a038bd05bf50fef23aad96330e7be2c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 24,
+      "term_index": 23
+    },
+    {
+      "detected": true,
+      "first_difference": 25,
+      "mode": "futures",
+      "mutant_program_fingerprint": "053dbd130bbd52b8c6a896d27425e90d3edc774aa9cbdc3b6a5373d3f48b4a1a",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 25,
+      "term_index": 24
+    },
+    {
+      "detected": true,
+      "first_difference": 25,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f0b90451f490a501435d5a0b471c9e62bb52d14238d82cd0ac01c634d3bc34e5",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 26,
+      "term_index": 25
+    },
+    {
+      "detected": true,
+      "first_difference": 25,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d124c8ed3c096309373791b8dcd37247d65e3bb331fb8c80fd7121f8e790c5c5",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 27,
+      "term_index": 26
+    },
+    {
+      "detected": true,
+      "first_difference": 28,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d184e9bfbae97a5014afd9a15b5d97142899fa581845df21fafdae4dc38b8e0e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 28,
+      "term_index": 27
+    },
+    {
+      "detected": true,
+      "first_difference": 28,
+      "mode": "futures",
+      "mutant_program_fingerprint": "86e854ffacfddc741d2e13c976dcafb187a40d193228eb0b2cf2aad33c26e7ff",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 29,
+      "term_index": 28
+    },
+    {
+      "detected": true,
+      "first_difference": 30,
+      "mode": "futures",
+      "mutant_program_fingerprint": "ceb4b2ac864cc0f1ae6985614eff8b1726047009a425c5fd42f143780e65781d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 30,
+      "term_index": 29
+    },
+    {
+      "detected": true,
+      "first_difference": 31,
+      "mode": "futures",
+      "mutant_program_fingerprint": "06e0824a7409e8e98b7f7473304abc8be16d5cd5d6c7ddb614c5e03e733e8338",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 31,
+      "term_index": 30
+    },
+    {
+      "detected": true,
+      "first_difference": 31,
+      "mode": "futures",
+      "mutant_program_fingerprint": "18586e7431085595e28900651f3210ba61abe770e4fbb02cd26e4fbab636d8a1",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 32,
+      "term_index": 31
+    },
+    {
+      "detected": true,
+      "first_difference": 33,
+      "mode": "futures",
+      "mutant_program_fingerprint": "2375f2ae0f62b2f61abbb1eee6e96b781f7d5b30cc2b315668dc2f103e389f78",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 33,
+      "term_index": 32
+    },
+    {
+      "detected": true,
+      "first_difference": 34,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f1577c2817149eb6cc5503a74ee82f2a3450ab5a03f6b4e9102a1089c29eeda9",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 34,
+      "term_index": 33
+    },
+    {
+      "detected": true,
+      "first_difference": 34,
+      "mode": "futures",
+      "mutant_program_fingerprint": "48720408b2d9d49d0c987281c9108fe51f34e03f57d1b5dda38d44eda63104e1",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 35,
+      "term_index": 34
+    },
+    {
+      "detected": true,
+      "first_difference": 34,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d65be2eeb3ddfde07461ca4d6148b0440e0aebedb8b5c93c61216c24ba99ea2a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 36,
+      "term_index": 35
+    },
+    {
+      "detected": true,
+      "first_difference": 37,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f6836afe34d1c3bb95700d8ca963e1b357ecf0a2979b9632192a0f7bba4c3cbe",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 37,
+      "term_index": 36
+    },
+    {
+      "detected": true,
+      "first_difference": 37,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d7d7ee9730be78a89de95959d3d35cc24bc2475f804c0281196a2c69905ded6a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 38,
+      "term_index": 37
+    },
+    {
+      "detected": true,
+      "first_difference": 37,
+      "mode": "futures",
+      "mutant_program_fingerprint": "21885a8f19ca416280fb0fde95001319fe41f38ea304830039e9a317f5a2683c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 39,
+      "term_index": 38
+    },
+    {
+      "detected": true,
+      "first_difference": 40,
+      "mode": "futures",
+      "mutant_program_fingerprint": "dfe2785b539f7d971557c03014aa57569e8dc768ec159577e046c2eb3b85e882",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 40,
+      "term_index": 39
+    },
+    {
+      "detected": true,
+      "first_difference": 40,
+      "mode": "futures",
+      "mutant_program_fingerprint": "584e611bcc928713ffd4822e87a1d71e705f846abf0343f49542ec5b7d3edbe4",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 41,
+      "term_index": 40
+    },
+    {
+      "detected": true,
+      "first_difference": 40,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d4a28686524c13ff9daa7eef20d6a1a6d350f158b003ef6ca2f2cb7e4fc577c8",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 42,
+      "term_index": 41
+    },
+    {
+      "detected": true,
+      "first_difference": 43,
+      "mode": "futures",
+      "mutant_program_fingerprint": "b2ed104ddf20134ad8c0937ad335fd1e1c5bb87745959c15a93fff41adfb8438",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 43,
+      "term_index": 42
+    },
+    {
+      "detected": true,
+      "first_difference": 43,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f9e3b7bc66d61eef5d7a7b589f28675f9cfc4f5e821b974ee2f17e66a58df422",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 44,
+      "term_index": 43
+    },
+    {
+      "detected": true,
+      "first_difference": 43,
+      "mode": "futures",
+      "mutant_program_fingerprint": "cc3c179bc1de8b37562b5030dfbc70770aac092f7a2befd71572ec6c6c5bdd2d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 45,
+      "term_index": 44
+    },
+    {
+      "detected": true,
+      "first_difference": 46,
+      "mode": "futures",
+      "mutant_program_fingerprint": "fad563744b3b053b22b87d61187eff3558938782e1fdb9764b35a34172ca53f8",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 46,
+      "term_index": 45
+    },
+    {
+      "detected": true,
+      "first_difference": 46,
+      "mode": "futures",
+      "mutant_program_fingerprint": "7c5ff11d829d49434c8342dfc2076dca447cc4488f67ac1c85fb52db18d3d1f9",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 47,
+      "term_index": 46
+    },
+    {
+      "detected": true,
+      "first_difference": 46,
+      "mode": "futures",
+      "mutant_program_fingerprint": "bd286aef38524ba69d46e41795f1c2a2fdf09bf59b7f1a8051191279e7b82378",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 48,
+      "term_index": 47
+    },
+    {
+      "detected": true,
+      "first_difference": 49,
+      "mode": "futures",
+      "mutant_program_fingerprint": "34ad1e959c9a0e3ecb2baf3d46c0bfb4b1b5e624dea8f75ec62ad13af5235165",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 49,
+      "term_index": 48
+    },
+    {
+      "detected": true,
+      "first_difference": 50,
+      "mode": "futures",
+      "mutant_program_fingerprint": "075ae5272e8ef8fa69ecdf04ba52d90b0e0f6369bbd77072047761aaf0a1fa14",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 50,
+      "term_index": 49
+    },
+    {
+      "detected": true,
+      "first_difference": 49,
+      "mode": "futures",
+      "mutant_program_fingerprint": "ab0fe1dce14ae41666789599639e9a7d31110505c50ab79554ef521e90b68d47",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 51,
+      "term_index": 50
+    },
+    {
+      "detected": true,
+      "first_difference": 52,
+      "mode": "futures",
+      "mutant_program_fingerprint": "04bb8401b1a29040088f495201b5d535b7368a1e7794d3fe515f54222b96f80b",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 52,
+      "term_index": 51
+    },
+    {
+      "detected": true,
+      "first_difference": 52,
+      "mode": "futures",
+      "mutant_program_fingerprint": "c87614e41cfb280f54a7264695bd44d2a8420c55b2f8d11b951b07fdd7d08d46",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 53,
+      "term_index": 52
+    },
+    {
+      "detected": true,
+      "first_difference": 52,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d49ca86e8eab3fcd5d4f5bd9310d4ec0f84a1f6956f2b6a1dd58a34d11b689ba",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 54,
+      "term_index": 53
+    },
+    {
+      "detected": true,
+      "first_difference": 55,
+      "mode": "futures",
+      "mutant_program_fingerprint": "1481d46503506187654141296fa953e5689f307331f395f3c09ed5c085d431b1",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 55,
+      "term_index": 54
+    },
+    {
+      "detected": true,
+      "first_difference": 55,
+      "mode": "futures",
+      "mutant_program_fingerprint": "8137be3935013d48ae2334116882d334065cd924edbe0c0386408049296953b7",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 56,
+      "term_index": 55
+    },
+    {
+      "detected": true,
+      "first_difference": 55,
+      "mode": "futures",
+      "mutant_program_fingerprint": "193b98f3157b393c8c05875247463209857b855a338ad2fe09d0eb8f22ab5532",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 57,
+      "term_index": 56
+    },
+    {
+      "detected": true,
+      "first_difference": 58,
+      "mode": "futures",
+      "mutant_program_fingerprint": "6b0b2db74156bbc0d1d45a6b0fefb03051ad4e7386839cbcf03c373de3c9d20f",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 58,
+      "term_index": 57
+    },
+    {
+      "detected": true,
+      "first_difference": 58,
+      "mode": "futures",
+      "mutant_program_fingerprint": "fe74950bf1308e82d66feab3538f7fe06e17cf9ce03a8b0b7aea2850d8e9beab",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 59,
+      "term_index": 58
+    },
+    {
+      "detected": true,
+      "first_difference": 58,
+      "mode": "futures",
+      "mutant_program_fingerprint": "de577413667e848a7770508c21e5febc1e1d1c4d62bf744ab8ad0fde37439908",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 60,
+      "term_index": 59
+    },
+    {
+      "detected": true,
+      "first_difference": 61,
+      "mode": "futures",
+      "mutant_program_fingerprint": "2b039824370b7cba85e5c525c2e42e3915cbb13572e158dbc43c3cc70f8b71b5",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 61,
+      "term_index": 60
+    },
+    {
+      "detected": true,
+      "first_difference": 61,
+      "mode": "futures",
+      "mutant_program_fingerprint": "037966f6903de8c64d14afd351cf23cf8fa002dfc668d591d5009004cb11e885",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 62,
+      "term_index": 61
+    },
+    {
+      "detected": true,
+      "first_difference": 61,
+      "mode": "futures",
+      "mutant_program_fingerprint": "787d98146d8b2c68c74e329002936641c236020f7357632900a1fa561c7e2957",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 63,
+      "term_index": 62
+    },
+    {
+      "detected": true,
+      "first_difference": 64,
+      "mode": "futures",
+      "mutant_program_fingerprint": "08d13ab82f3144a3b671749a8b0b1169be5907f1b4b942e66809113938b4b036",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 64,
+      "term_index": 63
+    },
+    {
+      "detected": true,
+      "first_difference": 64,
+      "mode": "futures",
+      "mutant_program_fingerprint": "fecbe63943f58614a6a3d875e6ff6c72f97bf646e162ae82619e5b71f3399bbd",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 65,
+      "term_index": 64
+    },
+    {
+      "detected": true,
+      "first_difference": 64,
+      "mode": "futures",
+      "mutant_program_fingerprint": "3732537e2a0e8cbdd5d3b06fd04b7b327d4720009384f4a67fc2f2c82d2316f7",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 66,
+      "term_index": 65
+    },
+    {
+      "detected": true,
+      "first_difference": 67,
+      "mode": "futures",
+      "mutant_program_fingerprint": "2e065bceae9ceef9947b27c84bfaadb41b0108b123c67b2749a47f6123bd5bc0",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 67,
+      "term_index": 66
+    },
+    {
+      "detected": true,
+      "first_difference": 67,
+      "mode": "futures",
+      "mutant_program_fingerprint": "8295ae921981bbc0a9b960ac0e1e65f83d6431be5f0fba5d312711bea7f92bfb",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 68,
+      "term_index": 67
+    },
+    {
+      "detected": true,
+      "first_difference": 67,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d1fa6a1bed7f048ab9211cf12f394873a7e9133abc8448cf4118ca987d10c54d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 69,
+      "term_index": 68
+    },
+    {
+      "detected": true,
+      "first_difference": 70,
+      "mode": "futures",
+      "mutant_program_fingerprint": "e88a8e6223fb55ce5137080b4e89d8addc80a194329d687c22fee604f7bf4b81",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 70,
+      "term_index": 69
+    },
+    {
+      "detected": true,
+      "first_difference": 70,
+      "mode": "futures",
+      "mutant_program_fingerprint": "bce80da29f5eb9e4eabf51afe933d043c9a3db73f3e17addc0374ac34de25d90",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 71,
+      "term_index": 70
+    },
+    {
+      "detected": true,
+      "first_difference": 72,
+      "mode": "futures",
+      "mutant_program_fingerprint": "113935a7a50c56334ddeb8c3185d2175dae6a99093223adf06231817d496e377",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 72,
+      "term_index": 71
+    },
+    {
+      "detected": true,
+      "first_difference": 73,
+      "mode": "futures",
+      "mutant_program_fingerprint": "570f1eaf0cec7a8fa3366f4b2b29a8ebabd664104cbcbd2846fb6e853fc10ac7",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 73,
+      "term_index": 72
+    },
+    {
+      "detected": true,
+      "first_difference": 73,
+      "mode": "futures",
+      "mutant_program_fingerprint": "0249ea435adeb15945281af700b9c54edc49107035e6b3402abdac13ab82cd6b",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 74,
+      "term_index": 73
+    },
+    {
+      "detected": true,
+      "first_difference": 73,
+      "mode": "futures",
+      "mutant_program_fingerprint": "03dca5ecfd73ee2f3ebc25764af8f2315f3d0ecd2ddcaab72791d94c004d86a0",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 75,
+      "term_index": 74
+    },
+    {
+      "detected": true,
+      "first_difference": 76,
+      "mode": "futures",
+      "mutant_program_fingerprint": "df6031070da70d9cb1f33915102a9e964c0ce149b3422ec309796c0de551aea3",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 76,
+      "term_index": 75
+    },
+    {
+      "detected": true,
+      "first_difference": 77,
+      "mode": "futures",
+      "mutant_program_fingerprint": "4297ef62ffd0b2ccd07b7cec14ebcffd487e5e87a74e274a78e303df398c9e69",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 77,
+      "term_index": 76
+    },
+    {
+      "detected": true,
+      "first_difference": 76,
+      "mode": "futures",
+      "mutant_program_fingerprint": "3768626707eae2f67dea6aa624d616e80da09633bad3cc3c931c538d3c40de8f",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 78,
+      "term_index": 77
+    },
+    {
+      "detected": true,
+      "first_difference": 79,
+      "mode": "futures",
+      "mutant_program_fingerprint": "df6adea180ea72239ca85453bd251f662ac82433db22f9e973d4d163b771ad1a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 79,
+      "term_index": 78
+    },
+    {
+      "detected": true,
+      "first_difference": 79,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f5a8b7bbe1067adc18493cfb12cf44a98f61aaaedb1788ca501f366b803bb8b1",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 80,
+      "term_index": 79
+    },
+    {
+      "detected": true,
+      "first_difference": 79,
+      "mode": "futures",
+      "mutant_program_fingerprint": "7c79d0fb4a37f76d41c807aba79193b9b08de4107303222452612823ca88ca18",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 81,
+      "term_index": 80
+    },
+    {
+      "detected": true,
+      "first_difference": 82,
+      "mode": "futures",
+      "mutant_program_fingerprint": "fd22c006217cdd2c52245e77221fc4095ba6b06984cf0bc35eaa2ec9530e816c",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 82,
+      "term_index": 81
+    },
+    {
+      "detected": true,
+      "first_difference": 82,
+      "mode": "futures",
+      "mutant_program_fingerprint": "07e612975177510664f39445c31a032ef71d1c7359c92ee5a7b3013dfd956abe",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 83,
+      "term_index": 82
+    },
+    {
+      "detected": true,
+      "first_difference": 82,
+      "mode": "futures",
+      "mutant_program_fingerprint": "b77170f968f4373799022ff80c5b247bcd79eb377b141e2505bd526f767861f4",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 84,
+      "term_index": 83
+    },
+    {
+      "detected": true,
+      "first_difference": 85,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f28a059364e091d007efcfa374e6fc7d3b7dd70fb32651beed19d8d1ee7feb6e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 85,
+      "term_index": 84
+    },
+    {
+      "detected": true,
+      "first_difference": 85,
+      "mode": "futures",
+      "mutant_program_fingerprint": "8e5c89b5a1e8d3cf97330d088a58ca790b57f94c5eaed4105d64dd72115db1f9",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 86,
+      "term_index": 85
+    },
+    {
+      "detected": true,
+      "first_difference": 85,
+      "mode": "futures",
+      "mutant_program_fingerprint": "678a8d8c409d40538252886787e5399e418587c9eec0eb3bdb92e6cda24f11b4",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 87,
+      "term_index": 86
+    },
+    {
+      "detected": true,
+      "first_difference": 88,
+      "mode": "futures",
+      "mutant_program_fingerprint": "a787f3f9b172e2c9756dfb8a5a361dd21df97652ade6929004269e6467f70b70",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 88,
+      "term_index": 87
+    },
+    {
+      "detected": true,
+      "first_difference": 88,
+      "mode": "futures",
+      "mutant_program_fingerprint": "0191655ffe4c2091cfe6b7994c64ad786d79fac0410b0316be17739eef78bdb3",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 89,
+      "term_index": 88
+    },
+    {
+      "detected": true,
+      "first_difference": 88,
+      "mode": "futures",
+      "mutant_program_fingerprint": "894b6deb3f0763603b3937942f59ee8d9a6f30055f75fc8c97adea14560b07d0",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 90,
+      "term_index": 89
+    },
+    {
+      "detected": true,
+      "first_difference": 91,
+      "mode": "futures",
+      "mutant_program_fingerprint": "cf6d36a4d059507b32a92f00eaf705e1e9db51b5ab8741192e925df0f47e51fe",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 91,
+      "term_index": 90
+    },
+    {
+      "detected": true,
+      "first_difference": 92,
+      "mode": "futures",
+      "mutant_program_fingerprint": "7940d869e127891d6fc12c4ad5b73ab6e08e711204631d22bd2b3490e63813fe",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 92,
+      "term_index": 91
+    },
+    {
+      "detected": true,
+      "first_difference": 91,
+      "mode": "futures",
+      "mutant_program_fingerprint": "a8c27b0ee8b78aee345bbbbd2c10c7925e1d7aa5a30f5de7e37ae759d40b294d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 93,
+      "term_index": 92
+    },
+    {
+      "detected": true,
+      "first_difference": 94,
+      "mode": "futures",
+      "mutant_program_fingerprint": "af98a3308945044ba8442d14d18c99b8f255a3a72301923358f1214e12261e11",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 94,
+      "term_index": 93
+    },
+    {
+      "detected": true,
+      "first_difference": 94,
+      "mode": "futures",
+      "mutant_program_fingerprint": "636ce51b5938c36778baeff0b3d7dc2469f087c8668f538622833343b5b162aa",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 95,
+      "term_index": 94
+    },
+    {
+      "detected": true,
+      "first_difference": 94,
+      "mode": "futures",
+      "mutant_program_fingerprint": "c6742ca95889c6ec22204f9610f1bd5819d020c591890e4e3cac7f19042f5dfe",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 96,
+      "term_index": 95
+    },
+    {
+      "detected": true,
+      "first_difference": 97,
+      "mode": "futures",
+      "mutant_program_fingerprint": "377a5da03332a000fc42d9491b7e79b1c7fa424eaceeb703931069aebe0982fe",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 97,
+      "term_index": 96
+    },
+    {
+      "detected": true,
+      "first_difference": 97,
+      "mode": "futures",
+      "mutant_program_fingerprint": "ad799fd67e0b844a71d234e3633eba25f0ff80b1b973479d309959e1189cffb5",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 98,
+      "term_index": 97
+    },
+    {
+      "detected": true,
+      "first_difference": 97,
+      "mode": "futures",
+      "mutant_program_fingerprint": "7ec5e3a884f9447d029529855a2f667eb2a000afe242ffdc4068f8d0107a3820",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 99,
+      "term_index": 98
+    },
+    {
+      "detected": true,
+      "first_difference": 100,
+      "mode": "futures",
+      "mutant_program_fingerprint": "864d093ae5ab18b63c3689579bcd9a7f1656eb34ec30ca8252eaccd09bd755b1",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 100,
+      "term_index": 99
+    },
+    {
+      "detected": true,
+      "first_difference": 100,
+      "mode": "futures",
+      "mutant_program_fingerprint": "1378594ec70cfb723e566635d6288e644d53532d01f7a7c4c4085ef136b57380",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 101,
+      "term_index": 100
+    },
+    {
+      "detected": true,
+      "first_difference": 100,
+      "mode": "futures",
+      "mutant_program_fingerprint": "6fc5d8bc4fb8865da2c5b1db911d762bfd427cba3f1499e42f3f5fe8796a6b9c",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 102,
+      "term_index": 101
+    },
+    {
+      "detected": true,
+      "first_difference": 103,
+      "mode": "futures",
+      "mutant_program_fingerprint": "8ba527ac4bdd540bb147d3f4bcfee0013a972ce463abda55f5f1377b4f8c639a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 103,
+      "term_index": 102
+    },
+    {
+      "detected": true,
+      "first_difference": 103,
+      "mode": "futures",
+      "mutant_program_fingerprint": "b4606e4755bbdade8ccff185133fe3ddd9bca7eba4898e5e93b8bb52f7b929d9",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 104,
+      "term_index": 103
+    },
+    {
+      "detected": true,
+      "first_difference": 103,
+      "mode": "futures",
+      "mutant_program_fingerprint": "15620469c344b2106f9d328f2ce7c800f8be473cb2c1d2242de6b702d046ab1d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 105,
+      "term_index": 104
+    },
+    {
+      "detected": true,
+      "first_difference": 106,
+      "mode": "futures",
+      "mutant_program_fingerprint": "b44c753a6b05e379db4e64da800f188b812d8c5cf7fae63bdb04a71904e43196",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 106,
+      "term_index": 105
+    },
+    {
+      "detected": true,
+      "first_difference": 106,
+      "mode": "futures",
+      "mutant_program_fingerprint": "a4cc92c96a5000b16dbbab9c2899f4adfceaf657982f198c2c188146d4937780",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 107,
+      "term_index": 106
+    },
+    {
+      "detected": true,
+      "first_difference": 106,
+      "mode": "futures",
+      "mutant_program_fingerprint": "e509037ee62f5fc10fa495f922bf62a66c786d40a0d2f2fb8a433c3f8f666874",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 108,
+      "term_index": 107
+    },
+    {
+      "detected": true,
+      "first_difference": 109,
+      "mode": "futures",
+      "mutant_program_fingerprint": "32a301ded47b7fd4631dc277c4ef1c29b51eb74ac5f18f089538740c8794e479",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 109,
+      "term_index": 108
+    },
+    {
+      "detected": true,
+      "first_difference": 109,
+      "mode": "futures",
+      "mutant_program_fingerprint": "f9b698e3bd7947d999e7904b49bffc6ab311233418564b1056f4205daa87172b",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 110,
+      "term_index": 109
+    },
+    {
+      "detected": true,
+      "first_difference": 109,
+      "mode": "futures",
+      "mutant_program_fingerprint": "bf0a1532dbbb1f7bfc1d35d52d19b6be1a726418d4c19c4a5ad2f922baf43ffb",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 111,
+      "term_index": 110
+    },
+    {
+      "detected": true,
+      "first_difference": 112,
+      "mode": "futures",
+      "mutant_program_fingerprint": "7bab73abfe931139bcfe36d954fbafb328ae4940a7ffa6d6da7c015b6fc19d5e",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 112,
+      "term_index": 111
+    },
+    {
+      "detected": true,
+      "first_difference": 112,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d1c044c6861d9e18f8f6bcb0377c7e7b5a0d10ddcbdcb6579d480dbc353cbf17",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 113,
+      "term_index": 112
+    },
+    {
+      "detected": true,
+      "first_difference": 112,
+      "mode": "futures",
+      "mutant_program_fingerprint": "9dcdcc6d50de721bf2ef4b385309ef1dfa4be4c65e922d2467bcce321deb98bb",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 114,
+      "term_index": 113
+    },
+    {
+      "detected": true,
+      "first_difference": 115,
+      "mode": "futures",
+      "mutant_program_fingerprint": "0871115ec1e33de189709dbb154e18b4f11530c5b1f6a040f7f2b38a8caeb9cd",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 115,
+      "term_index": 114
+    },
+    {
+      "detected": true,
+      "first_difference": 115,
+      "mode": "futures",
+      "mutant_program_fingerprint": "a149442d3ce8a5e97636ec83fdfc445494497a98363b2c15509e27c7e3f3a07a",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 116,
+      "term_index": 115
+    },
+    {
+      "detected": true,
+      "first_difference": 115,
+      "mode": "futures",
+      "mutant_program_fingerprint": "5708beb9cabc07f245a5f780703c7ce566a9cfde2c3358bf2f444267fba5e64d",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 117,
+      "term_index": 116
+    },
+    {
+      "detected": true,
+      "first_difference": 118,
+      "mode": "futures",
+      "mutant_program_fingerprint": "d36b9dc64b11005df3faae5d8d977a898d243255d6e62efac2375253b6155147",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 118,
+      "term_index": 117
+    },
+    {
+      "detected": true,
+      "first_difference": 118,
+      "mode": "futures",
+      "mutant_program_fingerprint": "54fba7ecfb2f89071d797d4792788bc58116f9b2e665d8a088b5c429d1715af0",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 119,
+      "term_index": 118
+    },
+    {
+      "detected": true,
+      "first_difference": 118,
+      "mode": "futures",
+      "mutant_program_fingerprint": "b50995d4a325e363af868799d01d76f9b7d40b91a8bd13849f01f2c0a4866878",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 120,
+      "term_index": 119
+    },
+    {
+      "detected": true,
+      "first_difference": 121,
+      "mode": "futures",
+      "mutant_program_fingerprint": "2448d5083462ad8b879ff4941d596dafe788b46628d369ba0c4e3b627275c3bc",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 121,
+      "term_index": 120
+    },
+    {
+      "detected": true,
+      "first_difference": 121,
+      "mode": "futures",
+      "mutant_program_fingerprint": "93adcffc88769d566f175bac6cc62ba5a40afd59c60e0919671ab327c24b20d5",
+      "operator_after": "greater-than-or-equal",
+      "operator_before": "greater-than",
+      "required_boundary_row": 122,
+      "term_index": 121
+    },
+    {
+      "detected": true,
+      "first_difference": 121,
+      "mode": "futures",
+      "mutant_program_fingerprint": "707c8332b77c9cb3600ba83f68b3adf496a186c63fa6c0ef52d5e77ea9235512",
+      "operator_after": "less-than-or-equal",
+      "operator_before": "less-than",
+      "required_boundary_row": 123,
+      "term_index": 122
+    }
+  ],
+  "schema_version": "signal-665-mutation-proof-v1"
+}

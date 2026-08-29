@@ -137,6 +137,12 @@ fn build_dispatch_plan(manager: &NfiX7TradeManager) -> Option<NfiDispatchPlan> {
             push_unique(&mut short_scope, id);
         }
     }
+    if let Some(route) = &manager.short_grind {
+        for tag in &route.entry_tags {
+            let id = intern(tag);
+            push_unique(&mut short_scope, id);
+        }
+    }
     if let Some(adjustment) = &manager.short_position_adjustment {
         for tag in &adjustment.entry_tags {
             let id = intern(tag);
@@ -170,6 +176,12 @@ fn build_dispatch_plan(manager: &NfiX7TradeManager) -> Option<NfiDispatchPlan> {
         .flat_map(|route| &route.entry_tags)
         .map(|tag| intern(tag))
         .collect();
+    let short_grind_tags = manager
+        .short_grind
+        .iter()
+        .flat_map(|route| &route.entry_tags)
+        .map(|tag| intern(tag))
+        .collect();
 
     Some(NfiDispatchPlan {
         tag_ids,
@@ -183,6 +195,7 @@ fn build_dispatch_plan(manager: &NfiX7TradeManager) -> Option<NfiDispatchPlan> {
         short_rebuy_route,
         long_grind_tags,
         long_btc_tags,
+        short_grind_tags,
         program_names,
     })
 }

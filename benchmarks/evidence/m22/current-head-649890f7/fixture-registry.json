@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "bundles": [
+    {
+      "id": "current-signal665-spot-r1",
+      "trading_mode": "spot",
+      "upstream_commit": "649890f727fce8067a66f7556431b7ce0ee64416",
+      "source_sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a",
+      "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "fixture_ids": [
+        "current-signal665-spot-r1"
+      ],
+      "oracle_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+      "semantic_registry_fingerprint": "3aeb86b38a00aa0ab018a7a298565f3d6ef1a678e1c340d5555fc7494d08cd1e",
+      "manifest_sha256": "f2c456577d250de9b634aa3878e89937094d41542b94f946220e8f4d16e7ec81"
+    },
+    {
+      "id": "current-signal665-futures-r1",
+      "trading_mode": "futures",
+      "upstream_commit": "649890f727fce8067a66f7556431b7ce0ee64416",
+      "source_sha256": "145142b0eeeb7e86908116556743b67336fa144d50517e4974b41c5500bb577a",
+      "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "fixture_ids": [
+        "current-signal665-futures-r1"
+      ],
+      "oracle_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+      "semantic_profile_sha256": "3bc4eb5d1fd94f87b2f0fbe7e18e647804093f2094ae89136f7fec3f67d53428",
+      "semantic_registry_fingerprint": "3aeb86b38a00aa0ab018a7a298565f3d6ef1a678e1c340d5555fc7494d08cd1e",
+      "manifest_sha256": "4af232e9907658f578bf900b7b1be672b1170556258362e58d1deedce308cd94"
+    }
+  ]
+}

@@ -264,6 +264,7 @@ fn entry_confirmation_vm_evaluates_tag_and_slippage_gates() {
         open_trades: &open_trades,
         max_open_trades: 6,
         is_futures: false,
+        order_type: OrderType::Limit,
     };
 
     assert_eq!(evaluate_confirm_program(&program, base), Some(true));
@@ -338,6 +339,7 @@ fn entry_confirmation_vm_accepts_a_computed_negative_dataframe_index() {
         open_trades: &open_trades,
         max_open_trades: 6,
         is_futures: false,
+        order_type: OrderType::Limit,
     };
 
     assert_eq!(evaluate_confirm_program(&program, inputs), Some(true));

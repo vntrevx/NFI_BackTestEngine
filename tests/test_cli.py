@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 import pytest
-from nfi_backtest_engine import cli, config_loader, market_snapshot
+from nfi_backtest_engine import cli, config_loader, execution_platform, market_snapshot
 from nfi_backtest_engine.commands import (
     certify as certify_commands,
 )
@@ -32,7 +32,40 @@ from nfi_backtest_engine.commands import (
 from nfi_backtest_engine.commands import (
     update as update_commands,
 )
+from nfi_backtest_engine.execution_platform import NATIVE_WINDOWS_UNSUPPORTED_MESSAGE
 from nfi_backtest_engine.parity import ParityDifference, ParityMismatch
+
+
+def test_cli_rejects_native_windows_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(execution_platform.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(cli, "_dispatch_command", lambda *_args, **_kwargs: pytest.fail("dispatch"))
+
+    assert cli.main(["update"]) == 2
+    assert capsys.readouterr().err == f"error: {NATIVE_WINDOWS_UNSUPPORTED_MESSAGE}\n"
+
+
+def test_cli_help_and_version_bypass_execution_platform_guard(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "require_supported_execution_platform",
+        lambda: pytest.fail("execution guard"),
+    )
+
+    with pytest.raises(SystemExit) as help_stopped:
+        cli.main(["--help"])
+    assert help_stopped.value.code == 0
+    assert "usage: nfi-bte" in capsys.readouterr().out
+
+    with pytest.raises(SystemExit) as version_stopped:
+        cli.main(["--version"])
+    assert version_stopped.value.code == 0
+    assert capsys.readouterr().out.strip().startswith("nfi-bte ")
 
 
 def test_certification_help_renders_literal_spread_percentage(

@@ -48,8 +48,11 @@ def _validate_nfi_frame_scope(
     managed_short = manager.get("managed_short_routes")
     if not isinstance(managed_short, list) or not managed_short:
         raise StrategyAnalysisError("NFI managed-short routes are invalid")
+    short_routes = list(managed_short)
+    if isinstance((short_grind := manager.get("short_grind")), dict):
+        short_routes.append(short_grind)
     supported_short: set[str] = set()
-    for route in managed_short:
+    for route in short_routes:
         entry_tags = route.get("entry_tags") if isinstance(route, dict) else None
         if not isinstance(entry_tags, list) or not all(
             isinstance(tag, str) and tag for tag in entry_tags

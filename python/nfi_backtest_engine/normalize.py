@@ -3,14 +3,24 @@
 from __future__ import annotations
 
 import json
+import os
 import zipfile
 from collections.abc import Mapping
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from .canonical import canonical_decimal, canonical_timestamp_ms, read_json, write_json
+from .archive_security import read_zip_member, validate_zip_archive
+from .canonical import (
+    canonical_decimal,
+    canonical_timestamp_ms,
+    loads_json_bytes,
+    read_json,
+)
 from .errors import NormalizationError
+from .portable_paths import (
+    open_secure_parent,
+    validate_portable_filesystem_path,
+)
 from .specs import validate_trade_surface
 
 
@@ -85,34 +95,83 @@ def normalize_file(
     strategy: str | None = None,
     surface_version: str = "1",
 ) -> dict[str, Any]:
-    raw = read_freqtrade_export(source)
+    try:
+        source_path = validate_portable_filesystem_path(source)
+        destination_path = validate_portable_filesystem_path(destination)
+    except ValueError as exc:
+        raise NormalizationError(f"portable path boundary rejected normalization: {exc}") from exc
+    raw = read_freqtrade_export(source_path)
     if not isinstance(raw, Mapping):
         raise NormalizationError("$: expected a JSON object")
     surface = normalize_freqtrade_result(raw, strategy=strategy, surface_version=surface_version)
-    write_json(destination, surface)
+    payload = (json.dumps(surface, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    try:
+        parent_descriptor = open_secure_parent(destination_path, create=True)
+    except ValueError as exc:
+        raise NormalizationError(
+            f"normalization output parent boundary rejected: {exc}"
+        ) from exc
+    target: str | Path = (
+        destination_path.name if parent_descriptor is not None else destination_path
+    )
+    try:
+        try:
+            descriptor = os.open(
+                target,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0),
+                0o600,
+                dir_fd=parent_descriptor,
+            )
+        except FileExistsError as exc:
+            raise NormalizationError(
+                f"normalization output destination already exists: {destination_path}"
+            ) from exc
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except BaseException:
+            if parent_descriptor is None:
+                destination_path.unlink(missing_ok=True)
+            else:
+                os.unlink(destination_path.name, dir_fd=parent_descriptor)
+            raise
+    finally:
+        if parent_descriptor is not None:
+            os.close(parent_descriptor)
     return surface
 
 
 def read_freqtrade_export(source: str | Path) -> Any:
     """Read plain JSON or locate the one result JSON inside a Freqtrade ZIP."""
-    source_path = Path(source)
+    try:
+        source_path = validate_portable_filesystem_path(source)
+    except ValueError as exc:
+        raise NormalizationError(f"portable source path rejected: {exc}") from exc
     if source_path.suffix.lower() != ".zip":
-        return read_json(source_path, decimals=True)
+        try:
+            return read_json(source_path, decimals=True)
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            raise NormalizationError(f"{source_path}: invalid JSON export: {exc}") from exc
 
+    if source_path.is_symlink() or not source_path.is_file():
+        raise NormalizationError(f"{source_path}: ZIP source must be a regular non-symlink file")
     try:
         with zipfile.ZipFile(source_path) as archive:
+            members = validate_zip_archive(archive)
             candidates: list[tuple[str, Any]] = []
-            for member in archive.namelist():
+            for member, info in members.items():
                 if not member.lower().endswith(".json"):
                     continue
                 try:
-                    document = json.loads(archive.read(member).decode("utf-8"), parse_float=Decimal)
+                    document = loads_json_bytes(read_zip_member(archive, info), decimals=True)
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     continue
                 if _looks_like_freqtrade_result(document):
                     candidates.append((member, document))
-    except (OSError, zipfile.BadZipFile) as exc:
-        raise NormalizationError(f"{source_path}: invalid Freqtrade ZIP export") from exc
+    except (OSError, ValueError, zipfile.BadZipFile) as exc:
+        raise NormalizationError(f"{source_path}: {exc}") from exc
 
     if len(candidates) != 1:
         names = ", ".join(name for name, _ in candidates) or "none"

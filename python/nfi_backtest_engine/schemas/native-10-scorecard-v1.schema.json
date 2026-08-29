@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/native-10-scorecard-v1.json",
+  "title": "Native exactness ten-point scorecard v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "identity",
+    "identity_match",
+    "points_awarded",
+    "points_available",
+    "perfect_native",
+    "gates",
+    "blockers"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "identity_match": {"type": "boolean"},
+    "points_awarded": {"type": "integer", "minimum": 0, "maximum": 10},
+    "points_available": {"const": 10},
+    "perfect_native": {"type": "boolean"},
+    "gates": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "#/$defs/gate"}
+    },
+    "blockers": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_closure_sha256",
+        "engine_artifact_sha256",
+        "oracle_sha256",
+        "scope_sha256"
+      ],
+      "properties": {
+        "source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "engine_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "oracle_sha256": {"$ref": "#/$defs/sha256"},
+        "scope_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "points_available",
+        "points_awarded",
+        "met",
+        "failures",
+        "evidence_sha256"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "immutable_identity_scope",
+            "evidence_independence",
+            "native_purity",
+            "semantic_closure",
+            "changed_path_coverage_completeness",
+            "vector_callback_exactness",
+            "execution_complete_state_exactness",
+            "generative_metamorphic_mutation_proof",
+            "same_candidate_portfolio_platform_certification",
+            "deterministic_performance_resource_proof"
+          ]
+        },
+        "points_available": {"const": 1},
+        "points_awarded": {"type": "integer", "minimum": 0, "maximum": 1},
+        "met": {"type": "boolean"},
+        "failures": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "evidence_sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        }
+      }
+    }
+  }
+}

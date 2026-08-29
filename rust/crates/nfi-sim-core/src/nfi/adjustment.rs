@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::calculations::{fee_close, fee_open};
+use crate::calculations::{checked_float_product, checked_float_sum, fee_close, fee_open};
 use crate::callbacks::{
     feature_bool_at, feature_number_at, insert_projected_feature_window,
     scalar_program_feature_projection, scalar_trade_value,
@@ -535,6 +535,47 @@ fn compiled_binding_value(
             let index = compiled_derisk_index(program, level?)?;
             Some(Value::Bool(state.derisk_found.get(index).copied()?))
         }
+        CompiledSystemAdjustmentInputKind::DeriskEnabledGlobal => {
+            Some(Value::Bool(context.adjustment.constants.derisk_enable))
+        }
+        CompiledSystemAdjustmentInputKind::DeriskEnabled => {
+            let level = level?;
+            let configured = context
+                .adjustment
+                .constants
+                .derisk_levels
+                .iter()
+                .find(|record| record.level == level)?;
+            Some(Value::Bool(configured.enabled))
+        }
+        CompiledSystemAdjustmentInputKind::DeriskStake => {
+            let level = level?;
+            let configured = context
+                .adjustment
+                .constants
+                .derisk_levels
+                .iter()
+                .find(|record| record.level == level)?;
+            number(if context.config.is_futures {
+                configured.stake_futures
+            } else {
+                configured.stake_spot
+            })
+        }
+        CompiledSystemAdjustmentInputKind::DeriskThreshold => {
+            let level = level?;
+            let configured = context
+                .adjustment
+                .constants
+                .derisk_levels
+                .iter()
+                .find(|record| record.level == level)?;
+            number(if context.config.is_futures {
+                configured.threshold_futures
+            } else {
+                configured.threshold_spot
+            })
+        }
         CompiledSystemAdjustmentInputKind::ClusterCount => {
             let (_, cluster, _) = cluster_value(level)?;
             Some(Value::Number(u64::try_from(cluster.count).ok()?.into()))
@@ -848,12 +889,32 @@ fn compiled_adjustment_state(
         .or_else(|| rebuild_compiled_adjustment_state(trade, program).map(Arc::new))
 }
 
+fn checked_order_cost(order: &crate::domain::FilledOrder, operation: &'static str) -> Option<f64> {
+    checked_float_product(&[order.amount, order.price], operation).ok()
+}
+
+fn observe_cluster_entry(
+    cluster: &mut GrindCluster,
+    order: &crate::domain::FilledOrder,
+    amount_operation: &'static str,
+    cost_operation: &'static str,
+    total_cost_operation: &'static str,
+) -> Option<()> {
+    cluster.count = cluster.count.checked_add(1)?;
+    cluster.total_amount =
+        checked_float_sum(&[cluster.total_amount, order.amount], amount_operation).ok()?;
+    let cost = checked_order_cost(order, cost_operation)?;
+    cluster.total_cost =
+        checked_float_sum(&[cluster.total_cost, cost], total_cost_operation).ok()?;
+    Some(())
+}
+
 fn rebuild_adjustment_state(
     trade: &OpenTrade,
     adjustment: &NfiX7PositionAdjustment,
 ) -> Option<AdjustmentState> {
     let first = trade.orders.first()?;
-    let aggregates = trade.filled_order_aggregates();
+    let aggregates = trade.filled_order_aggregates().ok()?;
     if aggregates.order_count() != trade.orders.len() {
         return None;
     }
@@ -881,9 +942,13 @@ fn rebuild_adjustment_state(
             if let Some(index) = grind_entry_index(tag) {
                 if !cluster_closed.get(index).copied()? {
                     let cluster = clusters.get_mut(index)?;
-                    cluster.count += 1;
-                    cluster.total_amount += order.amount;
-                    cluster.total_cost += order.amount * order.price;
+                    observe_cluster_entry(
+                        cluster,
+                        order,
+                        "nfi-legacy-cluster-total-amount",
+                        "nfi-legacy-cluster-order-cost",
+                        "nfi-legacy-cluster-total-cost",
+                    )?;
                     cluster.entry_ids.push(order.id);
                     cluster.latest_entry_price.get_or_insert(order.price);
                 }
@@ -916,7 +981,11 @@ fn rebuild_adjustment_state(
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
-        first_entry_cost: first.amount * first.price,
+        first_entry_cost: checked_float_product(
+            &[first.amount, first.price],
+            "nfi-legacy-first-entry-cost",
+        )
+        .ok()?,
         latest_entry_price: latest_entry.price,
         latest_entry_timestamp_ms: latest_entry.timestamp_ms,
         latest_exit_price: latest_exit.map(|order| order.price),
@@ -933,7 +1002,7 @@ fn rebuild_compiled_adjustment_state(
     if !compiled_order_side_matches(program.order_scan.entry_order_side, first.side) {
         return None;
     }
-    let aggregates = trade.filled_order_aggregates();
+    let aggregates = trade.filled_order_aggregates().ok()?;
     if aggregates.order_count() != trade.orders.len() {
         return None;
     }
@@ -967,9 +1036,13 @@ fn rebuild_compiled_adjustment_state(
             {
                 if !cluster_closed.get(index).copied()? {
                     let cluster = clusters.get_mut(index)?;
-                    cluster.count = cluster.count.checked_add(1)?;
-                    cluster.total_amount += order.amount;
-                    cluster.total_cost += order.amount * order.price;
+                    observe_cluster_entry(
+                        cluster,
+                        order,
+                        "nfi-compiled-cluster-total-amount",
+                        "nfi-compiled-cluster-order-cost",
+                        "nfi-compiled-cluster-total-cost",
+                    )?;
                     cluster.entry_ids.push(order.id);
                     cluster.latest_entry_price.get_or_insert(order.price);
                 }
@@ -1015,7 +1088,7 @@ fn rebuild_compiled_adjustment_state(
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
-        first_entry_cost: first.amount * first.price,
+        first_entry_cost: checked_order_cost(first, "nfi-first-entry-cost")?,
         latest_entry_price: latest_entry.price,
         latest_entry_timestamp_ms: latest_entry.timestamp_ms,
         latest_exit_price: latest_exit.map(|order| order.price),
@@ -1961,6 +2034,7 @@ mod tests {
             liquidation_price_is_explicit: false,
             initial_stop_loss: 1.0,
             stop_loss: 1.0,
+            custom_stop_loss_ratio: None,
             minimum_rate: 90.0,
             maximum_rate: 100.0,
             orders: vec![FilledOrder {
@@ -2261,6 +2335,34 @@ mod tests {
     }
 
     #[test]
+    fn nfi_preflight_propagates_aggregate_overflow_before_option_dispatch() {
+        let mut trade = test_trade();
+        for (id, sequence) in [(2, 1), (3, 2)] {
+            trade
+                .push_filled_order(FilledOrder {
+                    id,
+                    funding_fee: 0.0,
+                    sequence,
+                    side: OrderSide::Buy,
+                    is_entry: true,
+                    filled_timestamp_ms: i64::try_from(sequence).expect("small sequence"),
+                    amount: 1.0,
+                    price: 1.0,
+                    cost: f64::MAX,
+                    tag: Some("source_entry".to_owned()),
+                })
+                .expect("uncached append defers aggregate construction");
+        }
+
+        assert_eq!(
+            super::super::dispatch::validate_nfi_order_arithmetic(&trade),
+            Err(crate::domain::SimError::ExactArithmetic {
+                operation: "order-aggregate-total-cost"
+            })
+        );
+    }
+
+    #[test]
     fn compiled_state_cache_reuses_only_matching_order_and_program_identity() {
         let scalar_program = json!({
             "schema_version": "1.2.0",
@@ -2285,18 +2387,20 @@ mod tests {
         assert!(!Arc::ptr_eq(&reused, &different));
 
         trade.nfi_adjustment_state = Some(Arc::clone(&different));
-        trade.push_filled_order(FilledOrder {
-            id: 2,
-            funding_fee: 0.0,
-            sequence: 1,
-            side: OrderSide::Buy,
-            is_entry: true,
-            filled_timestamp_ms: 60_000,
-            amount: 0.5,
-            price: 90.0,
-            cost: 45.0,
-            tag: Some("source_entry".to_owned()),
-        });
+        trade
+            .push_filled_order(FilledOrder {
+                id: 2,
+                funding_fee: 0.0,
+                sequence: 1,
+                side: OrderSide::Buy,
+                is_entry: true,
+                filled_timestamp_ms: 60_000,
+                amount: 0.5,
+                price: 90.0,
+                cost: 45.0,
+                tag: Some("source_entry".to_owned()),
+            })
+            .expect("finite aggregate append");
         assert!(trade.nfi_adjustment_state.is_none());
         let rebuilt = compiled_adjustment_state(&mut trade, &different_program)
             .expect("order append rebuild");

@@ -741,11 +741,12 @@ wheels = [
 
 [[package]]
 name = "nfi-backtest-engine"
-version = "1.6.1"
+version = "1.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "blake3" },
     { name = "ccxt" },
+    { name = "cryptography" },
     { name = "jsonschema" },
     { name = "numpy" },
     { name = "pandas" },
@@ -769,6 +770,7 @@ requires-dist = [
     { name = "basedpyright", marker = "extra == 'dev'", specifier = ">=1.29" },
     { name = "blake3", specifier = "==1.0.9" },
     { name = "ccxt", specifier = "==4.5.55" },
+    { name = "cryptography", specifier = "==49.0.0" },
     { name = "jsonschema", specifier = "==4.26.0" },
     { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.9,<2" },
     { name = "numpy", specifier = "==2.4.5" },

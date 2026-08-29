@@ -1,0 +1,62 @@
+{
+  "schema_version": "compatibility-proof-manifest-v1",
+  "source_run_id": "b0fdc0f77a164fcfbeb2a378e13eb287437e5592d6a37f25daabbed9259f7520",
+  "artifacts": [
+    {
+      "path": "automation-decision-futures.json",
+      "sha256": "a2946c965608c836308d04a14a102566b43028aacf2f293872d2d3232b0392c5"
+    },
+    {
+      "path": "automation-decision-spot.json",
+      "sha256": "24bf912fd3eeadb3055ed40bf0602b3ab3bcce360ed1ffb0151299779d77ead4"
+    },
+    {
+      "path": "changed-target-ledger.json",
+      "sha256": "dec9fc20a01b7ae57e59e0e71bfb8ce1760ec7f0d0266080e8bc91af7f7fcef0"
+    },
+    {
+      "path": "compatibility-identity.json",
+      "sha256": "3a06c1e4e965b55506d1009ae9f6b51e10bb5f0cd42444536ef8ecef54b7f7c0"
+    },
+    {
+      "path": "hosted-canary.json",
+      "sha256": "52975bd700270ee26973cbec1c2ee78e5604b84485ed96311c6f9837b5b02b00"
+    },
+    {
+      "path": "qualification-futures.json",
+      "sha256": "b4698a2a3d442a1b0df8f26a8504134e1911fac1cca821519a34aaa50f63d8b0"
+    },
+    {
+      "path": "qualification-spot.json",
+      "sha256": "e0933c3cebf7a4c302e98debf451b3837e9cde42264f2ff0110bd3a53fa9658b"
+    },
+    {
+      "path": "report-futures.json",
+      "sha256": "625a4fba37c08d3906d46216aabe926ef7435564cdc71016d3dfa5523a652904"
+    },
+    {
+      "path": "report-spot.json",
+      "sha256": "065cfcc57df6075f996d86abea6a87e7fcca3f95c7d08bd1630716b1f098c8e5"
+    },
+    {
+      "path": "semantic-profile.json",
+      "sha256": "9fb6fcf33913ef6aadc9c0b6a5f5cdd8e0bada2e34521ce83ac6b8368a3cffc5"
+    },
+    {
+      "path": "source-run.json",
+      "sha256": "950da6f82812648e2766929b5b696545f0e25e27762cad3a0f57a703651821ff"
+    },
+    {
+      "path": "strategy-diff.json",
+      "sha256": "ef10caaaae73bc44e8efd729246064f1176d65a1353013d93c7602a31b6f57fa"
+    },
+    {
+      "path": "targeted-report-futures.json",
+      "sha256": "2b6c70670fd706da27e65b0d4ae0f1f9c3f1ccba8acc41581fd904f6ef2469a3"
+    },
+    {
+      "path": "targeted-report-spot.json",
+      "sha256": "d9355661b9c4b6ef89c89aabe83a56b052fec0ba5e8b86c650c10f52780f33a4"
+    }
+  ]
+}

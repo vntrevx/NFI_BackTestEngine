@@ -4,6 +4,30 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.7.0 - 2026-08-29
+
+- Completed materialized semantic traces across the full Official Freqtrade and
+  Native execution surfaces. Each source retains its own callback/event granularity;
+  the common every-candle projection compares wallet, trade, order, protection, and
+  counter state at zero tolerance.
+- Added a versioned Official reference-state schema that retains both open and closed
+  trades, plus a single fail-closed migration path for immutable legacy traces that
+  omitted open trades.
+- Qualified X7 v17.4.580 at upstream commit
+  `b22cc60d1c018eeb984cb02a125bb790042bebd0` for source-compiled Spot and Futures
+  stateful closure. Historical v17.4.473 release-candidate fixtures remain the
+  distribution regression identity; this release does not claim a new continuous
+  five-year or combined Spot/Futures certificate.
+- Retained build-once release publication, SHA-256 manifests, required-CI
+  commit matching, Linux/macOS exact-fixture evidence, and byte-identical RC-to-stable
+  promotion. Native Windows is unsupported; WSL2 runs the Linux build and ABI.
+
+## 1.6.1 - 2026-08-16
+
+- Added `nfi-bte update` and a bounded latest-release notice for installed CLIs.
+- Kept source checkouts developer-managed and preserved the v1.6.0 simulation and
+  certification boundaries.
+
 ## 1.6.0 - 2026-08-14
 
 - Added the source-compiled Full Native transport: Rust now executes the complete

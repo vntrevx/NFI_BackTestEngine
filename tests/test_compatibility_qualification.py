@@ -6,6 +6,7 @@ from nfi_backtest_engine.compatibility_qualification import qualify_compatibilit
 def _check() -> dict:
     return {
         "native_compatible": True,
+        "trading_mode": "spot",
         "source": {"sha256": "a" * 64},
     }
 

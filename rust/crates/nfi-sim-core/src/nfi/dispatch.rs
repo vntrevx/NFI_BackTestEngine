@@ -1,9 +1,12 @@
 //! NFI position-adjustment route dispatch.
 #![allow(clippy::option_option)] // Outer None rejects invalid state; inner None is a valid no-op.
 
+use crate::calculations::{checked_float_product, checked_float_sum, fee_close, fee_open};
 use crate::domain::{
-    AdjustmentSignal, Candle, NfiLongGrindRoute, NfiX7TradeManager, PairSeries, PortfolioConfig,
+    AdjustmentSignal, CallbackOutcome, CallbackPhase, CallbackTransaction, Candle,
+    NfiLongGrindRoute, NfiX7TradeManager, PairSeries, PortfolioConfig, SimError,
 };
+use crate::execution::trace_trade_callback;
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::validation::{nfi_managed_route_supports_tags, nfi_managed_short_route_supports_tags};
 
@@ -11,10 +14,66 @@ use super::dispatch_plan::{all_in_scope, any_in_scope};
 use super::{
     compiled_rebuy_delegates, evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
     evaluate_nfi_regular_adjustment, evaluate_nfi_short_rebuy_adjustment,
-    evaluate_nfi_system_v3_adjustment, PositionAdjustmentRequest, RegularAdjustmentOutcome,
+    evaluate_nfi_system_v3_adjustment, nfi_profit_snapshot_checked, PositionAdjustmentRequest,
+    RegularAdjustmentOutcome,
 };
 
 pub(crate) fn evaluate_nfi_position_adjustment(
+    manager: &NfiX7TradeManager,
+    trade: &mut OpenTrade,
+    request: &PositionAdjustmentRequest<'_>,
+) -> Result<Option<Option<AdjustmentSignal>>, SimError> {
+    validate_nfi_order_arithmetic(trade)?;
+    nfi_profit_snapshot_checked(
+        trade,
+        request.candle.open,
+        fee_open(request.config),
+        fee_close(request.config),
+        request.config.is_futures,
+    )?;
+    let before = trade.clone();
+    let result = evaluate_nfi_position_adjustment_inner(manager, trade, request);
+    if let Some(signal) = &result {
+        trace_trade_callback(
+            CallbackPhase::PositionAdjustment,
+            signal
+                .as_ref()
+                .map_or(CallbackOutcome::None, |_| CallbackOutcome::Value),
+            CallbackTransaction::Committed,
+            request.available_balance,
+            trade,
+            None,
+        )?;
+    } else {
+        let shared_custom_data = std::mem::take(&mut trade.custom_data);
+        *trade = before;
+        trade.custom_data = shared_custom_data;
+        trace_trade_callback(
+            CallbackPhase::PositionAdjustment,
+            CallbackOutcome::Exception,
+            CallbackTransaction::RolledBack,
+            request.available_balance,
+            trade,
+            Some("NFI callback dispatch rejected runtime state".to_owned()),
+        )?;
+    }
+    Ok(result)
+}
+
+pub(super) fn validate_nfi_order_arithmetic(trade: &OpenTrade) -> Result<(), SimError> {
+    // Build the aggregate cache before entering callback code whose outer
+    // `Option` represents invalid IR. This keeps arithmetic faults distinct
+    // from callback no-ops and validates the same left-to-right products used
+    // by NFI's state reconstruction.
+    trade.filled_order_aggregates()?;
+    trade.orders.iter().try_fold(0.0, |total, order| {
+        let cost = checked_float_product(&[order.amount, order.price], "nfi-order-state-cost")?;
+        checked_float_sum(&[total, cost], "nfi-order-state-total-cost")
+    })?;
+    Ok(())
+}
+
+fn evaluate_nfi_position_adjustment_inner(
     manager: &NfiX7TradeManager,
     trade: &mut OpenTrade,
     request: &PositionAdjustmentRequest<'_>,
@@ -164,6 +223,20 @@ fn evaluate_nfi_short_position_adjustment(
             true,
         );
     }
+    if let Some(route) = manager.short_grind.as_ref() {
+        if all_in_scope(&tags, &dispatch.short_grind_tags) {
+            return evaluate_nfi_legacy_grind_adjustment(
+                manager,
+                route,
+                trade,
+                request.pair,
+                request.candle_index,
+                request.candle,
+                request.config,
+                request.available_balance,
+            );
+        }
+    }
     let Some(adjustment) = manager.short_position_adjustment.as_ref() else {
         // Older descriptors only compile short-rebuy. If its all-tags
         // predicate did not match, upstream has no reachable short adjustment
@@ -193,7 +266,7 @@ fn evaluate_nfi_short_position_adjustment(
 fn evaluate_nfi_long_btc_adjustment(
     manager: &NfiX7TradeManager,
     route: &NfiLongGrindRoute,
-    trade: &OpenTrade,
+    trade: &mut OpenTrade,
     pair: &PairSeries,
     candle_index: usize,
     candle: &Candle,

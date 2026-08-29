@@ -7,9 +7,10 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Literal
 
 from ..errors import StrategyAnalysisError
+from .liquidation_rescue import _legacy_liquidation_rescue_policy
 
 LEGACY_GRIND_PROGRAM_VERSION = "grind-transition-program-v3"
 
@@ -17,6 +18,8 @@ LEGACY_GRIND_PROGRAM_VERSION = "grind-transition-program-v3"
 def compile_legacy_grind_ir(
     method: ast.FunctionDef,
     constants: Mapping[str, Any],
+    *,
+    side: Literal["long", "short"] = "long",
 ) -> dict[str, Any]:
     """Compile every source-defined Grind cluster and its ordered actions."""
 
@@ -29,7 +32,7 @@ def compile_legacy_grind_ir(
         raise StrategyAnalysisError("legacy Grind requires an ordinary cluster")
 
     loop = _reverse_order_loop(method)
-    entry_side, exit_side, entry_branch, exit_branch = _order_sides(loop)
+    entry_side, exit_side, entry_branch, exit_branch = _order_sides(loop, side=side)
     entry_memberships = _string_memberships(ast.Module(body=entry_branch.body, type_ignores=[]))
     exit_memberships = _string_memberships(ast.Module(body=exit_branch.body, type_ignores=[]))
     close_all = _unique_membership(
@@ -79,12 +82,19 @@ def compile_legacy_grind_ir(
 
     policy = _literal_policy(method)
     fallback = extract_legacy_futures_fallback(method)
+    liquidation_rescue = _legacy_liquidation_rescue_policy(method)
     if fallback["entry_tag"] not in {record["entry_tag"] for record in ordinary}:
         raise StrategyAnalysisError("legacy Grind Futures fallback targets an unknown cluster")
     ordered_clusters = sorted(
         cluster_records,
         key=lambda record: _location_key(_tag_location(method, record["entry_tag"])),
     )
+    rescue_entry_tag = None
+    if liquidation_rescue is not None:
+        rescue_index = liquidation_rescue["cluster_level"] - 1
+        if rescue_index < 0 or rescue_index >= len(ordinary):
+            raise StrategyAnalysisError("legacy liquidation rescue targets an unknown cluster")
+        rescue_entry_tag = ordinary[rescue_index]["entry_tag"]
     source_order: list[dict[str, Any]] = [
         {
             "kind": "first-entry",
@@ -111,6 +121,9 @@ def compile_legacy_grind_ir(
                 if record["entry_tag"] == fallback["entry_tag"]
                 else None
             ),
+            "liquidation_rescue": (
+                liquidation_rescue if record["entry_tag"] == rescue_entry_tag else None
+            ),
             "location": _tag_location(method, record["entry_tag"]),
         }
         for record in ordered_clusters
@@ -127,6 +140,7 @@ def compile_legacy_grind_ir(
         "schema_version": LEGACY_GRIND_PROGRAM_VERSION,
         "execution_mode": "primary",
         "source_callback": method.name,
+        "side": side,
         "source_order": source_order,
         "order_scan": {
             "sequence": "reverse",
@@ -175,7 +189,7 @@ def _derisk_buyback_transition(
         "grind_entry_retry_time",
         "grind_order_age_time",
         "grind_force_order_age_time",
-        "is_long_grind_entry",
+        f"is_{_callback_side(method)}_grind_entry",
         "max_stake",
     }
     entry_candidates: list[ast.If] = []
@@ -390,6 +404,8 @@ def _is_name_comparison(
 def extract_legacy_futures_fallback(method: ast.FunctionDef) -> dict[str, Any]:
     """Extract the source-ordered Futures drawdown entry action."""
 
+    side = _callback_side(method)
+    comparison_operator = ast.Lt if side == "long" else ast.Gt
     candidates: list[dict[str, Any]] = []
     required_names = {
         "is_futures",
@@ -426,7 +442,7 @@ def extract_legacy_futures_fallback(method: ast.FunctionDef) -> dict[str, Any]:
             and isinstance(node.left, ast.Name)
             and node.left.id == "slice_profit"
             and len(node.ops) == 1
-            and isinstance(node.ops[0], ast.Lt)
+            and isinstance(node.ops[0], comparison_operator)
             and len(node.comparators) == 1
         ]
         level_bounds = [
@@ -453,7 +469,8 @@ def extract_legacy_futures_fallback(method: ast.FunctionDef) -> dict[str, Any]:
             or threshold.right.id != "trade_leverage"
             or (value := _ast_number(threshold.left)) is None
             or not math.isfinite(value)
-            or value >= 0.0
+            or (side == "long" and value >= 0.0)
+            or (side == "short" and value <= 0.0)
         ):
             continue
         candidates.append(
@@ -508,7 +525,9 @@ def _reverse_order_loop(method: ast.FunctionDef) -> ast.For:
     return loops[0]
 
 
-def _order_sides(loop: ast.For) -> tuple[str, str, ast.If, ast.If]:
+def _order_sides(
+    loop: ast.For, *, side: str
+) -> tuple[str, str, ast.If, ast.If]:
     branches = [
         node
         for node in ast.walk(loop)
@@ -542,7 +561,8 @@ def _order_sides(loop: ast.For) -> tuple[str, str, ast.If, ast.If]:
             raise StrategyAnalysisError("legacy Grind order-side comparison changed")
         sides.append(str(comparator.value))
     unique = list(dict.fromkeys(sides))
-    if unique != ["buy", "sell"]:
+    expected = ["buy", "sell"] if side == "long" else ["sell", "buy"]
+    if unique != expected:
         raise StrategyAnalysisError("legacy Grind order directions changed")
     if len(branches) != 2:
         raise StrategyAnalysisError("legacy Grind order-side routing changed")
@@ -654,6 +674,11 @@ def _derisk_tag(loop: ast.For) -> str:
     return next(iter(matches))
 
 
+def _callback_side(method: ast.FunctionDef) -> Literal["long", "short"]:
+    """Return the callback side; synthetic unit methods retain the legacy long default."""
+    return "short" if method.name == "short_grind_adjust_trade_position" else "long"
+
+
 def _literal_policy(method: ast.FunctionDef) -> dict[str, int | float]:
     durations: dict[str, int] = {}
     for statement in method.body:
@@ -684,7 +709,11 @@ def _literal_policy(method: ast.FunctionDef) -> dict[str, int | float]:
         if isinstance(node, ast.Assign)
         and len(node.targets) == 1
         and isinstance(node.targets[0], ast.Name)
-        and node.targets[0].id.startswith("slice_profit_lt_neg_")
+        and node.targets[0].id.startswith(
+            "slice_profit_lt_neg_"
+            if _callback_side(method) == "long"
+            else "slice_profit_gt_"
+        )
         and isinstance(node.value, ast.Compare)
         and len(node.value.comparators) == 1
         and (value := _ast_number(node.value.comparators[0])) is not None

@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_promotion_rejects_nonempty_git_config_selector ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-turing/pytest-1544/test_promotion_rejects_nonempt0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7dddcb518fe0>
+
+    def test_promotion_rejects_nonempty_git_config_selector(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Given: the exact installed-Git repository-local config selector is active.
+        attack_root(tmp_path, monkeypatch)
+        monkeypatch.setenv("GIT_CONFIG", "/dev/null")
+        document = read_json(PROOF)
+    
+        # When / Then: promotion must reject caller policy before child sanitization.
+>       with pytest.raises(SpecValidationError, match="environment|config|Git"):
+E       Failed: DID NOT RAISE SpecValidationError
+
+tests/test_task8_r8.py:26: Failed
+=========================== short test summary info ============================
+FAILED tests/test_task8_r8.py::test_promotion_rejects_nonempty_git_config_selector
+1 failed in 85.96s (0:01:25)

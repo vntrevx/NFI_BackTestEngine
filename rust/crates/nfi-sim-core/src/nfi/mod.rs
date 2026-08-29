@@ -26,4 +26,6 @@ pub(crate) use rebuy::{
 pub(crate) use regular_adjustment::{evaluate_nfi_regular_adjustment, RegularAdjustmentOutcome};
 #[cfg(test)]
 pub(crate) use state::NfiProfitSnapshot;
-pub(crate) use state::{nfi_profit_snapshot, PositionAdjustmentRequest, ProfitTarget};
+pub(crate) use state::{
+    nfi_profit_snapshot, nfi_profit_snapshot_checked, PositionAdjustmentRequest, ProfitTarget,
+};

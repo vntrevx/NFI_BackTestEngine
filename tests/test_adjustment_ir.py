@@ -154,6 +154,124 @@ def test_long_adjustment_exit_condition_mutation_recompiles() -> None:
     )
 
 
+def test_long_adjustment_ignores_config_read_used_only_by_observability() -> None:
+    methods, _constants = _inputs()
+    changed_exit = copy.deepcopy(methods["long_grind_exit_v3"])
+    reporting_branch = next(
+        node
+        for node in ast.walk(changed_exit)
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(item, ast.Name) and item.id == "stake_fmt"
+            for item in ast.walk(node)
+        )
+    )
+    reporting_branch.body.insert(
+        0,
+        ast.Assign(
+            targets=[ast.Name(id="stake_currency", ctx=ast.Store())],
+            value=ast.Subscript(
+                value=ast.Attribute(
+                    value=ast.Name(id="self", ctx=ast.Load()),
+                    attr="config",
+                    ctx=ast.Load(),
+                ),
+                slice=ast.Constant(value="stake_currency"),
+                ctx=ast.Load(),
+            ),
+        ),
+    )
+    reporting_branch.body.insert(
+        1,
+        ast.If(
+            test=ast.Name(id="send_notifications", ctx=ast.Load()),
+            body=[
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=ast.Load()),
+                                attr="dp",
+                                ctx=ast.Load(),
+                            ),
+                            attr="send_msg",
+                            ctx=ast.Load(),
+                        ),
+                        args=[ast.Name(id="stake_currency", ctx=ast.Load())],
+                        keywords=[],
+                    )
+                )
+            ],
+            orelse=[],
+        ),
+    )
+    ast.fix_missing_locations(changed_exit)
+
+    original = _compile()
+    changed = _compile(exit_method=changed_exit)
+
+    assert changed["source_order"][5]["decision_program"] == (
+        original["source_order"][5]["decision_program"]
+    )
+
+
+def test_long_adjustment_binds_source_level_derisk_enablement_generically() -> None:
+    methods, _constants = _inputs()
+    changed = copy.deepcopy(methods["long_grind_adjust_trade_position_v3"])
+    first_derisk = next(
+        node
+        for node in changed.body
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(item, ast.Constant) and item.value == "derisk_level_1"
+            for item in ast.walk(node)
+        )
+    )
+    first_derisk.test = ast.BoolOp(
+        op=ast.And(),
+        values=[
+            ast.Name(id="derisk_enable", ctx=ast.Load()),
+            ast.Name(id="derisk_1_enable", ctx=ast.Load()),
+            ast.Compare(
+                left=ast.Name(id="derisk_1_threshold", ctx=ast.Load()),
+                ops=[ast.Lt()],
+                comparators=[ast.Constant(value=0.0)],
+            ),
+            ast.Compare(
+                left=ast.Name(id="derisk_1_stake", ctx=ast.Load()),
+                ops=[ast.Gt()],
+                comparators=[ast.Constant(value=0.0)],
+            ),
+            first_derisk.test,
+        ],
+    )
+    ast.fix_missing_locations(changed)
+
+    program = _compile(method=changed)
+    first_action = program["source_order"][0]
+
+    bindings = {binding["name"]: binding for binding in first_action["bindings"]}
+    assert bindings["derisk_enable"] == {
+        "name": "derisk_enable",
+        "kind": "derisk-enabled-global",
+    }
+    assert bindings["derisk_1_enable"] == {
+        "name": "derisk_1_enable",
+        "kind": "derisk-enabled",
+        "level": 1,
+    }
+    assert bindings["derisk_1_stake"] == {
+        "name": "derisk_1_stake",
+        "kind": "derisk-stake",
+        "level": 1,
+    }
+    assert bindings["derisk_1_threshold"] == {
+        "name": "derisk_1_threshold",
+        "kind": "derisk-threshold",
+        "level": 1,
+    }
+
+
 def test_long_adjustment_changed_source_order_fails_closed() -> None:
     methods, _constants = _inputs()
     changed = copy.deepcopy(methods["long_grind_adjust_trade_position_v3"])

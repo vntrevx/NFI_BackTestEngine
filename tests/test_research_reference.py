@@ -20,6 +20,67 @@ from nfi_backtest_engine.research_reference import (
 ROOT = Path(__file__).parents[1]
 
 
+def _managed_prefix() -> list[str]:
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--cidfile",
+        "/tmp/reference.cid",
+        "--label",
+        "io.nfi-backtest-engine.managed=true",
+        "--label",
+        "io.nfi-backtest-engine.role=reference",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,nodev",
+        "--tmpfs",
+        "/nfi-deps:rw,exec,nosuid,nodev",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges=true",
+        "--pids-limit",
+        "512",
+        "--ulimit",
+        "nofile=4096:4096",
+        "--memory",
+        str(8 * 1024**3),
+        "--memory-swap",
+        str(8 * 1024**3),
+    ]
+
+
+@pytest.mark.parametrize(
+    "injected",
+    [
+        ["--volume", "/:/host-root"],
+        ["--privileged=true"],
+        ["--memory=0"],
+        ["--network", "none", "--network", "host"],
+        ["--user", "1000:1000", "--user", "0:0"],
+        ["--mount", "type=bind,source=/,target=/host-root"],
+    ],
+)
+def test_research_reference_rejects_prefix_option_injection(
+    injected: list[str],
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
+    with pytest.raises(BenchmarkError, match="sandbox"):
+        build_research_reference_command(
+            run_prefix=[*_managed_prefix(), *injected],
+            input_directory=tmp_path / "inputs",
+            output_directory=output,
+            data_directory=tmp_path / "data",
+            strategy="Strategy",
+            timerange="20250101-20250102",
+            pairs=["BTC/USDT"],
+            audit_timestamps_ms=[],
+        )
+
+
 def test_research_reference_resolves_the_repository_root() -> None:
     assert research_reference._project_root() == ROOT  # pyright: ignore[reportPrivateUsage]
 
@@ -28,7 +89,7 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
     output = tmp_path / "output"
     output.mkdir()
     command = build_research_reference_command(
-        run_prefix=["docker", "run", "--rm"],
+        run_prefix=_managed_prefix(),
         input_directory=tmp_path / "inputs",
         output_directory=output,
         data_directory=tmp_path / "data",
@@ -48,9 +109,12 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
     assert "NFI_REFERENCE_STORAGE_REPORT=/output/reference-storage.json" in command
     assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
     assert any(value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command)
-    assert "PYTHONPATH=/nfi-reference-tracer:/nfi-python" in command
+    assert any(
+        value.startswith("PYTHONPATH=/nfi-reference-tracer:/nfi-python")
+        for value in command
+    )
     owner = output.stat()
-    assert command[command.index("--user") + 1] == "0:0"
+    assert command[command.index("--user") + 1] == f"{owner.st_uid}:{owner.st_gid}"
     assert f"NFI_BIND_UID={owner.st_uid}" in command
     assert f"NFI_BIND_GID={owner.st_gid}" in command
     assert command[-6:] == [
@@ -83,7 +147,7 @@ def test_market_capture_uses_the_pinned_list_pairs_contract(tmp_path: Path) -> N
     assert any(value.endswith(":/nfi-reference-tracer:ro") for value in command)
     assert any(value.endswith(":/nfi-python/nfi_backtest_engine:ro") for value in command)
     owner = output.stat()
-    assert command[command.index("--user") + 1] == "0:0"
+    assert command[command.index("--user") + 1] == f"{owner.st_uid}:{owner.st_gid}"
     assert f"NFI_BIND_UID={owner.st_uid}" in command
     assert f"NFI_BIND_GID={owner.st_gid}" in command
     assert command[command.index("--entrypoint") + 1] == "/bin/sh"
@@ -151,7 +215,7 @@ def test_research_reference_can_retain_the_in_memory_diagnostic_baseline(
     output = tmp_path / "output"
     output.mkdir()
     command = build_research_reference_command(
-        run_prefix=["docker", "run", "--rm"],
+        run_prefix=_managed_prefix(),
         input_directory=tmp_path / "inputs",
         output_directory=output,
         data_directory=tmp_path / "data",
@@ -172,7 +236,7 @@ def test_research_reference_trace_is_full_state_and_hash_bound(
     output = tmp_path / "output"
     output.mkdir()
     command = build_research_reference_command(
-        run_prefix=["docker", "run"],
+        run_prefix=_managed_prefix(),
         input_directory=tmp_path / "input",
         output_directory=output,
         data_directory=tmp_path / "data",

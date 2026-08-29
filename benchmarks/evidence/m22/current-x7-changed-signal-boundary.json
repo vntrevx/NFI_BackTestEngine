@@ -1,0 +1,2287 @@
+{
+  "schema_version": "changed-signal-proof-v2",
+  "identity": {
+    "upstream_commit": "eebaf97c1434bd8f208b7cd9c417606646e1e478",
+    "source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+    "semantic_profile_sha256": "87f9549fcdea09a4b55be8bed7ef549a8e1df99fc532ea1110e04c252e61483f",
+    "semantic_registry_fingerprint": "4a99c6aaf6a4379d5afcf8010213fe182cef4bf728fbbd8328d062b67c6c2e73",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "market_data_sha256": "d322c0b126067e7f4910524a71a53af71cabefebc3ab757e737c9687f344195e",
+    "target_id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+    "callback_target_id": "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185"
+  },
+  "capture": {
+    "kind": "sealed-freqtrade-backtest",
+    "freqtrade_version": "2026.5.1",
+    "image_ref": "freqtradeorg/freqtrade@sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "contract_path": "benchmarks/reference/strategies/CurrentChangedPredicateContract.py",
+    "contract_sha256": "2870cb333f13c6319ed65bca93c9ba49098077b17fbbd14235fbb7ff63debff4",
+    "interface_sha256": "93ddb2f5579acd7a20d489174ffb68cd191428ff996d291b33be81d97fa9bf66",
+    "method_sha256": {
+      "advise_entry": "801defc1b613486ab7b0c02062456c1eefcb595c6e90b610a59a688b71b3e4d5",
+      "advise_exit": "492e37d18aed96db89003eb1726d268c5051289515c53f94c11e402951ec337d"
+    },
+    "bounded_rows": 5,
+    "network": "none"
+  },
+  "predicate": {
+    "target_id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+    "callback_target_id": "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185",
+    "source_expression": "(dataframe['RSI_3_15m'] > 15.0) | (dataframe['RSI_3_1h'] > 20.0) | (dataframe['RSI_3_4h'] > 25.0) | (dataframe['AROONU_14_1h'] > 0.0)",
+    "source_expression_sha256": "8dcbf93e125a29a083f03558435c28557b676ee214e0402afd4b205468b175e0",
+    "source_span": {
+      "method": "populate_entry_trend",
+      "line": 39,
+      "end_line": 44
+    },
+    "required_columns": [
+      "RSI_3_15m",
+      "RSI_3_1h",
+      "RSI_3_4h",
+      "AROONU_14_1h"
+    ],
+    "atomic_terms": [
+      "RSI_3_15m > 15.0",
+      "RSI_3_1h > 20.0",
+      "RSI_3_4h > 25.0",
+      "AROONU_14_1h > 0.0"
+    ],
+    "atomic_term_count": 4
+  },
+  "modes": {
+    "spot": {
+      "coverage": {
+        "passing_rows": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "failing_rows": [
+          0
+        ],
+        "independent_term_rows": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "official_provenance": {
+        "producer": "freqtrade-backtesting",
+        "command": [
+          "uv",
+          "run",
+          "python",
+          "-m",
+          "nfi_backtest_engine.changed_signal_replay",
+          "spot",
+          "--official"
+        ],
+        "artifacts": [
+          {
+            "role": "official_signal",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/official-signal.json",
+            "sha256": "e17f8d4c0053805b3055bcd0c9450e643b19a4befe8e42fc2f474e1712d4d133",
+            "bytes": 4906
+          },
+          {
+            "role": "official_execution",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/artifacts/freqtrade-result.zip",
+            "sha256": "a966d4d748b4f228587ab82d2364c9bc8f484bd93fa7630f55a9af6cea4110cf",
+            "bytes": 10998
+          },
+          {
+            "role": "official_trace",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/artifacts/state-trace.nfitrace",
+            "sha256": "80ab81347d03fae9bec75b29a8d75fc192cfd42f893e08ffef9baa456f59ad2d",
+            "bytes": 169785
+          },
+          {
+            "role": "official_state",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/artifacts/state-projection.nfitrace",
+            "sha256": "6ffaaafcfa4590a875ff29988ad05b190409f066ca19af1028239bad6740b364",
+            "bytes": 135514
+          },
+          {
+            "role": "strategy_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/strategy.py",
+            "sha256": "2870cb333f13c6319ed65bca93c9ba49098077b17fbbd14235fbb7ff63debff4",
+            "bytes": 2146
+          },
+          {
+            "role": "config_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/config.json",
+            "sha256": "640033357674fa04a71434f17d3b3816a44dfc839497f7c6eb96dd4480162265",
+            "bytes": 1120
+          },
+          {
+            "role": "candle_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/candles/BTC_USDT-5m.feather",
+            "sha256": "e5460a3957a4ced1f7ac8eefe324a7468b10a686e7f60d90651dfe0b45a5ee7c",
+            "bytes": 44826
+          },
+          {
+            "role": "market_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/market_metadata/markets.json",
+            "sha256": "f6cc81fc15a3d8652c5736668dfa2b183b97b0a32424d867553821394d8ff58f",
+            "bytes": 10572
+          },
+          {
+            "role": "source_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+            "sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+            "bytes": 3430305
+          },
+          {
+            "role": "capture_input",
+            "path": "benchmarks/reference/capture/current_changed_signal.py",
+            "sha256": "f83111eff6e9a3b2b47493ecc3284755c387b678acd161638919382c8fb2d745",
+            "bytes": 2411
+          },
+          {
+            "role": "replay_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/manifest.json",
+            "sha256": "d7ca41ed80dc177bf905602c355ec18293be76da1cfeb5ddc37737615ded2089",
+            "bytes": 2989
+          },
+          {
+            "role": "published_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay-publication-official.json",
+            "sha256": "172745cbb00a021b254f866e2a136bc645edfbf9c7d9a4e1ce2719dc07464cb7",
+            "bytes": 573
+          }
+        ],
+        "raw_output_sha256": "a727f5080b94176ccfd591c8d197d759818e966043473a492158868e8b8ff719",
+        "normalized_sha256": "0a62a7cdb69754b1cd53df04d357012a9bef1ce8b9925d7cb5db4e336d881bde",
+        "role_bindings_sha256": "23c33e815e0c04564744f21fa40f717ac2b1ba0769fd1e167ea2fa58700d960b"
+      },
+      "native_provenance": {
+        "producer": "nfi-native-engine",
+        "command": [
+          "uv",
+          "run",
+          "python",
+          "-m",
+          "nfi_backtest_engine.changed_signal_replay",
+          "spot",
+          "--native"
+        ],
+        "artifacts": [
+          {
+            "role": "native_signal",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/native-signal.json",
+            "sha256": "de14f6b722d5320722f680980a3bdfc19b86232d9f46950f971a64ba6fdd6b24",
+            "bytes": 823
+          },
+          {
+            "role": "native_execution",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/native-execution.json",
+            "sha256": "e139633d6ff459dcfa0c301d382d170c989229a453fcdc6573b22f8fd4b240c3",
+            "bytes": 192
+          },
+          {
+            "role": "native_events",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/native-events.jsonl",
+            "sha256": "4718ecea4c4335f28260208885d13b3ac5cc31de3369e1e69d0c4a413dd7e71a",
+            "bytes": 392716
+          },
+          {
+            "role": "native_state",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/native-state.nfitrace",
+            "sha256": "8390a4842f393a7c8a122a2fa39e7fc0ebba565e61432172e97e15cd729b8a1f",
+            "bytes": 135980
+          },
+          {
+            "role": "strategy_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/strategy.py",
+            "sha256": "2870cb333f13c6319ed65bca93c9ba49098077b17fbbd14235fbb7ff63debff4",
+            "bytes": 2146
+          },
+          {
+            "role": "config_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/config.json",
+            "sha256": "640033357674fa04a71434f17d3b3816a44dfc839497f7c6eb96dd4480162265",
+            "bytes": 1120
+          },
+          {
+            "role": "candle_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/candles/BTC_USDT-5m.feather",
+            "sha256": "e5460a3957a4ced1f7ac8eefe324a7468b10a686e7f60d90651dfe0b45a5ee7c",
+            "bytes": 44826
+          },
+          {
+            "role": "market_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/inputs/market_metadata/markets.json",
+            "sha256": "f6cc81fc15a3d8652c5736668dfa2b183b97b0a32424d867553821394d8ff58f",
+            "bytes": 10572
+          },
+          {
+            "role": "source_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+            "sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+            "bytes": 3430305
+          },
+          {
+            "role": "capture_input",
+            "path": "python/nfi_backtest_engine/changed_signal_native_capture.py",
+            "sha256": "fa92cef094d135a05d94ce7e8ce91fbf014f5779c55bde42a95ff781ffd0c81e",
+            "bytes": 2281
+          },
+          {
+            "role": "replay_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay/manifest.json",
+            "sha256": "d7ca41ed80dc177bf905602c355ec18293be76da1cfeb5ddc37737615ded2089",
+            "bytes": 2989
+          },
+          {
+            "role": "published_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/spot/replay-publication-native.json",
+            "sha256": "7b25e1a0b8637c17ece2d4c42330d45d7039b8fe94527c7804b31c7568f51812",
+            "bytes": 724
+          }
+        ],
+        "raw_output_sha256": "5cbeae0d5afd4826cd52da96ce672c2ae9c80f4a718372a7a5f3f7dc2044af7c",
+        "normalized_sha256": "0a62a7cdb69754b1cd53df04d357012a9bef1ce8b9925d7cb5db4e336d881bde",
+        "role_bindings_sha256": "8f83e199497a3719badb73fc144db14c8a66d06c8fdf648a6fe3756f5db129a5"
+      },
+      "official": {
+        "signal_tag": {
+          "enter_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enter_short": [
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          "enter_tag": [
+            "",
+            "562 ",
+            "562 ",
+            "562 ",
+            "562 "
+          ],
+          "exit_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_short": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_tag": [
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        "callback_columns": {
+          "RSI_3_15m": [
+            15.0,
+            15.000000000000002,
+            15.0,
+            15.0,
+            15.0
+          ],
+          "RSI_3_1h": [
+            20.0,
+            20.0,
+            20.000000000000004,
+            20.0,
+            20.0
+          ],
+          "RSI_3_4h": [
+            25.0,
+            25.0,
+            25.0,
+            25.000000000000004,
+            25.0
+          ],
+          "AROONU_14_1h": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5e-324
+          ]
+        },
+        "trades": [],
+        "full_state": [
+          {
+            "timestamp_ms": 1735689900000,
+            "pair": "BTC/USDT",
+            "wallet": {
+              "quote_free": "1000",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 0
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 0,
+              "realized_profit": "0",
+              "rejected_signals": 0,
+              "trade_id_counter": 0
+            }
+          }
+        ]
+      },
+      "native": {
+        "signal_tag": {
+          "enter_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enter_short": [
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          "enter_tag": [
+            "",
+            "562 ",
+            "562 ",
+            "562 ",
+            "562 "
+          ],
+          "exit_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_short": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_tag": [
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        "callback_columns": {
+          "AROONU_14_1h": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5e-324
+          ],
+          "RSI_3_15m": [
+            15.0,
+            15.000000000000002,
+            15.0,
+            15.0,
+            15.0
+          ],
+          "RSI_3_1h": [
+            20.0,
+            20.0,
+            20.000000000000004,
+            20.0,
+            20.0
+          ],
+          "RSI_3_4h": [
+            25.0,
+            25.0,
+            25.0,
+            25.000000000000004,
+            25.0
+          ]
+        },
+        "trades": [],
+        "full_state": [
+          {
+            "timestamp_ms": 1735689900000,
+            "pair": "BTC/USDT",
+            "wallet": {
+              "quote_free": "1000",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 0
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 0,
+              "realized_profit": "0",
+              "rejected_signals": 0,
+              "trade_id_counter": 0
+            }
+          }
+        ]
+      },
+      "parity": {
+        "signal_tag": {
+          "exact": true,
+          "first_difference": null
+        },
+        "callback_columns": {
+          "exact": true,
+          "first_difference": null
+        },
+        "trades": {
+          "exact": true,
+          "first_difference": null
+        },
+        "full_state": {
+          "exact": true,
+          "first_difference": null
+        }
+      },
+      "mutations": [
+        {
+          "mutation_id": "comparator-0",
+          "kind": "comparator",
+          "term_index": 0,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-0/CurrentChangedPredicateContract.py",
+            "sha256": "9ec6b20e786d2fcaf691a5b473cff5d5e76bb4eba2a7ac4fa3f41d39330cbbf2",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-0/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-0/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-0",
+          "kind": "threshold",
+          "term_index": 0,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-0/CurrentChangedPredicateContract.py",
+            "sha256": "2c7b1bc22f8384ffa1a2e8fb434c3e386eebea2979fcaaba37e8637f2e27ffbe",
+            "bytes": 2160
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-0/official-spot.json",
+            "sha256": "f485836d7f0921130aba119d392458ff9547d4cfda0f14d953acdb0c38d497ae",
+            "bytes": 4902
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-0/native-spot.json",
+            "sha256": "461bf46ddcedeb2e32db52f5965996a8dea9da5fd7164c40538231b82faea52b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[1]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-0",
+          "kind": "source",
+          "term_index": 0,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-0/CurrentChangedPredicateContract.py",
+            "sha256": "2db9f5b2c2d84fbab48f8fbbbff82dd52b8041385b7162bdf0211f5029a9b61c",
+            "bytes": 2145
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-0/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-0/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "comparator-1",
+          "kind": "comparator",
+          "term_index": 1,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-1/CurrentChangedPredicateContract.py",
+            "sha256": "3aecf9c24ae5effba2ac13934605c2564c92540cf8d7c86ed09cbfddf4f0c8c4",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-1/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-1/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-1",
+          "kind": "threshold",
+          "term_index": 1,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-1/CurrentChangedPredicateContract.py",
+            "sha256": "6888e05c5044ab87a166d4b42388fd956fd8abf28a07a665ffe08ff4dd2c91bd",
+            "bytes": 2160
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-1/official-spot.json",
+            "sha256": "a2ebd15a0d62cb45b1f8f28b2fb6f3c104dc005aa49f5bca5307da5039ed2c7e",
+            "bytes": 4902
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-1/native-spot.json",
+            "sha256": "fe7fc5d967eb86040467ff442d2d299b14576efb18a1ec557b4b0af7cf9af64c",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[2]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-1",
+          "kind": "source",
+          "term_index": 1,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-1/CurrentChangedPredicateContract.py",
+            "sha256": "7b2252fcc5645b4957ca1c446ad4d995441ce4012a894357301931e860985e65",
+            "bytes": 2146
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-1/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-1/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "comparator-2",
+          "kind": "comparator",
+          "term_index": 2,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-2/CurrentChangedPredicateContract.py",
+            "sha256": "a08050deb0ff0c5f156efc49996a511ac9474a13f7533b8080b79a5edcf542da",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-2/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-2/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-2",
+          "kind": "threshold",
+          "term_index": 2,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-2/CurrentChangedPredicateContract.py",
+            "sha256": "3557776046cde23d8b606203f494868af6fa9d2533643acafd2315d863361ad9",
+            "bytes": 2160
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-2/official-spot.json",
+            "sha256": "0d933c5afabfae6e7d2012d4b068d299ea8ef67cac2c17537b595e559c6fa019",
+            "bytes": 4902
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-2/native-spot.json",
+            "sha256": "e1a0e73d504f3603daad112d52a820198dea2e88c9849b97ea0edccd841a0e35",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[3]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-2",
+          "kind": "source",
+          "term_index": 2,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-2/CurrentChangedPredicateContract.py",
+            "sha256": "01dc13a557172aab49e6ff8cf5b09e3f1d38352d3fe74b87e6da61a0c9c4f238",
+            "bytes": 2150
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-2/official-spot.json",
+            "sha256": "0d933c5afabfae6e7d2012d4b068d299ea8ef67cac2c17537b595e559c6fa019",
+            "bytes": 4902
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-2/native-spot.json",
+            "sha256": "e1a0e73d504f3603daad112d52a820198dea2e88c9849b97ea0edccd841a0e35",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[3]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "comparator-3",
+          "kind": "comparator",
+          "term_index": 3,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-3/CurrentChangedPredicateContract.py",
+            "sha256": "c3839cdab1875d55af35e81a8d3c7af488db421ae1bab5a6a8b49457d4b349f1",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-3/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-3/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-3",
+          "kind": "threshold",
+          "term_index": 3,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-3/CurrentChangedPredicateContract.py",
+            "sha256": "f679d574613e297e35ae71f92b1747f044dc05f536bbfa8c8344931748fb0815",
+            "bytes": 2149
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-3/official-spot.json",
+            "sha256": "9e346661dafcee39547c0bb4c808e2da85aa80207476899c1a9b63d677a2aefd",
+            "bytes": 4902
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-3/native-spot.json",
+            "sha256": "c7ccedc0725bdce00dbed6d96e9db07296bd93de318d4d0d168a39f575b045ab",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[4]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-3",
+          "kind": "source",
+          "term_index": 3,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-3/CurrentChangedPredicateContract.py",
+            "sha256": "e25f847b0050a73862a766f67c5bef24e72c4422dde8cc8404d6dabd2dc3a787",
+            "bytes": 2143
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-3/official-spot.json",
+            "sha256": "a359c4bd140a7db9def1c9574cc8c9ab8b5aa42056ac2f065c20693494076be1",
+            "bytes": 4910
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-3/native-spot.json",
+            "sha256": "8c8c8e1cf6644f4a04fecade02e4cf6a6e61268ab65c2e94c2cadc180153816b",
+            "bytes": 79
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        }
+      ],
+      "execution_contract": {
+        "can_short": false,
+        "short_execution_supported": false,
+        "changed_signal_reached": true
+      }
+    },
+    "futures": {
+      "coverage": {
+        "passing_rows": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "failing_rows": [
+          0
+        ],
+        "independent_term_rows": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "official_provenance": {
+        "producer": "freqtrade-backtesting",
+        "command": [
+          "uv",
+          "run",
+          "python",
+          "-m",
+          "nfi_backtest_engine.changed_signal_replay",
+          "futures",
+          "--official"
+        ],
+        "artifacts": [
+          {
+            "role": "official_signal",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/official-signal.json",
+            "sha256": "34cc2931ac1eff26d3509d546868bd69ee12ad45809786a8ef4cba71f32eab1b",
+            "bytes": 4917
+          },
+          {
+            "role": "official_execution",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/artifacts/freqtrade-result.zip",
+            "sha256": "7cf0e75a6abc91c11178c9bb79021e31ec5ee8bdc4052efae5766fdb32899a14",
+            "bytes": 11875
+          },
+          {
+            "role": "official_trace",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/artifacts/state-trace.nfitrace",
+            "sha256": "cae2c6d40a179d99ebb18be58ac9aa2b92b1214de647853998147a08e111a519",
+            "bytes": 1790624
+          },
+          {
+            "role": "official_state",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/artifacts/state-projection.nfitrace",
+            "sha256": "6aff185430bfd222aba139e4f13a5c2c63366237c06cca2ad08903a206831ec3",
+            "bytes": 141792
+          },
+          {
+            "role": "strategy_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/strategy.py",
+            "sha256": "45945ab716b0f848027480a651b323681e9fd5e4c8d0022e153deccaf1b1e3e4",
+            "bytes": 2145
+          },
+          {
+            "role": "config_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/config.json",
+            "sha256": "a2acfde38334170fd899f2db93a92dc37d978eb77c7747cba8aaa1733f656f75",
+            "bytes": 814
+          },
+          {
+            "role": "candle_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+            "sha256": "4faa67166ecb375cb9283f5a3495cc1e2ea5658640afcffc3a4d6e1460b6c5ae",
+            "bytes": 302639
+          },
+          {
+            "role": "funding_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+            "sha256": "05743e03a0c6a27c4982f6ced69ab7ca53480fc63798c83a362e076d6bcd2759",
+            "bytes": 119471
+          },
+          {
+            "role": "mark_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+            "sha256": "f396311879cdbe430db65cd19d2cdc1f8dd0a481012fdb72462496b7a69307b3",
+            "bytes": 945071
+          },
+          {
+            "role": "market_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/reference_market_metadata/reference-markets.json",
+            "sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+            "bytes": 9239
+          },
+          {
+            "role": "leverage_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/market_metadata/full-x7-futures-20210101-markets.json",
+            "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+            "bytes": 171531
+          },
+          {
+            "role": "source_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+            "sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+            "bytes": 3430305
+          },
+          {
+            "role": "capture_input",
+            "path": "benchmarks/reference/capture/current_changed_signal.py",
+            "sha256": "f83111eff6e9a3b2b47493ecc3284755c387b678acd161638919382c8fb2d745",
+            "bytes": 2411
+          },
+          {
+            "role": "replay_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/manifest.json",
+            "sha256": "a990febf3d6769d30e7b336d36a1189b3513e49ffdcfcf4bcddf13c471e706ab",
+            "bytes": 5689
+          },
+          {
+            "role": "published_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay-publication-official.json",
+            "sha256": "f4b34a4708375875ab6c9d5e7bb43f72c612840bd3c43ea4f7d62858ea03d902",
+            "bytes": 577
+          }
+        ],
+        "raw_output_sha256": "a84370f19165aafe20e6cd98823402ede4b9942717c67d071c2f91eb0f35854f",
+        "normalized_sha256": "9ab02e1b3bc9816257c3210811c2f68bf87cc0a6d094e98be4e747ab1c0d5996",
+        "role_bindings_sha256": "e719a9bfd68c28b39ab53554d617004427e39ea83f3c21ab188ae9308ee28c22"
+      },
+      "native_provenance": {
+        "producer": "nfi-native-engine",
+        "command": [
+          "uv",
+          "run",
+          "python",
+          "-m",
+          "nfi_backtest_engine.changed_signal_replay",
+          "futures",
+          "--native"
+        ],
+        "artifacts": [
+          {
+            "role": "native_signal",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/native-signal.json",
+            "sha256": "8c27ade1e51c9134536aeb7ef1b07f9cdb0ddb91691b545d8cd4250fcbce32e9",
+            "bytes": 826
+          },
+          {
+            "role": "native_execution",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/native-execution.json",
+            "sha256": "928a748d37931a1e6dfb07e9e8073c057eb63030f363acc23776d896a44da7de",
+            "bytes": 2745
+          },
+          {
+            "role": "native_events",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/native-events.jsonl",
+            "sha256": "3045fd067fd24adf8b2fa765a1234faf5a31768b4fc379c5307fcabee509884a",
+            "bytes": 1139042
+          },
+          {
+            "role": "native_state",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/native-state.nfitrace",
+            "sha256": "733c4b931e7c94b9ecd5bb13ec9c498ba9a69bcfec56e4c26c0b4ddbc5787d53",
+            "bytes": 142280
+          },
+          {
+            "role": "strategy_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/strategy.py",
+            "sha256": "45945ab716b0f848027480a651b323681e9fd5e4c8d0022e153deccaf1b1e3e4",
+            "bytes": 2145
+          },
+          {
+            "role": "config_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/config.json",
+            "sha256": "a2acfde38334170fd899f2db93a92dc37d978eb77c7747cba8aaa1733f656f75",
+            "bytes": 814
+          },
+          {
+            "role": "candle_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+            "sha256": "4faa67166ecb375cb9283f5a3495cc1e2ea5658640afcffc3a4d6e1460b6c5ae",
+            "bytes": 302639
+          },
+          {
+            "role": "funding_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+            "sha256": "05743e03a0c6a27c4982f6ced69ab7ca53480fc63798c83a362e076d6bcd2759",
+            "bytes": 119471
+          },
+          {
+            "role": "mark_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+            "sha256": "f396311879cdbe430db65cd19d2cdc1f8dd0a481012fdb72462496b7a69307b3",
+            "bytes": 945071
+          },
+          {
+            "role": "market_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/reference_market_metadata/reference-markets.json",
+            "sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+            "bytes": 9239
+          },
+          {
+            "role": "leverage_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/inputs/market_metadata/full-x7-futures-20210101-markets.json",
+            "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+            "bytes": 171531
+          },
+          {
+            "role": "source_input",
+            "path": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+            "sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+            "bytes": 3430305
+          },
+          {
+            "role": "capture_input",
+            "path": "python/nfi_backtest_engine/changed_signal_native_capture.py",
+            "sha256": "fa92cef094d135a05d94ce7e8ce91fbf014f5779c55bde42a95ff781ffd0c81e",
+            "bytes": 2281
+          },
+          {
+            "role": "replay_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay/manifest.json",
+            "sha256": "a990febf3d6769d30e7b336d36a1189b3513e49ffdcfcf4bcddf13c471e706ab",
+            "bytes": 5689
+          },
+          {
+            "role": "published_manifest",
+            "path": "benchmarks/evidence/m22/current-x7-raw/futures/replay-publication-native.json",
+            "sha256": "baa89c323bcc564feb92aa94f938192cd56596a0ddb49f161fa28024cdffc74c",
+            "bytes": 729
+          }
+        ],
+        "raw_output_sha256": "190d5b617e15b3b0da3ce6ca73563d7f6e80b559e7576b646f3cd5ea0246ce2b",
+        "normalized_sha256": "9ab02e1b3bc9816257c3210811c2f68bf87cc0a6d094e98be4e747ab1c0d5996",
+        "role_bindings_sha256": "adf9fc431120dec7eced584d3aa1ddf6abafc9611ebf61c1f071354dc2ac1175"
+      },
+      "official": {
+        "signal_tag": {
+          "enter_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enter_short": [
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          "enter_tag": [
+            "",
+            "562 ",
+            "562 ",
+            "562 ",
+            "562 "
+          ],
+          "exit_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_short": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_tag": [
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        "callback_columns": {
+          "RSI_3_15m": [
+            15.0,
+            15.000000000000002,
+            15.0,
+            15.0,
+            15.0
+          ],
+          "RSI_3_1h": [
+            20.0,
+            20.0,
+            20.000000000000004,
+            20.0,
+            20.0
+          ],
+          "RSI_3_4h": [
+            25.0,
+            25.0,
+            25.0,
+            25.000000000000004,
+            25.0
+          ],
+          "AROONU_14_1h": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5e-324
+          ]
+        },
+        "trades": [
+          {
+            "sequence": 0,
+            "pair": "BTC/USDT:USDT",
+            "direction": "short",
+            "open_timestamp_ms": 1648771800000,
+            "close_timestamp_ms": 1648773000000,
+            "open_rate": "45590.2",
+            "close_rate": "45600",
+            "amount": "0.002",
+            "stake_amount": "91.1804",
+            "max_stake_amount": "91.1804",
+            "leverage": "1",
+            "entry_tag": "562 ",
+            "exit_reason": "exit_signal",
+            "fees": {
+              "open_rate": "0.0005",
+              "open_cost": null,
+              "open_currency": null,
+              "close_rate": "0.0005",
+              "close_cost": null,
+              "close_currency": null,
+              "funding": "0"
+            },
+            "profit": {
+              "absolute": "-0.1107902",
+              "ratio": "-0.0012156737940544867"
+            },
+            "liquidation_price": null,
+            "initial_stop_loss": "68385.2",
+            "stop_loss": "68385.2",
+            "orders": [
+              {
+                "sequence": 0,
+                "side": "sell",
+                "is_entry": true,
+                "filled_timestamp_ms": 1648771800000,
+                "amount": "0.002",
+                "price": "45590.2",
+                "cost": "91.22599019999998",
+                "tag": "562 "
+              },
+              {
+                "sequence": 1,
+                "side": "buy",
+                "is_entry": false,
+                "filled_timestamp_ms": 1648773000000,
+                "amount": "0.002",
+                "price": "45600",
+                "cost": "91.2456",
+                "tag": "exit_signal"
+              }
+            ],
+            "duration_minutes": 20,
+            "is_open": false,
+            "minimum_rate": "45338.3",
+            "maximum_rate": "45638.9",
+            "initial_stop_loss_ratio": "-0.5",
+            "stop_loss_ratio": "-0.5",
+            "weekday": 4
+          },
+          {
+            "sequence": 1,
+            "pair": "BTC/USDT:USDT",
+            "direction": "short",
+            "open_timestamp_ms": 1648800600000,
+            "close_timestamp_ms": 1648801800000,
+            "open_rate": "45086.3",
+            "close_rate": "45297.2",
+            "amount": "0.002",
+            "stake_amount": "90.1726",
+            "max_stake_amount": "90.1726",
+            "leverage": "1",
+            "entry_tag": "562 ",
+            "exit_reason": "exit_signal",
+            "fees": {
+              "open_rate": "0.0005",
+              "open_cost": null,
+              "open_currency": null,
+              "close_rate": "0.0005",
+              "close_cost": null,
+              "close_currency": null,
+              "funding": "0"
+            },
+            "profit": {
+              "absolute": "-0.5121835",
+              "ratio": "-0.005682876171474816"
+            },
+            "liquidation_price": null,
+            "initial_stop_loss": "67629.4",
+            "stop_loss": "67629.4",
+            "orders": [
+              {
+                "sequence": 0,
+                "side": "sell",
+                "is_entry": true,
+                "filled_timestamp_ms": 1648800600000,
+                "amount": "0.002",
+                "price": "45086.3",
+                "cost": "90.2176863",
+                "tag": "562 "
+              },
+              {
+                "sequence": 1,
+                "side": "buy",
+                "is_entry": false,
+                "filled_timestamp_ms": 1648801800000,
+                "amount": "0.002",
+                "price": "45297.2",
+                "cost": "90.63969719999999",
+                "tag": "exit_signal"
+              }
+            ],
+            "duration_minutes": 20,
+            "is_open": false,
+            "minimum_rate": "45060",
+            "maximum_rate": "45307.9",
+            "initial_stop_loss_ratio": "-0.5",
+            "stop_loss_ratio": "-0.5",
+            "weekday": 4
+          },
+          {
+            "sequence": 2,
+            "pair": "BTC/USDT:USDT",
+            "direction": "short",
+            "open_timestamp_ms": 1648829400000,
+            "close_timestamp_ms": 1648830600000,
+            "open_rate": "46551.2",
+            "close_rate": "46499.9",
+            "amount": "0.002",
+            "stake_amount": "93.1024",
+            "max_stake_amount": "93.1024",
+            "leverage": "1",
+            "entry_tag": "562 ",
+            "exit_reason": "exit_signal",
+            "fees": {
+              "open_rate": "0.0005",
+              "open_cost": null,
+              "open_currency": null,
+              "close_rate": "0.0005",
+              "close_cost": null,
+              "close_currency": null,
+              "funding": "0"
+            },
+            "profit": {
+              "absolute": "0.0095489",
+              "ratio": "0.00010261472140803254"
+            },
+            "liquidation_price": null,
+            "initial_stop_loss": "69826.7",
+            "stop_loss": "69826.7",
+            "orders": [
+              {
+                "sequence": 0,
+                "side": "sell",
+                "is_entry": true,
+                "filled_timestamp_ms": 1648829400000,
+                "amount": "0.002",
+                "price": "46551.2",
+                "cost": "93.1489512",
+                "tag": "562 "
+              },
+              {
+                "sequence": 1,
+                "side": "buy",
+                "is_entry": false,
+                "filled_timestamp_ms": 1648830600000,
+                "amount": "0.002",
+                "price": "46499.9",
+                "cost": "93.04629990000001",
+                "tag": "exit_signal"
+              }
+            ],
+            "duration_minutes": 20,
+            "is_open": false,
+            "minimum_rate": "46301.3",
+            "maximum_rate": "46571.5",
+            "initial_stop_loss_ratio": "-0.5",
+            "stop_loss_ratio": "-0.5",
+            "weekday": 4
+          }
+        ],
+        "full_state": [
+          {
+            "timestamp_ms": 1648771500000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "10000",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 0
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 0,
+              "realized_profit": "0",
+              "rejected_signals": 0,
+              "trade_id_counter": 0
+            }
+          },
+          {
+            "timestamp_ms": 1648771800000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9908.8196",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 1
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 1,
+            "execution": {
+              "closed_trade_count": 0,
+              "realized_profit": "0",
+              "rejected_signals": 0,
+              "trade_id_counter": 1
+            }
+          },
+          {
+            "timestamp_ms": 1648773000000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9999.8892098",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 2
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 1,
+              "realized_profit": "-0.1107902",
+              "rejected_signals": 0,
+              "trade_id_counter": 1
+            }
+          },
+          {
+            "timestamp_ms": 1648800600000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9909.7166098",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 3
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 1,
+            "execution": {
+              "closed_trade_count": 1,
+              "realized_profit": "-0.1107902",
+              "rejected_signals": 0,
+              "trade_id_counter": 2
+            }
+          },
+          {
+            "timestamp_ms": 1648801800000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9999.3770263",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 4
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 2,
+              "realized_profit": "-0.6229737",
+              "rejected_signals": 0,
+              "trade_id_counter": 2
+            }
+          },
+          {
+            "timestamp_ms": 1648829400000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9906.2746263",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 5
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 1,
+            "execution": {
+              "closed_trade_count": 2,
+              "realized_profit": "-0.6229737",
+              "rejected_signals": 0,
+              "trade_id_counter": 3
+            }
+          },
+          {
+            "timestamp_ms": 1648830600000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9999.3865752",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 6
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 3,
+              "realized_profit": "-0.6134248",
+              "rejected_signals": 0,
+              "trade_id_counter": 3
+            }
+          }
+        ]
+      },
+      "native": {
+        "signal_tag": {
+          "enter_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enter_short": [
+            0,
+            1,
+            1,
+            1,
+            1
+          ],
+          "enter_tag": [
+            "",
+            "562 ",
+            "562 ",
+            "562 ",
+            "562 "
+          ],
+          "exit_long": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_short": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exit_tag": [
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        "callback_columns": {
+          "AROONU_14_1h": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            5e-324
+          ],
+          "RSI_3_15m": [
+            15.0,
+            15.000000000000002,
+            15.0,
+            15.0,
+            15.0
+          ],
+          "RSI_3_1h": [
+            20.0,
+            20.0,
+            20.000000000000004,
+            20.0,
+            20.0
+          ],
+          "RSI_3_4h": [
+            25.0,
+            25.0,
+            25.0,
+            25.000000000000004,
+            25.0
+          ]
+        },
+        "trades": [
+          {
+            "sequence": 0,
+            "pair": "BTC/USDT:USDT",
+            "direction": "short",
+            "open_timestamp_ms": 1648771800000,
+            "close_timestamp_ms": 1648773000000,
+            "open_rate": "45590.2",
+            "close_rate": "45600",
+            "amount": "0.002",
+            "stake_amount": "91.1804",
+            "max_stake_amount": "91.1804",
+            "leverage": "1",
+            "entry_tag": "562 ",
+            "exit_reason": "exit_signal",
+            "fees": {
+              "open_rate": "0.0005",
+              "open_cost": null,
+              "open_currency": null,
+              "close_rate": "0.0005",
+              "close_cost": null,
+              "close_currency": null,
+              "funding": "0"
+            },
+            "profit": {
+              "absolute": "-0.1107902",
+              "ratio": "-0.0012156737940544867"
+            },
+            "liquidation_price": null,
+            "initial_stop_loss": "68385.2",
+            "stop_loss": "68385.2",
+            "orders": [
+              {
+                "sequence": 0,
+                "side": "sell",
+                "is_entry": true,
+                "filled_timestamp_ms": 1648771800000,
+                "amount": "0.002",
+                "price": "45590.2",
+                "cost": "91.22599019999998",
+                "tag": "562 "
+              },
+              {
+                "sequence": 1,
+                "side": "buy",
+                "is_entry": false,
+                "filled_timestamp_ms": 1648773000000,
+                "amount": "0.002",
+                "price": "45600",
+                "cost": "91.2456",
+                "tag": "exit_signal"
+              }
+            ],
+            "duration_minutes": 20,
+            "is_open": false,
+            "minimum_rate": "45338.3",
+            "maximum_rate": "45638.9",
+            "initial_stop_loss_ratio": "-0.5",
+            "stop_loss_ratio": "-0.5",
+            "weekday": 4
+          },
+          {
+            "sequence": 1,
+            "pair": "BTC/USDT:USDT",
+            "direction": "short",
+            "open_timestamp_ms": 1648800600000,
+            "close_timestamp_ms": 1648801800000,
+            "open_rate": "45086.3",
+            "close_rate": "45297.2",
+            "amount": "0.002",
+            "stake_amount": "90.1726",
+            "max_stake_amount": "90.1726",
+            "leverage": "1",
+            "entry_tag": "562 ",
+            "exit_reason": "exit_signal",
+            "fees": {
+              "open_rate": "0.0005",
+              "open_cost": null,
+              "open_currency": null,
+              "close_rate": "0.0005",
+              "close_cost": null,
+              "close_currency": null,
+              "funding": "0"
+            },
+            "profit": {
+              "absolute": "-0.5121835",
+              "ratio": "-0.005682876171474816"
+            },
+            "liquidation_price": null,
+            "initial_stop_loss": "67629.4",
+            "stop_loss": "67629.4",
+            "orders": [
+              {
+                "sequence": 0,
+                "side": "sell",
+                "is_entry": true,
+                "filled_timestamp_ms": 1648800600000,
+                "amount": "0.002",
+                "price": "45086.3",
+                "cost": "90.2176863",
+                "tag": "562 "
+              },
+              {
+                "sequence": 1,
+                "side": "buy",
+                "is_entry": false,
+                "filled_timestamp_ms": 1648801800000,
+                "amount": "0.002",
+                "price": "45297.2",
+                "cost": "90.63969719999999",
+                "tag": "exit_signal"
+              }
+            ],
+            "duration_minutes": 20,
+            "is_open": false,
+            "minimum_rate": "45060",
+            "maximum_rate": "45307.9",
+            "initial_stop_loss_ratio": "-0.5",
+            "stop_loss_ratio": "-0.5",
+            "weekday": 4
+          },
+          {
+            "sequence": 2,
+            "pair": "BTC/USDT:USDT",
+            "direction": "short",
+            "open_timestamp_ms": 1648829400000,
+            "close_timestamp_ms": 1648830600000,
+            "open_rate": "46551.2",
+            "close_rate": "46499.9",
+            "amount": "0.002",
+            "stake_amount": "93.1024",
+            "max_stake_amount": "93.1024",
+            "leverage": "1",
+            "entry_tag": "562 ",
+            "exit_reason": "exit_signal",
+            "fees": {
+              "open_rate": "0.0005",
+              "open_cost": null,
+              "open_currency": null,
+              "close_rate": "0.0005",
+              "close_cost": null,
+              "close_currency": null,
+              "funding": "0"
+            },
+            "profit": {
+              "absolute": "0.0095489",
+              "ratio": "0.00010261472140803254"
+            },
+            "liquidation_price": null,
+            "initial_stop_loss": "69826.7",
+            "stop_loss": "69826.7",
+            "orders": [
+              {
+                "sequence": 0,
+                "side": "sell",
+                "is_entry": true,
+                "filled_timestamp_ms": 1648829400000,
+                "amount": "0.002",
+                "price": "46551.2",
+                "cost": "93.1489512",
+                "tag": "562 "
+              },
+              {
+                "sequence": 1,
+                "side": "buy",
+                "is_entry": false,
+                "filled_timestamp_ms": 1648830600000,
+                "amount": "0.002",
+                "price": "46499.9",
+                "cost": "93.04629990000001",
+                "tag": "exit_signal"
+              }
+            ],
+            "duration_minutes": 20,
+            "is_open": false,
+            "minimum_rate": "46301.3",
+            "maximum_rate": "46571.5",
+            "initial_stop_loss_ratio": "-0.5",
+            "stop_loss_ratio": "-0.5",
+            "weekday": 4
+          }
+        ],
+        "full_state": [
+          {
+            "timestamp_ms": 1648771500000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "10000",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 0
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 0,
+              "realized_profit": "0",
+              "rejected_signals": 0,
+              "trade_id_counter": 0
+            }
+          },
+          {
+            "timestamp_ms": 1648771800000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9908.8196",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 1
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 1,
+            "execution": {
+              "closed_trade_count": 0,
+              "realized_profit": "0",
+              "rejected_signals": 0,
+              "trade_id_counter": 1
+            }
+          },
+          {
+            "timestamp_ms": 1648773000000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9999.8892098",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 2
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 1,
+              "realized_profit": "-0.1107902",
+              "rejected_signals": 0,
+              "trade_id_counter": 1
+            }
+          },
+          {
+            "timestamp_ms": 1648800600000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9909.7166098",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 3
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 1,
+            "execution": {
+              "closed_trade_count": 1,
+              "realized_profit": "-0.1107902",
+              "rejected_signals": 0,
+              "trade_id_counter": 2
+            }
+          },
+          {
+            "timestamp_ms": 1648801800000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9999.3770263",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 4
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 2,
+              "realized_profit": "-0.6229737",
+              "rejected_signals": 0,
+              "trade_id_counter": 2
+            }
+          },
+          {
+            "timestamp_ms": 1648829400000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9906.2746263",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 5
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 1,
+            "execution": {
+              "closed_trade_count": 2,
+              "realized_profit": "-0.6229737",
+              "rejected_signals": 0,
+              "trade_id_counter": 3
+            }
+          },
+          {
+            "timestamp_ms": 1648830600000,
+            "pair": "BTC/USDT:USDT",
+            "wallet": {
+              "quote_free": "9999.3865752",
+              "base_balances": []
+            },
+            "orders": {
+              "filled_order_count": 6
+            },
+            "callbacks": {
+              "phase": "portfolio.after_candle",
+              "callback": null
+            },
+            "open_trades": 0,
+            "execution": {
+              "closed_trade_count": 3,
+              "realized_profit": "-0.6134248",
+              "rejected_signals": 0,
+              "trade_id_counter": 3
+            }
+          }
+        ]
+      },
+      "parity": {
+        "signal_tag": {
+          "exact": true,
+          "first_difference": null
+        },
+        "callback_columns": {
+          "exact": true,
+          "first_difference": null
+        },
+        "trades": {
+          "exact": true,
+          "first_difference": null
+        },
+        "full_state": {
+          "exact": true,
+          "first_difference": null
+        }
+      },
+      "mutations": [
+        {
+          "mutation_id": "comparator-0",
+          "kind": "comparator",
+          "term_index": 0,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-0/CurrentChangedPredicateContract.py",
+            "sha256": "9ec6b20e786d2fcaf691a5b473cff5d5e76bb4eba2a7ac4fa3f41d39330cbbf2",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-0/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-0/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-0",
+          "kind": "threshold",
+          "term_index": 0,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-0/CurrentChangedPredicateContract.py",
+            "sha256": "2c7b1bc22f8384ffa1a2e8fb434c3e386eebea2979fcaaba37e8637f2e27ffbe",
+            "bytes": 2160
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-0/official-futures.json",
+            "sha256": "cda5598c0a2a481440c846132d1ffa4145370033f4ddf61212b7d29f958f4628",
+            "bytes": 4913
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-0/native-futures.json",
+            "sha256": "f684468db92ac823c3b53173ba0b25e2370454806875a7c2c0572ed8d03bc922",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[1]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-0",
+          "kind": "source",
+          "term_index": 0,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-0/CurrentChangedPredicateContract.py",
+            "sha256": "2db9f5b2c2d84fbab48f8fbbbff82dd52b8041385b7162bdf0211f5029a9b61c",
+            "bytes": 2145
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-0/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-0/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "comparator-1",
+          "kind": "comparator",
+          "term_index": 1,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-1/CurrentChangedPredicateContract.py",
+            "sha256": "3aecf9c24ae5effba2ac13934605c2564c92540cf8d7c86ed09cbfddf4f0c8c4",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-1/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-1/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-1",
+          "kind": "threshold",
+          "term_index": 1,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-1/CurrentChangedPredicateContract.py",
+            "sha256": "6888e05c5044ab87a166d4b42388fd956fd8abf28a07a665ffe08ff4dd2c91bd",
+            "bytes": 2160
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-1/official-futures.json",
+            "sha256": "cfaa812325fcec9eb64e3e48114dcd44a6f44af175704d3829b8b9eea3caa5a0",
+            "bytes": 4913
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-1/native-futures.json",
+            "sha256": "32656be24bb84b69717d65c9fdd4456d880dafbc1245f68fd2eb167ac917bb5b",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[2]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-1",
+          "kind": "source",
+          "term_index": 1,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-1/CurrentChangedPredicateContract.py",
+            "sha256": "7b2252fcc5645b4957ca1c446ad4d995441ce4012a894357301931e860985e65",
+            "bytes": 2146
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-1/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-1/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "comparator-2",
+          "kind": "comparator",
+          "term_index": 2,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-2/CurrentChangedPredicateContract.py",
+            "sha256": "a08050deb0ff0c5f156efc49996a511ac9474a13f7533b8080b79a5edcf542da",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-2/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-2/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-2",
+          "kind": "threshold",
+          "term_index": 2,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-2/CurrentChangedPredicateContract.py",
+            "sha256": "3557776046cde23d8b606203f494868af6fa9d2533643acafd2315d863361ad9",
+            "bytes": 2160
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-2/official-futures.json",
+            "sha256": "b1eb2639a0a6805637c92d4d9bda1ae47c8784c8da685810794faa7992b126f4",
+            "bytes": 4913
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-2/native-futures.json",
+            "sha256": "c8b23321579e78eaefeaf812c043f3ef19390906f6d8dc0d315d827598f9f4e9",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[3]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-2",
+          "kind": "source",
+          "term_index": 2,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-2/CurrentChangedPredicateContract.py",
+            "sha256": "01dc13a557172aab49e6ff8cf5b09e3f1d38352d3fe74b87e6da61a0c9c4f238",
+            "bytes": 2150
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-2/official-futures.json",
+            "sha256": "b1eb2639a0a6805637c92d4d9bda1ae47c8784c8da685810794faa7992b126f4",
+            "bytes": 4913
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-2/native-futures.json",
+            "sha256": "c8b23321579e78eaefeaf812c043f3ef19390906f6d8dc0d315d827598f9f4e9",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[3]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "comparator-3",
+          "kind": "comparator",
+          "term_index": 3,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-3/CurrentChangedPredicateContract.py",
+            "sha256": "c3839cdab1875d55af35e81a8d3c7af488db421ae1bab5a6a8b49457d4b349f1",
+            "bytes": 2147
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-3/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/comparator-3/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        },
+        {
+          "mutation_id": "threshold-3",
+          "kind": "threshold",
+          "term_index": 3,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-3/CurrentChangedPredicateContract.py",
+            "sha256": "f679d574613e297e35ae71f92b1747f044dc05f536bbfa8c8344931748fb0815",
+            "bytes": 2149
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-3/official-futures.json",
+            "sha256": "39791f2558aa670d2c0908bb22a461792afec893b44c8e71bdc3e946a48ecf35",
+            "bytes": 4913
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/threshold-3/native-futures.json",
+            "sha256": "6a22ccc1398efcca0b698f95fc6f2c6fe85840eac42364814f5564c2e25e1dd7",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[4]",
+            "reason": "value differs",
+            "expected": 1,
+            "actual": 0
+          }
+        },
+        {
+          "mutation_id": "source-3",
+          "kind": "source",
+          "term_index": 3,
+          "source": {
+            "role": "mutant_source",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-3/CurrentChangedPredicateContract.py",
+            "sha256": "e25f847b0050a73862a766f67c5bef24e72c4422dde8cc8404d6dabd2dc3a787",
+            "bytes": 2143
+          },
+          "official_output": {
+            "role": "official_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-3/official-futures.json",
+            "sha256": "8ab52538ad20618b86ea96b1490d246c778a2c8f9ffd543274fb27e28e90ae12",
+            "bytes": 4921
+          },
+          "native_output": {
+            "role": "native_mutant_output",
+            "path": "benchmarks/evidence/m22/current-x7-raw/mutants/source-3/native-futures.json",
+            "sha256": "c83d64862348e99af86c2b1697008bca549d62b452ff2a4b0bdfee93020275d5",
+            "bytes": 82
+          },
+          "detected": true,
+          "first_difference": {
+            "path": "$.signal_tag.enter_short[0]",
+            "reason": "value differs",
+            "expected": 0,
+            "actual": 1
+          }
+        }
+      ],
+      "execution_contract": {
+        "can_short": true,
+        "short_execution_supported": true,
+        "changed_signal_reached": true
+      }
+    }
+  },
+  "blockers": [],
+  "native_promotion_allowed": true,
+  "fingerprint": "73e15e9e4482f4a9a4d512bfc99bad6b811c64a4b03723d24766f0a4f61d8979"
+}

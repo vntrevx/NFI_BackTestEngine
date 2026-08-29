@@ -7,12 +7,12 @@
       {
         "slug": "spot",
         "mode_contract": "binance-spot",
-        "manifest": "benchmarks/fixtures/release-candidate/x7-tag121-spot-v17.4.473-2023-01-01_02/manifest.json"
+        "manifest": "benchmarks/fixtures/release-candidate/x7-tag121-spot-v17.4.473-2023-01-01_02-v2/manifest.json"
       },
       {
         "slug": "futures",
         "mode_contract": "binance-usdtm-isolated",
-        "manifest": "benchmarks/fixtures/release-candidate/x7-tag-121-futures-v17.4.473-2023-01-01_02/manifest.json"
+        "manifest": "benchmarks/fixtures/release-candidate/x7-tag-121-futures-v17.4.473-2023-01-01_02-v2/manifest.json"
       }
     ]
   },
@@ -26,7 +26,7 @@
         "mode_contract": "binance-spot",
         "required_manifests": 4,
         "manifests": [
-          "benchmarks/fixtures/release-candidate/x7-tag121-spot-v17.4.473-2023-01-01_02/manifest.json",
+          "benchmarks/fixtures/release-candidate/x7-tag121-spot-v17.4.473-2023-01-01_02-v2/manifest.json",
           "benchmarks/fixtures/release-candidate/matrix/x7-cooldown-lock-spot-v17.4.473-2023-01-01_16/manifest.json",
           "benchmarks/fixtures/release-candidate/matrix/x7-low-profit-lock-spot-v17.4.473-2023-01-01_16/manifest.json",
           "benchmarks/fixtures/release-candidate/matrix/x7-max-drawdown-lock-spot-v17.4.473-2023-01-01_16/manifest.json"
@@ -37,7 +37,7 @@
         "mode_contract": "binance-usdtm-isolated",
         "required_manifests": 9,
         "manifests": [
-          "benchmarks/fixtures/release-candidate/x7-tag-121-futures-v17.4.473-2023-01-01_02/manifest.json",
+          "benchmarks/fixtures/release-candidate/x7-tag-121-futures-v17.4.473-2023-01-01_02-v2/manifest.json",
           "benchmarks/fixtures/release-candidate/matrix/x7-compound-tag-futures-v17.4.473-2022-04-29_05-02/manifest.json",
           "benchmarks/fixtures/release-candidate/matrix/x7-cooldown-futures-v17.4.473-2023-01-01_16/manifest.json",
           "benchmarks/fixtures/release-candidate/matrix/x7-futures-lifecycle-long-v17.4.473-2022-04-10_04-20/manifest.json",

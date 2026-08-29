@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import platform
 import statistics
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .canonical import read_json, write_json
+from .canonical import loads_json_bytes, read_json, write_json
 from .engine_runtime import build_engine
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import public_hardware_record, write_evidence_bundle
-from .fixture import sha256_file, validate_fixture
+from .execution_platform import require_supported_execution_platform
+from .fixture import materialized_fixture, sha256_file, validate_fixture
 from .full_x7_certification import (
     validate_full_x7_inputs,
     verify_installed_wheel,
@@ -28,17 +31,27 @@ from .product_contract import (
     MIN_CERTIFICATION_REPETITIONS,
 )
 from .release_contract import release_contract_for_config
+from .release_provenance import (
+    DEFAULT_PROVENANCE_POLICY,
+    PLATFORM_EVIDENCE_VERSION,
+    ProvenancePolicy,
+    verify_platform_envelope,
+)
 from .timerange import parse_timerange_milliseconds
 
 PLATFORM_BENCHMARK_VERSION = "1.2.0"
 RAW_INPUT_LANE = "portable-raw-input"
 EXACT_FIXTURE_LANE = "exact-fixture"
 PORTABLE_PAIR_COUNT = 20
-REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
-REQUIRED_PLATFORM_MACHINES = {
+REQUIRED_PLATFORM_SYSTEMS = frozenset({"linux", "darwin"})
+LEGACY_REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
+_PLATFORM_MACHINES = {
     "windows": frozenset({"amd64", "x86_64"}),
     "linux": frozenset({"amd64", "x86_64"}),
     "darwin": frozenset({"arm64", "aarch64"}),
+}
+REQUIRED_PLATFORM_MACHINES = {
+    system: _PLATFORM_MACHINES[system] for system in REQUIRED_PLATFORM_SYSTEMS
 }
 
 
@@ -58,6 +71,7 @@ def run_platform_benchmark(
     pair_count: int = PORTABLE_PAIR_COUNT,
 ) -> dict[str, Any]:
     """Measure a portable raw-input pipeline using only the installed wheel."""
+    require_supported_execution_platform()
     if repetitions < MIN_CERTIFICATION_REPETITIONS:
         raise BenchmarkError(
             f"platform benchmark requires at least {MIN_CERTIFICATION_REPETITIONS} runs"
@@ -161,6 +175,7 @@ def run_platform_benchmark(
             "version": __version__,
             "wheel_sha256": wheel["sha256"],
             "native_extension_sha256": wheel["native_member_sha256"],
+            "installed_extension_sha256": wheel["installed_extension_sha256"],
             "installed_extension_equal": wheel["installed_extension_equal"],
         },
         "workload": {
@@ -213,6 +228,7 @@ def run_platform_fixture_benchmark(
     state transition stream.  It deliberately does not replace the representative
     80-pair, five-year performance certificate.
     """
+    require_supported_execution_platform()
     if repetitions < MIN_CERTIFICATION_REPETITIONS:
         raise BenchmarkError(
             f"platform benchmark requires at least {MIN_CERTIFICATION_REPETITIONS} runs"
@@ -225,8 +241,28 @@ def run_platform_fixture_benchmark(
     if output.exists() and any(output.iterdir()):
         raise BenchmarkError(f"platform benchmark output must be empty: {output}")
 
-    manifest_file = Path(manifest_path).resolve()
+    manifest_file = Path(manifest_path).absolute()
     manifest = validate_fixture(manifest_file)
+    with materialized_fixture(manifest_file, manifest) as retained:
+        return _run_platform_fixture_benchmark_materialized(
+            retained[0],
+            retained[1],
+            output,
+            wheel_path=wheel_path,
+            repetitions=repetitions,
+            timeout_seconds=timeout_seconds,
+        )
+
+
+def _run_platform_fixture_benchmark_materialized(
+    manifest_file: Path,
+    manifest: dict[str, Any],
+    output: Path,
+    *,
+    wheel_path: str | Path,
+    repetitions: int,
+    timeout_seconds: int,
+) -> dict[str, Any]:
     config_reference = _fixture_input(manifest, role="config")
     strategy_reference = _fixture_input(manifest, role="strategy")
     config = read_json((manifest_file.parent / config_reference["path"]).resolve())
@@ -319,6 +355,7 @@ def run_platform_fixture_benchmark(
             "version": __version__,
             "wheel_sha256": wheel["sha256"],
             "native_extension_sha256": wheel["native_member_sha256"],
+            "installed_extension_sha256": wheel["installed_extension_sha256"],
             "installed_extension_equal": wheel["installed_extension_equal"],
             "installed_package_files": wheel["installed_package_files"],
             "installed_package_sha256": wheel["installed_package_sha256"],
@@ -363,27 +400,85 @@ def run_platform_fixture_benchmark(
 
 
 def seal_platform_evidence(
-    report_paths: list[str | Path],
+    report_paths: Sequence[str | Path],
     output_directory: str | Path,
+    *,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+    expected_commit: str | None = None,
+    expected_run_id: str | None = None,
+    expected_run_attempt: int | None = None,
+    expected_candidate_id: str | None = None,
+    expected_bundle_id: str | None = None,
+    expected_challenge: str | None = None,
+    required_platform_systems: frozenset[str] = REQUIRED_PLATFORM_SYSTEMS,
 ) -> dict[str, Any]:
-    """Require Windows, Linux, and macOS reports with one deterministic result."""
+    """Recompute and authenticate supported-host reports before certifying them."""
     output = Path(output_directory).resolve()
     if output.exists() and any(output.iterdir()):
         raise BenchmarkError(f"platform evidence output must be empty: {output}")
-    output.mkdir(parents=True, exist_ok=True)
-    reports = [read_json(path) for path in report_paths]
+    report_bytes = [Path(path).read_bytes() for path in report_paths]
+    reports = [loads_json_bytes(payload) for payload in report_bytes]
     if not reports:
         raise SpecValidationError("at least one platform report is required")
-    for report in reports:
-        _validate_platform_report(report)
+    if required_platform_systems not in (
+        REQUIRED_PLATFORM_SYSTEMS,
+        LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    ):
+        raise SpecValidationError("platform evidence required systems are unauthorized")
+    envelopes: list[dict[str, Any]] = []
+    statements: list[dict[str, Any]] = []
+    for path, report, payload in zip(report_paths, reports, report_bytes, strict=True):
+        _validate_platform_report(
+            report, required_platform_systems=required_platform_systems
+        )
+        envelope_path = Path(f"{path}.provenance.json")
+        if not envelope_path.is_file():
+            raise SpecValidationError(f"platform report has no signed provenance: {path}")
+        envelope = read_json(envelope_path)
+        if not isinstance(report, dict) or not isinstance(envelope, dict):
+            raise SpecValidationError("platform report provenance is malformed")
+        statements.append(
+            verify_platform_envelope(
+                report,
+                envelope,
+                report_bytes=payload,
+                policy=provenance_policy,
+                expected_commit=expected_commit,
+                expected_run_id=expected_run_id,
+                expected_run_attempt=expected_run_attempt,
+                expected_candidate_id=expected_candidate_id,
+                expected_bundle_id=expected_bundle_id,
+                expected_challenge=expected_challenge,
+            )
+        )
+        envelopes.append(envelope)
+
     systems = {report["platform"]["system"] for report in reports}
-    missing = sorted(REQUIRED_PLATFORM_SYSTEMS - systems)
+    missing = sorted(required_platform_systems - systems)
     if missing:
         raise SpecValidationError(
             "platform evidence is missing systems: " + ", ".join(missing)
         )
     if len(systems) != len(reports):
         raise SpecValidationError("platform evidence must contain exactly one report per system")
+    run_identities = {
+        (statement["producer"]["run_id"], statement["producer"]["run_attempt"])
+        for statement in statements
+    }
+    if len(run_identities) != 1:
+        raise SpecValidationError("platform provenance run identity differs")
+    commits = {statement["producer"]["commit"] for statement in statements}
+    candidate_ids = {statement["bundle"]["candidate_id"] for statement in statements}
+    bundle_ids = {statement["bundle"]["bundle_id"] for statement in statements}
+    challenges = {statement["bundle"]["challenge"] for statement in statements}
+    attestation_ids = {statement["bundle"]["attestation_id"] for statement in statements}
+    nonces = {statement["bundle"]["nonce"] for statement in statements}
+    if len(commits) != 1:
+        raise SpecValidationError("platform provenance commits differ")
+    if not all(len(values) == 1 for values in (candidate_ids, bundle_ids, challenges)):
+        raise SpecValidationError("platform provenance bundle identities differ")
+    if len(attestation_ids) != len(statements) or len(nonces) != len(statements):
+        raise SpecValidationError("platform provenance nonce or attestation was replayed")
     workload_hashes = {report["workload"]["identity_sha256"] for report in reports}
     mode_contracts = {report["workload"]["mode_contract"] for report in reports}
     lanes = {report["lane"] for report in reports}
@@ -404,18 +499,22 @@ def seal_platform_evidence(
         and len(lanes) == 1
         and len(result_hashes) == 1
         and len(package_versions) == 1
+        and all(report["measurement"]["measured_repetitions"] >= 3 for report in reports)
         and (
             next(iter(lanes)) != EXACT_FIXTURE_LANE
             or len(portable_package_hashes) == 1
         )
-        and all(report["complete"] for report in reports)
     )
     if not complete:
         raise SpecValidationError(
-            "platform workload, result, package version, or completion verdict differs"
+            "platform workload, result, package version, or recomputed completion differs"
         )
+    ordered = sorted(
+        zip(report_paths, reports, report_bytes, envelopes, strict=True),
+        key=lambda item: item[1]["platform"]["system"],
+    )
     evidence = {
-        "schema_version": "1.0.0",
+        "schema_version": PLATFORM_EVIDENCE_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "release_certified": True,
         "lane": next(iter(lanes)),
@@ -429,6 +528,7 @@ def seal_platform_evidence(
             if next(iter(lanes)) == EXACT_FIXTURE_LANE
             else None
         ),
+        "candidate_commit": next(iter(commits)),
         "platforms": [
             {
                 "system": report["platform"]["system"],
@@ -444,20 +544,41 @@ def seal_platform_evidence(
                 "measured_repetitions": report["measurement"]["measured_repetitions"],
                 "report_sha256": sha256_file(path),
             }
-            for path, report in sorted(
-                zip(report_paths, reports, strict=True),
-                key=lambda item: item[1]["platform"]["system"],
-            )
+            for path, report, _payload, _envelope in ordered
         ],
+        "provenance": {
+            "policy_id": provenance_policy.policy_id,
+            "candidate_id": next(iter(candidate_ids)),
+            "bundle_id": next(iter(bundle_ids)),
+            "challenge": next(iter(challenges)),
+            "run_id": statements[0]["producer"]["run_id"],
+            "run_attempt": statements[0]["producer"]["run_attempt"],
+            "attestations": [
+                {
+                    "report": report,
+                    "report_bytes": base64.b64encode(payload).decode("ascii"),
+                    "envelope": envelope,
+                }
+                for _path, report, payload, envelope in ordered
+            ],
+        },
     }
-    write_json(output / "platform-evidence.json", evidence)
-    bundle = write_evidence_bundle(
-        output,
-        evidence_id=evidence["workload_identity_sha256"],
-        release_certified=True,
-        archive_name="platform-evidence-bundle.zip",
-        include_paths=[output / "platform-evidence.json"],
-    )
+    output.mkdir(parents=True, exist_ok=True)
+    try:
+        write_json(output / "platform-evidence.json", evidence)
+        bundle = write_evidence_bundle(
+            output,
+            evidence_id=evidence["workload_identity_sha256"],
+            release_certified=True,
+            archive_name="platform-evidence-bundle.zip",
+            include_paths=[output / "platform-evidence.json"],
+        )
+    except BaseException:
+        for path in output.iterdir():
+            if path.is_file():
+                path.unlink()
+        output.rmdir()
+        raise
     return {**evidence, "bundle": bundle}
 
 
@@ -604,18 +725,18 @@ def _relative_spread(runs: list[dict[str, Any]]) -> float:
     return (max(values) - min(values)) / median if median > 0 else 0.0
 
 
-def _validate_platform_report(report: Any) -> None:
+def _validate_platform_report(
+    report: Any, *, required_platform_systems: frozenset[str]
+) -> None:
     if not isinstance(report, dict) or report.get("schema_version") != (
         PLATFORM_BENCHMARK_VERSION
     ):
         raise SpecValidationError("unsupported platform benchmark report")
     system = report.get("platform", {}).get("system")
-    if system not in REQUIRED_PLATFORM_SYSTEMS:
+    if system not in required_platform_systems:
         raise SpecValidationError(f"unsupported platform evidence system: {system!r}")
-    if report.get("package", {}).get("installed_extension_equal") is not True:
-        raise SpecValidationError("platform report did not run its candidate wheel")
     machine = str(report.get("platform", {}).get("machine", "")).lower()
-    if machine not in REQUIRED_PLATFORM_MACHINES[system]:
+    if machine not in _PLATFORM_MACHINES[system]:
         raise SpecValidationError(
             f"{system} platform evidence has unsupported machine: {machine!r}"
         )

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .callback_execution_contract import compile_callback_execution_ir
 from .canonical import read_json, write_json
 from .config_loader import (
     config_sha256,
@@ -21,6 +22,8 @@ from .config_loader import (
 from .data_seal import DATA_SEAL_VERSION, prepare_data, validate_data_seal
 from .engine_runtime import FULL_VECTOR_INPUT, run_engine
 from .errors import BenchmarkError, SpecValidationError, StrategyAnalysisError
+from .executable_callback_program import compile_executable_callback_program
+from .execution_platform import require_supported_execution_platform
 from .fixture import sha256_file
 from .full_native_calibration import resolve_full_native_pair_workers
 from .full_vector_runtime import (
@@ -102,8 +105,10 @@ def run_research_backtest(
     recalibrate: bool = False,
     history_coverage_policy: str = "strict",
     trace_engine_events: bool = False,
+    portfolio_envelope_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
+    require_supported_execution_platform()
     pipeline_started_ns = time.perf_counter_ns()
     pipeline_started_at = _utc_now()
     stage_started_ns = pipeline_started_ns
@@ -154,6 +159,10 @@ def run_research_backtest(
         run_mode="backtest",
         config=run_config,
     )
+    executable_callback_program = _compile_executable_callbacks_for_run(
+        analysis,
+        trading_mode=str(run_config.get("trading_mode", "spot")),
+    )
     state_machine_program = (
         _compile_state_machine_for_run(
             source,
@@ -161,14 +170,18 @@ def run_research_backtest(
             analysis=analysis,
             hot_ir=hot_ir,
         )
-        if not hot_ir["hot_loop_ready"]
+        if executable_callback_program is None and not hot_ir["hot_loop_ready"]
         else None
     )
     state_machine_ready = state_machine_program is not None
-    native_callbacks_ready = hot_ir["hot_loop_ready"] or state_machine_ready
+    executable_callbacks_ready = executable_callback_program is not None
+    native_callbacks_ready = (
+        hot_ir["hot_loop_ready"] or state_machine_ready or executable_callbacks_ready
+    )
     native_execution = build_native_execution_policy(
         hot_ir,
         state_machine_program=state_machine_program,
+        executable_callback_program=executable_callback_program,
     )
     adapter_lane = native_execution["adapter_lane"]
     vector_transport = native_execution["transport"]
@@ -306,6 +319,15 @@ def run_research_backtest(
                 }
             }
             if state_machine_program is not None
+            else {}
+        ),
+        **(
+            {
+                "executable_callback_program": _executable_program_identity(
+                    executable_callback_program
+                )
+            }
+            if executable_callback_program is not None
             else {}
         ),
     }
@@ -510,7 +532,11 @@ def run_research_backtest(
     ):
         return existing_run
 
-    blockers = [] if state_machine_ready else list(hot_ir["blockers"])
+    blockers = (
+        []
+        if state_machine_ready or executable_callbacks_ready
+        else list(hot_ir["blockers"])
+    )
     blockers.extend(native_execution["blockers"])
     if not blockers and not prepare_only:
         if vector_transport in {X7_VECTOR_TRANSPORT, FULL_NATIVE_VECTOR_TRANSPORT}:
@@ -529,6 +555,7 @@ def run_research_backtest(
                     run_config,
                     market_metadata_path=selected_market_metadata,
                     state_machine_program=state_machine_program,
+                    executable_callback_program=executable_callback_program,
                 )
             )
     if not blockers and not prepare_only and vector_transport == GENERIC_VECTOR_TRANSPORT:
@@ -620,6 +647,7 @@ def run_research_backtest(
                     market_metadata_path=selected_market_metadata,
                     destination=simulation_input_path,
                     state_machine_program=state_machine_program,
+                    executable_callback_program=executable_callback_program,
                 )
             manifest_seconds = _elapsed_seconds(stage_started_ns)
             manifest_record = _artifact_record(simulation_input_path)
@@ -649,6 +677,20 @@ def run_research_backtest(
                 "engine_profile_path": engine_profile_path,
                 "events_path": engine_events_path,
             }
+            if portfolio_envelope_identity is not None:
+                portfolio_request_path = output / "portfolio-envelope-request.json"
+                portfolio_events_path = output / "portfolio-events.json"
+                write_json(
+                    portfolio_request_path,
+                    {
+                        **portfolio_envelope_identity,
+                        "native_input_sha256": manifest_record["sha256"],
+                    },
+                )
+                engine_arguments.update(
+                    portfolio_envelope_request=portfolio_request_path,
+                    portfolio_events_path=portfolio_events_path,
+                )
             if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT:
                 full_native_calibration = resolve_full_native_pair_workers(
                     simulation_input_path,
@@ -843,6 +885,59 @@ def run_research_backtest(
         with RunRegistry(registry_path) as registry:
             registry.record(report, output)
     return report
+
+
+def _compile_executable_callbacks_for_run(
+    analysis: dict[str, Any],
+    *,
+    trading_mode: str,
+) -> dict[str, Any] | None:
+    """Compile complete source-bound callbacks before any legacy fallback."""
+    try:
+        callback_execution_ir = compile_callback_execution_ir(
+            analysis,
+            trading_mode=trading_mode,
+            run_mode="backtest",
+        )
+        return compile_executable_callback_program(
+            analysis,
+            callback_execution_ir,
+            trading_mode=trading_mode,
+            run_mode="backtest",
+        )
+    except StrategyAnalysisError:
+        return None
+
+
+def _executable_program_identity(program: dict[str, Any]) -> dict[str, Any]:
+    payload = json.dumps(
+        program,
+        ensure_ascii=True,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    identity = program["identity"]
+    return {
+        "schema_version": program["schema_version"],
+        "sealed": {
+            "role": "executable_callback_program",
+            "path": "simulation-input.manifest.json#config.executable_callback_program",
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "source_ids": sorted(
+                {item["source_id"] for item in identity["source_closure"]}
+            ),
+            "callback_contract_fingerprint": identity[
+                "callback_contract_fingerprint"
+            ],
+            "callback_execution_ir_fingerprint": identity[
+                "callback_execution_ir_fingerprint"
+            ],
+            "program_fingerprint": identity["program_fingerprint"],
+        },
+        "program": program,
+    }
 
 
 def _compile_state_machine_for_run(

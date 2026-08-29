@@ -1,0 +1,182 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "x7-v17.4.473-tag-121-btc-futures-reference-state-v2",
+  "description": "Official Freqtrade probe for the latest opt-in X7 tag 121 route in isolated futures mode with a complete reference-state-v2 trace.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-08-29T04:59:58.113267Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20230101-20230102",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20230101-20230102",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "fcb8d93b3e77c7caa87bcb3dfb669a6279300a8a848244783c42186134f82170",
+      "bytes": 3230938
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "6a69ef56c18344efcac4c4d52a67cc859fb90f2731768d0410bab71c4e5522e0",
+      "bytes": 822
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "d5a8321a07d20dc690a1471d52e1a254b310d984c64478e57a22db90fb43befe",
+      "bytes": 44591
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "0eec215798605c69484656b52bee1937d5689d63886de43609b75296803c0d94",
+      "bytes": 39983
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "b06cbb88010eff9948cbb27b1170e394d7674dde2b284ce9bed3c8327b7d9d45",
+      "bytes": 116783
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "654a2f64665be537e3f2fad0f4e8664bf30341841c864028ef426c7e3c0a3435",
+      "bytes": 41135
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "e389bc42e748463085575134d040404b11c893bf248c79734a7c3c7f61ba46d2",
+      "bytes": 924335
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "6cc39b10d0eac3059356e721b607fc2d917ad020b3c58bf8abb2afb88e091693",
+      "bytes": 39983
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "3de67ebc028c4f36c5b882cb0cbe19b28afce96b171fe19581338b8e240da9b2",
+      "bytes": 53807
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/full-x7-futures-20210101-markets.json",
+      "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+      "bytes": 171531
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "f9b3b56b88a0df6aaeb2e7a5d3a0787768497a8a2cd5d29f6d81b47ec9a49b0d",
+      "bytes": 9264
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "1963986a6840b01e62d256e63c671935e20601dbdb5925c7fb3810d2571b04d7",
+      "bytes": 290082
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "b4f04eb54e3c2bbb6c3682c79f325e35cedd0fa6f0633be42b6c38febfd1f9ab",
+      "bytes": 2335
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "3c6edc2df9235d728971a05032ccd6ead798b8b268d110d025da57e76a966d2a",
+      "bytes": 3191085
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "1ecfb33a3e88e5e1194fed28d349f00bafb2dfae40131cdbd81661fa0fb1eb4d",
+      "bytes": 681
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "af53139c3c00731452c7a517aa685132f687e7b32be9d20c033cc5f70bbf3a04",
+      "bytes": 140722
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "tag-121",
+  "strategy_provenance": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "8da6038be51654bdaa36839f3f1e296d2fc290ff",
+    "base_source_sha256": "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db",
+    "effective_source_sha256": "fcb8d93b3e77c7caa87bcb3dfb669a6279300a8a848244783c42186134f82170",
+    "transformations": [
+      {
+        "kind": "source-constant-toggle",
+        "description": "AST-bound NostalgiaForInfinityX7.long_entry_signal_params['long_entry_condition_121_enable'] False -> True"
+      },
+      {
+        "kind": "config-override",
+        "description": "Deterministic recursive config override: exchange.pair_whitelist, max_open_trades, pairlists"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [],
+    "entry_tags": [
+      "121"
+    ],
+    "compound_tags": [],
+    "protection_methods": [],
+    "exit_reasons": [],
+    "sides": [
+      "long"
+    ],
+    "minimum_lock_count": 0,
+    "minimum_distinct_leverages": 1,
+    "minimum_funded_trades": 0,
+    "require_rejected_locked_entry": false
+  }
+}

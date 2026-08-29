@@ -5,16 +5,19 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
+from collections.abc import Mapping
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .canonical import read_json, write_json
+from .docker_environment import docker_subprocess_environment
 from .docker_runtime import managed_docker_run, run_managed_container
-from .errors import BenchmarkError
+from .errors import BenchmarkError, TraceError
 from .fixture import validate_fixture
 from .normalize import normalize_file
-from .parity import first_difference
+from .parity import ParityDifference, first_difference
 from .profiling import aggregate_profile_events
 from .reference import execution as _reference_execution
 
@@ -44,6 +47,9 @@ from .reference.execution import (
     ensure_docker_config,
     ensure_reference_dependencies,
     ensure_reference_image,
+    reference_dependency_lock,
+    reference_runtime_volume,
+    validate_reference_dependencies,
 )
 from .reference.storage import (
     _container_memory_assessment,
@@ -61,8 +67,13 @@ from .reference.trace import (
     _trace_difference_record,
     _utc_string,
 )
+from .reference_tracer.nfi_reference_trace import REFERENCE_STATE_SCHEMA_VERSION
 from .specs import validate_trade_surface
-from .state_trace import first_trace_difference, trace_summary
+from .state_trace import (
+    TraceDifference,
+    iter_validated_trace_events,
+    trace_summary,
+)
 
 __all__ = [
     "REFERENCE_BLAKE3_VERSION",
@@ -119,6 +130,141 @@ def load_reference_leverage_tiers(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return _reference_execution.load_reference_leverage_tiers(*args, **kwargs)
 
 
+_REFERENCE_HEADER_FIELDS = (
+    "schema_version",
+    "input_sha256",
+    "strategy_sha256",
+    "profile_sha256",
+    "trading_mode",
+)
+
+
+def _first_reference_trace_difference(
+    expected_path: str | Path,
+    actual_path: str | Path,
+) -> TraceDifference | None:
+    expected_summary = trace_summary(expected_path)
+    actual_summary = trace_summary(actual_path)
+    if not expected_summary["include_state"] or not actual_summary["include_state"]:
+        raise TraceError("reference trace comparison requires materialized source records")
+    for field in _REFERENCE_HEADER_FIELDS:
+        if expected_summary[field] != actual_summary[field]:
+            return TraceDifference(
+                sequence=None,
+                path=f"$.header.{field}",
+                expected=expected_summary[field],
+                actual=actual_summary[field],
+                reason="header value differs",
+            )
+
+    expected_events = iter_validated_trace_events(expected_path)
+    actual_events = iter_validated_trace_events(actual_path)
+    sequence = 0
+    while True:
+        expected_event = next(expected_events, None)
+        actual_event = next(actual_events, None)
+        if expected_event is None or actual_event is None:
+            break
+        expected_key = _reference_event_key(expected_event)
+        actual_key = _reference_event_key(actual_event)
+        difference = first_difference(expected_key, actual_key, "$.event_key")
+        if difference is not None:
+            return _reference_trace_difference(sequence, difference, expected_key)
+        expected_state = expected_event.get("state")
+        actual_state = actual_event.get("state")
+        if not isinstance(expected_state, dict) or not isinstance(actual_state, dict):
+            raise TraceError("reference trace event requires materialized state objects")
+        comparable_actual = _reference_state_for_comparison(expected_state, actual_state)
+        difference = first_difference(expected_state, comparable_actual, "$.state")
+        if difference is not None:
+            return _reference_trace_difference(sequence, difference, expected_key)
+        sequence += 1
+
+    if expected_event is not None or actual_event is not None:
+        remaining_event = expected_event
+        if remaining_event is None:
+            remaining_event = actual_event
+        if remaining_event is None:
+            raise TraceError("reference trace event iterator ended inconsistently")
+        return TraceDifference(
+            sequence=sequence,
+            path="$.events.length",
+            expected=expected_summary["event_count"],
+            actual=actual_summary["event_count"],
+            reason="event count differs",
+            event_key=_reference_event_key(remaining_event),
+        )
+    return None
+
+
+def _reference_state_for_comparison(
+    expected: Mapping[str, Any],
+    actual: Mapping[str, Any],
+) -> dict[str, Any]:
+    expected_schema = expected.get("schema_version")
+    actual_schema = actual.get("schema_version")
+    if expected_schema == REFERENCE_STATE_SCHEMA_VERSION:
+        _validate_reference_v2_state(expected, "expected")
+    elif expected_schema is not None:
+        raise TraceError(f"unsupported expected reference state schema: {expected_schema!r}")
+    if actual_schema == REFERENCE_STATE_SCHEMA_VERSION:
+        _validate_reference_v2_state(actual, "actual")
+    elif actual_schema is not None:
+        raise TraceError(f"unsupported actual reference state schema: {actual_schema!r}")
+
+    if expected_schema == actual_schema:
+        return dict(actual)
+    if expected_schema is None and actual_schema == REFERENCE_STATE_SCHEMA_VERSION:
+        migrated = dict(actual)
+        migrated.pop("schema_version")
+        migrated["trades"] = [
+            trade for trade in actual["trades"] if not trade["is_open"]
+        ]
+        return migrated
+    raise TraceError("reference state schema migration must be legacy expected to v2 actual")
+
+
+def _validate_reference_v2_state(state: Mapping[str, Any], label: str) -> None:
+    trades = state.get("trades")
+    if not isinstance(trades, list):
+        raise TraceError(f"{label} reference v2 trades must be an array")
+    open_trade_count = 0
+    for index, trade in enumerate(trades):
+        if not isinstance(trade, dict) or not isinstance(trade.get("is_open"), bool):
+            raise TraceError(
+                f"{label} reference v2 trade {index} requires boolean is_open"
+            )
+        open_trade_count += int(trade["is_open"])
+    if open_trade_count != state.get("open_trade_count"):
+        raise TraceError(
+            f"{label} reference v2 open trade records differ from open_trade_count"
+        )
+
+
+def _reference_event_key(event: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "sequence": event["sequence"],
+        "timestamp_ms": event["timestamp_ms"],
+        "phase": event["phase"],
+        "pair": event["pair"],
+        "callback": event["callback"],
+    }
+
+def _reference_trace_difference(
+    sequence: int,
+    difference: ParityDifference,
+    event_key: dict[str, Any],
+) -> TraceDifference:
+    return TraceDifference(
+        sequence=sequence,
+        path=difference.path,
+        expected=difference.expected,
+        actual=difference.actual,
+        reason=difference.reason,
+        event_key=event_key,
+    )
+
+
 def run_reference_fixture(
     manifest_path: str | Path,
     output_directory: str | Path,
@@ -159,10 +305,19 @@ def run_reference_fixture(
     container_resources: dict[str, Any] | None = None
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         try:
-            with managed_docker_run(
+            dependency_guard = (
+                reference_dependency_lock(project_root)
+                if dependency_directory is not None
+                else nullcontext()
+            )
+            with dependency_guard, reference_runtime_volume(
+                docker_config
+            ) as runtime_volume, managed_docker_run(
                 docker_config=docker_config,
                 role="reference",
             ) as lease:
+                if dependency_directory is not None:
+                    validate_reference_dependencies(dependency_directory)
                 docker_argv = build_reference_docker_command(
                     manifest,
                     fixture_root=fixture_root,
@@ -173,6 +328,7 @@ def run_reference_fixture(
                     docker_config=docker_config,
                     market_snapshot=market_snapshot,
                     run_prefix=lease["command_prefix"],
+                    runtime_volume=runtime_volume,
                 )
                 container_resources = {
                     "daemon": lease["daemon"],
@@ -186,6 +342,7 @@ def run_reference_fixture(
                     stderr=stderr,
                     check=False,
                     timeout=timeout_seconds,
+                    env=docker_subprocess_environment(),
                 )
                 exit_code = completed.returncode
         except subprocess.TimeoutExpired:
@@ -289,7 +446,10 @@ def run_reference_fixture(
             expected_trace_path = (
                 fixture_root / manifest["artifacts"]["state_trace"]["path"]
             ).resolve()
-            trace_difference = first_trace_difference(expected_trace_path, trace_path)
+            trace_difference = _first_reference_trace_difference(
+                expected_trace_path,
+                trace_path,
+            )
             report["state_trace"] = {
                 **_file_record(trace_path),
                 "summary": actual_trace_summary,
