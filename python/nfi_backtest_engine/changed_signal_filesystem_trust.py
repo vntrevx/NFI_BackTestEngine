@@ -11,6 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import SpecValidationError
+from .windows_path_security import (
+    open_windows_contained_descriptor,
+    windows_root_identity,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +138,12 @@ def validate_distinct_files(identities: tuple[FileIdentity, ...]) -> None:
 
 
 def _open_descriptor(path: Path) -> int:
+    if os.name == "nt":
+        return open_windows_contained_descriptor(
+            path.parent,
+            path.name,
+            expected_root_identity=windows_root_identity(path.parent),
+        )
     flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
         return os.open(path, flags)
@@ -167,7 +177,7 @@ def _validate_descriptor(path: Path, descriptor: FileMetadata) -> None:
     except OSError as exc:
         raise SpecValidationError("changed signal trusted role path changed") from exc
     if (
-        path.resolve() != path
+        (os.name != "nt" and path.resolve() != path)
         or not stat.S_ISREG(descriptor.mode)
         or descriptor.links != 1
         or path_metadata != descriptor
