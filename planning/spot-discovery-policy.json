@@ -25,7 +25,7 @@
     "compact_artifact_retention_days": 1
   },
   "candidate": {
-    "context_days": 2,
+    "context_days": 1,
     "max_bytes": 31457280,
     "artifact_retention_days": 30
   }

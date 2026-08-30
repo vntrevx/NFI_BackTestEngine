@@ -38,7 +38,8 @@
         "variable-leverage",
         "futures-lifecycle",
         "callback-route",
-        "release-representative"
+        "release-representative",
+        "future-nfi-target"
       ]
     },
     "evidence_status": {"const": "captured"},
