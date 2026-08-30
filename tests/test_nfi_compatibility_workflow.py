@@ -168,6 +168,10 @@ def test_product_status_precedes_mutation_without_treating_blocker_as_job_failur
     assert publish.index(validation) < publish.index(
         "git push --quiet origin HEAD:compatibility-ledger"
     )
+    assert "astral-sh/setup-uv" in publish
+    assert "uv sync --extra dev --frozen" in publish
+    assert "status=.compatibility/status/compatibility-product-status.json" in publish
+    assert "uv run --frozen python scripts/compatibility_canary.py" in publish
 
 
 def test_unchanged_status_uses_authoritative_ledger_without_fallback_identity() -> None:

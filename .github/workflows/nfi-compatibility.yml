@@ -670,6 +670,11 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Install uv and locked Python environment
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra dev --frozen
       - name: Download compact compatibility artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -685,6 +690,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          status=.compatibility/status/compatibility-product-status.json
           jq -e '(.schema_version == "compatibility-product-status-v1")
             and ((.required_status_passed | type) == "boolean")' "${status}"
           test "$(jq -er .observed_identity.engine_sha "${status}")" = \
@@ -717,11 +723,11 @@ jobs:
       - name: Revalidate atomic hosted canary
         run: |
           if test -f .compatibility/results/changed-target-ledger.json; then
-            uv run python scripts/validate_changed_target_promotion.py \
+            uv run --frozen python scripts/validate_changed_target_promotion.py \
               --ledger .compatibility/results/changed-target-ledger.json \
               --decisions .compatibility/results
           fi
-          python scripts/compatibility_canary.py \
+          uv run --frozen python scripts/compatibility_canary.py \
             --identity .compatibility/results/compatibility-identity.json \
             --strategy-diff .compatibility/results/strategy-diff.json \
             --reports .compatibility/results \
