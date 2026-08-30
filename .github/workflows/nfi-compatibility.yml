@@ -601,7 +601,7 @@ jobs:
             workflow_execution=stale
           fi
           echo "source_run_id=${source_run_id}" >> "${GITHUB_OUTPUT}"
-          PYTHONPATH=python python scripts/compatibility_automation.py \
+          PYTHONPATH=python uv run --frozen python scripts/compatibility_automation.py \
             --identity "${identity}" \
             --decision-dir "${proof}" \
             --proof-dir "${proof}" \
