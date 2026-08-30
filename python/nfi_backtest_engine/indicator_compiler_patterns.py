@@ -16,9 +16,8 @@ from ._indicator_ast import (
     _qualified_name,
     _template_statements,
 )
-from ._indicator_contract import (
-    _add_finite_lookback,
-)
+from ._indicator_contract import _add_finite_lookback
+from .indicator_compiler_arrays import _zero_index_target
 from .indicator_compiler_protocol import CompilerProtocol
 
 
@@ -36,14 +35,6 @@ def _lagged_array_allocation(statement: ast.stmt) -> tuple[str, ast.expr] | None
     return statement.targets[0].id, statement.value.args[0]
 
 
-def _zero_index_target(node: ast.expr, name: str) -> bool:
-    return (
-        isinstance(node, ast.Subscript)
-        and isinstance(node.value, ast.Name)
-        and node.value.id == name
-        and isinstance(node.slice, ast.Constant)
-        and node.slice.value == 0
-    )
 
 
 def _lagged_array_write(statement: ast.stmt, output: str, source: ast.expr) -> bool:

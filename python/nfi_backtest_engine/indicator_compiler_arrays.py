@@ -25,6 +25,16 @@ from .indicator_compiler_windows import (
 )
 
 
+def _zero_index_target(node: ast.expr, name: str) -> bool:
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == name
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value == 0
+    )
+
+
 class ArraysMixin:
     def array_index_write(
         self: CompilerProtocol,
