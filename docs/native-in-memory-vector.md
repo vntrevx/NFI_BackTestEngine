@@ -49,7 +49,9 @@ heap use matters more than transport latency.
 
 ## Claim boundary
 
-This completes the generic Rust vector-to-simulator connection. It does not claim that the latest X7
-source fully compiles: M22-01 still owns remaining source lowering and independent latest-upstream
-Spot/Futures full-state qualification. Until that passes, unsupported X7 constructs remain
-fail-closed and the visible official Freqtrade fallback remains available.
+This completes the generic Rust vector-to-simulator connection. X7 v17.4.581 now
+compiles through the full Native pipeline, with independent bounded Spot and Futures
+trade-surface and full-state qualification. That current-source proof does not expand
+the sealed historical certificates or support unknown future callback shapes;
+unsupported X7 constructs still fail closed and the visible Official Freqtrade
+fallback remains available.

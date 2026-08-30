@@ -95,7 +95,7 @@ profit snapshot before branch selection. Promotion required an independent revie
 shadow to agree exactly; current payloads register no legacy shadow, and the preserved
 comparison remains evidence rather than a runtime branch.
 
-The post-v1.7.0 current-source qualification is deliberately separate from the
+The v1.8.0 current-source qualification is deliberately separate from the
 immutable distribution regression fixtures. Spot and Futures static reachability both
 report zero reachable stateful gaps, complete closure, and Native compatibility for
 v17.4.581. Two bounded transition fixtures additionally prove the changed `gm0` route

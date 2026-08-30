@@ -4,6 +4,24 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.8.0 - 2026-08-31
+
+- Removed the fixed two-state-history assumption from source-compiled state operands.
+  X7 programs can now declare their required maximum history, while omitted bounds
+  preserve the prior two-state default and malformed or excessive requests fail closed.
+- Qualified X7 v17.4.581 at upstream commit
+  `01b1304afaa2a1385754908817ea91be5149ffc9`. Spot and isolated-Futures bounded
+  transition fixtures both observe the changed `gm0` route and match independent
+  Official Freqtrade trade surfaces and full state at zero tolerance.
+- Repaired current-upstream discovery publication: changed-target identities are
+  carried through candidate assessment, runtime-generated target fixtures validate
+  against the sealed schema, and captures stop at the first pair-bound target event.
+  One day of context keeps paired current/baseline evidence under the unchanged
+  30 MiB candidate ceiling.
+- Preserved the product certification boundary. Historical five-year Spot and Futures
+  certificates remain version-bound to v1.0.0 and v1.1.0; v1.8.0 does not combine or
+  relabel them.
+
 ## 1.7.0 - 2026-08-29
 
 - Completed materialized semantic traces across the full Official Freqtrade and
