@@ -201,6 +201,7 @@ def test_workflow_emits_a_required_product_status_separate_from_health() -> None
     assert "required_status_passed: ${{ steps.status.outputs.required_status_passed }}" in product
     assert "required_status_passed must be boolean" in product
     assert "Enforce required product compatibility" not in product
+    assert "Validate product status document\n        run: |\n          jq -e \\" in product
     assert "      - product-status\n" in health
     assert '--stage "product-status=${{ needs.product-status.result }}"' in health
 

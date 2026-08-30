@@ -638,10 +638,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Validate product status document
-        run: >-
-          jq -e '(.schema_version == "compatibility-product-status-v1")
-            and ((.required_status_passed | type) == "boolean")'
-          .compatibility/compatibility-product-status.json
+        run: |
+          jq -e \
+            '(.schema_version == "compatibility-product-status-v1")
+             and ((.required_status_passed | type) == "boolean")' \
+            .compatibility/compatibility-product-status.json
 
   publish:
     name: Preserve ledger and reconcile compatibility issue
