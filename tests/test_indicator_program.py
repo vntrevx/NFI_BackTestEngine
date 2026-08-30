@@ -741,6 +741,134 @@ def test_indicator_program_unrolls_tuple_of_source_ordered_dynamic_mappings(
     validate_indicator_program(program)
 
 
+def test_indicator_program_expands_dynamic_mapping_into_column_bundle(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ExpandedColumnBundle.py"
+    source.write_text(
+        "import pandas as pd\n"
+        "import talib.abstract as ta\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class ExpandedColumnBundle(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        extra = {}\n"
+        "        extra['slow'] = ta.SMA(dataframe['close'], timeperiod=20)\n"
+        "        columns = pd.DataFrame(\n"
+        "            {\n"
+        "                'fast': ta.SMA(dataframe['close'], timeperiod=5),\n"
+        "                **extra,\n"
+        "            },\n"
+        "            index=dataframe.index,\n"
+        "        )\n"
+        "        dataframe = pd.concat([dataframe, columns], axis=1, copy=False)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(
+        source,
+        class_name="ExpandedColumnBundle",
+    )
+
+    assert program["produced_columns"] == ["fast", "slow"]
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_arange_size_and_maximum_accumulate(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ConsecutiveCount.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class ConsecutiveCount(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        close = dataframe['close'].to_numpy(copy=False)\n"
+        "        index = np.arange(close.size)\n"
+        "        last_false = np.maximum.accumulate(\n"
+        "            np.where(close > 0, -1, index)\n"
+        "        )\n"
+        "        dataframe['positive_count'] = index - last_false\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="ConsecutiveCount")
+
+    assert program["produced_columns"] == ["positive_count"]
+    assert len([node for node in program["nodes"] if node["op"] == "row-index"]) == 1
+    accumulate = next(
+        node
+        for node in program["nodes"]
+        if node["op"] == "array-call"
+        and node["parameters"]["name"] == "maximum.accumulate"
+    )
+    assert accumulate["value_type"] == "f64-column"
+    assert "unary" not in program["opcodes"]
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_paired_manual_lag_arrays(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "PairedLag.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class PairedLag(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        open_values = dataframe['open'].to_numpy(copy=False)\n"
+        "        close_values = dataframe['close'].to_numpy(copy=False)\n"
+        "        previous_open = np.empty_like(open_values)\n"
+        "        previous_close = np.empty_like(close_values)\n"
+        "        previous_open[0] = previous_close[0] = np.nan\n"
+        "        previous_open[1:] = open_values[:-1]\n"
+        "        previous_close[1:] = close_values[:-1]\n"
+        "        dataframe['engulf'] = (previous_close < previous_open).astype(float)\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="PairedLag")
+
+    assert program["produced_columns"] == ["engulf"]
+    assert len([node for node in program["nodes"] if node["op"] == "shift"]) == 2
+    validate_indicator_program(program)
+
+
+def test_indicator_program_lowers_first_array_value_write(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "FirstArrayValue.py"
+    source.write_text(
+        "import numpy as np\n"
+        "from freqtrade.strategy import IStrategy\n"
+        "class FirstArrayValue(IStrategy):\n"
+        "    def populate_indicators(self, dataframe, metadata):\n"
+        "        close = dataframe['close'].to_numpy(copy=False)\n"
+        "        crossed = (close > 0).astype(float)\n"
+        "        crossed[0] = 0.0\n"
+        "        dataframe['crossed'] = crossed\n"
+        "        return dataframe\n",
+        encoding="utf-8",
+    )
+
+    program = compile_indicator_program(source, class_name="FirstArrayValue")
+
+    write = next(
+        node
+        for node in program["nodes"]
+        if node["op"] == "array-call"
+        and node["parameters"]["name"] == "set-index"
+    )
+    assert write["parameters"] == {
+        "family": "native",
+        "name": "set-index",
+        "arguments": {"index": 0},
+    }
+    validate_indicator_program(program)
+
+
 def test_indicator_program_lowers_source_guarded_inplace_column_drop(
     tmp_path: Path,
 ) -> None:

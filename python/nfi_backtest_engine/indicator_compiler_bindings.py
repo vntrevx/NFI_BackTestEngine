@@ -197,7 +197,23 @@ class BindingsLoweringMixin:
             strict=True,
         ):
             if key_node is None:
-                self.unsupported(node.args[0], "expanded pandas column bundle")
+                if not isinstance(value_node, ast.Name):
+                    self.unsupported(value_node, "expanded pandas column bundle")
+                mapping = self.bindings.get(value_node.id)
+                if not isinstance(mapping, _MappingBinding):
+                    self.unsupported(value_node, "expanded pandas column bundle")
+                for key, value in mapping.items.items():
+                    if not isinstance(key, str) or not key:
+                        self.unsupported(value_node, "dynamic pandas column-bundle name")
+                    if any(existing == key for existing, _ in columns):
+                        self.unsupported(value_node, "duplicate pandas column-bundle name")
+                    if (
+                        not isinstance(value, str)
+                        or not self.node_types[value].endswith("-column")
+                    ):
+                        self.unsupported(value_node, "pandas column-bundle value")
+                    columns.append((key, value))
+                continue
             found, key = self.try_static_value(key_node)
             if not found or not isinstance(key, str) or not key:
                 self.unsupported(key_node, "dynamic pandas column-bundle name")

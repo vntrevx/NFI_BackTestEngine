@@ -25,7 +25,52 @@ from .indicator_compiler_windows import (
 )
 
 
+def _zero_index_target(node: ast.expr, name: str) -> bool:
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == name
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value == 0
+    )
+
+
 class ArraysMixin:
+    def array_index_write(
+        self: CompilerProtocol,
+        target: ast.Subscript,
+        value_node: ast.expr,
+    ) -> bool:
+        if not isinstance(target.value, ast.Name):
+            return False
+        source = self.bindings.get(target.value.id)
+        if not isinstance(source, str) or not self.node_types[source].endswith("-column"):
+            return False
+        found_index, index = self.try_static_value(target.slice)
+        found_value, value = self.try_static_value(value_node)
+        if (
+            not found_index
+            or index != 0
+            or not found_value
+            or not isinstance(value, int | float)
+            or isinstance(value, bool)
+        ):
+            self.unsupported(target, "array index write")
+        replacement = self.literal(value_node, value)
+        self.bindings[target.value.id] = self.emit(
+            target,
+            "array-call",
+            self.node_types[source],
+            inputs=[source, replacement],
+            parameters={
+                "family": "native",
+                "name": "set-index",
+                "arguments": {"index": 0},
+            },
+            lookback=self.merged_lookback([source, replacement]),
+        )
+        return True
+
     def multi_output_assignment(
         self: CompilerProtocol, target: ast.Tuple | ast.List, node: ast.Call
     ) -> None:
@@ -102,6 +147,33 @@ class ArraysMixin:
 
     def array_call(self: CompilerProtocol, node: ast.Call, callable_name: str) -> str:
         name = callable_name.removeprefix("np.")
+        if name == "arange":
+            if (
+                len(node.args) != 1
+                or node.keywords
+                or not isinstance(node.args[0], ast.Attribute)
+                or node.args[0].attr != "size"
+            ):
+                self.unsupported(node, "numpy arange signature")
+            source = self.expression(node.args[0].value)
+            if not self.node_types[source].endswith("-column"):
+                self.unsupported(node.args[0].value, "numpy arange size source")
+            frames = {
+                binding
+                for binding in self.bindings.values()
+                if isinstance(binding, str)
+                and self.node_types.get(binding) == "dataframe"
+            }
+            if len(frames) != 1:
+                self.unsupported(node.args[0], "numpy arange dataframe")
+            frame = frames.pop()
+            return self.emit(
+                node,
+                "row-index",
+                "int-column",
+                inputs=[frame],
+                lookback=self.lookback(frame),
+            )
         if name == "zeros_like":
             if len(node.args) != 1:
                 self.unsupported(node, "numpy zeros_like signature")
