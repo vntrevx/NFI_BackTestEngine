@@ -639,6 +639,12 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: false
+      - name: Install uv and locked Python environment
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install locked publication runtime
+        run: uv sync --extra dev --frozen
       - name: Download paired discovery results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -663,7 +669,7 @@ jobs:
           status=.discovery/status/compatibility-product-status.json
           jq -e '(.schema_version == "compatibility-product-status-v1")
             and ((.required_status_passed | type) == "boolean")' "${status}"
-          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+          uv run python scripts/check_discovery_authorization.py \
             --authorization \
               .discovery/authorization/discovery-publication-authorization.json \
             --status "${status}" \
@@ -710,7 +716,7 @@ jobs:
         run: |
           set -euo pipefail
           status="${GITHUB_WORKSPACE}/.discovery/status/compatibility-product-status.json"
-          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+          uv run python scripts/check_discovery_authorization.py \
             --authorization \
               "${GITHUB_WORKSPACE}/.discovery/authorization/discovery-publication-authorization.json" \
             --status "${status}" \
@@ -789,6 +795,12 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: true
+      - name: Install uv and locked Python environment
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install locked candidate authorization runtime
+        run: uv sync --extra dev --frozen
       - name: Download paired authorized discovery results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -813,7 +825,7 @@ jobs:
           status=.discovery/status/compatibility-product-status.json
           jq -e '(.schema_version == "compatibility-product-status-v1")
             and ((.required_status_passed | type) == "boolean")' "${status}"
-          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+          uv run python scripts/check_discovery_authorization.py \
             --authorization \
               .discovery/authorization/discovery-publication-authorization.json \
             --status "${status}" \
@@ -840,14 +852,6 @@ jobs:
           else
             echo "found=false" >> "${GITHUB_OUTPUT}"
           fi
-      - name: Install locked Python environment
-        if: steps.candidate.outputs.found == 'true'
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          python-version: "3.12"
-      - name: Sync locked Python environment
-        if: steps.candidate.outputs.found == 'true'
-        run: uv sync --extra dev --frozen
       - name: Open Draft PR and dispatch required CI when exact
         if: steps.candidate.outputs.found == 'true'
         env:
@@ -862,7 +866,7 @@ jobs:
           )"
           jq -e '(.schema_version == "compatibility-product-status-v1")
             and ((.required_status_passed | type) == "boolean")' "${status}"
-          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+          uv run python scripts/check_discovery_authorization.py \
             --authorization \
               .discovery/authorization/discovery-publication-authorization.json \
             --status "${status}" \
