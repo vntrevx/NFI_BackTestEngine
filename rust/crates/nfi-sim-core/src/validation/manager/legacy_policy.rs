@@ -118,7 +118,7 @@ fn scan_and_retry_are_valid(
         .flat_map(|cluster| [cluster.entry_tag.as_str(), cluster.stop_tag.as_str()])
         .collect::<BTreeSet<_>>();
     program.execution_mode
-        == if matches!(schema_version, "0.29.0" | "0.30.0") {
+        == if matches!(schema_version, "0.29.0" | "0.30.0" | "0.31.0") {
             CompiledLegacyGrindExecutionMode::Primary
         } else {
             CompiledLegacyGrindExecutionMode::PrimaryWithLegacyShadow

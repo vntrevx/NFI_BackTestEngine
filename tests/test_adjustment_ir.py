@@ -26,9 +26,7 @@ def _inputs() -> tuple[dict[str, ast.FunctionDef], dict[str, object]]:
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
     )
-    methods = {
-        node.name: node for node in strategy.body if isinstance(node, ast.FunctionDef)
-    }
+    methods = {node.name: node for node in strategy.body if isinstance(node, ast.FunctionDef)}
     return methods, analysis["strategies"][0]["constants"]
 
 
@@ -66,11 +64,50 @@ def _compile_short(
     )
 
 
+def _without_maximum_state(
+    method: ast.FunctionDef,
+    *,
+    remove_arguments: bool = True,
+) -> ast.FunctionDef:
+    changed = copy.deepcopy(method)
+    changed.body = [
+        statement
+        for statement in changed.body
+        if not any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"get_custom_data", "set_custom_data"}
+            and any(
+                keyword.arg == "key"
+                and isinstance(keyword.value, ast.Constant)
+                and isinstance(keyword.value.value, str)
+                and keyword.value.value.startswith("grind_")
+                and "_cluster_max_profit_" in keyword.value.value
+                for keyword in node.keywords
+            )
+            for node in ast.walk(statement)
+        )
+    ]
+    if remove_arguments:
+        for node in ast.walk(changed):
+            if isinstance(node, ast.Call):
+                node.args = [
+                    argument
+                    for argument in node.args
+                    if not (
+                        isinstance(argument, ast.Name)
+                        and argument.id.startswith("grind_")
+                        and "_cluster_max_profit_" in argument.id
+                    )
+                ]
+    return changed
+
+
 def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None:
     program = _compile()
     actions = program["source_order"]
 
-    assert program["schema_version"] == "system-adjustment-program-v1"
+    assert program["schema_version"] == "system-adjustment-program-v2"
     assert program["side"] == "long"
     assert program["execution_mode"] == "primary"
     assert len(actions) == 19
@@ -82,8 +119,7 @@ def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None
         5,
     ]
     assert [
-        record["minimum_scale_leverage"]
-        for record in program["order_scan"]["grind_levels"]
+        record["minimum_scale_leverage"] for record in program["order_scan"]["grind_levels"]
     ] == [
         "trade-leverage",
         "market-mode-leverage",
@@ -106,6 +142,127 @@ def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None
     assert ["literal", None] not in actions[4]["decision_program"]["expressions"]
     assert "RSI_3" in program["input_contract"]["indexed_fields"]["last_candle"]
 
+    assert [
+        (
+            record["maximum_profit_stake_key"],
+            record["maximum_profit_rate_key"],
+        )
+        for record in program["order_scan"]["grind_levels"]
+    ] == [
+        (
+            f"grind_{level}_cluster_max_profit_stake",
+            f"grind_{level}_cluster_max_profit_rate",
+        )
+        for level in range(1, 6)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("side", "method_name"),
+    [
+        ("long", "long_grind_adjust_trade_position_v3"),
+        ("short", "short_grind_adjust_trade_position_v3"),
+    ],
+)
+def test_adjustment_compiles_complete_absence_of_maximum_state(
+    side: str,
+    method_name: str,
+) -> None:
+    methods, _constants = _inputs()
+    original = _compile() if side == "long" else _compile_short()
+    changed = _without_maximum_state(methods[method_name])
+
+    program = _compile(method=changed) if side == "long" else _compile_short(method=changed)
+
+    assert program["source_order"] == original["source_order"]
+    original_scan = copy.deepcopy(original["order_scan"])
+    absent_scan = copy.deepcopy(program["order_scan"])
+    for record in original_scan["grind_levels"]:
+        record.pop("maximum_profit_stake_key")
+        record.pop("maximum_profit_rate_key")
+    for record in absent_scan["grind_levels"]:
+        assert record.pop("maximum_profit_stake_key") is None
+        assert record.pop("maximum_profit_rate_key") is None
+    assert absent_scan == original_scan
+
+
+def test_adjustment_rejects_residual_maximum_helper_arguments() -> None:
+    methods, _constants = _inputs()
+    changed = _without_maximum_state(
+        methods["long_grind_adjust_trade_position_v3"],
+        remove_arguments=False,
+    )
+
+    with pytest.raises(StrategyAnalysisError, match="residual maximum state"):
+        _compile(method=changed)
+
+
+def test_adjustment_rejects_maximum_state_on_unknown_level() -> None:
+    methods, _constants = _inputs()
+    changed = copy.deepcopy(methods["long_grind_adjust_trade_position_v3"])
+    changed.body[:0] = ast.parse(
+        "grind_6_cluster_max_profit_stake = "
+        "trade.get_custom_data(key='grind_6_cluster_max_profit_stake') or 0.0\n"
+        "if grind_6_current_grind_profit_stake > "
+        "grind_6_cluster_max_profit_stake:\n"
+        "    trade.set_custom_data("
+        "key='grind_6_cluster_max_profit_stake', "
+        "value=grind_6_current_grind_profit_stake)\n"
+    ).body
+
+    with pytest.raises(StrategyAnalysisError, match="maximum levels changed"):
+        _compile(method=changed)
+
+
+def test_adjustment_rejects_maximum_binding_without_source_state() -> None:
+    methods, _constants = _inputs()
+    changed = _without_maximum_state(methods["long_grind_adjust_trade_position_v3"])
+    changed_exit = copy.deepcopy(methods["long_grind_exit_v3"])
+    branch = next(statement for statement in changed_exit.body if isinstance(statement, ast.If))
+    branch.test = ast.BoolOp(
+        op=ast.And(),
+        values=[
+            ast.Compare(
+                left=ast.Name(id="max_profit_rate", ctx=ast.Load()),
+                ops=[ast.Gt()],
+                comparators=[ast.Constant(value=0.0)],
+            ),
+            branch.test,
+        ],
+    )
+    ast.fix_missing_locations(changed_exit)
+
+    with pytest.raises(StrategyAnalysisError, match="binding has no source state"):
+        _compile(method=changed, exit_method=changed_exit)
+
+
+@pytest.mark.parametrize("mutation", ["partial", "renamed"])
+def test_adjustment_rejects_ambiguous_maximum_state(mutation: str) -> None:
+    methods, _constants = _inputs()
+    changed = copy.deepcopy(methods["long_grind_adjust_trade_position_v3"])
+    target = "grind_3_cluster_max_profit_rate"
+    if mutation == "partial":
+        index = next(
+            index
+            for index, statement in enumerate(changed.body)
+            if isinstance(statement, ast.If)
+            and any(
+                isinstance(node, ast.Constant) and node.value == target
+                for node in ast.walk(statement)
+            )
+        )
+        del changed.body[index]
+    else:
+        for node in ast.walk(changed):
+            if isinstance(node, ast.Constant) and node.value == target:
+                node.value = f"{target}_renamed"
+
+    with pytest.raises(
+        StrategyAnalysisError,
+        match="maximum (?:reads|keys) changed|custom state shape changed",
+    ):
+        _compile(method=changed)
+
 
 def test_long_adjustment_stake_literal_mutation_recompiles_without_hash_gate() -> None:
     methods, _constants = _inputs()
@@ -120,9 +277,7 @@ def test_long_adjustment_stake_literal_mutation_recompiles_without_hash_gate() -
         )
     )
     literals = [
-        node
-        for node in ast.walk(branch)
-        if isinstance(node, ast.Constant) and node.value == 1.5
+        node for node in ast.walk(branch) if isinstance(node, ast.Constant) and node.value == 1.5
     ]
     assert len(literals) == 2
     for literal in literals:
@@ -131,8 +286,9 @@ def test_long_adjustment_stake_literal_mutation_recompiles_without_hash_gate() -
     original = _compile()
     mutated = _compile(method=changed)
     assert mutated["fingerprint"] != original["fingerprint"]
-    assert mutated["source_order"][4]["decision_program"] != (
-        original["source_order"][4]["decision_program"]
+    assert (
+        mutated["source_order"][4]["decision_program"]
+        != (original["source_order"][4]["decision_program"])
     )
 
 
@@ -149,8 +305,9 @@ def test_long_adjustment_exit_condition_mutation_recompiles() -> None:
     original = _compile()
     mutated = _compile(exit_method=changed_exit)
     assert mutated["fingerprint"] != original["fingerprint"]
-    assert mutated["source_order"][5]["decision_program"] != (
-        original["source_order"][5]["decision_program"]
+    assert (
+        mutated["source_order"][5]["decision_program"]
+        != (original["source_order"][5]["decision_program"])
     )
 
 
@@ -161,10 +318,7 @@ def test_long_adjustment_ignores_config_read_used_only_by_observability() -> Non
         node
         for node in ast.walk(changed_exit)
         if isinstance(node, ast.If)
-        and any(
-            isinstance(item, ast.Name) and item.id == "stake_fmt"
-            for item in ast.walk(node)
-        )
+        and any(isinstance(item, ast.Name) and item.id == "stake_fmt" for item in ast.walk(node))
     )
     reporting_branch.body.insert(
         0,
@@ -210,8 +364,9 @@ def test_long_adjustment_ignores_config_read_used_only_by_observability() -> Non
     original = _compile()
     changed = _compile(exit_method=changed_exit)
 
-    assert changed["source_order"][5]["decision_program"] == (
-        original["source_order"][5]["decision_program"]
+    assert (
+        changed["source_order"][5]["decision_program"]
+        == (original["source_order"][5]["decision_program"])
     )
 
 
@@ -280,8 +435,7 @@ def test_long_adjustment_changed_source_order_fails_closed() -> None:
         for index, node in enumerate(changed.body)
         if isinstance(node, ast.If)
         and any(
-            isinstance(item, ast.Constant)
-            and item.value in {"grind_1_entry", "grind_1_derisk"}
+            isinstance(item, ast.Constant) and item.value in {"grind_1_entry", "grind_1_derisk"}
             for item in ast.walk(node)
         )
     ]
@@ -309,12 +463,27 @@ def test_short_adjustment_is_compiled_from_its_independent_directional_ast() -> 
     assert len(short_program["source_order"]) == 18
     assert short_program["order_scan"]["entry_order_side"] == "sell"
     assert short_program["order_scan"]["exit_order_side"] == "buy"
+    assert [record["level"] for record in short_program["order_scan"]["derisk_tags"]] == [1, 2, 3]
+    assert [record["level"] for record in short_program["order_scan"]["grind_levels"]] == [
+        1,
+        2,
+        3,
+        4,
+        5,
+    ]
     assert [
-        record["level"] for record in short_program["order_scan"]["derisk_tags"]
-    ] == [1, 2, 3]
-    assert [
-        record["level"] for record in short_program["order_scan"]["grind_levels"]
-    ] == [1, 2, 3, 4, 5]
+        (
+            record["maximum_profit_stake_key"],
+            record["maximum_profit_rate_key"],
+        )
+        for record in short_program["order_scan"]["grind_levels"]
+    ] == [
+        (
+            f"grind_{level}_cluster_max_profit_stake",
+            f"grind_{level}_cluster_max_profit_rate",
+        )
+        for level in range(1, 6)
+    ]
     assert short_program["fingerprint"] != long_program["fingerprint"]
     assert "BBL_20_2.0" in short_program["input_contract"]["indexed_fields"]["last_candle"]
     assert "BBU_20_2.0" not in short_program["input_contract"]["indexed_fields"]["last_candle"]

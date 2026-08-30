@@ -137,6 +137,15 @@ column은 실행 프로그램에서 유도하며, 최소 stake 배수나 thresho
 retry window도 같은 payload로 묶어 검증한다. 기존 스키마만 보존된 legacy 실행을
 사용하고, 새 스키마에서는 이 프로그램이 Native primary다.
 
+System-v3 adjustment의 `system-adjustment-program-v2`는 각 Grind level의
+cluster-maximum state를 소스에서 직접 선언한다. active AST에 stake/rate read와
+write가 모두 있으면 두 custom-data key를 보존한다. read, write, helper argument와
+maximum binding이 모두 사라졌으면 명시적인 absent pair를 기록하고 Rust는 해당
+custom-data를 읽거나 쓰지 않는다. partial pair, 잔여 argument, 이름이 바뀐 key,
+알 수 없는 level 또는 state 없는 maximum binding은 컴파일이나 validation에서
+차단한다. schema `0.23.0`–`0.30.0`의 program-v1은 sealed evidence replay를 위해
+두 key를 필수로 유지하고, 현재 schema `0.31.0`만 program-v2를 사용한다.
+
 ## Upstream 감시
 
 호환성 workflow는 4시간마다 NFI upstream SHA, 호환성 엔진 commit, pinned Freqtrade
@@ -152,13 +161,18 @@ queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 �
 JSON을 추가하고 latest observation을 전진시킨다. Native 실행으로 분류된 mode만
 changed-target ledger와 sealed promotion proof를 요구한다. 새 의미가 아직
 `official_only`이면 Native 승격 proof 없이도 blocked product status, hosted canary,
-호환성 issue와 관찰 ledger를 남긴다. 대용량 임시 trace는 업로드하지 않으며 compact
-JSON artifact만 30일 보존한다. 한 mode라도 누락되거나 다운로드·빌드·권한·artifact
-같은 자동화가 실패하면 latest observation을 전진시키지 않아 다음 주기에 재시도한다.
+호환성 issue와 관찰 ledger를 남긴다. `required_status_passed=false`는 이 blocked
+product status의 권위 있는 값이며, 검증된 discovery 진행상황을 게시하지 못하게
+하는 자동화 실패가 아니다. Native 승격은 여전히 두 mode의 독립 exact proof가
+모두 있어야 한다.
 
-전략 blocker는 `nfi-compatibility`, 자동화 장애는 `nfi-automation-health`로 분리한다.
-호환성 issue는 하나만 열어 두고 최신 upstream SHA, canonical fingerprint와 blocker
-본문으로 갱신한다. blocker가 복구되면 해당 issue를 자동으로 닫는다.
+대용량 임시 trace는 업로드하지 않으며 compact JSON artifact만 30일 보존한다.
+한 mode라도 누락되거나 다운로드·빌드·권한·artifact 같은 자동화가 실패하면 latest
+observation을 전진시키지 않아 다음 주기에 재시도한다. 전략 blocker는
+`nfi-compatibility`, 자동화 장애는 `nfi-automation-health`로 분리한다. 호환성
+issue는 하나만 열어 두고 네 identity, mode별 route/review kind, blocker,
+missing-target 수와 workflow artifact link를 canonical blocker fingerprint로
+갱신한다. blocker가 복구되면 해당 issue를 자동으로 닫는다.
 
 매 업데이트마다 5년 인증을 다시 실행하지 않는다.
 
@@ -202,19 +216,28 @@ exact를 모두 통과한 mode별 paired fixture가 30 MiB 이하일 때만 cand
 자동화는 allowlist된 fixture와 compact evidence만 새 branch에 넣어 Draft PR을
 열고 CI를 요청한다. 자동 승인과 자동 merge는 하지 않는다.
 
-심층 workflow는 nightly 또는 수동으로 실행되고 동시 실행은 하나뿐이다. 외부
-시장 데이터가 정책에 선언된 HTTP 상태로 차단되면 엔진 실패가 아니라
-`external_data_deferred`로 기록한다. 이 상태는 Native exact 증거가 아니며 cursor를
-전진시키지 않는다. 같은 upstream/engine/Freqtrade identity의 예약 실행은 저장된
-compact 결과를 재사용해 빌드와 외부 요청을 반복하지 않는다. identity가 바뀌거나
-수동 실행에서 `retry_deferred`를 선택한 경우에만 다시 요청한다. 정책에 없는
-네트워크·빌드·권한 장애는 계속 실패한다.
+심층 workflow는 nightly 또는 수동으로 실행되며 새 identity가 도착하면 진행 중인
+이전 실행을 취소한다. 대체 실행은 전체 identity가 일치하는 cursor만 재개하고,
+cancelled 또는 superseded 실행은 cursor나 PR을 갱신하지 않는다. 외부 시장 데이터가
+정책에 선언된 HTTP 상태로 차단되면 엔진 실패가 아니라
+`external_data_deferred`로 기록한다. 이 상태와 `budget_exhausted`는 Native exact
+증거가 아니지만 schema-valid 검색 결과이므로 다음 예약 실행이 이어받을 수 있다.
+정책에 없는 네트워크·빌드·권한 장애는 계속 자동화 실패다.
+
+Spot/Futures request, report, cursor와 automation decision은 authoritative identity,
+diff, static report와 targeted report에서 다시 계산한 fingerprint로 한 쌍의
+publication authorization에 묶는다. 둘 중 하나가 malformed, stale, cross-mode 또는
+부분 게시 상태면 어느 cursor도 전진시키지 않는다. 유효한 paired publication 뒤에는
+한 mode가 `exact_fixture_draft_pr`에 도달한 즉시 그 mode의 candidate를 독립적으로
+준비할 수 있지만 product status는 두 mode가 모두 exact가 될 때까지 blocked다.
+candidate push 직전에도 engine/upstream ref를 다시 확인한다.
 
 request/report/cursor는 append-only ledger에 한 번만 남긴다. candidate artifact는
 30일, candidate가 없는 compact workflow artifact는 1일 보존한다. 원시 candles,
-cache, Docker layer와 trace는 ledger, artifact 또는 PR에 넣지 않는다. 로컬
-budget/보류/인프라 실패 run은 `nfi-bte clean --dry-run`에서 회수 가능 대상으로
-분류된다.
+cache, Docker layer와 trace는 ledger, artifact 또는 PR에 넣지 않는다. 자동화는
+allowlist된 fixture와 compact evidence만 Draft PR로 만들고 CI를 요청하며 자동 승인,
+merge 또는 stable 승격을 하지 않는다. 로컬 budget/보류/인프라 실패 run은
+`nfi-bte clean --dry-run`에서 회수 가능 대상으로 분류된다.
 
 이 계약은 현재 pinned Freqtrade가 실행할 수 있는 NFI 변경을 즉시 사용할 수 있게
 한다. 향후 NFI가 새로운 Freqtrade API나 외부 의존성을 요구하면 watcher가 실패

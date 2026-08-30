@@ -829,8 +829,17 @@ def _observability_only_field(
         current_method = method_by_node.get(item)
         if isinstance(item.ctx, ast.Store):
             if current_method not in writers:
-                return False
-            found_write = True
+                parent = parents.get(item)
+                if not (
+                    current_method == "__init__"
+                    and isinstance(parent, ast.Assign)
+                    and len(parent.targets) == 1
+                    and parent.targets[0] is item
+                    and isinstance(parent.value, ast.Constant)
+                ):
+                    return False
+            else:
+                found_write = True
             continue
         if not isinstance(item.ctx, ast.Load):
             return False

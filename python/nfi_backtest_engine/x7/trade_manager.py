@@ -13,7 +13,7 @@ from . import route_contracts as _routes
 from . import trade_manager_constants as _constants
 from .trade_manager_source import load_trade_manager_source
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.30.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.31.0"
 
 __all__ = [
     "NFI_TRADE_MANAGER_IR_VERSION",

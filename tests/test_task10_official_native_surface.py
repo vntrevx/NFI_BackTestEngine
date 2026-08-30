@@ -29,10 +29,7 @@ def _order_surface(order: dict[str, Any]) -> dict[str, Any]:
             key: order[key]
             for key in ("sequence", "side", "is_entry", "filled_timestamp_ms", "tag")
         },
-        **{
-            key: _decimal(order[key])
-            for key in ("amount", "price", "cost")
-        },
+        **{key: _decimal(order[key]) for key in ("amount", "price", "cost")},
     }
 
 
@@ -113,16 +110,10 @@ def test_short_liquidation_boundary_alternate_is_exact_and_has_no_gd5() -> None:
     native_trade = native["trades"][0]
 
     # Then: the alternate remains exact while the GD5 sell is absent.
-    assert _decimal(official["summary"]["final_balance"]) == _decimal(
-        native["final_balance"]
-    )
-    assert _decimal(official["summary"]["profit_total_abs"]) == _decimal(
-        native["profit_total_abs"]
-    )
+    assert _decimal(official["summary"]["final_balance"]) == _decimal(native["final_balance"])
+    assert _decimal(official["summary"]["profit_total_abs"]) == _decimal(native["profit_total_abs"])
     assert _decimal(official_trade["leverage"]) == _decimal(native_trade["leverage"])
-    assert _decimal(official_trade["fees"]["funding"]) == _decimal(
-        native_trade["funding_fees"]
-    )
+    assert _decimal(official_trade["fees"]["funding"]) == _decimal(native_trade["funding_fees"])
     assert _decimal(official_trade["stake_amount"]) == _decimal(
         round(native_trade["stake_amount"], 8)
     )
@@ -140,9 +131,7 @@ def test_short_fixtures_embed_the_source_bound_schema_030_manager() -> None:
     ]
     for root in roots:
         manifest = json.loads(
-            (root / "inputs/native/simulation-input.manifest.json").read_text(
-                encoding="utf-8"
-            )
+            (root / "inputs/native/simulation-input.manifest.json").read_text(encoding="utf-8")
         )
         manager = manifest["config"]["nfi_x7_trade_manager"]
         short = manager["short_grind"]

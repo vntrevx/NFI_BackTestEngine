@@ -407,9 +407,7 @@ def test_x7_exit_timeout_extracts_order_tag_bypass_from_source(
     callback = result["callbacks"][0]
     assert result["hot_loop_ready"]
     assert callback["backend"] == "rust-immediate-fill-open-order-proof"
-    assert callback["lowering"]["operation"]["skip_order_tags"] == [
-        "operator_cancel"
-    ]
+    assert callback["lowering"]["operation"]["skip_order_tags"] == ["operator_cancel"]
 
 
 def test_x7_exit_timeout_order_tag_bypass_near_miss_fails_closed(
@@ -561,6 +559,62 @@ def test_x7_order_filled_state_machine_is_structurally_lowered(
         {"key": "grind_1_cluster_max_profit_stake", "value": 0.0},
         {"key": "grind_1_cluster_max_profit_rate", "value": 0.0},
     ]
+
+
+def test_x7_order_filled_lowers_without_maximum_state_writes(tmp_path: Path) -> None:
+    source = tmp_path / "OrderStateWithoutMaximums.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class OrderStateWithoutMaximums(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    system_v3_name = 'system_v3'\n"
+        "    system_v3_1_name = 'system_v3_1'\n"
+        "    system_v3_2_name = 'system_v3_2'\n"
+        "    system_name_use = system_v3_2_name\n"
+        "    def order_filled(self, pair, trade, order, current_time, **kwargs):\n"
+        "        system_name_use = self.system_name_use\n"
+        "        system_v3_2_name = self.system_v3_2_name\n"
+        "        system_v3_1_name = self.system_v3_1_name\n"
+        "        system_v3_name = self.system_v3_name\n"
+        "        set_custom_data = trade.set_custom_data\n"
+        "        if trade.nr_of_successful_entries == 1:\n"
+        "            if system_name_use == system_v3_2_name:\n"
+        "                set_custom_data(key='system_version', value=system_v3_2_name)\n"
+        "            elif system_name_use == system_v3_1_name:\n"
+        "                set_custom_data(key='system_version', value=system_v3_1_name)\n"
+        "            elif system_name_use == system_v3_name:\n"
+        "                set_custom_data(key='system_version', value=system_v3_name)\n"
+        "        if system_name_use == system_v3_2_name:\n"
+        "            filled_entries = trade.select_filled_orders(trade.entry_side)\n"
+        "            order_tag = order.ft_order_tag\n"
+        "            if order_tag is None:\n"
+        "                return None\n"
+        "            order_mode = order_tag.split(' ', 1)\n"
+        "            order_tags = []\n"
+        "            if len(order_mode) > 0:\n"
+        "                order_mode = order_mode[0]\n"
+        "            order_tags = order_tag.split(' ')\n"
+        "            if len(order_tags) > 1:\n"
+        "                order_tags = order_tags[1:]\n"
+        "            if order_mode in ['derisk_level_1']:\n"
+        "                trade.set_custom_data(key='derisk_level_1', value=True)\n"
+        "        return None\n",
+        encoding="utf-8",
+    )
+
+    result = build_hot_callback_ir(
+        analyze_strategy(source, class_name="OrderStateWithoutMaximums"),
+        run_mode="backtest",
+    )
+
+    operation = result["callbacks"][0]["lowering"]["operation"]
+    assert result["hot_loop_ready"]
+    assert operation["initial_successful_entry_writes"] == [
+        {"key": "system_version", "value": "system_v3_2"}
+    ]
+    assert operation["order_tag_actions"] == {
+        "derisk_level_1": [{"key": "derisk_level_1", "value": True}]
+    }
 
 
 def test_x7_order_filled_near_miss_with_unbounded_call_fails_closed(

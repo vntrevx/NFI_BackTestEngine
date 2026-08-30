@@ -12,7 +12,7 @@ pub(crate) fn valid_versioned_legacy_grind_program(
     let required_program_version = match schema_version {
         "0.25.0" => Some("grind-transition-program-v1"),
         "0.26.0" => Some("grind-transition-program-v2"),
-        "0.27.0" | "0.28.0" | "0.29.0" | "0.30.0" => Some("grind-transition-program-v3"),
+        "0.27.0" | "0.28.0" | "0.29.0" | "0.30.0" | "0.31.0" => Some("grind-transition-program-v3"),
         _ => None,
     };
     let Some(program) = route.program.as_ref() else {

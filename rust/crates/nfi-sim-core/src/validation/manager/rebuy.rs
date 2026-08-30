@@ -22,6 +22,7 @@ pub(super) fn valid_versioned_rebuy_program(
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     ) {
         return program.is_none();
     }
@@ -67,6 +68,7 @@ pub(super) fn valid_adjustment_source_callback(
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     ) {
         callback.is_some_and(|value| !value.is_empty())
     } else {

@@ -73,6 +73,7 @@ fn valid_identity(manager: &NfiX7TradeManager) -> bool {
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     ) && super::shared::valid_sha256(&manager.source_sha256)
 }
 
@@ -130,6 +131,7 @@ fn valid_terminal_exit_version(manager: &NfiX7TradeManager) -> bool {
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     ) || manager
         .managed_long_routes
         .iter()

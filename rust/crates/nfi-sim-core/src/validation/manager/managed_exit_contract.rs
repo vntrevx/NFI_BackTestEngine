@@ -22,8 +22,9 @@ pub(super) fn valid_managed_exit_execution_mode(
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     ) {
-        mode == if matches!(schema_version, "0.29.0" | "0.30.0") {
+        mode == if matches!(schema_version, "0.29.0" | "0.30.0" | "0.31.0") {
             ManagedExitExecutionMode::Primary
         } else {
             ManagedExitExecutionMode::PrimaryWithLegacyShadow

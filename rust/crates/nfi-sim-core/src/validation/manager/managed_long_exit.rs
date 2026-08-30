@@ -42,6 +42,7 @@ pub(super) fn valid_managed_exit_program(manager: &NfiX7TradeManager) -> bool {
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     ) && route_ids
         != manager
             .managed_long_routes
@@ -144,6 +145,7 @@ fn valid_state_program(
                     | "0.28.0"
                     | "0.29.0"
                     | "0.30.0"
+                    | "0.31.0"
             ),
         ),
         None => !matches!(
@@ -160,6 +162,7 @@ fn valid_state_program(
                 | "0.28.0"
                 | "0.29.0"
                 | "0.30.0"
+                | "0.31.0"
         ),
     }
 }
@@ -181,6 +184,7 @@ fn managed_exit_program_required(schema_version: &str) -> bool {
             | "0.28.0"
             | "0.29.0"
             | "0.30.0"
+            | "0.31.0"
     )
 }
 

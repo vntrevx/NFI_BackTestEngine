@@ -205,6 +205,8 @@ def test_observability_only_grind_tag_write_is_lowered_as_ephemeral(
         "from freqtrade.strategy import IStrategy\n"
         "class Ephemeral(IStrategy):\n"
         "    timeframe = '5m'\n"
+        "    def __init__(self):\n"
+        "        self._grind_entry_tag = ''\n"
         "    def custom_exit(self, pair, trade, current_time, current_rate, "
         "current_profit, **kwargs):\n"
         "        return self.long_grind_entry_v3(current_profit)\n"

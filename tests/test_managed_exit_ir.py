@@ -55,11 +55,9 @@ def _methods(
 ) -> dict[str, ast.FunctionDef]:
     first, second = ("pump", "normal") if swap_routes else ("normal", "pump")
     decisions = (
-        "self.decision_b, self.decision_a"
-        if swap_decisions
-        else "self.decision_a, self.decision_b"
+        "self.decision_b, self.decision_a" if swap_decisions else "self.decision_a, self.decision_b"
     )
-    source = f'''
+    source = f"""
 class Strategy:
     def custom_exit(self, trade):
         enter_tag = trade.enter_tag
@@ -131,15 +129,11 @@ class Strategy:
         if not sell:
             sell, signal_name = self.stop_policy()
         return sell, signal_name
-'''
+"""
     tree = ast.parse(source)
     class_node = tree.body[0]
     assert isinstance(class_node, ast.ClassDef)
-    return {
-        node.name: node
-        for node in class_node.body
-        if isinstance(node, ast.FunctionDef)
-    }
+    return {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
 
 def _compile(**kwargs: bool):
@@ -228,7 +222,7 @@ def test_basic_exit_ir_rejects_an_unknown_long_route() -> None:
 
 
 def test_special_exit_ir_compiles_compound_matcher_and_current_stake_basis() -> None:
-    source = '''
+    source = """
 class Strategy:
     def custom_exit(self, enter_tags, enter_tag):
         rebuy_tags = self.rebuy_tags
@@ -252,15 +246,11 @@ class Strategy:
         if not sell:
             sell, signal_name = self.stateful_stop()
         return sell, signal_name
-'''
+"""
     tree = ast.parse(source)
     class_node = tree.body[0]
     assert isinstance(class_node, ast.ClassDef)
-    methods = {
-        node.name: node
-        for node in class_node.body
-        if isinstance(node, ast.FunctionDef)
-    }
+    methods = {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
     compiled = compile_managed_exit_ir(
         methods,
         {
@@ -304,11 +294,7 @@ def test_managed_exit_state_is_source_compiled_for_all_long_routes() -> None:
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
     )
-    methods = {
-        node.name: node
-        for node in class_node.body
-        if isinstance(node, ast.FunctionDef)
-    }
+    methods = {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
     quick = _compile_state_policy(methods["long_exit_quick"], constants)
     rapid = _compile_state_policy(methods["long_exit_rapid"], constants)
@@ -365,11 +351,7 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
     )
-    methods = {
-        node.name: node
-        for node in class_node.body
-        if isinstance(node, ast.FunctionDef)
-    }
+    methods = {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
 
     compiled = compile_managed_short_exit_ir(
         methods,
@@ -390,16 +372,13 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
         "short_top_coins_fallback",
     )
     assert routes["short_rebuy"]["profit_basis"] == "current-stake"
-    assert routes["short_quick"]["state_program"]["inline_exit"]["position"] == (
-        "after-stop"
-    )
-    assert routes["short_rapid"]["state_program"]["inline_exit"]["position"] == (
-        "before-stop"
-    )
+    assert routes["short_quick"]["state_program"]["inline_exit"]["position"] == ("after-stop")
+    assert routes["short_rapid"]["state_program"]["inline_exit"]["position"] == ("before-stop")
     assert routes["short_scalp"]["match"]["operator"] == "any-of"
-    assert routes["short_scalp"]["state_program"]["target"][
-        "pure_scalp_matcher"
-    ] == {"operator": "all", "entry_tags": ["661"]}
+    assert routes["short_scalp"]["state_program"]["target"]["pure_scalp_matcher"] == {
+        "operator": "all",
+        "entry_tags": ["661"],
+    }
     assert routes["short_top_coins_fallback"]["match"] == {
         "operator": "all-of",
         "operands": [
@@ -425,15 +404,11 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
         if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
     )
     changed_methods = {
-        node.name: node
-        for node in changed_class.body
-        if isinstance(node, ast.FunctionDef)
+        node.name: node for node in changed_class.body if isinstance(node, ast.FunctionDef)
     }
     changed = changed_methods["short_exit_quick"]
     threshold = next(
-        node
-        for node in ast.walk(changed)
-        if isinstance(node, ast.Constant) and node.value == 22.0
+        node for node in ast.walk(changed) if isinstance(node, ast.Constant) and node.value == 22.0
     )
     threshold.value = 21.0
     changed_compilation = compile_managed_short_exit_ir(
@@ -441,9 +416,7 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
         analysis["strategies"][0]["constants"],
         _MANAGED_SHORT_ROUTE_SPECS,
     )
-    changed_routes = {
-        route["id"]: route for route in changed_compilation.program["routes"]
-    }
+    changed_routes = {route["id"]: route for route in changed_compilation.program["routes"]}
     assert (
         changed_routes["short_quick"]["state_program"]["inline_exit"]["program"]
         != routes["short_quick"]["state_program"]["inline_exit"]["program"]
@@ -451,13 +424,10 @@ def test_managed_short_exit_ir_compiles_its_own_routes_state_and_fallback() -> N
 
 
 def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) -> None:
-    source = Path(
-        "benchmarks/evidence/m22/current-x7-raw/"
-        "upstream-NostalgiaForInfinityX7.source"
-    )
+    source = Path("benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source")
     text = source.read_text(encoding="utf-8")
-    old = "(last_rsi_14 < 22.0):\n        sell, signal_name = True, f\"exit_{mode_name}_q_1\""
-    new = "(last_rsi_14 < 21.0):\n        sell, signal_name = True, f\"exit_{mode_name}_q_1\""
+    old = '(last_rsi_14 < 22.0):\n        sell, signal_name = True, f"exit_{mode_name}_q_1"'
+    new = '(last_rsi_14 < 21.0):\n        sell, signal_name = True, f"exit_{mode_name}_q_1"'
     assert text.count(old) == 1
     changed_source = tmp_path / "NostalgiaForInfinityX7.py"
     changed_source.write_text(text.replace(old, new), encoding="utf-8")
@@ -470,7 +440,7 @@ def test_changed_short_wrapper_builds_without_a_route_hash_gate(tmp_path: Path) 
 
     assert manager is not None
     operation = manager["operation"]
-    assert operation["schema_version"] == "0.30.0"
+    assert operation["schema_version"] == "0.31.0"
     assert operation["managed_short_exit_program"]["execution_mode"] == "primary"
 
 
@@ -486,17 +456,11 @@ def test_new_uncompiled_short_exit_result_fails_closed() -> None:
         for node in tree.body
         if isinstance(node, ast.ClassDef) and node.name == "NostalgiaForInfinityX7"
     )
-    methods = {
-        node.name: node
-        for node in class_node.body
-        if isinstance(node, ast.FunctionDef)
-    }
+    methods = {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
     wrapper = methods["short_exit_quick"]
     wrapper.body.insert(
         -1,
-        ast.parse(
-            'if not sell:\n    sell, signal_name = True, "new_uncompiled_exit"\n'
-        ).body[0],
+        ast.parse('if not sell:\n    sell, signal_name = True, "new_uncompiled_exit"\n').body[0],
     )
 
     with pytest.raises(StrategyAnalysisError, match="uncompiled direct sell result"):

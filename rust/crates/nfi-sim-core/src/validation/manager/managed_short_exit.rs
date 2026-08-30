@@ -20,6 +20,7 @@ pub(super) fn valid_managed_short_exit_program(manager: &NfiX7TradeManager) -> b
                 | "0.28.0"
                 | "0.29.0"
                 | "0.30.0"
+                | "0.31.0"
         );
     };
     if program.schema_version != "managed-exit-program-v1"
@@ -122,6 +123,7 @@ fn valid_route(
                         | "0.28.0"
                         | "0.29.0"
                         | "0.30.0"
+                        | "0.31.0"
                 ),
             )
         })
