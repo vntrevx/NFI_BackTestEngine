@@ -1,0 +1,931 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "a404a3cdb658f30711bd8803d4cc114b9249984a",
+    "engine_sha": "62d982362bdc96bd3f24815183c0932428969690",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8",
+    "strategy_sha256": "afc5d4bd7ffe7551e0d7b45b6ab68976f0c31cd29aca98cc9bef8bc4b671b0f7"
+  },
+  "trading_mode": "spot",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "bounded_discovery",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "044012a76667a4358feb8b841440a7569f54b9e7ec1b337ec013b2bf91706322",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "050741ead493a940679bfa2f0a480f392e4aab2e850f770c9e088f409523c2f0",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "085378828286f5497a4225b8a92d1d20b76636b066dbd65b7d8bae6dabf55cfb",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "0a31d6f09d1396071416aba42de12413ab70b7eed22e98951265e37934ae9e00",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "0e37ec3467bf2af3d68483fb0d8d0f954312320aab457e6826c769d5a308246d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "10bee515974ac24558fe10ebf4f41d71a89240f2bc2da7459353533adad681d1",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "1114644d405b1680a23e554def08aa067302cf538c2818b5b22f3785dcb1bd25",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "150a9b1b7cf61e3fe3091bf5af814665ae44403baf687c55a6c7e050fa7300a1",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "177ea80a761c28bb9369a107138c69039b8af986a3c0f58f81cbac9fbd80f113",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "1a9524da7ce8b0d74fcdf55211b5f4e511d2f65c1e5504ea8a3a7a0d72a8c4b9",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "1aaae81427b4d4e878a658ea28dc3b129212b642b7211e1f620307c4830645a8",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "1bda6e76f6891ec531e7074238c0d136dc392734e3bdd482693f3dfc88dfd0d1",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "21a7578c3ac9ae275df7f9ed883bbd4f20cd76bac7f3663d989ef201f57b336c",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "239a4b4b5e1366ee3a795d2c4b1709b3d7dfc6797039c82c6a13f8d650ea30ae",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "24436bf9d19cba9a300e25ce03a46b29ccd472f36e826e394111ebb16319dcd3",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "24b7b626a1cdd882de15352d3ae9c42c06ff2d4d789f6915a68a034e901cf2cb",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "250bc61ff28a752e5daa11e479fcc5f6a6c0bb34a5310b4b47501fb4c85e806c",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2557ca39f60c8bb92e221d15386ef956b44bd0b518f743d84a769b64b0a88807",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "259f2535024dc0be41e6da09ba3016930df5837611478f87b1dd644dd43899f0",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2995f6bf5a674ebeaf7cac69ad46242f581000ccab0cae30d637dafac356ce30",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2af9a0cfcaafce00c7239a75ec461d78b78eaca6cdef7304b8da634282bfae1a",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2f20df698f05861154a6f6f80543fc5674e3691f6be68b14cf8d7d571d69a46f",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2ff1b67cd6f867c95c1d6e530792eedd395ff1a24b2f752e99aaf6debd5d33c8",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "323b5dfb8ced83c58b3897ec0a0f8a373e2491a3e6b1291328d2cfc9f97a4d37",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3316c86a17973ada49241730d7e1420c1bb6fdc44e7b5dd6adc10ae33b67ac86",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "34ba7b4df751530e15d3a9aa2f698e7f5ccdfbacdc2949c2f197f4b8454eb225",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "382a2d256c31b3ed35fdffda5779d0a6ef94a4b16f6369f757a4f366cfe5c005",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "388197e309c9771df681ab557a434970cdcf3c858af0cbdbc45349938674ebab",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "39d4f7b52c688257fef8e58d0a5d9f4e164d5b86da3c7932487ce4261bc65435",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "39e8f4b844cc4be9e0ef88ae118a1c3aebcdb735967c1302be401fbc11953e11",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3c0d0f6c2a8fedbb5adf2b6e6348050c207f625a17a203a9b5a02ff5c40ef7c2",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3d8c0a041b5f55eb14608fcb413e45067b80d144d4451025815a86a44dc2276d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3e3f1648c0254fb6617f5d2fc53c17333463be14afa87f809f8fa672b70eca9e",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "403e9134a8fc1190ca0005114925eaac2d5348b3d2acc29c2e7bfd4ea6361d97",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4108257f0d2cc43f6f23f733fce6039d39ae1b496a107465679642e1f33e1002",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "427906b37f1e19565b9cff2f3a4378cfc335211f208bfdd3fb863f8ea26301ef",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "45ec17a27752b33f8821be9a37a75e9e354e83b3bd449187275d640119bd728d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "49028760baaf7ffe0739cde5c035c4be1e9456bca2a1255de4853aa2851f52a0",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4b3e1a8907c21c347be20790ea88f1f9730957ad1d25e51ccfbc7d4427a5f484",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4bdd79de3b32f090eb11caad66ef1337671476789f11ec8eb49503466549738d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4cae30e1fe4e7ff5cfe39f12ba9dc71dc2e6681a12384d0b501b18938cb8f35a",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4f7dbb3300e3a00217765f0441d51cfe49f807b05139fdb112248538391c7b28",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4fa0cf4fe83eef0b6979817e7d580c945a922afd55b288b174e97c5ee9325be0",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "52a712dbe006b63878837abf555d7b7fe9453517f4d82e1703d133a1bbc9b024",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "551612996703cb31064846602911ee20eb51fa9acb1203c3fafbe69a39126e00",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "555eb022cf9e4f150ea836283c58a40f428563d16d345122a3736fec381751d7",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "568ff3fc5edafbb81d1319fa91172f6c26fd3702eeef35d848cd057d783c3792",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "575d6e87f6d1c65f4bacf6d2b13ecb796fe9376081b92f62cb3e27e996571883",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5aab35450a58d851411a10cdd21ab2a92d17af74065326f4db1b5af24e4a7536",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5b8a80f2ee0f91fac464d7557f3b349bf4245d39385137b20f09de755e2575cb",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5c3d5f6c78b45d07d45859d1e630b3502a0115e608601dc79f5d21efa4abf5f7",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5c4996acc1b346ddc2dae2f13986dcf02f557cc099d6ab8a7401ecfc9a09e572",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5c9679f32afc72c7e5030b96050c63b41e40739cb35a474fce6169a9b5fecbd5",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5cdae0985abf56fb2346dd0f589d57d353d80bd709c8e46feb641d4e94b8118e",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5dffaea2b61bb36baab469438c554c8f7c88cf89ff7541cfdc5d845083e60373",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5e2f8fa562676dcb85efa1aa52b0eb2df565243712821db93dace265caa2ec7c",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5fa009d8dd002870780f95b61c1eff4ff493caeeb2a7bb84c09f2c7ed6bc3e45",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6297391870bc3959d96fed8fedfb41c4d16fd1443adba3db5643693bd48de70b",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "63fd012461432af535e2fd1c4dab8cde3830817502eebd92e1e2596095d90b13",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6541869d270a7b40c122e1fac0ede8c0ee4d36249500f8111b51050a890549a7",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "66b82514bfee4729e4311a1e103a87d39be30f8d33b3e5cd1d9fd9e51e4b547e",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "68a664effa033ea68a27c8a741be1b6d0ea211904d3345af50138c069099a90f",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "68b0ddf85faa421445c37f732364b6471a368e4268fbf3f12185c70eca942b8e",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6ae3f075c263306fc808c76ef26348fa8bf5f38423c5e4d0f60783232a6854cd",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6b27439f1f6fc81b10a550e2c0b315b06599f5b6defc4d007047cc7a77d5b1fc",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6bce20972fcb07bf9f0d9b9e29f8ac3487c58206c5365e5134bbf6bd378135fa",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "6dd408ca1acf073bc124739f4d413908351f6da34a3797b09edc8cb506aa2461",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "70a4783e87ba4b7a52824d5f6175660900ef92021918e6b6199dd963b70d80b1",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "7306f46856dfc48f56ad3a9ad6c0d1f3efdeff11ca7f7bbb1f0e79f710609829",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "751cc999e8d28e903a9e9e90f4de4ddefbb0bde12ac23829188916b4b98f5df2",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "767c3f138c9e4cab54ef3469b3fda0b0b253b57d09cede4d5fe1b85b38421fca",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "7a92e2fece5b92261bb4413f27f77592ccc6372c7614942177ee0b7b3f09e184",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "810f74120bf42fab818e7dc5e585856c8bb20b342ecf2fbd81c7317eda3e733a",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8179cc71be99cd25d6a3105b05fa6bc2cc8344743ba186271ebf7356816a7b48",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "828443534f507df09f0c4757aa85dea892842bd5ab7b3ef6b79f96152064a016",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "82c3bf43402303b59c18a911b20497c866a730429ae66ffd13f6c77beba94a90",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "82f0ffbe5e662bbdf4f4edd191fa7de06dd878a3ea9978c9c998efc2619bdb14",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "84b7bc9b1a501d1aa9887a118070cc4239b881864cda236fe3b253e1ff44ba22",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "86a198535bc2f2445e18eb086deacf0f5714b2a8b7a4344c60ad3503fa8f6225",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8730162d740c9f9c0527b26ffd6ba6a6d42e1e15e33d7a4f02a2b6c73c79d97c",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "898e456baf8882312ab7e6867183c5e74aadb98dde63080bda3a7c7602399b8d",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8b61e183222cc175934009b54a065c91445dc4eabf1cd18918749823f38248b7",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8f4110cd9c9985fb69752bf52380b73dec55a7e4259e3dfc7270962076e9f4cd",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "912c18de34181b2bef91654a6671593de2543240df06dd90bfecae7b4b16dda6",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "91de9472db9314943a68c2e184f378c22ec43f554dc3ddae5039b30a7efefc90",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9522c8234fe418a729e49e796cfecbd7fb4a758c364bdd0d5430c0e7de9883fc",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9542bd7f9cdac6179095126e9aeac5682e41503947bc559c55a2f140b648af4d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "963421eab23e34e5d075145eeaaea096db16d270e5d77a69257271193b54b812",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9694a304354c0800cc0e6a6b25a8b3096663701575d4fee590cd3df47b402e47",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9729f4006e8937aa9e38f087feb2f3d9499d6b4107956d4c40167a4a6dbc04c5",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9890b79650eab1d58ca8828a19de979b4582f1d4750d466e28a47f6ca5e61356",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "99c2ca2712c02c33b52667a99d361fbd360b25d768d9241ad860dbfdd722fac7",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9b3e2bae1ac1bf309635ffd28bc7cefb1f34af80619bd85e15f2df48f6643599",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9d526e995fba9232b9a1fda217eebe7e327f50c615dcd71a1293f5ec2f6a46cd",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9d682f4a8448b729b60fb1de740e1fa8fdcc9ab6e3b36b6f9ec1669882198f20",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9ebcd6a2b182aa6b6d7c458778c46aae5ee5c9bcce75b86cb9b3a42b70db5c09",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9f23c66ef545e9bda41cc756ef11e08ab0e946a4b939e99fb9c3c62c70b77be3",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9fe9a3b99c9838273deef708aa60345cfcdb3832eb4cff8cf634fee6894aa56c",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a037888146b24c424e67bce9411d68239d7763eadc84c186707c97db4c8982c7",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a08591e0bd9a1e349ab0800b3cce33e7b2cb7b9410f4f1a0d65666517d01295e",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a0f97e247c194d72bda597cda8feac235752335ae9e2249594e0900daea76ac8",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a2417fd0660124c7c51ec67ba4bd4a093e308cbecf56fadc9f40eeeec8fc2283",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a248a8341507ee33a474d96bc2b8e68807570f5e1e2a5cdf03d1cfb72dbf44e9",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a3977aab65d12c95bfa6d61509098f9e5807726f238722eb6f3df361eb8703de",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a7e81b0eff3c58703bdfcd57951f7c31e799042e9d2fea6ad275d71c7921c435",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a8edd7cff7a1b3fc895d57692ea0b5ecd1aed477e1f652a7c31a3a31daa61adb",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "a99fe08fa6acd05b5a5a1e52705077a52d807f57883f83ea4164752ba7ace36d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "aaa5aefb539b6f576a4aa75ca8cde04a067170a0a09dbb9164eebdde93e38553",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ac1677b2fdeba2199b045e044f8a803c3ac3f5bd14ef8a38e4bdb49430c3adea",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "aeba6f6462865c7f2e8e4d3743475023015f68212a33cbd3765e52ecbcb54ac1",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "afb4f579c565344a4a0c936ff9331a236f71f03230e025806d94edd49e3b6d77",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b6d467b21cda968a67391b9d49a7f38c4d58c8c7810f314bb313786527e8a1d8",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b7df160267c36a9bc81f2d4ce8e2d5ed438d2b5f448d1d3209868d95c5e24d38",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b8341f4e6dcbae6ba0234165b1a262c2ca903c8193af1d6da8b2a677b1b719fb",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b887755925828354d8dd57d7894ed5bea613034bf3a32023906bf92bfa8aa1bc",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b963bfd01e17533155b8a4fe6fca98462650001b48bfacc9ea8aa5a104ff05ce",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bc7b50d35bc023cd840faa13b3f1df210937801f5c25a6adae6b7afe5041430f",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bdd794fe7f411b733bceb0ffc230577dd304e34e7e8764fc465dce2fe54c6a22",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bddc7ba4f05259bef7ac4b33b7642be0de9f906f42b2cc9b47cbd19e07b35a7d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bf86945340340868ec5c5f92ec9b13a63504c170e38754ce9d6a68eed4677327",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bff944fb1ab79dc78a2f702445b9ec52c12a72792e60e15f7b4904ed027548c8",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c46713ef97a7e97eade74696815c0bc8e86681bf402d8aee12d96bcde70a5dc2",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c47d6af40767afd0f142d354a068500a141571492d711275717e0bfb72bf6b7e",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c71f4f138932abd705d9b4f3ddd4502ba0f4fe3b5148485aea7117081d68a862",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c757e65fc289c172da82f0183b3fd6834fdd8fa61f89c7cdf02a129d76ba1480",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c827ee992baeb4e01c5c014a44c7e1d8b6dca008614668544c089cff4be81e0b",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ca2df8366e54cb6dbcd8ea191079cd2c2d48ac0f7d4bf93227e14acac258830d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "d51cae576cef34c79a19a885be26f58d711e101980c2613c02a8dfff1c2a322d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "d653de139c1a3b0848998d493fd77fca02e7ebb1d07b68061cd8b37b845b0652",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "dc140bd8531c9514a62ccd61b9dd7398e379c03b703427c7fb963cbf19ef6cbc",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "dd0a51c845e109767d729bca9827747cd8ac38e2781fca67e0f61c5005ebb36a",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "dea5787cab9fa7c01954aad9eddb69c5efb54fdbee27f6bf4f26776059c5fa56",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "e1efc7b334dd14b28b8f570678ac3526f1379eddaa9783bc8c0e06e710e8797d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "e325f2779cfa7b5f6718dca45f55bc6417bed2fc5eaa48aa401245593eeb7c89",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "e52353420a2543c38e98b213f4d6456daf7fb827cd599d802e757bef9dc39ac6",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "e6d8809b6f14455df19077de4351e9c6b9de2ef3585849de7c15bc63892e97aa",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "eb6fdababe114bb4350c311322f3f2baf4a49a22ce3bd8975b8d55bd3b6ea01f",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ec9faab5a30022f810337cc331bcabe2c1a0575763770d9412ef9ce39bd7089d",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "eee425e543e7f486273e14ce6cfa89487a4ba4bfdb5274d90080461fc79e31a2",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "efd4dc97f3e87637f3635770e58996756835c79269b419033163bdced1baf528",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "f060e6eb1085361fe3f4375f733be603b952ac1b2018cf34a918cc58b4fba2ef",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "f148490fa81a4846c7b23a713baf36dd7ad9bc3ba3190718bd4fa1a2848d502e",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "f5bcced1b48b6bcb788eb37ca066955c2291fa1ae45e974625445a43afc0d918",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "f74cdffe1a6b05f1e3b135391290bb20f6bd814195c55a0a227ad2b439b595f7",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "fe76f3106481feb5f9294f6bb3df8a392e944aef7e701dff76a62faf4bac4df6",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "feaa59ee1c927e30924a4c9b000ac2f2445b05ca0e377c65b564d8e3c6021e2f",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ffc26dda7f32e9d956b73f1134e9018ce3fd8b51dce792d34239178180804830",
+      "kind": "tag",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "142 changed behavior target(s) have no branch-reaching fixture: callback, signal, tag"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": true,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "4d15d4d0fe577b30dc950d339ddafe263a38b8afa99921b19d7aeccf45f2d962",
+  "decision_fingerprint": "e0a0e1c75271b1856712ca6ca4796f86dbd4a27d227894a02569fba2fac5d174",
+  "message": "Exact branch evidence is missing; continue bounded discovery."
+}
