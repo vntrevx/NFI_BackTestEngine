@@ -487,6 +487,12 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Install uv and locked Python environment
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install locked product-status runtime
+        run: uv sync --extra dev --frozen
       - name: Download available discovery results
         continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -550,7 +556,7 @@ jobs:
             discovery_execution=external_data_deferred
           fi
           echo "source_run_id=${source_run_id}" >> "${GITHUB_OUTPUT}"
-          PYTHONPATH=python python scripts/compatibility_automation.py \
+          uv run python scripts/compatibility_automation.py \
             --identity "${identity}" \
             --decision-dir "${proof}" \
             --proof-dir "${proof}" \
@@ -579,7 +585,7 @@ jobs:
         run: |
           set -euo pipefail
           source_run_id="$(jq -er .source_run_id .status/input/source-run.json)"
-          PYTHONPATH=python python scripts/validate_discovery_publication.py \
+          uv run python scripts/validate_discovery_publication.py \
             --proof-dir .status/input \
             --discovery-dir .status/discovery \
             --fixtures-root benchmarks/fixtures/captured \
