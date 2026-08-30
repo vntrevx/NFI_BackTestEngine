@@ -1,0 +1,98 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20251113-20251117"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "10111.18543631",
+    "profit_total_abs": "111.18543631",
+    "total_volume": "12003.061251359999",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "THETA/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1763161800000,
+      "close_timestamp_ms": 1763337600000,
+      "open_rate": "0.4079",
+      "close_rate": "0.4035",
+      "amount": "65.3",
+      "stake_amount": "8.87862333",
+      "max_stake_amount": "1979.98739",
+      "leverage": "3",
+      "entry_tag": "120 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0.0455876683492911"
+      },
+      "profit": {
+        "absolute": "111.18543631",
+        "ratio": "0.05612655511624891"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.2733",
+      "stop_loss": "0.2733",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1763161800000,
+          "amount": "14562.3",
+          "price": "0.4079",
+          "cost": "5942.9321510849995",
+          "tag": "120 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1763165700000,
+          "amount": "14497",
+          "price": "0.416",
+          "cost": "6033.767375999999",
+          "tag": "gm0"
+        },
+        {
+          "sequence": 2,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1763337600000,
+          "amount": "65.3",
+          "price": "0.4035",
+          "cost": "26.361724274999997",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 2930,
+      "is_open": false,
+      "minimum_rate": "0.3895",
+      "maximum_rate": "0.4315",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}

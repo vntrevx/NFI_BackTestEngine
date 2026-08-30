@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching futures fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "032ae8af2460628ec9bb4e1ef9ae852169dcae2523c7fb157ae699fcc6ae18e8",
+  "trading_mode": "futures",
+  "upstream_commit": "01b1304afaa2a1385754908817ea91be5149ffc9",
+  "engine_commit": "b72247e8457968f10349f9adc139abc8dd7bf14a",
+  "strategy_sha256": "628a39e3e626809cebfb4c4b82dcc1725c2a03ee97c5494f091ce489b46d7f03",
+  "fixture_id": "future-nfi-futures-032ae8af2460628e",
+  "manifest_sha256": "1c0ac14cc12948c9fe1ea195913ba6d21caa427eef5b56fd0e43334ac71189f3",
+  "logical_bytes": 30718695,
+  "target_ids": [
+    "3e9e388c81d60ce480eb7d96d6208ade099fe50480f1d2fdd23fed79b46cbcaa"
+  ],
+  "pair": "THETA/USDT:USDT",
+  "timerange": "20251113-20251117",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
