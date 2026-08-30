@@ -166,6 +166,12 @@ def test_discovery_status_precedes_atomic_publication_and_issue_mutation() -> No
     assert "source_run_id" in publish
     assert "scripts/check_discovery_authorization.py" in publish
     assert "nfi-discovery-publication-authorization" in publish
+    assert "Install locked publication runtime" in publish
+    assert "uv sync --extra dev --frozen" in publish
+    assert "uv run python scripts/check_discovery_authorization.py" in publish
+    assert "Install locked candidate authorization runtime" in candidate
+    assert "uv sync --extra dev --frozen" in candidate
+    assert "uv run python scripts/check_discovery_authorization.py" in candidate
     assert '--stage "product-status=${{ needs.product-status.result }}"' in health
 
 
