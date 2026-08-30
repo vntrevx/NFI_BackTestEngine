@@ -145,3 +145,63 @@ def test_targeted_coverage_gap_opens_issue_after_static_success() -> None:
     assert "TARGETED_COVERAGE_GAP" in plan["create"]["body"]
     assert "### spot" in plan["create"]["body"]
     assert "### futures" not in plan["create"]["body"]
+
+
+def test_issue_packet_includes_identity_route_coverage_and_run_link() -> None:
+    reports = {
+        "spot": {
+            "native_compatible": False,
+            "blockers": [
+                {
+                    "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+                    "message": "system adjustment shape changed",
+                }
+            ],
+        },
+        "futures": {"native_compatible": True, "blockers": []},
+    }
+    targeted = {
+        "spot": {
+            "verification_state": "latest_checked",
+            "plan": {"status": "coverage-gap", "missing_targets": ["a", "b"]},
+            "blockers": [],
+        },
+        "futures": {
+            "verification_state": "quick_verified",
+            "plan": {"status": "complete", "missing_targets": []},
+            "blockers": [],
+        },
+    }
+    identity = {
+        "engine_sha": "b" * 40,
+        "freqtrade_digest": "sha256:" + "c" * 64,
+        "semantic_profile_sha256": "d" * 64,
+        "source_sha256": "e" * 64,
+    }
+    decisions = {
+        "spot": {
+            "automation_route": "semantic_review_issue",
+            "review_kind": "generic_lowering",
+        },
+        "futures": {
+            "automation_route": "native_exact",
+            "review_kind": None,
+        },
+    }
+
+    result = MODULE.build_issue_plan(
+        reports,
+        [],
+        upstream_sha="a" * 40,
+        targeted_reports=targeted,
+        identity=identity,
+        decisions=decisions,
+        run_url="https://github.example/actions/runs/123",
+    )
+
+    body = result["create"]["body"]
+    assert f"- Engine commit: `{'b' * 40}`" in body
+    assert "- Automation route: `semantic_review_issue`" in body
+    assert "- Review kind: `generic_lowering`" in body
+    assert "- Missing behavior targets: `2`" in body
+    assert "https://github.example/actions/runs/123" in body

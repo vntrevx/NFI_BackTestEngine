@@ -719,8 +719,12 @@ jobs:
           python scripts/compatibility_issue.py \
             --reports .compatibility/results \
             --targeted-reports .compatibility/results \
+            --identity .compatibility/results/compatibility-identity.json \
+            --decisions .compatibility/results \
             --repository "${GITHUB_REPOSITORY}" \
-            --upstream-sha "${UPSTREAM_SHA}"
+            --upstream-sha "${UPSTREAM_SHA}" \
+            --run-url \
+              "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
       - name: Revalidate atomic hosted canary
         run: |
           if test -f .compatibility/results/changed-target-ledger.json; then
