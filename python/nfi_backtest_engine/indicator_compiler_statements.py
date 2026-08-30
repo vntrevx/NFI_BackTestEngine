@@ -37,6 +37,8 @@ class StatementsMixin:
             if isinstance(target, ast.Subscript):
                 if self.mapping_write(target, node.value):
                     return
+                if self.array_index_write(target, node.value):
+                    return
                 self.column_write(target, node.value, node)
                 return
             if isinstance(target, ast.Tuple | ast.List) and isinstance(node.value, ast.Call):
@@ -119,6 +121,8 @@ class StatementsMixin:
         index = 0
         while index < len(statements):
             consumed = self.absolute_difference_block(statements, index)
+            if not consumed:
+                consumed = self.lagged_array_pair_block(statements, index)
             if not consumed:
                 consumed = self.age_filter_block(statements, index)
             if not consumed:

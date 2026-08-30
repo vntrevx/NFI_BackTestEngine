@@ -1,6 +1,6 @@
 //! Exact NumPy-shaped and native array operations used by indicator programs.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value};
 
@@ -23,6 +23,8 @@ struct OpeningRangeState {
 #[derive(Debug, Default)]
 pub(super) struct ArrayCallState {
     absolute_differences: BTreeMap<String, AbsoluteDifferenceStream>,
+    maximum_accumulates: BTreeMap<String, Option<f64>>,
+    initialized_index_writes: BTreeSet<String>,
     opening_ranges: BTreeMap<String, OpeningRangeState>,
     inside_bars: BTreeMap<String, HourlyInsideBarStream>,
 }
@@ -47,6 +49,8 @@ impl ArrayCallState {
                     .map(HourlyInsideBarStream::retained)
                     .sum::<usize>(),
             )
+            .saturating_add(self.maximum_accumulates.len())
+            .saturating_add(self.initialized_index_writes.len())
     }
 }
 
@@ -83,6 +87,7 @@ fn execute_numpy<'batch>(
     match name {
         "maximum" => elementwise_extreme(node, values, rows, true, source),
         "minimum" => elementwise_extreme(node, values, rows, false, source),
+        "maximum.accumulate" => maximum_accumulate(node, values, rows, state, source),
         "abs" => elementwise_unary(node, values, rows, f64::abs, source),
         "sqrt" => square_root(node, values, rows, source),
         "absolute-difference" => absolute_difference(node, values, rows, state, source),
@@ -113,8 +118,32 @@ fn execute_native<'batch>(
         {
             inside_bar(node, name, values, rows, state, source)
         }
+        "set-index" => set_index(node, arguments, values, rows, state, source),
         _ => Err(unsupported(node, source)),
     }
+}
+
+fn set_index<'batch>(
+    node: &ProgramNode,
+    arguments: &Map<String, Value>,
+    values: &BTreeMap<String, NodeValue<'batch>>,
+    rows: usize,
+    state: &mut ArrayCallState,
+    source: Option<&SourceLocation>,
+) -> Result<NodeValue<'batch>, VectorCoreError> {
+    if arguments.len() != 1 || arguments.get("index").and_then(Value::as_u64) != Some(0) {
+        return Err(unsupported(node, source));
+    }
+    require_output(node, "f64-column", source)?;
+    let [input, replacement] = two_inputs(node, source)?;
+    let input = require_f64_column(values, input, rows, node, source)?;
+    let replacement = numeric_scalar(values, replacement, node, source)?
+        .ok_or_else(|| error(node, source, "set-index replacement is Arrow null"))?;
+    let mut output = (0..rows).map(|row| input.f64_at(row)).collect::<Vec<_>>();
+    if rows > 0 && state.initialized_index_writes.insert(node.id.clone()) {
+        output[0] = Some(replacement);
+    }
+    Ok(column(output))
 }
 
 fn elementwise_extreme<'batch>(
@@ -147,6 +176,34 @@ fn elementwise_extreme<'batch>(
             })
         })
         .collect::<Result<Vec<_>, VectorCoreError>>()?;
+    Ok(column(output))
+}
+
+fn maximum_accumulate<'batch>(
+    node: &ProgramNode,
+    values: &BTreeMap<String, NodeValue<'batch>>,
+    rows: usize,
+    state: &mut ArrayCallState,
+    source: Option<&SourceLocation>,
+) -> Result<NodeValue<'batch>, VectorCoreError> {
+    require_output(node, "f64-column", source)?;
+    let input = one_input(node, source)?;
+    let input = collect_present_f64(values, input, rows, node, source)?;
+    let current = state
+        .maximum_accumulates
+        .entry(node.id.clone())
+        .or_insert(None);
+    let mut output = Vec::with_capacity(rows);
+    for value in input {
+        let next = match *current {
+            Some(previous) if previous.is_nan() || value.is_nan() => f64::NAN,
+            Some(previous) if previous > value => previous,
+            None | Some(_) => value,
+        };
+        let next = canonicalize(next);
+        *current = Some(next);
+        output.push(Some(next));
+    }
     Ok(column(output))
 }
 
@@ -756,6 +813,73 @@ mod tests {
             assert!(actual[2].expect("NaN is not null").is_nan());
             assert_eq!(actual[3], None);
         }
+    }
+
+    #[test]
+    fn numpy_maximum_accumulate_streams_across_batches_and_propagates_nan() {
+        let operation = node("maximum.accumulate", "f64-column", &["input"], &json!({}));
+        let mut state = ArrayCallState::default();
+        let first = execute_array_call(
+            &operation,
+            &BTreeMap::from([(
+                "input".to_owned(),
+                owned_f64(vec![Some(1.0), Some(3.0), Some(2.0)]),
+            )]),
+            3,
+            &mut state,
+            Some(&source()),
+        )
+        .expect("valid first accumulation batch");
+        assert_eq!(output(&first), vec![Some(1.0), Some(3.0), Some(3.0)]);
+
+        let second = execute_array_call(
+            &operation,
+            &BTreeMap::from([(
+                "input".to_owned(),
+                owned_f64(vec![Some(4.0), Some(f64::NAN), Some(5.0)]),
+            )]),
+            3,
+            &mut state,
+            Some(&source()),
+        )
+        .expect("valid second accumulation batch");
+        let second = output(&second);
+        assert_eq!(second[0], Some(4.0));
+        assert!(second[1].expect("NaN is not null").is_nan());
+        assert!(second[2].expect("NaN remains sticky").is_nan());
+        assert_eq!(state.retained(), 1);
+    }
+
+    #[test]
+    fn native_set_index_changes_only_the_first_global_batch_row() {
+        let operation = native_node("set-index", &["input", "replacement"], &json!({"index": 0}));
+        let mut state = ArrayCallState::default();
+        let first = execute_array_call(
+            &operation,
+            &BTreeMap::from([
+                ("input".to_owned(), owned_f64(vec![Some(1.0), Some(2.0)])),
+                ("replacement".to_owned(), NodeValue::Float(0.0)),
+            ]),
+            2,
+            &mut state,
+            Some(&source()),
+        )
+        .expect("valid first index write batch");
+        assert_eq!(output(&first), vec![Some(0.0), Some(2.0)]);
+
+        let second = execute_array_call(
+            &operation,
+            &BTreeMap::from([
+                ("input".to_owned(), owned_f64(vec![Some(3.0), Some(4.0)])),
+                ("replacement".to_owned(), NodeValue::Float(0.0)),
+            ]),
+            2,
+            &mut state,
+            Some(&source()),
+        )
+        .expect("valid second index write batch");
+        assert_eq!(output(&second), vec![Some(3.0), Some(4.0)]);
+        assert_eq!(state.retained(), 1);
     }
 
     #[test]

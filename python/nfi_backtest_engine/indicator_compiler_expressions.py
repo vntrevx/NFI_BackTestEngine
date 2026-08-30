@@ -76,6 +76,9 @@ class ExpressionsMixin:
         if isinstance(node, ast.BoolOp):
             return self.logical(node, type(node.op))
         if isinstance(node, ast.UnaryOp):
+            found, value = self.try_static_value(node)
+            if found:
+                return self.literal(node, value)
             operator = _UNARY_OPS.get(type(node.op))
             if operator is None:
                 self.unsupported(node, "unary indicator operator")

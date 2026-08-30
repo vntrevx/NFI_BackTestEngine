@@ -22,6 +22,59 @@ from ._indicator_contract import (
 from .indicator_compiler_protocol import CompilerProtocol
 
 
+def _lagged_array_allocation(statement: ast.stmt) -> tuple[str, ast.expr] | None:
+    if not (
+        isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and isinstance(statement.value, ast.Call)
+        and _qualified_name(statement.value.func) == "np.empty_like"
+        and len(statement.value.args) == 1
+        and not statement.value.keywords
+    ):
+        return None
+    return statement.targets[0].id, statement.value.args[0]
+
+
+def _zero_index_target(node: ast.expr, name: str) -> bool:
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == name
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value == 0
+    )
+
+
+def _lagged_array_write(statement: ast.stmt, output: str, source: ast.expr) -> bool:
+    if not (
+        isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Subscript)
+        and isinstance(statement.targets[0].value, ast.Name)
+        and statement.targets[0].value.id == output
+        and isinstance(statement.targets[0].slice, ast.Slice)
+        and isinstance(statement.value, ast.Subscript)
+        and _ast_equal(statement.value.value, source)
+        and isinstance(statement.value.slice, ast.Slice)
+    ):
+        return False
+    target_slice = statement.targets[0].slice
+    source_slice = statement.value.slice
+    return (
+        isinstance(target_slice.lower, ast.Constant)
+        and target_slice.lower.value == 1
+        and target_slice.upper is None
+        and target_slice.step is None
+        and source_slice.lower is None
+        and isinstance(source_slice.upper, ast.UnaryOp)
+        and isinstance(source_slice.upper.op, ast.USub)
+        and isinstance(source_slice.upper.operand, ast.Constant)
+        and source_slice.upper.operand.value == 1
+        and source_slice.step is None
+    )
+
+
 class PatternsMixin:
     def absolute_difference_block(
         self: CompilerProtocol,
@@ -65,6 +118,55 @@ class PatternsMixin:
             lookback=_add_finite_lookback(self.lookback(source), 1),
         )
         return 3
+
+    def lagged_array_pair_block(
+        self: CompilerProtocol,
+        statements: Sequence[ast.stmt],
+        index: int,
+    ) -> int:
+        candidate = statements[index : index + 5]
+        if len(candidate) != 5:
+            return 0
+        first = _lagged_array_allocation(candidate[0])
+        second = _lagged_array_allocation(candidate[1])
+        warmup = candidate[2]
+        if (
+            first is None
+            or second is None
+            or not isinstance(warmup, ast.Assign)
+            or len(warmup.targets) != 2
+            or not all(
+                _zero_index_target(target, name)
+                for target, name in zip(
+                    warmup.targets,
+                    (first[0], second[0]),
+                    strict=True,
+                )
+            )
+            or not isinstance(warmup.value, ast.Attribute)
+            or _qualified_name(warmup.value) != "np.nan"
+            or not _lagged_array_write(candidate[3], first[0], first[1])
+            or not _lagged_array_write(candidate[4], second[0], second[1])
+        ):
+            return 0
+        for allocated, (output_name, source_node) in zip(
+            candidate[:2],
+            (first, second),
+            strict=True,
+        ):
+            source = self.expression(source_node)
+            value_type = self.node_types[source]
+            if not value_type.endswith("-column"):
+                self.unsupported(source_node, "lagged array source type")
+            self.bindings[output_name] = self.emit(
+                allocated,
+                "shift",
+                value_type,
+                inputs=[source],
+                parameters={"periods": 1},
+                lookback=_add_finite_lookback(self.lookback(source), 1),
+            )
+        return len(candidate)
 
     def age_filter_block(
         self: CompilerProtocol,
