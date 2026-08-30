@@ -178,6 +178,7 @@ def test_unchanged_status_uses_authoritative_ledger_without_fallback_identity() 
     product = _job(WORKFLOW.read_text(encoding="utf-8"), "product-status")
 
     assert "compatibility-ledger" in product
+    assert "mkdir -p .compatibility/status-input" in product
     assert "compatibility-proof-manifest.json" in product
     assert "latest.json" in product
     assert "printf '0%.0s'" not in product

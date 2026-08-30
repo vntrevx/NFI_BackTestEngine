@@ -555,6 +555,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p .compatibility/status-input
           ledger_dir="$(mktemp -d)"
           git clone --quiet --single-branch --branch compatibility-ledger \
             "https://github.com/${GITHUB_REPOSITORY}.git" "${ledger_dir}"
