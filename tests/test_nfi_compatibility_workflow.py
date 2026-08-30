@@ -188,6 +188,8 @@ def test_workflow_emits_a_required_product_status_separate_from_health() -> None
     assert "name: NFI product compatibility" in product
     assert "if: always()" in product
     assert "scripts/compatibility_automation.py" in product
+    assert "astral-sh/setup-uv" in product
+    assert "uv sync --extra dev --frozen" in product
     assert "--workflow-execution" in product
     assert "--proof-dir" in product
     assert "--source-run-id" in product
