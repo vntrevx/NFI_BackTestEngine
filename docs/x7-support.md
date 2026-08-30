@@ -80,12 +80,13 @@ switches. Probe-only source changes are AST-bound to the expected class attribut
 old literal; routine upstream edits fail closed instead of silently changing the wrong
 line.
 
-Static exact lowering passes for X7 v17.4.580 at upstream commit
-`b22cc60d1c018eeb984cb02a125bb790042bebd0`. Its source SHA-256 is
-`40796e8be7ad11ba14dc51607ee1d002d1c7cce743f1476f67ddfac5283a5aeb`.
+Static exact lowering passes for X7 v17.4.581 at upstream commit
+`01b1304afaa2a1385754908817ea91be5149ffc9`. Its source SHA-256 is
+`628a39e3e626809cebfb4c4b82dcc1725c2a03ee97c5494f091ce489b46d7f03`.
 The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
-de-risk state dependencies, and late grind predicates as typed operands and
-comparisons. Rust therefore does not carry release-specific grind 4/5 thresholds.
+de-risk state dependencies, late grind predicates, and bounded state-history reads as
+typed operands and comparisons. Rust therefore does not carry release-specific grind
+4/5 thresholds or a fixed two-state history assumption.
 The tag-121 regular-adjustment compiler likewise extracts its reverse order scan,
 rebuy exclusions, dynamic Grind and de-risk tags, separate spot/futures stake ladders,
 thresholds and stops, the leverage-scaled Futures drawdown fallback, and the
@@ -94,12 +95,24 @@ profit snapshot before branch selection. Promotion required an independent revie
 shadow to agree exactly; current payloads register no legacy shadow, and the preserved
 comparison remains evidence rather than a runtime branch.
 
-The v1.7.0 current-source qualification is deliberately separate from the immutable
-distribution regression fixtures. Spot and Futures static reachability both report
-zero reachable stateful gaps, complete closure, and Native compatibility for
-v17.4.580. The release-candidate contract continues to replay the sealed v17.4.473
-fixtures; static current-source closure does not convert those historical fixtures
-into a current-source full-state certificate.
+The post-v1.7.0 current-source qualification is deliberately separate from the
+immutable distribution regression fixtures. Spot and Futures static reachability both
+report zero reachable stateful gaps, complete closure, and Native compatibility for
+v17.4.581. Two bounded transition fixtures additionally prove the changed `gm0` route
+against final engine commit `b72247e8457968f10349f9adc139abc8dd7bf14a`:
+
+- Spot `ADA/USDT` over `20251104-20251107`: 24,824,635 logical bytes;
+- isolated-Futures `THETA/USDT:USDT` over `20251113-20251117`: 30,718,695 logical bytes.
+
+Both the v17.4.580 baseline and v17.4.581 candidate observe target
+`3e9e388c81d60ce480eb7d96d6208ade099fe50480f1d2fdd23fed79b46cbcaa`;
+the independent Official Freqtrade and Native trade surfaces and full state are exact
+at zero tolerance. The fixtures are preserved for review in
+[Spot candidate PR #277](https://github.com/vntrevx/NFI_BackTestEngine/pull/277) and
+[Futures candidate PR #276](https://github.com/vntrevx/NFI_BackTestEngine/pull/276).
+They are compact current-source evidence, not five-year certificates. The
+release-candidate contract continues to replay sealed historical fixtures, and neither
+candidate relabels those version-bound certificates.
 
 A narrow v17.4.435 runtime check additionally records exact final-surface parity for
 one spot interval and one isolated-futures interval in
