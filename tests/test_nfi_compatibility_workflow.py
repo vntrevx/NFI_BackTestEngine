@@ -68,7 +68,7 @@ def test_workflow_exports_paired_sources_and_four_part_identity() -> None:
     assert ".compatibility/baseline-resolution.json" in text
 
 
-def test_workflow_builds_and_gates_current_head_changed_target_ledger() -> None:
+def test_workflow_builds_changed_target_ledger_only_for_native_routes() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     canary = text[text.index("  canary:") : text.index("  publish:")]
     publish = text[text.index("  publish:") : text.index("  health:")]
@@ -80,6 +80,10 @@ def test_workflow_builds_and_gates_current_head_changed_target_ledger() -> None:
     assert '--upstream-head "$(jq -er .upstream_sha' in canary
     assert '--baseline-commit "$(jq -er .baseline_upstream_sha' in canary
     assert "scripts/validate_changed_target_promotion.py" in canary
+    assert 'all(.[]; .execution_route == "native")' in canary
+    assert canary.index('all(.[]; .execution_route == "native")') < canary.index(
+        "strategy semantic-registry-packaged-integrity"
+    )
     assert canary.index("Generate current-HEAD changed-target ledger") < canary.index(
         "Validate four-identity dual-mode completion"
     )
@@ -87,6 +91,7 @@ def test_workflow_builds_and_gates_current_head_changed_target_ledger() -> None:
     assert publish.index("validate_changed_target_promotion.py") < publish.index(
         "Publish append-only compatibility ledger"
     )
+    assert "if test -f .compatibility/results/changed-target-ledger.json" in publish
 
 
 def test_workflow_seals_both_modes_before_atomic_identity_advancement() -> None:
@@ -149,7 +154,7 @@ def test_workflow_health_is_separate_from_compatibility_blockers() -> None:
     assert "--stage \"publish=${{ needs.publish.result }}\"" in text
 
 
-def test_product_status_precedes_every_compatibility_mutation() -> None:
+def test_product_status_precedes_mutation_without_treating_blocker_as_job_failure() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     product = _job(text, "product-status")
     publish = _job(text, "publish")
@@ -157,10 +162,10 @@ def test_product_status_precedes_every_compatibility_mutation() -> None:
     assert "      - publish\n" not in product
     assert "      - product-status\n" in publish
     assert "needs.product-status.result == 'success'" in publish
-    assert publish.index("jq -e '.required_status_passed == true'") < publish.index(
-        "scripts/compatibility_issue.py"
-    )
-    assert publish.index("jq -e '.required_status_passed == true'") < publish.index(
+    assert "jq -e '.required_status_passed == true'" not in publish
+    validation = '(.schema_version == "compatibility-product-status-v1")'
+    assert publish.index(validation) < publish.index("scripts/compatibility_issue.py")
+    assert publish.index(validation) < publish.index(
         "git push --quiet origin HEAD:compatibility-ledger"
     )
 
@@ -190,7 +195,9 @@ def test_workflow_emits_a_required_product_status_separate_from_health() -> None
     assert "--futures-discovery-execution not_required" in product
     assert "compatibility-product-status.json" in product
     assert "if-no-files-found: error" in product
-    assert "jq -e '.required_status_passed == true'" in product
+    assert "required_status_passed: ${{ steps.status.outputs.required_status_passed }}" in product
+    assert "required_status_passed must be boolean" in product
+    assert "Enforce required product compatibility" not in product
     assert "      - product-status\n" in health
     assert '--stage "product-status=${{ needs.product-status.result }}"' in health
 
@@ -208,3 +215,18 @@ def test_workflow_routes_blocked_semantics_to_one_issue_and_never_opens_review_p
     assert "compatibility_review_pr.py" not in text
     assert "pull-requests: write" not in text
     assert "gh pr create" not in text
+
+
+def test_blocked_observation_is_published_without_native_promotion_proof() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    product = _job(text, "product-status")
+    publish = _job(text, "publish")
+
+    assert 'test -f "${proof}/changed-target-ledger.json"' in product
+    assert 'test -f "${proof}/hosted-canary.json"' in product
+    assert "seal=(--seal-proof-manifest)" in product
+    assert (
+        "if test -f "
+        ".compatibility/results/changed-target-ledger.json"
+    ) in publish
+    assert "required_status_passed: $required_status_passed" in publish

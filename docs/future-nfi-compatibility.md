@@ -146,17 +146,19 @@ image digest, semantic-profile fingerprint를 함께 확인한다. 네 값이 �
 queue 사정에 따라 지연될 수 있으므로 4시간은 실시간 SLA가 아니라 검사 주기다.
 
 검사가 필요하면 Spot/Futures 정적 검사, AST/IR diff와 변경경로 표적검증을 서로
-독립 실행한다. hosted canary가 두 mode의 schema, source, qualification, 자동 분류와 네 identity를
-원자적으로 검증한 경우에만 `compatibility-ledger`의
+독립 실행한다. hosted canary가 두 mode의 schema, source, qualification, 자동 분류와
+네 identity를 원자적으로 검증하면 `compatibility-ledger`의
 `checks/<upstream>/<engine>/<freqtrade>/<semantic-profile>/runs/<run-attempt>`에 compact
-JSON을 추가한다. 대용량 임시 trace는 업로드하지 않으며 compact JSON artifact만
-30일 보존한다. 한 mode라도 누락되거나 자동화가 실패하면 latest identity를
-전진시키지 않아 다음 주기에 재시도한다.
+JSON을 추가하고 latest observation을 전진시킨다. Native 실행으로 분류된 mode만
+changed-target ledger와 sealed promotion proof를 요구한다. 새 의미가 아직
+`official_only`이면 Native 승격 proof 없이도 blocked product status, hosted canary,
+호환성 issue와 관찰 ledger를 남긴다. 대용량 임시 trace는 업로드하지 않으며 compact
+JSON artifact만 30일 보존한다. 한 mode라도 누락되거나 다운로드·빌드·권한·artifact
+같은 자동화가 실패하면 latest observation을 전진시키지 않아 다음 주기에 재시도한다.
 
-전략 blocker는 `nfi-compatibility`, 다운로드·빌드·권한·artifact 장애는
-`nfi-automation-health`로 분리한다. 같은 canonical fingerprint는 issue와 알림을
-중복 생성하지 않으며, 복구 또는 새로운 blocker가 확인되면 기존 issue 상태를
-자동 조정한다.
+전략 blocker는 `nfi-compatibility`, 자동화 장애는 `nfi-automation-health`로 분리한다.
+호환성 issue는 하나만 열어 두고 최신 upstream SHA, canonical fingerprint와 blocker
+본문으로 갱신한다. blocker가 복구되면 해당 issue를 자동으로 닫는다.
 
 매 업데이트마다 5년 인증을 다시 실행하지 않는다.
 

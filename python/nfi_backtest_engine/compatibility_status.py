@@ -106,6 +106,11 @@ def classify_compatibility_status(
             execution_reason = "workflow_skipped"
         case unreachable:
             assert_never(unreachable)
+    automation_routes = {
+        str(decision.get("automation_route"))
+        for decision in decisions.values()
+        if isinstance(decision, Mapping)
+    }
 
     if checked_identity["engine_sha"] != current_engine_sha:
         reason = "stale_engine"
@@ -137,6 +142,21 @@ def classify_compatibility_status(
     ):
         product_state = "blocked"
         reason = "discovery_skipped"
+    elif "semantic_review_issue" in automation_routes:
+        product_state = "blocked"
+        reason = "semantic_review_required"
+    elif "external_data_deferred" in automation_routes:
+        product_state = "blocked"
+        reason = "external_data_deferred"
+    elif "bounded_discovery" in automation_routes:
+        product_state = "blocked"
+        reason = "bounded_discovery_required"
+    elif "exact_fixture_draft_pr" in automation_routes:
+        product_state = "blocked"
+        reason = "exact_fixture_review_required"
+    elif "official_only" in automation_routes:
+        product_state = "blocked"
+        reason = "native_exactness_unproven"
     elif proof_failure_reason is not None:
         reason = proof_failure_reason
     elif verified_proof is None or verified_proof.decisions != decisions:

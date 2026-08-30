@@ -40,6 +40,51 @@ def test_same_blocker_fingerprint_does_not_create_duplicate_issue() -> None:
 
     assert repeated["create"] is None
     assert repeated["close"] == []
+    assert repeated["update"]["number"] == 7
+    assert f"Upstream commit: `{'b' * 40}`" in repeated["update"]["body"]
+
+
+def test_changed_blocker_reuses_the_existing_compatibility_issue() -> None:
+    previous_reports = {
+        "spot": {"native_compatible": False, "blockers": [{"code": "OLD"}]},
+        "futures": {"native_compatible": True, "blockers": []},
+    }
+    previous = MODULE.build_issue_plan(
+        previous_reports,
+        [],
+        upstream_sha="a" * 40,
+    )
+    issues = [
+        {
+            "number": 7,
+            "title": previous["create"]["title"],
+            "body": previous["create"]["body"],
+        },
+        {
+            "number": 8,
+            "title": "Older compatibility blocker",
+            "body": "<!-- nfi-compatibility-fingerprint:" + "f" * 64 + " -->",
+        },
+    ]
+    current_reports = {
+        "spot": {
+            "native_compatible": False,
+            "blockers": [{"code": "NEW", "message": "changed lowering"}],
+        },
+        "futures": {"native_compatible": True, "blockers": []},
+    }
+
+    plan = MODULE.build_issue_plan(
+        current_reports,
+        issues,
+        upstream_sha="b" * 40,
+    )
+
+    assert plan["create"] is None
+    assert plan["update"]["number"] == 7
+    assert "NEW" in plan["update"]["body"]
+    assert f"Upstream commit: `{'b' * 40}`" in plan["update"]["body"]
+    assert plan["close"] == [8]
 
 
 def test_recovery_closes_open_compatibility_issues() -> None:

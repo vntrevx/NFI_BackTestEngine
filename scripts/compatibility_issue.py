@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create one issue per compatibility blocker fingerprint and close on recovery."""
+"""Maintain one deduplicated NFI compatibility review issue."""
 
 from __future__ import annotations
 
@@ -38,27 +38,10 @@ def build_issue_plan(
         for mode, blockers in failures.items()
         if blockers
     }
-    fingerprint = (
-        _canonical_sha256(failures) if failures else None
-    )
-    existing_by_fingerprint = {
-        match.group(1): issue
-        for issue in open_issues
-        if isinstance(issue.get("body"), str)
-        if (match := _MARKER.search(str(issue["body"]))) is not None
-    }
-    keep_number = (
-        existing_by_fingerprint.get(fingerprint, {}).get("number")
-        if fingerprint is not None
-        else None
-    )
-    close = [
-        int(issue["number"])
-        for issue in open_issues
-        if issue.get("number") != keep_number
-    ]
-    create = None
-    if fingerprint is not None and keep_number is None:
+    fingerprint = _canonical_sha256(failures) if failures else None
+    issues = sorted(open_issues, key=lambda issue: int(issue["number"]))
+    desired: dict[str, str] | None = None
+    if fingerprint is not None:
         sections = []
         for mode, blockers in failures.items():
             descriptions = "\n".join(
@@ -67,7 +50,7 @@ def build_issue_plan(
                 if isinstance(item, Mapping)
             ) or "- compatibility report did not contain a structured blocker"
             sections.append(f"### {mode}\n\n{descriptions}")
-        create = {
+        desired = {
             "title": f"Latest NFI compatibility blocker ({upstream_sha[:12]})",
             "body": (
                 f"{_MARKER_TEXT(fingerprint)}\n\n"
@@ -76,10 +59,41 @@ def build_issue_plan(
                 + "\n\nThis issue is reconciled automatically when the blocker recovers."
             ),
         }
+
+    keep_issue: Mapping[str, Any] | None = None
+    if desired is not None:
+        keep_issue = next(
+            (
+                issue
+                for issue in issues
+                if isinstance(issue.get("body"), str)
+                and (match := _MARKER.search(str(issue["body"]))) is not None
+                and match.group(1) == fingerprint
+            ),
+            issues[0] if issues else None,
+        )
+    keep_number = int(keep_issue["number"]) if keep_issue is not None else None
+    create = desired if desired is not None and keep_issue is None else None
+    update = None
+    if (
+        desired is not None
+        and keep_issue is not None
+        and (
+            str(keep_issue.get("title") or "") != desired["title"]
+            or str(keep_issue.get("body") or "") != desired["body"]
+        )
+    ):
+        update = {"number": keep_number, **desired}
+    close = [
+        int(issue["number"])
+        for issue in issues
+        if int(issue["number"]) != keep_number
+    ]
     return {
         "fingerprint": fingerprint,
         "create": create,
         "close": close,
+        "update": update,
         "recovered": not failures,
     }
 
@@ -138,6 +152,19 @@ def main() -> int:
             str(create["title"]),
             "--body",
             str(create["body"]),
+        )
+    update = plan["update"]
+    if isinstance(update, Mapping):
+        _gh(
+            "issue",
+            "edit",
+            str(update["number"]),
+            "--repo",
+            args.repository,
+            "--title",
+            str(update["title"]),
+            "--body",
+            str(update["body"]),
         )
     for number in plan["close"]:
         comment = (

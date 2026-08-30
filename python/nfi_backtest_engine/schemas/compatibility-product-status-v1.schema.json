@@ -70,6 +70,10 @@
             "invalid_authoritative_proof",
             "discovery_skipped",
             "external_data_deferred",
+            "semantic_review_required",
+            "bounded_discovery_required",
+            "exact_fixture_review_required",
+            "native_exactness_unproven",
             "branch_proof_missing"
           ]
         }

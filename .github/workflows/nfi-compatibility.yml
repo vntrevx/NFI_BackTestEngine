@@ -468,6 +468,16 @@ jobs:
           merge-multiple: true
       - name: Generate current-HEAD changed-target ledger
         run: |
+          set -euo pipefail
+          if ! jq -s -e \
+            'length == 2 and all(.[]; .execution_route == "native")' \
+            .compatibility/results/automation-decision-spot.json \
+            .compatibility/results/automation-decision-futures.json \
+            >/dev/null; then
+            echo "Changed-target Native promotion proof is not required for official-only routes." \
+              >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
           uv run nfi-bte strategy semantic-registry-packaged-integrity
           gzip -dc -- \
             python/nfi_backtest_engine/contracts/freqtrade-nfi-semantic-obligation-registry.json.gz \
@@ -519,6 +529,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source_run_id: ${{ steps.status.outputs.source_run_id }}
+      required_status_passed: ${{ steps.status.outputs.required_status_passed }}
     steps:
       - name: Check out current main for status comparison
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -546,7 +557,6 @@ jobs:
           cp -a "${ledger_dir}/${check_path}/." .compatibility/status-input/
       - name: Seal and classify authoritative product status
         id: status
-        continue-on-error: true
         env:
           CHANGED: ${{ needs.discover.outputs.changed || 'false' }}
         shell: bash
@@ -572,9 +582,13 @@ jobs:
               --argjson identity "$(jq '{upstream_sha,engine_sha,freqtrade_digest,semantic_profile_sha256,source_sha256}' "${identity}")" \
               '{schema_version:"compatibility-source-run-v1",source_run_id:$source_run_id,identity:$identity}' \
               > "${proof}/source-run.json"
-            seal=(--seal-proof-manifest)
           else
             source_run_id="$(jq -er .source_run_id "${proof}/source-run.json")"
+          fi
+          if [ "${CHANGED}" = "true" ] \
+            && test -f "${proof}/changed-target-ledger.json" \
+            && test -f "${proof}/hosted-canary.json"; then
+            seal=(--seal-proof-manifest)
           fi
           workflow_execution=succeeded
           if [ "$(jq -er .freqtrade_digest "${identity}")" != "${local_digest}" ] \
@@ -594,6 +608,18 @@ jobs:
             --spot-discovery-execution not_required \
             --futures-discovery-execution not_required \
             --output .compatibility/compatibility-product-status.json
+          required_status_passed="$(
+            jq -er \
+              'if (.required_status_passed | type) == "boolean"
+               then (.required_status_passed | tostring)
+               else error("required_status_passed must be boolean")
+               end' \
+              .compatibility/compatibility-product-status.json
+          )"
+          echo "required_status_passed=${required_status_passed}" \
+            >> "${GITHUB_OUTPUT}"
+          echo "required_status_passed=${required_status_passed}" \
+            >> "${GITHUB_STEP_SUMMARY}"
       - name: Retain machine-consumed compatibility status
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -606,8 +632,11 @@ jobs:
             .compatibility/status-input/semantic-profile.json
           if-no-files-found: error
           retention-days: 30
-      - name: Enforce required product compatibility
-        run: jq -e '.required_status_passed == true' .compatibility/compatibility-product-status.json
+      - name: Validate product status document
+        run: >-
+          jq -e '(.schema_version == "compatibility-product-status-v1")
+            and ((.required_status_passed | type) == "boolean")'
+          .compatibility/compatibility-product-status.json
 
   publish:
     name: Preserve ledger and reconcile compatibility issue
@@ -650,14 +679,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          status=.compatibility/status/compatibility-product-status.json
-          jq -e '.required_status_passed == true' "${status}"
+          jq -e '(.schema_version == "compatibility-product-status-v1")
+            and ((.required_status_passed | type) == "boolean")' "${status}"
           test "$(jq -er .observed_identity.engine_sha "${status}")" = \
             "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
             "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
-          test "$(jq -er .same_engine_proof.source_run_id "${status}")" = \
-            "${{ needs.product-status.outputs.source_run_id }}"
+          test "$(
+            jq -er .source_run_id \
+              .compatibility/status/status-input/source-run.json
+          )" = "${{ needs.product-status.outputs.source_run_id }}"
       - name: Reconcile deduplicated compatibility issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -679,9 +710,11 @@ jobs:
             --upstream-sha "${UPSTREAM_SHA}"
       - name: Revalidate atomic hosted canary
         run: |
-          uv run python scripts/validate_changed_target_promotion.py \
-            --ledger .compatibility/results/changed-target-ledger.json \
-            --decisions .compatibility/results
+          if test -f .compatibility/results/changed-target-ledger.json; then
+            uv run python scripts/validate_changed_target_promotion.py \
+              --ledger .compatibility/results/changed-target-ledger.json \
+              --decisions .compatibility/results
+          fi
           python scripts/compatibility_canary.py \
             --identity .compatibility/results/compatibility-identity.json \
             --strategy-diff .compatibility/results/strategy-diff.json \
@@ -741,17 +774,28 @@ jobs:
             verification-plan-spot.json \
             verification-plan-futures.json \
             compatibility-identity.json \
-            changed-target-ledger.json \
             hosted-canary.json; do
             cp "${GITHUB_WORKSPACE}/.compatibility/results/${file}" \
               "${check_path}/${file}"
           done
+          if test -f \
+            "${GITHUB_WORKSPACE}/.compatibility/results/changed-target-ledger.json"; then
+            cp \
+              "${GITHUB_WORKSPACE}/.compatibility/results/changed-target-ledger.json" \
+              "${check_path}/changed-target-ledger.json"
+          fi
           cp "${GITHUB_WORKSPACE}/.compatibility/status/compatibility-product-status.json" \
             "${check_path}/compatibility-product-status.json"
-          for file in compatibility-proof-manifest.json source-run.json semantic-profile.json; do
+          for file in source-run.json semantic-profile.json; do
             cp "${GITHUB_WORKSPACE}/.compatibility/status/status-input/${file}" \
               "${check_path}/${file}"
           done
+          if test -f \
+            "${GITHUB_WORKSPACE}/.compatibility/status/status-input/compatibility-proof-manifest.json"; then
+            cp \
+              "${GITHUB_WORKSPACE}/.compatibility/status/status-input/compatibility-proof-manifest.json" \
+              "${check_path}/compatibility-proof-manifest.json"
+          fi
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           jq -n \
             --arg upstream_sha "${UPSTREAM_SHA}" \
@@ -763,6 +807,8 @@ jobs:
             --arg trigger_reason "${TRIGGER_REASON}" \
             --arg run_url "${run_url}" \
             --arg source_run_id "${{ needs.product-status.outputs.source_run_id }}" \
+            --argjson required_status_passed \
+              "$(jq -er .required_status_passed "${status}")" \
             '{
               schema_version: "1.1.0",
               upstream_sha: $upstream_sha,
@@ -773,7 +819,8 @@ jobs:
               check_path: $check_path,
               trigger_reason: $trigger_reason,
               run_url: $run_url,
-              source_run_id: $source_run_id
+              source_run_id: $source_run_id,
+              required_status_passed: $required_status_passed
             }' > "${check_path}/metadata.json"
           cp "${check_path}/metadata.json" latest.json
           printf '%s\n' "${UPSTREAM_SHA}" > latest-sha.txt

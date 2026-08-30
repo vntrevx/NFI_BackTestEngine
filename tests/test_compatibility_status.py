@@ -167,6 +167,57 @@ def test_status_is_blocked_when_required_discovery_was_skipped() -> None:
     assert status["same_engine_proof"]["complete"] is False
 
 
+def test_semantic_review_is_a_blocked_product_observation_not_infrastructure_failure() -> None:
+    identity, difference, compatibility, targeted = _documents()
+    compatibility.update(
+        {
+            "native_compatible": False,
+            "blockers": [
+                {
+                    "code": "EXACT_LOWERING_REVIEW_REQUIRED",
+                    "message": "system adjustment keys changed",
+                }
+            ],
+        }
+    )
+    futures = classify_compatibility_automation(
+        identity,
+        difference,
+        compatibility,
+        targeted,
+    )
+    compatibility["trading_mode"] = "spot"
+    targeted["trading_mode"] = "spot"
+    targeted["qualification"]["trading_mode"] = "spot"
+    decisions = {
+        "spot": classify_compatibility_automation(
+            identity,
+            difference,
+            compatibility,
+            targeted,
+        ),
+        "futures": futures,
+    }
+    observation = CompatibilityRunObservation(
+        identity["engine_sha"],
+        identity["upstream_sha"],
+        WorkflowExecution.SUCCEEDED,
+        {
+            "spot": DiscoveryExecution.NOT_REQUIRED,
+            "futures": DiscoveryExecution.NOT_REQUIRED,
+        },
+    )
+
+    status = classify_compatibility_status(identity, decisions, observation)
+
+    assert status["workflow"]["state"] == "succeeded"
+    assert status["product"] == {
+        "state": "blocked",
+        "reason": "semantic_review_required",
+    }
+    assert status["required_status_passed"] is False
+
+
 def test_status_fails_closed_when_artifact_is_missing_or_self_asserted_green() -> None:
     # Given
     identity, decisions = _exact_decisions()
