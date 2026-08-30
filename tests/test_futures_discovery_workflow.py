@@ -47,7 +47,7 @@ def test_discovery_is_separate_resumable_and_resource_bounded() -> None:
     assert 'cron: "47 2 * * *"' in text
     assert "'.run_url | split(\"/\")[-1]'" in text
     assert r"split(\"/\")" not in text
-    assert "cancel-in-progress: false" in text
+    assert "cancel-in-progress: true" in text
     assert "timeout-minutes: 125" in text
     assert "github.event.workflow_run.conclusion == 'success'" not in text
     assert "stale_trigger: ${{ steps.identity.outputs.stale_trigger }}" in text
@@ -100,12 +100,12 @@ def test_exact_fast_lane_closes_discovery_gaps_without_running_deep_search() -> 
     health = text[text.index("  health:") :]
 
     assert "Reconcile gaps already proven exact by the fast lane" in health
-    assert "needs.product-status.result == 'success'" in health
+    assert "needs.product-status.outputs.required_status_passed == 'true'" in health
     assert 'status: "complete"' in health
     assert "python scripts/futures_discovery_issue.py" in health
 
 
-def test_discovery_product_status_fails_closed_and_recovers_on_same_engine_proof() -> None:
+def test_discovery_product_status_records_blocked_state_and_authorizes_progress() -> None:
     text = DISCOVERY.read_text(encoding="utf-8")
     resolve = text[text.index("  resolve:") : text.index("  discover:")]
     product = _job(text, "product-status")
@@ -125,7 +125,10 @@ def test_discovery_product_status_fails_closed_and_recovers_on_same_engine_proof
     assert "--spot-discovery-execution" in product
     assert "--futures-discovery-execution" in product
     assert "if-no-files-found: error" in product
-    assert "jq -e '.required_status_passed == true'" in product
+    assert "Validate product compatibility status schema" in product
+    assert "Authorize paired discovery publication independently of product status" in product
+    assert "scripts/validate_discovery_publication.py" in product
+    assert "jq -e '.required_status_passed == true'" not in product
 
 
 @pytest.mark.parametrize("conclusion", ["failure", "cancelled", "skipped"])
@@ -157,16 +160,23 @@ def test_discovery_status_precedes_atomic_publication_and_issue_mutation() -> No
     assert "discovery/spot/latest.json" in publish
     assert "discovery/futures/latest.json" in publish
     assert "source_run_id" in publish
-    assert "needs.product-status.result == 'success'" in health
+    assert "scripts/check_discovery_authorization.py" in publish
+    assert "nfi-discovery-publication-authorization" in publish
+    assert '--stage "product-status=${{ needs.product-status.result }}"' in health
 
 
 def test_candidate_pr_rechecks_current_refs_immediately_at_mutation_boundary() -> None:
     candidate = _job(DISCOVERY.read_text(encoding="utf-8"), "candidate-pr")
-    mutation = next(step for step in _steps(candidate) if "futures_candidate_pr.py" in step)
+    mutation = next(
+        step for step in _steps(candidate)
+        if "Open Draft PR and dispatch required CI when exact" in step
+    )
 
     assert "needs.discover.result == 'success'" in candidate
     assert "needs.product-status.result == 'success'" in candidate
     assert "needs.publish.result == 'success'" in candidate
+    assert "scripts/check_discovery_authorization.py" in mutation
+    assert "jq -e '.required_status_passed == true'" not in mutation
     engine_check = mutation.index("git ls-remote origin refs/heads/main")
     upstream_check = mutation.index("iterativv/NostalgiaForInfinity.git")
     invocation = mutation.index("futures_candidate_pr.py")
@@ -190,6 +200,8 @@ def test_candidate_job_has_scoped_write_permissions_and_never_merges() -> None:
     assert "contents: write" in candidate
     assert "pull-requests: write" in candidate
     assert "uv run python scripts/futures_candidate_pr.py" in candidate
+    assert "nfi-discovery-publication-authorization" in candidate
+    assert ".modes[$mode].exact_fixture_draft_pr == true" in candidate
     assert '"exact_fixture_draft_pr"' in candidate
     assert "\n          python scripts/futures_candidate_pr.py" not in candidate
     assert "gh pr merge" not in candidate

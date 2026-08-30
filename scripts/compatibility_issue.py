@@ -21,6 +21,9 @@ def build_issue_plan(
     *,
     upstream_sha: str,
     targeted_reports: Mapping[str, Mapping[str, Any]] | None = None,
+    identity: Mapping[str, Any] | None = None,
+    decisions: Mapping[str, Mapping[str, Any]] | None = None,
+    run_url: str | None = None,
 ) -> dict[str, Any]:
     failures = {
         mode: _mode_blockers(
@@ -49,13 +52,64 @@ def build_issue_plan(
                 for item in blockers
                 if isinstance(item, Mapping)
             ) or "- compatibility report did not contain a structured blocker"
-            sections.append(f"### {mode}\n\n{descriptions}")
+            decision = decisions.get(mode) if decisions is not None else None
+            targeted = targeted_reports.get(mode) if targeted_reports is not None else None
+            plan = targeted.get("plan") if isinstance(targeted, Mapping) else None
+            missing_targets = (
+                plan.get("missing_targets") if isinstance(plan, Mapping) else None
+            )
+            context = [
+                f"- Automation route: `{decision.get('automation_route')}`"
+                if isinstance(decision, Mapping)
+                else "- Automation route: unavailable",
+                f"- Review kind: `{decision.get('review_kind')}`"
+                if isinstance(decision, Mapping)
+                else "- Review kind: unavailable",
+                (
+                    f"- Missing behavior targets: `{len(missing_targets)}`"
+                    if isinstance(missing_targets, list)
+                    else "- Missing behavior targets: unavailable"
+                ),
+            ]
+            sections.append(
+                f"### {mode}\n\n"
+                + "\n".join(context)
+                + "\n\n"
+                + descriptions
+            )
+        identity_lines = []
+        if identity is not None:
+            for label, field in (
+                ("Engine commit", "engine_sha"),
+                ("Freqtrade digest", "freqtrade_digest"),
+                ("Semantic profile", "semantic_profile_sha256"),
+                ("Strategy source", "source_sha256"),
+            ):
+                value = identity.get(field)
+                identity_lines.append(
+                    f"- {label}: `{value}`"
+                    if isinstance(value, str)
+                    else f"- {label}: unavailable"
+                )
+        run_lines = (
+            f"\n\nWorkflow run and compact artifacts: {run_url}"
+            if isinstance(run_url, str) and run_url
+            else ""
+        )
         desired = {
             "title": f"Latest NFI compatibility blocker ({upstream_sha[:12]})",
             "body": (
                 f"{_MARKER_TEXT(fingerprint)}\n\n"
                 f"Upstream commit: `{upstream_sha}`\n\n"
+                + (
+                    "### Checked identity\n\n"
+                    + "\n".join(identity_lines)
+                    + "\n\n"
+                    if identity_lines
+                    else ""
+                )
                 + "\n\n".join(sections)
+                + run_lines
                 + "\n\nThis issue is reconciled automatically when the blocker recovers."
             ),
         }
@@ -104,6 +158,9 @@ def main() -> int:
     parser.add_argument("--repository", required=True)
     parser.add_argument("--upstream-sha", required=True)
     parser.add_argument("--targeted-reports", type=Path)
+    parser.add_argument("--identity", type=Path, required=True)
+    parser.add_argument("--decisions", type=Path, required=True)
+    parser.add_argument("--run-url", required=True)
     args = parser.parse_args()
     reports = {
         mode: _read_object(args.reports / f"report-{mode}.json")
@@ -119,6 +176,11 @@ def main() -> int:
         if args.targeted_reports is not None
         else None
     )
+    identity = _read_object(args.identity)
+    decisions = {
+        mode: _read_object(args.decisions / f"automation-decision-{mode}.json")
+        for mode in ("spot", "futures")
+    }
     issues = json.loads(
         _gh(
             "issue",
@@ -138,6 +200,9 @@ def main() -> int:
         issues,
         upstream_sha=args.upstream_sha,
         targeted_reports=targeted_reports,
+        identity=identity,
+        decisions=decisions,
+        run_url=args.run_url,
     )
     create = plan["create"]
     if isinstance(create, Mapping):

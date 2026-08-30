@@ -26,7 +26,7 @@ permissions:
 
 concurrency:
   group: nfi-branch-discovery
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   resolve:
@@ -480,6 +480,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source_run_id: ${{ steps.status.outputs.source_run_id }}
+      required_status_passed: ${{ steps.status.outputs.required_status_passed }}
     steps:
       - name: Check out current main for status comparison
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -560,6 +561,30 @@ jobs:
             --spot-discovery-execution "${discovery_execution}" \
             --futures-discovery-execution "${discovery_execution}" \
             --output .status/compatibility-product-status.json
+          required_status_passed="$(
+            jq -er \
+              'if (.required_status_passed | type) == "boolean"
+               then (.required_status_passed | tostring)
+               else error("required_status_passed must be boolean")
+               end' \
+              .status/compatibility-product-status.json
+          )"
+          echo "required_status_passed=${required_status_passed}" >> "${GITHUB_OUTPUT}"
+      - name: Authorize paired discovery publication independently of product status
+        if: >-
+          needs.resolve.outputs.ready == 'true'
+          && needs.resolve.outputs.deep_search_required == 'true'
+          && needs.discover.result == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_run_id="$(jq -er .source_run_id .status/input/source-run.json)"
+          PYTHONPATH=python python scripts/validate_discovery_publication.py \
+            --proof-dir .status/input \
+            --discovery-dir .status/discovery \
+            --fixtures-root benchmarks/fixtures/captured \
+            --source-run-id "${source_run_id}" \
+            --output .status/discovery-publication-authorization.json
       - name: Retain machine-consumed compatibility status
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -568,8 +593,23 @@ jobs:
           path: .status/compatibility-product-status.json
           if-no-files-found: error
           retention-days: 30
-      - name: Enforce required product compatibility
-        run: jq -e '.required_status_passed == true' .status/compatibility-product-status.json
+      - name: Retain trusted discovery publication authorization
+        if: >-
+          needs.resolve.outputs.ready == 'true'
+          && needs.resolve.outputs.deep_search_required == 'true'
+          && needs.discover.result == 'success'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: nfi-discovery-publication-authorization
+          path: .status/discovery-publication-authorization.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Validate product compatibility status schema
+        run: >-
+          jq -e
+          '(.schema_version == "compatibility-product-status-v1")
+          and ((.required_status_passed | type) == "boolean")'
+          .status/compatibility-product-status.json
 
   publish:
     name: Preserve atomic Spot and Futures discovery state
@@ -603,12 +643,26 @@ jobs:
         with:
           name: nfi-discovery-product-status
           path: .discovery/status
+      - name: Download trusted discovery publication authorization
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: nfi-discovery-publication-authorization
+          path: .discovery/authorization
       - name: Recheck paired proof and current refs before mutation
+        env:
+          SOURCE_RUN_ID: ${{ needs.product-status.outputs.source_run_id }}
         shell: bash
         run: |
           set -euo pipefail
           status=.discovery/status/compatibility-product-status.json
-          jq -e '.required_status_passed == true' "${status}"
+          jq -e '(.schema_version == "compatibility-product-status-v1")
+            and ((.required_status_passed | type) == "boolean")' "${status}"
+          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+            --authorization \
+              .discovery/authorization/discovery-publication-authorization.json \
+            --status "${status}" \
+            --discovery-dir .discovery/results \
+            --source-run-id "${SOURCE_RUN_ID}"
           test "$(jq -er .observed_identity.engine_sha "${status}")" = \
             "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
@@ -650,6 +704,12 @@ jobs:
         run: |
           set -euo pipefail
           status="${GITHUB_WORKSPACE}/.discovery/status/compatibility-product-status.json"
+          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+            --authorization \
+              "${GITHUB_WORKSPACE}/.discovery/authorization/discovery-publication-authorization.json" \
+            --status "${status}" \
+            --discovery-dir "${GITHUB_WORKSPACE}/.discovery/results" \
+            --source-run-id "${SOURCE_RUN_ID}"
           test "$(jq -er .observed_identity.engine_sha "${status}")" = \
             "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
@@ -723,22 +783,36 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.engine_sha }}
           persist-credentials: true
-      - name: Download exact candidate result
+      - name: Download paired authorized discovery results
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: nfi-branch-discovery-${{ matrix.trading_mode }}
-          path: .discovery/result
+          pattern: nfi-branch-discovery-*
+          path: .discovery/results
       - name: Download trusted product status
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: nfi-discovery-product-status
           path: .discovery/status
+      - name: Download trusted discovery publication authorization
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: nfi-discovery-publication-authorization
+          path: .discovery/authorization
       - name: Recheck product status and current refs before PR mutation
+        env:
+          SOURCE_RUN_ID: ${{ needs.product-status.outputs.source_run_id }}
         shell: bash
         run: |
           set -euo pipefail
           status=.discovery/status/compatibility-product-status.json
-          jq -e '.required_status_passed == true' "${status}"
+          jq -e '(.schema_version == "compatibility-product-status-v1")
+            and ((.required_status_passed | type) == "boolean")' "${status}"
+          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+            --authorization \
+              .discovery/authorization/discovery-publication-authorization.json \
+            --status "${status}" \
+            --discovery-dir .discovery/results \
+            --source-run-id "${SOURCE_RUN_ID}"
           test "$(jq -er .observed_identity.engine_sha "${status}")" = \
             "$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           test "$(jq -er .observed_identity.upstream_sha "${status}")" = \
@@ -747,9 +821,15 @@ jobs:
         id: candidate
         shell: bash
         run: |
-          if [ "$(jq -r .automation_route \
-            .discovery/result/automation-decision.json)" \
-            = "exact_fixture_draft_pr" ]; then
+          result=".discovery/results/nfi-branch-discovery-${{ matrix.trading_mode }}"
+          authorization=.discovery/authorization/discovery-publication-authorization.json
+          if jq -e \
+            --arg mode "${{ matrix.trading_mode }}" \
+            '.modes[$mode].exact_fixture_draft_pr == true' \
+            "${authorization}" >/dev/null \
+            && [ "$(jq -r .automation_route \
+              "${result}/automation-decision.json")" \
+              = "exact_fixture_draft_pr" ]; then
             echo "found=true" >> "${GITHUB_OUTPUT}"
           else
             echo "found=false" >> "${GITHUB_OUTPUT}"
@@ -770,11 +850,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          status=.discovery/status/compatibility-product-status.json
           max_bytes="$(
             jq -er .candidate.max_bytes "planning/${MODE}-discovery-policy.json"
           )"
-          status=.discovery/status/compatibility-product-status.json
-          jq -e '.required_status_passed == true' "${status}"
+          jq -e '(.schema_version == "compatibility-product-status-v1")
+            and ((.required_status_passed | type) == "boolean")' "${status}"
+          PYTHONPATH=python python scripts/check_discovery_authorization.py \
+            --authorization \
+              .discovery/authorization/discovery-publication-authorization.json \
+            --status "${status}" \
+            --discovery-dir .discovery/results \
+            --source-run-id "${{ needs.product-status.outputs.source_run_id }}"
           expected_engine_sha="$(jq -er .observed_identity.engine_sha "${status}")"
           expected_upstream_sha="$(jq -er .observed_identity.upstream_sha "${status}")"
           test "${expected_engine_sha}" = \
@@ -782,8 +869,10 @@ jobs:
           test "${expected_upstream_sha}" = \
             "$(git ls-remote https://github.com/iterativv/NostalgiaForInfinity.git refs/heads/main | awk '{print $1}')"
           uv run python scripts/futures_candidate_pr.py \
-            --report .discovery/result/discovery-report.json \
-            --candidate-dir .discovery/result/candidate-fixture \
+            --report \
+              ".discovery/results/nfi-branch-discovery-${MODE}/discovery-report.json" \
+            --candidate-dir \
+              ".discovery/results/nfi-branch-discovery-${MODE}/candidate-fixture" \
             --repo-root "${GITHUB_WORKSPACE}" \
             --repository "${GITHUB_REPOSITORY}" \
             --base main \
@@ -809,7 +898,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Reconcile gaps already proven exact by the fast lane
-        if: needs.product-status.result == 'success'
+        if: needs.product-status.outputs.required_status_passed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_SHA: ${{ needs.resolve.outputs.upstream_sha }}
