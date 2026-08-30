@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import nfi_backtest_engine.futures_discovery as discovery
 import nfi_backtest_engine.futures_discovery_runtime as discovery_runtime
+import polars as pl
 import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import (
@@ -561,6 +562,85 @@ def test_removed_target_does_not_block_searchable_transition_partner(
     assert report["candidate"]["proved_target_ids"] == [
         "added-route",
         "removed-route",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("trading_mode", "market_type"),
+    [("spot", "spot"), ("futures", "linear")],
+)
+def test_discovery_config_loads_only_the_requested_market_type(
+    trading_mode: str,
+    market_type: str,
+) -> None:
+    exchange: dict[str, Any] = {}
+
+    discovery_runtime._pin_discovery_ccxt_market_type(exchange, trading_mode)
+
+    assert exchange == {
+        "ccxt_config": {
+            "options": {
+                "fetchMarkets": {"types": [market_type]},
+            }
+        }
+    }
+
+
+def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
+    config = tmp_path / "config.json"
+    write_json(config, {"timeframe": "5m", "trading_mode": "spot"})
+    data = tmp_path / "data"
+    data.mkdir()
+    pl.DataFrame(
+        schema={"date": pl.Datetime(time_unit="ms", time_zone="UTC")}
+    ).write_ipc(data / "AAOIB_USDT-5m.feather")
+    pl.DataFrame(
+        {"date": [datetime(2025, 10, 1, tzinfo=UTC)]}
+    ).write_ipc(data / "BTC_USDT-5m.feather")
+
+    available = discovery_runtime._pairs_with_nonempty_base_candles(
+        data,
+        pairs=["AAOIB/USDT", "BTC/USDT"],
+        config_path=config,
+    )
+
+    assert available == ["BTC/USDT"]
+
+
+def test_spot_search_universe_accepts_missing_onboarding_dates(
+    tmp_path: Path,
+) -> None:
+    markets = tmp_path / "markets.json"
+    write_json(
+        markets,
+        {
+            "exchange": "binance",
+            "trading_mode": "spot",
+            "pairs": ["BTC/USDT", "ETH/BTC"],
+            "markets": {
+                "BTC/USDT": {
+                    "active": True,
+                    "created": None,
+                    "spot": True,
+                },
+                "ETH/BTC": {
+                    "active": True,
+                    "created": None,
+                    "spot": True,
+                },
+            },
+        },
+    )
+
+    report = discovery_runtime._discover_spot_search_universe(
+        read_json(ROOT / "planning" / "spot-discovery-config.json"),
+        market_snapshot_path=markets,
+        destination=tmp_path / "universe.json",
+    )
+
+    assert report["pairs"] == ["BTC/USDT"]
+    assert report["rejected"] == [
+        {"pair": "ETH/BTC", "reason": "PAIR_CONTRACT"}
     ]
 
 

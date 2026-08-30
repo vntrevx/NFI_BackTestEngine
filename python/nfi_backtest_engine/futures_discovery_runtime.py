@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config, sanitize_config
+from .data_seal import candle_files_for, inspect_candle_quality
 from .errors import (
     BenchmarkError,
     BranchCoverageError,
@@ -18,6 +19,7 @@ from .errors import (
 )
 from .fixture import sha256_file
 from .market_snapshot import capture_market_catalog
+from .release_contract import release_contract_for_config
 from .release_inputs import discover_release_universe
 from .targeted_verification import (
     assess_targeted_coverage,
@@ -39,36 +41,52 @@ def run_shard_scout(
     shard: SearchShard,
     context: DiscoveryContext,
 ) -> dict[str, Any]:
-    """Run one real listing-aware Native shard and seal a candidate if it hits."""
-    from .research_runner import run_research_backtest
-
+    """Run one real Native shard and seal a candidate if it hits."""
     shared = context.output / "work" / "shared"
     shared.mkdir(parents=True, exist_ok=True)
     generated_config, pairs = _ensure_universe(context, shared)
     shard_root = context.output / "work" / f"shard-{shard.index:03d}"
     engine_output = shard_root / "engine"
     scout_source = _scout_strategy_source(context)
-    engine = run_research_backtest(
-        strategy_path=scout_source,
-        class_name=context.class_name,
-        config_path=generated_config,
-        data_directory=shared / "data",
-        timerange=shard.timerange,
-        output_directory=engine_output,
-        pairs=pairs,
-        workers=context.workers,
-        cache_directory=shared / "cache",
-        profile_path=context.profile_path,
-        resume=False,
-        prepare_only=False,
-        download_missing=True,
-        market_metadata_path=None,
-        registry_path=shared / "runs.sqlite",
-        download_market_metadata=True,
-        recalibrate=True,
-        history_coverage_policy="available",
-        trace_engine_events=True,
-    )
+    try:
+        engine = _run_scout_backtest(
+            shard,
+            context,
+            strategy_path=scout_source,
+            config_path=generated_config,
+            data_directory=shared / "data",
+            output_directory=engine_output,
+            pairs=pairs,
+        )
+    except SpecValidationError as exc:
+        if (
+            context.policy.trading_mode != "spot"
+            or not str(exc).startswith("candle file is empty: ")
+        ):
+            raise
+        available_pairs = _pairs_with_nonempty_base_candles(
+            shared / "data",
+            pairs=pairs,
+            config_path=generated_config,
+        )
+        if not available_pairs or available_pairs == pairs:
+            raise
+        generated_config = _write_discovery_pair_config(
+            generated_config,
+            shard_root / "available-config.json",
+            available_pairs,
+        )
+        pairs = available_pairs
+        engine_output = shard_root / "engine-available"
+        engine = _run_scout_backtest(
+            shard,
+            context,
+            strategy_path=scout_source,
+            config_path=generated_config,
+            data_directory=shared / "data",
+            output_directory=engine_output,
+            pairs=pairs,
+        )
     if not engine["complete"]:
         return {
             "outcome": "unsupported",
@@ -129,6 +147,86 @@ def run_shard_scout(
     }
 
 
+def _run_scout_backtest(
+    shard: SearchShard,
+    context: DiscoveryContext,
+    *,
+    strategy_path: Path,
+    config_path: Path,
+    data_directory: Path,
+    output_directory: Path,
+    pairs: list[str],
+) -> dict[str, Any]:
+    from .research_runner import run_research_backtest
+
+    return run_research_backtest(
+        strategy_path=strategy_path,
+        class_name=context.class_name,
+        config_path=config_path,
+        data_directory=data_directory,
+        timerange=shard.timerange,
+        output_directory=output_directory,
+        pairs=pairs,
+        workers=context.workers,
+        cache_directory=context.output / "work" / "shared" / "cache",
+        profile_path=context.profile_path,
+        resume=False,
+        prepare_only=False,
+        download_missing=True,
+        market_metadata_path=None,
+        registry_path=context.output / "work" / "shared" / "runs.sqlite",
+        download_market_metadata=True,
+        recalibrate=True,
+        history_coverage_policy="available",
+        trace_engine_events=True,
+    )
+
+
+def _pairs_with_nonempty_base_candles(
+    data_directory: Path,
+    *,
+    pairs: list[str],
+    config_path: Path,
+) -> list[str]:
+    config = read_json(config_path)
+    timeframe = config.get("timeframe") if isinstance(config, dict) else None
+    trading_mode = config.get("trading_mode") if isinstance(config, dict) else None
+    if not isinstance(timeframe, str) or trading_mode != "spot":
+        raise SpecValidationError("Spot discovery config lacks its base timeframe")
+    available: list[str] = []
+    for pair in pairs:
+        files = candle_files_for(
+            data_directory,
+            pair=pair,
+            timeframe=timeframe,
+            trading_mode=trading_mode,
+        )
+        for path in files:
+            try:
+                inspect_candle_quality(path, timeframe=timeframe)
+            except SpecValidationError as exc:
+                if str(exc).startswith("candle file is empty: "):
+                    continue
+                raise
+            available.append(pair)
+            break
+    return available
+
+
+def _write_discovery_pair_config(
+    source: Path,
+    destination: Path,
+    pairs: list[str],
+) -> Path:
+    config = read_json(source)
+    exchange = config.get("exchange") if isinstance(config, dict) else None
+    if not isinstance(config, dict) or not isinstance(exchange, dict):
+        raise SpecValidationError("discovery config exchange must be an object")
+    exchange["pair_whitelist"] = pairs
+    write_json(destination, config)
+    return destination
+
+
 def _scout_strategy_source(context: DiscoveryContext) -> Path:
     """Use the previous strategy only when every search target proves removal."""
     if context.search_targets and all(
@@ -176,13 +274,20 @@ def _ensure_universe(
         f"{context.all_shards[-1].start:%Y%m%d}-"
         f"{context.all_shards[0].stop:%Y%m%d}"
     )
-    universe = discover_release_universe(
-        config_path=context.policy.template_config,
-        market_snapshot_path=catalog_path,
-        timerange=overall_timerange,
-        destination=candidates_path,
-        history_coverage_policy="listing-aware",
-    )
+    if context.policy.trading_mode == "spot":
+        universe = _discover_spot_search_universe(
+            effective,
+            market_snapshot_path=catalog_path,
+            destination=candidates_path,
+        )
+    else:
+        universe = discover_release_universe(
+            config_path=context.policy.template_config,
+            market_snapshot_path=catalog_path,
+            timerange=overall_timerange,
+            destination=candidates_path,
+            history_coverage_policy="listing-aware",
+        )
     raw_pairs = universe.get("pairs")
     if not isinstance(raw_pairs, list) or not all(
         isinstance(pair, str) and pair for pair in raw_pairs
@@ -196,6 +301,7 @@ def _ensure_universe(
     exchange = effective.get("exchange")
     if not isinstance(exchange, dict):
         raise SpecValidationError("discovery config exchange must be an object")
+    _pin_discovery_ccxt_market_type(exchange, context.policy.trading_mode)
     exchange["pair_whitelist"] = pairs
     write_json(config_path, effective)
     write_json(
@@ -208,6 +314,102 @@ def _ensure_universe(
         },
     )
     return config_path, pairs
+
+
+def _pin_discovery_ccxt_market_type(
+    exchange: dict[str, Any],
+    trading_mode: str,
+) -> None:
+    """Avoid unrelated Binance APIs when loading one discovery mode."""
+    market_type = {"spot": "spot", "futures": "linear"}.get(trading_mode)
+    if market_type is None:
+        raise SpecValidationError(f"unsupported discovery trading mode: {trading_mode}")
+    ccxt_config = exchange.setdefault("ccxt_config", {})
+    if not isinstance(ccxt_config, dict):
+        raise SpecValidationError("discovery exchange.ccxt_config must be an object")
+    options = ccxt_config.setdefault("options", {})
+    if not isinstance(options, dict):
+        raise SpecValidationError("discovery exchange.ccxt_config.options must be an object")
+    options["fetchMarkets"] = {"types": [market_type]}
+
+
+def _discover_spot_search_universe(
+    effective: dict[str, Any],
+    *,
+    market_snapshot_path: Path,
+    destination: Path,
+) -> dict[str, Any]:
+    """Select active Spot pairs without inventing unavailable onboarding dates."""
+    contract = release_contract_for_config(effective)
+    if contract.trading_mode != "spot":
+        raise SpecValidationError("Spot search universe requires a Spot mode contract")
+    snapshot = read_json(market_snapshot_path)
+    markets = snapshot.get("markets") if isinstance(snapshot, dict) else None
+    if (
+        not isinstance(snapshot, dict)
+        or snapshot.get("exchange") != contract.exchange
+        or snapshot.get("trading_mode") not in {None, "spot"}
+        or not isinstance(markets, dict)
+    ):
+        raise SpecValidationError(
+            "Spot search market snapshot differs from its mode contract"
+        )
+    declared_pairs = snapshot.get("pairs")
+    candidates = (
+        declared_pairs
+        if isinstance(declared_pairs, list)
+        and all(isinstance(pair, str) for pair in declared_pairs)
+        else list(markets)
+    )
+    exchange = effective.get("exchange")
+    assert isinstance(exchange, dict)
+    raw_blacklist = exchange.get("pair_blacklist", [])
+    if not isinstance(raw_blacklist, list) or not all(
+        isinstance(pattern, str) for pattern in raw_blacklist
+    ):
+        raise SpecValidationError(
+            "Spot search pair blacklist must contain regex strings"
+        )
+    try:
+        blacklist = [re.compile(pattern) for pattern in raw_blacklist]
+    except re.error as exc:
+        raise SpecValidationError(
+            f"invalid Spot search pair blacklist expression: {exc}"
+        ) from exc
+    selected: list[str] = []
+    rejected: list[dict[str, str]] = []
+    for pair in candidates:
+        market = markets.get(pair)
+        reason: str | None = None
+        try:
+            contract.validate_pair(pair)
+        except SpecValidationError:
+            reason = "PAIR_CONTRACT"
+        if reason is None:
+            if any(pattern.fullmatch(pair) for pattern in blacklist):
+                reason = "BLACKLISTED"
+            elif not isinstance(market, dict):
+                reason = "MARKET_MISSING"
+            elif market.get("active") is not True:
+                reason = "INACTIVE"
+            elif market.get("spot") is not True:
+                reason = "NOT_SPOT"
+        if reason is None:
+            selected.append(pair)
+        else:
+            rejected.append({"pair": pair, "reason": reason})
+    document = {
+        "schema_version": "discovery-spot-universe-v1",
+        "mode_contract": contract.contract_id,
+        "market_snapshot": {
+            "path": str(market_snapshot_path),
+            "sha256": sha256_file(market_snapshot_path),
+        },
+        "pairs": selected,
+        "rejected": rejected,
+    }
+    write_json(destination, document)
+    return document
 
 
 def _external_http_status(message: str) -> int | None:
