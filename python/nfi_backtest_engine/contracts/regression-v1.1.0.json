@@ -26,8 +26,8 @@
     {
       "kind": "schema",
       "path": "python/nfi_backtest_engine/schemas/benchmark-fixture-v3.schema.json",
-      "bytes": 9101,
-      "sha256": "d16998b601d401a9fb5c013aa1990d6a9a75bdfc6475a53f486c3f5bc357ab28"
+      "bytes": 9130,
+      "sha256": "c9ca35f70072b6cd8393dc1188432f967431fc6c766d2272c657a566e550d8b8"
     },
     {
       "kind": "schema",

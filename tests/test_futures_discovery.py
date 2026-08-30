@@ -78,6 +78,42 @@ def test_freqtrade_decorated_exit_route_is_searchable_and_sealed_exactly() -> No
     assert required["exit_reasons"] == ["exit_long_rebuy_e_r ( 65 )"]
 
 
+def test_candidate_hit_stops_at_first_reached_target_order() -> None:
+    targets = [
+        {**_target("gm0-target"), "value": "gm0", "tags": ["gm0"]},
+        {**_target("gd1-target"), "value": "gd1", "tags": ["gd1"]},
+    ]
+    hit = discovery_runtime._locate_hit(
+        targets,
+        ["gm0-target", "gd1-target"],
+        {
+            "trades": [
+                {
+                    "pair": "BTC/USDT",
+                    "open_timestamp_ms": 10,
+                    "close_timestamp_ms": 100,
+                    "entry_tag": "120",
+                    "exit_reason": "force_exit",
+                    "orders": [
+                        {"filled_timestamp_ms": 20, "tag": "gm0"},
+                        {"filled_timestamp_ms": 80, "tag": "gd1"},
+                    ],
+                }
+            ]
+        },
+    )
+
+    assert hit == {
+        "pair": "BTC/USDT",
+        "open_timestamp_ms": 10,
+        "event_timestamp_ms": 20,
+        "entry_tag": "120",
+        "exit_reason": "force_exit",
+        "target_ids": ["gm0-target"],
+    }
+    assert discovery_runtime._candidate_targets(targets, list(hit["target_ids"])) == [targets[0]]
+
+
 def test_previous_lane_replays_boolean_mapping_transition_from_diff() -> None:
     assert discovery_runtime._baseline_boolean_toggles(
         {
@@ -166,6 +202,7 @@ def test_policy_is_declarative_and_repository_bound() -> None:
     assert policy.deferred_http_statuses == frozenset({451})
     assert policy.external_retry == "identity-change-or-manual"
     assert policy.compact_artifact_retention_days == 1
+    assert policy.context_days == 1
     assert policy.max_candidate_bytes == 30 * 1024 * 1024
     assert policy.template_config.is_file()
 
@@ -591,12 +628,12 @@ def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
     write_json(config, {"timeframe": "5m", "trading_mode": "spot"})
     data = tmp_path / "data"
     data.mkdir()
-    pl.DataFrame(
-        schema={"date": pl.Datetime(time_unit="ms", time_zone="UTC")}
-    ).write_ipc(data / "AAOIB_USDT-5m.feather")
-    pl.DataFrame(
-        {"date": [datetime(2025, 10, 1, tzinfo=UTC)]}
-    ).write_ipc(data / "BTC_USDT-5m.feather")
+    pl.DataFrame(schema={"date": pl.Datetime(time_unit="ms", time_zone="UTC")}).write_ipc(
+        data / "AAOIB_USDT-5m.feather"
+    )
+    pl.DataFrame({"date": [datetime(2025, 10, 1, tzinfo=UTC)]}).write_ipc(
+        data / "BTC_USDT-5m.feather"
+    )
 
     available = discovery_runtime._pairs_with_nonempty_base_candles(
         data,
@@ -639,9 +676,7 @@ def test_spot_search_universe_accepts_missing_onboarding_dates(
     )
 
     assert report["pairs"] == ["BTC/USDT"]
-    assert report["rejected"] == [
-        {"pair": "ETH/BTC", "reason": "PAIR_CONTRACT"}
-    ]
+    assert report["rejected"] == [{"pair": "ETH/BTC", "reason": "PAIR_CONTRACT"}]
 
 
 def test_spot_policy_uses_the_shared_discovery_service(tmp_path: Path) -> None:

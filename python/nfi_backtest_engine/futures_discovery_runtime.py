@@ -59,9 +59,8 @@ def run_shard_scout(
             pairs=pairs,
         )
     except SpecValidationError as exc:
-        if (
-            context.policy.trading_mode != "spot"
-            or not str(exc).startswith("candle file is empty: ")
+        if context.policy.trading_mode != "spot" or not str(exc).startswith(
+            "candle file is empty: "
         ):
             raise
         available_pairs = _pairs_with_nonempty_base_candles(
@@ -100,9 +99,7 @@ def run_shard_scout(
     surface = read_json(surface_path)
     features = _surface_features(surface)
     reached = [
-        str(target["id"])
-        for target in context.search_targets
-        if target_observed(target, features)
+        str(target["id"]) for target in context.search_targets if target_observed(target, features)
     ]
     if not reached:
         return {
@@ -126,7 +123,7 @@ def run_shard_scout(
         data_directory=shared / "data",
         engine_market_path=engine_output / "market-metadata.json",
         hit=hit,
-        target_ids=reached,
+        target_ids=list(hit["target_ids"]),
     )
     if candidate is None:
         return {
@@ -141,7 +138,7 @@ def run_shard_scout(
     return {
         "outcome": "candidate",
         "message": "branch-reaching official/Native exact fixture candidate found",
-        "target_ids": reached,
+        "target_ids": candidate["target_ids"],
         "native_report": str(engine_output / "run.json"),
         "candidate": candidate,
     }
@@ -232,10 +229,7 @@ def _scout_strategy_source(context: DiscoveryContext) -> Path:
     if context.search_targets and all(
         target.get("change") == "removed" for target in context.search_targets
     ):
-        if (
-            context.baseline_source is None
-            or context.baseline_upstream_commit is None
-        ):
+        if context.baseline_source is None or context.baseline_upstream_commit is None:
             raise SpecValidationError(
                 "removed-only discovery requires a previous strategy source and commit"
             )
@@ -270,10 +264,7 @@ def _ensure_universe(
             external_http_status=_external_http_status(str(exc)),
         ) from exc
     candidates_path = shared / "universe.json"
-    overall_timerange = (
-        f"{context.all_shards[-1].start:%Y%m%d}-"
-        f"{context.all_shards[0].stop:%Y%m%d}"
-    )
+    overall_timerange = f"{context.all_shards[-1].start:%Y%m%d}-{context.all_shards[0].stop:%Y%m%d}"
     if context.policy.trading_mode == "spot":
         universe = _discover_spot_search_universe(
             effective,
@@ -351,9 +342,7 @@ def _discover_spot_search_universe(
         or snapshot.get("trading_mode") not in {None, "spot"}
         or not isinstance(markets, dict)
     ):
-        raise SpecValidationError(
-            "Spot search market snapshot differs from its mode contract"
-        )
+        raise SpecValidationError("Spot search market snapshot differs from its mode contract")
     declared_pairs = snapshot.get("pairs")
     candidates = (
         declared_pairs
@@ -367,15 +356,11 @@ def _discover_spot_search_universe(
     if not isinstance(raw_blacklist, list) or not all(
         isinstance(pattern, str) for pattern in raw_blacklist
     ):
-        raise SpecValidationError(
-            "Spot search pair blacklist must contain regex strings"
-        )
+        raise SpecValidationError("Spot search pair blacklist must contain regex strings")
     try:
         blacklist = [re.compile(pattern) for pattern in raw_blacklist]
     except re.error as exc:
-        raise SpecValidationError(
-            f"invalid Spot search pair blacklist expression: {exc}"
-        ) from exc
+        raise SpecValidationError(f"invalid Spot search pair blacklist expression: {exc}") from exc
     selected: list[str] = []
     rejected: list[dict[str, str]] = []
     for pair in candidates:
@@ -432,7 +417,7 @@ def _capture_candidate(
     from .research_runner import required_data_pairs
 
     pair = str(hit["pair"])
-    selected_targets = list(context.targets)
+    selected_targets = _candidate_targets(context.targets, target_ids)
     required = _required_coverage(selected_targets, hit)
     candidate_root = context.output / "candidate-fixture"
     capture_work_root = context.output / "work" / "candidate-capture"
@@ -457,10 +442,7 @@ def _capture_candidate(
         spec = {
             "schema_version": "1.0.0",
             "fixture": {
-                "id": (
-                    f"future-nfi-{context.policy.trading_mode}-"
-                    f"{context.fingerprint[:16]}"
-                ),
+                "id": (f"future-nfi-{context.policy.trading_mode}-{context.fingerprint[:16]}"),
                 "description": (
                     "Automatically discovered branch fixture with independent "
                     "official and Native exact evidence."
@@ -523,11 +505,7 @@ def _capture_candidate(
             continue
         if not coverage["complete"] or not coverage["changed_branch_reached"]:
             continue
-        baseline_output = (
-            baseline_manifest.parent
-            if baseline_manifest is not None
-            else None
-        )
+        baseline_output = baseline_manifest.parent if baseline_manifest is not None else None
         logical_bytes = sum(
             path.stat().st_size
             for root in (output, baseline_output)
@@ -576,15 +554,9 @@ def _capture_transition_baseline(
     timeout_seconds: int,
     workers: int,
 ) -> Path | None:
-    if not any(
-        target.get("change") in {"removed", "changed"}
-        for target in context.targets
-    ):
+    if not any(target.get("change") in {"removed", "changed"} for target in context.targets):
         return None
-    if (
-        context.baseline_source is None
-        or context.baseline_upstream_commit is None
-    ):
+    if context.baseline_source is None or context.baseline_upstream_commit is None:
         raise SpecValidationError(
             "changed or removed targets require a previous strategy source and commit"
         )
@@ -611,9 +583,7 @@ def _capture_transition_baseline(
             ),
         },
     }
-    baseline_spec_path = latest_spec_path.with_name(
-        f"candidate-baseline-probe-{attempt}.json"
-    )
+    baseline_spec_path = latest_spec_path.with_name(f"candidate-baseline-probe-{attempt}.json")
     write_json(baseline_spec_path, baseline_spec)
     output = context.output / "work" / f"candidate-baseline-attempt-{attempt}"
     work = context.output / "work" / "candidate-capture" / f"baseline-attempt-{attempt}"
@@ -689,9 +659,7 @@ def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
                     tags.add(tag.strip())
     tags = {form for tag in tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
-    grind_levels = {
-        int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)
-    }
+    grind_levels = {int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)}
     return {
         "callbacks": set(),
         "tags": tags,
@@ -705,44 +673,95 @@ def _locate_hit(
     reached: list[str],
     surface: Any,
 ) -> dict[str, Any] | None:
-    reached_targets = [
-        target for target in targets if str(target["id"]) in reached
-    ]
+    reached_targets = [target for target in targets if str(target["id"]) in reached]
     trades = surface.get("trades") if isinstance(surface, Mapping) else None
     if not isinstance(trades, list):
         return None
     for trade in trades:
         if not isinstance(trade, Mapping):
             continue
-        features = _surface_features({"trades": [trade]})
-        if not any(target_observed(target, features) for target in reached_targets):
-            continue
-        orders = trade.get("orders")
-        order_records = orders if isinstance(orders, list) else []
-        timestamps = [
-            value
-            for value in (
-                trade.get("open_timestamp_ms"),
-                trade.get("close_timestamp_ms"),
-                *(
-                    order.get("filled_timestamp_ms")
-                    for order in order_records
-                    if isinstance(order, Mapping)
-                ),
-            )
-            if isinstance(value, int) and not isinstance(value, bool)
-        ]
         pair = trade.get("pair")
         opened = trade.get("open_timestamp_ms")
-        if isinstance(pair, str) and pair and isinstance(opened, int) and timestamps:
-            return {
-                "pair": pair,
-                "open_timestamp_ms": opened,
-                "event_timestamp_ms": max(timestamps),
-                "entry_tag": str(trade.get("entry_tag", "")).strip(),
-                "exit_reason": str(trade.get("exit_reason", "")).strip(),
-            }
+        if not isinstance(pair, str) or not pair or not isinstance(opened, int):
+            continue
+        entry = {
+            "entry_tag": trade.get("entry_tag"),
+            "exit_reason": "",
+            "orders": [],
+        }
+        selected = _observed_target_ids(reached_targets, {"trades": [entry]})
+        if selected:
+            return _candidate_hit(trade, pair, opened, opened, selected)
+        orders = trade.get("orders")
+        order_records = (
+            sorted(
+                (
+                    order
+                    for order in orders
+                    if isinstance(order, Mapping)
+                    and isinstance(order.get("filled_timestamp_ms"), int)
+                ),
+                key=lambda order: int(order["filled_timestamp_ms"]),
+            )
+            if isinstance(orders, list)
+            else []
+        )
+        observed_orders: list[Mapping[str, Any]] = []
+        for order in order_records:
+            observed_orders.append(order)
+            selected = _observed_target_ids(
+                reached_targets,
+                {"trades": [{**entry, "orders": observed_orders}]},
+            )
+            if selected:
+                return _candidate_hit(
+                    trade,
+                    pair,
+                    opened,
+                    int(order["filled_timestamp_ms"]),
+                    selected,
+                )
+        selected = _observed_target_ids(reached_targets, {"trades": [trade]})
+        closed = trade.get("close_timestamp_ms")
+        if selected and isinstance(closed, int):
+            return _candidate_hit(trade, pair, opened, closed, selected)
     return None
+
+
+def _observed_target_ids(
+    targets: list[dict[str, Any]],
+    surface: Mapping[str, Any],
+) -> list[str]:
+    features = _surface_features(surface)
+    return [str(target["id"]) for target in targets if target_observed(target, features)]
+
+
+def _candidate_hit(
+    trade: Mapping[str, Any],
+    pair: str,
+    opened: int,
+    event: int,
+    target_ids: list[str],
+) -> dict[str, Any]:
+    return {
+        "pair": pair,
+        "open_timestamp_ms": opened,
+        "event_timestamp_ms": event,
+        "entry_tag": str(trade.get("entry_tag", "")).strip(),
+        "exit_reason": str(trade.get("exit_reason", "")).strip(),
+        "target_ids": target_ids,
+    }
+
+
+def _candidate_targets(
+    targets: list[dict[str, Any]],
+    target_ids: list[str],
+) -> list[dict[str, Any]]:
+    selected_ids = set(target_ids)
+    selected = [target for target in targets if str(target["id"]) in selected_ids]
+    if not selected or {str(target["id"]) for target in selected} != selected_ids:
+        raise SpecValidationError("candidate reached target identities differ")
+    return selected
 
 
 def _required_coverage(
@@ -766,9 +785,7 @@ def _required_coverage(
         "callbacks": [],
         "entry_tags": sorted(requested & entry_tokens),
         "compound_tags": (
-            [entry_tag]
-            if len(entry_tokens) > 1 and requested & entry_tokens
-            else []
+            [entry_tag] if len(entry_tokens) > 1 and requested & entry_tokens else []
         ),
         "protection_methods": [],
         "exit_reasons": [

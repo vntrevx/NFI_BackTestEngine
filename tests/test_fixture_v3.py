@@ -15,19 +15,9 @@ from nfi_backtest_engine.specs import validate_fixture_manifest
 from nfi_backtest_engine.state_trace import StateTraceWriter
 
 ROOT = Path(__file__).parents[1]
-SOURCE = (
-    ROOT
-    / "benchmarks"
-    / "fixtures"
-    / "captured"
-    / "normal-routing-spot-2025-01-01_04"
-)
+SOURCE = ROOT / "benchmarks" / "fixtures" / "captured" / "normal-routing-spot-2025-01-01_04"
 TAG_121_FIXTURE = (
-    ROOT
-    / "benchmarks"
-    / "fixtures"
-    / "captured"
-    / "x7-tag121-spot-v17.4.435-2023-01-01_02"
+    ROOT / "benchmarks" / "fixtures" / "captured" / "x7-tag121-spot-v17.4.435-2023-01-01_02"
 )
 LIQUIDATION_FIXTURE = (
     ROOT
@@ -37,11 +27,7 @@ LIQUIDATION_FIXTURE = (
     / "x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02"
 )
 DERISK_BUYBACK_FIXTURE = (
-    ROOT
-    / "benchmarks"
-    / "fixtures"
-    / "captured"
-    / "x7-derisk-buyback-spot-v17.4.488-2023-01-01_16"
+    ROOT / "benchmarks" / "fixtures" / "captured" / "x7-derisk-buyback-spot-v17.4.488-2023-01-01_16"
 )
 
 
@@ -144,16 +130,20 @@ def test_futures_lifecycle_contract_counts_funding_from_the_official_surface() -
     assert coverage["observed"]["funded_trades"] == 2
 
 
+def test_future_nfi_target_probe_kind_is_schema_valid() -> None:
+    manifest = read_json(LIQUIDATION_FIXTURE / "manifest.json")
+    manifest["probe_kind"] = "future-nfi-target"
+
+    validate_fixture_manifest(manifest)
+
+
 def test_derisk_buyback_fixture_is_exact_and_reaches_d1_orders() -> None:
     manifest_path = DERISK_BUYBACK_FIXTURE / "manifest.json"
     manifest = validate_fixture(manifest_path)
     coverage = validate_fixture_coverage(manifest_path, manifest)
     surface = read_json(DERISK_BUYBACK_FIXTURE / "artifacts" / "trade-surface.json")
     d1_orders = [
-        order
-        for trade in surface["trades"]
-        for order in trade["orders"]
-        if order["tag"] == "d1"
+        order for trade in surface["trades"] for order in trade["orders"] if order["tag"] == "d1"
     ]
 
     assert manifest["probe_kind"] == "callback-route"
@@ -171,9 +161,7 @@ def test_v3_provenance_must_match_effective_strategy_hash(tmp_path: Path) -> Non
             "fixture_kind": "x7-branch-probe",
             "probe_kind": "callback-route",
             "strategy_provenance": {
-                "upstream_repository": (
-                    "https://github.com/iterativv/NostalgiaForInfinity"
-                ),
+                "upstream_repository": ("https://github.com/iterativv/NostalgiaForInfinity"),
                 "upstream_commit": "a" * 40,
                 "base_source_sha256": "b" * 64,
                 "effective_source_sha256": "b" * 64,
