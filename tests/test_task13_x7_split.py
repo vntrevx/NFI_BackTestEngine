@@ -17,13 +17,11 @@ from nfi_backtest_engine.x7.route_contracts import (
     MANAGED_SHORT_ROUTE_SPECS,
 )
 
-_SOURCE = Path(
-    "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source"
-)
+_SOURCE = Path("benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source")
 # CPython patch releases can change ast.dump output embedded in predicate identities.
 _EXPECTED_MANAGER_SHA256 = {
-    (3, 12, 3): "a00441dc18a708660f944b10c44dc106cb94b31cb27fc183213a851aac2b52fb",
-    (3, 12, 10): "bbd633a7ee83ca787dda564ea93afa35b1d4317e9f43416456413c4030851a71",
+    (3, 12, 3): "fd31bdfb0c9239e82bbe6e98a723ce7f1cd0b48f3dd50d266b853cfbd671cce5",
+    (3, 12, 10): "fa6a2a71a7faa51a462c362f3993585ef7f07e0ae1876bd0f9f678fc1110e38d",
 }
 
 
@@ -53,7 +51,7 @@ def test_manager_facade_and_declarative_route_contract_are_stable() -> None:
         "NFI_TRADE_MANAGER_IR_VERSION",
         "build_nfi_trade_manager_ir",
     ]
-    assert trade_manager.NFI_TRADE_MANAGER_IR_VERSION == "0.30.0"
+    assert trade_manager.NFI_TRADE_MANAGER_IR_VERSION == "0.31.0"
     assert MANAGED_LONG_PROGRAM_ORDER == (
         "long_exit_signals",
         "long_exit_main",
@@ -125,10 +123,13 @@ def test_current_manager_program_is_canonical_and_repeatable() -> None:
 
 
 def test_non_x7_and_invalid_x7_selection_remain_fail_closed() -> None:
-    assert trade_manager.build_nfi_trade_manager_ir(
-        {"strategies": [{"name": "OtherStrategy"}], "source": {}},
-        {},
-    ) is None
+    assert (
+        trade_manager.build_nfi_trade_manager_ir(
+            {"strategies": [{"name": "OtherStrategy"}], "source": {}},
+            {},
+        )
+        is None
+    )
     with pytest.raises(
         StrategyAnalysisError,
         match="requires one selected strategy",

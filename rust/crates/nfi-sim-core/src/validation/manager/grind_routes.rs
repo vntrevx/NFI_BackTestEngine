@@ -58,6 +58,7 @@ fn valid_long_grind(manager: &NfiX7TradeManager, managed_tags: &BTreeSet<&String
                     | "0.28.0"
                     | "0.29.0"
                     | "0.30.0"
+                    | "0.31.0"
             ),
             _ => false,
         };
@@ -80,7 +81,7 @@ fn valid_short_grind(
     managed_tags: &BTreeSet<&String>,
     short_tags: &BTreeSet<&String>,
 ) -> bool {
-    if manager.schema_version != "0.30.0" {
+    if !matches!(manager.schema_version.as_str(), "0.30.0" | "0.31.0") {
         return manager.short_grind.is_none();
     }
     manager.short_grind.as_ref().is_some_and(|route| {
@@ -130,7 +131,7 @@ fn valid_long_btc(manager: &NfiX7TradeManager, managed_tags: &BTreeSet<&String>)
                 .is_some_and(valid_nfi_regular_adjustment_constants)
             && if matches!(
                 manager.schema_version.as_str(),
-                "0.27.0" | "0.28.0" | "0.29.0" | "0.30.0"
+                "0.27.0" | "0.28.0" | "0.29.0" | "0.30.0" | "0.31.0"
             ) {
                 valid_versioned_legacy_grind_program(&manager.schema_version, route)
             } else {

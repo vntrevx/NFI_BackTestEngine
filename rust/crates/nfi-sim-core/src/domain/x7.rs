@@ -884,8 +884,8 @@ pub struct CompiledSystemGrindTags {
     pub entry_tag: String,
     pub exit_tag: String,
     pub derisk_tag: String,
-    pub maximum_profit_stake_key: String,
-    pub maximum_profit_rate_key: String,
+    pub maximum_profit_stake_key: Option<String>,
+    pub maximum_profit_rate_key: Option<String>,
     pub minimum_scale_leverage: CompiledSystemStakeScale,
 }
 

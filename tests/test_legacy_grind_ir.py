@@ -295,10 +295,7 @@ def test_legacy_grind_ir_compiles_an_additional_source_defined_level() -> None:
         node
         for node in ast.walk(reverse_loop)
         if isinstance(node, ast.List)
-        and any(
-            isinstance(item, ast.Constant) and item.value == "lane-c"
-            for item in node.elts
-        )
+        and any(isinstance(item, ast.Constant) and item.value == "lane-c" for item in node.elts)
     ):
         container.elts.extend(
             [ast.Constant(value="future-lane"), ast.Constant(value="future-lane-stop")]
@@ -354,7 +351,7 @@ def test_trade_manager_publishes_the_source_compiled_legacy_grind_prefix() -> No
     assert manager is not None
     operation = manager["operation"]
     program = operation["supported_routes"]["long_grind"]["program"]
-    assert operation["schema_version"] == "0.30.0"
+    assert operation["schema_version"] == "0.31.0"
     assert manager["remaining_steps"] == []
     assert manager["backtest_exclusions"] == [
         {

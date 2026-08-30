@@ -178,21 +178,31 @@ def _compile_delegate(method: ast.FunctionDef, *, retry_ms: int) -> dict[str, An
     }
 
 
+_LADDER_ASSIGNMENTS = {
+    "rebuy_mode_stakes",
+    "max_sub_grinds",
+    "rebuy_mode_sub_thresholds",
+}
+
+
 def _decision_fragment(method: ast.FunctionDef) -> ast.FunctionDef:
-    assignments = {
-        target.id: statement
-        for statement in method.body
-        if isinstance(statement, ast.Assign)
-        and len(statement.targets) == 1
-        and isinstance((target := statement.targets[0]), ast.Name)
-        and target.id
-        in {"rebuy_mode_stakes", "max_sub_grinds", "rebuy_mode_sub_thresholds"}
-    }
-    if set(assignments) != {
-        "rebuy_mode_stakes",
-        "max_sub_grinds",
-        "rebuy_mode_sub_thresholds",
-    }:
+    assignments: dict[str, ast.Assign] = {}
+    for statement in method.body:
+        candidates = _conditional_ladder_assignments(statement)
+        if isinstance(statement, ast.Assign):
+            candidates.extend([statement])
+        for candidate in candidates:
+            if (
+                len(candidate.targets) != 1
+                or not isinstance(candidate.targets[0], ast.Name)
+                or candidate.targets[0].id not in _LADDER_ASSIGNMENTS
+            ):
+                continue
+            name = candidate.targets[0].id
+            if name in assignments:
+                raise StrategyAnalysisError("rebuy ladder assignments changed")
+            assignments[name] = candidate
+    if set(assignments) != _LADDER_ASSIGNMENTS:
         raise StrategyAnalysisError("rebuy ladder assignments changed")
     entry_candidates = [
         statement
@@ -203,8 +213,7 @@ def _decision_fragment(method: ast.FunctionDef) -> ast.FunctionDef:
             for node in ast.walk(statement.test)
         )
         and any(
-            isinstance(node, ast.Name) and node.id == "buy_amount"
-            for node in ast.walk(statement)
+            isinstance(node, ast.Name) and node.id == "buy_amount" for node in ast.walk(statement)
         )
     ]
     derisk_candidates = [
@@ -274,6 +283,44 @@ def _decision_fragment(method: ast.FunctionDef) -> ast.FunctionDef:
     return fragment
 
 
+def _conditional_ladder_assignments(statement: ast.stmt) -> list[ast.Assign]:
+    if not isinstance(statement, ast.If) or not statement.orelse:
+        return []
+    branches: list[dict[str, ast.Assign]] = []
+    for body in (statement.body, statement.orelse):
+        if not all(
+            isinstance(item, ast.Assign)
+            and len(item.targets) == 1
+            and isinstance(item.targets[0], ast.Name)
+            and item.targets[0].id in _LADDER_ASSIGNMENTS
+            for item in body
+        ):
+            return []
+        branch_map = {
+            item.targets[0].id: item
+            for item in body
+            if isinstance(item, ast.Assign) and isinstance(item.targets[0], ast.Name)
+        }
+        if len(branch_map) != len(body):
+            raise StrategyAnalysisError("rebuy conditional ladder assignments changed")
+        branches.append(branch_map)
+    if not branches[0] or branches[0].keys() != branches[1].keys():
+        raise StrategyAnalysisError("rebuy conditional ladder assignments changed")
+    result = []
+    for name, primary in branches[0].items():
+        alternate = branches[1][name]
+        assignment = ast.Assign(
+            targets=[copy.deepcopy(primary.targets[0])],
+            value=ast.IfExp(
+                test=copy.deepcopy(statement.test),
+                body=copy.deepcopy(primary.value),
+                orelse=copy.deepcopy(alternate.value),
+            ),
+        )
+        result.append(ast.copy_location(assignment, statement))
+    return result
+
+
 class _DecisionLowerer(ast.NodeTransformer):
     """Remove observability-only calls and normalize tagged backtest returns."""
 
@@ -289,6 +336,10 @@ class _DecisionLowerer(ast.NodeTransformer):
         raise StrategyAnalysisError("rebuy decision contains an uncompiled expression statement")
 
     def visit_Assign(self, node: ast.Assign) -> ast.stmt | None:
+        if _is_observability_assignment(node):
+            return None
+        if _is_dataframe_loader(node) or _is_latest_candle_projection(node):
+            return None
         if (
             len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
@@ -300,7 +351,9 @@ class _DecisionLowerer(ast.NodeTransformer):
             raise StrategyAnalysisError("rebuy assignment lowering failed")
         return visited
 
-    def visit_If(self, node: ast.If) -> ast.stmt:
+    def visit_If(self, node: ast.If) -> ast.stmt | None:
+        if _is_empty_dataframe_guard(node) or _is_notification_branch(node):
+            return None
         if isinstance(node.test, ast.Name) and node.test.id == "has_order_tags":
             if (
                 len(node.body) != 1
@@ -323,6 +376,112 @@ class _DecisionLowerer(ast.NodeTransformer):
         return visited
 
 
+def _is_dataframe_loader(node: ast.Assign) -> bool:
+    return (
+        len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Tuple)
+        and len(node.targets[0].elts) == 2
+        and all(isinstance(item, ast.Name) for item in node.targets[0].elts)
+        and [item.id for item in node.targets[0].elts if isinstance(item, ast.Name)] == ["df", "_"]
+        and isinstance(node.value, ast.Call)
+        and _call_path(node.value.func) == "dp.get_analyzed_dataframe"
+    )
+
+
+def _is_latest_candle_projection(node: ast.Assign) -> bool:
+    return (
+        len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "last_candle"
+        and isinstance(node.value, ast.Subscript)
+        and isinstance(node.value.value, ast.Attribute)
+        and isinstance(node.value.value.value, ast.Name)
+        and node.value.value.value.id == "df"
+        and node.value.value.attr == "iloc"
+        and isinstance(node.value.slice, ast.UnaryOp)
+        and isinstance(node.value.slice.op, ast.USub)
+        and isinstance(node.value.slice.operand, ast.Constant)
+        and node.value.slice.operand.value == 1
+    )
+
+
+def _is_observability_assignment(node: ast.Assign) -> bool:
+    if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+        return False
+    name = node.targets[0].id
+    if name == "stake_currency":
+        return (
+            isinstance(node.value, ast.Subscript)
+            and (
+                (isinstance(node.value.value, ast.Name) and node.value.value.id == "config")
+                or (
+                    isinstance(node.value.value, ast.Attribute)
+                    and isinstance(node.value.value.value, ast.Name)
+                    and node.value.value.value.id == "self"
+                    and node.value.value.attr == "config"
+                )
+            )
+            and isinstance(node.value.slice, ast.Constant)
+            and node.value.slice.value == "stake_currency"
+        )
+    if name == "stake_fmt":
+        names = [item.id for item in ast.walk(node.value) if isinstance(item, ast.Name)]
+        return (
+            isinstance(node.value, ast.IfExp)
+            and bool(names)
+            and all(item == "stake_currency" for item in names)
+        )
+    if name == "send_notifications":
+        return (
+            isinstance(node.value, ast.UnaryOp)
+            and isinstance(node.value.op, ast.Not)
+            and isinstance(node.value.operand, ast.Call)
+            and _call_path(node.value.operand.func) == "self.is_backtest_mode"
+        )
+    return False
+
+
+def _is_notification_branch(node: ast.If) -> bool:
+    return (
+        isinstance(node.test, ast.Name)
+        and node.test.id == "send_notifications"
+        and not node.orelse
+        and bool(node.body)
+        and all(
+            isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and _call_path(statement.value.func) in {"dp.send_msg", "log.info"}
+            for statement in node.body
+        )
+    )
+
+
+def _is_empty_dataframe_guard(node: ast.If) -> bool:
+    test = node.test
+    return (
+        not node.orelse
+        and len(node.body) == 1
+        and isinstance(node.body[0], ast.Return)
+        and (
+            node.body[0].value is None
+            or (isinstance(node.body[0].value, ast.Constant) and node.body[0].value.value is None)
+        )
+        and isinstance(test, ast.Compare)
+        and isinstance(test.left, ast.Call)
+        and isinstance(test.left.func, ast.Name)
+        and test.left.func.id == "len"
+        and len(test.left.args) == 1
+        and isinstance(test.left.args[0], ast.Name)
+        and test.left.args[0].id == "df"
+        and not test.left.keywords
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.Lt)
+        and len(test.comparators) == 1
+        and isinstance(test.comparators[0], ast.Constant)
+        and test.comparators[0].value == 1
+    )
+
+
 def _call_path(node: ast.AST) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
@@ -342,11 +501,7 @@ def _input_contract(fragment: ast.FunctionDef) -> dict[str, Any]:
             and isinstance(node.slice.value, str)
         ):
             indexed.setdefault(node.value.id, set()).add(node.slice.value)
-    return {
-        "indexed_fields": {
-            name: sorted(fields) for name, fields in sorted(indexed.items())
-        }
-    }
+    return {"indexed_fields": {name: sorted(fields) for name, fields in sorted(indexed.items())}}
 
 
 def _location(node: ast.AST) -> dict[str, int]:

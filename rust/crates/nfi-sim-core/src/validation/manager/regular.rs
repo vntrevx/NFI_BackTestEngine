@@ -19,7 +19,7 @@ pub(super) fn valid_versioned_regular_adjustment_program(
     schema_version: &str,
     route: &NfiLongGrindRoute,
 ) -> bool {
-    let required = matches!(schema_version, "0.28.0" | "0.29.0" | "0.30.0");
+    let required = matches!(schema_version, "0.28.0" | "0.29.0" | "0.30.0" | "0.31.0");
     let Some(program) = route.regular_program.as_ref() else {
         return !required;
     };
@@ -87,7 +87,7 @@ pub(super) fn valid_versioned_regular_adjustment_program(
     let continuation = &program.continuation;
     program.schema_version == "regular-transition-program-v1"
         && program.execution_mode
-            == if matches!(schema_version, "0.29.0" | "0.30.0") {
+            == if matches!(schema_version, "0.29.0" | "0.30.0" | "0.31.0") {
                 CompiledRegularExecutionMode::Primary
             } else {
                 CompiledRegularExecutionMode::PrimaryWithLegacyShadow

@@ -14,7 +14,7 @@ from typing import Any
 from ..errors import StrategyAnalysisError
 from ..trade_ir import compile_scalar_ast_program
 
-SYSTEM_ADJUSTMENT_PROGRAM_VERSION = "system-adjustment-program-v1"
+SYSTEM_ADJUSTMENT_PROGRAM_VERSION = "system-adjustment-program-v2"
 
 _DERISK_TAG = re.compile(r"^derisk_level_(\d+)$")
 _GRIND_TAG = re.compile(r"^grind_(\d+)_(entry|exit|derisk)$")
@@ -23,6 +23,7 @@ _DERISK_VARIABLE = re.compile(r"^is_derisk_(\d+)(?:_found)?$")
 _DERISK_ENABLE_VARIABLE = re.compile(r"^derisk_(\d+)_enable$")
 _DERISK_VALUE_VARIABLE = re.compile(r"^derisk_(\d+)_(stake|threshold)$")
 _MAXIMUM_KEY = re.compile(r"^grind_(\d+)_cluster_max_profit_(stake|rate)$")
+_CURRENT_MAXIMUM = re.compile(r"^grind_(\d+)_current_grind_profit_(stake|rate)$")
 _BUILTIN_NAMES = {"abs", "all", "any", "bool", "float", "int", "len", "max", "min", "str"}
 
 _COMMON_BINDINGS = {
@@ -111,14 +112,25 @@ def compile_system_adjustment_ir(
             bindings = [
                 {
                     **binding,
-                    **(
-                        {"level": action.level}
-                        if binding.get("level") == "action"
-                        else {}
-                    ),
+                    **({"level": action.level} if binding.get("level") == "action" else {}),
                 }
                 for binding in exit_program["bindings"]
             ]
+            level_state = next(
+                record for record in order_scan["grind_levels"] if record["level"] == action.level
+            )
+            if any(
+                binding["kind"]
+                in {
+                    "cluster-maximum-profit-stake",
+                    "cluster-maximum-profit-rate",
+                }
+                for binding in bindings
+            ) and (
+                level_state["maximum_profit_stake_key"] is None
+                or level_state["maximum_profit_rate_key"] is None
+            ):
+                raise StrategyAnalysisError("system adjustment maximum binding has no source state")
             compiled_actions.append(
                 {
                     "kind": action.kind,
@@ -230,9 +242,7 @@ def _validate_action_coverage(actions: list[_SourceAction], levels: list[int]) -
     if actual[: len(expected_prefix)] != expected_prefix:
         raise StrategyAnalysisError("system adjustment de-risk source order changed")
     expected_grinds = [
-        f"grind-{kind}:{level}"
-        for level in levels
-        for kind in ("entry", "exit", "derisk")
+        f"grind-{kind}:{level}" for level in levels for kind in ("entry", "exit", "derisk")
     ]
     if actual[len(expected_prefix) :] != expected_grinds:
         raise StrategyAnalysisError("system adjustment Grind source order changed")
@@ -283,7 +293,7 @@ def _compile_order_scan(
     global_tags = sorted(tag for tag in constants if tag == "derisk_global")
     if len(global_tags) != 1:
         raise StrategyAnalysisError("system adjustment global exit tag changed")
-    maxima = _maximum_keys(method, levels)
+    maxima = _maximum_keys(method, levels, side=side)
     stake_scales = _stake_scales(method, levels)
     action_by_key = {(action.kind, action.level): action.tag for action in actions}
     return {
@@ -313,32 +323,177 @@ def _compile_order_scan(
     }
 
 
-def _maximum_keys(method: ast.FunctionDef, levels: list[int]) -> dict[int, dict[str, str]]:
-    result: dict[int, dict[str, str]] = {}
-    for node in method.body:
-        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.BoolOp):
-            continue
-        for call in ast.walk(node.value):
-            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Attribute):
-                continue
-            if call.func.attr != "get_custom_data":
-                continue
-            key = next(
-                (
-                    str(keyword.value.value)
-                    for keyword in call.keywords
-                    if keyword.arg == "key"
-                    and isinstance(keyword.value, ast.Constant)
-                    and isinstance(keyword.value.value, str)
-                ),
-                None,
+def _maximum_keys(
+    method: ast.FunctionDef,
+    levels: list[int],
+    *,
+    side: str,
+) -> dict[int, dict[str, str | None]]:
+    reads: dict[tuple[int, str], tuple[str, int]] = {}
+    writes: dict[tuple[int, str], int] = {}
+    consumed_calls: set[int] = set()
+    custom_calls: dict[int, ast.Call] = {}
+    maximum_names = {
+        (int(match.group(1)), match.group(2))
+        for node in ast.walk(method)
+        if isinstance(node, ast.Name) and (match := _MAXIMUM_KEY.fullmatch(node.id)) is not None
+    }
+    for statement in method.body:
+        calls = [
+            node
+            for node in ast.walk(statement)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"get_custom_data", "set_custom_data"}
+        ]
+        names = {
+            node.id
+            for node in ast.walk(statement)
+            if isinstance(node, ast.Name)
+            and (
+                _MAXIMUM_KEY.fullmatch(node.id) is not None
+                or _CURRENT_MAXIMUM.fullmatch(node.id) is not None
             )
-            match = _MAXIMUM_KEY.fullmatch(key or "")
-            if match is not None:
-                result.setdefault(int(match.group(1)), {})[match.group(2)] = str(key)
-    if sorted(result) != levels or any(set(result[level]) != {"stake", "rate"} for level in levels):
-        raise StrategyAnalysisError("system adjustment cluster maximum keys changed")
+        }
+        for call in calls:
+            if names or _MAXIMUM_KEY.fullmatch(_custom_data_key(call) or "") is not None:
+                custom_calls[id(call)] = call
+    for statement in method.body:
+        read = _maximum_read(statement)
+        if read is not None:
+            level, field, key, call = read
+            identity = (level, field)
+            if identity in reads:
+                raise StrategyAnalysisError("system adjustment cluster maximum reads changed")
+            reads[identity] = (key, id(call))
+            consumed_calls.add(id(call))
+        write = _maximum_write(statement, side=side)
+        if write is not None:
+            level, field, call = write
+            identity = (level, field)
+            if identity in writes:
+                raise StrategyAnalysisError("system adjustment cluster maximum writes changed")
+            writes[identity] = id(call)
+            consumed_calls.add(id(call))
+    if set(custom_calls) != consumed_calls:
+        raise StrategyAnalysisError("system adjustment custom state shape changed")
+    expected_levels = set(levels)
+    observed_levels = {level for level, _ in set(reads) | set(writes) | maximum_names}
+    if not observed_levels <= expected_levels:
+        raise StrategyAnalysisError("system adjustment cluster maximum levels changed")
+    result: dict[int, dict[str, str | None]] = {}
+    for level in levels:
+        identities = {(level, "stake"), (level, "rate")}
+        present_reads = identities & set(reads)
+        present_writes = identities & set(writes)
+        if not present_reads and not present_writes:
+            if identities & maximum_names:
+                raise StrategyAnalysisError("system adjustment residual maximum state changed")
+            result[level] = {"stake": None, "rate": None}
+            continue
+        if present_reads != identities or present_writes != identities:
+            raise StrategyAnalysisError("system adjustment cluster maximum keys changed")
+        result[level] = {field: reads[(level, field)][0] for field in ("stake", "rate")}
     return result
+
+
+def _maximum_read(
+    statement: ast.stmt,
+) -> tuple[int, str, str, ast.Call] | None:
+    if (
+        not isinstance(statement, ast.Assign)
+        or len(statement.targets) != 1
+        or not isinstance(statement.targets[0], ast.Name)
+        or not isinstance(statement.value, ast.BoolOp)
+        or not isinstance(statement.value.op, ast.Or)
+        or len(statement.value.values) != 2
+    ):
+        return None
+    calls = [
+        node
+        for node in statement.value.values
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "get_custom_data"
+    ]
+    defaults = [
+        node.value
+        for node in statement.value.values
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, int | float)
+        and not isinstance(node.value, bool)
+    ]
+    if len(calls) != 1 or defaults != [0.0]:
+        return None
+    call = calls[0]
+    key = _custom_data_key(call)
+    match = _MAXIMUM_KEY.fullmatch(key or "")
+    if match is None or statement.targets[0].id != key:
+        return None
+    return int(match.group(1)), match.group(2), str(key), call
+
+
+def _maximum_write(
+    statement: ast.stmt,
+    *,
+    side: str,
+) -> tuple[int, str, ast.Call] | None:
+    if (
+        not isinstance(statement, ast.If)
+        or not isinstance(statement.test, ast.Compare)
+        or len(statement.test.ops) != 1
+        or len(statement.test.comparators) != 1
+        or not isinstance(statement.test.left, ast.Name)
+        or not isinstance(statement.test.comparators[0], ast.Name)
+        or len(statement.body) != 1
+        or not isinstance(statement.body[0], ast.Expr)
+        or not isinstance(statement.body[0].value, ast.Call)
+    ):
+        return None
+    call = statement.body[0].value
+    if not isinstance(call.func, ast.Attribute) or call.func.attr != "set_custom_data":
+        return None
+    key = _custom_data_key(call)
+    match = _MAXIMUM_KEY.fullmatch(key or "")
+    if match is None:
+        return None
+    level = int(match.group(1))
+    field = match.group(2)
+    current_name = f"grind_{level}_current_grind_profit_{field}"
+    maximum_name = str(key)
+    expected_operator = ast.Gt if field == "stake" or side == "long" else ast.Lt
+    value = next(
+        (keyword.value for keyword in call.keywords if keyword.arg == "value"),
+        None,
+    )
+    if (
+        statement.test.left.id != current_name
+        or statement.test.comparators[0].id != maximum_name
+        or not isinstance(statement.test.ops[0], expected_operator)
+        or not isinstance(value, ast.Name)
+        or value.id != current_name
+    ):
+        return None
+    return level, field, call
+
+
+def _custom_data_key(call: ast.Call) -> str | None:
+    if (
+        not isinstance(call.func, ast.Attribute)
+        or not isinstance(call.func.value, ast.Name)
+        or call.func.value.id != "trade"
+    ):
+        return None
+    return next(
+        (
+            str(keyword.value.value)
+            for keyword in call.keywords
+            if keyword.arg == "key"
+            and isinstance(keyword.value, ast.Constant)
+            and isinstance(keyword.value.value, str)
+        ),
+        None,
+    )
 
 
 def _stake_scales(method: ast.FunctionDef, levels: list[int]) -> dict[int, str]:
@@ -348,8 +503,7 @@ def _stake_scales(method: ast.FunctionDef, levels: list[int]) -> dict[int, str]:
             not isinstance(statement, ast.Assign)
             or len(statement.targets) != 1
             or not isinstance(statement.targets[0], ast.Name)
-            or (match := re.fullmatch(r"grind_(\d+)_stakes", statement.targets[0].id))
-            is None
+            or (match := re.fullmatch(r"grind_(\d+)_stakes", statement.targets[0].id)) is None
             or not isinstance(statement.value, ast.Call)
             or _call_path(statement.value.func)
             not in {
@@ -432,17 +586,13 @@ class _FirstEntryAmountLowerer(ast.NodeTransformer):
 
 
 _DISCARDED_REPORTING_LOCALS = frozenset({"grind_profit", "stake_fmt"})
-_DISCARDED_REPORTING_CALLS = frozenset(
-    {"send_msg", "log.info", "self.dp.send_msg"}
-)
+_DISCARDED_REPORTING_CALLS = frozenset({"send_msg", "log.info", "self.dp.send_msg"})
 
 
 def _observability_only_config_locals(body: list[ast.stmt]) -> frozenset[str]:
     module = ast.Module(body=body, type_ignores=[])
     parents = {
-        id(child): parent
-        for parent in ast.walk(module)
-        for child in ast.iter_child_nodes(parent)
+        id(child): parent for parent in ast.walk(module) for child in ast.iter_child_nodes(parent)
     }
     candidates = {
         target.id
@@ -514,8 +664,7 @@ class _ActionLowerer(ast.NodeTransformer):
         if (
             len(node.targets) == 1
             and isinstance(node.targets[0], ast.Name)
-            and node.targets[0].id
-            in _DISCARDED_REPORTING_LOCALS | self.observability_only_locals
+            and node.targets[0].id in _DISCARDED_REPORTING_LOCALS | self.observability_only_locals
         ):
             return None
         visited = self.generic_visit(node)
@@ -530,11 +679,15 @@ class _ActionLowerer(ast.NodeTransformer):
         return None
 
     def visit_If(self, node: ast.If) -> ast.stmt | None:
-        if not node.orelse and node.body and all(
-            isinstance(statement, ast.Expr)
-            and isinstance(statement.value, ast.Call)
-            and _call_path(statement.value.func) in _DISCARDED_REPORTING_CALLS
-            for statement in node.body
+        if (
+            not node.orelse
+            and node.body
+            and all(
+                isinstance(statement, ast.Expr)
+                and isinstance(statement.value, ast.Call)
+                and _call_path(statement.value.func) in _DISCARDED_REPORTING_CALLS
+                for statement in node.body
+            )
         ):
             return None
         if isinstance(node.test, ast.Name) and node.test.id == "has_order_tags":
@@ -551,10 +704,16 @@ class _ActionLowerer(ast.NodeTransformer):
 
     def visit_Return(self, node: ast.Return) -> ast.Return:
         value = node.value
-        if value is None or (isinstance(value, ast.Constant) and value.value is None) or (
-            isinstance(value, ast.Tuple)
-            and value.elts
-            and all(isinstance(item, ast.Constant) and item.value is None for item in value.elts)
+        if (
+            value is None
+            or (isinstance(value, ast.Constant) and value.value is None)
+            or (
+                isinstance(value, ast.Tuple)
+                and value.elts
+                and all(
+                    isinstance(item, ast.Constant) and item.value is None for item in value.elts
+                )
+            )
         ):
             return ast.copy_location(ast.Return(value=ast.Constant(value=self.none_result)), node)
         return copy.deepcopy(node)
@@ -711,11 +870,7 @@ def _input_contract(fragment: ast.FunctionDef) -> dict[str, Any]:
             and isinstance(node.slice.value, str)
         ):
             indexed.setdefault(node.value.id, set()).add(node.slice.value)
-    return {
-        "indexed_fields": {
-            name: sorted(fields) for name, fields in sorted(indexed.items())
-        }
-    }
+    return {"indexed_fields": {name: sorted(fields) for name, fields in sorted(indexed.items())}}
 
 
 def _merge_input_contracts(actions: list[dict[str, Any]]) -> dict[str, Any]:
@@ -730,11 +885,7 @@ def _merge_input_contracts(actions: list[dict[str, Any]]) -> dict[str, Any]:
                 indexed.setdefault(name, set()).update(
                     field for field in fields if isinstance(field, str)
                 )
-    return {
-        "indexed_fields": {
-            name: sorted(fields) for name, fields in sorted(indexed.items())
-        }
-    }
+    return {"indexed_fields": {name: sorted(fields) for name, fields in sorted(indexed.items())}}
 
 
 def _positive_int(record: Mapping[str, Any], name: str) -> int:

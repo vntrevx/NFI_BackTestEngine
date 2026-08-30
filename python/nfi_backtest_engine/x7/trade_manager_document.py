@@ -19,7 +19,7 @@ from .trade_manager_constants import (
 )
 from .trade_manager_source import TradeManagerSource
 
-NFI_TRADE_MANAGER_IR_VERSION = "0.30.0"
+NFI_TRADE_MANAGER_IR_VERSION = "0.31.0"
 
 
 def _adjustment_program_order(constants: dict[str, Any]) -> list[str]:

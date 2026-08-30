@@ -405,7 +405,7 @@ fn evaluate_compiled_system_action(
     context: &AdjustmentContext<'_>,
     trade: &OpenTrade,
     state: &AdjustmentState,
-    previous_maxima: &[(f64, f64)],
+    previous_maxima: &[Option<(f64, f64)>],
     open_grind_count: usize,
 ) -> Option<CompiledActionOutcome> {
     let mut variables = BTreeMap::new();
@@ -472,7 +472,7 @@ fn compiled_binding_value(
     context: &AdjustmentContext<'_>,
     trade: &OpenTrade,
     state: &AdjustmentState,
-    previous_maxima: &[(f64, f64)],
+    previous_maxima: &[Option<(f64, f64)>],
     open_grind_count: usize,
 ) -> Option<Value> {
     let cluster_value = |level: Option<usize>| -> Option<(usize, &GrindCluster, &NfiX7GrindLevel)> {
@@ -640,11 +640,11 @@ fn compiled_binding_value(
         }
         CompiledSystemAdjustmentInputKind::ClusterMaximumProfitStake => {
             let (index, _, _) = cluster_value(level)?;
-            number(previous_maxima.get(index)?.0)
+            number(previous_maxima.get(index)?.as_ref()?.0)
         }
         CompiledSystemAdjustmentInputKind::ClusterMaximumProfitRate => {
             let (index, _, _) = cluster_value(level)?;
-            number(previous_maxima.get(index)?.1)
+            number(previous_maxima.get(index)?.as_ref()?.1)
         }
     }
 }
@@ -1104,7 +1104,7 @@ fn read_and_update_compiled_cluster_maxima(
     rate: f64,
     close_fee: f64,
     side: TradeSide,
-) -> Option<Vec<(f64, f64)>> {
+) -> Option<Vec<Option<(f64, f64)>>> {
     if clusters.len() != levels.len() {
         return None;
     }
@@ -1112,27 +1112,37 @@ fn read_and_update_compiled_cluster_maxima(
         .iter()
         .zip(levels)
         .map(|(cluster, level)| {
-            let previous_stake = custom_number(trade, &level.maximum_profit_stake_key);
-            let previous_rate = custom_number(trade, &level.maximum_profit_rate_key);
+            let (Some(stake_key), Some(rate_key)) = (
+                level.maximum_profit_stake_key.as_ref(),
+                level.maximum_profit_rate_key.as_ref(),
+            ) else {
+                return if level.maximum_profit_stake_key.is_none()
+                    && level.maximum_profit_rate_key.is_none()
+                {
+                    Some(None)
+                } else {
+                    None
+                };
+            };
+            let previous_stake = custom_number(trade, stake_key);
+            let previous_rate = custom_number(trade, rate_key);
             let profit_stake = cluster.profit_stake(rate, close_fee, side);
             let profit_rate = cluster.profit_rate(rate);
             if profit_stake > previous_stake {
-                trade.custom_data.insert(
-                    level.maximum_profit_stake_key.clone(),
-                    number_value(profit_stake)?,
-                );
+                trade
+                    .custom_data
+                    .insert(stake_key.clone(), number_value(profit_stake)?);
             }
             let rate_improved = match side {
                 TradeSide::Long => profit_rate > previous_rate,
                 TradeSide::Short => profit_rate < previous_rate,
             };
             if rate_improved {
-                trade.custom_data.insert(
-                    level.maximum_profit_rate_key.clone(),
-                    number_value(profit_rate)?,
-                );
+                trade
+                    .custom_data
+                    .insert(rate_key.clone(), number_value(profit_rate)?);
             }
-            Some((previous_stake, previous_rate))
+            Some(Some((previous_stake, previous_rate)))
         })
         .collect()
 }
@@ -1914,14 +1924,23 @@ mod tests {
         adjustment_predicate_matches, compiled_adjustment_state, derisk_level_index,
         evaluate_compiled_system_action, grind_callback_maximum_stake,
         grind_callback_minimum_stake, grind_entry_index, grind_exit_index,
-        rebuild_compiled_adjustment_state, AdjustmentContext, AdjustmentState,
-        CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
+        read_and_update_compiled_cluster_maxima, rebuild_compiled_adjustment_state,
+        AdjustmentContext, AdjustmentState, CompiledActionOutcome, GrindCluster, NfiProfitSnapshot,
     };
 
     fn compiled_action_program(result: &serde_json::Value) -> CompiledSystemAdjustmentProgram {
         compiled_directional_action_program(result, "long", "buy", "sell")
     }
 
+    fn no_op_scalar_program() -> serde_json::Value {
+        json!({
+            "schema_version": "1.2.0",
+            "opcode": "scalar-decision-program-v1",
+            "parameters": [],
+            "expressions": [["literal", null]],
+            "statements": [["return", 0]]
+        })
+    }
     fn compiled_directional_action_program(
         result: &serde_json::Value,
         side: &str,
@@ -2477,7 +2496,7 @@ mod tests {
             &context,
             &trade,
             &state,
-            &[(0.0, 0.0)],
+            &[Some((0.0, 0.0))],
             2,
         )
         .expect("valid generic action");
@@ -2547,7 +2566,7 @@ mod tests {
                 &context,
                 &trade,
                 &state,
-                &[(0.0, 0.0)],
+                &[Some((0.0, 0.0))],
                 0,
             ),
             Some(CompiledActionOutcome::ReturnNone)
@@ -2622,7 +2641,7 @@ mod tests {
             &context,
             &trade,
             &state,
-            &[(0.0, 0.0)],
+            &[Some((0.0, 0.0))],
             1,
         )
         .expect("valid short generic action");
@@ -2632,5 +2651,81 @@ mod tests {
         };
         assert!((signal.stake_amount + 10.0).abs() < f64::EPSILON);
         assert_eq!(signal.tag, "source_exit 7");
+    }
+
+    #[test]
+    fn compiled_v1_cluster_maxima_deserialize_and_replay_existing_keys() {
+        let program = compiled_action_program(&no_op_scalar_program());
+        let level = &program.order_scan.grind_levels[0];
+        assert_eq!(program.schema_version, "system-adjustment-program-v1");
+        assert_eq!(
+            level.maximum_profit_stake_key.as_deref(),
+            Some("source_max_stake")
+        );
+        assert_eq!(
+            level.maximum_profit_rate_key.as_deref(),
+            Some("source_max_rate")
+        );
+        let mut trade = test_trade();
+        trade
+            .custom_data
+            .insert("source_max_stake".to_owned(), json!(2.0));
+        trade
+            .custom_data
+            .insert("source_max_rate".to_owned(), json!(0.2));
+
+        let maxima = read_and_update_compiled_cluster_maxima(
+            &mut trade,
+            &[GrindCluster::default()],
+            &program.order_scan.grind_levels,
+            110.0,
+            0.0,
+            TradeSide::Long,
+        );
+
+        assert_eq!(maxima, Some(vec![Some((2.0, 0.2))]));
+    }
+
+    #[test]
+    fn compiled_cluster_maxima_allow_complete_absence_without_state_writes() {
+        let mut program = compiled_action_program(&no_op_scalar_program());
+        program.schema_version = "system-adjustment-program-v2".to_owned();
+        program.execution_mode = crate::domain::CompiledSystemAdjustmentExecutionMode::Primary;
+        let level = &mut program.order_scan.grind_levels[0];
+        level.maximum_profit_stake_key = None;
+        level.maximum_profit_rate_key = None;
+        let mut trade = test_trade();
+        trade
+            .custom_data
+            .insert("unrelated".to_owned(), json!(true));
+        let original = trade.custom_data.clone();
+
+        let maxima = read_and_update_compiled_cluster_maxima(
+            &mut trade,
+            &[GrindCluster::default()],
+            &program.order_scan.grind_levels,
+            110.0,
+            0.0,
+            TradeSide::Long,
+        );
+
+        assert_eq!(maxima, Some(vec![None]));
+        assert_eq!(trade.custom_data, original);
+    }
+
+    #[test]
+    fn compiled_cluster_maxima_reject_partial_key_pairs() {
+        let mut program = compiled_action_program(&no_op_scalar_program());
+        program.order_scan.grind_levels[0].maximum_profit_rate_key = None;
+
+        assert!(read_and_update_compiled_cluster_maxima(
+            &mut test_trade(),
+            &[GrindCluster::default()],
+            &program.order_scan.grind_levels,
+            110.0,
+            0.0,
+            TradeSide::Long,
+        )
+        .is_none());
     }
 }
