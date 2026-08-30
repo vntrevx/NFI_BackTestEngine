@@ -38,11 +38,15 @@ run_as_bind_owner() {
   fi
   nfi_command="$1"
   shift
+  nfi_python_user_base="$(
+    /usr/local/bin/python -m site --user-base
+  )" || return 126
   nfi_runtime_xdg="$(mktemp -d /tmp/nfi-bind-owner.XXXXXX)" || return 126
   export HOME="${nfi_runtime_xdg}/home"
   export XDG_CACHE_HOME="${nfi_runtime_xdg}/cache"
   export XDG_CONFIG_HOME="${nfi_runtime_xdg}/config"
   export XDG_DATA_HOME="${nfi_runtime_xdg}/data"
+  export PYTHONUSERBASE="${nfi_python_user_base}"
   mkdir -p "${HOME}" || return 126
   if [ "${nfi_command}" = "freqtrade" ]; then
     /usr/local/bin/python -m freqtrade "$@"

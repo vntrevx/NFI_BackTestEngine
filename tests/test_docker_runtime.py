@@ -51,6 +51,10 @@ def test_private_image_executable_drops_to_dynamic_bind_owner(
         f"NFI_BIND_GID={owner.st_gid}",
     ]
     assert "/usr/local/bin/python -m freqtrade" in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert "/usr/local/bin/python -m site --user-base" in BIND_OWNER_EXECUTABLE_FUNCTION
+    assert 'export PYTHONUSERBASE="${nfi_python_user_base}"' in (
+        BIND_OWNER_EXECUTABLE_FUNCTION
+    )
     assert 'id -u' in BIND_OWNER_EXECUTABLE_FUNCTION
     assert "setpriv" not in BIND_OWNER_EXECUTABLE_FUNCTION
     assert "ftuser" not in BIND_OWNER_EXECUTABLE_FUNCTION
