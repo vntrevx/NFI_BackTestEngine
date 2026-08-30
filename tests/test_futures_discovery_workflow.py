@@ -128,6 +128,10 @@ def test_discovery_product_status_records_blocked_state_and_authorizes_progress(
     assert "Validate product compatibility status schema" in product
     assert "Authorize paired discovery publication independently of product status" in product
     assert "scripts/validate_discovery_publication.py" in product
+    assert "Install locked product-status runtime" in product
+    assert "uv sync --extra dev --frozen" in product
+    assert "uv run python scripts/compatibility_automation.py" in product
+    assert "uv run python scripts/validate_discovery_publication.py" in product
     assert "jq -e '.required_status_passed == true'" not in product
 
 
