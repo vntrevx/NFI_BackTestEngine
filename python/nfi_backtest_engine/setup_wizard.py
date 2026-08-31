@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .canonical import write_json
 from .config_loader import freeze_pairlist, load_effective_config
 from .errors import SpecValidationError
 from .product_contract import default_long_timerange
@@ -31,6 +32,7 @@ def initialize_project(
     source: str | Path | None = None,
     class_name: str | None = None,
     config_path: str | Path | None = None,
+    trading_mode: str | None = None,
     data_directory: str | Path | None = None,
     timerange: str | None = None,
     output_directory: str | Path | None = None,
@@ -67,7 +69,9 @@ def initialize_project(
     selected_config = _select_config(
         root,
         selected_source,
+        generated_path=destination.parent / "first-run-config.json",
         config_path=config_path,
+        trading_mode=trading_mode,
         interactive=interactive,
         prompt=prompt,
         emit=emit,
@@ -200,38 +204,173 @@ def _select_config(
     workspace: Path,
     source: Path,
     *,
+    generated_path: Path,
     config_path: str | Path | None,
+    trading_mode: str | None,
     interactive: bool,
     prompt: Prompt,
     emit: Emitter,
 ) -> Path:
     if config_path is not None:
         selected = resolve_workspace_path(workspace, config_path)
+        loaded = load_effective_config(selected)
+        _require_requested_trading_mode(loaded["config"], trading_mode)
+        return selected
+
+    candidates = _config_candidates(workspace, source)
+    valid = [candidate for candidate in candidates if _is_valid_config(candidate)]
+    if len(valid) == 1:
+        selected = valid[0]
+        emit(f"detected Freqtrade config: {selected}")
+    elif valid:
+        selected = _choose_path(
+            "Freqtrade config",
+            valid,
+            interactive=interactive,
+            prompt=prompt,
+            emit=emit,
+        )
     else:
-        candidates = _config_candidates(workspace, source)
-        valid = [candidate for candidate in candidates if _is_valid_config(candidate)]
-        if len(valid) == 1:
-            selected = valid[0]
-            emit(f"detected Freqtrade config: {selected}")
-        elif valid:
-            selected = _choose_path(
-                "Freqtrade config",
-                valid,
-                interactive=interactive,
-                prompt=prompt,
-                emit=emit,
-            )
-        elif interactive:
-            selected = resolve_workspace_path(
-                workspace,
-                _prompt_value("Freqtrade config", prompt=prompt),
-            )
-        else:
-            raise SpecValidationError(
-                "Freqtrade config was not provided and no valid standard config was found"
-            )
-    load_effective_config(selected)
+        for candidate in candidates:
+            emit(f"ignoring non-self-contained Freqtrade config: {candidate}")
+        selected_mode = _select_trading_mode(
+            trading_mode,
+            interactive=interactive,
+            prompt=prompt,
+            emit=emit,
+        )
+        selected_exchange = _select_exchange(
+            interactive=interactive,
+            prompt=prompt,
+            emit=emit,
+        )
+        selected = generated_path.resolve()
+        _write_first_run_config(
+            selected,
+            trading_mode=selected_mode,
+            exchange=selected_exchange,
+        )
+        emit(f"generated safe {selected_mode} config: {selected}")
+        return selected
+
+    loaded = load_effective_config(selected)
+    _require_requested_trading_mode(loaded["config"], trading_mode)
     return selected
+
+
+def _select_trading_mode(
+    requested: str | None,
+    *,
+    interactive: bool,
+    prompt: Prompt,
+    emit: Emitter,
+) -> str:
+    if requested is not None:
+        if requested not in {"spot", "futures"}:
+            raise SpecValidationError("trading mode must be spot or futures")
+        emit(f"using requested trading mode: {requested}")
+        return requested
+    if not interactive:
+        emit("using default trading mode: spot")
+        return "spot"
+    while True:
+        selected = _prompt_value(
+            "Trading mode (spot or futures)",
+            default="spot",
+            prompt=prompt,
+        ).lower()
+        if selected in {"spot", "futures"}:
+            return selected
+        emit("Enter spot or futures.")
+
+
+def _select_exchange(
+    *,
+    interactive: bool,
+    prompt: Prompt,
+    emit: Emitter,
+) -> str:
+    if not interactive:
+        emit("using default exchange: binance")
+        return "binance"
+    while True:
+        selected = _prompt_value("Exchange", default="binance", prompt=prompt).lower()
+        if re.fullmatch(r"[a-z0-9][a-z0-9_-]*", selected):
+            return selected
+        emit("Enter a lowercase CCXT exchange id such as binance.")
+
+
+def _require_requested_trading_mode(
+    config: dict[str, Any],
+    requested: str | None,
+) -> None:
+    if requested is None:
+        return
+    configured = config.get("trading_mode", "spot")
+    if configured != requested:
+        raise SpecValidationError(
+            f"requested trading mode {requested} differs from config mode {configured}"
+        )
+
+
+def _write_first_run_config(
+    destination: Path,
+    *,
+    trading_mode: str,
+    exchange: str,
+) -> None:
+    if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+        raise SpecValidationError(
+            f"generated config destination is not a regular file: {destination}"
+        )
+    market_type = "linear" if trading_mode == "futures" else "spot"
+    config: dict[str, Any] = {
+        "$schema": "https://schema.freqtrade.io/schema.json",
+        "dry_run": True,
+        "dry_run_wallet": 10_000,
+        "trading_mode": trading_mode,
+        "grinding_enable": True,
+        "max_open_trades": 1,
+        "stake_currency": "USDT",
+        "stake_amount": "unlimited",
+        "tradable_balance_ratio": 0.99,
+        "timeframe": "5m",
+        "dataformat_ohlcv": "feather",
+        "entry_pricing": {
+            "price_side": "other",
+            "use_order_book": True,
+            "order_book_top": 1,
+        },
+        "exit_pricing": {
+            "price_side": "other",
+            "use_order_book": True,
+            "order_book_top": 1,
+        },
+        "exchange": {
+            "name": exchange,
+            "key": "",
+            "secret": "",
+            "pair_whitelist": [],
+            "pair_blacklist": [],
+            "ccxt_config": {
+                "options": {
+                    "fetchMarkets": {
+                        "types": [market_type],
+                    }
+                }
+            },
+        },
+        "pairlists": [
+            {
+                "method": "StaticPairList",
+                "allow_inactive": True,
+            }
+        ],
+    }
+    if trading_mode == "futures":
+        config["margin_mode"] = "isolated"
+    write_json(destination, config)
+    load_effective_config(destination)
 
 
 def _select_pairs(
@@ -251,8 +390,14 @@ def _select_pairs(
             raise SpecValidationError(
                 "config has no static pair whitelist; repeat --pair for each pair"
             ) from None
+    trading_mode = config.get("trading_mode", "spot")
+    example = (
+        "BTC/USDT:USDT,ETH/USDT:USDT"
+        if trading_mode == "futures"
+        else "BTC/USDT,ETH/USDT"
+    )
     raw = _prompt_value(
-        "Pairs (comma separated, for example BTC/USDT,ETH/USDT)",
+        f"Pairs (comma separated, for example {example})",
         prompt=prompt,
     )
     selected = [item.strip() for item in raw.split(",") if item.strip()]

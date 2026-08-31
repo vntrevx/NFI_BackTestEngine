@@ -206,23 +206,34 @@ Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
 
 ## Quick start
 
-Run the first-time wizard with an NFI strategy:
+Start from an empty working directory:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py
+mkdir -p ~/nfi-backtest
+cd ~/nfi-backtest
+git clone --depth 1 https://github.com/iterativv/NostalgiaForInfinity.git
+cd NostalgiaForInfinity
+nfi-bte run NostalgiaForInfinityX7.py
 ```
 
-The wizard discovers the class, Freqtrade config, candle directory, pair whitelist,
-and hardware limits. It proposes the previous five complete calendar years and saves
-reusable project settings under `.nfi/project.json`.
+The first-run wizard detects the strategy class, asks for Spot or Futures before any
+configuration path, then asks for the exchange, pairs, candle directory, and
+timerange. When no self-contained Freqtrade config exists, it writes a credential-free
+dry-run config under `.nfi/`; users do not copy, edit, or flatten NFI's modular config
+files. Existing valid configs and an explicit `--config` remain supported and are
+never rewritten.
 
-Accept every safely discovered value:
+For a non-interactive one-pair Spot run with an explicit bounded period:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py --yes
+nfi-bte run NostalgiaForInfinityX7.py \
+  --trading-mode spot \
+  --pair ADA/USDT \
+  --timerange 20260101-20260108 \
+  --yes
 ```
 
-Resume the saved project:
+Resume the saved project after its first run:
 
 ```bash
 nfi-bte run
