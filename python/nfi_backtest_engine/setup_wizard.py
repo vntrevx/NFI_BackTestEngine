@@ -11,6 +11,11 @@ from typing import Any
 from .canonical import read_json, write_json
 from .config_loader import freeze_pairlist, load_effective_config
 from .errors import SpecValidationError
+from .pair_selection import (
+    PAIR_COUNT_PRESETS,
+    nfi_volume_policy_available,
+    resolve_nfi_volume_pairs,
+)
 from .project_config import (
     DEFAULT_PROJECT_PATH,
     ProjectSettings,
@@ -36,6 +41,7 @@ def initialize_project(
     timerange: str | None = None,
     output_directory: str | Path | None = None,
     pairs: list[str] | None = None,
+    pair_count: str | None = None,
     interactive: bool = True,
     force: bool = False,
     prompt: Prompt = input,
@@ -81,7 +87,9 @@ def initialize_project(
         loaded_config["config"],
         workspace=root,
         beginner_setup=beginner_setup,
+        diagnostic_path=destination.parent / "pair-selection-error.log",
         pairs=pairs,
+        pair_count=pair_count,
         interactive=interactive,
         prompt=prompt,
         emit=emit,
@@ -387,13 +395,19 @@ def _select_pairs(
     *,
     workspace: Path,
     beginner_setup: bool,
+    diagnostic_path: Path,
     pairs: list[str] | None,
+    pair_count: str | None,
     interactive: bool,
     prompt: Prompt,
     emit: Emitter,
 ) -> list[str] | None:
+    if pairs is not None and pair_count is not None:
+        raise SpecValidationError("--pair and --pair-count cannot be combined")
     if pairs is not None:
         return freeze_pairlist(config, resolved_pairs=pairs)["pairs"]
+    if pair_count is not None and not beginner_setup:
+        raise SpecValidationError("--pair-count requires the generated first-run config")
     try:
         freeze_pairlist(config)
         return None
@@ -403,6 +417,8 @@ def _select_pairs(
         return _select_beginner_pairs(
             config,
             workspace=workspace,
+            diagnostic_path=diagnostic_path,
+            requested_count=pair_count,
             interactive=interactive,
             prompt=prompt,
             emit=emit,
@@ -418,40 +434,88 @@ def _select_beginner_pairs(
     config: dict[str, Any],
     *,
     workspace: Path,
+    diagnostic_path: Path,
+    requested_count: str | None,
     interactive: bool,
     prompt: Prompt,
     emit: Emitter,
 ) -> list[str]:
     trading_mode = str(config.get("trading_mode", "spot"))
-    quick_pair = "ADA/USDT:USDT" if trading_mode == "futures" else "ADA/USDT"
+    quick_pair = "BTC/USDT:USDT" if trading_mode == "futures" else "BTC/USDT"
     quick = freeze_pairlist(config, resolved_pairs=[quick_pair])["pairs"]
-    preset = _nfi_backtest_pairs(workspace, trading_mode=trading_mode)
-    if not interactive:
-        emit(f"using quick-test pair: {quick_pair}")
-        return quick
+    static_preset = _nfi_backtest_pairs(workspace, trading_mode=trading_mode)
+    volume_available = nfi_volume_policy_available(workspace)
 
-    emit("Choose the markets to test:")
-    emit(f"  1. Quick test — {quick_pair} (recommended)")
-    if preset is not None:
-        emit(
-            f"  2. NFI backtest list — {len(preset)} pairs "
-            "(larger download and longer run)"
-        )
-        emit("  3. Custom list — enter one or more pairs")
-        choices = {"1", "2", "3"}
+    if requested_count is None and interactive:
+        emit("How many markets do you want to test?")
+        emit(f"  1 — Quick check with {quick_pair} (recommended)")
+        if volume_available:
+            emit("  10, 20, 40, 80, or 100 — current markets ranked by NFI's policy")
+        if static_preset is not None:
+            emit(f"  all — NFI's complete static backtest list ({len(static_preset)} pairs)")
+        emit("  custom — enter your own pair list")
+        choice = _prompt_value("Number of markets", default="1", prompt=prompt).lower()
     else:
-        emit("  2. Custom list — enter one or more pairs")
-        choices = {"1", "2"}
-    while True:
-        choice = _prompt_value("Pair choice", default="1", prompt=prompt)
-        if choice == "1":
-            return quick
-        if preset is not None and choice == "2":
-            return preset
-        custom_choice = "3" if preset is not None else "2"
-        if choice == custom_choice:
-            return _select_custom_pairs(config, prompt=prompt)
-        emit(f"Enter one of: {', '.join(sorted(choices))}.")
+        choice = requested_count or "1"
+
+    if choice == "1":
+        emit(f"using quick-test market: {quick_pair}")
+        return quick
+    if choice.isdigit() and int(choice) in PAIR_COUNT_PRESETS:
+        count = int(choice)
+        if not volume_available:
+            raise SpecValidationError(
+                "this NFI checkout has no live volume policy; update NFI or choose custom pairs"
+            )
+        from .user_flow import RunProgress
+
+        with RunProgress(interactive=interactive) as progress:
+            progress.update(10, "Ranking current Binance markets with NFI's policy")
+            ranked = resolve_nfi_volume_pairs(
+                config,
+                workspace,
+                diagnostic_path=diagnostic_path,
+            )
+            progress.update(100, "Market ranking complete")
+        if len(ranked) < count:
+            raise SpecValidationError(
+                f"NFI's current filters returned {len(ranked)} markets, fewer than {count}; "
+                "choose a smaller number"
+            )
+        selected = ranked[:count]
+        emit(
+            f"selected top {count}: {', '.join(selected[:5])}"
+            f"{', ...' if count > 5 else ''}"
+        )
+        _emit_large_selection_warning(count, emit=emit)
+        return freeze_pairlist(config, resolved_pairs=selected)["pairs"]
+    if choice == "all":
+        if static_preset is None:
+            raise SpecValidationError(
+                "this NFI checkout has no static backtest list; update NFI or choose custom pairs"
+            )
+        _emit_large_selection_warning(len(static_preset), emit=emit)
+        return static_preset
+    if choice == "custom":
+        if not interactive:
+            raise SpecValidationError("custom selection requires --pair for each pair")
+        return _select_custom_pairs(config, prompt=prompt)
+    allowed = ["1", *(str(value) for value in PAIR_COUNT_PRESETS), "all", "custom"]
+    raise SpecValidationError(f"number of markets must be one of: {', '.join(allowed)}")
+
+
+def _emit_large_selection_warning(
+    count: int,
+    *,
+    emit: Emitter,
+) -> None:
+    if count < 40:
+        return
+    emit(f"Large run selected: {count} markets.")
+    emit(
+        "Keep the recommended seven-day period for the first run. "
+        "An 80-pair five-year workload can require about 39 GiB of memory."
+    )
 
 
 def _select_custom_pairs(

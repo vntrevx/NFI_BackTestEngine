@@ -741,7 +741,7 @@ wheels = [
 
 [[package]]
 name = "nfi-backtest-engine"
-version = "1.8.3"
+version = "1.8.4"
 source = { editable = "." }
 dependencies = [
     { name = "blake3" },
