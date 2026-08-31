@@ -1,5 +1,7 @@
 # Usage Guide
 
+[한국어](usage-ko.md) · [Ελληνικά](usage-el.md) · [Türkçe](usage-tr.md)
+
 This guide covers installation, the first NFI X7 backtest, exact market-count selection, saved-project reuse, and common recovery commands.
 
 ## 1. Requirements

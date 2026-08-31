@@ -1,4 +1,4 @@
-**How to use:** [Open the detailed usage guide](docs/usage.md)
+**How to use:** [English](docs/usage.md) | [한국어](docs/usage-ko.md) | [Ελληνικά](docs/usage-el.md) | [Türkçe](docs/usage-tr.md)
 
 # NFI Backtest Engine
 
