@@ -75,6 +75,14 @@ def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
         help="saved project file (default: .nfi/project.json)",
     )
     parser.add_argument("--class", dest="class_name")
+    parser.add_argument(
+        "--trading-mode",
+        choices=("spot", "futures"),
+        help=(
+            "select the mode for an automatically generated first-run config; "
+            "an explicit config must match"
+        ),
+    )
     parser.add_argument("--config", type=Path)
     parser.add_argument("--datadir", type=Path)
     parser.add_argument("--timerange")

@@ -120,6 +120,138 @@ def test_standard_layout_initializes_without_prompts(tmp_path: Path) -> None:
     assert all("detected" in message or "project ready" in message for message in messages)
 
 
+def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "NostalgiaForInfinityX7.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class NostalgiaForInfinityX7(IStrategy):\n"
+        "    timeframe = '5m'\n",
+        encoding="utf-8",
+    )
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    (configs / "trading_mode-spot.json").write_text(
+        '{"trading_mode":"spot"}',
+        encoding="utf-8",
+    )
+    user_data = tmp_path / "user_data"
+    user_data.mkdir()
+    (user_data / "config.json").write_text(
+        '{"add_config_files":["../configs/trading_mode-spot.json"]}',
+        encoding="utf-8",
+    )
+    data = tmp_path / "data"
+    data.mkdir()
+    answers = iter(["futures", "binance", "BTC/USDT:USDT"])
+    prompts: list[str] = []
+    messages: list[str] = []
+
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        data_directory=data,
+        timerange="20250101-20250108",
+        interactive=True,
+        prompt=lambda label: (prompts.append(label), next(answers))[1],
+        emit=messages.append,
+    )
+
+    assert prompts[0].startswith("Trading mode")
+    assert prompts[1].startswith("Exchange")
+    assert prompts[2].startswith("Pairs")
+    assert all(not prompt.startswith("Freqtrade config") for prompt in prompts)
+    assert settings.config_path == tmp_path / ".nfi/first-run-config.json"
+    assert settings.pairs == ("BTC/USDT:USDT",)
+    generated = read_json(settings.config_path)
+    assert "add_config_files" not in generated
+    assert generated["trading_mode"] == "futures"
+    assert generated["margin_mode"] == "isolated"
+    assert generated["exchange"]["name"] == "binance"
+    assert generated["exchange"]["pair_whitelist"] == []
+    assert generated["exchange"]["ccxt_config"]["options"]["fetchMarkets"]["types"] == [
+        "linear"
+    ]
+    assert any("ignoring non-self-contained" in message for message in messages)
+    assert any("generated safe futures config" in message for message in messages)
+
+
+def test_explicit_config_remains_strict_and_must_match_requested_mode(
+    tmp_path: Path,
+) -> None:
+    source, config, data = _standard_layout(tmp_path)
+
+    with pytest.raises(SpecValidationError, match="differs from config mode spot"):
+        initialize_project(
+            workspace=tmp_path,
+            source=source,
+            config_path=config,
+            trading_mode="futures",
+            data_directory=data,
+            timerange="20250101-20250108",
+            interactive=False,
+        )
+
+    config.write_text(
+        '{"add_config_files":["../configs/unsafe.json"]}',
+        encoding="utf-8",
+    )
+    with pytest.raises(SpecValidationError, match="canonical portable child"):
+        initialize_project(
+            workspace=tmp_path,
+            project_path=".nfi/strict.json",
+            source=source,
+            config_path=config,
+            trading_mode="spot",
+            data_directory=data,
+            timerange="20250101-20250108",
+            interactive=False,
+        )
+
+
+def test_noninteractive_cli_can_generate_spot_config_without_manual_json(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "SimpleStrategy.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class SimpleStrategy(IStrategy):\n"
+        "    timeframe = '5m'\n",
+        encoding="utf-8",
+    )
+    data = tmp_path / "data"
+    data.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    result = cli.main(
+        [
+            "init",
+            str(source),
+            "--trading-mode",
+            "spot",
+            "--pair",
+            "ADA/USDT",
+            "--datadir",
+            str(data),
+            "--timerange",
+            "20250101-20250108",
+            "--yes",
+        ]
+    )
+
+    assert result == 0
+    project = load_project()
+    assert project.pairs == ("ADA/USDT",)
+    generated = read_json(project.config_path)
+    assert generated["trading_mode"] == "spot"
+    assert "margin_mode" not in generated
+    assert generated["exchange"]["ccxt_config"]["options"]["fetchMarkets"]["types"] == [
+        "spot"
+    ]
+
+
 def test_noninteractive_setup_uses_previous_five_complete_calendar_years(
     tmp_path: Path,
 ) -> None:

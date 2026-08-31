@@ -19,27 +19,27 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.8.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.1) |
+| Latest public release | [v1.8.2](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.2) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.8.1 stable release line; Linux/macOS verified |
+| Current `main` | v1.8.2 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.8.1 freezes current-source compatibility for X7 v17.4.585 at upstream commit
-`47f3b66f4767fe228a74a98f0d4a7e51199e1488`. Spot and Futures source-compiled
-stateful closure has no reachable gaps. Bounded alias-compatibility fixtures match
-independent Official Freqtrade trade surfaces and every-candle full state at zero
-tolerance. Release distribution still replays the immutable historical Spot/Futures
-regression fixtures; the current-source evidence is not a new continuous performance
-certificate.
+v1.8.2 preserves current-source compatibility for X7 v17.4.585 at upstream commit
+`47f3b66f4767fe228a74a98f0d4a7e51199e1488` and removes manual Freqtrade JSON
+editing from first-run setup. Spot and Futures source-compiled stateful closure has no
+reachable gaps. Bounded alias-compatibility fixtures match independent Official
+Freqtrade trade surfaces and every-candle full state at zero tolerance. Release
+distribution still replays the immutable historical Spot/Futures regression fixtures;
+the current-source evidence is not a new continuous performance certificate.
 
-Current `main` tracks the v1.8.1 stable release and is usable from source for supported
+Current `main` tracks the v1.8.2 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.8.1 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.8.2 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -183,7 +183,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.8.1`.
+The latest public installer currently returns `nfi-bte 1.8.2`.
 
 ### Keep the CLI updated
 
@@ -197,7 +197,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.8.0 -> 1.8.1. Run `nfi-bte update`.
+Update available: 1.8.1 -> 1.8.2. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -206,23 +206,34 @@ Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
 
 ## Quick start
 
-Run the first-time wizard with an NFI strategy:
+Start from an empty working directory:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py
+mkdir -p ~/nfi-backtest
+cd ~/nfi-backtest
+git clone --depth 1 https://github.com/iterativv/NostalgiaForInfinity.git
+cd NostalgiaForInfinity
+nfi-bte run NostalgiaForInfinityX7.py
 ```
 
-The wizard discovers the class, Freqtrade config, candle directory, pair whitelist,
-and hardware limits. It proposes the previous five complete calendar years and saves
-reusable project settings under `.nfi/project.json`.
+The first-run wizard detects the strategy class, asks for Spot or Futures before any
+configuration path, then asks for the exchange, pairs, candle directory, and
+timerange. When no self-contained Freqtrade config exists, it writes a credential-free
+dry-run config under `.nfi/`; users do not copy, edit, or flatten NFI's modular config
+files. Existing valid configs and an explicit `--config` remain supported and are
+never rewritten.
 
-Accept every safely discovered value:
+For a non-interactive one-pair Spot run with an explicit bounded period:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py --yes
+nfi-bte run NostalgiaForInfinityX7.py \
+  --trading-mode spot \
+  --pair ADA/USDT \
+  --timerange 20260101-20260108 \
+  --yes
 ```
 
-Resume the saved project:
+Resume the saved project after its first run:
 
 ```bash
 nfi-bte run

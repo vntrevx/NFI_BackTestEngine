@@ -4,6 +4,12 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.8.2 - 2026-08-31
+
+- Replaced the first-run Freqtrade-config dead end with a mode-first wizard. Fresh
+  checkouts now generate a credential-free, self-contained Spot or isolated-Futures
+  config, preserve strict explicit-config loading, and need no manual JSON editing.
+
 ## 1.8.1 - 2026-08-31
 
 - Generalized X7 system-adjustment lowering for exact local aliases of enable flags,
