@@ -243,6 +243,54 @@ nfi-bte run path/to/NostalgiaForInfinityX7.py \
 Missing public candles are downloaded through the pinned Freqtrade container by
 default. Add `--no-download` for an offline, fail-if-missing run.
 
+### Check a newly downloaded NFI version
+
+A new NFI version string or source SHA does not by itself disable Native execution.
+The engine structurally compiles the supplied file; it does not maintain a
+strategy-version allowlist. Before spending time on a long run, check Spot and Futures
+separately because their active callbacks and state routes differ:
+
+```bash
+nfi-bte strategy check path/to/NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 \
+  --trading-mode spot \
+  --output compatibility-spot.json
+
+nfi-bte strategy check path/to/NostalgiaForInfinityX7.py \
+  --class NostalgiaForInfinityX7 \
+  --trading-mode futures \
+  --output compatibility-futures.json
+```
+
+For durable automation evidence, also supply `--upstream-repository`,
+`--upstream-commit`, `--strategy-version`, and `--verification-ledger`. These fields
+record the checked identity; they never grant compatibility.
+
+Exit code 0 with `native_compatible=true` means every active callback required by that
+mode compiled into the supported Native contracts. It is permission to attempt the
+Native workload, not an Official parity certificate. Exit code 1 with
+`native_compatible=false` identifies the blocking source construct; do not bypass it.
+Use `--fallback disabled` when an unattended job must either remain Native or stop:
+
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py \
+  --fallback disabled \
+  --no-open-report \
+  --yes
+```
+
+For a material result, request the pinned Official Freqtrade comparison after Native
+completion:
+
+```bash
+nfi-bte run path/to/NostalgiaForInfinityX7.py --verify
+```
+
+The release status above names the newest source with preserved zero-tolerance
+Official/Native evidence. A later source may already pass structural checks and bounded
+Native smokes without yet inheriting that evidence claim. Unknown semantics stop before
+simulation instead of silently using behavior from an older NFI version.
+
 For a newer NFI revision whose active callbacks are not yet supported by Native, run
 the exact sealed workload through official Freqtrade:
 
