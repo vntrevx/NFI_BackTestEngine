@@ -6,7 +6,7 @@ Versions 1.0.0 and 1.1.0 are supported by their published continuous five-year S
 and Futures certificates. Their historical combined-release gate required both mode
 certificates to use the same strategy and candidate wheel and preserved sealed Windows,
 Linux, and macOS native evidence. That historical evidence does not extend native
-Windows support to the current product: v1.8 supports Linux and macOS; Windows users
+Windows support to the current product: v1.9 supports Linux and macOS; Windows users
 run the Linux build and ABI under WSL2, and native Windows fails closed with `native
 Windows is unsupported; run nfi-bte under WSL2 (Linux)`.
 

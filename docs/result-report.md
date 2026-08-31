@@ -24,6 +24,16 @@ network requests. It can be read directly in a terminal or editor, rendered by
 GitHub-compatible Markdown viewers, copied, and archived on Windows, Linux, or
 macOS.
 
+Starting with v1.9.0, report generation writes no HTML and never asks to open a
+browser. Regenerating an older run deletes a stale sibling `report.html`. The
+`summary.json` schema is `2.0.0`; its artifact map uses
+`"markdown_report": "report.md"` and no longer exposes `html_report`.
+
+The terminal card is a compact ASCII box containing strategy, period, mode, pair and
+trade counts, profit, balance, win rate, drawdown, runtime, memory, and official parity.
+A completed run with no trades receives an explicit valid-zero-trade explanation
+instead of an empty chart or ambiguous success page.
+
 ## Summary metrics
 
 All monetary and trade values come from the hash-bound normalized trade surface.
@@ -52,7 +62,7 @@ direction, calendar month, and calendar year. The Markdown report uses compact,
 portable ASCII tables for the complete breakdown, while `summary.json` retains
 the same structured data and `trades.csv` retains every trade.
 
-For a futures surface, `summary.json` 1.1 also contains a `futures` object. It
+For a futures surface, `summary.json` 2.0.0 also contains a `futures` object. It
 counts long and short trades, trades with a non-zero official funding value,
 the signed funding total, exact `liquidation` exit reasons, protection locks,
 and the observed leverage distribution. Spot and blocked runs use `null` rather
