@@ -147,7 +147,7 @@ After setup, run or resume the saved project with:
 nfi-bte run
 ```
 
-The terminal prints the run directory before work starts. Completion prints the HTML report, JSON summary, and CSV result paths. By default they are below:
+The terminal prints the run directory before work starts. Completion prints the Markdown report, JSON summary, and CSV result paths. By default they are below:
 
 ```text
 .nfi/runs/<strategy-and-timerange>/

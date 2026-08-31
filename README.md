@@ -291,7 +291,6 @@ Use `--fallback disabled` when an unattended job must either remain Native or st
 ```bash
 nfi-bte run path/to/NostalgiaForInfinityX7.py \
   --fallback disabled \
-  --no-open-report \
   --yes
 ```
 
@@ -387,7 +386,7 @@ Every run is an ordinary hash-linked directory:
 | `trade-surface.json` | Exact-parity authority |
 | `summary.json` | Compact research summary |
 | `trades.csv` | Full spreadsheet-ready trade export |
-| `report.html` | Self-contained visual report |
+| `report.md` | Compact Freqtrade-style report with portable ASCII tables |
 | `selected-result.json` | Immutable Native or official-only result selection |
 | `official-fallback/attempt-N/` | Preserved official fallback attempts |
 | `checkpoints/` | Hash-validated resumable stages |

@@ -147,7 +147,7 @@ Kurulumdan sonra kayıtlı projeyi çalıştırın veya devam ettirin:
 nfi-bte run
 ```
 
-Terminal, iş başlamadan önce çalıştırma dizinini gösterir. Tamamlandığında HTML raporu, JSON özeti ve CSV sonuç yolları yazdırılır. Varsayılan konum şudur:
+Terminal, iş başlamadan önce çalıştırma dizinini gösterir. Tamamlandığında Markdown raporu, JSON özeti ve CSV sonuç yolları yazdırılır. Varsayılan konum şudur:
 
 ```text
 .nfi/runs/<strategy-and-timerange>/

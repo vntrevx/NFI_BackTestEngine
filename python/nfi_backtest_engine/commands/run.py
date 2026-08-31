@@ -111,7 +111,7 @@ def execute(args: argparse.Namespace) -> int:
         )
         print(format_run_preflight(preflight, preflight_path))
         print(f"backtest results will be saved to: {output.resolve()}")
-        print(f"HTML report will be: {(output / 'report.html').resolve()}")
+        print(f"Markdown report will be: {(output / 'report.md').resolve()}")
         with RunProgress() as progress:
             native_status = execute_research_backtest(
                 project_run_arguments(settings),
@@ -132,7 +132,6 @@ def execute(args: argparse.Namespace) -> int:
             native_status=native_status,
             verification=args.verify,
             verification_timeout_seconds=args.verification_timeout,
-            open_report=args.open_report,
             interactive=not args.yes and sys.stdin.isatty(),
             include_breakdowns=args.full_report,
             fallback_policy=args.fallback,

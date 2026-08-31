@@ -652,12 +652,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional timeout for the consented official verification in seconds",
     )
     _add_fallback_arguments(run)
-    run.add_argument(
-        "--open-report",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help=("open report.html after completion; otherwise ask only on an interactive terminal"),
-    )
     _add_full_report_argument(run)
 
     system = subcommands.add_parser("system", help="inspect and tune this computer")

@@ -177,6 +177,15 @@ def _integer_text(value: Any) -> str:
         return "—"
 
 
+def _leverage_range(futures: Mapping[str, Any]) -> str:
+    count = _integer_text(futures.get("distinct_leverages"))
+    minimum = _decimal_text(futures.get("minimum_leverage"))
+    maximum = _decimal_text(futures.get("maximum_leverage"))
+    if minimum == "—" or maximum == "—":
+        return "—"
+    return f"{minimum}x–{maximum}x ({count} distinct)"
+
+
 def _float(value: Any) -> float | None:
     if value is None or isinstance(value, bool):
         return None

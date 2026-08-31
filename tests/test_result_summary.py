@@ -56,8 +56,10 @@ def test_summary_calculates_readable_performance_and_risk_metrics() -> None:
     surface = read_json(FIXTURE)
     summary = build_result_summary(_run_report(), surface)
 
-    assert summary["schema_version"] == "1.2.0"
+    assert summary["schema_version"] == "2.0.0"
     assert summary["run"]["strategy"] == "ContractLifecycleStrategy"
+    assert summary["artifacts"]["markdown_report"] == "report.md"
+    assert "html_report" not in summary["artifacts"]
     assert summary["performance"]["profit_total_abs"] == pytest.approx(1.30196076)
     assert summary["performance"]["return_ratio"] == pytest.approx(0.00130196076)
     expected_profit_factor = (1.56284197 + 0.26631842 + 0.33077569) / (

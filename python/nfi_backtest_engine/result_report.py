@@ -1,9 +1,5 @@
 """Human and machine-friendly presentation files for research-run results."""
 
-# The self-contained HTML template intentionally keeps related markup and CSS rules
-# on single lines so the generated file stays easy to inspect without a build step.
-# ruff: noqa: E501
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -20,7 +16,7 @@ from .reporting.artifacts import (
 from .reporting.contracts import (
     EQUITY_FILENAME,
     EVIDENCE_INDEX_FILENAME,
-    HTML_FILENAME,
+    MARKDOWN_FILENAME,
     ORDERS_FILENAME,
     SUMMARY_FILENAME,
     TRADES_FILENAME,
@@ -31,7 +27,7 @@ from .reporting.csv_export import (
     _write_orders_csv,
     _write_trades_csv,
 )
-from .reporting.html_render import _render_html
+from .reporting.markdown_render import _render_markdown
 from .reporting.model import (
     _load_bound_surface,
     _resolve_verification,
@@ -53,9 +49,9 @@ from .specs import (
 )
 
 __all__ = [
-    "HTML_FILENAME",
     "EQUITY_FILENAME",
     "EVIDENCE_INDEX_FILENAME",
+    "MARKDOWN_FILENAME",
     "ORDERS_FILENAME",
     "SUMMARY_FILENAME",
     "TRADES_FILENAME",
@@ -134,11 +130,12 @@ def write_result_presentation(
     )
     validate_schema(evidence_index, RESULT_EVIDENCE_INDEX_SCHEMA)
     write_json(root / EVIDENCE_INDEX_FILENAME, evidence_index)
-    (root / HTML_FILENAME).write_text(
-        _render_html(summary, surface, evidence_index),
+    (root / MARKDOWN_FILENAME).write_text(
+        _render_markdown(summary, surface, evidence_index),
         encoding="utf-8",
         newline="\n",
     )
+    (root / "report.html").unlink(missing_ok=True)
     _assert_source_evidence_unchanged(protected_sources)
     return summary
 
@@ -159,7 +156,7 @@ def _source_evidence_snapshots(
             EQUITY_FILENAME,
             VERIFICATION_FILENAME,
             EVIDENCE_INDEX_FILENAME,
-            HTML_FILENAME,
+            MARKDOWN_FILENAME,
         )
     }
     candidates = [root / "run.json", root / "trade-surface.json"]

@@ -10,7 +10,7 @@ from ..evidence_bundle import artifact_record
 from .contracts import (
     EQUITY_FILENAME,
     EVIDENCE_INDEX_FILENAME,
-    HTML_FILENAME,
+    MARKDOWN_FILENAME,
     ORDERS_FILENAME,
     SUMMARY_FILENAME,
     TRADES_FILENAME,
@@ -229,9 +229,9 @@ def build_evidence_index(
                 "reason": "self-referential hash is intentionally excluded",
             },
             {
-                "path": HTML_FILENAME,
+                "path": MARKDOWN_FILENAME,
                 "reason": (
-                    "HTML renders this index; excluding its hash avoids a circular dependency"
+                    "Markdown renders this index; excluding its hash avoids a circular dependency"
                 ),
             },
         ],

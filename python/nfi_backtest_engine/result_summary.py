@@ -17,7 +17,7 @@ from typing import Any
 from .canonical import canonical_decimal
 from .reporting.tags import signal_tag_tokens, summarize_grind_tags
 
-RESULT_SUMMARY_VERSION = "1.2.0"
+RESULT_SUMMARY_VERSION = "2.0.0"
 MAX_EQUITY_POINTS = 1_000
 
 
@@ -136,7 +136,7 @@ def build_result_summary(
             "equity_csv": "equity.csv",
             "verification": "verification.json",
             "evidence_index": "evidence/index.json",
-            "html_report": "report.html",
+            "markdown_report": "report.md",
         },
         "blockers": _blocker_summary(run_report),
         "performance": None,

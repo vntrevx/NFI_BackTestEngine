@@ -79,9 +79,12 @@ def _complete_run(root: Path) -> dict:
     return report
 
 
-def test_report_writes_html_json_and_csv_without_mutating_evidence(tmp_path: Path) -> None:
+def test_report_writes_markdown_json_and_csv_without_mutating_evidence(
+    tmp_path: Path,
+) -> None:
     run = tmp_path / "run"
     run.mkdir()
+    (run / "report.html").write_text("<p>obsolete</p>", encoding="utf-8")
     _complete_run(run)
     evidence_before = (run / "run.json").read_bytes()
 
@@ -90,11 +93,12 @@ def test_report_writes_html_json_and_csv_without_mutating_evidence(tmp_path: Pat
     assert (run / "run.json").read_bytes() == evidence_before
     assert read_json(run / "summary.json") == summary
     assert summary["verification"]["status"] == "not_run"
-    assert "<A <safe>" not in (run / "report.html").read_text(encoding="utf-8")
-    html = (run / "report.html").read_text(encoding="utf-8")
-    assert "A &lt;safe&gt; strategy" in html
-    assert "Official verification" in html
-    assert "Closed-trade cumulative balance" in html
+    markdown = (run / "report.md").read_text(encoding="utf-8")
+    assert not (run / "report.html").exists()
+    assert "# Backtest Result" in markdown
+    assert "A <safe> strategy" in markdown
+    assert "## Official Verification" in markdown
+    assert "Closed-trade equity" in markdown
     with (run / "trades.csv").open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 6
@@ -105,7 +109,8 @@ def test_report_writes_html_json_and_csv_without_mutating_evidence(tmp_path: Pat
     assert "NFI BACKTEST — COMPLETE ✓" in terminal
     assert "Pairs / trades        1 / 6" in terminal
     assert "Official parity       NOT RUN" in terminal
-    assert str(run / "report.html") in terminal
+    assert "Markdown report       report.md" in terminal
+    assert str(run.resolve()) in terminal
     assert "PAIR PERFORMANCE" not in terminal
 
     full_terminal = format_terminal_summary(
@@ -141,7 +146,7 @@ def test_confirmation_refreshes_only_derived_presentation(tmp_path: Path) -> Non
 
     assert (run / "run.json").read_bytes() == evidence_before
     assert summary["verification"]["status"] == "exact_match"
-    assert "EXACT MATCH" in (run / "report.html").read_text(encoding="utf-8")
+    assert "EXACT MATCH" in (run / "report.md").read_text(encoding="utf-8")
     assert "Official parity       EXACT MATCH ✓" in format_terminal_summary(
         summary,
         run,
@@ -166,14 +171,14 @@ def test_futures_report_shows_funding_leverage_liquidation_and_locks(
 
     summary = write_result_presentation(run)
     terminal = format_terminal_summary(summary, run)
-    html = (run / "report.html").read_text(encoding="utf-8")
+    markdown = (run / "report.md").read_text(encoding="utf-8")
 
     assert "Long / short          3 / 0" in terminal
     assert "Leverage              5.00x–5.00x (1 distinct)" in terminal
     assert "Liquidations / locks  1 / 2" in terminal
-    assert "Futures lifecycle" in html
-    assert "Funding total" in html
-    assert "Liquidation exits" in html
+    assert "Futures Lifecycle" in markdown
+    assert "Funding total" in markdown
+    assert "Liquidation exits" in markdown
 
 
 def test_report_uses_an_adjacent_certification_peak_rss_measurement(
@@ -296,7 +301,7 @@ def test_prepared_run_still_gets_a_clear_empty_report(tmp_path: Path) -> None:
     assert summary["run"]["status"] == "prepared"
     assert summary["performance"] is None
     assert (run / "trades.csv").read_text(encoding="utf-8").count("\n") == 1
-    assert "PREPARED" in (run / "report.html").read_text(encoding="utf-8")
+    assert "PREPARED" in (run / "report.md").read_text(encoding="utf-8")
 
 
 def test_run_list_defaults_to_a_readable_table() -> None:

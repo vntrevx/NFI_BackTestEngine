@@ -325,7 +325,7 @@ def test_research_prepare_is_checkpointed_and_resumable(
     assert (output / "run.json").is_file()
     assert (output / "summary.json").is_file()
     assert (output / "trades.csv").is_file()
-    assert (output / "report.html").is_file()
+    assert (output / "report.md").is_file()
     assert (output / first["inputs"]["strategy"]["sealed"]["path"]).read_bytes() == (
         source.read_bytes()
     )

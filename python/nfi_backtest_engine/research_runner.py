@@ -915,7 +915,7 @@ def run_research_backtest(
         },
     }
     if progress is not None:
-        progress(98, "Writing the HTML report and CSV files")
+        progress(98, "Writing the Markdown report and CSV files")
     write_json(output / "run.json", report)
     write_result_presentation(output)
     if progress is not None:

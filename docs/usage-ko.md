@@ -147,7 +147,7 @@ nfi-bte run NostalgiaForInfinityX7.py \
 nfi-bte run
 ```
 
-작업 시작 전에 실행 폴더가 출력됩니다. 완료되면 HTML 보고서, JSON 요약, CSV 결과 경로가 출력됩니다. 기본 위치는 다음과 같습니다.
+작업 시작 전에 실행 폴더가 출력됩니다. 완료되면 Markdown 보고서, JSON 요약, CSV 결과 경로가 출력됩니다. 기본 위치는 다음과 같습니다.
 
 ```text
 .nfi/runs/<strategy-and-timerange>/
