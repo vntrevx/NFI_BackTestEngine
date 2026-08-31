@@ -4,6 +4,8 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.8.1 - 2026-08-31
+
 - Generalized X7 system-adjustment lowering for exact local aliases of enable flags,
   exit helpers, system-v3 class constants, candle features, Futures mode, trade side, and
   liquidation operands. Mismatched alias shapes still fail closed; upstream v17.4.585
