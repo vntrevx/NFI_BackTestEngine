@@ -80,13 +80,16 @@ switches. Probe-only source changes are AST-bound to the expected class attribut
 old literal; routine upstream edits fail closed instead of silently changing the wrong
 line.
 
-Static exact lowering passes for X7 v17.4.581 at upstream commit
-`01b1304afaa2a1385754908817ea91be5149ffc9`. Its source SHA-256 is
-`628a39e3e626809cebfb4c4b82dcc1725c2a03ee97c5494f091ce489b46d7f03`.
+Static exact lowering passes for X7 v17.4.585 at upstream commit
+`47f3b66f4767fe228a74a98f0d4a7e51199e1488`. Its source SHA-256 is
+`ff061a8c113b29a599306044cbcc2112ac2eb901f458a55de82bf15f93875e22`.
 The system-v3.2 adjustment compiler extracts retry durations, profit thresholds,
 de-risk state dependencies, late grind predicates, and bounded state-history reads as
-typed operands and comparisons. Rust therefore does not carry release-specific grind
-4/5 thresholds or a fixed two-state history assumption.
+typed operands and comparisons. Exact local aliases of enable flags, exit helpers,
+system-v3 class constants, candle features, Futures mode, trade side, and liquidation
+operands lower into the same generic IR. Mismatched alias shapes fail closed. Rust
+therefore carries no release-specific alias, strategy-version, source-hash, pair, or
+timerange branch.
 The tag-121 regular-adjustment compiler likewise extracts its reverse order scan,
 rebuy exclusions, dynamic Grind and de-risk tags, separate spot/futures stake ladders,
 thresholds and stops, the leverage-scaled Futures drawdown fallback, and the
@@ -95,24 +98,27 @@ profit snapshot before branch selection. Promotion required an independent revie
 shadow to agree exactly; current payloads register no legacy shadow, and the preserved
 comparison remains evidence rather than a runtime branch.
 
-The v1.8.0 current-source qualification is deliberately separate from the
-immutable distribution regression fixtures. Spot and Futures static reachability both
-report zero reachable stateful gaps, complete closure, and Native compatibility for
-v17.4.581. Two bounded transition fixtures additionally prove the changed `gm0` route
-against final engine commit `b72247e8457968f10349f9adc139abc8dd7bf14a`:
+The v1.8.1 current-source qualification is deliberately separate from the immutable
+distribution regression fixtures. Spot and Futures static reachability both report
+zero reachable stateful gaps, complete closure, and Native compatibility for
+v17.4.585. Two bounded fixtures compare independent Official Freqtrade and Native
+trade surfaces and every-candle full state at zero tolerance:
 
-- Spot `ADA/USDT` over `20251104-20251107`: 24,824,635 logical bytes;
-- isolated-Futures `THETA/USDT:USDT` over `20251113-20251117`: 30,718,695 logical bytes.
+- Spot `ADA/USDT` over `20251104-20251107`: 864 state events, stream SHA-256
+  `c4295cbc14d4cfce8f0dd089277e503128c14aca967da73eedcd934fa91f7c2d`;
+- isolated-Futures `THETA/USDT:USDT` over `20251113-20251117`: 1,152 state events,
+  stream SHA-256
+  `b0d3e80edb7af377a63dfc526e24a7ac766c0bd0d27a620247a7cb017e1a22c4`.
 
-Both the v17.4.580 baseline and v17.4.581 candidate observe target
-`3e9e388c81d60ce480eb7d96d6208ade099fe50480f1d2fdd23fed79b46cbcaa`;
-the independent Official Freqtrade and Native trade surfaces and full state are exact
-at zero tolerance. The fixtures are preserved for review in
-[Spot candidate PR #277](https://github.com/vntrevx/NFI_BackTestEngine/pull/277) and
-[Futures candidate PR #276](https://github.com/vntrevx/NFI_BackTestEngine/pull/276).
+The exact manifests are preserved as
+[`future-nfi-spot-v17.4.585-aliases-ada`](../benchmarks/fixtures/captured/future-nfi-spot-v17.4.585-aliases-ada/manifest.json)
+and
+[`future-nfi-futures-v17.4.585-aliases-theta`](../benchmarks/fixtures/captured/future-nfi-futures-v17.4.585-aliases-theta/manifest.json),
+with the shared identity in
+[`future-nfi-v17.4.585-alias-compatibility.json`](../benchmarks/evidence/future-nfi-v17.4.585-alias-compatibility.json).
 They are compact current-source evidence, not five-year certificates. The
-release-candidate contract continues to replay sealed historical fixtures, and neither
-candidate relabels those version-bound certificates.
+release-candidate contract continues to replay sealed historical fixtures and does
+not relabel those version-bound certificates.
 
 A narrow v17.4.435 runtime check additionally records exact final-surface parity for
 one spot interval and one isolated-futures interval in

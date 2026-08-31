@@ -19,27 +19,27 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.8.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.0) |
+| Latest public release | [v1.8.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.1) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.8.0 stable release line; Linux/macOS verified |
+| Current `main` | v1.8.1 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.8.0 freezes current-source compatibility for X7 v17.4.581 at upstream commit
-`01b1304afaa2a1385754908817ea91be5149ffc9`. Spot and Futures source-compiled
-stateful closure has no reachable gaps. Bounded branch-reaching fixtures additionally
-match independent Official Freqtrade trade surfaces and full state at zero tolerance
-for the changed `gm0` transition. Release distribution still replays the immutable
-historical Spot/Futures regression fixtures; the current-source evidence is not a new
-continuous performance certificate.
+v1.8.1 freezes current-source compatibility for X7 v17.4.585 at upstream commit
+`47f3b66f4767fe228a74a98f0d4a7e51199e1488`. Spot and Futures source-compiled
+stateful closure has no reachable gaps. Bounded alias-compatibility fixtures match
+independent Official Freqtrade trade surfaces and every-candle full state at zero
+tolerance. Release distribution still replays the immutable historical Spot/Futures
+regression fixtures; the current-source evidence is not a new continuous performance
+certificate.
 
-Current `main` tracks the v1.8.0 stable release and is usable from source for supported
+Current `main` tracks the v1.8.1 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.8.0 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.8.1 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -183,7 +183,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.8.0`.
+The latest public installer currently returns `nfi-bte 1.8.1`.
 
 ### Keep the CLI updated
 
@@ -197,7 +197,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.7.0 -> 1.8.0. Run `nfi-bte update`.
+Update available: 1.8.0 -> 1.8.1. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
