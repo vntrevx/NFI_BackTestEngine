@@ -98,7 +98,7 @@ profit snapshot before branch selection. Promotion required an independent revie
 shadow to agree exactly; current payloads register no legacy shadow, and the preserved
 comparison remains evidence rather than a runtime branch.
 
-The v1.8.1 current-source qualification is deliberately separate from the immutable
+The v1.8.2 current-source qualification is deliberately separate from the immutable
 distribution regression fixtures. Spot and Futures static reachability both report
 zero reachable stateful gaps, complete closure, and Native compatibility for
 v17.4.585. Two bounded fixtures compare independent Official Freqtrade and Native
