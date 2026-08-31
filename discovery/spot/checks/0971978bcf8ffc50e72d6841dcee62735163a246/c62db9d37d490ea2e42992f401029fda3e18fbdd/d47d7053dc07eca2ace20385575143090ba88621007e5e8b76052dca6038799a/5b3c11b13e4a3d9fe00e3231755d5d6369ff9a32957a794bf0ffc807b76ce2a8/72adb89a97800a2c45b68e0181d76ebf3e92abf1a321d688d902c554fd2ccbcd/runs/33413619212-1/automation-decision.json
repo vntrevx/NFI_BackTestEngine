@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "0971978bcf8ffc50e72d6841dcee62735163a246",
+    "engine_sha": "c62db9d37d490ea2e42992f401029fda3e18fbdd",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8",
+    "strategy_sha256": "0ac5ad04c81932242a1e24b906e9c237de4bc99f1668b81826a0221b03b1a4ac"
+  },
+  "trading_mode": "spot",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "external_data_deferred",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": "external_data_deferred",
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "4e30a7773d741cacafdd52c16a3c6d64c464afadf2ee2b40638fcba89df4dd15",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5d6d2bfc08bd2f2e986bd0d394651c1a079d0c81495cd27dea67d1138ab25a09",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8bbcf93cafbd342a079ec64120e427ecb8f7bffd93b80b98bb86cdaea089bd28",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8fa40bea1874b631de1d5a263c60a74fe529aa14483090aa486ef1fb7e9a2ae6",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "e7afa5110ed93726ea9d8c0196421c5e263fdc569bf88c0c3e50cc2892f30238",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ef10476d73a769103d598dcf8bdceb7e9e98f5e553eddd36cfaed1a021d99f72",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "6 changed behavior target(s) have no branch-reaching fixture: callback, signal"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "0913a004b5722f3d530279cdcca18585451b6ddd12f7bf8230053e0442453768",
+  "decision_fingerprint": "aa76c2e174efbf03cb02306f1c30c13c798e713a3443654614bacfea0d778dff",
+  "message": "External data is deferred; keep official-only execution and reuse this state."
+}
