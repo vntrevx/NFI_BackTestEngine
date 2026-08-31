@@ -852,6 +852,24 @@ jobs:
           else
             echo "found=false" >> "${GITHUB_OUTPUT}"
           fi
+      - name: Reconcile stale Draft PR when no exact candidate
+        if: steps.candidate.outputs.found != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ matrix.trading_mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=.discovery/status/compatibility-product-status.json
+          expected_engine_sha="$(jq -er .observed_identity.engine_sha "${status}")"
+          expected_upstream_sha="$(jq -er .observed_identity.upstream_sha "${status}")"
+          uv run python scripts/futures_candidate_pr.py \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --repository "${GITHUB_REPOSITORY}" \
+            --base main \
+            --reconcile-mode "${MODE}" \
+            --expected-engine-sha "${expected_engine_sha}" \
+            --expected-upstream-sha "${expected_upstream_sha}"
       - name: Open Draft PR and dispatch required CI when exact
         if: steps.candidate.outputs.found == 'true'
         env:

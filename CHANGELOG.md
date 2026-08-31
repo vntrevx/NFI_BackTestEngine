@@ -4,6 +4,23 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+- Generalized X7 system-adjustment lowering for exact local aliases of enable flags,
+  exit helpers, system-v3 class constants, candle features, Futures mode, trade side, and
+  liquidation operands. Mismatched alias shapes still fail closed; upstream v17.4.585
+  now passes static Native checks and executes Spot and isolated-Futures workloads
+  without strategy-version or source-hash branches.
+  Bounded Spot and isolated-Futures fixtures match independent Official Freqtrade
+  trade surfaces and every-candle state at zero tolerance; they are not five-year
+  or release certificates.
+- Reduced CI probe-matrix cost by reusing descriptor-validated v3 coverage instead of
+  rereading fixture paths, releasing retained fixture payloads only in validation-only
+  tests, and mutating then restoring the semantic registry for negative checks instead
+  of making six full copies.
+- Bounded compatibility automation to one reconciled blocker issue and one open
+  exact-fixture Draft per trading mode. New immutable identities close only stale
+  automation-owned Drafts; non-Draft review work is never mutated automatically and
+  prevents another candidate from opening in the same mode.
+
 ## 1.8.0 - 2026-08-31
 
 - Removed the fixed two-state-history assumption from source-compiled state operands.

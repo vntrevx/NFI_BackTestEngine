@@ -221,6 +221,25 @@ def test_candidate_job_has_scoped_write_permissions_and_never_merges() -> None:
     assert "secrets." not in text
 
 
+def test_candidate_job_reconciles_stale_drafts_without_opening_a_queue() -> None:
+    candidate = _job(DISCOVERY.read_text(encoding="utf-8"), "candidate-pr")
+    reconcile = next(
+        step for step in _steps(candidate)
+        if "Reconcile stale Draft PR when no exact candidate" in step
+    )
+    publish = next(
+        step for step in _steps(candidate)
+        if "Open Draft PR and dispatch required CI when exact" in step
+    )
+
+    assert "steps.candidate.outputs.found != 'true'" in reconcile
+    assert "--reconcile-mode" in reconcile
+    assert "--expected-engine-sha" in reconcile
+    assert "--expected-upstream-sha" in reconcile
+    assert "steps.candidate.outputs.found == 'true'" in publish
+    assert "max-parallel: 1" in candidate
+
+
 def test_discovery_semantic_and_infrastructure_issues_are_separate() -> None:
     text = DISCOVERY.read_text(encoding="utf-8")
 
