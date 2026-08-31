@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from .canonical import write_json
+from .canonical import read_json, write_json
 from .config_loader import freeze_pairlist, load_effective_config
 from .errors import SpecValidationError
-from .product_contract import default_long_timerange
 from .project_config import (
     DEFAULT_PROJECT_PATH,
     ProjectSettings,
@@ -77,11 +76,15 @@ def initialize_project(
         emit=emit,
     )
     loaded_config = load_effective_config(selected_config)
+    beginner_setup = selected_config == (destination.parent / "first-run-config.json").resolve()
     selected_pairs = _select_pairs(
         loaded_config["config"],
+        workspace=root,
+        beginner_setup=beginner_setup,
         pairs=pairs,
         interactive=interactive,
         prompt=prompt,
+        emit=emit,
     )
     selected_data = _select_data_directory(
         root,
@@ -91,11 +94,13 @@ def initialize_project(
         interactive=interactive,
         prompt=prompt,
         emit=emit,
+        managed_default=beginner_setup,
     )
     selected_timerange = _select_timerange(
         timerange,
         interactive=interactive,
         prompt=prompt,
+        emit=emit,
         now=now,
     )
     selected_output = _select_output_directory(
@@ -231,8 +236,12 @@ def _select_config(
             emit=emit,
         )
     else:
-        for candidate in candidates:
-            emit(f"ignoring non-self-contained Freqtrade config: {candidate}")
+        if candidates:
+            emit(
+                "NFI's modular config was found. It will not be changed; "
+                "the backtest engine will create its own safe config."
+            )
+        emit("First-time setup. Press Enter to accept values shown in [brackets].")
         selected_mode = _select_trading_mode(
             trading_mode,
             interactive=interactive,
@@ -376,9 +385,12 @@ def _write_first_run_config(
 def _select_pairs(
     config: dict[str, Any],
     *,
+    workspace: Path,
+    beginner_setup: bool,
     pairs: list[str] | None,
     interactive: bool,
     prompt: Prompt,
+    emit: Emitter,
 ) -> list[str] | None:
     if pairs is not None:
         return freeze_pairlist(config, resolved_pairs=pairs)["pairs"]
@@ -386,10 +398,67 @@ def _select_pairs(
         freeze_pairlist(config)
         return None
     except SpecValidationError:
-        if not interactive:
-            raise SpecValidationError(
-                "config has no static pair whitelist; repeat --pair for each pair"
-            ) from None
+        pass
+    if beginner_setup:
+        return _select_beginner_pairs(
+            config,
+            workspace=workspace,
+            interactive=interactive,
+            prompt=prompt,
+            emit=emit,
+        )
+    if not interactive:
+        raise SpecValidationError(
+            "config has no static pair whitelist; repeat --pair for each pair"
+        )
+    return _select_custom_pairs(config, prompt=prompt)
+
+
+def _select_beginner_pairs(
+    config: dict[str, Any],
+    *,
+    workspace: Path,
+    interactive: bool,
+    prompt: Prompt,
+    emit: Emitter,
+) -> list[str]:
+    trading_mode = str(config.get("trading_mode", "spot"))
+    quick_pair = "ADA/USDT:USDT" if trading_mode == "futures" else "ADA/USDT"
+    quick = freeze_pairlist(config, resolved_pairs=[quick_pair])["pairs"]
+    preset = _nfi_backtest_pairs(workspace, trading_mode=trading_mode)
+    if not interactive:
+        emit(f"using quick-test pair: {quick_pair}")
+        return quick
+
+    emit("Choose the markets to test:")
+    emit(f"  1. Quick test — {quick_pair} (recommended)")
+    if preset is not None:
+        emit(
+            f"  2. NFI backtest list — {len(preset)} pairs "
+            "(larger download and longer run)"
+        )
+        emit("  3. Custom list — enter one or more pairs")
+        choices = {"1", "2", "3"}
+    else:
+        emit("  2. Custom list — enter one or more pairs")
+        choices = {"1", "2"}
+    while True:
+        choice = _prompt_value("Pair choice", default="1", prompt=prompt)
+        if choice == "1":
+            return quick
+        if preset is not None and choice == "2":
+            return preset
+        custom_choice = "3" if preset is not None else "2"
+        if choice == custom_choice:
+            return _select_custom_pairs(config, prompt=prompt)
+        emit(f"Enter one of: {', '.join(sorted(choices))}.")
+
+
+def _select_custom_pairs(
+    config: dict[str, Any],
+    *,
+    prompt: Prompt,
+) -> list[str]:
     trading_mode = config.get("trading_mode", "spot")
     example = (
         "BTC/USDT:USDT,ETH/USDT:USDT"
@@ -397,11 +466,30 @@ def _select_pairs(
         else "BTC/USDT,ETH/USDT"
     )
     raw = _prompt_value(
-        f"Pairs (comma separated, for example {example})",
+        f"Pairs, separated by commas (for example {example})",
         prompt=prompt,
     )
     selected = [item.strip() for item in raw.split(",") if item.strip()]
     return freeze_pairlist(config, resolved_pairs=selected)["pairs"]
+
+
+def _nfi_backtest_pairs(
+    workspace: Path,
+    *,
+    trading_mode: str,
+) -> list[str] | None:
+    mode = "futures" if trading_mode == "futures" else "spot"
+    candidate = (
+        workspace
+        / "configs"
+        / f"pairlist-backtest-static-binance-{mode}-usdt.json"
+    )
+    if not candidate.is_file():
+        return None
+    document = read_json(candidate)
+    if not isinstance(document, dict):
+        raise SpecValidationError(f"NFI pair preset is not a JSON object: {candidate}")
+    return freeze_pairlist(document)["pairs"]
 
 
 def _select_data_directory(
@@ -413,6 +501,7 @@ def _select_data_directory(
     interactive: bool,
     prompt: Prompt,
     emit: Emitter,
+    managed_default: bool,
 ) -> Path:
     if data_directory is not None:
         selected = resolve_workspace_path(workspace, data_directory)
@@ -449,7 +538,7 @@ def _select_data_directory(
             )
         else:
             default = exchange_candidates[0]
-            if interactive:
+            if interactive and not managed_default:
                 raw = _prompt_value(
                     "Candle data directory",
                     default=_display_path(workspace, default),
@@ -458,7 +547,10 @@ def _select_data_directory(
                 selected = resolve_workspace_path(workspace, raw)
             else:
                 selected = default
-            emit(f"candle data will use: {selected}")
+            emit(
+                f"managed candle storage: {selected} "
+                "(missing public data downloads automatically)"
+            )
     if selected.exists() and not selected.is_dir():
         raise SpecValidationError(f"candle data path is not a directory: {selected}")
     return selected
@@ -469,12 +561,21 @@ def _select_timerange(
     *,
     interactive: bool,
     prompt: Prompt,
+    emit: Emitter,
     now: datetime | None,
 ) -> str:
     if value is not None:
         return value
     default = _default_timerange(now or datetime.now(UTC))
-    return _prompt_value("Timerange", default=default, prompt=prompt) if interactive else default
+    if not interactive:
+        emit(f"using quick-test period: {default}")
+        return default
+    emit("The recommended first run covers the most recent seven complete days.")
+    return _prompt_value(
+        "Backtest period (YYYYMMDD-YYYYMMDD)",
+        default=default,
+        prompt=prompt,
+    )
 
 
 def _select_output_directory(
@@ -577,7 +678,9 @@ def _prompt_value(
 
 
 def _default_timerange(now: datetime) -> str:
-    return default_long_timerange(now)
+    end = now.date()
+    start = end - timedelta(days=7)
+    return f"{start:%Y%m%d}-{end:%Y%m%d}"
 
 
 def _display_path(workspace: Path, value: Path) -> str:

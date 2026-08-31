@@ -19,27 +19,27 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.8.2](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.2) |
+| Latest public release | [v1.8.3](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.3) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.8.2 stable release line; Linux/macOS verified |
+| Current `main` | v1.8.3 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.8.2 preserves current-source compatibility for X7 v17.4.585 at upstream commit
-`47f3b66f4767fe228a74a98f0d4a7e51199e1488` and removes manual Freqtrade JSON
-editing from first-run setup. Spot and Futures source-compiled stateful closure has no
-reachable gaps. Bounded alias-compatibility fixtures match independent Official
-Freqtrade trade surfaces and every-candle full state at zero tolerance. Release
-distribution still replays the immutable historical Spot/Futures regression fixtures;
-the current-source evidence is not a new continuous performance certificate.
+v1.8.3 preserves current-source compatibility for X7 v17.4.587 at upstream commit
+`95b76043c3f610e0760e191deebd12304bfadbf8` and makes the config-free path usable by
+non-technical users. The wizard supplies a seven-day quick test, discovers NFI's
+maintained large-pair preset, manages candle storage, reports live stage progress,
+retries transient Binance failures, and prints every result location. Spot and Futures
+source-compiled stateful closure still has no reachable gaps; this usability patch
+does not claim a new continuous performance certificate.
 
-Current `main` tracks the v1.8.2 stable release and is usable from source for supported
+Current `main` tracks the v1.8.3 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.8.2 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.8.3 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -183,7 +183,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.8.2`.
+The latest public installer currently returns `nfi-bte 1.8.3`.
 
 ### Keep the CLI updated
 
@@ -197,7 +197,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.8.1 -> 1.8.2. Run `nfi-bte update`.
+Update available: 1.8.2 -> 1.8.3. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -216,12 +216,12 @@ cd NostalgiaForInfinity
 nfi-bte run NostalgiaForInfinityX7.py
 ```
 
-The first-run wizard detects the strategy class, asks for Spot or Futures before any
-configuration path, then asks for the exchange, pairs, candle directory, and
-timerange. When no self-contained Freqtrade config exists, it writes a credential-free
-dry-run config under `.nfi/`; users do not copy, edit, or flatten NFI's modular config
-files. Existing valid configs and an explicit `--config` remain supported and are
-never rewritten.
+The first-run wizard explains that Enter accepts each recommended value. It creates a
+credential-free dry-run config without modifying NFI's modular files, offers a
+one-pair quick test or NFI's maintained large backtest list, uses managed candle
+storage, and defaults to the most recent seven complete days. During the run it shows
+the current stage, percentage, and elapsed time. Before work starts and after it
+finishes, it prints the results folder and HTML-report path.
 
 For a non-interactive one-pair Spot run with an explicit bounded period:
 

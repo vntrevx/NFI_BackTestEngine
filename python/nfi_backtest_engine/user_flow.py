@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import sys
+import threading
+import time
 import webbrowser
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 import psutil
 
@@ -30,6 +33,81 @@ OFFICIAL_FALLBACK_DIRECTORY = "official-fallback"
 REPORT_FILENAME = "report.html"
 
 Prompt = Callable[[str], str]
+
+
+class RunProgress:
+    """Render a truthful stage percentage plus a live elapsed-time heartbeat."""
+
+    def __init__(
+        self,
+        *,
+        stream: TextIO | None = None,
+        interactive: bool | None = None,
+        interval_seconds: float = 1.0,
+    ) -> None:
+        self._stream = sys.stdout if stream is None else stream
+        self._interactive = (
+            self._stream.isatty() if interactive is None else interactive
+        )
+        self._interval_seconds = interval_seconds
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._percent = 0
+        self._label = "Starting"
+        self._stage_started = time.monotonic()
+        self._rendered = False
+
+    def __enter__(self) -> RunProgress:
+        if self._interactive:
+            self._thread = threading.Thread(
+                target=self._heartbeat,
+                name="nfi-run-progress",
+                daemon=True,
+            )
+            self._thread.start()
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def update(self, percent: int, label: str) -> None:
+        if not 0 <= percent <= 100:
+            raise ValueError("run progress percentage must be between 0 and 100")
+        with self._lock:
+            self._percent = percent
+            self._label = label
+            self._stage_started = time.monotonic()
+            self._render_locked()
+
+    def close(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=max(self._interval_seconds * 2, 0.1))
+        with self._lock:
+            if self._interactive and self._rendered:
+                self._stream.write("\n")
+                self._stream.flush()
+                self._rendered = False
+
+    def _heartbeat(self) -> None:
+        while not self._stop.wait(self._interval_seconds):
+            with self._lock:
+                self._render_locked()
+
+    def _render_locked(self) -> None:
+        elapsed = max(0, int(time.monotonic() - self._stage_started))
+        minutes, seconds = divmod(elapsed, 60)
+        line = (
+            f"[{self._percent:3d}%] {self._label} "
+            f"({minutes:02d}:{seconds:02d} elapsed)"
+        )
+        if self._interactive:
+            self._stream.write(f"\r\033[2K{line}")
+            self._rendered = True
+        else:
+            self._stream.write(f"{line}\n")
+        self._stream.flush()
 
 
 def inspect_run_preflight(
@@ -129,30 +207,41 @@ def write_run_preflight(
 
 
 def format_run_preflight(report: Mapping[str, Any], destination: Path) -> str:
-    """Render a compact, factual preflight summary."""
+    """Render a beginner-readable system check with a durable detail path."""
     host = _mapping(report, "host")
     docker = _mapping(report, "docker")
     disk = _mapping(report, "disk")
     docker_detail = (
-        f"{docker.get('container_memory_limit_bytes')} byte limit"
+        f"ready ({_human_bytes(docker.get('container_memory_limit_bytes'))} memory limit)"
         if docker.get("status") == "available"
         else str(docker.get("detail", "unavailable"))
     )
-    bounded = (
-        "bounded from local inputs"
+    download_note = (
+        "local candle size measured"
         if disk.get("download_growth_bounded") is True
-        else "download growth not yet bounded"
+        else "missing candle download size is not known yet"
     )
-    return (
-        "run preflight: "
-        f"cpu={host.get('affinity_cpu_count')}, "
-        f"memory={host.get('available_memory_bytes')} bytes, "
-        f"disk={disk.get('available_bytes')} available / "
-        f"{disk.get('required_free_bytes')} required ({bounded}), "
-        f"cache={disk.get('cache_max_bytes')} max "
-        f"({disk.get('cache_budget_source')}), "
-        f"docker={docker_detail} -> {destination}"
+    return "\n".join(
+        [
+            "System check passed.",
+            f"  CPU: {host.get('affinity_cpu_count')} usable cores",
+            f"  Memory available: {_human_bytes(host.get('available_memory_bytes'))}",
+            f"  Disk available: {_human_bytes(disk.get('available_bytes'))} ({download_note})",
+            f"  Docker: {docker_detail}",
+            f"  Technical details: {destination}",
+        ]
     )
+
+
+def _human_bytes(value: Any) -> str:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        return "unknown"
+    amount = float(value)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if amount < 1024 or unit == "TiB":
+            return f"{amount:.1f} {unit}"
+        amount /= 1024
+    raise AssertionError("unreachable byte unit")
 
 
 def resolve_consent(
@@ -537,6 +626,12 @@ def finish_one_line_run(
     final_status = native_status
 
     if complete:
+        emit("")
+        emit("Backtest complete.")
+        emit(f"Results folder: {root}")
+        report_path = root / REPORT_FILENAME
+        if report_path.is_file():
+            emit(f"Open the HTML report: {report_uri(report_path)}")
         native_sequence = record_native_completion(ledger_path, root)
         emit(
             "verification ledger: "

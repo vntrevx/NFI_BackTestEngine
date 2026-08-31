@@ -340,7 +340,11 @@ def test_completed_resume_returns_verified_result_without_running_engine(
     tmp_path: Path,
 ) -> None:
     arguments, calls = _resume_workspace(monkeypatch, tmp_path)
-    first = research_runner.run_research_backtest(**arguments)
+    progress_events: list[tuple[int, str]] = []
+    first = research_runner.run_research_backtest(
+        **arguments,
+        progress=lambda percent, label: progress_events.append((percent, label)),
+    )
     output = Path(arguments["output_directory"])
     evidence_before = {
         name: (output / name).read_bytes()
@@ -358,6 +362,20 @@ def test_completed_resume_returns_verified_result_without_running_engine(
     )
 
     assert resumed == first
+    assert [percent for percent, _label in progress_events] == [
+        5,
+        12,
+        20,
+        50,
+        55,
+        70,
+        80,
+        95,
+        98,
+        100,
+    ]
+    assert "1 selected pair" in progress_events[2][1]
+    assert progress_events[-1] == (100, "Backtest complete")
     assert calls["engine"] == 1
     assert evidence_before == {
         name: (output / name).read_bytes()

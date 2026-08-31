@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -106,9 +107,12 @@ def run_research_backtest(
     history_coverage_policy: str = "strict",
     trace_engine_events: bool = False,
     portfolio_envelope_identity: dict[str, Any] | None = None,
+    progress: Callable[[int, str], None] | None = None,
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
     require_supported_execution_platform()
+    if progress is not None:
+        progress(5, "Checking strategy and settings")
     pipeline_started_ns = time.perf_counter_ns()
     pipeline_started_at = _utc_now()
     stage_started_ns = pipeline_started_ns
@@ -218,6 +222,8 @@ def run_research_backtest(
             f"requested {selected_workers} workers exceeds the hardware profile limit "
             f"of {safe_workers}; recalibrate the profile instead of oversubscribing it"
         )
+    if progress is not None:
+        progress(12, "Checking exchange market information")
     selected_market_metadata = (
         Path(market_metadata_path).resolve() if market_metadata_path is not None else None
     )
@@ -369,10 +375,14 @@ def run_research_backtest(
                     legacy_identity["schema_version"] != LEGACY_RESEARCH_RUN_VERSION
                 ),
             )
+            if progress is not None:
+                progress(100, "Completed run already available")
             return legacy_run
         existing_run = _load_existing_run(output, run_id=run_id, identity=identity)
         if existing_run is not None and existing_run["complete"] is True:
             _validate_completed_run_artifacts(existing_run, output)
+            if progress is not None:
+                progress(100, "Completed run already available")
             return existing_run
     else:
         existing_run = None
@@ -426,6 +436,19 @@ def run_research_backtest(
     )
 
     data_pairs = required_data_pairs(pairlist, run_config)
+    if progress is not None:
+        selected_count = len(pairlist["pairs"])
+        reference_count = len(data_pairs) - selected_count
+        reference_detail = (
+            f" + {reference_count} required BTC reference"
+            if reference_count
+            else ""
+        )
+        progress(
+            20,
+            f"Preparing candles for {selected_count} selected pair"
+            f"{'s' if selected_count != 1 else ''}{reference_detail}",
+        )
     download_config = sanitize_config(run_config)
     if not isinstance(download_config, dict):
         raise SpecValidationError("download config must be an object")
@@ -471,6 +494,8 @@ def run_research_backtest(
             startup_candles=startup_candles,
             history_coverage_policy=history_coverage_policy,
         )
+    if progress is not None:
+        progress(50, "Candle data ready")
     data_seconds = _elapsed_seconds(stage_started_ns)
     stage_started_ns = time.perf_counter_ns()
 
@@ -489,6 +514,8 @@ def run_research_backtest(
             raise BenchmarkError("vector checkpoint or its artifacts failed validation")
         vector_report = candidate["report"]
         resumed_vector_stage = True
+    if progress is not None:
+        progress(55, "Preparing strategy signals")
     if vector_report is None:
         if vector_transport == FULL_NATIVE_VECTOR_TRANSPORT:
             vector_report = _full_native_preflight_report(
@@ -530,6 +557,8 @@ def run_research_backtest(
         and existing_run["prepared_only"] is True
         and prepare_only
     ):
+        if progress is not None:
+            progress(100, "Input preparation complete")
         return existing_run
 
     blockers = (
@@ -569,6 +598,8 @@ def run_research_backtest(
     resumed_surface_stage = False
     result_record = None
     if not blockers and not prepare_only:
+        if progress is not None:
+            progress(70, "Building deterministic simulation inputs")
         assert selected_market_metadata is not None
         simulation_input_path = output / "simulation-input.manifest.json"
         simulation_result_path = output / "simulation-result.json"
@@ -671,6 +702,8 @@ def run_research_backtest(
             _require_absent(engine_profile_path, label="engine profile")
             if engine_events_path is not None:
                 _require_absent(engine_events_path, label="engine events")
+            if progress is not None:
+                progress(80, "Running the native backtest")
             stage_started_ns = time.perf_counter_ns()
             engine_arguments: dict[str, Any] = {
                 "profile_path": profile_path,
@@ -741,6 +774,8 @@ def run_research_backtest(
             resumed_surface_stage = True
         else:
             _require_absent(surface_path, label="trade surface")
+            if progress is not None:
+                progress(95, "Calculating results")
             stage_started_ns = time.perf_counter_ns()
             strategy = analysis["strategies"][0]
             surface = generic_result_to_surface(
@@ -879,8 +914,12 @@ def run_research_backtest(
             "status": "not_run",
         },
     }
+    if progress is not None:
+        progress(98, "Writing the HTML report and CSV files")
     write_json(output / "run.json", report)
     write_result_presentation(output)
+    if progress is not None:
+        progress(100, "Backtest complete")
     if registry_path is not None:
         with RunRegistry(registry_path) as registry:
             registry.record(report, output)
