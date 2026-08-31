@@ -148,8 +148,8 @@ def run_benchmark(
 
     manifest_file = Path(manifest_path).resolve()
     if validate_fixture is _ORIGINAL_VALIDATE_FIXTURE:
-        manifest, manifest_payload, fixture_payloads = _validate_fixture_retained(
-            manifest_file
+        manifest, manifest_payload, fixture_payloads, _coverage = (
+            _validate_fixture_retained(manifest_file)
         )
     else:
         # Preserve the established test/integration seam while production always

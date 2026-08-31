@@ -214,7 +214,11 @@ fingerprint에서만 재개한다. 최신 identity가 바뀌면 이전 cursor는
 Native를 각각 다시 실행해 변경 branch 도달, trade surface exact, full-state
 exact를 모두 통과한 mode별 paired fixture가 30 MiB 이하일 때만 candidate가 된다.
 자동화는 allowlist된 fixture와 compact evidence만 새 branch에 넣어 Draft PR을
-열고 CI를 요청한다. 자동 승인과 자동 merge는 하지 않는다.
+열고 CI를 요청한다. mode마다 자동 candidate Draft는 최대 하나만 연다. 새 immutable
+identity가 오면 이전 automation-owned Draft는 superseded comment와 함께 닫고, 닫힌
+PR의 commit과 review history는 그대로 보존한다. 사람이 Draft를 해제한 PR은 자동으로
+닫거나 수정하지 않으며 같은 mode의 새 candidate 생성을 차단한다. 자동 승인과 자동
+merge는 하지 않는다.
 
 심층 workflow는 nightly 또는 수동으로 실행되며 새 identity가 도착하면 진행 중인
 이전 실행을 취소한다. 대체 실행은 전체 identity가 일치하는 cursor만 재개하고,

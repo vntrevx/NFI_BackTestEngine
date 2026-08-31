@@ -271,3 +271,103 @@ def test_candidate_pr_deduplication_includes_closed_and_merged_prs(
     }
     assert "--state" in calls[0]
     assert calls[0][calls[0].index("--state") + 1] == "all"
+
+
+def test_candidate_pr_reconciliation_keeps_one_review_slot_per_mode() -> None:
+    plan = MODULE.build_candidate_pr_reconciliation(
+        [
+            {
+                "number": 40,
+                "headRefName": "automation/spot-fixture-current",
+                "isDraft": True,
+            },
+            {
+                "number": 41,
+                "headRefName": "automation/spot-fixture-stale",
+                "isDraft": True,
+            },
+            {
+                "number": 42,
+                "headRefName": "automation/spot-fixture-human-ready",
+                "isDraft": False,
+            },
+            {
+                "number": 43,
+                "headRefName": "automation/futures-fixture-unrelated",
+                "isDraft": True,
+            },
+            {
+                "number": 44,
+                "headRefName": "fix/unrelated",
+                "isDraft": True,
+            },
+        ],
+        trading_mode="spot",
+        desired_branch="automation/spot-fixture-current",
+    )
+
+    assert plan == {
+        "trading_mode": "spot",
+        "desired_branch": "automation/spot-fixture-current",
+        "keep": 40,
+        "close": [41],
+        "blocked": [42],
+    }
+
+
+def test_candidate_pr_reconciliation_closes_only_stale_drafts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(arguments: list[str], **_kwargs) -> str:
+        calls.append(arguments)
+        if arguments[:3] == ["gh", "pr", "list"]:
+            return (
+                '[{"number":41,"headRefName":"automation/futures-fixture-stale",'
+                '"isDraft":true},{"number":42,'
+                '"headRefName":"automation/futures-fixture-human-ready","isDraft":false},'
+                '{"number":43,"headRefName":"automation/spot-fixture-unrelated",'
+                '"isDraft":true}]'
+            )
+        return ""
+
+    monkeypatch.setattr(MODULE, "_run", fake_run)
+    result = MODULE.reconcile_candidate_prs(
+        "owner/repository",
+        trading_mode="futures",
+        desired_branch=None,
+        upstream_commit="d" * 40,
+        engine_commit="c" * 40,
+    )
+
+    assert result["closed"] == [41]
+    assert result["blocked"] == [42]
+    close_calls = [call for call in calls if call[:3] == ["gh", "pr", "close"]]
+    assert len(close_calls) == 1
+    assert close_calls[0][3] == "41"
+    assert "42" not in close_calls[0]
+
+
+def test_non_draft_candidate_blocks_another_automated_pr(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(MODULE, "_validate_current_refs", lambda *_args: None)
+    monkeypatch.setattr(
+        MODULE,
+        "reconcile_candidate_prs",
+        lambda *_args, **_kwargs: {"blocked": [42], "closed": [41]},
+    )
+    monkeypatch.setattr(MODULE, "_open_pr", lambda *_args: None)
+
+    with pytest.raises(
+        MODULE.CandidatePublicationError,
+        match="non-Draft automation candidate",
+    ):
+        MODULE.publish_candidate(
+            _publication_plan(),
+            repository_root=tmp_path,
+            repository="owner/repository",
+            base="main",
+        )

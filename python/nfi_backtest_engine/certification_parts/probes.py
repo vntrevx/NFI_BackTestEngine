@@ -23,6 +23,7 @@ def _validate_probe_matrix(
     *,
     contract: ReleaseModeContract,
     expected_upstream_commit: str | None = None,
+    retain_payloads: bool = True,
 ) -> list[tuple[Path, dict[str, Any]]]:
     probes: list[tuple[Path, dict[str, Any]]] = []
     kinds: set[str] = set()
@@ -54,13 +55,15 @@ def _validate_probe_matrix(
             raise SpecValidationError(
                 "Full X7 probe upstream commit differs from the release input lock"
             )
-        coverage = validate_fixture_coverage(path, manifest)
+        coverage = getattr(manifest, "coverage", None)
+        if not isinstance(coverage, dict):
+            coverage = validate_fixture_coverage(path, manifest)
         observed = coverage["observed"]
         kind = manifest["probe_kind"]
         kinds.add(kind)
         coverage_by_kind.setdefault(kind, []).append(observed)
         all_coverage.append(observed)
-        probes.append((path, manifest))
+        probes.append((path, manifest if retain_payloads else dict(manifest)))
     missing = sorted(contract.required_probe_kinds - kinds)
     if missing:
         raise SpecValidationError("Full X7 probe matrix is incomplete: " + ", ".join(missing))

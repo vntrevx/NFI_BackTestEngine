@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import math
 import re
 from typing import Any, Never
@@ -234,6 +235,140 @@ def _adjustment_literal_policy(
     }
 
 
+def _is_grind_enable_reference(
+    method: ast.FunctionDef,
+    node: ast.AST,
+    *,
+    level: int,
+) -> bool:
+    name = f"system_v3_grind_{level}_enable"
+    assignments = [
+        statement
+        for statement in method.body
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == name
+    ]
+    stores = [
+        candidate
+        for candidate in ast.walk(method)
+        if isinstance(candidate, ast.Name)
+        and isinstance(getattr(candidate, "ctx", None), ast.Store)
+        and candidate.id == name
+    ]
+    alias_available = False
+    if assignments or stores:
+        if (
+            len(assignments) != 1
+            or len(stores) != 1
+            or not isinstance(assignments[0].value, ast.Attribute)
+            or not isinstance(assignments[0].value.value, ast.Name)
+            or assignments[0].value.value.id != "self"
+            or assignments[0].value.attr != name
+        ):
+            raise StrategyAnalysisError(f"NFI adjustment grind {level} enable alias changed")
+        alias_available = True
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
+        and node.attr == name
+    ) or (alias_available and isinstance(node, ast.Name) and node.id == name)
+
+
+def _resolve_fallback_feature_aliases(
+    method: ast.FunctionDef,
+    node: ast.AST,
+    *,
+    level: int,
+) -> ast.AST:
+    exact_aliases = {
+        "is_futures_mode": ast.Attribute(
+            value=ast.Name(id="self", ctx=ast.Load()),
+            attr="is_futures_mode",
+            ctx=ast.Load(),
+        ),
+        "trade_is_short": ast.Attribute(
+            value=ast.Name(id="trade", ctx=ast.Load()),
+            attr="is_short",
+            ctx=ast.Load(),
+        ),
+        "trade_liquidation_price": ast.Attribute(
+            value=ast.Name(id="trade", ctx=ast.Load()),
+            attr="liquidation_price",
+            ctx=ast.Load(),
+        ),
+    }
+    aliases: dict[str, ast.AST] = {}
+    referenced = {
+        candidate.id
+        for candidate in ast.walk(node)
+        if isinstance(candidate, ast.Name)
+        and isinstance(getattr(candidate, "ctx", None), ast.Load)
+        and (
+            candidate.id in exact_aliases
+            or (candidate.id.startswith("last_") and candidate.id != "last_candle")
+        )
+    }
+    for name in referenced:
+        assignments = [
+            statement
+            for statement in method.body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == name
+        ]
+        if not assignments:
+            continue
+        stores = [
+            candidate
+            for candidate in ast.walk(method)
+            if isinstance(candidate, ast.Name)
+            and isinstance(getattr(candidate, "ctx", None), ast.Store)
+            and candidate.id == name
+        ]
+        value = assignments[0].value if len(assignments) == 1 else None
+        expected = exact_aliases.get(name)
+        if name.startswith("last_") and value is not None:
+            feature = _last_candle_feature(value)
+            replacement: ast.AST | None = (
+                ast.Subscript(
+                    value=ast.Name(id="last_candle", ctx=ast.Load()),
+                    slice=ast.Constant(value=feature),
+                    ctx=ast.Load(),
+                )
+                if feature is not None
+                else None
+            )
+        else:
+            replacement = (
+                expected
+                if value is not None
+                and expected is not None
+                and ast.dump(value, include_attributes=False)
+                == ast.dump(expected, include_attributes=False)
+                else None
+            )
+        if len(stores) != 1 or replacement is None:
+            raise StrategyAnalysisError(
+                f"NFI adjustment grind {level} fallback alias changed: {name}"
+            )
+        aliases[name] = replacement
+    if not aliases:
+        return node
+
+    class _FeatureAliasResolver(ast.NodeTransformer):
+        def visit_Name(self, node: ast.Name) -> ast.AST:
+            replacement = aliases.get(node.id)
+            if replacement is None or not isinstance(getattr(node, "ctx", None), ast.Load):
+                return node
+            return ast.copy_location(copy.deepcopy(replacement), node)
+
+    return _FeatureAliasResolver().visit(copy.deepcopy(node))
+
+
 def _grind_entry_fallbacks(
     method: ast.FunctionDef,
     *,
@@ -247,10 +382,7 @@ def _grind_entry_fallbacks(
         if isinstance(node, ast.If)
         and any(isinstance(value, ast.Constant) and value.value == tag for value in ast.walk(node))
         and any(
-            isinstance(value, ast.Attribute)
-            and isinstance(value.value, ast.Name)
-            and value.value.id == "self"
-            and value.attr == f"system_v3_grind_{level}_enable"
+            _is_grind_enable_reference(method, value, level=level)
             for value in ast.walk(node.test)
         )
     ]
@@ -277,7 +409,13 @@ def _grind_entry_fallbacks(
             or signal.values[0].id != signal_name
         ):
             raise StrategyAnalysisError(f"NFI adjustment grind {level} primary signal changed")
-        predicates = [_adjustment_predicate(value, level=level) for value in signal.values[1:]]
+        predicates = [
+            _adjustment_predicate(
+                _resolve_fallback_feature_aliases(method, value, level=level),
+                level=level,
+            )
+            for value in signal.values[1:]
+        ]
     else:
         raise StrategyAnalysisError(f"NFI adjustment grind {level} signal expression changed")
     return {"level": level, "predicates": predicates}

@@ -7,7 +7,7 @@ import argparse
 import json
 import shutil
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,9 @@ from nfi_backtest_engine.fixture import sha256_file, validate_fixture
 
 __all__ = [
     "build_candidate_plan",
+    "build_candidate_pr_reconciliation",
     "publish_candidate",
+    "reconcile_candidate_prs",
     "sha256_file",
     "validate_fixture",
 ]
@@ -33,9 +35,18 @@ def publish_candidate(
     repository: str,
     base: str,
 ) -> dict[str, Any]:
-    """Push allowlisted files and recheck current refs immediately before Draft PR creation."""
+    """Push allowlisted files and keep at most one automated Draft per mode."""
     root = Path(repository_root).resolve()
     branch = str(plan["branch"])
+    _validate_current_refs(plan, root, base)
+    reconciliation = reconcile_candidate_prs(
+        repository,
+        trading_mode=str(plan["trading_mode"]),
+        desired_branch=branch,
+        upstream_commit=str(plan["upstream_commit"]),
+        engine_commit=str(plan["engine_commit"]),
+        cwd=root,
+    )
     existing = _open_pr(repository, branch)
     if existing is not None:
         return {
@@ -43,7 +54,14 @@ def publish_candidate(
             "pull_request_url": existing["url"],
             "created": False,
             "ci_dispatched": False,
+            "superseded_pull_requests": reconciliation["closed"],
         }
+    blocked = reconciliation["blocked"]
+    if blocked:
+        raise CandidatePublicationError(
+            "a non-Draft automation candidate already occupies this mode's review slot: "
+            + ", ".join(f"#{number}" for number in blocked)
+        )
     remote_exists = bool(
         _run(
             ["git", "ls-remote", "--heads", "origin", f"refs/heads/{branch}"],
@@ -120,6 +138,7 @@ def publish_candidate(
         _run(["git", "push", "origin", f"HEAD:{branch}"], cwd=root)
     title = f"test({plan['trading_mode']}): add discovered fixture {plan['fixture_id']}"
     body = (
+        f"<!-- nfi-exact-fixture-candidate:{plan['trading_mode']}:{plan['fingerprint']} -->\n\n"
         f"Automated bounded {plan['trading_mode']} branch discovery candidate.\n\n"
         f"- Fingerprint: `{plan['fingerprint']}`\n"
         f"- Upstream: `{plan['upstream_commit']}`\n"
@@ -128,6 +147,8 @@ def publish_candidate(
         f"- Logical size: `{plan['logical_bytes']}` bytes\n"
         "- Independent official/Native trade surface: exact\n"
         "- Independent official/Native full state: exact\n\n"
+        "At most one automated candidate Draft is kept open per trading mode. "
+        "A newer immutable identity closes this Draft as superseded. "
         "This PR is never approved or merged automatically."
     )
     _validate_current_refs(plan, root, base)
@@ -159,6 +180,7 @@ def publish_candidate(
         "pull_request_url": url,
         "created": True,
         "ci_dispatched": True,
+        "superseded_pull_requests": reconciliation["closed"],
     }
 
 
@@ -183,36 +205,57 @@ def _validate_current_refs(plan: Mapping[str, Any], root: Path, base: str) -> No
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--candidate-dir", type=Path, required=True)
+    parser.add_argument("--report", type=Path)
+    parser.add_argument("--candidate-dir", type=Path)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--base", default="main")
-    parser.add_argument("--max-bytes", type=int, required=True)
+    parser.add_argument("--max-bytes", type=int)
     parser.add_argument("--expected-engine-sha", required=True)
     parser.add_argument("--expected-upstream-sha", required=True)
+    parser.add_argument("--reconcile-mode", choices=("spot", "futures"))
     parser.add_argument("--github-output", type=Path)
     args = parser.parse_args()
-    report = read_json(args.report)
-    if not isinstance(report, dict):
-        raise CandidatePublicationError("discovery report must be an object")
-    plan = build_candidate_plan(
-        report,
-        args.candidate_dir,
-        args.repo_root,
-        max_bytes=args.max_bytes,
-    )
-    if (
-        plan.get("engine_commit") != args.expected_engine_sha
-        or plan.get("upstream_commit") != args.expected_upstream_sha
-    ):
-        raise CandidatePublicationError("workflow refs differ from candidate proof")
-    result = publish_candidate(
-        plan,
-        repository_root=args.repo_root,
-        repository=args.repository,
-        base=args.base,
-    )
+    if args.reconcile_mode is not None:
+        _validate_current_refs(
+            {
+                "engine_commit": args.expected_engine_sha,
+                "upstream_commit": args.expected_upstream_sha,
+            },
+            args.repo_root.resolve(),
+            args.base,
+        )
+        result = reconcile_candidate_prs(
+            args.repository,
+            trading_mode=args.reconcile_mode,
+            desired_branch=None,
+            upstream_commit=args.expected_upstream_sha,
+            engine_commit=args.expected_engine_sha,
+            cwd=args.repo_root.resolve(),
+        )
+    else:
+        if args.report is None or args.candidate_dir is None or args.max_bytes is None:
+            parser.error("--report, --candidate-dir, and --max-bytes are required for publication")
+        report = read_json(args.report)
+        if not isinstance(report, dict):
+            raise CandidatePublicationError("discovery report must be an object")
+        plan = build_candidate_plan(
+            report,
+            args.candidate_dir,
+            args.repo_root,
+            max_bytes=args.max_bytes,
+        )
+        if (
+            plan.get("engine_commit") != args.expected_engine_sha
+            or plan.get("upstream_commit") != args.expected_upstream_sha
+        ):
+            raise CandidatePublicationError("workflow refs differ from candidate proof")
+        result = publish_candidate(
+            plan,
+            repository_root=args.repo_root,
+            repository=args.repository,
+            base=args.base,
+        )
     if args.github_output is not None:
         with args.github_output.open("a", encoding="utf-8") as handle:
             for key, value in result.items():
@@ -220,6 +263,112 @@ def main() -> int:
                 handle.write(f"{key}={rendered}\n")
     print(json.dumps(result, sort_keys=True))
     return 0
+
+
+def build_candidate_pr_reconciliation(
+    open_pull_requests: Sequence[Mapping[str, Any]],
+    *,
+    trading_mode: str,
+    desired_branch: str | None,
+) -> dict[str, Any]:
+    """Select one current review slot and supersede stale automation Drafts."""
+    if trading_mode not in {"spot", "futures"}:
+        raise CandidatePublicationError("candidate reconciliation trading mode is invalid")
+    prefix = f"automation/{trading_mode}-fixture-"
+    keep: int | None = None
+    close: list[int] = []
+    blocked: list[int] = []
+    for pull_request in open_pull_requests:
+        branch = pull_request.get("headRefName")
+        number = pull_request.get("number")
+        if (
+            not isinstance(branch, str)
+            or not branch.startswith(prefix)
+            or not isinstance(number, int)
+            or isinstance(number, bool)
+        ):
+            continue
+        if desired_branch is not None and branch == desired_branch:
+            keep = number
+            continue
+        if pull_request.get("isDraft") is True:
+            close.append(number)
+        else:
+            blocked.append(number)
+    return {
+        "trading_mode": trading_mode,
+        "desired_branch": desired_branch,
+        "keep": keep,
+        "close": sorted(close),
+        "blocked": sorted(blocked),
+    }
+
+
+def reconcile_candidate_prs(
+    repository: str,
+    *,
+    trading_mode: str,
+    desired_branch: str | None,
+    upstream_commit: str,
+    engine_commit: str,
+    cwd: Path | None = None,
+) -> dict[str, Any]:
+    """Close only stale automation-owned Drafts; never mutate non-Draft PRs."""
+    open_pull_requests = _open_candidate_prs(repository)
+    plan = build_candidate_pr_reconciliation(
+        open_pull_requests,
+        trading_mode=trading_mode,
+        desired_branch=desired_branch,
+    )
+    replacement = (
+        f" The replacement candidate branch is `{desired_branch}`."
+        if desired_branch is not None
+        else " The current identity did not authorize an exact fixture candidate."
+    )
+    comment = (
+        f"Superseded automatically by upstream `{upstream_commit}` and engine "
+        f"`{engine_commit}`.{replacement} The closed PR remains immutable review history; "
+        "no approval or merge was performed."
+    )
+    for number in plan["close"]:
+        _run(
+            [
+                "gh",
+                "pr",
+                "close",
+                str(number),
+                "--repo",
+                repository,
+                "--comment",
+                comment,
+            ],
+            cwd=cwd,
+        )
+    return {**plan, "closed": plan["close"]}
+
+
+def _open_candidate_prs(repository: str) -> list[dict[str, Any]]:
+    output = _run(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--repo",
+            repository,
+            "--state",
+            "open",
+            "--limit",
+            "100",
+            "--json",
+            "number,title,body,headRefName,isDraft,url",
+        ]
+    )
+    if not output.strip():
+        return []
+    records = json.loads(output)
+    if not isinstance(records, list) or not all(isinstance(item, dict) for item in records):
+        raise CandidatePublicationError("GitHub returned an invalid candidate PR list")
+    return records
 
 
 def _open_pr(repository: str, branch: str) -> dict[str, Any] | None:

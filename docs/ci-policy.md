@@ -52,9 +52,13 @@ and traces are never uploaded.
 Blocked generic semantics are retained in the append-only compatibility ledger and
 one automatically reconciled `nfi-compatibility` issue. They do not create evidence-
 only Draft PRs. Pull requests are reserved for a compact independently exact fixture
-candidate or an implementation change, so a scheduled watcher cannot grow the PR
-queue. The removed publisher and test paths remain explicit classification tombstones
-so the deletion commit itself also stays on this focused automation lane.
+candidate or an implementation change. Automation keeps at most one exact-fixture
+Draft open per trading mode: a newer immutable identity closes stale automation-owned
+Drafts, while a non-Draft PR remains human-controlled and blocks creation of another
+candidate in that mode. Closed PRs retain immutable review history; no candidate is
+approved or merged automatically. The removed publisher and test paths remain explicit
+classification tombstones so the deletion commit itself also stays on this focused
+automation lane.
 
 Pull requests are the normal required-check surface. A protected merge is not tested
 a second time on `main`; push-triggered CI is limited to version and product-release
