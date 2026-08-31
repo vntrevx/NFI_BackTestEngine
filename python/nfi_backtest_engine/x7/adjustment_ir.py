@@ -105,7 +105,14 @@ def compile_system_adjustment_ir(
         raise StrategyAnalysisError("system adjustment has no Grind levels")
     _validate_action_coverage(actions, levels)
     order_scan = _compile_order_scan(method, actions, levels, side=side)
-    exit_program = _compile_exit_program(exit_method, constants)
+    feature_aliases = _method_feature_aliases(method)
+    runtime_aliases = _runtime_aliases(method)
+    exit_program = _compile_exit_program(
+        exit_method,
+        constants,
+        feature_aliases=_exit_feature_aliases(feature_aliases, exit_method),
+    )
+    constant_aliases = _constant_aliases(method, constants)
     compiled_actions = []
     for action in actions:
         if action.kind == "grind-exit":
@@ -144,7 +151,13 @@ def compile_system_adjustment_ir(
                 }
             )
             continue
-        compiled = _compile_action_program(action, constants)
+        compiled = _compile_action_program(
+            action,
+            constants,
+            constant_aliases=constant_aliases,
+            feature_aliases=feature_aliases,
+            runtime_aliases=runtime_aliases,
+        )
         compiled_actions.append(
             {
                 "kind": action.kind,
@@ -180,8 +193,54 @@ def compile_system_adjustment_ir(
     return program
 
 
+def _method_alias_available(method: ast.FunctionDef, method_name: str) -> bool:
+    assignments = [
+        statement
+        for statement in method.body
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == method_name
+    ]
+    stores = [
+        node
+        for node in ast.walk(method)
+        if isinstance(node, ast.Name)
+        and isinstance(getattr(node, "ctx", None), ast.Store)
+        and node.id == method_name
+    ]
+    if not assignments and not stores:
+        return False
+    if (
+        len(assignments) != 1
+        or len(stores) != 1
+        or not isinstance(assignments[0].value, ast.Attribute)
+        or not isinstance(assignments[0].value.value, ast.Name)
+        or assignments[0].value.value.id != "self"
+        or assignments[0].value.attr != method_name
+    ):
+        raise StrategyAnalysisError(f"system adjustment method alias changed: {method_name}")
+    return True
+
+
+def _is_exit_call(node: ast.AST, method_name: str, *, alias_available: bool) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    return (
+        isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "self"
+        and node.func.attr == method_name
+    ) or (
+        alias_available
+        and isinstance(node.func, ast.Name)
+        and node.func.id == method_name
+    )
+
+
 def _source_actions(method: ast.FunctionDef, exit_method_name: str) -> list[_SourceAction]:
     actions: list[_SourceAction] = []
+    exit_alias_available = _method_alias_available(method, exit_method_name)
     for statement in method.body:
         if not isinstance(statement, ast.If):
             continue
@@ -190,10 +249,11 @@ def _source_actions(method: ast.FunctionDef, exit_method_name: str) -> list[_Sou
                 node
                 for node in ast.walk(statement)
                 if isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "self"
-                and node.func.attr == exit_method_name
+                and _is_exit_call(
+                    node,
+                    exit_method_name,
+                    alias_available=exit_alias_available,
+                )
             ),
             None,
         )
@@ -526,11 +586,67 @@ def _stake_scales(method: ast.FunctionDef, levels: list[int]) -> dict[int, str]:
     return result
 
 
+def _constant_aliases(
+    method: ast.FunctionDef,
+    constants: Mapping[str, Any],
+) -> frozenset[str]:
+    aliases = set()
+    for statement in method.body:
+        if (
+            not isinstance(statement, ast.Assign)
+            or len(statement.targets) != 1
+            or not isinstance(statement.targets[0], ast.Name)
+            or (name := statement.targets[0].id) not in constants
+            or not name.startswith("system_v3_")
+            or not isinstance(statement.value, ast.Attribute)
+            or not isinstance(statement.value.value, ast.Name)
+            or statement.value.value.id != "self"
+            or statement.value.attr != name
+        ):
+            continue
+        stores = [
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Name)
+            and isinstance(getattr(node, "ctx", None), ast.Store)
+            and node.id == name
+        ]
+        if len(stores) == 1:
+            aliases.add(name)
+    return frozenset(aliases)
+
+
+class _ConstantAliasLowerer(ast.NodeTransformer):
+    def __init__(self, aliases: frozenset[str]) -> None:
+        self.aliases = aliases
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        if node.id not in self.aliases or not isinstance(
+            getattr(node, "ctx", None), ast.Load
+        ):
+            return node
+        return ast.copy_location(
+            ast.Attribute(
+                value=ast.Name(id="self", ctx=ast.Load()),
+                attr=node.id,
+                ctx=ast.Load(),
+            ),
+            node,
+        )
+
+
 def _compile_action_program(
     action: _SourceAction,
     constants: Mapping[str, Any],
+    *,
+    constant_aliases: frozenset[str],
+    feature_aliases: Mapping[str, str],
+    runtime_aliases: Mapping[str, tuple[str, str]],
 ) -> dict[str, Any]:
     statement = copy.deepcopy(action.statement)
+    _ConstantAliasLowerer(constant_aliases).visit(statement)
+    _ExitFeatureAliasLowerer(feature_aliases).visit(statement)
+    _RuntimeAliasLowerer(runtime_aliases).visit(statement)
     _FirstEntryAmountLowerer().visit(statement)
     lowered = _ActionLowerer(none_result="return-none").visit(statement)
     if not isinstance(lowered, ast.stmt):
@@ -548,11 +664,133 @@ def _compile_action_program(
     }
 
 
+def _method_feature_aliases(method: ast.FunctionDef) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for statement in method.body:
+        if (
+            not isinstance(statement, ast.Assign)
+            or len(statement.targets) != 1
+            or not isinstance(statement.targets[0], ast.Name)
+            or not statement.targets[0].id.startswith("last_")
+            or statement.targets[0].id == "last_candle"
+            or not isinstance(statement.value, ast.Subscript)
+            or not isinstance(statement.value.value, ast.Name)
+            or statement.value.value.id != "last_candle"
+            or not isinstance(statement.value.slice, ast.Constant)
+            or not isinstance(statement.value.slice.value, str)
+            or not statement.value.slice.value
+        ):
+            continue
+        name = statement.targets[0].id
+        stores = [
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Name)
+            and isinstance(getattr(node, "ctx", None), ast.Store)
+            and node.id == name
+        ]
+        if len(stores) == 1:
+            aliases[name] = statement.value.slice.value
+    return aliases
+
+
+def _runtime_aliases(method: ast.FunctionDef) -> dict[str, tuple[str, str]]:
+    expected = {
+        "trade_is_short": ("trade", "is_short"),
+        "trade_liquidation_price": ("trade", "liquidation_price"),
+    }
+    aliases: dict[str, tuple[str, str]] = {}
+    for name, identity in expected.items():
+        assignments = [
+            statement
+            for statement in method.body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == name
+        ]
+        stores = [
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Name)
+            and isinstance(getattr(node, "ctx", None), ast.Store)
+            and node.id == name
+        ]
+        value = assignments[0].value if len(assignments) == 1 else None
+        if (
+            len(stores) == 1
+            and isinstance(value, ast.Attribute)
+            and isinstance(value.value, ast.Name)
+            and (value.value.id, value.attr) == identity
+        ):
+            aliases[name] = identity
+    return aliases
+
+
+class _RuntimeAliasLowerer(ast.NodeTransformer):
+    def __init__(self, aliases: Mapping[str, tuple[str, str]]) -> None:
+        self.aliases = aliases
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        identity = self.aliases.get(node.id)
+        if identity is None or not isinstance(getattr(node, "ctx", None), ast.Load):
+            return node
+        return ast.copy_location(
+            ast.Attribute(
+                value=ast.Name(id=identity[0], ctx=ast.Load()),
+                attr=identity[1],
+                ctx=ast.Load(),
+            ),
+            node,
+        )
+
+
+def _exit_feature_aliases(
+    aliases: Mapping[str, str],
+    exit_method: ast.FunctionDef,
+) -> dict[str, str]:
+    parameters = {
+        argument.arg
+        for argument in exit_method.args.args
+        if argument.arg.startswith("last_") and argument.arg != "last_candle"
+    }
+    missing = sorted(parameters - aliases.keys())
+    if missing:
+        raise StrategyAnalysisError(
+            "system adjustment exit feature aliases changed: " + ", ".join(missing)
+        )
+    return {name: aliases[name] for name in sorted(parameters)}
+
+
+class _ExitFeatureAliasLowerer(ast.NodeTransformer):
+    def __init__(self, aliases: Mapping[str, str]) -> None:
+        self.aliases = aliases
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        feature = self.aliases.get(node.id)
+        if feature is None or not isinstance(getattr(node, "ctx", None), ast.Load):
+            return node
+        return ast.copy_location(
+            ast.Subscript(
+                value=ast.Name(id="last_candle", ctx=ast.Load()),
+                slice=ast.Constant(value=feature),
+                ctx=ast.Load(),
+            ),
+            node,
+        )
+
+
 def _compile_exit_program(
     method: ast.FunctionDef,
     constants: Mapping[str, Any],
+    *,
+    feature_aliases: Mapping[str, str],
 ) -> dict[str, Any]:
-    body = copy.deepcopy(method.body)
+    alias_lowerer = _ExitFeatureAliasLowerer(feature_aliases)
+    body = [
+        alias_lowerer.visit(statement)
+        for statement in copy.deepcopy(method.body)
+    ]
     lowerer = _ActionLowerer(
         none_result="continue",
         observability_only_locals=_observability_only_config_locals(body),

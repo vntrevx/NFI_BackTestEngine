@@ -9,7 +9,10 @@ import pytest
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 from nfi_backtest_engine.x7.adjustment_ir import compile_system_adjustment_ir
-from nfi_backtest_engine.x7.adjustments import _build_adjustment_constants
+from nfi_backtest_engine.x7.adjustments import (
+    _build_adjustment_constants,
+    _resolve_fallback_feature_aliases,
+)
 
 _SOURCE = Path(
     "benchmarks/fixtures/captured/"
@@ -101,6 +104,183 @@ def _without_maximum_state(
                     )
                 ]
     return changed
+
+
+def _with_grind_enable_aliases(method: ast.FunctionDef) -> ast.FunctionDef:
+    changed = copy.deepcopy(method)
+    aliases: list[ast.stmt] = []
+    for level in range(1, 6):
+        name = f"system_v3_grind_{level}_enable"
+        tag = f"grind_{level}_entry"
+        branch = next(
+            statement
+            for statement in changed.body
+            if isinstance(statement, ast.If)
+            and any(
+                isinstance(node, ast.Constant) and node.value == tag
+                for node in ast.walk(statement)
+            )
+            and isinstance(statement.test, ast.BoolOp)
+            and isinstance(statement.test.values[0], ast.Attribute)
+            and statement.test.values[0].attr == name
+        )
+        branch.test.values[0] = ast.Name(id=name, ctx=ast.Load())
+        aliases.extend(ast.parse(f"{name} = self.{name}\n").body)
+    changed.body[:0] = aliases
+    ast.fix_missing_locations(changed)
+    return changed
+
+
+def _with_exit_method_alias(
+    method: ast.FunctionDef,
+    *,
+    target: str = "long_grind_exit_v3",
+) -> ast.FunctionDef:
+    changed = copy.deepcopy(method)
+
+    class _ExitAliasWriter(ast.NodeTransformer):
+        def visit_Call(self, node: ast.Call) -> ast.AST:
+            updated = self.generic_visit(node)
+            if (
+                isinstance(updated, ast.Call)
+                and isinstance(updated.func, ast.Attribute)
+                and isinstance(updated.func.value, ast.Name)
+                and updated.func.value.id == "self"
+                and updated.func.attr == "long_grind_exit_v3"
+            ):
+                updated.func = ast.Name(id="long_grind_exit_v3", ctx=ast.Load())
+            return updated
+
+    changed = _ExitAliasWriter().visit(changed)
+    changed.body[:0] = ast.parse(f"long_grind_exit_v3 = self.{target}\n").body
+    ast.fix_missing_locations(changed)
+    return changed
+
+
+def test_adjustment_accepts_exact_local_exit_method_alias() -> None:
+    methods, _constants = _inputs()
+
+    direct = _compile()
+    aliased = _compile(
+        method=_with_exit_method_alias(methods["long_grind_adjust_trade_position_v3"])
+    )
+
+    assert aliased == direct
+
+
+def test_adjustment_rejects_changed_local_exit_method_alias() -> None:
+    methods, _constants = _inputs()
+    changed = _with_exit_method_alias(
+        methods["long_grind_adjust_trade_position_v3"],
+        target="long_grind_entry_v3",
+    )
+
+    with pytest.raises(StrategyAnalysisError, match="method alias changed"):
+        _compile(method=changed)
+
+
+def _fallback_alias_method() -> ast.FunctionDef:
+    method = ast.parse(
+        "def callback(self, last_candle, trade):\n"
+        '    last_rsi_3 = last_candle["RSI_3"]\n'
+        "    is_futures_mode = self.is_futures_mode\n"
+        "    trade_is_short = trade.is_short\n"
+        "    trade_liquidation_price = trade.liquidation_price\n"
+    ).body[0]
+    assert isinstance(method, ast.FunctionDef)
+    return method
+
+
+def test_adjustment_resolves_exact_fallback_aliases_to_source_operands() -> None:
+    source = ast.parse(
+        "last_rsi_3 > 10.0"
+        " and is_futures_mode"
+        " and trade_liquidation_price is not None"
+        " and (trade_is_short or not trade_is_short)",
+        mode="eval",
+    ).body
+    expected = ast.parse(
+        'last_candle["RSI_3"] > 10.0'
+        " and self.is_futures_mode"
+        " and trade.liquidation_price is not None"
+        " and (trade.is_short or not trade.is_short)",
+        mode="eval",
+    ).body
+
+    resolved = _resolve_fallback_feature_aliases(
+        _fallback_alias_method(),
+        source,
+        level=5,
+    )
+
+    assert ast.dump(resolved, include_attributes=False) == ast.dump(
+        expected,
+        include_attributes=False,
+    )
+
+
+def test_adjustment_rejects_changed_fallback_runtime_alias() -> None:
+    method = _fallback_alias_method()
+    assignment = next(
+        statement
+        for statement in method.body
+        if isinstance(statement, ast.Assign)
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == "trade_is_short"
+    )
+    assert isinstance(assignment.value, ast.Attribute)
+    assignment.value.attr = "liquidation_price"
+    source = ast.parse("trade_is_short", mode="eval").body
+
+    with pytest.raises(StrategyAnalysisError, match="fallback alias changed: trade_is_short"):
+        _resolve_fallback_feature_aliases(method, source, level=5)
+
+
+def test_adjustment_rejects_non_feature_fallback_alias() -> None:
+    method = _fallback_alias_method()
+    assignment = next(
+        statement
+        for statement in method.body
+        if isinstance(statement, ast.Assign)
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == "last_rsi_3"
+    )
+    assignment.value = ast.Name(id="slice_profit", ctx=ast.Load())
+    source = ast.parse("last_rsi_3 > 10.0", mode="eval").body
+
+    with pytest.raises(StrategyAnalysisError, match="fallback alias changed: last_rsi_3"):
+        _resolve_fallback_feature_aliases(method, source, level=4)
+
+
+def test_adjustment_accepts_exact_local_grind_enable_aliases() -> None:
+    methods, constants = _inputs()
+    method = methods["long_grind_adjust_trade_position_v3"]
+
+    direct = _build_adjustment_constants(constants, method, side="long")
+    aliased = _build_adjustment_constants(
+        constants,
+        _with_grind_enable_aliases(method),
+        side="long",
+    )
+
+    assert aliased["policy"] == direct["policy"]
+
+
+def test_adjustment_rejects_changed_local_grind_enable_alias() -> None:
+    methods, constants = _inputs()
+    changed = _with_grind_enable_aliases(methods["long_grind_adjust_trade_position_v3"])
+    assignment = next(
+        statement
+        for statement in changed.body
+        if isinstance(statement, ast.Assign)
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == "system_v3_grind_1_enable"
+    )
+    assert isinstance(assignment.value, ast.Attribute)
+    assignment.value.attr = "system_v3_grind_2_enable"
+
+    with pytest.raises(StrategyAnalysisError, match="grind 1 enable alias changed"):
+        _build_adjustment_constants(constants, changed, side="long")
 
 
 def test_long_adjustment_compiles_source_order_tags_and_dynamic_levels() -> None:
