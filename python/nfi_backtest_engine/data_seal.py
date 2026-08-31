@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import tempfile
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,16 @@ DATA_SEAL_VERSION = "1.3.0"
 LEGACY_DATA_SEAL_VERSION = "1.2.0"
 _DATA_SUFFIXES = {".feather", ".parquet"}
 _TIMEFRAME = re.compile(r"^(?P<count>[1-9]\d*)(?P<unit>[smhdwM])$")
+_DOWNLOAD_ATTEMPTS = 3
+_DOWNLOAD_RETRY_DELAYS_SECONDS = (2, 5)
+_TRANSIENT_DOWNLOAD_ERRORS = (
+    "DDoSProtection",
+    "ExchangeNotAvailable",
+    "NetworkError",
+    "RateLimitExceeded",
+    "RequestTimeout",
+    "TemporaryError",
+)
 
 
 def prepare_data(
@@ -66,6 +77,7 @@ def prepare_data(
         require_startup_coverage=require_startup_coverage,
         history_coverage_policy=history_coverage_policy,
     )
+    diagnostic_path = Path(destination).resolve().parent / "download-error.log"
     data_root.mkdir(parents=True, exist_ok=True)
     gaps = find_coverage_gaps(data_root, request)
     startup_shortfalls = find_startup_shortfalls(data_root, request)
@@ -95,6 +107,7 @@ def prepare_data(
             data_root=data_root,
             request=request,
             gaps=gaps,
+            diagnostic_path=diagnostic_path,
         )
         downloads.extend(append_downloads)
         if needs_prepend:
@@ -104,6 +117,7 @@ def prepare_data(
                     data_root=data_root,
                     request=request,
                     prepend=True,
+                    diagnostic_path=diagnostic_path,
                 )
             )
         gaps = find_coverage_gaps(data_root, request)
@@ -155,6 +169,7 @@ def _append_until_end_covered(
     data_root: Path,
     request: dict[str, Any],
     gaps: list[dict[str, Any]],
+    diagnostic_path: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Continue paginated appends while requested end coverage advances.
 
@@ -173,6 +188,7 @@ def _append_until_end_covered(
                 data_root=data_root,
                 request=request,
                 prepend=False,
+                diagnostic_path=diagnostic_path,
             )
         )
         updated_gaps = find_coverage_gaps(data_root, request)
@@ -770,6 +786,7 @@ def _download_data(
     data_root: Path,
     request: dict[str, Any],
     prepend: bool,
+    diagnostic_path: Path | None = None,
 ) -> dict[str, Any]:
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
@@ -791,79 +808,118 @@ def _download_data(
         # includes before mounting so a host-relative add_config_files path can
         # never disappear or resolve to an unintended container location.
         write_json(standalone_config, effective_config)
-        with managed_docker_run(
-            docker_config=docker_config,
-            role="data-download",
-        ) as lease:
-            command = [
-                *lease["command_prefix"],
-                "--platform",
-                REFERENCE_PLATFORM,
-                *docker_root_with_bind_owner_arguments(data_root),
-                "--volume",
-                f"{standalone_config}:/input/config.json:ro",
-                "--volume",
-                f"{data_root}:/data",
-                "--volume",
-                f"{user_data}:/work/user_data",
-                "--entrypoint",
-                "/bin/sh",
-                REFERENCE_IMAGE_REF,
-                "-c",
-                RUN_AS_BIND_OWNER_SCRIPT,
-                "nfi-data-download",
-                "freqtrade",
-                "download-data",
-                "--config",
-                "/input/config.json",
-                "--userdir",
-                "/work/user_data",
-                "--datadir",
-                "/data",
-                "--timerange",
-                request["download_timerange"],
-                "--timeframes",
-                *request["timeframes"],
-                "--pairs",
-                *request["pairs"],
-                "--trading-mode",
-                request["trading_mode"],
-                "--data-format-ohlcv",
-                "feather",
-            ]
-            if prepend:
-                command.append("--prepend")
-            completed = subprocess.run(
-                command,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                capture_output=True,
-                check=False,
-            )
+        command: list[str] = []
+        completed: subprocess.CompletedProcess[str] | None = None
+        attempt_count = 0
+        for attempt_count in range(1, _DOWNLOAD_ATTEMPTS + 1):
+            with managed_docker_run(
+                docker_config=docker_config,
+                role="data-download",
+            ) as lease:
+                command = [
+                    *lease["command_prefix"],
+                    "--platform",
+                    REFERENCE_PLATFORM,
+                    *docker_root_with_bind_owner_arguments(data_root),
+                    "--volume",
+                    f"{standalone_config}:/input/config.json:ro",
+                    "--volume",
+                    f"{data_root}:/data",
+                    "--volume",
+                    f"{user_data}:/work/user_data",
+                    "--entrypoint",
+                    "/bin/sh",
+                    REFERENCE_IMAGE_REF,
+                    "-c",
+                    RUN_AS_BIND_OWNER_SCRIPT,
+                    "nfi-data-download",
+                    "freqtrade",
+                    "download-data",
+                    "--config",
+                    "/input/config.json",
+                    "--userdir",
+                    "/work/user_data",
+                    "--datadir",
+                    "/data",
+                    "--timerange",
+                    request["download_timerange"],
+                    "--timeframes",
+                    *request["timeframes"],
+                    "--pairs",
+                    *request["pairs"],
+                    "--trading-mode",
+                    request["trading_mode"],
+                    "--data-format-ohlcv",
+                    "feather",
+                ]
+                if prepend:
+                    command.append("--prepend")
+                completed = subprocess.run(
+                    command,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    capture_output=True,
+                    check=False,
+                )
+            if completed.returncode == 0:
+                break
+            detail = _download_detail(completed)
+            transient = any(token in detail for token in _TRANSIENT_DOWNLOAD_ERRORS)
+            if not transient or attempt_count == _DOWNLOAD_ATTEMPTS:
+                break
+            time.sleep(_DOWNLOAD_RETRY_DELAYS_SECONDS[attempt_count - 1])
+    assert completed is not None
     after = _data_file_signatures(data_root)
+    failure_log = (
+        diagnostic_path.resolve()
+        if diagnostic_path is not None
+        else (data_root.parent / "download-error.log").resolve()
+    )
     if completed.returncode != 0 or after == before:
-        detail = "\n".join(
-            value[-2000:].strip()
-            for value in (completed.stderr, completed.stdout)
-            if value.strip()
+        detail = _download_detail(completed)
+        failure_log.parent.mkdir(parents=True, exist_ok=True)
+        failure_log.write_text(
+            f"attempts: {attempt_count}\n"
+            f"exit_code: {completed.returncode}\n\n"
+            f"{detail or 'the pinned downloader returned no diagnostic output'}\n",
+            encoding="utf-8",
         )
+        if completed.returncode != 0 and any(
+            token in detail for token in _TRANSIENT_DOWNLOAD_ERRORS
+        ):
+            raise BenchmarkError(
+                "Binance candle service was temporarily unavailable after "
+                f"{attempt_count} attempts. Run the same nfi-bte command again; "
+                "completed downloads will be reused. "
+                f"Technical details: {failure_log}"
+            )
         reason = (
             f"exit code {completed.returncode}"
             if completed.returncode != 0
             else "no candle file was created or changed"
         )
         raise BenchmarkError(
-            f"Freqtrade data download failed ({reason}): "
-            f"{detail or 'the pinned downloader returned no diagnostic output'}"
+            f"Freqtrade data download failed ({reason}). "
+            f"Technical details: {failure_log}"
         )
+    failure_log.unlink(missing_ok=True)
     return {
         "mode": "prepend" if prepend else "append",
         "exit_code": completed.returncode,
+        "attempt_count": attempt_count,
         "command_sha256": hashlib.sha256(
             json.dumps(command, separators=(",", ":")).encode()
         ).hexdigest(),
     }
+
+
+def _download_detail(completed: subprocess.CompletedProcess[str]) -> str:
+    return "\n".join(
+        value.strip()
+        for value in (completed.stderr, completed.stdout)
+        if value.strip()
+    )
 
 
 def _data_file_signatures(data_root: Path) -> dict[str, tuple[int, int]]:

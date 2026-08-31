@@ -4,6 +4,16 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.8.3 - 2026-08-31
+
+- Reworked the first run for non-technical users: safe quick-test defaults, an
+  NFI-maintained large-pair preset, managed candle storage, a seven-day default
+  period, live stage percentages with elapsed time, and explicit report locations.
+- Added bounded retries for transient Binance candle failures. Exhausted attempts now
+  preserve reusable partial downloads, write the technical trace to a diagnostic log,
+  and return a short actionable error instead of an internal Python stack trace.
+
+
 ## 1.8.2 - 2026-08-31
 
 - Replaced the first-run Freqtrade-config dead end with a mode-first wizard. Fresh

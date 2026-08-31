@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -144,7 +145,7 @@ def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
     )
     data = tmp_path / "data"
     data.mkdir()
-    answers = iter(["futures", "binance", "BTC/USDT:USDT"])
+    answers = iter(["futures", "binance", "2", "BTC/USDT:USDT"])
     prompts: list[str] = []
     messages: list[str] = []
 
@@ -160,8 +161,8 @@ def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
 
     assert prompts[0].startswith("Trading mode")
     assert prompts[1].startswith("Exchange")
-    assert prompts[2].startswith("Pairs")
-    assert all(not prompt.startswith("Freqtrade config") for prompt in prompts)
+    assert prompts[2].startswith("Pair choice")
+    assert prompts[3].startswith("Pairs")
     assert settings.config_path == tmp_path / ".nfi/first-run-config.json"
     assert settings.pairs == ("BTC/USDT:USDT",)
     generated = read_json(settings.config_path)
@@ -173,8 +174,51 @@ def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
     assert generated["exchange"]["ccxt_config"]["options"]["fetchMarkets"]["types"] == [
         "linear"
     ]
-    assert any("ignoring non-self-contained" in message for message in messages)
+    assert any("modular config was found" in message for message in messages)
     assert any("generated safe futures config" in message for message in messages)
+
+
+def test_beginner_can_select_nfi_eighty_pair_preset_without_pasting_symbols(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "NostalgiaForInfinityX7.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class NostalgiaForInfinityX7(IStrategy):\n"
+        "    timeframe = '5m'\n",
+        encoding="utf-8",
+    )
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    preset_pairs = [f"COIN{index}/USDT" for index in range(80)]
+    write_json(
+        configs / "pairlist-backtest-static-binance-spot-usdt.json",
+        {
+            "exchange": {
+                "name": "binance",
+                "pair_whitelist": preset_pairs,
+            },
+            "pairlists": [{"method": "StaticPairList"}],
+        },
+    )
+    answers = iter(["", "", "2"])
+    prompts: list[str] = []
+    messages: list[str] = []
+
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20260101-20260108",
+        interactive=True,
+        prompt=lambda label: (prompts.append(label), next(answers))[1],
+        emit=messages.append,
+    )
+
+    assert settings.pairs == tuple(preset_pairs)
+    assert settings.data_directory == tmp_path / ".nfi/data/binance"
+    assert all(not prompt.startswith("Candle data") for prompt in prompts)
+    assert any("80 pairs" in message for message in messages)
+    assert any("managed candle storage" in message for message in messages)
 
 
 def test_explicit_config_remains_strict_and_must_match_requested_mode(
@@ -252,7 +296,7 @@ def test_noninteractive_cli_can_generate_spot_config_without_manual_json(
     ]
 
 
-def test_noninteractive_setup_uses_previous_five_complete_calendar_years(
+def test_noninteractive_setup_uses_recent_seven_day_quick_test(
     tmp_path: Path,
 ) -> None:
     source, _, _ = _standard_layout(tmp_path)
@@ -264,7 +308,7 @@ def test_noninteractive_setup_uses_previous_five_complete_calendar_years(
         now=datetime(2026, 7, 19, tzinfo=UTC),
     )
 
-    assert settings.timerange == "20210101-20260101"
+    assert settings.timerange == "20260712-20260719"
 
 
 def test_multiple_strategy_classes_require_choice_or_explicit_class(
@@ -575,6 +619,19 @@ def test_disk_preflight_fails_before_native_when_measured_space_is_insufficient(
     assert audit["passed"] is False
     assert audit["disk"]["available_bytes"] == 1
     assert audit["disk"]["required_free_bytes"] > 1
+
+
+def test_run_progress_prints_stage_percentage_and_elapsed_time() -> None:
+    stream = io.StringIO()
+
+    with user_flow.RunProgress(stream=stream, interactive=False) as progress:
+        progress.update(20, "Preparing candles for 1 selected pair + 1 required BTC reference")
+        progress.update(100, "Backtest complete")
+
+    rendered = stream.getvalue()
+    assert "[ 20%] Preparing candles for 1 selected pair + 1 required BTC reference" in rendered
+    assert "[100%] Backtest complete" in rendered
+    assert "(00:00 elapsed)" in rendered
 
 
 def test_consent_defaults_to_no_and_never_prompts_noninteractively() -> None:
@@ -904,3 +961,6 @@ def test_finished_noninteractive_flow_executes_neither_optional_action(
     assert status == 0
     assert "official quick verification: skipped (no explicit consent)" in messages
     assert "HTML report opening: skipped (no explicit consent)" in messages
+    assert "Backtest complete." in messages
+    assert f"Results folder: {settings.output_directory.resolve()}" in messages
+    assert any(message.startswith("Open the HTML report: file:") for message in messages)

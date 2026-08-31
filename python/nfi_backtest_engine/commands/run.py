@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,7 @@ def execute(args: argparse.Namespace) -> int:
         if resume:
             print(f"existing run found; resuming hash-valid stages from {output}")
         from ..user_flow import (
+            RunProgress,
             finish_one_line_run,
             format_run_preflight,
             write_run_preflight,
@@ -105,19 +107,23 @@ def execute(args: argparse.Namespace) -> int:
             download_missing=not args.no_download,
         )
         print(format_run_preflight(preflight, preflight_path))
-        native_status = execute_research_backtest(
-            project_run_arguments(settings),
-            workers=args.workers,
-            resume=resume,
-            prepare_only=args.prepare_only,
-            download_missing=not args.no_download,
-            market_metadata_path=args.markets,
-            download_market_metadata=not args.no_market_download,
-            recalibrate=args.recalibrate,
-            history_coverage_policy=args.history_coverage,
-            full_report=args.full_report,
-            print_summary=False,
-        )
+        print(f"backtest results will be saved to: {output.resolve()}")
+        print(f"HTML report will be: {(output / 'report.html').resolve()}")
+        with RunProgress() as progress:
+            native_status = execute_research_backtest(
+                project_run_arguments(settings),
+                workers=args.workers,
+                resume=resume,
+                prepare_only=args.prepare_only,
+                download_missing=not args.no_download,
+                market_metadata_path=args.markets,
+                download_market_metadata=not args.no_market_download,
+                recalibrate=args.recalibrate,
+                history_coverage_policy=args.history_coverage,
+                full_report=args.full_report,
+                print_summary=False,
+                progress=progress.update,
+            )
         return finish_one_line_run(
             settings,
             native_status=native_status,
@@ -686,6 +692,7 @@ def execute_research_backtest(
     history_coverage_policy: str,
     full_report: bool,
     print_summary: bool = True,
+    progress: Callable[[int, str], None] | None = None,
 ) -> int:
     """Run the existing research contract for advanced and wizard-backed commands."""
     from ..research_runner import run_research_backtest
@@ -701,6 +708,7 @@ def execute_research_backtest(
         download_market_metadata=download_market_metadata,
         recalibrate=recalibrate,
         history_coverage_policy=history_coverage_policy,
+        progress=progress,
     )
     output = Path(arguments["output_directory"])
     if (output / "summary.json").is_file():

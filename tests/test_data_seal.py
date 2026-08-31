@@ -250,6 +250,120 @@ def test_data_download_flattens_host_relative_config_includes(
         )
 
 
+def test_transient_binance_failure_retries_and_reuses_partial_download(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "config.json"
+    config.write_text(
+        '{"exchange":{"name":"binance","pair_whitelist":["BTC/USDT"]},'
+        '"pairlists":[{"method":"StaticPairList"}]}',
+        encoding="utf-8",
+    )
+    data_directory = tmp_path / "data"
+    data_directory.mkdir()
+    attempts = 0
+    delays: list[int] = []
+    diagnostic = tmp_path / "run/download-error.log"
+    monkeypatch.setattr(data_seal, "ensure_docker_config", lambda: tmp_path)
+    monkeypatch.setattr(data_seal, "ensure_reference_image", lambda **_kwargs: None)
+    monkeypatch.setattr(data_seal.time, "sleep", delays.append)
+
+    @contextmanager
+    def fake_managed_run(**_kwargs):
+        yield {"command_prefix": ["docker", "run"]}
+
+    monkeypatch.setattr(data_seal, "managed_docker_run", fake_managed_run)
+
+    def fake_subprocess_run(command, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                "",
+                "freqtrade.exceptions.TemporaryError: ExchangeNotAvailable",
+            )
+        (data_directory / "BTC_USDT-5m.feather").write_bytes(b"captured")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(data_seal.subprocess, "run", fake_subprocess_run)
+
+    report = _download_data(
+        config_file=config,
+        data_root=data_directory,
+        request={
+            "download_timerange": "20260101-20260108",
+            "timeframes": ["5m"],
+            "pairs": ["BTC/USDT"],
+            "trading_mode": "spot",
+        },
+        prepend=False,
+        diagnostic_path=diagnostic,
+    )
+
+    assert report["attempt_count"] == 3
+    assert delays == [2, 5]
+    assert not diagnostic.exists()
+
+
+def test_exhausted_transient_download_has_short_error_and_diagnostic_log(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config = tmp_path / "config.json"
+    config.write_text(
+        '{"exchange":{"name":"binance","pair_whitelist":["BTC/USDT"]},'
+        '"pairlists":[{"method":"StaticPairList"}]}',
+        encoding="utf-8",
+    )
+    data_directory = tmp_path / "data"
+    data_directory.mkdir()
+    diagnostic = tmp_path / "run/download-error.log"
+    monkeypatch.setattr(data_seal, "ensure_docker_config", lambda: tmp_path)
+    monkeypatch.setattr(data_seal, "ensure_reference_image", lambda **_kwargs: None)
+    monkeypatch.setattr(data_seal.time, "sleep", lambda _seconds: None)
+
+    @contextmanager
+    def fake_managed_run(**_kwargs):
+        yield {"command_prefix": ["docker", "run"]}
+
+    monkeypatch.setattr(data_seal, "managed_docker_run", fake_managed_run)
+    monkeypatch.setattr(
+        data_seal.subprocess,
+        "run",
+        lambda command, **_kwargs: subprocess.CompletedProcess(
+            command,
+            1,
+            "",
+            "traceback internals\nfreqtrade.exceptions.TemporaryError: "
+            "ExchangeNotAvailable",
+        ),
+    )
+
+    with pytest.raises(
+        BenchmarkError,
+        match="temporarily unavailable after 3 attempts",
+    ) as captured:
+        _download_data(
+            config_file=config,
+            data_root=data_directory,
+            request={
+                "download_timerange": "20260101-20260108",
+                "timeframes": ["5m"],
+                "pairs": ["BTC/USDT"],
+                "trading_mode": "spot",
+            },
+            prepend=False,
+            diagnostic_path=diagnostic,
+        )
+
+    assert "traceback internals" not in str(captured.value)
+    assert str(diagnostic) in str(captured.value)
+    assert "ExchangeNotAvailable" in diagnostic.read_text(encoding="utf-8")
+
+
 def test_available_history_records_a_later_listing_without_hiding_stale_data(
     tmp_path: Path,
 ) -> None:
