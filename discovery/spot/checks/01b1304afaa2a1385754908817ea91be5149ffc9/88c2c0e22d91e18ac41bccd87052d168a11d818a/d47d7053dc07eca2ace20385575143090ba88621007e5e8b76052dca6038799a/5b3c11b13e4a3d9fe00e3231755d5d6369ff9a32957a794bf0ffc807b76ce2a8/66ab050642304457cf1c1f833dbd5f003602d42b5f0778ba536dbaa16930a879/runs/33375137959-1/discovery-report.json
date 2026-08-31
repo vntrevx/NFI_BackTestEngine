@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "status": "external_data_deferred",
+  "message": "External market data returned HTTP 451; retry is deferred until the checked identity changes or a manual retry is requested.",
+  "complete": false,
+  "fingerprint": "66ab050642304457cf1c1f833dbd5f003602d42b5f0778ba536dbaa16930a879",
+  "upstream_commit": "01b1304afaa2a1385754908817ea91be5149ffc9",
+  "baseline_upstream_commit": "a404a3cdb658f30711bd8803d4cc114b9249984a",
+  "engine_commit": "88c2c0e22d91e18ac41bccd87052d168a11d818a",
+  "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "strategy_sha256": "628a39e3e626809cebfb4c4b82dcc1725c2a03ee97c5494f091ce489b46d7f03",
+  "policy_sha256": "1f280c8648e94f10456111486b7226e1e09a8a291a5b052c2497bdf7059ab542",
+  "target_count": 142,
+  "searchable_target_count": 142,
+  "unsearchable_target_ids": [],
+  "searched_shard_count": 1,
+  "next_shard": 1,
+  "shard_count": 20,
+  "elapsed_seconds": 3.441554518000004,
+  "attempts": [
+    {
+      "index": 1,
+      "timerange": "20250701-20251001",
+      "outcome": "external_data_deferred",
+      "message": "market catalog capture failed before semantic discovery: CCXT market capture failed for binance: binance GET https://api.binance.com/api/v3/exchangeInfo 451  {\n  \"code\": 0,\n  \"msg\": \"Service unavailable from a restricted location according to 'b. Eligibility' in https://www.binance.com/en/terms. Please contact customer service if you believe you received this message in error.\"\n}",
+      "target_ids": [],
+      "external_http_status": 451
+    }
+  ],
+  "candidate": null,
+  "external_data": {
+    "reason": "http_status",
+    "http_status": 451,
+    "retry": "identity-change-or-manual"
+  },
+  "official_fallback_available": true
+}
