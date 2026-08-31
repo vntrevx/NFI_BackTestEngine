@@ -4,6 +4,17 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.8.4 - 2026-08-31
+
+- Replaced the arbitrary one-pair example with BTC and added exact `1`, `10`, `20`,
+  `40`, `80`, `100`, `all`, and custom first-run choices.
+- Numeric portfolio sizes now execute NFI's current Binance volume/filter policy in
+  pinned Freqtrade, preserve its ranked order in the saved project, and retry transient
+  exchange failures. Large selections show the measured long-run memory warning before
+  candle downloads begin.
+
+
+
 ## 1.8.3 - 2026-08-31
 
 - Reworked the first run for non-technical users: safe quick-test defaults, an

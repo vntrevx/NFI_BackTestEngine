@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from nfi_backtest_engine import cli, research_runner, user_flow
+from nfi_backtest_engine import cli, research_runner, setup_wizard, user_flow
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
@@ -145,7 +145,7 @@ def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
     )
     data = tmp_path / "data"
     data.mkdir()
-    answers = iter(["futures", "binance", "2", "BTC/USDT:USDT"])
+    answers = iter(["futures", "binance", "custom", "BTC/USDT:USDT"])
     prompts: list[str] = []
     messages: list[str] = []
 
@@ -161,7 +161,7 @@ def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
 
     assert prompts[0].startswith("Trading mode")
     assert prompts[1].startswith("Exchange")
-    assert prompts[2].startswith("Pair choice")
+    assert prompts[2].startswith("Number of markets")
     assert prompts[3].startswith("Pairs")
     assert settings.config_path == tmp_path / ".nfi/first-run-config.json"
     assert settings.pairs == ("BTC/USDT:USDT",)
@@ -178,7 +178,8 @@ def test_first_run_generates_safe_futures_config_before_asking_for_pairs(
     assert any("generated safe futures config" in message for message in messages)
 
 
-def test_beginner_can_select_nfi_eighty_pair_preset_without_pasting_symbols(
+def test_beginner_can_select_eighty_live_ranked_pairs_without_pasting_symbols(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     source = tmp_path / "NostalgiaForInfinityX7.py"
@@ -190,18 +191,15 @@ def test_beginner_can_select_nfi_eighty_pair_preset_without_pasting_symbols(
     )
     configs = tmp_path / "configs"
     configs.mkdir()
-    preset_pairs = [f"COIN{index}/USDT" for index in range(80)]
-    write_json(
-        configs / "pairlist-backtest-static-binance-spot-usdt.json",
-        {
-            "exchange": {
-                "name": "binance",
-                "pair_whitelist": preset_pairs,
-            },
-            "pairlists": [{"method": "StaticPairList"}],
-        },
+    (configs / "pairlist-volume-binance-usdt.json").write_text("{}", encoding="utf-8")
+    (configs / "blacklist-binance.json").write_text("{}", encoding="utf-8")
+    ranked_pairs = [f"COIN{index}/USDT" for index in range(100)]
+    monkeypatch.setattr(
+        setup_wizard,
+        "resolve_nfi_volume_pairs",
+        lambda *_args, **_kwargs: ranked_pairs,
     )
-    answers = iter(["", "", "2"])
+    answers = iter(["", "", "80"])
     prompts: list[str] = []
     messages: list[str] = []
 
@@ -214,11 +212,32 @@ def test_beginner_can_select_nfi_eighty_pair_preset_without_pasting_symbols(
         emit=messages.append,
     )
 
-    assert settings.pairs == tuple(preset_pairs)
+    assert settings.pairs == tuple(ranked_pairs[:80])
     assert settings.data_directory == tmp_path / ".nfi/data/binance"
+    assert prompts[2].startswith("Number of markets")
     assert all(not prompt.startswith("Candle data") for prompt in prompts)
-    assert any("80 pairs" in message for message in messages)
-    assert any("managed candle storage" in message for message in messages)
+    assert any("selected top 80" in message for message in messages)
+    assert any("Large run selected: 80 markets." in message for message in messages)
+    assert any("39 GiB" in message for message in messages)
+
+
+def test_beginner_default_is_btc_not_an_example_altcoin(tmp_path: Path) -> None:
+    source = tmp_path / "NostalgiaForInfinityX7.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class NostalgiaForInfinityX7(IStrategy):\n"
+        "    timeframe = '5m'\n",
+        encoding="utf-8",
+    )
+
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20260101-20260108",
+        interactive=False,
+    )
+
+    assert settings.pairs == ("BTC/USDT",)
 
 
 def test_explicit_config_remains_strict_and_must_match_requested_mode(
@@ -294,6 +313,45 @@ def test_noninteractive_cli_can_generate_spot_config_without_manual_json(
     assert generated["exchange"]["ccxt_config"]["options"]["fetchMarkets"]["types"] == [
         "spot"
     ]
+
+
+def test_noninteractive_cli_accepts_numeric_ranked_pair_count(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "NostalgiaForInfinityX7.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class NostalgiaForInfinityX7(IStrategy):\n"
+        "    timeframe = '5m'\n",
+        encoding="utf-8",
+    )
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    (configs / "pairlist-volume-binance-usdt.json").write_text("{}", encoding="utf-8")
+    (configs / "blacklist-binance.json").write_text("{}", encoding="utf-8")
+    ranked_pairs = [f"COIN{index}/USDT" for index in range(100)]
+    monkeypatch.setattr(
+        setup_wizard,
+        "resolve_nfi_volume_pairs",
+        lambda *_args, **_kwargs: ranked_pairs,
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = cli.main(
+        [
+            "init",
+            str(source),
+            "--pair-count",
+            "80",
+            "--timerange",
+            "20250101-20250108",
+            "--yes",
+        ]
+    )
+
+    assert result == 0
+    assert load_project().pairs == tuple(ranked_pairs[:80])
 
 
 def test_noninteractive_setup_uses_recent_seven_day_quick_test(

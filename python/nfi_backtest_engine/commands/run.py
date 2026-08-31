@@ -36,6 +36,7 @@ def execute(args: argparse.Namespace) -> int:
             timerange=args.timerange,
             output_directory=args.output_dir,
             pairs=args.pair,
+            pair_count=args.pair_count,
             interactive=not args.yes,
             force=args.force,
         )
@@ -69,6 +70,7 @@ def execute(args: argparse.Namespace) -> int:
                 "--timerange": args.timerange,
                 "--output-dir": args.output_dir,
                 "--pair": args.pair,
+                "--pair-count": args.pair_count,
             }
             changed = [name for name, value in supplied.items() if value is not None]
             if changed:
@@ -88,6 +90,7 @@ def execute(args: argparse.Namespace) -> int:
                 timerange=args.timerange,
                 output_directory=args.output_dir,
                 pairs=args.pair,
+                pair_count=args.pair_count,
                 interactive=not args.yes,
             )
         output = settings.output_directory

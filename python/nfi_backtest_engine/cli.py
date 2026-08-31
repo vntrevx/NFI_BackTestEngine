@@ -89,9 +89,17 @@ def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--pair", action="append")
     parser.add_argument(
+        "--pair-count",
+        choices=("1", "10", "20", "40", "80", "100", "all"),
+        help=(
+            "select BTC, a live NFI volume-ranked count, or the complete NFI "
+            "backtest list during first-run setup"
+        ),
+    )
+    parser.add_argument(
         "--yes",
         action="store_true",
-        help="accept detected paths and the previous-five-years default without prompting",
+        help="accept the recommended BTC and recent-seven-day defaults without prompting",
     )
 
 

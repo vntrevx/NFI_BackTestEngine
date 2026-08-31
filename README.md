@@ -19,27 +19,28 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.8.3](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.3) |
+| Latest public release | [v1.8.4](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.4) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.8.3 stable release line; Linux/macOS verified |
+| Current `main` | v1.8.4 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.8.3 preserves current-source compatibility for X7 v17.4.587 at upstream commit
-`95b76043c3f610e0760e191deebd12304bfadbf8` and makes the config-free path usable by
-non-technical users. The wizard supplies a seven-day quick test, discovers NFI's
-maintained large-pair preset, manages candle storage, reports live stage progress,
-retries transient Binance failures, and prints every result location. Spot and Futures
-source-compiled stateful closure still has no reachable gaps; this usability patch
-does not claim a new continuous performance certificate.
+v1.8.4 preserves current-source compatibility for X7 v17.4.587 at upstream commit
+`95b76043c3f610e0760e191deebd12304bfadbf8` and corrects the beginner pair-selection
+contract. The quick default is BTC. Users can type `1`, `10`, `20`, `40`, `80`, `100`,
+`all`, or `custom`; numeric portfolios execute NFI's current Binance volume and filter
+policy in pinned Freqtrade, then freeze the ranked result in the saved project. Large
+selections show the measured long-run memory warning before data preparation. Spot and
+Futures source-compiled stateful closure still has no reachable gaps; this usability
+patch does not claim a new continuous performance certificate.
 
-Current `main` tracks the v1.8.3 stable release and is usable from source for supported
+Current `main` tracks the v1.8.4 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.8.3 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.8.4 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -197,7 +198,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.8.2 -> 1.8.3. Run `nfi-bte update`.
+Update available: 1.8.3 -> 1.8.4. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -217,18 +218,20 @@ nfi-bte run NostalgiaForInfinityX7.py
 ```
 
 The first-run wizard explains that Enter accepts each recommended value. It creates a
-credential-free dry-run config without modifying NFI's modular files, offers a
-one-pair quick test or NFI's maintained large backtest list, uses managed candle
-storage, and defaults to the most recent seven complete days. During the run it shows
-the current stage, percentage, and elapsed time. Before work starts and after it
-finishes, it prints the results folder and HTML-report path.
+credential-free dry-run config without modifying NFI's modular files and asks for a
+market count: `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`. The quick
+default is BTC. Numeric portfolios use NFI's current Binance volume/filter policy and
+freeze the resulting order in the saved project; large selections print a resource
+warning. Managed candle storage and the most recent seven complete days remain the
+defaults. During the run it shows the current stage, percentage, elapsed time, results
+folder, and HTML-report path.
 
-For a non-interactive one-pair Spot run with an explicit bounded period:
+For a non-interactive 80-market Spot setup with an explicit bounded period:
 
 ```bash
 nfi-bte run NostalgiaForInfinityX7.py \
   --trading-mode spot \
-  --pair ADA/USDT \
+  --pair-count 80 \
   --timerange 20260101-20260108 \
   --yes
 ```
