@@ -1,3 +1,5 @@
+**How to use:** [Open the detailed usage guide](docs/usage.md)
+
 # NFI Backtest Engine
 
 **Backtest years of NFI in minutes, then prove the result against Freqtrade.**
@@ -184,7 +186,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.8.3`.
+The latest public installer currently returns `nfi-bte 1.8.4`.
 
 ### Keep the CLI updated
 
