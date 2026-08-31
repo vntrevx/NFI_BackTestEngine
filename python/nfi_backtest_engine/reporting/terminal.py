@@ -11,19 +11,19 @@ from .contracts import (
     _TERMINAL_BREAKDOWN_NAME_LIMIT,
     EQUITY_FILENAME,
     EVIDENCE_INDEX_FILENAME,
-    HTML_FILENAME,
+    MARKDOWN_FILENAME,
     ORDERS_FILENAME,
     SUMMARY_FILENAME,
     TRADES_FILENAME,
     VERIFICATION_FILENAME,
 )
-from .html_render import _leverage_range
 from .values import (
     _compact_path,
     _decimal_text,
     _duration,
     _format_timerange,
     _integer_text,
+    _leverage_range,
     _mapping,
     _memory_label,
     _mode_label,
@@ -59,9 +59,6 @@ def format_terminal_summary(
     status = str(run.get("status", "unknown"))
     output = Path(run_directory).resolve()
     lines = [
-        "",
-        f"NFI BACKTEST — {_status_label(status)}",
-        "─" * 62,
         _terminal_row("Strategy", run.get("strategy") or "unknown"),
         _terminal_row("Period", _format_timerange(context.get("timerange"))),
         _terminal_row("Mode", _mode_label(context)),
@@ -155,20 +152,35 @@ def format_terminal_summary(
                         f"{blocker.get('code', 'UNKNOWN')}: {blocker.get('message', '')}",
                     )
                 )
+    box_width = max(62, min(96, max(len(line) for line in lines)))
+    border = f"+{'-' * (box_width + 2)}+"
+    title = f"NFI BACKTEST — {_status_label(status)}"
+    lines = [
+        "",
+        border,
+        f"| {title.ljust(box_width)} |",
+        border,
+        *(f"| {_truncate(line, box_width).ljust(box_width)} |" for line in lines),
+        border,
+    ]
     if include_breakdowns:
         detail = format_terminal_breakdowns(summary)
         if detail:
             lines.extend(["", detail])
     lines.extend(
         [
-            "─" * 62,
-            _terminal_row("HTML report", output / HTML_FILENAME),
-            _terminal_row("Machine summary", output / SUMMARY_FILENAME),
-            _terminal_row("Trades CSV", output / TRADES_FILENAME),
-            _terminal_row("Orders CSV", output / ORDERS_FILENAME),
-            _terminal_row("Equity CSV", output / EQUITY_FILENAME),
-            _terminal_row("Verification JSON", output / VERIFICATION_FILENAME),
-            _terminal_row("Evidence index", output / EVIDENCE_INDEX_FILENAME),
+            "RESULT FILES",
+            "-" * 62,
+            _terminal_row("Results folder", output),
+            _terminal_row("Markdown report", MARKDOWN_FILENAME),
+            _terminal_row(
+                "Data exports",
+                f"{SUMMARY_FILENAME}, {TRADES_FILENAME}, {ORDERS_FILENAME}, {EQUITY_FILENAME}",
+            ),
+            _terminal_row(
+                "Evidence",
+                f"{VERIFICATION_FILENAME}, {EVIDENCE_INDEX_FILENAME}",
+            ),
         ]
     )
     return "\n".join(lines)

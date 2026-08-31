@@ -159,10 +159,10 @@ def test_v2_artifacts_are_complete_hash_indexed_and_source_immutable(
     }
     assert summary["artifacts"]["evidence_index"] == "evidence/index.json"
     terminal = format_terminal_summary(summary, run)
-    assert str(run / "orders.csv") in terminal
-    assert str(run / "equity.csv") in terminal
-    assert str(run / "verification.json") in terminal
-    assert str(run / "evidence/index.json") in terminal
+    assert "orders.csv" in terminal
+    assert "equity.csv" in terminal
+    assert "verification.json" in terminal
+    assert "evidence/index.json" in terminal
     assert index["source_evidence_immutable"] is True
     for entry in index["entries"]:
         artifact = run / entry["path"]
@@ -180,7 +180,7 @@ def test_orders_and_equity_exports_preserve_sealed_event_detail(
     summary = write_result_presentation(run)
     orders = _csv_rows(run / "orders.csv")
     equity = _csv_rows(run / "equity.csv")
-    html = (run / "report.html").read_text(encoding="utf-8")
+    markdown = (run / "report.md").read_text(encoding="utf-8")
 
     assert len(orders) == sum(len(trade["orders"]) for trade in surface["trades"])
     assert {row["schema_version"] for row in orders} == {"1.1.0"}
@@ -205,14 +205,14 @@ def test_orders_and_equity_exports_preserve_sealed_event_detail(
         surface["trades"]
     )
 
-    assert "Orders and position changes" in html
-    assert "partial exits" in html
-    assert "Funding total" in html
-    assert "Liquidation exits" in html
-    assert "Candle-level equity" in html
-    assert "not annualized" in html
-    assert "orders.csv" in html
-    assert "equity.csv" in html
+    assert "Orders and Position Changes" in markdown
+    assert "Partial exits" in markdown
+    assert "Funding total" in markdown
+    assert "Liquidation exits" in markdown
+    assert "Candle-level equity" in markdown
+    assert "not annualized" in markdown
+    assert "orders.csv" in markdown
+    assert "equity.csv" in markdown
 
 
 def test_signal_and_grind_tags_are_exposed_without_changing_raw_tags(
@@ -224,7 +224,7 @@ def test_signal_and_grind_tags_are_exposed_without_changing_raw_tags(
     summary = write_result_presentation(run)
     trades = _csv_rows(run / "trades.csv")
     orders = _csv_rows(run / "orders.csv")
-    html = (run / "report.html").read_text(encoding="utf-8")
+    markdown = (run / "report.md").read_text(encoding="utf-8")
     terminal = format_terminal_summary(summary, run, include_breakdowns=True)
 
     signals = {
@@ -280,9 +280,9 @@ def test_signal_and_grind_tags_are_exposed_without_changing_raw_tags(
     assert ordinary_exit["tag_family"] == "other"
     assert ordinary_exit["tag_reference_order_ids"] == ""
 
-    assert "Signal tags" in html
-    assert "multi-tag trades overlap" in html
-    assert "Grind levels" in html
+    assert "Signal Tag Stats (overlapping)" in markdown
+    assert "multi-tag trades overlap" not in markdown
+    assert "Grind Level Activity" in markdown
     assert "SIGNAL TAG PERFORMANCE (OVERLAPPING)" in terminal
     assert "GRIND LEVEL ACTIVITY · 2 levels" in terminal
 
@@ -346,10 +346,10 @@ def test_verification_binds_strategy_and_never_overwrites_confirmation(
     assert read_json(run / "verification.json")["verification"]["source_sha256"] == sha256_file(
         proof
     )
-    html = (run / "report.html").read_text(encoding="utf-8")
-    assert "Certified strategy SHA" in html
-    assert "Certified package SHA" in html
-    assert ("f" * 64) in html
+    markdown = (run / "report.md").read_text(encoding="utf-8")
+    assert "Certified strategy SHA-256" in markdown
+    assert "Certified package SHA-256" in markdown
+    assert "ffffffffffff..." in markdown
 
     changed = read_json(proof)
     changed["inputs"]["strategy_sha256"] = "d" * 64

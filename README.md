@@ -21,28 +21,33 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.8.4](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.8.4) |
+| Latest public release | [v1.9.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.9.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.8.4 stable release line; Linux/macOS verified |
+| Current `main` | v1.9.0 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.8.4 preserves current-source compatibility for X7 v17.4.587 at upstream commit
-`95b76043c3f610e0760e191deebd12304bfadbf8` and corrects the beginner pair-selection
-contract. The quick default is BTC. Users can type `1`, `10`, `20`, `40`, `80`, `100`,
-`all`, or `custom`; numeric portfolios execute NFI's current Binance volume and filter
-policy in pinned Freqtrade, then freeze the ranked result in the saved project. Large
-selections show the measured long-run memory warning before data preparation. Spot and
-Futures source-compiled stateful closure still has no reachable gaps; this usability
-patch does not claim a new continuous performance certificate.
+v1.9.0 preserves current-source compatibility for X7 v17.4.587 at upstream commit
+`95b76043c3f610e0760e191deebd12304bfadbf8` and replaces the browser-oriented HTML
+result with a compact Freqtrade-style `report.md`. The report uses portable ASCII
+tables, explains valid zero-trade results explicitly, and needs no browser, scripts,
+remote assets, or network requests. The terminal now shows the same core result in one
+compact box and points to the report plus machine-readable exports.
 
-Current `main` tracks the v1.8.4 stable release and is usable from source for supported
+The v1.8.4 first-run market contract remains unchanged: BTC is the quick default;
+users can type `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`; numeric
+portfolios execute NFI's current Binance volume and filter policy in pinned Freqtrade,
+then freeze the ranked result in the saved project. Large selections show the measured
+long-run memory warning before data preparation. This presentation release does not
+claim a new continuous performance certificate.
+
+Current `main` tracks the v1.9.0 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.8.4 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.9.0 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -186,7 +191,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.8.4`.
+The latest public installer currently returns `nfi-bte 1.9.0`.
 
 ### Keep the CLI updated
 
@@ -200,7 +205,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.8.3 -> 1.8.4. Run `nfi-bte update`.
+Update available: 1.8.4 -> 1.9.0. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -225,8 +230,8 @@ market count: `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`. The quick
 default is BTC. Numeric portfolios use NFI's current Binance volume/filter policy and
 freeze the resulting order in the saved project; large selections print a resource
 warning. Managed candle storage and the most recent seven complete days remain the
-defaults. During the run it shows the current stage, percentage, elapsed time, results
-folder, and HTML-report path.
+defaults. During the run it shows the current stage, percentage, elapsed time, and
+results folder. Completion prints a compact ASCII result and the `report.md` location.
 
 For a non-interactive 80-market Spot setup with an explicit bounded period:
 
@@ -291,7 +296,6 @@ Use `--fallback disabled` when an unattended job must either remain Native or st
 ```bash
 nfi-bte run path/to/NostalgiaForInfinityX7.py \
   --fallback disabled \
-  --no-open-report \
   --yes
 ```
 
@@ -387,7 +391,11 @@ Every run is an ordinary hash-linked directory:
 | `trade-surface.json` | Exact-parity authority |
 | `summary.json` | Compact research summary |
 | `trades.csv` | Full spreadsheet-ready trade export |
-| `report.html` | Self-contained visual report |
+| `orders.csv` | Normalized order and position-change export |
+| `equity.csv` | Closed-trade equity series |
+| `report.md` | Compact Freqtrade-style report with portable ASCII tables |
+| `verification.json` | Official verification status and bound identities |
+| `evidence/index.json` | Hash-indexed result artifact inventory |
 | `selected-result.json` | Immutable Native or official-only result selection |
 | `official-fallback/attempt-N/` | Preserved official fallback attempts |
 | `checkpoints/` | Hash-validated resumable stages |

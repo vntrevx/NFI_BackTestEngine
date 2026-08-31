@@ -147,10 +147,30 @@ nfi-bte run NostalgiaForInfinityX7.py \
 nfi-bte run
 ```
 
-작업 시작 전에 실행 폴더가 출력됩니다. 완료되면 HTML 보고서, JSON 요약, CSV 결과 경로가 출력됩니다. 기본 위치는 다음과 같습니다.
+터미널은 작업 시작 전에 실행 폴더를 출력합니다. 완료되면 핵심 결과를 간결한 ASCII
+박스로 보여 주고 결과 폴더와 보고서/내보내기 파일 이름을 출력합니다. 사람이 읽는
+결과는 `report.md`이고 JSON과 CSV 파일은 기계 판독 계약으로 유지됩니다.
 
 ```text
 .nfi/runs/<strategy-and-timerange>/
+├── report.md
+├── summary.json
+├── trades.csv
+├── orders.csv
+├── equity.csv
+├── verification.json
+└── evidence/index.json
+```
+
+`report.md`는 이식 가능한 Freqtrade 스타일 ASCII 표를 사용하며 정상적인 거래 0건
+결과와 실행 오류를 명확히 구분합니다. 보고서를 다시 생성하면 오래된 `report.html`을
+삭제하며 CLI는 더 이상 브라우저를 열거나 열지 묻지 않습니다.
+
+시뮬레이션을 다시 실행하지 않고 Markdown 보고서와 기계 판독 내보내기를 다시
+생성하려면 다음을 실행하십시오.
+
+```bash
+nfi-bte report .nfi/runs/<strategy-and-timerange>
 ```
 
 엔진은 해시가 유효한 완료 단계만 재개합니다. 페어, 기간, 모드 또는 다른 실행 입력을 의도적으로 변경할 때는 다른 `--output-dir`을 사용하십시오.

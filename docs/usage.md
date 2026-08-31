@@ -147,10 +147,29 @@ After setup, run or resume the saved project with:
 nfi-bte run
 ```
 
-The terminal prints the run directory before work starts. Completion prints the HTML report, JSON summary, and CSV result paths. By default they are below:
+The terminal prints the run directory before work starts. Completion prints a compact
+ASCII summary, the results folder, and the report/export names. The human-readable
+result is `report.md`; JSON and CSV files remain the machine-readable contracts:
 
 ```text
 .nfi/runs/<strategy-and-timerange>/
+├── report.md
+├── summary.json
+├── trades.csv
+├── orders.csv
+├── equity.csv
+├── verification.json
+└── evidence/index.json
+```
+
+`report.md` uses portable Freqtrade-style ASCII tables and explicitly distinguishes a
+valid zero-trade result from an execution error. Regenerating a report removes a stale
+`report.html`; the CLI no longer opens or prompts for a browser.
+
+Regenerate the Markdown report and machine exports without rerunning the simulation:
+
+```bash
+nfi-bte report .nfi/runs/<strategy-and-timerange>
 ```
 
 The engine resumes only hash-valid completed stages. Use a different `--output-dir` when intentionally changing pairs, timerange, mode, or other run inputs.

@@ -734,23 +734,6 @@ def test_consent_defaults_to_no_and_never_prompts_noninteractively() -> None:
     )
 
 
-def test_report_opening_uses_platform_file_uri_and_explicit_opener(
-    tmp_path: Path,
-) -> None:
-    report = tmp_path / "결과 보고서" / "report.html"
-    report.parent.mkdir()
-    report.write_text("<html></html>", encoding="utf-8")
-    opened: list[str] = []
-
-    uri = user_flow.open_html_report(
-        report,
-        opener=lambda value: opened.append(value) is None,
-    )
-
-    assert opened == [uri]
-    assert uri.startswith("file:")
-    assert "%20" in uri
-    assert "결과 보고서" not in uri
 
 
 def test_quick_verification_reuses_only_a_surface_bound_exact_attempt(
@@ -921,7 +904,7 @@ def test_finished_one_line_flow_runs_only_explicit_post_actions(
         interactive=False,
     )
     run, _ = _completed_run_evidence(settings.output_directory)
-    (settings.output_directory / "report.html").write_text("<html></html>", encoding="utf-8")
+    (settings.output_directory / "report.md").write_text("# Report\n", encoding="utf-8")
     proof_path = settings.output_directory / "proof.json"
     proof = {
         "run_id": run["run_id"],
@@ -956,11 +939,6 @@ def test_finished_one_line_flow_runs_only_explicit_post_actions(
         "nfi_backtest_engine.result_report.write_result_presentation",
         lambda *_args, **_kwargs: {},
     )
-    monkeypatch.setattr(
-        user_flow,
-        "open_html_report",
-        lambda _path: calls.append("open") or "file:///report.html",
-    )
     messages: list[str] = []
 
     status = user_flow.finish_one_line_run(
@@ -968,14 +946,13 @@ def test_finished_one_line_flow_runs_only_explicit_post_actions(
         native_status=0,
         verification=True,
         verification_timeout_seconds=45,
-        open_report=True,
         interactive=False,
         include_breakdowns=False,
         emit=messages.append,
     )
 
     assert status == 0
-    assert calls == ["native", "verify:45", "ledger-quick", "open"]
+    assert calls == ["native", "verify:45", "ledger-quick"]
     assert any("exact parity" in message for message in messages)
 
 
@@ -991,17 +968,12 @@ def test_finished_noninteractive_flow_executes_neither_optional_action(
         interactive=False,
     )
     _completed_run_evidence(settings.output_directory)
-    (settings.output_directory / "report.html").write_text("<html></html>", encoding="utf-8")
+    (settings.output_directory / "report.md").write_text("# Report\n", encoding="utf-8")
     monkeypatch.setattr(user_flow, "record_native_completion", lambda _ledger, _run: 1)
     monkeypatch.setattr(
         user_flow,
         "run_quick_official_verification",
         lambda *_args, **_kwargs: pytest.fail("verification requires consent"),
-    )
-    monkeypatch.setattr(
-        user_flow,
-        "open_html_report",
-        lambda *_args, **_kwargs: pytest.fail("report opening requires consent"),
     )
     messages: list[str] = []
 
@@ -1010,7 +982,6 @@ def test_finished_noninteractive_flow_executes_neither_optional_action(
         native_status=0,
         verification=None,
         verification_timeout_seconds=None,
-        open_report=None,
         interactive=False,
         include_breakdowns=False,
         emit=messages.append,
@@ -1018,7 +989,6 @@ def test_finished_noninteractive_flow_executes_neither_optional_action(
 
     assert status == 0
     assert "official quick verification: skipped (no explicit consent)" in messages
-    assert "HTML report opening: skipped (no explicit consent)" in messages
     assert "Backtest complete." in messages
     assert f"Results folder: {settings.output_directory.resolve()}" in messages
-    assert any(message.startswith("Open the HTML report: file:") for message in messages)
+    assert any(message.startswith("Markdown report: ") for message in messages)

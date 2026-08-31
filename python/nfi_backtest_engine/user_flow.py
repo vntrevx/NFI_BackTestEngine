@@ -1,4 +1,4 @@
-"""Auditable preflight, consent, verification, and report-opening user flow."""
+"""Auditable preflight, consent, verification, and result-summary user flow."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import shutil
 import sys
 import threading
 import time
-import webbrowser
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,12 +24,12 @@ from .fixture import sha256_file
 from .hardware import inspect_hardware
 from .project_config import ProjectSettings
 from .reference_runtime import ensure_docker_config
+from .reporting.contracts import MARKDOWN_FILENAME
 from .verification_ledger import VerificationLedger, create_verification_record
 
 RUN_PREFLIGHT_VERSION = "1.0.0"
 OFFICIAL_VERIFICATION_DIRECTORY = "official-verification"
 OFFICIAL_FALLBACK_DIRECTORY = "official-fallback"
-REPORT_FILENAME = "report.html"
 
 Prompt = Callable[[str], str]
 
@@ -604,7 +603,6 @@ def finish_one_line_run(
     native_status: int,
     verification: bool | None,
     verification_timeout_seconds: int | None,
-    open_report: bool | None,
     interactive: bool,
     include_breakdowns: bool,
     fallback_policy: str = "ask",
@@ -615,8 +613,8 @@ def finish_one_line_run(
     root = settings.output_directory.resolve()
     run_path = root / "run.json"
     if not run_path.is_file():
-        if verification is True or open_report is True:
-            raise BenchmarkError("the requested post-run action needs a durable run.json result")
+        if verification is True:
+            raise BenchmarkError("the requested verification needs a durable run.json result")
         return native_status
     run = read_json(run_path)
     if not isinstance(run, dict):
@@ -629,9 +627,9 @@ def finish_one_line_run(
         emit("")
         emit("Backtest complete.")
         emit(f"Results folder: {root}")
-        report_path = root / REPORT_FILENAME
+        report_path = root / MARKDOWN_FILENAME
         if report_path.is_file():
-            emit(f"Open the HTML report: {report_uri(report_path)}")
+            emit(f"Markdown report: {report_path}")
         native_sequence = record_native_completion(ledger_path, root)
         emit(
             "verification ledger: "
@@ -711,20 +709,6 @@ def finish_one_line_run(
             )
         )
 
-    html_path = root / REPORT_FILENAME
-    if html_path.is_file():
-        open_now = resolve_consent(
-            open_report,
-            interactive=interactive,
-            question="Open the HTML report in the default browser",
-        )
-        if open_now:
-            uri = open_html_report(html_path)
-            emit(f"HTML report opened: {uri}")
-        else:
-            emit("HTML report opening: skipped (no explicit consent)")
-    elif open_report is True:
-        raise BenchmarkError(f"requested HTML report does not exist: {html_path}")
     return final_status
 
 
@@ -759,9 +743,7 @@ def finish_official_fallback(
     blockers = capability.get("blockers")
     first_blocker = (
         blockers[0]
-        if isinstance(blockers, list)
-        and blockers
-        and isinstance(blockers[0], Mapping)
+        if isinstance(blockers, list) and blockers and isinstance(blockers[0], Mapping)
         else {}
     )
     emit(
@@ -834,27 +816,6 @@ def finish_official_fallback(
         f"ledger sequence={sequence}, state=official_complete -> {proof_path}"
     )
     return 0
-
-
-def report_uri(report_path: str | Path) -> str:
-    """Return the platform-native file URI used by the default browser."""
-    path = Path(report_path).resolve()
-    if not path.is_file():
-        raise BenchmarkError(f"HTML report does not exist: {path}")
-    return path.as_uri()
-
-
-def open_html_report(
-    report_path: str | Path,
-    *,
-    opener: Callable[[str], bool] | None = None,
-) -> str:
-    """Open a report only after its caller has resolved explicit consent."""
-    uri = report_uri(report_path)
-    open_uri = webbrowser.open_new_tab if opener is None else opener
-    if not open_uri(uri):
-        raise BenchmarkError(f"the default browser did not accept the HTML report: {uri}")
-    return uri
 
 
 def _inspect_optional_docker() -> dict[str, Any]:

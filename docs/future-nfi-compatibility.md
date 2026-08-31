@@ -26,7 +26,7 @@ latest NFI
 공식 결과는 원래 Native run을 수정하지 않고 별도 시도 디렉터리와
 `selected-result.json`에 기록한다. 이 결과의 역할은 `official_only`이며
 `exact_parity`를 주장하지 않는다. Native 완료, 공식 완료, 사용자가 선택한 결과는
-registry, ledger, terminal, HTML에서 독립 상태로 표시된다.
+registry, ledger, terminal, `report.md`에서 독립 상태로 표시된다.
 
 ## 변경 분석과 Native 승격
 

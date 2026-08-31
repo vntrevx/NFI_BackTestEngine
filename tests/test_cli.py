@@ -244,7 +244,6 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
             "--verify",
             "--verification-timeout",
             "45",
-            "--open-report",
         ]
     )
     unattended_run = parser.parse_args(["run", "--yes"])
@@ -260,9 +259,7 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
     assert saved_run.full_report is True
     assert saved_run.verify is True
     assert saved_run.verification_timeout == 45
-    assert saved_run.open_report is True
     assert unattended_run.verify is None
-    assert unattended_run.open_report is None
     assert shown.full_report is True
 
 

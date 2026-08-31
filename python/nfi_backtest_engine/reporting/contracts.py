@@ -14,7 +14,7 @@ VERIFICATION_FILENAME = "verification.json"
 
 EVIDENCE_INDEX_FILENAME = "evidence/index.json"
 
-HTML_FILENAME = "report.html"
+MARKDOWN_FILENAME = "report.md"
 
 ORDERS_CSV_SCHEMA_VERSION = "1.1.0"
 

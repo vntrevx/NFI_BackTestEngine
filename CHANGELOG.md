@@ -4,6 +4,13 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.9.0 - 2026-08-31
+
+- Replaced the browser-oriented `report.html` artifact with a compact Freqtrade-style
+  `report.md`, portable ASCII tables, an explicit zero-trade explanation, and a simpler
+  terminal result summary. Report generation removes stale HTML output and no longer
+  prompts to open a browser.
+
 ## 1.8.4 - 2026-08-31
 
 - Replaced the arbitrary one-pair example with BTC and added exact `1`, `10`, `20`,

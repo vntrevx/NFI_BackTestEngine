@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "nfi-backtest-engine"
-version = "1.8.4"
+version = "1.9.0"
 description = "Exact-parity research backtesting infrastructure for NFI strategies"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"

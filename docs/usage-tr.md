@@ -147,10 +147,31 @@ Kurulumdan sonra kayıtlı projeyi çalıştırın veya devam ettirin:
 nfi-bte run
 ```
 
-Terminal, iş başlamadan önce çalıştırma dizinini gösterir. Tamamlandığında HTML raporu, JSON özeti ve CSV sonuç yolları yazdırılır. Varsayılan konum şudur:
+Terminal, iş başlamadan önce çalıştırma dizinini gösterir. Tamamlandığında kısa bir
+ASCII özeti, sonuç dizinini ve rapor/dışa aktarma dosyalarının adlarını yazdırır.
+İnsan tarafından okunabilen sonuç `report.md` dosyasıdır; JSON ve CSV dosyaları
+makine tarafından okunabilen sözleşmeler olarak kalır:
 
 ```text
 .nfi/runs/<strategy-and-timerange>/
+├── report.md
+├── summary.json
+├── trades.csv
+├── orders.csv
+├── equity.csv
+├── verification.json
+└── evidence/index.json
+```
+
+`report.md`, taşınabilir Freqtrade tarzı ASCII tablolar kullanır ve geçerli bir
+sıfır işlemlik sonucu yürütme hatasından açıkça ayırır. Rapor yeniden oluşturulduğunda
+eski `report.html` silinir; CLI artık tarayıcı açmaz veya açmak için onay istemez.
+
+Simülasyonu yeniden çalıştırmadan Markdown raporunu ve makine tarafından okunabilen
+dışa aktarımları yeniden oluşturmak için:
+
+```bash
+nfi-bte report .nfi/runs/<strategy-and-timerange>
 ```
 
 Motor yalnızca hash'i geçerli tamamlanmış aşamalara devam eder. Piyasaları, zaman aralığını, modu veya diğer çalıştırma girdilerini bilerek değiştirdiğinizde farklı bir `--output-dir` kullanın.
