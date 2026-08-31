@@ -39,10 +39,12 @@ class _RetainedFixtureManifest(dict[str, Any]):
         document: dict[str, Any],
         manifest_payload: bytes,
         payloads: dict[str, bytes],
+        coverage: dict[str, Any] | None,
     ) -> None:
         super().__init__(document)
         self.manifest_payload = manifest_payload
         self.payloads = payloads
+        self.coverage = coverage
 
 
 def sha256_file(path: str | Path) -> str:
@@ -64,12 +66,12 @@ def validate_fixture(
     validate_trace_semantics: bool = True,
 ) -> dict[str, Any]:
     """Validate schema and consume every fixture byte from contained descriptors."""
-    manifest, manifest_payload, payloads = _validate_fixture_retained(
+    manifest, manifest_payload, payloads, coverage = _validate_fixture_retained(
         manifest_path,
         verify_hashes=verify_hashes,
         validate_trace_semantics=validate_trace_semantics,
     )
-    return _RetainedFixtureManifest(manifest, manifest_payload, payloads)
+    return _RetainedFixtureManifest(manifest, manifest_payload, payloads, coverage)
 
 
 def validate_fixture_from_directory(
@@ -77,11 +79,11 @@ def validate_fixture_from_directory(
     manifest_path: str,
 ) -> dict[str, Any]:
     """Validate a relative fixture from an already retained directory descriptor."""
-    manifest, manifest_payload, payloads = _validate_fixture_retained(
+    manifest, manifest_payload, payloads, coverage = _validate_fixture_retained(
         manifest_path,
         directory_descriptor=directory_descriptor,
     )
-    return _RetainedFixtureManifest(manifest, manifest_payload, payloads)
+    return _RetainedFixtureManifest(manifest, manifest_payload, payloads, coverage)
 
 
 @contextmanager
@@ -112,8 +114,8 @@ def _validate_fixture_retained(
     verify_hashes: bool = True,
     validate_trace_semantics: bool = True,
     directory_descriptor: int | None = None,
-) -> tuple[dict[str, Any], bytes, dict[str, bytes]]:
-    """Return validation plus exact bytes retained from parent-relative handles."""
+) -> tuple[dict[str, Any], bytes, dict[str, bytes], dict[str, Any] | None]:
+    """Return validation, exact retained bytes, and the validated coverage report."""
     if directory_descriptor is None:
         try:
             manifest_file = validate_portable_filesystem_path(manifest_path)
@@ -193,13 +195,14 @@ def _validate_fixture_retained(
                     input_sha256=expected_input_hash,
                     trading_mode=manifest["freqtrade"]["trading_mode"],
                 )
+        coverage: dict[str, Any] | None = None
         if manifest["schema_version"] == "3.0.0" and validate_trace_semantics:
             # The descriptor-bound validation above runs first. Coverage remains a
             # semantic verifier over those same sealed identities.
-            validate_fixture_coverage(
+            coverage = validate_fixture_coverage(
                 manifest_file, manifest, retained_payloads=payloads
             )
-        return manifest, manifest_payload, payloads
+        return manifest, manifest_payload, payloads, coverage
     finally:
         if root_fd is not None:
             os.close(root_fd)

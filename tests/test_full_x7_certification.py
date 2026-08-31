@@ -5,6 +5,7 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 from nfi_backtest_engine import full_x7_certification, full_x7_resume
@@ -987,6 +988,7 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
         spot_manifests,
         contract=SPOT_RELEASE_CONTRACT,
         expected_upstream_commit=upstream_commit,
+        retain_payloads=False,
     )
 
     assert probes
@@ -996,6 +998,7 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
             spot_manifests[:1],
             contract=SPOT_RELEASE_CONTRACT,
             expected_upstream_commit="0" * 40,
+            retain_payloads=False,
         )
 
 
@@ -1016,6 +1019,7 @@ def test_historical_futures_probe_matrix_is_release_complete() -> None:
         manifests,
         contract=FUTURES_RELEASE_CONTRACT,
         expected_upstream_commit=upstream_commit,
+        retain_payloads=False,
     )
 
     assert probes
@@ -1036,6 +1040,7 @@ def test_latest_release_candidate_probe_matrices_are_complete() -> None:
             manifests,
             contract=mode_contracts[mode["slug"]],
             expected_upstream_commit=declared["upstream_commit"],
+            retain_payloads=False,
         )
 
         assert len(probes) == mode["required_manifests"]
@@ -1100,8 +1105,18 @@ def test_futures_probe_matrix_requires_observed_lifecycle_and_all_protections(
             )
         ],
     ]
-    manifests: dict[Path, dict] = {}
-    observations: dict[Path, dict] = {}
+
+    class ValidatedManifest(dict[str, Any]):
+        def __init__(
+            self,
+            document: dict[str, Any],
+            coverage: dict[str, Any],
+        ) -> None:
+            super().__init__(document)
+            self.coverage = coverage
+
+    manifests: dict[Path, ValidatedManifest] = {}
+    observations: dict[Path, dict[str, Any]] = {}
     for index, (kind, observed) in enumerate(definitions):
         root = tmp_path / f"probe-{index}"
         root.mkdir()
@@ -1118,12 +1133,15 @@ def test_futures_probe_matrix_requires_observed_lifecycle_and_all_protections(
             },
         )
         path = (root / "manifest.json").resolve()
-        manifests[path] = {
-            "schema_version": "3.0.0",
-            "probe_kind": kind,
-            "inputs": [{"role": "config", "path": "config.json"}],
-            "strategy_provenance": {"upstream_commit": "a" * 40},
-        }
+        manifests[path] = ValidatedManifest(
+            {
+                "schema_version": "3.0.0",
+                "probe_kind": kind,
+                "inputs": [{"role": "config", "path": "config.json"}],
+                "strategy_provenance": {"upstream_commit": "a" * 40},
+            },
+            {"met": True, "observed": observed},
+        )
         observations[path] = observed
 
     monkeypatch.setattr(
@@ -1134,10 +1152,9 @@ def test_futures_probe_matrix_requires_observed_lifecycle_and_all_protections(
     monkeypatch.setattr(
         full_x7_certification,
         "validate_fixture_coverage",
-        lambda path, _manifest: {
-            "met": True,
-            "observed": observations[Path(path).resolve()],
-        },
+        lambda *_args, **_kwargs: pytest.fail(
+            "descriptor-validated coverage must not be re-read"
+        ),
     )
 
     manifest_paths: list[str | Path] = list(manifests)

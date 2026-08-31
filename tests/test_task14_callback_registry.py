@@ -108,16 +108,20 @@ def test_registry_validation_detects_each_contract_obligation_mutation() -> None
     assert contract_records
 
     for record in contract_records[:6]:
-        mutant = copy.deepcopy(registry)
         target = next(
             candidate
-            for group in mutant["obligation_groups"]
+            for group in registry["obligation_groups"]
             for candidate in group["obligations"]
             if candidate["obligation_id"] == record["obligation_id"]
         )
-        target["preimage"]["normalized_semantics"][1] = "f" * 64
-        with pytest.raises(SpecValidationError):
-            validate_semantic_obligation_registry(mutant)
+        semantics = target["preimage"]["normalized_semantics"]
+        original = semantics[1]
+        semantics[1] = "f" * 64
+        try:
+            with pytest.raises(SpecValidationError):
+                validate_semantic_obligation_registry(registry)
+        finally:
+            semantics[1] = original
 
 
 def test_packaged_registry_is_deterministic_and_self_authenticating() -> None:
