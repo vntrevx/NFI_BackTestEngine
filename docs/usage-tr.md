@@ -174,6 +174,11 @@ dışa aktarımları yeniden oluşturmak için:
 nfi-bte report .nfi/runs/<strategy-and-timerange>
 ```
 
+`nfi-bte update` sonrasında yalnızca paket sürümü değişmişse tamamlanmış bir çalışma
+yeniden kullanılabilir. Motor, özgün kimliği ve sonuç dosyalarını değiştirmeden
+doğrular. Strateji, yapılandırma, piyasalar, zaman aralığı veya anlamsal işlem hattı
+değiştiyse farklı bir `--output-dir` gerekir.
+
 Motor yalnızca hash'i geçerli tamamlanmış aşamalara devam eder. Piyasaları, zaman aralığını, modu veya diğer çalıştırma girdilerini bilerek değiştirdiğinizde farklı bir `--output-dir` kullanın.
 
 ## 9. Native simülasyonu başlatmadan veri hazırlama

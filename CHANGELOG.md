@@ -4,6 +4,13 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.9.1 - 2026-08-31
+
+- Fixed completed-run reuse after presentation-only package upgrades. The runner now
+  accepts an older completed identity only when the package version is the sole
+  difference, validates every preserved artifact, and still rejects incomplete or
+  materially changed runs without modifying their evidence.
+
 ## 1.9.0 - 2026-08-31
 
 - Replaced the browser-oriented `report.html` artifact with a compact Freqtrade-style
