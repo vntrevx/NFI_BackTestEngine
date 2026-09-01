@@ -558,6 +558,142 @@ def test_saved_run_resumes_after_confirmation(
     assert "CPU workers may run at full load" in prompts[0]
 
 
+def test_completed_run_asks_before_starting_fresh(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    settings.output_directory.mkdir(parents=True)
+    (settings.output_directory / "identity.json").write_text("old", encoding="utf-8")
+    write_json(settings.output_directory / "run.json", {"complete": True})
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        run_command.sys,
+        "stdin",
+        SimpleNamespace(isatty=lambda: True),
+    )
+    prompts: list[str] = []
+    answers = iter(("y", "y"))
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda question: prompts.append(question) or next(answers),
+    )
+    captured: dict = {}
+
+    def fake_run(**kwargs):
+        captured.update(kwargs)
+        return {
+            "status": "prepared",
+            "vectors": {"pair_count": 1, "cache_hits": 0},
+            "resumed_stages": [],
+            "complete": False,
+            "prepared_only": True,
+        }
+
+    monkeypatch.setattr(research_runner, "run_research_backtest", fake_run)
+
+    assert cli.main(["run", "--fallback", "disabled"]) == 0
+
+    fresh_output = settings.output_directory.with_name(
+        f"{settings.output_directory.name}-new"
+    )
+    assert "Start a new backtest with the same saved settings?" in prompts[0]
+    assert "Start this backtest now?" in prompts[1]
+    assert captured["resume"] is False
+    assert captured["output_directory"] == fresh_output
+    assert load_project(settings.project_path).output_directory == fresh_output
+    assert (settings.output_directory / "identity.json").read_text(encoding="utf-8") == "old"
+    assert f"New run output  ·  {fresh_output}" in capsys.readouterr().out
+
+
+def test_completed_run_defaults_to_existing_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    settings.output_directory.mkdir(parents=True)
+    write_json(settings.output_directory / "run.json", {"complete": True})
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        run_command.sys,
+        "stdin",
+        SimpleNamespace(isatty=lambda: True),
+    )
+    prompts: list[str] = []
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda question: prompts.append(question) or "",
+    )
+    captured: dict = {}
+
+    def fake_run(**kwargs):
+        captured.update(kwargs)
+        return {
+            "status": "prepared",
+            "vectors": {"pair_count": 1, "cache_hits": 1},
+            "resumed_stages": [],
+            "complete": False,
+            "prepared_only": True,
+        }
+
+    monkeypatch.setattr(research_runner, "run_research_backtest", fake_run)
+
+    assert cli.main(["run", "--no-verify", "--fallback", "disabled"]) == 0
+
+    assert len(prompts) == 1
+    assert "Start a new backtest with the same saved settings?" in prompts[0]
+    assert captured["resume"] is True
+    assert captured["output_directory"] == settings.output_directory
+    assert load_project(settings.project_path).output_directory == settings.output_directory
+    output = capsys.readouterr().out
+    assert "Using completed run:" in output
+    assert "No input preparation or simulation will be started." in output
+
+    captured.clear()
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda _question: pytest.fail("--yes must reuse without prompting"),
+    )
+    assert cli.main(["run", "--yes", "--no-verify", "--fallback", "disabled"]) == 0
+    assert captured["resume"] is True
+    assert load_project(settings.project_path).output_directory == settings.output_directory
+
+    captured.clear()
+    assert (
+        cli.main(
+            [
+                "run",
+                "--new-run",
+                "--yes",
+                "--no-verify",
+                "--fallback",
+                "disabled",
+            ]
+        )
+        == 0
+    )
+    fresh_output = settings.output_directory.with_name(
+        f"{settings.output_directory.name}-new"
+    )
+    assert captured["resume"] is False
+    assert captured["output_directory"] == fresh_output
+    assert load_project(settings.project_path).output_directory == fresh_output
+
+
 def test_saved_run_cancellation_starts_no_simulation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

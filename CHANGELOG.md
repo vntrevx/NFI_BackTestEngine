@@ -4,6 +4,15 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.2 - 2026-09-01
+
+- Completed outputs now trigger an explicit choice to reuse the existing result or
+  start a fresh backtest with the same saved settings.
+- Fresh runs use a new sibling output and retarget the saved project only after final
+  CPU consent, preserving all prior evidence. `--new-run --yes` provides the explicit
+  unattended path.
+
+
 ## 1.10.1 - 2026-09-01
 
 - Added a fail-closed confirmation before `nfi-bte run` starts input preparation or

@@ -196,6 +196,28 @@ def load_project(source: str | Path = DEFAULT_PROJECT_PATH) -> ProjectSettings:
     )
 
 
+def retarget_project_output(
+    settings: ProjectSettings,
+    output_directory: str | Path,
+) -> ProjectSettings:
+    """Point a saved project at a fresh output without changing prior evidence."""
+    output = resolve_workspace_path(settings.workspace, output_directory)
+    _validate_output_boundary(
+        output,
+        workspace=settings.workspace,
+        strategy=settings.strategy_path,
+        config=settings.config_path,
+        data=settings.data_directory,
+        project=settings.project_path,
+    )
+    document = read_json(settings.project_path)
+    if not isinstance(document, dict):
+        raise SpecValidationError("project document must be an object")
+    document["output_directory"] = _stored_path(settings.workspace, output)
+    write_json(settings.project_path, document)
+    return load_project(settings.project_path)
+
+
 def project_run_arguments(settings: ProjectSettings) -> dict[str, Any]:
     """Translate saved settings to the existing research-runner boundary."""
     return {

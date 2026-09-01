@@ -6,10 +6,11 @@ import argparse
 import json
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from ..canonical import write_json
+from ..canonical import read_json, write_json
 from ..config_loader import load_effective_config
 from ..errors import NfiBacktestError
 from ..strategy_ir import (
@@ -19,6 +20,25 @@ from ..strategy_ir import (
 )
 
 COMMAND_NAMES = frozenset({"init", "run", "data", "strategy", "backtest", "batch"})
+
+def _completed_run_exists(output: Path) -> bool:
+    run_path = output / "run.json"
+    if not run_path.is_file():
+        return False
+    try:
+        report = read_json(run_path)
+    except (OSError, ValueError):
+        return False
+    return isinstance(report, dict) and report.get("complete") is True
+
+
+def _next_output_directory(output: Path) -> Path:
+    candidate = output.with_name(f"{output.name}-new")
+    suffix = 2
+    while candidate.exists():
+        candidate = output.with_name(f"{output.name}-new-{suffix}")
+        suffix += 1
+    return candidate
 
 
 def execute(args: argparse.Namespace) -> int:
@@ -47,6 +67,7 @@ def execute(args: argparse.Namespace) -> int:
             initialize_project,
             load_project,
             project_run_arguments,
+            retarget_project_output,
         )
 
         if args.verification_timeout is not None and args.verification_timeout <= 0:
@@ -93,8 +114,6 @@ def execute(args: argparse.Namespace) -> int:
                 pair_count=args.pair_count,
                 interactive=not args.yes,
             )
-        output = settings.output_directory
-        resume = output.is_dir() and any(output.iterdir())
         from ..user_flow import (
             RunProgress,
             finish_one_line_run,
@@ -104,47 +123,91 @@ def execute(args: argparse.Namespace) -> int:
             write_run_preflight,
         )
 
-        preflight, preflight_path = write_run_preflight(
-            settings,
-            resume=resume,
-            download_missing=not args.no_download,
-        )
-        print(format_run_banner(settings, resume=resume))
-        print()
-        print(format_run_preflight(preflight, preflight_path))
-        print()
-        cpu_worker_limit = int(preflight["host"]["cpu_worker_limit"])
-        planned_workers = args.workers if args.workers is not None else cpu_worker_limit
-        if planned_workers <= 0:
-            raise NfiBacktestError("--workers must be positive")
-        if planned_workers > cpu_worker_limit:
-            raise NfiBacktestError(
-                f"--workers {planned_workers} exceeds this system's safe limit "
-                f"of {cpu_worker_limit}"
-            )
-        action = (
-            "Prepare inputs now?"
-            if args.prepare_only
-            else "Resume this run now?"
-            if resume
-            else "Start this backtest now?"
-        )
         interactive = sys.stdin.isatty()
         if not args.yes and not interactive:
             raise NfiBacktestError(
                 "non-interactive run requires --yes to confirm CPU-intensive work"
             )
-        approved = resolve_consent(
-            True if args.yes else None,
-            interactive=interactive,
-            question=(
-                f"{action} Up to {planned_workers} CPU workers may run at full load"
-            ),
-        )
-        if not approved:
-            print("Backtest cancelled. No simulation was started.")
-            return 0
-        print()
+
+        saved_settings = settings
+        output = settings.output_directory
+        output_had_files = output.is_dir() and any(output.iterdir())
+        completed_run = output_had_files and _completed_run_exists(output)
+        start_fresh = args.new_run
+        if start_fresh and not output_had_files:
+            raise NfiBacktestError("--new-run requires existing run output")
+        if completed_run and not start_fresh and not args.yes:
+            print(f"Completed run found: {output}")
+            start_fresh = resolve_consent(
+                None,
+                interactive=interactive,
+                question="Start a new backtest with the same saved settings?",
+            )
+            print()
+
+        if start_fresh:
+            settings = replace(
+                settings,
+                output_directory=_next_output_directory(output),
+            )
+            resume = False
+        else:
+            resume = output_had_files
+        reuse_completed = completed_run and not start_fresh
+
+        if reuse_completed:
+            print(format_run_banner(settings, resume=True))
+            print()
+            print(f"Using completed run: {settings.output_directory}")
+            print("No input preparation or simulation will be started.")
+            print()
+        else:
+            preflight, preflight_path = write_run_preflight(
+                settings,
+                resume=resume,
+                download_missing=not args.no_download,
+            )
+            print(format_run_banner(settings, resume=resume))
+            print()
+            if start_fresh:
+                print(f"  New run output  ·  {settings.output_directory}")
+                print()
+            print(format_run_preflight(preflight, preflight_path))
+            print()
+            cpu_worker_limit = int(preflight["host"]["cpu_worker_limit"])
+            planned_workers = (
+                args.workers if args.workers is not None else cpu_worker_limit
+            )
+            if planned_workers <= 0:
+                raise NfiBacktestError("--workers must be positive")
+            if planned_workers > cpu_worker_limit:
+                raise NfiBacktestError(
+                    f"--workers {planned_workers} exceeds this system's safe limit "
+                    f"of {cpu_worker_limit}"
+                )
+            action = (
+                "Prepare inputs now?"
+                if args.prepare_only
+                else "Resume this run now?"
+                if resume
+                else "Start this backtest now?"
+            )
+            approved = resolve_consent(
+                True if args.yes else None,
+                interactive=interactive,
+                question=(
+                    f"{action} Up to {planned_workers} CPU workers may run at full load"
+                ),
+            )
+            if not approved:
+                print("Backtest cancelled. No simulation was started.")
+                return 0
+            if start_fresh:
+                settings = retarget_project_output(
+                    saved_settings,
+                    settings.output_directory,
+                )
+            print()
         with RunProgress() as progress:
             native_status = execute_research_backtest(
                 project_run_arguments(settings),

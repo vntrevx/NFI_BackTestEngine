@@ -7,6 +7,7 @@ from .project_config import (
     load_project,
     project_run_arguments,
     project_summary,
+    retarget_project_output,
 )
 from .setup_wizard import initialize_project
 
@@ -18,4 +19,5 @@ __all__ = [
     "load_project",
     "project_run_arguments",
     "project_summary",
+    "retarget_project_output",
 ]

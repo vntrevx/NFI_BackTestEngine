@@ -152,6 +152,13 @@ limit and asks for confirmation; Enter defaults to No. Use `--workers N` to lowe
 parallel worker count. Non-interactive jobs must pass `--yes`, which is the explicit
 consent that bypasses this prompt.
 
+If the saved output already contains a completed run, the CLI first asks whether to
+start a new backtest with the same settings. Enter defaults to reusing the completed
+result without preparation or simulation. Yes selects a new sibling output such as
+`<previous>-new`; the project switches to it only after the CPU confirmation, and the
+previous evidence remains untouched. Use `--new-run --yes` for the same fresh-output
+choice in unattended automation.
+
 The terminal starts with a compact NFI header and one-line system readiness, then keeps
 one rotating progress line in place. Completion prints the full Freqtrade-style result
 tables and concise relative artifact paths. Use `--no-full-report` for the compact card.
