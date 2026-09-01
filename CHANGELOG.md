@@ -4,6 +4,14 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.4 - 2026-09-01
+
+- Replaced the guided restart's raw strategy-path prompt with a numbered strategy menu
+  discovered directly from the NFI checkout.
+- The current strategy is marked and defaults to selection 1; NFI generations are
+  ordered newest first, and selecting another entry loads and analyzes that strategy.
+
+
 ## 1.10.3 - 2026-09-01
 
 - Saved projects now offer a full guided restart before execution: choose the strategy
