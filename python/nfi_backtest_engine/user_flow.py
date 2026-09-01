@@ -21,12 +21,12 @@ from .data_seal import validate_data_seal
 from .docker_resources import derive_docker_policy, inspect_docker_daemon
 from .errors import BenchmarkError, NfiBacktestError, SpecValidationError
 from .fixture import sha256_file
-from .hardware import inspect_hardware
+from .hardware import derive_tuning, inspect_hardware
 from .project_config import ProjectSettings
 from .reference_runtime import ensure_docker_config
 from .verification_ledger import VerificationLedger, create_verification_record
 
-RUN_PREFLIGHT_VERSION = "1.0.0"
+RUN_PREFLIGHT_VERSION = "1.1.0"
 OFFICIAL_VERIFICATION_DIRECTORY = "official-verification"
 SPINNER_FRAMES = ("◐", "◓", "◑", "◒")
 
@@ -127,6 +127,7 @@ def inspect_run_preflight(
 ) -> dict[str, Any]:
     """Measure host and known disk requirements without changing run evidence."""
     hardware = inspect_hardware(settings.workspace)
+    cpu_worker_limit = int(derive_tuning(hardware)["cpu_process_limit"])
     data_usage = _tree_usage(settings.data_directory)
     output_usage = _tree_usage(settings.output_directory)
     control_paths = (settings.strategy_path, settings.config_path, settings.project_path)
@@ -159,7 +160,10 @@ def inspect_run_preflight(
         "host": {
             "system": hardware["system"],
             "machine": hardware["machine"],
+            "physical_cpu_count": hardware["physical_cpu_count"],
+            "logical_cpu_count": hardware["logical_cpu_count"],
             "affinity_cpu_count": hardware["affinity_cpu_count"],
+            "cpu_worker_limit": cpu_worker_limit,
             "available_memory_bytes": hardware["memory"]["available_bytes"],
         },
         "docker": _inspect_optional_docker(),
@@ -227,7 +231,8 @@ def format_run_preflight(report: Mapping[str, Any], destination: Path) -> str:
     )
     return (
         "  ✓  System ready"
-        f"  ·  {host.get('affinity_cpu_count')} CPU"
+        f"  ·  {host.get('cpu_worker_limit')} CPU workers"
+        f" ({host.get('affinity_cpu_count')} logical visible)"
         f"  ·  {_human_bytes(host.get('available_memory_bytes'))} RAM"
         f"  ·  {_human_bytes(disk.get('available_bytes'))} disk"
         f"  ·  {docker_label}"

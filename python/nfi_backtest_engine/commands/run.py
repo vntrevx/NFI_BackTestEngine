@@ -100,6 +100,7 @@ def execute(args: argparse.Namespace) -> int:
             finish_one_line_run,
             format_run_banner,
             format_run_preflight,
+            resolve_consent,
             write_run_preflight,
         )
 
@@ -111,6 +112,38 @@ def execute(args: argparse.Namespace) -> int:
         print(format_run_banner(settings, resume=resume))
         print()
         print(format_run_preflight(preflight, preflight_path))
+        print()
+        cpu_worker_limit = int(preflight["host"]["cpu_worker_limit"])
+        planned_workers = args.workers if args.workers is not None else cpu_worker_limit
+        if planned_workers <= 0:
+            raise NfiBacktestError("--workers must be positive")
+        if planned_workers > cpu_worker_limit:
+            raise NfiBacktestError(
+                f"--workers {planned_workers} exceeds this system's safe limit "
+                f"of {cpu_worker_limit}"
+            )
+        action = (
+            "Prepare inputs now?"
+            if args.prepare_only
+            else "Resume this run now?"
+            if resume
+            else "Start this backtest now?"
+        )
+        interactive = sys.stdin.isatty()
+        if not args.yes and not interactive:
+            raise NfiBacktestError(
+                "non-interactive run requires --yes to confirm CPU-intensive work"
+            )
+        approved = resolve_consent(
+            True if args.yes else None,
+            interactive=interactive,
+            question=(
+                f"{action} Up to {planned_workers} CPU workers may run at full load"
+            ),
+        )
+        if not approved:
+            print("Backtest cancelled. No simulation was started.")
+            return 0
         print()
         with RunProgress() as progress:
             native_status = execute_research_backtest(

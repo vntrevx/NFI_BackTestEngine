@@ -4,6 +4,16 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.1 - 2026-09-01
+
+- Added a fail-closed confirmation before `nfi-bte run` starts input preparation or
+  simulation. The prompt reports the planned CPU worker count; Enter defaults to No,
+  while explicit `--yes` preserves unattended execution.
+- Added physical, logical, affinity-visible, and safe worker counts to the persisted
+  run preflight. The compact readiness line now distinguishes parallel workers from
+  visible logical CPUs.
+
+
 ## 1.10.0 - 2026-09-01
 
 - Rebuilt `nfi-bte run` as a product-style terminal flow: compact NFI ASCII branding,

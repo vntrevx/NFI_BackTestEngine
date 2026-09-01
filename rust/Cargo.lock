@@ -390,7 +390,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "nfi-artifact-publish"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "fs2",
  "getrandom 0.3.4",
@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "nfi-py"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "nfi-artifact-publish",
  "nfi-sim-core",
@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "nfi-sim-cli"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "nfi-artifact-publish",
  "nfi-sim-core",
@@ -434,7 +434,7 @@ dependencies = [
 
 [[package]]
 name = "nfi-sim-core"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "num-bigint",
  "num-rational",
@@ -447,7 +447,7 @@ dependencies = [
 
 [[package]]
 name = "nfi-vector-core"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "arrow2",
  "serde",
@@ -458,7 +458,7 @@ dependencies = [
 
 [[package]]
 name = "nfi-vector-io"
-version = "1.10.0"
+version = "1.10.1"
 dependencies = [
  "arrow2",
  "fs2",
