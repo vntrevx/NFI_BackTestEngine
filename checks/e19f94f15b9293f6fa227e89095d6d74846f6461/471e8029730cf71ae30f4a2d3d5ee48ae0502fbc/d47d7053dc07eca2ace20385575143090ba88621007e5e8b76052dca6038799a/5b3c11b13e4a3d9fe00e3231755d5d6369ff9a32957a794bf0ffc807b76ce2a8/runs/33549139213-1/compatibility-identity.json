@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.1.0",
+  "upstream_sha": "e19f94f15b9293f6fa227e89095d6d74846f6461",
+  "engine_sha": "471e8029730cf71ae30f4a2d3d5ee48ae0502fbc",
+  "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8",
+  "baseline_upstream_sha": "8ce2dc3c7f4e7ea18c9cbb6f88e2dd768efa1615",
+  "source_sha256": "0485a6d7b19bd1e41e82b5efc662877e11170a5ad1da26c01379e9c2d9b736e7"
+}
