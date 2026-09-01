@@ -81,6 +81,17 @@ def execute(args: argparse.Namespace) -> int:
         if args.prepare_only and args.fallback == "official":
             raise NfiBacktestError("--fallback official cannot be combined with --prepare-only")
 
+        from ..user_flow import (
+            RunProgress,
+            finish_one_line_run,
+            format_run_banner,
+            format_run_preflight,
+            resolve_consent,
+            write_run_preflight,
+        )
+
+        interactive = sys.stdin.isatty()
+
         project_path = args.project.resolve()
         if project_path.is_file():
             supplied = {
@@ -96,11 +107,55 @@ def execute(args: argparse.Namespace) -> int:
             changed = [name for name, value in supplied.items() if value is not None]
             if changed:
                 raise NfiBacktestError(
-                    "saved project already exists; reconfigure with "
-                    f"`nfi-bte init --force` instead of overriding {', '.join(changed)}"
+                    "saved project already exists; choose the new guided setup from "
+                    f"`nfi-bte run` instead of overriding {', '.join(changed)}"
+                )
+            if not args.yes and not interactive:
+                raise NfiBacktestError(
+                    "non-interactive run requires --yes to confirm CPU-intensive work"
                 )
             settings = load_project(project_path)
+            new_setup = False
+            if interactive and not args.yes and not args.new_run:
+                print(
+                    f"Saved project found: {settings.class_name}  ·  "
+                    f"{settings.timerange}  ·  {settings.output_directory}"
+                )
+                new_setup = resolve_consent(
+                    None,
+                    interactive=True,
+                    question="Start a new guided setup instead?",
+                )
+                print()
+            if new_setup:
+                previous_output = settings.output_directory
+                try:
+                    selected_source = input(
+                        f"Strategy file [{settings.strategy_path}]: "
+                    ).strip()
+                except EOFError as exc:
+                    raise NfiBacktestError("strategy selection was cancelled") from exc
+                settings = initialize_project(
+                    project_path=project_path,
+                    source=selected_source or settings.strategy_path,
+                    interactive=True,
+                    force=True,
+                    guided=True,
+                    prompt=input,
+                )
+                output = settings.output_directory
+                if output.is_dir() and any(output.iterdir()):
+                    settings = retarget_project_output(
+                        settings,
+                        _next_output_directory(output),
+                    )
+                print(f"Previous run evidence kept: {previous_output}")
+                print()
         else:
+            if not args.yes and not interactive:
+                raise NfiBacktestError(
+                    "non-interactive run requires --yes to confirm CPU-intensive work"
+                )
             settings = initialize_project(
                 project_path=project_path,
                 source=args.source,
@@ -114,20 +169,6 @@ def execute(args: argparse.Namespace) -> int:
                 pair_count=args.pair_count,
                 interactive=not args.yes,
             )
-        from ..user_flow import (
-            RunProgress,
-            finish_one_line_run,
-            format_run_banner,
-            format_run_preflight,
-            resolve_consent,
-            write_run_preflight,
-        )
-
-        interactive = sys.stdin.isatty()
-        if not args.yes and not interactive:
-            raise NfiBacktestError(
-                "non-interactive run requires --yes to confirm CPU-intensive work"
-            )
 
         saved_settings = settings
         output = settings.output_directory
@@ -136,14 +177,6 @@ def execute(args: argparse.Namespace) -> int:
         start_fresh = args.new_run
         if start_fresh and not output_had_files:
             raise NfiBacktestError("--new-run requires existing run output")
-        if completed_run and not start_fresh and not args.yes:
-            print(f"Completed run found: {output}")
-            start_fresh = resolve_consent(
-                None,
-                interactive=interactive,
-                question="Start a new backtest with the same saved settings?",
-            )
-            print()
 
         if start_fresh:
             settings = replace(

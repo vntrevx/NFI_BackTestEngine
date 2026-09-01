@@ -546,19 +546,21 @@ def test_saved_run_resumes_after_confirmation(
         "stdin",
         SimpleNamespace(isatty=lambda: True),
     )
+    answers = iter(("n", "y"))
     monkeypatch.setattr(
         "builtins.input",
-        lambda question: prompts.append(question) or "y",
+        lambda question: prompts.append(question) or next(answers),
     )
 
     assert cli.main(["run"]) == 0
     assert captured["resume"] is True
     assert captured["prepare_only"] is False
-    assert "Resume this run now?" in prompts[0]
-    assert "CPU workers may run at full load" in prompts[0]
+    assert "Start a new guided setup instead?" in prompts[0]
+    assert "Resume this run now?" in prompts[1]
+    assert "CPU workers may run at full load" in prompts[1]
 
 
-def test_completed_run_asks_before_starting_fresh(
+def test_saved_project_can_restart_guided_setup(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -573,6 +575,8 @@ def test_completed_run_asks_before_starting_fresh(
     settings.output_directory.mkdir(parents=True)
     (settings.output_directory / "identity.json").write_text("old", encoding="utf-8")
     write_json(settings.output_directory / "run.json", {"complete": True})
+    previous_config = tmp_path / ".nfi/first-run-config.json"
+    write_json(previous_config, {"previous": True})
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
         run_command.sys,
@@ -580,37 +584,38 @@ def test_completed_run_asks_before_starting_fresh(
         SimpleNamespace(isatty=lambda: True),
     )
     prompts: list[str] = []
-    answers = iter(("y", "y"))
+    answers = iter(("y", "", "futures", "binance", "1", "", "n"))
     monkeypatch.setattr(
         "builtins.input",
         lambda question: prompts.append(question) or next(answers),
     )
-    captured: dict = {}
-
-    def fake_run(**kwargs):
-        captured.update(kwargs)
-        return {
-            "status": "prepared",
-            "vectors": {"pair_count": 1, "cache_hits": 0},
-            "resumed_stages": [],
-            "complete": False,
-            "prepared_only": True,
-        }
-
-    monkeypatch.setattr(research_runner, "run_research_backtest", fake_run)
+    monkeypatch.setattr(
+        research_runner,
+        "run_research_backtest",
+        lambda **_kwargs: pytest.fail("cancelled guided run must not start simulation"),
+    )
 
     assert cli.main(["run", "--fallback", "disabled"]) == 0
 
-    fresh_output = settings.output_directory.with_name(
-        f"{settings.output_directory.name}-new"
-    )
-    assert "Start a new backtest with the same saved settings?" in prompts[0]
-    assert "Start this backtest now?" in prompts[1]
-    assert captured["resume"] is False
-    assert captured["output_directory"] == fresh_output
-    assert load_project(settings.project_path).output_directory == fresh_output
+    refreshed = load_project(settings.project_path)
+    generated_config = tmp_path / ".nfi/first-run-config-new.json"
+    assert "Start a new guided setup instead?" in prompts[0]
+    assert prompts[1].startswith("Strategy file")
+    assert prompts[2].startswith("Trading mode")
+    assert prompts[3].startswith("Exchange")
+    assert prompts[4].startswith("Number of markets")
+    assert prompts[5].startswith("Backtest period")
+    assert "Start this backtest now?" in prompts[6]
+    assert refreshed.strategy_path == settings.strategy_path
+    assert refreshed.config_path == generated_config
+    assert refreshed.pairs == ("BTC/USDT:USDT",)
+    assert refreshed.output_directory != settings.output_directory
+    assert read_json(previous_config) == {"previous": True}
+    assert read_json(generated_config)["trading_mode"] == "futures"
     assert (settings.output_directory / "identity.json").read_text(encoding="utf-8") == "old"
-    assert f"New run output  ·  {fresh_output}" in capsys.readouterr().out
+    assert f"Previous run evidence kept: {settings.output_directory}" in (
+        capsys.readouterr().out
+    )
 
 
 def test_completed_run_defaults_to_existing_result(
@@ -655,7 +660,7 @@ def test_completed_run_defaults_to_existing_result(
     assert cli.main(["run", "--no-verify", "--fallback", "disabled"]) == 0
 
     assert len(prompts) == 1
-    assert "Start a new backtest with the same saved settings?" in prompts[0]
+    assert "Start a new guided setup instead?" in prompts[0]
     assert captured["resume"] is True
     assert captured["output_directory"] == settings.output_directory
     assert load_project(settings.project_path).output_directory == settings.output_directory
@@ -727,8 +732,9 @@ def test_saved_run_cancellation_starts_no_simulation(
 
     assert cli.main(["run"]) == 0
 
-    assert "Resume this run now?" in prompts[0]
-    assert "CPU workers may run at full load" in prompts[0]
+    assert "Start a new guided setup instead?" in prompts[0]
+    assert "Resume this run now?" in prompts[1]
+    assert "CPU workers may run at full load" in prompts[1]
     assert "Backtest cancelled. No simulation was started." in capsys.readouterr().out
 
 
@@ -780,7 +786,7 @@ def test_saved_project_rejects_inline_reconfiguration(
     result = cli.main(["run", "--timerange", "20240101-20250101"])
 
     assert result == 2
-    assert "init --force" in capsys.readouterr().err
+    assert "choose the new guided setup" in capsys.readouterr().err
 
 
 def test_project_arguments_do_not_embed_config_secrets(tmp_path: Path) -> None:

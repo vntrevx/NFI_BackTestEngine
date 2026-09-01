@@ -152,12 +152,12 @@ limit and asks for confirmation; Enter defaults to No. Use `--workers N` to lowe
 parallel worker count. Non-interactive jobs must pass `--yes`, which is the explicit
 consent that bypasses this prompt.
 
-If the saved output already contains a completed run, the CLI first asks whether to
-start a new backtest with the same settings. Enter defaults to reusing the completed
-result without preparation or simulation. Yes selects a new sibling output such as
-`<previous>-new`; the project switches to it only after the CPU confirmation, and the
-previous evidence remains untouched. Use `--new-run --yes` for the same fresh-output
-choice in unattended automation.
+When a saved project exists, interactive `nfi-bte run` first asks whether to continue
+it or start a new guided setup. Enter continues the saved project. Yes asks for the
+strategy file (the previous strategy is the default), then runs the trading-mode,
+exchange, market-count, data, and timerange setup again. Guided setup writes a separate
+safe config and output; prior run evidence remains untouched. `--new-run --yes` remains
+the unattended option for fresh output with the same saved settings.
 
 The terminal starts with a compact NFI header and one-line system readiness, then keeps
 one rotating progress line in place. Completion prints the full Freqtrade-style result

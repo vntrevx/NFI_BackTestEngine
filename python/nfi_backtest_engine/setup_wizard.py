@@ -44,6 +44,7 @@ def initialize_project(
     pair_count: str | None = None,
     interactive: bool = True,
     force: bool = False,
+    guided: bool = False,
     prompt: Prompt = input,
     emit: Emitter = print,
     now: datetime | None = None,
@@ -71,18 +72,24 @@ def initialize_project(
         prompt=prompt,
         emit=emit,
     )
+    generated_config = destination.parent / "first-run-config.json"
+    if guided and generated_config.exists():
+        generated_config = _next_generated_config_path(generated_config)
     selected_config = _select_config(
         root,
         selected_source,
-        generated_path=destination.parent / "first-run-config.json",
+        generated_path=generated_config,
         config_path=config_path,
         trading_mode=trading_mode,
         interactive=interactive,
+        guided=guided,
         prompt=prompt,
         emit=emit,
     )
     loaded_config = load_effective_config(selected_config)
-    beginner_setup = selected_config == (destination.parent / "first-run-config.json").resolve()
+    beginner_setup = (guided and config_path is None) or selected_config == (
+        destination.parent / "first-run-config.json"
+    ).resolve()
     selected_pairs = _select_pairs(
         loaded_config["config"],
         workspace=root,
@@ -222,6 +229,7 @@ def _select_config(
     trading_mode: str | None,
     interactive: bool,
     prompt: Prompt,
+    guided: bool,
     emit: Emitter,
 ) -> Path:
     if config_path is not None:
@@ -231,7 +239,9 @@ def _select_config(
         return selected
 
     candidates = _config_candidates(workspace, source)
-    valid = [candidate for candidate in candidates if _is_valid_config(candidate)]
+    valid = [] if guided else [
+        candidate for candidate in candidates if _is_valid_config(candidate)
+    ]
     if len(valid) == 1:
         selected = valid[0]
         emit(f"detected Freqtrade config: {selected}")
@@ -244,7 +254,12 @@ def _select_config(
             emit=emit,
         )
     else:
-        if candidates:
+        if guided:
+            emit(
+                "Guided setup will create a separate safe config; "
+                "existing config files will not be changed."
+            )
+        elif candidates:
             emit(
                 "NFI's modular config was found. It will not be changed; "
                 "the backtest engine will create its own safe config."
@@ -654,6 +669,15 @@ def _select_output_directory(
     separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", class_name)
     slug = re.sub(r"[^a-z0-9]+", "-", separated.lower()).strip("-")
     return (workspace / ".nfi" / "runs" / f"{slug}-{timerange}").resolve()
+
+
+def _next_generated_config_path(path: Path) -> Path:
+    candidate = path.with_name(f"{path.stem}-new{path.suffix}")
+    suffix = 2
+    while candidate.exists():
+        candidate = path.with_name(f"{path.stem}-new-{suffix}{path.suffix}")
+        suffix += 1
+    return candidate
 
 
 def _strategy_candidates(workspace: Path) -> list[Path]:
