@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 from nfi_backtest_engine import cli, research_runner, setup_wizard, user_flow
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.commands import run as run_command
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.project_setup import (
@@ -466,6 +467,15 @@ def test_first_run_initializes_project_and_forwards_existing_runner_contract(
     source, _, _ = _standard_layout(tmp_path)
     monkeypatch.chdir(tmp_path)
     calls: list[dict] = []
+    monkeypatch.setattr(
+        run_command.sys,
+        "stdin",
+        SimpleNamespace(isatty=lambda: True),
+    )
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda _question: pytest.fail("--yes must bypass interactive confirmation"),
+    )
 
     def fake_run(**kwargs):
         calls.append(kwargs)
@@ -502,7 +512,7 @@ def test_first_run_initializes_project_and_forwards_existing_runner_contract(
     assert preflight["disk"]["download_growth_bounded"] is False
 
 
-def test_saved_run_automatically_resumes_nonempty_output(
+def test_saved_run_resumes_after_confirmation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -530,8 +540,91 @@ def test_saved_run_automatically_resumes_nonempty_output(
 
     monkeypatch.setattr(research_runner, "run_research_backtest", fake_run)
 
-    assert cli.main(["run", "--prepare-only"]) == 0
+    prompts: list[str] = []
+    monkeypatch.setattr(
+        run_command.sys,
+        "stdin",
+        SimpleNamespace(isatty=lambda: True),
+    )
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda question: prompts.append(question) or "y",
+    )
+
+    assert cli.main(["run"]) == 0
     assert captured["resume"] is True
+    assert captured["prepare_only"] is False
+    assert "Resume this run now?" in prompts[0]
+    assert "CPU workers may run at full load" in prompts[0]
+
+
+def test_saved_run_cancellation_starts_no_simulation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    settings.output_directory.mkdir(parents=True)
+    (settings.output_directory / "identity.json").write_text("{}", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        run_command.sys,
+        "stdin",
+        SimpleNamespace(isatty=lambda: True),
+    )
+    prompts: list[str] = []
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda question: prompts.append(question) or "n",
+    )
+    monkeypatch.setattr(
+        research_runner,
+        "run_research_backtest",
+        lambda **_kwargs: pytest.fail("declined run must not reach the simulator"),
+    )
+
+    assert cli.main(["run"]) == 0
+
+    assert "Resume this run now?" in prompts[0]
+    assert "CPU workers may run at full load" in prompts[0]
+    assert "Backtest cancelled. No simulation was started." in capsys.readouterr().out
+
+
+def test_noninteractive_saved_run_requires_yes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        run_command.sys,
+        "stdin",
+        SimpleNamespace(isatty=lambda: False),
+    )
+    monkeypatch.setattr(
+        research_runner,
+        "run_research_backtest",
+        lambda **_kwargs: pytest.fail("unconfirmed run must not reach the simulator"),
+    )
+
+    assert cli.main(["run"]) == 2
+    assert (
+        "non-interactive run requires --yes to confirm CPU-intensive work"
+        in capsys.readouterr().err
+    )
 
 
 def test_saved_project_rejects_inline_reconfiguration(
@@ -593,6 +686,8 @@ def test_disk_preflight_derives_work_and_margin_from_local_inputs(
         lambda _workspace: {
             "system": "test",
             "machine": "portable",
+            "physical_cpu_count": 4,
+            "logical_cpu_count": 8,
             "affinity_cpu_count": 4,
             "memory": {"available_bytes": 10_000},
         },
@@ -616,6 +711,13 @@ def test_disk_preflight_derives_work_and_margin_from_local_inputs(
     known = fresh["disk"]["known_input_bytes"]
 
     assert fresh["passed"] is True
+    assert fresh["host"]["cpu_worker_limit"] == 4
+    assert fresh["host"]["physical_cpu_count"] == 4
+    assert fresh["host"]["logical_cpu_count"] == 8
+    assert "4 CPU workers (4 logical visible)" in user_flow.format_run_preflight(
+        fresh,
+        settings.workspace / ".nfi/run-preflight.json",
+    )
     assert fresh["disk"]["known_data_logical_bytes"] == 400
     assert fresh["disk"]["estimated_remaining_work_bytes"] == known
     assert fresh["disk"]["safety_margin_bytes"] == known
@@ -652,6 +754,8 @@ def test_disk_preflight_fails_before_native_when_measured_space_is_insufficient(
         lambda _workspace: {
             "system": "test",
             "machine": "portable",
+            "physical_cpu_count": 2,
+            "logical_cpu_count": 4,
             "affinity_cpu_count": 2,
             "memory": {"available_bytes": 1_000},
         },

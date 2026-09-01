@@ -147,6 +147,11 @@ After setup, run or resume the saved project with:
 nfi-bte run
 ```
 
+Before any preparation or simulation starts, the CLI displays the planned CPU worker
+limit and asks for confirmation; Enter defaults to No. Use `--workers N` to lower the
+parallel worker count. Non-interactive jobs must pass `--yes`, which is the explicit
+consent that bypasses this prompt.
+
 The terminal starts with a compact NFI header and one-line system readiness, then keeps
 one rotating progress line in place. Completion prints the full Freqtrade-style result
 tables and concise relative artifact paths. Use `--no-full-report` for the compact card.
