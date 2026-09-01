@@ -4,6 +4,14 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.3 - 2026-09-01
+
+- Saved projects now offer a full guided restart before execution: choose the strategy
+  again, then select trading mode, exchange, market count, data, and timerange.
+- Guided restarts write a separate generated config and output while preserving prior
+  run evidence. Enter continues the existing saved project.
+
+
 ## 1.10.2 - 2026-09-01
 
 - Completed outputs now trigger an explicit choice to reuse the existing result or
