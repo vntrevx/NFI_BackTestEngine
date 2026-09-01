@@ -4,6 +4,21 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.0 - 2026-09-01
+
+- Rebuilt `nfi-bte run` as a product-style terminal flow: compact NFI ASCII branding,
+  one rotating in-place progress line, one-line system readiness, and concise result
+  artifact paths.
+- Made the complete Freqtrade-style result view the default, including backtesting,
+  open-trade, entry-tag, exit-reason, mixed-tag, summary-metric, and strategy-summary
+  tables. Metrics unavailable from the sealed Native trade surface remain explicitly
+  marked instead of being inferred.
+- Added presentation metrics for daily results, stake and duration statistics,
+  entry/exit timeouts, mixed tags, long/short profit, and zero-trade pair retention.
+- Completed runs now regenerate derived presentation files on display while preserving
+  immutable simulation evidence.
+
+
 ## 1.9.1 - 2026-09-01
 
 - Fixed completed-run reuse after presentation-only package upgrades. The runner now

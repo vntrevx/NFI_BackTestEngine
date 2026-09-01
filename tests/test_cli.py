@@ -247,6 +247,7 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
         ]
     )
     unattended_run = parser.parse_args(["run", "--yes"])
+    compact_run = parser.parse_args(["run", "--no-full-report"])
     shown = parser.parse_args(["runs", "show", "1234567890ab", "--full-report"])
 
     assert report.command_name == "report"
@@ -260,6 +261,8 @@ def test_result_report_and_run_registry_machine_modes_parse() -> None:
     assert saved_run.verify is True
     assert saved_run.verification_timeout == 45
     assert unattended_run.verify is None
+    assert unattended_run.full_report is True
+    assert compact_run.full_report is False
     assert shown.full_report is True
 
 

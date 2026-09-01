@@ -56,7 +56,7 @@ def test_summary_calculates_readable_performance_and_risk_metrics() -> None:
     surface = read_json(FIXTURE)
     summary = build_result_summary(_run_report(), surface)
 
-    assert summary["schema_version"] == "2.0.0"
+    assert summary["schema_version"] == "2.1.0"
     assert summary["run"]["strategy"] == "ContractLifecycleStrategy"
     assert summary["artifacts"]["markdown_report"] == "report.md"
     assert "html_report" not in summary["artifacts"]
@@ -66,28 +66,82 @@ def test_summary_calculates_readable_performance_and_risk_metrics() -> None:
         0.49538895 + 0.1114823 + 0.25110407
     )
     assert summary["performance"]["profit_factor"] == pytest.approx(expected_profit_factor)
-    assert summary["activity"] == {
-        "pairs": 1,
-        "trades": 6,
-        "wins": 3,
-        "losses": 3,
-        "draws": 0,
-        "win_rate": 0.5,
-        "average_duration_minutes": pytest.approx(358.333333333333),
-        "median_duration_minutes": 360.0,
-        "open_trades": 0,
-        "rejected_signals": 0,
-        "max_open_trades": 1,
-        "locks": 0,
-        "total_volume": pytest.approx(1494.4921414423),
+    assert summary["activity"]["pairs"] == 1
+    assert summary["activity"]["trades"] == 6
+    assert summary["activity"]["wins"] == 3
+    assert summary["activity"]["losses"] == 3
+    assert summary["activity"]["draws"] == 0
+    assert summary["activity"]["win_rate"] == 0.5
+    assert summary["activity"]["average_duration_minutes"] == pytest.approx(
+        358.333333333333
+    )
+    assert summary["activity"]["median_duration_minutes"] == 360.0
+    assert summary["activity"]["average_stake_amount"] == pytest.approx(124.183681866667)
+    assert summary["activity"]["winning_duration_minutes"] == {
+        "minimum": 360,
+        "maximum": 360,
+        "average": 360.0,
     }
+    assert summary["activity"]["losing_duration_minutes"]["minimum"] == 350
+    assert summary["activity"]["open_trades"] == 0
+    assert summary["activity"]["rejected_signals"] == 0
+    assert summary["activity"]["entry_timeouts"] == 0
+    assert summary["activity"]["exit_timeouts"] == 0
+    assert summary["activity"]["max_open_trades"] == 1
+    assert summary["activity"]["locks"] == 0
+    assert summary["activity"]["total_volume"] == pytest.approx(1494.4921414423)
     assert summary["risk"]["max_closed_trade_drawdown_ratio"] > 0
     assert summary["risk"]["maximum_consecutive_wins"] == 3
     assert summary["risk"]["maximum_consecutive_losses"] == 2
     assert summary["breakdowns"]["by_pair"][0]["pair"] == "BTC/USDT"
+    assert summary["breakdowns"]["by_open_pair"] == []
+    assert summary["breakdowns"]["by_entry_exit"][0]["entry_tag"] == "contract_route"
+    assert summary["breakdowns"]["by_day"][0]["day"] == "2025-01-01"
     assert summary["breakdowns"]["by_month"][0]["month"] == "2025-01"
     assert len(summary["equity_curve"]["points"]) == 7
     assert summary["futures"] is None
+
+
+def test_zero_trade_summary_keeps_profile_pair_in_freqtrade_report() -> None:
+    surface = read_json(FIXTURE)
+    surface["trades"] = []
+    surface["summary"].update(
+        {
+            "total_trades": 0,
+            "final_balance": surface["summary"]["starting_balance"],
+            "profit_total_abs": "0",
+            "total_volume": "0",
+        }
+    )
+    report = _run_report()
+    report["result"] = {
+        "execution": {
+            "profile": {
+                "phases": {
+                    "input": {
+                        "pair_identities": ["BTC/USDT|5m"],
+                    }
+                }
+            }
+        }
+    }
+
+    summary = build_result_summary(report, surface)
+
+    assert summary["breakdowns"]["by_pair"] == [
+        {
+            "pair": "BTC/USDT",
+            "trades": 0,
+            "wins": 0,
+            "losses": 0,
+            "draws": 0,
+            "win_rate": 0.0,
+            "profit_abs": 0.0,
+            "profit_ratio_sum": 0.0,
+            "average_profit_ratio": 0.0,
+            "average_duration_minutes": 0.0,
+        }
+    ]
 
 
 def test_summary_exposes_exact_futures_lifecycle_metrics() -> None:

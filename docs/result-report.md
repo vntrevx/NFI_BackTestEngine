@@ -26,13 +26,14 @@ macOS.
 
 Starting with v1.9.0, report generation writes no HTML and never asks to open a
 browser. Regenerating an older run deletes a stale sibling `report.html`. The
-`summary.json` schema is `2.0.0`; its artifact map uses
-`"markdown_report": "report.md"` and no longer exposes `html_report`.
+`summary.json` schema `2.1.0` adds daily, duration, stake, timeout,
+mixed-tag, open-trade, and long/short presentation metrics. Its artifact map uses
+`"markdown_report": "report.md"` and does not expose `html_report`.
 
-The terminal card is a compact ASCII box containing strategy, period, mode, pair and
-trade counts, profit, balance, win rate, drawdown, runtime, memory, and official parity.
-A completed run with no trades receives an explicit valid-zero-trade explanation
-instead of an empty chart or ambiguous success page.
+`nfi-bte run` prints the complete Freqtrade-style terminal structure by default:
+backtesting, left-open-trade, entry-tag, exit-reason, mixed-tag, summary-metric,
+and strategy-summary tables. Interactive work uses one rotating in-place status line.
+A completed run with no trades still names the configured pairs and prints zero totals.
 
 ## Summary metrics
 
@@ -109,19 +110,19 @@ Bind an existing proof explicitly:
 nfi-bte report RESULT_DIR --confirmation CONFIRM_DIR/confirmation.json
 ```
 
-The default terminal card is intentionally compact. Print complete
-Freqtrade-style pair, entry-tag, exit-reason, and direction tables when
-investigating a run:
+`nfi-bte report` and `nfi-bte runs show` remain compact by default. Request the same
+complete view used by `nfi-bte run` with:
 
 ```bash
 nfi-bte report RESULT_DIR --full-report
 nfi-bte runs show RUN_ID --full-report
 ```
 
-Each table includes trade count, average profit, absolute profit, win rate,
-win/draw/loss counts, and a total row. Every group is printed. Terminal-only
-labels longer than 48 characters are shortened with an ellipsis; exact labels
-remain available in `summary.json` and `trades.csv`.
+Use `nfi-bte run --no-full-report` when a saved-project run only needs the compact card.
+Performance tables include trade count, average and total profit, total-profit
+percentage, average duration, win/draw/loss counts, and totals. Terminal-only labels
+longer than 48 characters are shortened with an ellipsis; exact labels remain
+available in `summary.json` and `trades.csv`.
 
 The durable run index is human-readable by default:
 

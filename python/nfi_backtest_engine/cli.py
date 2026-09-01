@@ -103,13 +103,18 @@ def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_full_report_argument(parser: argparse.ArgumentParser) -> None:
+def _add_full_report_argument(
+    parser: argparse.ArgumentParser,
+    *,
+    default: bool = False,
+) -> None:
     parser.add_argument(
         "--full-report",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=default,
         help=(
-            "append complete pair, entry-tag, Signal-tag, Grind-level, "
-            "and exit-reason tables to terminal output"
+            "show complete Freqtrade-style result tables in the terminal "
+            f"(default: {'on' if default else 'off'})"
         ),
     )
 
@@ -652,7 +657,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional timeout for the consented official verification in seconds",
     )
     _add_fallback_arguments(run)
-    _add_full_report_argument(run)
+    _add_full_report_argument(run, default=True)
 
     system = subcommands.add_parser("system", help="inspect and tune this computer")
     system_commands = system.add_subparsers(dest="system_command", required=True)

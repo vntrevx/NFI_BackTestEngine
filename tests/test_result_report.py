@@ -107,23 +107,29 @@ def test_report_writes_markdown_json_and_csv_without_mutating_evidence(
 
     terminal = format_terminal_summary(summary, run)
     assert "NFI BACKTEST — COMPLETE ✓" in terminal
-    assert "Pairs / trades        1 / 6" in terminal
-    assert "Official parity       NOT RUN" in terminal
-    assert "Markdown report       report.md" in terminal
-    assert str(run.resolve()) in terminal
-    assert "PAIR PERFORMANCE" not in terminal
+    assert "Pairs / trades" in terminal
+    assert "1 / 6" in terminal
+    assert "Official parity" in terminal
+    assert "NOT RUN" in terminal
+    assert "Report" in terminal
+    assert "report.md" in terminal
+    assert "BACKTESTING REPORT" not in terminal
 
     full_terminal = format_terminal_summary(
         summary,
         run,
         include_breakdowns=True,
     )
-    assert "PAIR PERFORMANCE · 1 rows" in full_terminal
-    assert "ENTRY TAG PERFORMANCE" in full_terminal
-    assert "EXIT REASON PERFORMANCE" in full_terminal
+    assert "BACKTESTING REPORT" in full_terminal
+    assert "LEFT OPEN TRADES REPORT" in full_terminal
+    assert "ENTER TAG STATS" in full_terminal
+    assert "EXIT REASON STATS" in full_terminal
+    assert "MIXED TAG STATS" in full_terminal
+    assert "SUMMARY METRICS" in full_terminal
+    assert "STRATEGY SUMMARY" in full_terminal
     assert "BTC/USDT" in full_terminal
-    assert "AVG PROFIT" in full_terminal
-    assert "W / D / L" in full_terminal
+    assert "Avg Profit %" in full_terminal
+    assert "Win  Draw  Loss  Win%" in full_terminal
     assert "TOTAL" in full_terminal
 
 
@@ -147,10 +153,9 @@ def test_confirmation_refreshes_only_derived_presentation(tmp_path: Path) -> Non
     assert (run / "run.json").read_bytes() == evidence_before
     assert summary["verification"]["status"] == "exact_match"
     assert "EXACT MATCH" in (run / "report.md").read_text(encoding="utf-8")
-    assert "Official parity       EXACT MATCH ✓" in format_terminal_summary(
-        summary,
-        run,
-    )
+    confirmed_terminal = format_terminal_summary(summary, run)
+    assert "Official parity" in confirmed_terminal
+    assert "EXACT MATCH ✓" in confirmed_terminal
 
 
 def test_futures_report_shows_funding_leverage_liquidation_and_locks(
@@ -173,9 +178,12 @@ def test_futures_report_shows_funding_leverage_liquidation_and_locks(
     terminal = format_terminal_summary(summary, run)
     markdown = (run / "report.md").read_text(encoding="utf-8")
 
-    assert "Long / short          3 / 0" in terminal
-    assert "Leverage              5.00x–5.00x (1 distinct)" in terminal
-    assert "Liquidations / locks  1 / 2" in terminal
+    assert "Long / short" in terminal
+    assert "3 / 0" in terminal
+    assert "Leverage" in terminal
+    assert "5.00x–5.00x (1 distinct)" in terminal
+    assert "Liquidations / locks" in terminal
+    assert "1 / 2" in terminal
     assert "Futures Lifecycle" in markdown
     assert "Funding total" in markdown
     assert "Liquidation exits" in markdown
@@ -201,6 +209,7 @@ def test_report_uses_an_adjacent_certification_peak_rss_measurement(
     summary = write_result_presentation(run)
 
     assert summary["execution"]["peak_rss_bytes"] == 3 * 1024**3
+    assert "Memory" in format_terminal_summary(summary, run)
     assert "3.0 GiB peak RSS" in format_terminal_summary(summary, run)
 
 
