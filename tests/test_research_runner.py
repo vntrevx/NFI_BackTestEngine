@@ -704,6 +704,107 @@ def test_completed_previous_resume_preserves_v15_checkpointed_evidence(
     }
 
 
+def test_completed_resume_accepts_package_only_upgrade_without_rewriting_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    arguments, calls = _resume_workspace(monkeypatch, tmp_path)
+    research_runner.run_research_backtest(**arguments)
+    output = Path(arguments["output_directory"])
+    identity_path = output / "identity.json"
+    run_path = output / "run.json"
+    identity_document = read_json(identity_path)
+    current_identity = identity_document["identity"]
+    previous_identity = dict(current_identity)
+    previous_pipeline = dict(current_identity["pipeline"])
+    previous_pipeline["package_version"] = "1.8.4"
+    previous_identity["pipeline"] = previous_pipeline
+    previous_run_id = research_runner._identity_sha256(previous_identity)
+    previous_report = read_json(run_path)
+    previous_report["run_id"] = previous_run_id
+    previous_report["inputs"] = previous_identity
+    write_json(
+        identity_path,
+        {"run_id": previous_run_id, "identity": previous_identity},
+    )
+    write_json(run_path, previous_report)
+    checkpoint_path = output / "checkpoints" / "simulation.json"
+    checkpoint = read_json(checkpoint_path)
+    checkpoint["run_id"] = previous_run_id
+    write_json(checkpoint_path, checkpoint)
+    evidence_before = {
+        name: (output / name).read_bytes()
+        for name in (
+            "identity.json",
+            "run.json",
+            "checkpoints/simulation.json",
+            "simulation-input.manifest.json",
+            "simulation-result.json",
+            "trade-surface.json",
+        )
+    }
+
+    resumed = research_runner.run_research_backtest(
+        **arguments,
+        resume=True,
+    )
+
+    assert resumed == previous_report
+    assert calls["engine"] == 1
+    assert evidence_before == {
+        name: (output / name).read_bytes()
+        for name in evidence_before
+    }
+    changed_identity = dict(previous_identity)
+    changed_identity["timerange"] = "20250101-20250105"
+    assert (
+        research_runner._package_only_resume_identity(
+            {
+                "run_id": research_runner._identity_sha256(changed_identity),
+                "identity": changed_identity,
+            },
+            current_identity,
+        )
+        is None
+    )
+
+
+def test_incomplete_resume_rejects_package_only_upgrade(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    arguments, calls = _resume_workspace(monkeypatch, tmp_path)
+    research_runner.run_research_backtest(
+        **arguments,
+        prepare_only=True,
+    )
+    output = Path(arguments["output_directory"])
+    identity_path = output / "identity.json"
+    identity_document = read_json(identity_path)
+    previous_identity = dict(identity_document["identity"])
+    previous_pipeline = dict(previous_identity["pipeline"])
+    previous_pipeline["package_version"] = "1.8.4"
+    previous_identity["pipeline"] = previous_pipeline
+    previous_run_id = research_runner._identity_sha256(previous_identity)
+    write_json(
+        identity_path,
+        {"run_id": previous_run_id, "identity": previous_identity},
+    )
+    run_path = output / "run.json"
+    previous_report = read_json(run_path)
+    previous_report["run_id"] = previous_run_id
+    previous_report["inputs"] = previous_identity
+    write_json(run_path, previous_report)
+
+    with pytest.raises(BenchmarkError, match="incomplete compatible run"):
+        research_runner.run_research_backtest(
+            **arguments,
+            resume=True,
+        )
+
+    assert calls["engine"] == 0
+
+
 def test_prepare_only_resume_continues_from_simulation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

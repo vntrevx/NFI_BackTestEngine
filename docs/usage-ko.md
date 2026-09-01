@@ -173,6 +173,10 @@ nfi-bte run
 nfi-bte report .nfi/runs/<strategy-and-timerange>
 ```
 
+`nfi-bte update` 후 패키지 버전만 달라진 완료 실행은 그대로 재사용할 수 있습니다.
+엔진은 원래 identity와 결과물을 수정하지 않고 검증합니다. 전략, 설정, 페어, 기간
+또는 의미론적 파이프라인이 달라졌다면 다른 `--output-dir`이 필요합니다.
+
 엔진은 해시가 유효한 완료 단계만 재개합니다. 페어, 기간, 모드 또는 다른 실행 입력을 의도적으로 변경할 때는 다른 `--output-dir`을 사용하십시오.
 
 ## 9. Native 시뮬레이션 없이 데이터만 준비

@@ -172,6 +172,11 @@ Regenerate the Markdown report and machine exports without rerunning the simulat
 nfi-bte report .nfi/runs/<strategy-and-timerange>
 ```
 
+After `nfi-bte update`, a completed run is reusable when only the package version
+changed. The engine verifies its original identity and artifacts without rewriting
+them. Any changed strategy, config, pairs, timerange, or semantic pipeline still
+requires a different `--output-dir`.
+
 The engine resumes only hash-valid completed stages. Use a different `--output-dir` when intentionally changing pairs, timerange, mode, or other run inputs.
 
 ## 9. Prepare data without starting Native simulation

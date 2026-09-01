@@ -343,7 +343,7 @@ def run_research_backtest(
             existing_identity_document.get("run_id") != run_id
             or existing_identity_document.get("identity") != identity
         ):
-            legacy_match = next(
+            compatible_match = next(
                 (
                     (candidate, _identity_sha256(candidate))
                     for candidate in _resume_identity_candidates(identity)
@@ -353,31 +353,37 @@ def run_research_backtest(
                 ),
                 None,
             )
-            if legacy_match is None:
-                raise BenchmarkError(
-                    "resume identity differs from the existing research run"
+            if compatible_match is None:
+                compatible_match = _package_only_resume_identity(
+                    existing_identity_document,
+                    identity,
                 )
-            legacy_identity, legacy_run_id = legacy_match
-            legacy_run = _load_existing_run(
-                output,
-                run_id=legacy_run_id,
-                identity=legacy_identity,
-            )
-            if legacy_run is None or legacy_run["complete"] is not True:
+            if compatible_match is None:
                 raise BenchmarkError(
-                    "incomplete legacy run has no ordered simulation checkpoints; "
+                    "resume identity differs from the existing research run; "
+                    "use a different --output-dir when changing inputs"
+                )
+            compatible_identity, compatible_run_id = compatible_match
+            compatible_run = _load_existing_run(
+                output,
+                run_id=compatible_run_id,
+                identity=compatible_identity,
+            )
+            if compatible_run is None or compatible_run["complete"] is not True:
+                raise BenchmarkError(
+                    "incomplete compatible run cannot be reused across identity versions; "
                     "refusing to modify its evidence"
                 )
             _validate_completed_run_artifacts(
-                legacy_run,
+                compatible_run,
                 output,
                 require_simulation_checkpoint=(
-                    legacy_identity["schema_version"] != LEGACY_RESEARCH_RUN_VERSION
+                    compatible_identity["schema_version"] != LEGACY_RESEARCH_RUN_VERSION
                 ),
             )
             if progress is not None:
                 progress(100, "Completed run already available")
-            return legacy_run
+            return compatible_run
         existing_run = _load_existing_run(output, run_id=run_id, identity=identity)
         if existing_run is not None and existing_run["complete"] is True:
             _validate_completed_run_artifacts(existing_run, output)
@@ -1452,6 +1458,39 @@ def _resume_identity_candidates(identity: dict[str, Any]) -> list[dict[str, Any]
     if legacy is not None:
         candidates.append(legacy)
     return candidates
+
+
+def _package_only_resume_identity(
+    existing_document: dict[str, Any],
+    current_identity: dict[str, Any],
+) -> tuple[dict[str, Any], str] | None:
+    """Accept completed evidence when only the presentation package version changed."""
+
+    existing_identity = existing_document.get("identity")
+    existing_run_id = existing_document.get("run_id")
+    if not isinstance(existing_identity, dict) or not isinstance(existing_run_id, str):
+        return None
+    if _identity_sha256(existing_identity) != existing_run_id:
+        return None
+    existing_pipeline = existing_identity.get("pipeline")
+    current_pipeline = current_identity.get("pipeline")
+    if not isinstance(existing_pipeline, dict) or not isinstance(current_pipeline, dict):
+        return None
+    existing_version = existing_pipeline.get("package_version")
+    current_version = current_pipeline.get("package_version")
+    if (
+        not isinstance(existing_version, str)
+        or not isinstance(current_version, str)
+        or existing_version == current_version
+    ):
+        return None
+    compatible_pipeline = dict(current_pipeline)
+    compatible_pipeline["package_version"] = existing_version
+    compatible_identity = dict(current_identity)
+    compatible_identity["pipeline"] = compatible_pipeline
+    if compatible_identity != existing_identity:
+        return None
+    return compatible_identity, existing_run_id
 
 
 def _previous_resume_identity(identity: dict[str, Any]) -> dict[str, Any] | None:
