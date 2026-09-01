@@ -1,0 +1,157 @@
+{
+  "schema_version": "freqtrade-semantic-profile-v1",
+  "reference": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "image_config_digest": "sha256:8615e1e2f8c429b27f57a0bcb948dfac1abe6828df8300c63ebd88a16ec6cabc",
+    "platform": "linux/amd64",
+    "ccxt_version": "4.5.55"
+  },
+  "observer": {
+    "tracer_version": "1.1.0",
+    "trace_schema_version": "1.0.0",
+    "tracer_source_sha256": "b2281ce34eda34848a7217fc4f850f4af9f852a82fe074229cddf2a1439e8afe",
+    "state_projection_source_sha256": "63c29070c98a116e88238466dc93132c81e5327de016b67a6294e3ee9407ff82",
+    "semantic_projection_source_sha256": "9fc193c39d5261b5a82bdd7173fde02c84e9a086e7fa5254ccc8bcb1f56ee970",
+    "observed_methods": [
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "_check_adjust_trade_for_candle",
+        "source_sha256": "900e3ec7f067fb67b56f190babed637712e26f5c08cb9e90ee5fd0df9849af8d"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "_check_trade_exit",
+        "source_sha256": "397f4c7be265c58fd9d596ae7421c8493379b9ef1ac5e20e175f05cd4643d1f8"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "_enter_trade",
+        "source_sha256": "e04325821a53f56ac22e1ee6a1ee13355f2eca7b88c193837364febf6c8bd952"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "_exit_trade",
+        "source_sha256": "ab4bfae7ee432cfc740b9a71a301ce16fe261ba5545a0d58676184a5f3c1cbb7"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "_get_ohlcv_as_lists",
+        "source_sha256": "b48e1e054762ddd55bdde5c8f7b4e27b906cd8299640fe94b25eec1adbf51a01"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "_set_strategy",
+        "source_sha256": "1c0e8070fcd84ab19e05abe9a2f94c53355bb59a36e4f73ef32b778e9856efbd"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "backtest",
+        "source_sha256": "c65dbdd3427a758d2b7b3b9e5c113970cc39c94affadfde70d8e6a2ab9452fbf"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "backtest_loop",
+        "source_sha256": "e6db4c1d0a841366eafd78d3ec2cc4d71d7a50b9331d45a5ebb9d3fd6558bc77"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "backtest_one_strategy",
+        "source_sha256": "d1e700943a7aa952fffe42ab68449d19525847d000077df377470d0aa47e024a"
+      },
+      {
+        "owner": "freqtrade.optimize.backtesting.Backtesting",
+        "method": "manage_open_orders",
+        "source_sha256": "31ae85853ad0eed91ef53d8fb5b2e39c5b5cec0f2a0566a7931e51c6eccfeac0"
+      },
+      {
+        "owner": "freqtrade.exchange.exchange.Exchange",
+        "method": "_api_reload_markets",
+        "source_sha256": "5ff713afa253ccb9538a2e3a5e03b101767c3e6dbf509246a34288197584f07e"
+      },
+      {
+        "owner": "freqtrade.data.dataprovider.DataProvider",
+        "method": "_set_cached_df",
+        "source_sha256": "1d9d480b23c77f5e2900b87a29c0356bc0820deafd4bbf85fa0da7ec6ff6987a"
+      },
+      {
+        "owner": "freqtrade.data.dataprovider.DataProvider",
+        "method": "clear_cache",
+        "source_sha256": "5442026fb519c5eb3f729cd261cd1fdba15c04814af1ad1cb09092c64e1b0099"
+      },
+      {
+        "owner": "freqtrade.data.dataprovider.DataProvider",
+        "method": "get_analyzed_dataframe",
+        "source_sha256": "b3f20023eb1a1b035d65c7ea17fa15ab7781955a957c84345a24f890990f6e45"
+      },
+      {
+        "owner": "freqtrade.strategy.interface.IStrategy",
+        "method": "advise_all_indicators",
+        "source_sha256": "43e7c0d9ee81ae77fb47a4aeed0e74dd3d164acb6fe8ebaa4a2553690b983bbb"
+      }
+    ],
+    "events": [
+      {
+        "phase": "candle.after",
+        "callbacks": []
+      },
+      {
+        "phase": "entry.lock_rejected",
+        "callbacks": [
+          "PairLocks.is_pair_locked"
+        ]
+      },
+      {
+        "phase": "order.manage",
+        "callbacks": []
+      },
+      {
+        "phase": "trade.adjustment_check",
+        "callbacks": [
+          "adjust_trade_position"
+        ]
+      },
+      {
+        "phase": "trade.entry",
+        "callbacks": [
+          "confirm_trade_entry"
+        ]
+      },
+      {
+        "phase": "trade.exit_check",
+        "callbacks": [
+          "custom_exit"
+        ]
+      },
+      {
+        "phase": "trade.exit_order",
+        "callbacks": []
+      }
+    ],
+    "canonical_state_fields": [
+      "quote_free",
+      "base_balances",
+      "open_trade_count",
+      "realized_profit",
+      "closed_trade_count",
+      "rejected_signals",
+      "trade_id_counter",
+      "order_id_counter",
+      "locks"
+    ]
+  },
+  "scope": {
+    "contract": "NFI-reachable Freqtrade backtesting semantics only",
+    "excluded": [
+      "live order placement and reconciliation",
+      "telegram and webserver control surfaces",
+      "hyperopt execution",
+      "dynamic pairlist selection during a run"
+    ],
+    "unknown_behavior": "fail-before-native-promotion",
+    "parity_requirement": "trade-surface-and-full-state-exact"
+  },
+  "fingerprint": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8"
+}

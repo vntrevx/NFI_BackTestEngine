@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "upstream_commit": "8ce2dc3c7f4e7ea18c9cbb6f88e2dd768efa1615",
+  "source_sha256": "c0ab685c0a5deca76e0665b0c4e17d9eac10345e50f08f40a1822f8e3e1c9d7d",
+  "plan": {
+    "status": "coverage-gap",
+    "selected_fixture_count": 2,
+    "missing_target_count": 10
+  },
+  "runs": [],
+  "proof": null,
+  "qualification": {
+    "schema_version": "1.0.0",
+    "trading_mode": "futures",
+    "strategy_sha256": "c0ab685c0a5deca76e0665b0c4e17d9eac10345e50f08f40a1822f8e3e1c9d7d",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "blockers": [
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "10 changed behavior target(s) have no branch-reaching fixture: signal"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
