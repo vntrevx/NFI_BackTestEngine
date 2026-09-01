@@ -99,7 +99,7 @@ def _add_project_setup_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--yes",
         action="store_true",
-        help="accept the recommended BTC and recent-seven-day defaults without prompting",
+        help="accept setup defaults and confirm run execution without prompting",
     )
 
 
@@ -611,6 +611,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_project_setup_arguments(run)
     run.add_argument("--workers", type=int)
+    run.add_argument(
+        "--new-run",
+        action="store_true",
+        help="start beside existing output without deleting prior run evidence",
+    )
     run.add_argument(
         "--recalibrate",
         action="store_true",
