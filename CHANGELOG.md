@@ -4,7 +4,7 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
-## 1.9.1 - 2026-08-31
+## 1.9.1 - 2026-09-01
 
 - Fixed completed-run reuse after presentation-only package upgrades. The runner now
   accepts an older completed identity only when the package version is the sole
