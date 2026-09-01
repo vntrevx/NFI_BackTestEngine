@@ -95,11 +95,10 @@ def execute(args: argparse.Namespace) -> int:
             )
         output = settings.output_directory
         resume = output.is_dir() and any(output.iterdir())
-        if resume:
-            print(f"existing run found; resuming hash-valid stages from {output}")
         from ..user_flow import (
             RunProgress,
             finish_one_line_run,
+            format_run_banner,
             format_run_preflight,
             write_run_preflight,
         )
@@ -109,9 +108,10 @@ def execute(args: argparse.Namespace) -> int:
             resume=resume,
             download_missing=not args.no_download,
         )
+        print(format_run_banner(settings, resume=resume))
+        print()
         print(format_run_preflight(preflight, preflight_path))
-        print(f"backtest results will be saved to: {output.resolve()}")
-        print(f"Markdown report will be: {(output / 'report.md').resolve()}")
+        print()
         with RunProgress() as progress:
             native_status = execute_research_backtest(
                 project_run_arguments(settings),

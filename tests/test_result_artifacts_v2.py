@@ -283,8 +283,8 @@ def test_signal_and_grind_tags_are_exposed_without_changing_raw_tags(
     assert "Signal Tag Stats (overlapping)" in markdown
     assert "multi-tag trades overlap" not in markdown
     assert "Grind Level Activity" in markdown
-    assert "SIGNAL TAG PERFORMANCE (OVERLAPPING)" in terminal
-    assert "GRIND LEVEL ACTIVITY · 2 levels" in terminal
+    assert "SIGNAL TAG STATS · OVERLAPPING" in terminal
+    assert "GRIND LEVEL ACTIVITY" in terminal
 
 
 def test_tag_parser_supports_unbounded_levels_and_legacy_nfi_forms() -> None:

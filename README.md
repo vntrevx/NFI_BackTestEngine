@@ -21,21 +21,20 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.9.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.9.1) |
+| Latest public release | [v1.10.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.10.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.9.1 stable release line; Linux/macOS verified |
+| Current `main` | v1.10.0 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.9.1 preserves current-source compatibility for X7 v17.4.587 at upstream commit
-`95b76043c3f610e0760e191deebd12304bfadbf8` and the compact Freqtrade-style
-`report.md` introduced in v1.9.0. It fixes reuse of completed research evidence after
-a presentation-only package update: when every strategy, config, pair, data, runtime,
-and semantic pipeline identity is unchanged, `nfi-bte run` now validates and returns
-the completed run instead of reporting an unexplained resume-identity mismatch.
+v1.10.0 preserves current-source compatibility for X7 v17.4.587 at upstream commit
+`95b76043c3f610e0760e191deebd12304bfadbf8`. `nfi-bte run` now presents a compact
+ASCII product header, one rotating in-place progress line, and the complete
+Freqtrade-style terminal report by default. Completed runs refresh only derived
+presentation files; sealed simulation evidence remains unchanged.
 
 The v1.8.4 first-run market contract remains unchanged: BTC is the quick default;
 users can type `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`; numeric
@@ -44,10 +43,10 @@ then freeze the ranked result in the saved project. Large selections show the me
 long-run memory warning before data preparation. This presentation release does not
 claim a new continuous performance certificate.
 
-Current `main` tracks the v1.9.1 stable release and is usable from source for supported
+Current `main` tracks the v1.10.0 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.9.1 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.10.0 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -191,7 +190,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.9.1`.
+The latest public installer currently returns `nfi-bte 1.10.0`.
 
 ### Keep the CLI updated
 
@@ -205,7 +204,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.9.0 -> 1.9.1. Run `nfi-bte update`.
+Update available: 1.9.1 -> 1.10.0. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source

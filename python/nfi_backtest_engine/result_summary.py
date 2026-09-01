@@ -17,7 +17,7 @@ from typing import Any
 from .canonical import canonical_decimal
 from .reporting.tags import signal_tag_tokens, summarize_grind_tags
 
-RESULT_SUMMARY_VERSION = "2.0.0"
+RESULT_SUMMARY_VERSION = "2.1.0"
 MAX_EQUITY_POINTS = 1_000
 
 
@@ -149,9 +149,12 @@ def build_result_summary(
         },
         "breakdowns": {
             "by_pair": [],
+            "by_open_pair": [],
             "by_entry_tag": [],
             "by_exit_reason": [],
+            "by_entry_exit": [],
             "by_direction": [],
+            "by_day": [],
             "by_year": [],
             "by_month": [],
         },
@@ -213,6 +216,12 @@ def build_result_summary(
     closed_trade_risk = _closed_trade_risk_metrics(equity["rows"])
     consecutive_wins, consecutive_losses = _consecutive_outcomes(ordered)
 
+    average_loss = (
+        gross_loss / losses
+        if losses
+        else Decimal(0)
+    )
+    expectancy = sum(profits, Decimal(0)) / len(profits) if profits else Decimal(0)
     summary["performance"] = {
         "starting_balance": _number(starting_balance),
         "final_balance": _number(final_balance),
@@ -222,7 +231,8 @@ def build_result_summary(
         "gross_profit_abs": _number(gross_profit),
         "gross_loss_abs": _number(gross_loss),
         "profit_factor": (_number(gross_profit / gross_loss) if gross_loss != 0 else None),
-        "expectancy_abs": _mean(profits),
+        "expectancy_abs": _number(expectancy),
+        "expectancy_ratio": _number(expectancy / average_loss) if average_loss != 0 else None,
         "average_profit_ratio": _mean(ratios),
         "median_profit_ratio": _median(ratios),
         "best_trade": _trade_snapshot(max(trades, key=_trade_profit)) if trades else None,
@@ -250,6 +260,17 @@ def build_result_summary(
             lock_count=len(_sequence(trade_surface, "locks")),
             margin_mode=context.get("margin_mode"),
         )
+    stakes = [_decimal(trade.get("stake_amount")) for trade in trades]
+    winning_durations = [
+        _integer(trade.get("duration_minutes"))
+        for trade in trades
+        if _trade_profit(trade) > 0
+    ]
+    losing_durations = [
+        _integer(trade.get("duration_minutes"))
+        for trade in trades
+        if _trade_profit(trade) < 0
+    ]
     summary["activity"] = {
         "pairs": pair_count,
         "trades": len(trades),
@@ -259,8 +280,13 @@ def build_result_summary(
         "win_rate": _ratio(wins, len(trades)),
         "average_duration_minutes": _mean(durations),
         "median_duration_minutes": _median(durations),
+        "winning_duration_minutes": _duration_stats(winning_durations),
+        "losing_duration_minutes": _duration_stats(losing_durations),
+        "average_stake_amount": _mean(stakes),
         "open_trades": sum(bool(trade.get("is_open")) for trade in trades),
         "rejected_signals": _optional_integer(surface_summary.get("rejected_signals")),
+        "entry_timeouts": _optional_integer(surface_summary.get("timedout_entry_orders")),
+        "exit_timeouts": _optional_integer(surface_summary.get("timedout_exit_orders")),
         "max_open_trades": _optional_integer(surface_summary.get("max_open_trades")),
         "locks": len(_sequence(trade_surface, "locks")),
         "total_volume": _optional_decimal_number(
@@ -272,6 +298,8 @@ def build_result_summary(
     for pair in _configured_pair_names(run_report):
         if pair not in grouped_pairs:
             by_pair.append(_Aggregate().export("pair", pair))
+    open_trades = [trade for trade in trades if bool(trade.get("is_open"))]
+    by_open_pair = _group(open_trades, "pair", "pair")
     by_entry_tag = _group(
         trades,
         "entry_tag",
@@ -279,13 +307,19 @@ def build_result_summary(
         normalize=lambda value: value.strip() or "(untagged)",
     )
     by_exit_reason = _group(trades, "exit_reason", "exit_reason")
+    by_entry_exit = _group_by_entry_exit(trades)
     by_direction = _group(trades, "direction", "direction")
+    by_day = _group_by_period(trades, "%Y-%m-%d", "day", starting_balance)
     by_year = _group_by_period(trades, "%Y", "year", starting_balance)
     by_month = _group_by_period(trades, "%Y-%m", "month", starting_balance)
     by_signal_tag = _group_by_signal_tag(trades)
     summary["breakdowns"] = {
         "by_pair": sorted(
             by_pair,
+            key=lambda item: (-float(item["profit_abs"]), str(item["pair"])),
+        ),
+        "by_open_pair": sorted(
+            by_open_pair,
             key=lambda item: (-float(item["profit_abs"]), str(item["pair"])),
         ),
         "by_entry_tag": sorted(
@@ -302,10 +336,19 @@ def build_result_summary(
                 str(item["exit_reason"]),
             ),
         ),
+        "by_entry_exit": sorted(
+            by_entry_exit,
+            key=lambda item: (
+                -float(item["profit_abs"]),
+                str(item["entry_tag"]),
+                str(item["exit_reason"]),
+            ),
+        ),
         "by_direction": sorted(
             by_direction,
             key=lambda item: str(item["direction"]),
         ),
+        "by_day": by_day,
         "by_year": by_year,
         "by_month": by_month,
     }
@@ -339,6 +382,22 @@ def build_result_summary(
     return summary
 
 
+def _group_by_entry_exit(
+    trades: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str], _Aggregate] = {}
+    for trade in trades:
+        entry_tag = str(trade.get("entry_tag") or "").strip() or "(untagged)"
+        exit_reason = str(trade.get("exit_reason") or "(none)")
+        groups.setdefault((entry_tag, exit_reason), _Aggregate()).add(trade)
+    result = []
+    for (entry_tag, exit_reason), aggregate in groups.items():
+        row = aggregate.export("entry_tag", entry_tag)
+        row["exit_reason"] = exit_reason
+        result.append(row)
+    return result
+
+
 def _group_by_signal_tag(
     trades: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -369,10 +428,30 @@ def _futures_summary(
         _decimal(trade.get("leverage")) for trade in trades if trade.get("leverage") is not None
     ]
     leverage_rows = _group(trades, "leverage", "leverage")
+    long_trades = [trade for trade in trades if trade.get("direction") == "long"]
+    short_trades = [trade for trade in trades if trade.get("direction") == "short"]
     return {
         "margin_mode": margin_mode,
-        "long_trades": sum(trade.get("direction") == "long" for trade in trades),
-        "short_trades": sum(trade.get("direction") == "short" for trade in trades),
+        "long_trades": len(long_trades),
+        "short_trades": len(short_trades),
+        "long_profit_abs": _number(
+            sum((_trade_profit(trade) for trade in long_trades), Decimal(0))
+        ),
+        "short_profit_abs": _number(
+            sum((_trade_profit(trade) for trade in short_trades), Decimal(0))
+        ),
+        "long_profit_ratio": _number(
+            sum(
+                (_decimal(_mapping(trade, "profit").get("ratio")) for trade in long_trades),
+                Decimal(0),
+            )
+        ),
+        "short_profit_ratio": _number(
+            sum(
+                (_decimal(_mapping(trade, "profit").get("ratio")) for trade in short_trades),
+                Decimal(0),
+            )
+        ),
         "funded_trades": sum(value != 0 for value in funding_values),
         "funding_total": _number(sum(funding_values, Decimal(0))),
         "liquidation_exits": sum(trade.get("exit_reason") == "liquidation" for trade in trades),
@@ -713,16 +792,28 @@ def _group_by_period(
 
 def _configured_pair_names(run_report: Mapping[str, Any]) -> list[str]:
     """Read the sealed workload pair order without depending on candle files."""
-
     execution = _mapping(run_report, "execution")
     calibration = _mapping(execution, "workload_calibration")
     identity = _mapping(calibration, "identity")
     raw_pairs = identity.get("pairs")
-    if not isinstance(raw_pairs, list):
-        return []
-    result: list[str] = []
+    candidates: list[Any] = list(raw_pairs) if isinstance(raw_pairs, list) else []
+
+    result = _mapping(run_report, "result")
+    result_execution = _mapping(result, "execution")
+    profile = _mapping(result_execution, "profile") or _mapping(result, "profile")
+    phases = _mapping(profile, "phases")
+    input_phase = _mapping(phases, "input")
+    pair_identities = input_phase.get("pair_identities")
+    if isinstance(pair_identities, list):
+        candidates.extend(
+            identity.split("|", maxsplit=1)[0]
+            for identity in pair_identities
+            if isinstance(identity, str)
+        )
+
+    pair_names: list[str] = []
     seen: set[str] = set()
-    for item in raw_pairs:
+    for item in candidates:
         if isinstance(item, Mapping):
             pair = str(item.get("pair", "")).strip()
         elif isinstance(item, str):
@@ -731,8 +822,8 @@ def _configured_pair_names(run_report: Mapping[str, Any]) -> list[str]:
             continue
         if pair and pair not in seen:
             seen.add(pair)
-            result.append(pair)
-    return result
+            pair_names.append(pair)
+    return pair_names
 
 
 def _consecutive_outcomes(
@@ -818,6 +909,14 @@ def _iso_timestamp(timestamp_ms: int) -> str:
             "Z",
         )
     )
+
+
+def _duration_stats(values: Sequence[int]) -> dict[str, float | int | None]:
+    return {
+        "minimum": min(values) if values else None,
+        "maximum": max(values) if values else None,
+        "average": _mean(values) if values else None,
+    }
 
 
 def _mean(values: Sequence[Decimal | int]) -> float:

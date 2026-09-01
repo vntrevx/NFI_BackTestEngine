@@ -147,9 +147,11 @@ After setup, run or resume the saved project with:
 nfi-bte run
 ```
 
-The terminal prints the run directory before work starts. Completion prints a compact
-ASCII summary, the results folder, and the report/export names. The human-readable
-result is `report.md`; JSON and CSV files remain the machine-readable contracts:
+The terminal starts with a compact NFI header and one-line system readiness, then keeps
+one rotating progress line in place. Completion prints the full Freqtrade-style result
+tables and concise relative artifact paths. Use `--no-full-report` for the compact card.
+The human-readable result is `report.md`; JSON and CSV files remain the machine-readable
+contracts:
 
 ```text
 .nfi/runs/<strategy-and-timerange>/

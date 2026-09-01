@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -692,6 +693,41 @@ def test_run_progress_prints_stage_percentage_and_elapsed_time() -> None:
     assert "(00:00 elapsed)" in rendered
 
 
+def test_run_progress_rotates_one_interactive_status_line() -> None:
+    stream = io.StringIO()
+
+    with user_flow.RunProgress(
+        stream=stream,
+        interactive=True,
+        interval_seconds=0.01,
+    ) as progress:
+        progress.update(20, "Preparing candles")
+        time.sleep(0.03)
+        progress.update(100, "Backtest complete")
+
+    rendered = stream.getvalue()
+    assert "\r\033[2K" in rendered
+    assert any(frame in rendered for frame in user_flow.SPINNER_FRAMES)
+    assert "✓  100%  Backtest complete" in rendered
+    assert rendered.endswith("\n")
+
+
+def test_run_banner_is_compact_and_marks_resumes() -> None:
+    settings = SimpleNamespace(
+        class_name="NostalgiaForInfinityX7",
+        timerange="20260824-20260831",
+        pairs=("BTC/USDT",),
+    )
+
+    banner = user_flow.format_run_banner(settings, resume=True)
+
+    assert "BACKTEST ENGINE" in banner
+    assert "NostalgiaForInfinityX7" in banner
+    assert "2026-08-24 → 2026-08-31" in banner
+    assert "1 pair" in banner
+    assert "Resuming hash-valid checkpoints" in banner
+
+
 def test_consent_defaults_to_no_and_never_prompts_noninteractively() -> None:
     def unexpected_prompt(_question: str) -> str:
         pytest.fail("noninteractive consent must not prompt")
@@ -975,6 +1011,10 @@ def test_finished_noninteractive_flow_executes_neither_optional_action(
         "run_quick_official_verification",
         lambda *_args, **_kwargs: pytest.fail("verification requires consent"),
     )
+    monkeypatch.setattr(
+        "nfi_backtest_engine.result_report.write_result_presentation",
+        lambda *_args, **_kwargs: {},
+    )
     messages: list[str] = []
 
     status = user_flow.finish_one_line_run(
@@ -988,7 +1028,4 @@ def test_finished_noninteractive_flow_executes_neither_optional_action(
     )
 
     assert status == 0
-    assert "official quick verification: skipped (no explicit consent)" in messages
-    assert "Backtest complete." in messages
-    assert f"Results folder: {settings.output_directory.resolve()}" in messages
-    assert any(message.startswith("Markdown report: ") for message in messages)
+    assert messages == []

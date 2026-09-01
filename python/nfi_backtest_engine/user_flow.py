@@ -24,25 +24,27 @@ from .fixture import sha256_file
 from .hardware import inspect_hardware
 from .project_config import ProjectSettings
 from .reference_runtime import ensure_docker_config
-from .reporting.contracts import MARKDOWN_FILENAME
 from .verification_ledger import VerificationLedger, create_verification_record
 
 RUN_PREFLIGHT_VERSION = "1.0.0"
 OFFICIAL_VERIFICATION_DIRECTORY = "official-verification"
+SPINNER_FRAMES = ("◐", "◓", "◑", "◒")
+
+
 OFFICIAL_FALLBACK_DIRECTORY = "official-fallback"
 
 Prompt = Callable[[str], str]
 
 
 class RunProgress:
-    """Render a truthful stage percentage plus a live elapsed-time heartbeat."""
+    """Render one live rotating status line without flooding the terminal."""
 
     def __init__(
         self,
         *,
         stream: TextIO | None = None,
         interactive: bool | None = None,
-        interval_seconds: float = 1.0,
+        interval_seconds: float = 0.08,
     ) -> None:
         self._stream = sys.stdout if stream is None else stream
         self._interactive = (
@@ -53,12 +55,15 @@ class RunProgress:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._percent = 0
-        self._label = "Starting"
-        self._stage_started = time.monotonic()
+        self._label = "Starting backtest"
+        self._started_at = time.monotonic()
+        self._spinner_index = 0
         self._rendered = False
 
     def __enter__(self) -> RunProgress:
         if self._interactive:
+            with self._lock:
+                self._render_locked()
             self._thread = threading.Thread(
                 target=self._heartbeat,
                 name="nfi-run-progress",
@@ -76,7 +81,6 @@ class RunProgress:
         with self._lock:
             self._percent = percent
             self._label = label
-            self._stage_started = time.monotonic()
             self._render_locked()
 
     def close(self) -> None:
@@ -95,16 +99,22 @@ class RunProgress:
                 self._render_locked()
 
     def _render_locked(self) -> None:
-        elapsed = max(0, int(time.monotonic() - self._stage_started))
+        elapsed = max(0, int(time.monotonic() - self._started_at))
         minutes, seconds = divmod(elapsed, 60)
-        line = (
-            f"[{self._percent:3d}%] {self._label} "
-            f"({minutes:02d}:{seconds:02d} elapsed)"
-        )
         if self._interactive:
+            marker = "✓" if self._percent == 100 else SPINNER_FRAMES[self._spinner_index]
+            self._spinner_index = (self._spinner_index + 1) % len(SPINNER_FRAMES)
+            line = (
+                f"  {marker}  {self._percent:3d}%  {self._label}  "
+                f"{minutes:02d}:{seconds:02d}"
+            )
             self._stream.write(f"\r\033[2K{line}")
             self._rendered = True
         else:
+            line = (
+                f"[{self._percent:3d}%] {self._label} "
+                f"({minutes:02d}:{seconds:02d} elapsed)"
+            )
             self._stream.write(f"{line}\n")
         self._stream.flush()
 
@@ -206,30 +216,60 @@ def write_run_preflight(
 
 
 def format_run_preflight(report: Mapping[str, Any], destination: Path) -> str:
-    """Render a beginner-readable system check with a durable detail path."""
+    """Render the successful preflight as one scan-friendly status line."""
     host = _mapping(report, "host")
     docker = _mapping(report, "docker")
     disk = _mapping(report, "disk")
-    docker_detail = (
-        f"ready ({_human_bytes(docker.get('container_memory_limit_bytes'))} memory limit)"
+    docker_label = (
+        "Docker ready"
         if docker.get("status") == "available"
-        else str(docker.get("detail", "unavailable"))
+        else f"Docker {docker.get('detail', 'unavailable')}"
     )
-    download_note = (
-        "local candle size measured"
-        if disk.get("download_growth_bounded") is True
-        else "missing candle download size is not known yet"
+    return (
+        "  ✓  System ready"
+        f"  ·  {host.get('affinity_cpu_count')} CPU"
+        f"  ·  {_human_bytes(host.get('available_memory_bytes'))} RAM"
+        f"  ·  {_human_bytes(disk.get('available_bytes'))} disk"
+        f"  ·  {docker_label}"
     )
+
+
+def format_run_banner(settings: ProjectSettings, *, resume: bool) -> str:
+    """Render a compact product banner and the immutable run selection."""
+    if settings.pairs is None:
+        pair_label = "all pairs"
+    else:
+        pair_count = len(settings.pairs)
+        pair_label = f"{pair_count} pair{'s' if pair_count != 1 else ''}"
+    resume_label = "  ↻  Resuming hash-valid checkpoints" if resume else ""
     return "\n".join(
         [
-            "System check passed.",
-            f"  CPU: {host.get('affinity_cpu_count')} usable cores",
-            f"  Memory available: {_human_bytes(host.get('available_memory_bytes'))}",
-            f"  Disk available: {_human_bytes(disk.get('available_bytes'))} ({download_note})",
-            f"  Docker: {docker_detail}",
-            f"  Technical details: {destination}",
+            " _   _  _____  ___",
+            r"| \ | ||  ___||_ _|",
+            r"|  \| || |_    | |",
+            r"| |\  ||  _|   | |",
+            r"|_| \_||_|    |___|  BACKTEST ENGINE",
+            "",
+            (
+                f"  {settings.class_name}  ·  "
+                f"{_display_timerange(settings.timerange)}  ·  {pair_label}"
+            ),
+            resume_label,
         ]
-    )
+    ).rstrip()
+
+
+def _display_timerange(value: str) -> str:
+    parts = value.split("-", maxsplit=1)
+    if len(parts) != 2:
+        return value
+
+    def date_token(token: str) -> str:
+        if len(token) >= 8 and token[:8].isdigit():
+            return f"{token[:4]}-{token[4:6]}-{token[6:8]}"
+        return token or "open"
+
+    return f"{date_token(parts[0])} → {date_token(parts[1])}"
 
 
 def _human_bytes(value: Any) -> str:
@@ -624,65 +664,45 @@ def finish_one_line_run(
     final_status = native_status
 
     if complete:
-        emit("")
-        emit("Backtest complete.")
-        emit(f"Results folder: {root}")
-        report_path = root / MARKDOWN_FILENAME
-        if report_path.is_file():
-            emit(f"Markdown report: {report_path}")
-        native_sequence = record_native_completion(ledger_path, root)
-        emit(
-            "verification ledger: "
-            f"sequence={native_sequence}, state=native_complete -> {ledger_path}"
-        )
+        from .result_report import write_result_presentation
+
+        write_result_presentation(root)
+        record_native_completion(ledger_path, root)
         verify_now = resolve_consent(
             verification,
             interactive=interactive,
-            question=(
-                "Run pinned official quick-level verification now? "
-                "It replays the selected timerange in Docker and may take much "
-                "longer than Native"
-            ),
+            question="Run official Freqtrade verification? Docker replay is slower",
         )
         if verify_now:
             report, proof_path, reused = run_quick_official_verification(
                 root,
                 timeout_seconds=verification_timeout_seconds,
             )
-            from .result_report import write_result_presentation
-
             write_result_presentation(
                 root,
                 verification=report,
                 verification_path=proof_path,
             )
             if report.get("complete") is True and report.get("exact_parity") is True:
-                strategy_sequence, run_sequence = record_quick_verification(
+                record_quick_verification(
                     ledger_path,
                     root,
                     report,
                     proof_path,
                 )
                 emit(
-                    "official quick verification: exact parity "
-                    f"({'reused' if reused else 'new'} proof), "
-                    f"ledger sequences={strategy_sequence},{run_sequence} -> "
-                    f"{proof_path}"
+                    "  ✓  Official verification"
+                    f"  ·  exact parity  ·  {'reused' if reused else 'new'} proof"
                 )
             else:
                 final_status = 1
-                failure_sequence = record_quick_failure(
+                record_quick_failure(
                     ledger_path,
                     root,
                     report,
                     proof_path,
                 )
-                emit(
-                    "official quick verification: exact parity failed, "
-                    f"ledger sequence={failure_sequence} -> {proof_path}"
-                )
-        else:
-            emit("official quick verification: skipped (no explicit consent)")
+                emit(f"  ✗  Official verification failed  ·  {proof_path}")
     elif verification is True:
         raise BenchmarkError("official quick verification requires a completed Native run")
     else:
@@ -701,6 +721,7 @@ def finish_one_line_run(
     if summary_path.is_file():
         from .result_report import format_terminal_summary, load_result_summary
 
+        emit("")
         emit(
             format_terminal_summary(
                 load_result_summary(root),
