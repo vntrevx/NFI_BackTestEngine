@@ -566,6 +566,13 @@ def test_saved_project_can_restart_guided_setup(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     source, _, _ = _standard_layout(tmp_path)
+    x7 = tmp_path / "NostalgiaForInfinityX7.py"
+    x7.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class NostalgiaForInfinityX7(IStrategy):\n"
+        "    timeframe = '5m'\n",
+        encoding="utf-8",
+    )
     settings = initialize_project(
         workspace=tmp_path,
         source=source,
@@ -584,7 +591,7 @@ def test_saved_project_can_restart_guided_setup(
         SimpleNamespace(isatty=lambda: True),
     )
     prompts: list[str] = []
-    answers = iter(("y", "", "futures", "binance", "1", "", "n"))
+    answers = iter(("y", "2", "futures", "binance", "1", "", "n"))
     monkeypatch.setattr(
         "builtins.input",
         lambda question: prompts.append(question) or next(answers),
@@ -600,22 +607,24 @@ def test_saved_project_can_restart_guided_setup(
     refreshed = load_project(settings.project_path)
     generated_config = tmp_path / ".nfi/first-run-config-new.json"
     assert "Start a new guided setup instead?" in prompts[0]
-    assert prompts[1].startswith("Strategy file")
+    assert prompts[1].startswith("Choose strategy")
     assert prompts[2].startswith("Trading mode")
     assert prompts[3].startswith("Exchange")
     assert prompts[4].startswith("Number of markets")
     assert prompts[5].startswith("Backtest period")
     assert "Start this backtest now?" in prompts[6]
-    assert refreshed.strategy_path == settings.strategy_path
+    assert refreshed.strategy_path == x7
     assert refreshed.config_path == generated_config
     assert refreshed.pairs == ("BTC/USDT:USDT",)
     assert refreshed.output_directory != settings.output_directory
     assert read_json(previous_config) == {"previous": True}
     assert read_json(generated_config)["trading_mode"] == "futures"
     assert (settings.output_directory / "identity.json").read_text(encoding="utf-8") == "old"
-    assert f"Previous run evidence kept: {settings.output_directory}" in (
-        capsys.readouterr().out
-    )
+    output = capsys.readouterr().out
+    assert "Available strategies:" in output
+    assert "1. SimpleStrategy (current)" in output
+    assert "2. NostalgiaForInfinityX7" in output
+    assert f"Previous run evidence kept: {settings.output_directory}" in output
 
 
 def test_completed_run_defaults_to_existing_result(

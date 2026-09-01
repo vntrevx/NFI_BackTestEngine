@@ -34,6 +34,7 @@ def initialize_project(
     project_path: str | Path = DEFAULT_PROJECT_PATH,
     workspace: str | Path | None = None,
     source: str | Path | None = None,
+    preferred_source: str | Path | None = None,
     class_name: str | None = None,
     config_path: str | Path | None = None,
     trading_mode: str | None = None,
@@ -61,6 +62,8 @@ def initialize_project(
     selected_source = _select_source(
         root,
         source=source,
+        preferred_source=preferred_source,
+        guided=guided,
         interactive=interactive,
         prompt=prompt,
         emit=emit,
@@ -145,6 +148,8 @@ def _select_source(
     workspace: Path,
     *,
     source: str | Path | None,
+    preferred_source: str | Path | None,
+    guided: bool,
     interactive: bool,
     prompt: Prompt,
     emit: Emitter,
@@ -153,7 +158,22 @@ def _select_source(
         selected = resolve_workspace_path(workspace, source)
     else:
         candidates = _strategy_candidates(workspace)
-        if len(candidates) == 1:
+        preferred = (
+            resolve_workspace_path(workspace, preferred_source)
+            if preferred_source is not None
+            else None
+        )
+        if preferred is not None and preferred.is_file() and preferred not in candidates:
+            candidates.append(preferred)
+        if guided and candidates and interactive:
+            selected = _choose_strategy_source(
+                workspace,
+                candidates,
+                preferred=preferred,
+                prompt=prompt,
+                emit=emit,
+            )
+        elif len(candidates) == 1:
             selected = candidates[0]
             emit(f"detected strategy: {selected}")
         elif candidates:
@@ -681,13 +701,58 @@ def _next_generated_config_path(path: Path) -> Path:
 
 
 def _strategy_candidates(workspace: Path) -> list[Path]:
-    candidates: list[Path] = []
+    candidates = [
+        path.resolve()
+        for path in workspace.glob("NostalgiaForInfinity*.py")
+        if path.is_file()
+    ]
     for root in (workspace / "user_data" / "strategies", workspace / "strategies"):
         if root.is_dir():
             candidates.extend(
                 path.resolve() for path in root.glob("*.py") if path.name != "__init__.py"
             )
-    return sorted(set(candidates), key=lambda path: str(path).lower())
+    return sorted(set(candidates), key=_strategy_candidate_sort_key)
+
+
+def _strategy_candidate_sort_key(path: Path) -> tuple[int, int, str]:
+    match = re.fullmatch(r"NostalgiaForInfinityX(\d*)", path.stem)
+    if match is not None:
+        version = int(match.group(1) or "1")
+        return 0, -version, str(path).lower()
+    return 1, 0, str(path).lower()
+
+
+def _choose_strategy_source(
+    workspace: Path,
+    candidates: list[Path],
+    *,
+    preferred: Path | None,
+    prompt: Prompt,
+    emit: Emitter,
+) -> Path:
+    ordered = sorted(set(candidates), key=_strategy_candidate_sort_key)
+    if preferred in ordered:
+        ordered.remove(preferred)
+        ordered.insert(0, preferred)
+    duplicate_stems = {
+        path.stem
+        for path in ordered
+        if sum(candidate.stem == path.stem for candidate in ordered) > 1
+    }
+    emit("Available strategies:")
+    for index, path in enumerate(ordered, start=1):
+        label = (
+            f"{path.stem} ({_display_path(workspace, path)})"
+            if path.stem in duplicate_stems
+            else path.stem
+        )
+        current = " (current)" if path == preferred else ""
+        emit(f"  {index}. {label}{current}")
+    while True:
+        raw = _prompt_value("Choose strategy", default="1", prompt=prompt)
+        if raw.isdigit() and 1 <= int(raw) <= len(ordered):
+            return ordered[int(raw) - 1]
+        emit(f"Enter a number from 1 to {len(ordered)}.")
 
 
 def _config_candidates(workspace: Path, source: Path) -> list[Path]:

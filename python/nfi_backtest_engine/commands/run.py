@@ -129,15 +129,10 @@ def execute(args: argparse.Namespace) -> int:
                 print()
             if new_setup:
                 previous_output = settings.output_directory
-                try:
-                    selected_source = input(
-                        f"Strategy file [{settings.strategy_path}]: "
-                    ).strip()
-                except EOFError as exc:
-                    raise NfiBacktestError("strategy selection was cancelled") from exc
                 settings = initialize_project(
                     project_path=project_path,
-                    source=selected_source or settings.strategy_path,
+                    source=None,
+                    preferred_source=settings.strategy_path,
                     interactive=True,
                     force=True,
                     guided=True,

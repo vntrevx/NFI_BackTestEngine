@@ -153,11 +153,12 @@ parallel worker count. Non-interactive jobs must pass `--yes`, which is the expl
 consent that bypasses this prompt.
 
 When a saved project exists, interactive `nfi-bte run` first asks whether to continue
-it or start a new guided setup. Enter continues the saved project. Yes asks for the
-strategy file (the previous strategy is the default), then runs the trading-mode,
-exchange, market-count, data, and timerange setup again. Guided setup writes a separate
-safe config and output; prior run evidence remains untouched. `--new-run --yes` remains
-the unattended option for fresh output with the same saved settings.
+it or start a new guided setup. Enter continues the saved project. Yes displays a
+numbered strategy menu discovered from the NFI checkout, with the current strategy
+marked and selected by default. After the strategy choice, trading mode, exchange,
+market count, data, and timerange are configured again. Guided setup writes a separate
+safe config and output; prior evidence remains untouched. `--new-run --yes` remains the
+unattended option for fresh output with the same saved settings.
 
 The terminal starts with a compact NFI header and one-line system readiness, then keeps
 one rotating progress line in place. Completion prints the full Freqtrade-style result
