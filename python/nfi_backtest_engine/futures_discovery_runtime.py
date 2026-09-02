@@ -65,6 +65,24 @@ def run_shard_scout(
         )
     except BenchmarkError as exc:
         raise _discovery_infrastructure_error(exc) from exc
+    if context.policy.trading_mode == "spot":
+        available_pairs = _pairs_with_nonempty_base_candles(
+            shared / "data",
+            pairs=pairs,
+            config_path=generated_config,
+        )
+        if not available_pairs:
+            raise DiscoveryInfrastructureError(
+                "Spot discovery shard has no pair with base candles"
+            )
+        if available_pairs != pairs:
+            generated_config = _write_discovery_pair_config(
+                generated_config,
+                shard_root / "available-config.json",
+                available_pairs,
+            )
+            pairs = available_pairs
+            engine_output = shard_root / "engine-available"
     try:
         engine = _run_scout_backtest(
             shard,
