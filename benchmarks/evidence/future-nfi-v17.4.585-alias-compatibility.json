@@ -27,12 +27,12 @@
     "futures": {
       "fixture": "benchmarks/fixtures/captured/future-nfi-futures-v17.4.585-aliases-theta/manifest.json",
       "fixture_id": "future-nfi-futures-v17.4.585-aliases-theta",
-      "manifest_sha256": "be3d5c2c7526d806fe25cd730bb30c9aa8eaf455a6c226a147e2135123ee53ab",
+      "manifest_sha256": "5f9035e2b930b8ad8bd29ae46cca9bc132d916f2871bcde108a3138375805a8b",
       "pair": "THETA/USDT:USDT",
       "timerange": "20251113-20251117",
       "trade_surface_sha256": "4fbbe3b06f814fd0d4a37f51d553a2e25cb7e774baa06ac7e9436457cf03b0ac",
       "state_event_count": 1152,
-      "state_stream_hash": "b0d3e80edb7af377a63dfc526e24a7ac766c0bd0d27a620247a7cb017e1a22c4",
+      "state_stream_hash": "b3c6de57c6a87bde913a997d4a637d54fe659fec7e5549e763ea3aafb764e570",
       "trade_surface_exact": true,
       "full_state_exact": true
     }
