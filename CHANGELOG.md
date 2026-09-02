@@ -4,6 +4,14 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.6 - 2026-09-02
+
+- Extended the startup wordmark so `BACKTEST ENGINE` is rendered in the same
+  five-row ASCII-art style as `NFI`.
+- Preserved the selected strategy, timerange, pair count, and resume status beneath
+  the expanded product banner.
+
+
 ## 1.10.5 - 2026-09-02
 
 - Canonicalized observer-facing Futures free-wallet values to one nano-USDT while

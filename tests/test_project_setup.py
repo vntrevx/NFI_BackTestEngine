@@ -976,7 +976,11 @@ def test_run_banner_is_compact_and_marks_resumes() -> None:
 
     banner = user_flow.format_run_banner(settings, resume=True)
 
-    assert "BACKTEST ENGINE" in banner
+    art = banner.split("\n\n", maxsplit=1)[0]
+    assert len(art.splitlines()) == 5
+    assert "BACKTEST ENGINE" not in art
+    assert "| __ )" in art
+    assert "|_____|_|" in art
     assert "NostalgiaForInfinityX7" in banner
     assert "2026-08-24 → 2026-08-31" in banner
     assert "1 pair" in banner
