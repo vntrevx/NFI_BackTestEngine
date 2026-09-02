@@ -813,6 +813,75 @@ def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
     assert available == ["BTC/USDT"]
 
 
+def test_spot_scout_filters_fully_unlisted_pairs_before_backtest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = tmp_path / "config.json"
+    write_json(
+        config,
+        {
+            "timeframe": "5m",
+            "trading_mode": "spot",
+            "exchange": {"pair_whitelist": ["RLUSD/USDT", "BTC/USDT"]},
+        },
+    )
+    market_snapshot = tmp_path / "markets.json"
+    write_json(market_snapshot, {})
+    seen: dict[str, Any] = {}
+
+    monkeypatch.setattr(
+        discovery_runtime,
+        "_ensure_universe",
+        lambda _context, _shared: (
+            config,
+            ["RLUSD/USDT", "BTC/USDT"],
+            market_snapshot,
+        ),
+    )
+
+    def prepare_archive(*_args, destination: Path, **_kwargs):
+        report = {"aggregate_sha256": "a" * 64}
+        write_json(destination, report)
+        return report
+
+    monkeypatch.setattr(discovery_runtime, "_prepare_scout_archive", prepare_archive)
+    monkeypatch.setattr(
+        discovery_runtime,
+        "_pairs_with_nonempty_base_candles",
+        lambda *_args, **_kwargs: ["BTC/USDT"],
+    )
+
+    def run_backtest(*_args, **kwargs):
+        seen.update(kwargs)
+        return {"complete": False}
+
+    monkeypatch.setattr(discovery_runtime, "_run_scout_backtest", run_backtest)
+    context = SimpleNamespace(
+        class_name="Demo",
+        workers=1,
+        output=tmp_path / "result",
+        profile_path=tmp_path / "profile.json",
+        source=tmp_path / "strategy.py",
+        baseline_source=None,
+        baseline_upstream_commit=None,
+        search_targets=[_target()],
+        policy=SimpleNamespace(trading_mode="spot"),
+    )
+
+    result = discovery_runtime.run_shard_scout(
+        search_shards(date(2026, 7, 30), completed_years=1, shard_months=3)[0],
+        context,
+    )
+
+    assert result["outcome"] == "unsupported"
+    assert seen["pairs"] == ["BTC/USDT"]
+    assert seen["output_directory"].name == "engine-available"
+    assert read_json(seen["config_path"])["exchange"]["pair_whitelist"] == [
+        "BTC/USDT"
+    ]
+
+
 def test_spot_search_universe_accepts_missing_onboarding_dates(
     tmp_path: Path,
 ) -> None:
