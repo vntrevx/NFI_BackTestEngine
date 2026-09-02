@@ -272,7 +272,10 @@ def _run_scout_backtest(
             download_market_metadata=False,
             recalibrate=True,
             history_coverage_policy="available",
-            trace_engine_events=True,
+            # Search targets are derived from the compact trade surface below.
+            # Full event traces can grow by tens of GiB on an 80-pair shard and
+            # are reserved for the minimized exact candidate capture.
+            trace_engine_events=False,
         )
     except BenchmarkError as exc:
         raise _discovery_infrastructure_error(exc) from exc
