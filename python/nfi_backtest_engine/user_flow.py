@@ -30,6 +30,25 @@ RUN_PREFLIGHT_VERSION = "1.1.0"
 OFFICIAL_VERIFICATION_DIRECTORY = "official-verification"
 SPINNER_FRAMES = ("◐", "◓", "◑", "◒")
 
+_RUN_BANNER_NFI = (
+    " _   _  _____  ___",
+    r"| \ | ||  ___||_ _|",
+    r"|  \| || |_    | |",
+    r"| |\  ||  _|   | |",
+    r"|_| \_||_|    |___|",
+)
+_RUN_BANNER_PRODUCT = (
+    " ____    _    ____ _  _______ _____ ____ _____   _____ _   _  ____ ___ _   _ _____",
+    r"| __ )  / \  / ___| |/ /_   _| ____/ ___|_   _| | ____| \ | |/ ___|_ _| \ | | ____|",
+    r"|  _ \ / _ \| |   | ' /  | | |  _| \___ \ | |   |  _| |  \| | |  _ | ||  \| |  _|",
+    r"| |_) / ___ \ |___| . \  | | | |___ ___) || |   | |___| |\  | |_| || || |\  | |___",
+    r"|____/_/   \_\____|_|\_\ |_| |_____|____/ |_|   |_____|_| \_|\____|___|_| \_|_____|",
+)
+_RUN_BANNER_ART = "\n".join(
+    f"{nfi:<20}  {product}"
+    for nfi, product in zip(_RUN_BANNER_NFI, _RUN_BANNER_PRODUCT, strict=True)
+)
+
 
 OFFICIAL_FALLBACK_DIRECTORY = "official-fallback"
 
@@ -249,11 +268,7 @@ def format_run_banner(settings: ProjectSettings, *, resume: bool) -> str:
     resume_label = "  ↻  Resuming hash-valid checkpoints" if resume else ""
     return "\n".join(
         [
-            " _   _  _____  ___",
-            r"| \ | ||  ___||_ _|",
-            r"|  \| || |_    | |",
-            r"| |\  ||  _|   | |",
-            r"|_| \_||_|    |___|  BACKTEST ENGINE",
+            _RUN_BANNER_ART,
             "",
             (
                 f"  {settings.class_name}  ·  "
