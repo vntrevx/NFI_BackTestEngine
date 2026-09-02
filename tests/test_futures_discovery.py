@@ -755,6 +755,43 @@ def test_scout_archive_uses_strategy_requirements_and_persists_provenance(
     )
 
 
+def test_scout_uses_compact_surface_without_unbounded_event_trace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, Any] = {}
+
+    def run_research_backtest(**kwargs):
+        seen.update(kwargs)
+        return {"complete": True}
+
+    monkeypatch.setattr(
+        "nfi_backtest_engine.research_runner.run_research_backtest",
+        run_research_backtest,
+    )
+    context = SimpleNamespace(
+        class_name="Demo",
+        workers=1,
+        output=tmp_path,
+        profile_path=tmp_path / "profile.json",
+    )
+
+    result = discovery_runtime._run_scout_backtest(
+        search_shards(date(2026, 7, 30), completed_years=1, shard_months=3)[0],
+        context,
+        strategy_path=tmp_path / "strategy.py",
+        config_path=tmp_path / "config.json",
+        data_directory=tmp_path / "data",
+        output_directory=tmp_path / "engine",
+        pairs=["BTC/USDT"],
+        market_snapshot=tmp_path / "markets.json",
+    )
+
+    assert result == {"complete": True}
+    assert seen["trace_engine_events"] is False
+    assert seen["download_missing"] is False
+
+
 def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
     config = tmp_path / "config.json"
     write_json(config, {"timeframe": "5m", "trading_mode": "spot"})
