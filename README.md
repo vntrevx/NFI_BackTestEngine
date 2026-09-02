@@ -30,12 +30,13 @@ The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.10.5 restores deterministic nano-USDT canonicalization for Futures free-wallet
-values in exact full-state projections. This removes sub-nano native float noise that
-caused false nightly state mismatches; trades and wallet accounting are unchanged.
-Current-source compatibility for X7 v17.4.587 at upstream commit
-`95b76043c3f610e0760e191deebd12304bfadbf8` remains intact, as does the guided
-strategy selection menu introduced in v1.10.4.
+v1.10.5 canonicalizes observer-facing Futures free-wallet values to one nano-USDT.
+The comparator remains byte-exact over that representation; simulation and trading
+arithmetic are not rounded. Two affected derived projections were regenerated from
+their immutable official state traces, restoring both the nightly inventory and newer
+release-candidate evidence. Current-source compatibility for X7 v17.4.587 at upstream
+commit `95b76043c3f610e0760e191deebd12304bfadbf8` remains intact, as does the
+guided strategy selection menu introduced in v1.10.4.
 
 The v1.8.4 first-run market contract remains unchanged: BTC is the quick default;
 users can type `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`; numeric

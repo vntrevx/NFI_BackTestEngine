@@ -6,11 +6,10 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## 1.10.5 - 2026-09-02
 
-- Restored nano-USDT canonicalization for Futures free-wallet values in exact
-  full-state projections.
-- Removed sub-nano native float noise that caused seven nightly fixtures to report
-  false state mismatches despite exact trade parity.
-
+- Canonicalized observer-facing Futures free-wallet values to one nano-USDT while
+  leaving simulation and trading arithmetic unchanged.
+- Regenerated two affected derived projections from their immutable official traces,
+  fixing the nightly fixtures and newer release-candidate evidence under one contract.
 
 
 ## 1.10.4 - 2026-09-01
