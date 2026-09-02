@@ -4,6 +4,15 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.10.5 - 2026-09-02
+
+- Restored nano-USDT canonicalization for Futures free-wallet values in exact
+  full-state projections.
+- Removed sub-nano native float noise that caused seven nightly fixtures to report
+  false state mismatches despite exact trade parity.
+
+
+
 ## 1.10.4 - 2026-09-01
 
 - Replaced the guided restart's raw strategy-path prompt with a numbered strategy menu

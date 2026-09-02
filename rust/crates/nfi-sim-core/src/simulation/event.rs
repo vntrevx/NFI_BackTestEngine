@@ -8,12 +8,14 @@ use crate::{
     SemanticOrderState, SimError, SimulationEvent, SimulationState,
     SIMULATION_EVENT_SCHEMA_VERSION,
 };
+const NANO_QUOTE_SCALE: f64 = 1_000_000_000.0;
 
 #[derive(Clone, Copy)]
 pub(super) struct EventProjection<'a> {
     pub(super) timestamp_ms: i64,
     pub(super) pair: &'a str,
     pub(super) quote_free: f64,
+    pub(super) is_futures: bool,
     pub(super) configured_pair_index: usize,
     pub(super) processing_order_index: usize,
     pub(super) candle_index: usize,
@@ -32,6 +34,7 @@ pub(super) fn simulation_event(input: EventProjection<'_>) -> Result<SimulationE
         timestamp_ms,
         pair,
         quote_free,
+        is_futures,
         open_trades,
         configured_pair_index,
         processing_order_index,
@@ -45,7 +48,7 @@ pub(super) fn simulation_event(input: EventProjection<'_>) -> Result<SimulationE
         locks,
     } = input;
     let base_balances = event_base_balances(open_trades)?;
-    let quote_free = checked_finite(quote_free, "event-quote-balance")?;
+    let quote_free = event_quote_free(quote_free, is_futures)?;
     let realized_profit = checked_float_sum(
         &closed_trades
             .iter()
@@ -112,6 +115,18 @@ pub(super) fn simulation_event(input: EventProjection<'_>) -> Result<SimulationE
         portfolio_events: Vec::new(),
         execution_events: Vec::new(),
     })
+}
+
+fn event_quote_free(quote_free: f64, is_futures: bool) -> Result<f64, SimError> {
+    let quote_free = checked_finite(quote_free, "event-quote-balance")?;
+    if !is_futures {
+        return Ok(quote_free);
+    }
+    let scaled = checked_finite(quote_free * NANO_QUOTE_SCALE, "event-quote-balance-scale")?;
+    checked_finite(
+        scaled.round_ties_even() / NANO_QUOTE_SCALE,
+        "event-quote-balance",
+    )
 }
 
 fn event_base_balances(open_trades: &[OpenTrade]) -> Result<Vec<AssetBalance>, SimError> {
@@ -193,5 +208,38 @@ fn semantic_closed_trade(trade: &ClosedTrade) -> SemanticClosedTradeState {
     SemanticClosedTradeState {
         trade: trade.clone(),
         orders: trade.orders.iter().map(semantic_order).collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::event_quote_free;
+
+    #[test]
+    fn futures_quote_balance_removes_sub_nano_float_noise() {
+        assert_eq!(
+            event_quote_free(8_022.005_733_333_333, true)
+                .expect("finite balance")
+                .to_bits(),
+            8_022.005_733_333_f64.to_bits()
+        );
+        assert_eq!(
+            event_quote_free(4_592.188_874_112_047, true)
+                .expect("finite balance")
+                .to_bits(),
+            4_592.188_874_112_f64.to_bits()
+        );
+    }
+
+    #[test]
+    fn spot_quote_balance_preserves_exact_float_representation() {
+        let quote_free = 4_592.188_874_112_047;
+
+        assert_eq!(
+            event_quote_free(quote_free, false)
+                .expect("finite balance")
+                .to_bits(),
+            quote_free.to_bits()
+        );
     }
 }
