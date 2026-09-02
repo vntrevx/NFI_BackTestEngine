@@ -4,6 +4,19 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.11.0 - 2026-09-03
+
+- Added a capability-derived strategy catalog that shows compatible strategies by
+  default and explains hidden legacy, invalid, or semantically unsupported sources.
+- Added a beginner command surface, contextual interactive home, early strategy
+  compatibility checks, durable run progress/status, and structured doctor diagnostics.
+- Made branch discovery reproducible with SHA-256-pinned market catalogs and full
+  market snapshots, a frozen-volume Spot ranking, and checksum-verified monthly
+  Binance Public Data candles with resumable per-series provenance.
+- Corrected the CPython 3.14 Linux `python-rapidjson` wheel pin, added private sealed
+  dependency staging for data downloads, and kept infrastructure failures on the same
+  discovery shard for retry.
+
 ## 1.10.6 - 2026-09-02
 
 - Extended the startup wordmark so `BACKTEST ENGINE` is rendered in the same

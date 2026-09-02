@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/run-progress-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "percent", "label", "started_at", "updated_at", "elapsed_seconds", "pid", "eta_seconds", "eta_status"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"enum": ["running", "complete", "interrupted", "failed"]},
+    "percent": {"type": "integer", "minimum": 0, "maximum": 100},
+    "label": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "elapsed_seconds": {"type": "integer", "minimum": 0},
+    "pid": {"type": "integer", "minimum": 1},
+    "eta_seconds": {"type": ["integer", "null"], "minimum": 0},
+    "eta_status": {"enum": ["estimating", "measured", "not_applicable"]}
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/strategy-catalog-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workspace", "candidates", "summary"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "workspace": {"type": "string"},
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "display_path", "name", "classes", "status", "reason_code", "reason", "blockers", "legacy"],
+        "properties": {
+          "path": {"type": "string"},
+          "display_path": {"type": "string"},
+          "name": {"type": "string"},
+          "classes": {"type": "array", "items": {"type": "string"}},
+          "status": {"enum": ["supported", "unsupported", "invalid"]},
+          "reason_code": {"type": ["string", "null"]},
+          "reason": {"type": ["string", "null"]},
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "message"],
+              "properties": {"code": {"type": "string"}, "message": {"type": "string"}}
+            }
+          },
+          "legacy": {"type": "boolean"}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "supported", "unsupported", "invalid"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "supported": {"type": "integer", "minimum": 0},
+        "unsupported": {"type": "integer", "minimum": 0},
+        "invalid": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

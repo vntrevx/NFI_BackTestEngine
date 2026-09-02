@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import sys
 import threading
@@ -64,6 +65,7 @@ class RunProgress:
         stream: TextIO | None = None,
         interactive: bool | None = None,
         interval_seconds: float = 0.08,
+        state_path: str | Path | None = None,
     ) -> None:
         self._stream = sys.stdout if stream is None else stream
         self._interactive = (
@@ -78,6 +80,8 @@ class RunProgress:
         self._started_at = time.monotonic()
         self._spinner_index = 0
         self._rendered = False
+        self._state_path = Path(state_path) if state_path is not None else None
+        self._started_at_utc = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     def __enter__(self) -> RunProgress:
         if self._interactive:
@@ -91,7 +95,10 @@ class RunProgress:
             self._thread.start()
         return self
 
-    def __exit__(self, *_exc: object) -> None:
+    def __exit__(self, exc_type: object, *_exc: object) -> None:
+        if exc_type is not None and self._state_path is not None:
+            status = "interrupted" if exc_type is KeyboardInterrupt else "failed"
+            self._write_state(status=status)
         self.close()
 
     def update(self, percent: int, label: str) -> None:
@@ -100,6 +107,7 @@ class RunProgress:
         with self._lock:
             self._percent = percent
             self._label = label
+            self._write_state(status="complete" if percent == 100 else "running")
             self._render_locked()
 
     def close(self) -> None:
@@ -136,6 +144,26 @@ class RunProgress:
             )
             self._stream.write(f"{line}\n")
         self._stream.flush()
+
+    def _write_state(self, *, status: str) -> None:
+        if self._state_path is None:
+            return
+        elapsed = max(0, int(time.monotonic() - self._started_at))
+        document = {
+            "schema_version": "1.0.0",
+            "status": status,
+            "percent": self._percent,
+            "label": self._label,
+            "started_at": self._started_at_utc,
+            "updated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "elapsed_seconds": elapsed,
+            "pid": os.getpid(),
+            "eta_seconds": None,
+            "eta_status": "estimating" if status == "running" else "not_applicable",
+        }
+        temporary = self._state_path.with_name(f".{self._state_path.name}.tmp")
+        write_json(temporary, document)
+        temporary.replace(self._state_path)
 
 
 def inspect_run_preflight(

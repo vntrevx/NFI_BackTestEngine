@@ -23,6 +23,8 @@ from .project_config import (
     resolve_workspace_path,
     save_project,
 )
+from .strategy_catalog import discover_strategy_catalog
+from .strategy_compatibility import check_strategy_compatibility
 from .strategy_ir import analyze_strategy
 
 Prompt = Callable[[str], str]
@@ -236,6 +238,13 @@ def _select_class(
         raise SpecValidationError(
             f"{location['path']}:{location['line']}:{location['column']}: "
             f"{first['code']}: {first['message']}"
+        )
+    compatibility = check_strategy_compatibility(source, class_name=selected)
+    if not compatibility["native_compatible"]:
+        blocker = compatibility["blockers"][0]
+        raise SpecValidationError(
+            f"{blocker['code']}: {blocker['message']}; "
+            "inspect every blocker with `nfi-bte strategy check <source> --class <class>`"
         )
     return selected
 
@@ -701,17 +710,13 @@ def _next_generated_config_path(path: Path) -> Path:
 
 
 def _strategy_candidates(workspace: Path) -> list[Path]:
+    catalog = discover_strategy_catalog(workspace)
     candidates = [
-        path.resolve()
-        for path in workspace.glob("NostalgiaForInfinity*.py")
-        if path.is_file()
+        Path(item["path"])
+        for item in catalog["candidates"]
+        if item["status"] == "supported"
     ]
-    for root in (workspace / "user_data" / "strategies", workspace / "strategies"):
-        if root.is_dir():
-            candidates.extend(
-                path.resolve() for path in root.glob("*.py") if path.name != "__init__.py"
-            )
-    return sorted(set(candidates), key=_strategy_candidate_sort_key)
+    return sorted(candidates, key=_strategy_candidate_sort_key)
 
 
 def _strategy_candidate_sort_key(path: Path) -> tuple[int, int, str]:

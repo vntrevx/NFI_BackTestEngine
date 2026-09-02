@@ -48,6 +48,21 @@ cd NostalgiaForInfinity
 
 `nfi-bte`는 이 NFI 폴더에서 실행하십시오. 숫자로 마켓 수를 선택할 때 이 저장소의 `configs/`에 있는 최신 거래량·필터 정책을 사용합니다.
 
+터미널에서 인자 없이 `nfi-bte`를 실행하면 현재 프로젝트 상태에 맞는 시작 화면이
+열립니다. 스크립트에서는 입력을 기다리지 않고 간단한 도움말만 출력합니다. 기존 고급
+명령 전체는 `nfi-bte help --all`에서 확인할 수 있습니다.
+
+안내형 전략 선택 화면에는 Native 호환성이 확인된 소스만 표시됩니다. legacy, 손상 또는
+현재 미지원 소스와 차단 이유는 실행하지 않고 다음 명령으로 확인합니다.
+
+```bash
+nfi-bte strategy list --show-unsupported
+```
+
+숨김 항목의 코드는 파일 위치 또는 분석된 동작에서 도출됩니다. 파일명만으로 지원을
+허용하거나 거부하지 않으므로 legacy symlink나 미래 데이터를 읽는 구현이 이름 때문에
+정상 선택지로 표시되지 않습니다.
+
 ## 4. 권장 첫 실행
 
 대화형 설정과 백테스트를 시작합니다.
@@ -146,6 +161,23 @@ nfi-bte run NostalgiaForInfinityX7.py \
 ```bash
 nfi-bte run
 ```
+
+다른 터미널에서 최신 실행 상태와 체크포인트를 확인할 수 있습니다.
+
+```bash
+nfi-bte status
+nfi-bte status --json
+```
+
+ETA는 실측 추정치가 준비된 경우에만 표시하며 그 전에는 `estimating`으로 표시합니다.
+환경 문제의 코드와 정확한 복구 명령 또는 로컬 진단 번들은 다음과 같이 확인합니다.
+
+```bash
+nfi-bte doctor --json
+nfi-bte doctor --export-diagnostics .nfi/diagnostics.json
+```
+
+진단 번들에는 환경 변수와 인증 정보를 넣지 않으며 자동으로 외부에 전송하지 않습니다.
 
 터미널은 작업 시작 전에 실행 폴더를 출력합니다. 완료되면 핵심 결과를 간결한 ASCII
 박스로 보여 주고 결과 폴더와 보고서/내보내기 파일 이름을 출력합니다. 사람이 읽는

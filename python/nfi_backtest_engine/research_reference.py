@@ -51,7 +51,9 @@ if [ -d /reference-deps ]; then
     /nfi-python/nfi_backtest_engine/reference/dependency_seal.py \
     /reference-deps /nfi-deps/site \
     blake3-1.0.9-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl \
-    f65d77eb05331495485048f6804f53885b192b998acb7e6fe1487d941bf08435 || exit 126
+    f65d77eb05331495485048f6804f53885b192b998acb7e6fe1487d941bf08435 \
+    python_rapidjson-1.23-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl \
+    bffe4bb5bd0a51a9d937cad299530aaa82b6fe102aab095504963e98b7714a47 || exit 126
 fi
 run_as_bind_owner freqtrade "$@"
 status=$?

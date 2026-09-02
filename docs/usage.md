@@ -48,6 +48,21 @@ cd NostalgiaForInfinity
 
 Run `nfi-bte` from this NFI directory. Numeric market selection uses the current volume and filter policy in its `configs/` directory.
 
+Running `nfi-bte` without arguments opens a contextual start screen in a terminal. In
+scripts it prints the compact beginner help and exits without waiting for input. Use
+`nfi-bte help --all` to see the unchanged expert command surface.
+
+Only Native-compatible sources are shown by the guided strategy picker. Inspect legacy,
+invalid, and currently unsupported sources without executing them:
+
+```bash
+nfi-bte strategy list --show-unsupported
+```
+
+Every hidden entry includes a blocker code derived from its location or analyzed
+semantics. A filename alone never grants or denies support, so legacy symlinks and
+look-ahead implementations cannot appear as valid choices merely because of a name.
+
 ## 4. Recommended first run
 
 Start the interactive setup and backtest:
@@ -146,6 +161,25 @@ After setup, run or resume the saved project with:
 ```bash
 nfi-bte run
 ```
+
+Inspect the latest checkpointed run from another terminal:
+
+```bash
+nfi-bte status
+nfi-bte status --json
+```
+
+The status record reports measured elapsed time. ETA remains `estimating` until a
+measured estimate is available; the CLI never invents an ETA from fixed stage weights.
+For actionable prerequisite diagnostics or a local support bundle, use:
+
+```bash
+nfi-bte doctor --json
+nfi-bte doctor --export-diagnostics .nfi/diagnostics.json
+```
+
+Diagnostic bundles never include environment variables or credentials and are never
+transmitted automatically.
 
 Before any preparation or simulation starts, the CLI displays the planned CPU worker
 limit and asks for confirmation; Enter defaults to No. Use `--workers N` to lower the

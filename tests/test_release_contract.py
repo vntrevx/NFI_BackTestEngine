@@ -841,7 +841,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert contract["package_version"] == project_version
     assert contract == {
         "schema_version": "1.0.0",
-        "package_version": "1.10.6",
+        "package_version": "1.11.0",
         "release_kind": "product",
         "combined_full_x7_certified": False,
         "distribution_policy": {

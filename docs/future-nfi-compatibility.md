@@ -210,6 +210,25 @@ fingerprint에서만 재개한다. 최신 identity가 바뀌면 이전 cursor는
 위치시킬 수 없는 새 callback은 새 결과만으로 증명할 수 없으므로 검색하지 않고
 공식 fallback 상태로 남긴다.
 
+pair universe와 simulator sizing 입력은 각 정책의 `universe.market_catalog` 및
+`universe.market_snapshot`과 SHA-256으로 고정한다. 실행기는 repository 경계를
+벗어나는 경로, hash가 달라진 파일, mode 또는 선택된 pair set이 다른 snapshot을
+거부한다. 따라서 GitHub-hosted runner가 Binance market API를 지역 제한하더라도
+universe 선택과 market sizing은 동일한 바이트에서 재현된다. Spot catalog의 pair
+순서는 capture 시점의 고정 quote volume 내림차순이며, 실행 시점 ticker를 다시
+읽지 않는다. catalog/snapshot 갱신은 공식 endpoint에서 다시 capture한 파일과 정책
+hash를 함께 review하는 명시적 변경이며, 실행 중에 오래된 입력으로 조용히 대체하지
+않는다.
+
+검색 candle은 정책의 `external_data.source=binance-public-data-monthly`에 따라 Binance
+Public Data의 완료된 월별 ZIP만 사용한다. 각 ZIP은 게시된 `.CHECKSUM` SHA-256과 ZIP
+CRC, 단일 안전 경로, 크기 제한을 통과한 뒤 Freqtrade Feather 형태로 변환된다. pair,
+timeframe, data role(base/mark/funding), 원본 URL/hash, 최종 Feather hash는 series별
+매니페스트에 남으며 재개 시 모두 다시 검증한다. 상장 전 404는 leading gap으로만
+허용하고, 최초 데이터 이후의 월 누락이나 출처 매니페스트가 없는 기존 cache는
+fail-closed 한다. 따라서 심층 검색은 exchange REST candle endpoint나 암묵적 cache에
+의존하지 않는다.
+
 검색 hit 자체는 증거가 아니다. pair와 시간을 최소화한 뒤 이전/최신 공식과 최신
 Native를 각각 다시 실행해 변경 branch 도달, trade surface exact, full-state
 exact를 모두 통과한 mode별 paired fixture가 30 MiB 이하일 때만 candidate가 된다.

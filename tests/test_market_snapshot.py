@@ -136,3 +136,40 @@ def test_market_catalog_captures_mode_pairs_without_liquidation_tiers(
     assert result["pairs"] == ["BTC/USDT:USDT"]
     assert result["markets"]["BTC/USDT:USDT"]["created"] == 1_600_000_000_000
     assert "leverage_tiers" not in result["markets"]["BTC/USDT:USDT"]
+
+
+def test_spot_market_catalog_captures_quote_volume_for_stable_ranking(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    class FakeExchange:
+        precisionMode = ccxt.TICK_SIZE
+
+        def __init__(self, config):
+            self.config = config
+
+        def load_markets(self):
+            return {
+                "BTC/USDT": {
+                    "symbol": "BTC/USDT",
+                    "quote": "USDT",
+                    "active": True,
+                    "spot": True,
+                }
+            }
+
+        def fetch_tickers(self):
+            return {"BTC/USDT": {"quoteVolume": 1234.5}}
+
+    monkeypatch.setattr(market_snapshot.ccxt, "binance", FakeExchange)
+    result = capture_market_catalog(
+        {
+            "exchange": {"name": "binance", "pair_whitelist": []},
+            "stake_currency": "USDT",
+            "trading_mode": "spot",
+        },
+        tmp_path / "catalog.json",
+    )
+
+    assert result["schema_version"] == market_snapshot.MARKET_CATALOG_VERSION
+    assert result["markets"]["BTC/USDT"]["quote_volume"] == 1234.5
