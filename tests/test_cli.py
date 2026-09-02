@@ -68,6 +68,24 @@ def test_cli_help_and_version_bypass_execution_platform_guard(
     assert capsys.readouterr().out.strip().startswith("nfi-bte ")
 
 
+def test_no_argument_cli_is_nonblocking_and_default_help_is_layered(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False)
+
+    assert cli.main([]) == 0
+    beginner_help = capsys.readouterr().out
+    assert "run" in beginner_help
+    assert "doctor" in beginner_help
+    assert "semantic-inventory" not in beginner_help
+
+    assert cli.main(["help", "--all"]) == 0
+    expert_help = capsys.readouterr().out
+    assert "strategy" in expert_help
+    assert "engine" in expert_help
+
+
 def test_certification_help_renders_literal_spread_percentage(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -338,6 +356,31 @@ def test_successful_command_checks_for_update_once(
 
     assert cli.main(["doctor"]) == 0
     assert checked_versions == [cli.__version__]
+
+
+def test_machine_json_command_does_not_append_an_update_notice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli, "_dispatch_command", lambda *_args, **_kwargs: 0)
+    monkeypatch.setattr(
+        cli,
+        "maybe_print_update_notice",
+        lambda _version: pytest.fail("JSON output must remain one machine document"),
+    )
+
+    assert cli.main(["doctor", "--json"]) == 0
+
+
+def test_status_without_project_or_registry_is_read_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert cli.main(["status", "--json"]) == 2
+    assert "no research runs are registered" in capsys.readouterr().err
+    assert not (tmp_path / ".nfi").exists()
 
 
 def test_update_command_does_not_repeat_update_check(

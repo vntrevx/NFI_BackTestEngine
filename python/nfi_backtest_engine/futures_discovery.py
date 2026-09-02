@@ -25,10 +25,11 @@ from .errors import (
     SpecValidationError,
 )
 from .fixture import sha256_file
+from .market_snapshot import MARKET_CATALOG_VERSION, MARKET_SNAPSHOT_VERSION
 from .reference.contracts import REFERENCE_INDEX_DIGEST
 from .targeted_verification import plan_targeted_verification
 
-DISCOVERY_POLICY_VERSION = "1.1.0"
+DISCOVERY_POLICY_VERSION = "1.3.0"
 DISCOVERY_REPORT_VERSION = "1.0.0"
 DISCOVERY_CURSOR_VERSION = "1.0.0"
 DISCOVERY_REQUEST_VERSION = "1.0.0"
@@ -70,8 +71,14 @@ class DiscoveryPolicy:
     shard_months: int
     pair_limit: int
     template_config: Path
+    market_catalog: Path
+    market_catalog_sha256: str
+    market_snapshot: Path
+    market_snapshot_sha256: str
     budget_seconds: int
     workers: int
+    archive_workers: int
+    archive_source: str
     deferred_http_statuses: frozenset[int]
     external_retry: str
     compact_artifact_retention_days: int
@@ -146,11 +153,19 @@ def load_discovery_policy(
         {"completed_years", "shard_months", "order", "coverage"},
         "history",
     )
-    _require_exact_fields(universe, {"pair_limit", "template_config"}, "universe")
-    _require_exact_fields(execution, {"budget_seconds", "workers"}, "execution")
+    _require_exact_fields(
+        universe,
+        {"pair_limit", "template_config", "market_catalog", "market_snapshot"},
+        "universe",
+    )
+    _require_exact_fields(
+        execution,
+        {"budget_seconds", "workers", "archive_workers"},
+        "execution",
+    )
     _require_exact_fields(
         external_data,
-        {"deferred_http_statuses", "retry"},
+        {"source", "deferred_http_statuses", "retry"},
         "external_data",
     )
     _require_exact_fields(
@@ -174,6 +189,12 @@ def load_discovery_policy(
     pair_limit = _positive_int(universe["pair_limit"], "pair_limit")
     budget_seconds = _positive_int(execution["budget_seconds"], "budget_seconds")
     workers = _positive_int(execution["workers"], "workers")
+    archive_workers = _positive_int(execution["archive_workers"], "archive_workers")
+    archive_source = external_data["source"]
+    if archive_source != "binance-public-data-monthly":
+        raise SpecValidationError(
+            "discovery external_data source must be binance-public-data-monthly"
+        )
     deferred_http_statuses = _http_statuses(
         external_data["deferred_http_statuses"],
     )
@@ -205,14 +226,58 @@ def load_discovery_policy(
         raise SpecValidationError(
             "discovery template_config must resolve to a repository file"
         )
+    catalog = _object(universe["market_catalog"], "market_catalog")
+    _require_exact_fields(catalog, {"path", "sha256"}, "market_catalog")
+    catalog_value = catalog["path"]
+    catalog_sha256 = catalog["sha256"]
+    if not isinstance(catalog_value, str) or not catalog_value:
+        raise SpecValidationError("discovery market_catalog.path must be a repository path")
+    if (
+        not isinstance(catalog_sha256, str)
+        or len(catalog_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in catalog_sha256)
+    ):
+        raise SpecValidationError("discovery market_catalog.sha256 must be lowercase SHA-256")
+    catalog_path = (root / catalog_value).resolve()
+    if not catalog_path.is_relative_to(root) or not catalog_path.is_file():
+        raise SpecValidationError(
+            "discovery market_catalog.path must resolve to a repository file"
+        )
+    if sha256_file(catalog_path) != catalog_sha256:
+        raise SpecValidationError("discovery market_catalog SHA-256 differs")
+    catalog_document = read_json(catalog_path)
+    if (
+        not isinstance(catalog_document, dict)
+        or catalog_document.get("schema_version") != MARKET_CATALOG_VERSION
+        or catalog_document.get("exchange") != "binance"
+        or catalog_document.get("trading_mode") != trading_mode
+        or not isinstance(catalog_document.get("pairs"), list)
+        or not isinstance(catalog_document.get("markets"), dict)
+    ):
+        raise SpecValidationError(
+            "discovery market_catalog identity or structure differs"
+        )
+    market_snapshot, market_snapshot_sha256 = _load_pinned_market_input(
+        universe["market_snapshot"],
+        label="market_snapshot",
+        root=root,
+        schema_version=MARKET_SNAPSHOT_VERSION,
+        trading_mode=trading_mode,
+    )
     return DiscoveryPolicy(
         trading_mode=trading_mode,
         completed_years=completed_years,
         shard_months=shard_months,
         pair_limit=pair_limit,
         template_config=template,
+        market_catalog=catalog_path,
+        market_catalog_sha256=catalog_sha256,
+        market_snapshot=market_snapshot,
+        market_snapshot_sha256=market_snapshot_sha256,
         budget_seconds=budget_seconds,
         workers=workers,
+        archive_workers=archive_workers,
+        archive_source=archive_source,
         deferred_http_statuses=deferred_http_statuses,
         external_retry=external_retry,
         compact_artifact_retention_days=compact_retention,
@@ -222,6 +287,46 @@ def load_discovery_policy(
         source_path=path,
         source_sha256=sha256_file(path),
     )
+
+
+def _load_pinned_market_input(
+    value: Any,
+    *,
+    label: str,
+    root: Path,
+    schema_version: str,
+    trading_mode: str,
+) -> tuple[Path, str]:
+    record = _object(value, label)
+    _require_exact_fields(record, {"path", "sha256"}, label)
+    path_value = record["path"]
+    digest = record["sha256"]
+    if not isinstance(path_value, str) or not path_value:
+        raise SpecValidationError(f"discovery {label}.path must be a repository path")
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
+        raise SpecValidationError(f"discovery {label}.sha256 must be lowercase SHA-256")
+    source = (root / path_value).resolve()
+    if not source.is_relative_to(root) or not source.is_file():
+        raise SpecValidationError(
+            f"discovery {label}.path must resolve to a repository file"
+        )
+    if sha256_file(source) != digest:
+        raise SpecValidationError(f"discovery {label} SHA-256 differs")
+    document = read_json(source)
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != schema_version
+        or document.get("exchange") != "binance"
+        or document.get("trading_mode") != trading_mode
+        or not isinstance(document.get("pairs"), list)
+        or not isinstance(document.get("markets"), dict)
+    ):
+        raise SpecValidationError(f"discovery {label} identity or structure differs")
+    return source, digest
 
 
 def search_shards(
@@ -331,9 +436,11 @@ def build_discovery_request(
             "pair_limit": policy.pair_limit,
             "budget_seconds": policy.budget_seconds,
             "workers": policy.workers,
+            "archive_workers": policy.archive_workers,
             "timeranges": [shard.timerange for shard in shards],
         },
         "external_data": {
+            "source": policy.archive_source,
             "deferred_http_statuses": sorted(policy.deferred_http_statuses),
             "retry": policy.external_retry,
         },
@@ -479,7 +586,13 @@ def discover_targets(
                     "target_ids": [],
                     "external_http_status": exc.external_http_status,
                 }
-            except (BenchmarkError, BranchCoverageError, SpecValidationError) as exc:
+            except BenchmarkError as exc:
+                result = {
+                    "outcome": "infrastructure_failed",
+                    "message": str(exc),
+                    "target_ids": [],
+                }
+            except (BranchCoverageError, SpecValidationError) as exc:
                 result = {
                     "outcome": "unsupported",
                     "message": str(exc),
@@ -519,6 +632,7 @@ def discover_targets(
                 break
             if result["outcome"] == "infrastructure_failed":
                 status = "infrastructure_failed"
+                next_shard = shard.index
                 break
         else:
             status = "coverage_exhausted"

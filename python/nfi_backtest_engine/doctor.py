@@ -21,6 +21,32 @@ from .reference_runtime import (
     ensure_docker_config,
 )
 
+_CHECK_GUIDANCE = {
+    "python": (
+        "PYTHON_VERSION_UNSUPPORTED",
+        "Install a supported Python version (3.12 through 3.14).",
+    ),
+    "memory": ("MEMORY_INSUFFICIENT", "Close other workloads or reduce the pair count."),
+    "docker_cli": ("DOCKER_CLI_MISSING", "Install Docker and ensure `docker` is on PATH."),
+    "docker_server": ("DOCKER_SERVER_UNAVAILABLE", "Start Docker, then run `nfi-bte doctor`."),
+    "docker_resources": (
+        "DOCKER_MEMORY_INSUFFICIENT",
+        "Increase Docker's memory limit to at least 2 GiB.",
+    ),
+    "managed_containers": (
+        "MANAGED_CONTAINERS_ACTIVE",
+        "Wait for managed work to finish or inspect it with `nfi-bte system docker`.",
+    ),
+    "reference_image": (
+        "REFERENCE_IMAGE_MISSING",
+        "Run a verified backtest when online to fetch the pinned reference image.",
+    ),
+    "execution_profile": (
+        "EXECUTION_PROFILE_STALE",
+        "Run `nfi-bte system tune --force` to recalibrate this computer.",
+    ),
+}
+
 
 def run_doctor(
     *,
@@ -33,7 +59,7 @@ def run_doctor(
     checks.append(
         _check(
             "python",
-            sys.version_info >= (3, 10),
+            (3, 12) <= sys.version_info < (3, 15),
             f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         )
     )
@@ -56,12 +82,13 @@ def run_doctor(
             checks.append(_check("execution_profile", False, str(exc)))
 
     return {
-        "schema_version": "1.1.0",
+        "schema_version": "2.0.0",
         "healthy": all(item["status"] != "error" for item in checks),
         "hardware": hardware,
         "docker": docker_runtime,
         "execution_profile": profile,
         "checks": checks,
+        "safe_fixes": [],
     }
 
 
@@ -174,9 +201,17 @@ def _check(
     detail: str,
     *,
     warning: bool = False,
-) -> dict[str, str]:
+) -> dict[str, Any]:
+    code, remediation = _CHECK_GUIDANCE.get(
+        name,
+        ("CHECK_FAILED", "Review the detail and run `nfi-bte doctor` again."),
+    )
     return {
         "name": name,
         "status": "ok" if success else ("warning" if warning else "error"),
         "detail": detail,
+        "code": "OK" if success else code,
+        "severity": "info" if success else ("warning" if warning else "error"),
+        "remediation": None if success else remediation,
+        "auto_fix_available": False,
     }

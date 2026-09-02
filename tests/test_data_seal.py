@@ -190,6 +190,11 @@ def test_data_download_flattens_host_relative_config_includes(
 
     monkeypatch.setattr(data_seal, "ensure_docker_config", lambda: tmp_path)
     monkeypatch.setattr(data_seal, "ensure_reference_image", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        data_seal,
+        "ensure_reference_dependencies",
+        lambda **_kwargs: tmp_path / "reference-deps",
+    )
 
     @contextmanager
     def fake_managed_run(**_kwargs):
@@ -228,6 +233,18 @@ def test_data_download_flattens_host_relative_config_includes(
     assert f"NFI_BIND_UID={owner.st_uid}" in command
     assert f"NFI_BIND_GID={owner.st_gid}" in command
     assert command[command.index("--entrypoint") + 1] == "/bin/sh"
+    assert f"{tmp_path / 'reference-deps'}:/reference-deps:ro" in command
+    assert not any(
+        isinstance(item, str) and item.endswith(":/nfi-deps:ro")
+        for item in command
+    )
+    assert any(
+        isinstance(item, str) and item.startswith("PYTHONPATH=/nfi-python:/nfi-deps/site:")
+        for item in command
+    )
+    entry_script = command[command.index("-c") + 1]
+    assert "reference/dependency_seal.py" in entry_script
+    assert "run_as_bind_owner" in entry_script
     assert observed["mounted"] == {
         "exchange": {
             "name": "binance",
@@ -267,6 +284,11 @@ def test_transient_binance_failure_retries_and_reuses_partial_download(
     diagnostic = tmp_path / "run/download-error.log"
     monkeypatch.setattr(data_seal, "ensure_docker_config", lambda: tmp_path)
     monkeypatch.setattr(data_seal, "ensure_reference_image", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        data_seal,
+        "ensure_reference_dependencies",
+        lambda **_kwargs: tmp_path / "reference-deps",
+    )
     monkeypatch.setattr(data_seal.time, "sleep", delays.append)
 
     @contextmanager
@@ -323,6 +345,11 @@ def test_exhausted_transient_download_has_short_error_and_diagnostic_log(
     diagnostic = tmp_path / "run/download-error.log"
     monkeypatch.setattr(data_seal, "ensure_docker_config", lambda: tmp_path)
     monkeypatch.setattr(data_seal, "ensure_reference_image", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        data_seal,
+        "ensure_reference_dependencies",
+        lambda **_kwargs: tmp_path / "reference-deps",
+    )
     monkeypatch.setattr(data_seal.time, "sleep", lambda _seconds: None)
 
     @contextmanager

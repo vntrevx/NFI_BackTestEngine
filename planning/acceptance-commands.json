@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-08-15",
+  "updated_at": "2026-09-03",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -16,7 +16,7 @@
   },
   "commands": {
     "planning_json": {
-      "command": "jq empty planning/roadmap-state.json planning/acceptance-commands.json planning/compatibility-fixtures.json planning/futures-discovery-policy.json planning/futures-discovery-config.json planning/spot-discovery-policy.json planning/spot-discovery-config.json",
+      "command": "jq empty planning/roadmap-state.json planning/acceptance-commands.json planning/compatibility-fixtures.json planning/futures-discovery-policy.json planning/futures-discovery-config.json planning/spot-discovery-policy.json planning/spot-discovery-config.json planning/market-catalogs/*.json planning/market-snapshots/*.json",
       "working_directory": ".",
       "platform": "linux",
       "timeout_seconds": 30,
@@ -115,7 +115,7 @@
       "mutates_external_state": false
     },
     "futures_discovery_tests": {
-      "command": "uv run pytest -q tests/test_futures_discovery.py tests/test_futures_candidate_pr.py tests/test_futures_discovery_issue.py tests/test_futures_discovery_health_issue.py tests/test_select_discovery_cursor.py tests/test_futures_discovery_workflow.py tests/test_clean.py",
+      "command": "uv run pytest -q tests/test_binance_archive.py tests/test_futures_discovery.py tests/test_futures_candidate_pr.py tests/test_futures_discovery_issue.py tests/test_futures_discovery_health_issue.py tests/test_select_discovery_cursor.py tests/test_futures_discovery_workflow.py tests/test_clean.py",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 1200,

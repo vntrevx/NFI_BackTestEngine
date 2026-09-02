@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
+import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
+from .. import __version__
 from ..canonical import write_json
 from ..doctor import run_doctor
 from ..errors import NfiBacktestError
@@ -17,7 +21,7 @@ from ..hardware import (
     load_execution_profile,
 )
 
-COMMAND_NAMES = frozenset({"doctor", "system"})
+COMMAND_NAMES = frozenset({"doctor", "system", "help"})
 
 
 def execute(
@@ -27,13 +31,55 @@ def execute(
 ) -> int:
     """Execute health, hardware, Docker, or execution-profile commands."""
     if args.command_name == "doctor":
+        fixes: list[dict[str, str]] = []
+        if args.fix:
+            managed_root = Path(".nfi")
+            managed_root.mkdir(parents=True, exist_ok=True)
+            fixes.append(
+                {
+                    "code": "MANAGED_ROOT_READY",
+                    "status": "applied",
+                    "detail": str(managed_root.resolve()),
+                }
+            )
         report = run_doctor(profile_path=args.profile)
+        report["safe_fixes"] = fixes
         if args.output:
             write_json(args.output, report)
-        print(
-            f"doctor: {'healthy' if report['healthy'] else 'unhealthy'}; "
-            + ", ".join(f"{check['name']}={check['status']}" for check in report["checks"])
-        )
+        if args.export_diagnostics:
+            bundle = {
+                "schema_version": "1.0.0",
+                "privacy": {
+                    "remote_transmission": False,
+                    "environment_variables_included": False,
+                    "credentials_included": False,
+                },
+                "product": {"name": "NFI Backtest Engine", "version": __version__},
+                "runtime": {
+                    "python": platform.python_version(),
+                    "platform": platform.platform(),
+                    "executable_name": Path(sys.executable).name,
+                },
+                "doctor": report,
+            }
+            write_json(args.export_diagnostics, bundle)
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        else:
+            print(
+                f"doctor: {'healthy' if report['healthy'] else 'unhealthy'}; "
+                + ", ".join(
+                    f"{check['name']}={check['status']}" for check in report["checks"]
+                )
+            )
+            for check in report["checks"]:
+                if check["status"] != "ok":
+                    print(
+                        f"  {check['code']}: {check['detail']}\n"
+                        f"    Next: {check['remediation']}"
+                    )
+            if args.export_diagnostics:
+                print(f"diagnostics: {args.export_diagnostics}")
         return 0 if report["healthy"] else 1
 
     if args.command_name != "system":

@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 from nfi_backtest_engine import cli, research_runner, setup_wizard, user_flow
 from nfi_backtest_engine.canonical import read_json, write_json
+from nfi_backtest_engine.commands import report as report_command
 from nfi_backtest_engine.commands import run as run_command
 from nfi_backtest_engine.errors import BenchmarkError, SpecValidationError
 from nfi_backtest_engine.fixture import sha256_file
@@ -946,6 +947,60 @@ def test_run_progress_prints_stage_percentage_and_elapsed_time() -> None:
     assert "[ 20%] Preparing candles for 1 selected pair + 1 required BTC reference" in rendered
     assert "[100%] Backtest complete" in rendered
     assert "(00:00 elapsed)" in rendered
+
+
+def test_run_progress_writes_a_durable_atomic_status(tmp_path: Path) -> None:
+    state_path = tmp_path / "run" / "progress.json"
+
+    with user_flow.RunProgress(
+        stream=io.StringIO(),
+        interactive=False,
+        state_path=state_path,
+    ) as progress:
+        progress.update(20, "Preparing candles")
+        running = read_json(state_path)
+        assert running["status"] == "running"
+        assert running["percent"] == 20
+        assert running["eta_status"] == "estimating"
+        progress.update(100, "Backtest complete")
+
+    completed = read_json(state_path)
+    assert completed["schema_version"] == "1.0.0"
+    assert completed["status"] == "complete"
+    assert completed["eta_seconds"] is None
+    assert not (state_path.parent / ".progress.json.tmp").exists()
+
+
+def test_active_project_status_precedes_an_older_registry_result(tmp_path: Path) -> None:
+    source, _, _ = _standard_layout(tmp_path)
+    settings = initialize_project(
+        workspace=tmp_path,
+        source=source,
+        timerange="20250101-20250102",
+        interactive=False,
+    )
+    settings.output_directory.mkdir(parents=True)
+    write_json(
+        settings.output_directory / "progress.json",
+        {
+            "schema_version": "1.0.0",
+            "status": "running",
+            "percent": 20,
+            "label": "Preparing candles",
+            "started_at": "2026-09-03T00:00:00Z",
+            "updated_at": "2026-09-03T00:00:10Z",
+            "elapsed_seconds": 10,
+            "pid": 1,
+            "eta_seconds": 40,
+            "eta_status": "measured",
+        },
+    )
+
+    active = report_command._active_project_record(settings.registry_path)
+
+    assert active is not None
+    assert active["run_id"] == "pending"
+    assert active["output_directory"] == str(settings.output_directory)
 
 
 def test_run_progress_rotates_one_interactive_status_line() -> None:

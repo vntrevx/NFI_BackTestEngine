@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shlex
 import subprocess
 import tempfile
 import time
@@ -21,17 +22,20 @@ from .config_loader import (
     strip_service_only_settings,
 )
 from .docker_runtime import (
-    RUN_AS_BIND_OWNER_SCRIPT,
+    BIND_OWNER_EXECUTABLE_FUNCTION,
     docker_root_with_bind_owner_arguments,
     managed_docker_run,
 )
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
+from .reference.contracts import REFERENCE_DEPENDENCY_WHEELS
+from .reference.execution import _project_root
 from .reference_runtime import (
     REFERENCE_IMAGE_REF,
     REFERENCE_PLATFORM,
     REFERENCE_PLATFORM_DIGEST,
     ensure_docker_config,
+    ensure_reference_dependencies,
     ensure_reference_image,
 )
 from .timerange import parse_timerange_milliseconds
@@ -50,6 +54,20 @@ _TRANSIENT_DOWNLOAD_ERRORS = (
     "RequestTimeout",
     "TemporaryError",
 )
+
+
+def _data_download_script() -> str:
+    wheel_arguments = " ".join(
+        shlex.quote(value)
+        for name, _url, digest in REFERENCE_DEPENDENCY_WHEELS
+        for value in (name, digest)
+    )
+    return BIND_OWNER_EXECUTABLE_FUNCTION + f"""\
+/usr/local/bin/python \\
+  /nfi-python/nfi_backtest_engine/reference/dependency_seal.py \\
+  /reference-deps /nfi-deps/site {wheel_arguments} || exit 126
+run_as_bind_owner "$@"
+"""
 
 
 def prepare_data(
@@ -790,6 +808,13 @@ def _download_data(
 ) -> dict[str, Any]:
     docker_config = ensure_docker_config()
     ensure_reference_image(docker_config=docker_config)
+    dependency_directory = ensure_reference_dependencies(
+        project_root=_project_root(),
+        docker_config=docker_config,
+    )
+    package_root = _project_root() / "python" / "nfi_backtest_engine"
+    if not package_root.is_dir():
+        raise BenchmarkError("reference dependency staging package is missing")
     before = _data_file_signatures(data_root)
     with tempfile.TemporaryDirectory(prefix="nfi-data-") as temporary:
         temporary_root = Path(temporary)
@@ -827,11 +852,18 @@ def _download_data(
                     f"{data_root}:/data",
                     "--volume",
                     f"{user_data}:/work/user_data",
+                    "--volume",
+                    f"{dependency_directory}:/reference-deps:ro",
+                    "--volume",
+                    f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
+                    "--env",
+                    "PYTHONPATH=/nfi-python:/nfi-deps/site:"
+                    "/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade",
                     "--entrypoint",
                     "/bin/sh",
                     REFERENCE_IMAGE_REF,
                     "-c",
-                    RUN_AS_BIND_OWNER_SCRIPT,
+                    _data_download_script(),
                     "nfi-data-download",
                     "freqtrade",
                     "download-data",

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import re
+import shutil
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -10,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config, sanitize_config
-from .data_seal import candle_files_for, inspect_candle_quality
+from .data_seal import build_data_request, candle_files_for, inspect_candle_quality
 from .errors import (
     BenchmarkError,
     BranchCoverageError,
@@ -18,7 +20,7 @@ from .errors import (
     SpecValidationError,
 )
 from .fixture import sha256_file
-from .market_snapshot import capture_market_catalog
+from .market_snapshot import validate_release_market_snapshot
 from .release_contract import release_contract_for_config
 from .release_inputs import discover_release_universe
 from .targeted_verification import (
@@ -44,10 +46,25 @@ def run_shard_scout(
     """Run one real Native shard and seal a candidate if it hits."""
     shared = context.output / "work" / "shared"
     shared.mkdir(parents=True, exist_ok=True)
-    generated_config, pairs = _ensure_universe(context, shared)
+    try:
+        generated_config, pairs, market_snapshot = _ensure_universe(context, shared)
+    except BenchmarkError as exc:
+        raise _discovery_infrastructure_error(exc) from exc
     shard_root = context.output / "work" / f"shard-{shard.index:03d}"
     engine_output = shard_root / "engine"
     scout_source = _scout_strategy_source(context)
+    try:
+        archive_report = _prepare_scout_archive(
+            shard,
+            context,
+            strategy_path=scout_source,
+            config_path=generated_config,
+            data_directory=shared / "data",
+            pairs=pairs,
+            destination=shard_root / "archive-download.json",
+        )
+    except BenchmarkError as exc:
+        raise _discovery_infrastructure_error(exc) from exc
     try:
         engine = _run_scout_backtest(
             shard,
@@ -57,6 +74,7 @@ def run_shard_scout(
             data_directory=shared / "data",
             output_directory=engine_output,
             pairs=pairs,
+            market_snapshot=market_snapshot,
         )
     except SpecValidationError as exc:
         if context.policy.trading_mode != "spot" or not str(exc).startswith(
@@ -85,13 +103,20 @@ def run_shard_scout(
             data_directory=shared / "data",
             output_directory=engine_output,
             pairs=pairs,
+            market_snapshot=market_snapshot,
         )
+    archive_evidence = {
+        "archive_report": str(shard_root / "archive-download.json"),
+        "archive_report_sha256": sha256_file(shard_root / "archive-download.json"),
+        "archive_aggregate_sha256": archive_report["aggregate_sha256"],
+    }
     if not engine["complete"]:
         return {
             "outcome": "unsupported",
             "message": "Native shard remained blocked; official fallback stays available",
             "target_ids": [],
             "native_report": str(engine_output / "run.json"),
+            **archive_evidence,
         }
     surface_path = engine_output / "trade-surface.json"
     if not surface_path.is_file():
@@ -107,6 +132,7 @@ def run_shard_scout(
             "message": "shard completed without a missing target",
             "target_ids": [],
             "native_report": str(engine_output / "run.json"),
+            **archive_evidence,
         }
     hit = _locate_hit(context.search_targets, reached, surface)
     if hit is None:
@@ -115,13 +141,14 @@ def run_shard_scout(
             "message": "target was observable but no pair-bound event could be minimized",
             "target_ids": reached,
             "native_report": str(engine_output / "run.json"),
+            **archive_evidence,
         }
     candidate = _capture_candidate(
         shard,
         context,
         generated_config=generated_config,
         data_directory=shared / "data",
-        engine_market_path=engine_output / "market-metadata.json",
+        engine_market_path=market_snapshot,
         hit=hit,
         target_ids=list(hit["target_ids"]),
     )
@@ -134,14 +161,82 @@ def run_shard_scout(
             ),
             "target_ids": reached,
             "native_report": str(engine_output / "run.json"),
+            **archive_evidence,
         }
     return {
         "outcome": "candidate",
         "message": "branch-reaching official/Native exact fixture candidate found",
         "target_ids": candidate["target_ids"],
         "native_report": str(engine_output / "run.json"),
+        **archive_evidence,
         "candidate": candidate,
     }
+
+
+def _prepare_scout_archive(
+    shard: SearchShard,
+    context: DiscoveryContext,
+    *,
+    strategy_path: Path,
+    config_path: Path,
+    data_directory: Path,
+    pairs: list[str],
+    destination: Path,
+) -> dict[str, Any]:
+    """Prepare a reproducible shard input without invoking exchange REST APIs."""
+    from .binance_archive import prepare_binance_archive_data
+    from .research_runner import required_data_pairs
+    from .vector_runtime import load_strategy_analysis
+
+    if context.policy.archive_source != "binance-public-data-monthly":
+        raise SpecValidationError("discovery archive source differs from its policy")
+    config = read_json(config_path)
+    exchange = config.get("exchange") if isinstance(config, dict) else None
+    if not isinstance(config, dict) or not isinstance(exchange, dict):
+        raise SpecValidationError("discovery archive config must be an object")
+    analysis = load_strategy_analysis(
+        strategy_path,
+        class_name=context.class_name,
+        cache_directory=context.output / "work" / "shared" / "cache",
+    )
+    strategies = analysis.get("strategies") if isinstance(analysis, dict) else None
+    if not isinstance(strategies, list) or len(strategies) != 1:
+        raise SpecValidationError("discovery archive strategy analysis differs")
+    strategy = strategies[0]
+    timeframes = strategy.get("required_timeframes") if isinstance(strategy, dict) else None
+    constants = strategy.get("constants") if isinstance(strategy, dict) else None
+    startup = constants.get("startup_candle_count", 0) if isinstance(constants, dict) else 0
+    if (
+        not isinstance(timeframes, list)
+        or not timeframes
+        or not all(isinstance(value, str) and value for value in timeframes)
+        or not isinstance(startup, int)
+        or isinstance(startup, bool)
+        or startup < 0
+    ):
+        raise SpecValidationError("discovery archive strategy requirements differ")
+    data_pairs = required_data_pairs({"pairs": pairs}, config)
+    exchange["pair_whitelist"] = data_pairs
+    request = build_data_request(
+        config,
+        shard.timerange,
+        list(timeframes),
+        startup_candles=startup,
+        history_coverage_policy="available",
+    )
+    report = prepare_binance_archive_data(
+        data_directory,
+        pairs=data_pairs,
+        timeframes=list(timeframes),
+        trading_mode=context.policy.trading_mode,
+        coverage_start_timestamp_ms_by_timeframe=request[
+            "coverage_start_timestamp_ms_by_timeframe"
+        ],
+        end_timestamp_ms=request["end_timestamp_ms"],
+        workers=context.policy.archive_workers,
+    )
+    write_json(destination, report)
+    return report
 
 
 def _run_scout_backtest(
@@ -153,30 +248,34 @@ def _run_scout_backtest(
     data_directory: Path,
     output_directory: Path,
     pairs: list[str],
+    market_snapshot: Path,
 ) -> dict[str, Any]:
     from .research_runner import run_research_backtest
 
-    return run_research_backtest(
-        strategy_path=strategy_path,
-        class_name=context.class_name,
-        config_path=config_path,
-        data_directory=data_directory,
-        timerange=shard.timerange,
-        output_directory=output_directory,
-        pairs=pairs,
-        workers=context.workers,
-        cache_directory=context.output / "work" / "shared" / "cache",
-        profile_path=context.profile_path,
-        resume=False,
-        prepare_only=False,
-        download_missing=True,
-        market_metadata_path=None,
-        registry_path=context.output / "work" / "shared" / "runs.sqlite",
-        download_market_metadata=True,
-        recalibrate=True,
-        history_coverage_policy="available",
-        trace_engine_events=True,
-    )
+    try:
+        return run_research_backtest(
+            strategy_path=strategy_path,
+            class_name=context.class_name,
+            config_path=config_path,
+            data_directory=data_directory,
+            timerange=shard.timerange,
+            output_directory=output_directory,
+            pairs=pairs,
+            workers=context.workers,
+            cache_directory=context.output / "work" / "shared" / "cache",
+            profile_path=context.profile_path,
+            resume=False,
+            prepare_only=False,
+            download_missing=False,
+            market_metadata_path=market_snapshot,
+            registry_path=context.output / "work" / "shared" / "runs.sqlite",
+            download_market_metadata=False,
+            recalibrate=True,
+            history_coverage_policy="available",
+            trace_engine_events=True,
+        )
+    except BenchmarkError as exc:
+        raise _discovery_infrastructure_error(exc) from exc
 
 
 def _pairs_with_nonempty_base_candles(
@@ -240,29 +339,56 @@ def _scout_strategy_source(context: DiscoveryContext) -> Path:
 def _ensure_universe(
     context: DiscoveryContext,
     shared: Path,
-) -> tuple[Path, list[str]]:
+) -> tuple[Path, list[str], Path]:
     config_path = shared / "discovery-config.json"
     pairs_path = shared / "pairs.json"
     if config_path.is_file() and pairs_path.is_file():
         pairs_document = read_json(pairs_path)
-        if not isinstance(pairs_document, dict) or not isinstance(
-            pairs_document.get("pairs"),
-            list,
+        cached_pairs = (
+            pairs_document.get("pairs")
+            if isinstance(pairs_document, dict)
+            else None
+        )
+        if (
+            not isinstance(cached_pairs, list)
+            or not cached_pairs
+            or not all(isinstance(pair, str) and pair for pair in cached_pairs)
+            or pairs_document.get("catalog_sha256")
+            != context.policy.market_catalog_sha256
+            or pairs_document.get("market_snapshot_sha256")
+            != context.policy.market_snapshot_sha256
         ):
             raise SpecValidationError("cached discovery pairs are invalid")
-        return config_path, list(pairs_document["pairs"])
+        market_path = shared / "market-metadata.json"
+        if (
+            not market_path.is_file()
+            or sha256_file(market_path) != context.policy.market_snapshot_sha256
+        ):
+            raise SpecValidationError("cached discovery market snapshot is missing or changed")
+        config = read_json(config_path)
+        exchange = config.get("exchange") if isinstance(config, dict) else None
+        if (
+            not isinstance(config, dict)
+            or not isinstance(exchange, dict)
+            or exchange.get("pair_whitelist") != cached_pairs
+        ):
+            raise SpecValidationError("cached discovery config differs from its pair set")
+        validate_release_market_snapshot(
+            read_json(market_path),
+            contract=release_contract_for_config(config),
+            pairs=list(cached_pairs),
+        )
+        return config_path, list(cached_pairs), market_path
     loaded = load_effective_config(context.policy.template_config)
     effective = sanitize_config(loaded["config"])
     if not isinstance(effective, dict):
         raise SpecValidationError("discovery template config must be an object")
     catalog_path = shared / "market-catalog.json"
-    try:
-        capture_market_catalog(effective, catalog_path)
-    except BenchmarkError as exc:
-        raise DiscoveryInfrastructureError(
-            f"market catalog capture failed before semantic discovery: {exc}",
-            external_http_status=_external_http_status(str(exc)),
-        ) from exc
+    if sha256_file(context.policy.market_catalog) != context.policy.market_catalog_sha256:
+        raise SpecValidationError("pinned discovery market catalog SHA-256 changed")
+    shutil.copyfile(context.policy.market_catalog, catalog_path)
+    if sha256_file(catalog_path) != context.policy.market_catalog_sha256:
+        raise SpecValidationError("copied discovery market catalog SHA-256 changed")
     candidates_path = shared / "universe.json"
     overall_timerange = f"{context.all_shards[-1].start:%Y%m%d}-{context.all_shards[0].stop:%Y%m%d}"
     if context.policy.trading_mode == "spot":
@@ -294,6 +420,17 @@ def _ensure_universe(
         raise SpecValidationError("discovery config exchange must be an object")
     _pin_discovery_ccxt_market_type(exchange, context.policy.trading_mode)
     exchange["pair_whitelist"] = pairs
+    market_path = shared / "market-metadata.json"
+    if sha256_file(context.policy.market_snapshot) != context.policy.market_snapshot_sha256:
+        raise SpecValidationError("pinned discovery market snapshot SHA-256 changed")
+    shutil.copyfile(context.policy.market_snapshot, market_path)
+    if sha256_file(market_path) != context.policy.market_snapshot_sha256:
+        raise SpecValidationError("copied discovery market snapshot SHA-256 changed")
+    validate_release_market_snapshot(
+        read_json(market_path),
+        contract=release_contract_for_config(effective),
+        pairs=pairs,
+    )
     write_json(config_path, effective)
     write_json(
         pairs_path,
@@ -301,10 +438,16 @@ def _ensure_universe(
             "schema_version": "1.0.0",
             "pairs": pairs,
             "catalog_sha256": sha256_file(catalog_path),
+            "catalog_source": {
+                "path": str(context.policy.market_catalog),
+                "sha256": context.policy.market_catalog_sha256,
+                "network_capture": False,
+            },
+            "market_snapshot_sha256": context.policy.market_snapshot_sha256,
             "universe_sha256": sha256_file(candidates_path),
         },
     )
-    return config_path, pairs
+    return config_path, pairs, market_path
 
 
 def _pin_discovery_ccxt_market_type(
@@ -379,10 +522,15 @@ def _discover_spot_search_universe(
                 reason = "INACTIVE"
             elif market.get("spot") is not True:
                 reason = "NOT_SPOT"
+            elif not _valid_quote_volume(market.get("quote_volume")):
+                reason = "QUOTE_VOLUME_MISSING"
         if reason is None:
             selected.append(pair)
         else:
             rejected.append({"pair": pair, "reason": reason})
+    selected.sort(
+        key=lambda pair: (-float(markets[pair]["quote_volume"]), pair)
+    )
     document = {
         "schema_version": "discovery-spot-universe-v1",
         "mode_contract": contract.contract_id,
@@ -397,10 +545,27 @@ def _discover_spot_search_universe(
     return document
 
 
+def _valid_quote_volume(value: Any) -> bool:
+    return (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+        and float(value) >= 0.0
+    )
+
+
 def _external_http_status(message: str) -> int | None:
     """Extract a provider HTTP failure without binding discovery to one exchange."""
     match = _HTTP_STATUS.search(message)
     return int(match.group(1)) if match is not None else None
+
+
+def _discovery_infrastructure_error(exc: BenchmarkError) -> DiscoveryInfrastructureError:
+    message = str(exc)
+    return DiscoveryInfrastructureError(
+        message,
+        external_http_status=_external_http_status(message),
+    )
 
 
 def _capture_candidate(

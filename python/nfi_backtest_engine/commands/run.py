@@ -236,7 +236,7 @@ def execute(args: argparse.Namespace) -> int:
                     settings.output_directory,
                 )
             print()
-        with RunProgress() as progress:
+        with RunProgress(state_path=settings.output_directory / "progress.json") as progress:
             native_status = execute_research_backtest(
                 project_run_arguments(settings),
                 workers=args.workers,
@@ -297,30 +297,34 @@ def execute(args: argparse.Namespace) -> int:
             raise NfiBacktestError("--fallback-timeout must be positive")
         if args.prepare_only and args.fallback == "official":
             raise NfiBacktestError("--fallback official cannot be combined with --prepare-only")
-        native_status = execute_research_backtest(
-            {
-                "strategy_path": args.source,
-                "class_name": args.class_name,
-                "config_path": args.config,
-                "data_directory": args.datadir,
-                "timerange": args.timerange,
-                "output_directory": args.output_dir,
-                "pairs": args.pair,
-                "cache_directory": args.cache_dir,
-                "profile_path": args.profile,
-                "registry_path": args.registry,
-            },
-            workers=args.workers,
-            resume=args.resume,
-            prepare_only=args.prepare_only,
-            download_missing=not args.no_download,
-            market_metadata_path=args.markets,
-            download_market_metadata=not args.no_market_download,
-            recalibrate=args.recalibrate,
-            history_coverage_policy=args.history_coverage,
-            full_report=args.full_report,
-            print_summary=False,
-        )
+        from ..user_flow import RunProgress
+
+        with RunProgress(state_path=args.output_dir / "progress.json") as progress:
+            native_status = execute_research_backtest(
+                {
+                    "strategy_path": args.source,
+                    "class_name": args.class_name,
+                    "config_path": args.config,
+                    "data_directory": args.datadir,
+                    "timerange": args.timerange,
+                    "output_directory": args.output_dir,
+                    "pairs": args.pair,
+                    "cache_directory": args.cache_dir,
+                    "profile_path": args.profile,
+                    "registry_path": args.registry,
+                },
+                workers=args.workers,
+                resume=args.resume,
+                prepare_only=args.prepare_only,
+                download_missing=not args.no_download,
+                market_metadata_path=args.markets,
+                download_market_metadata=not args.no_market_download,
+                recalibrate=args.recalibrate,
+                history_coverage_policy=args.history_coverage,
+                full_report=args.full_report,
+                print_summary=False,
+                progress=progress.update,
+            )
         from ..result_report import format_terminal_summary, load_result_summary
         from ..user_flow import finish_official_fallback
 
@@ -367,6 +371,29 @@ def execute(args: argparse.Namespace) -> int:
 
 
 def _execute_strategy(args: argparse.Namespace) -> int:
+    if args.strategy_command == "list":
+        from ..strategy_catalog import discover_strategy_catalog
+
+        catalog = discover_strategy_catalog(args.workspace)
+        candidates = [
+            item
+            for item in catalog["candidates"]
+            if args.show_unsupported or item["status"] == "supported"
+        ]
+        if args.json:
+            payload = {**catalog, "candidates": candidates}
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        elif not candidates:
+            print("No supported X7 strategy was found.")
+            if catalog["summary"]["total"]:
+                print("Use --show-unsupported to inspect hidden candidates and blockers.")
+        else:
+            for item in candidates:
+                suffix = ""
+                if item["status"] != "supported":
+                    suffix = f"  [{item['status']}: {item['reason_code']}] {item['reason']}"
+                print(f"{item['status']:<11} {item['name']}  {item['display_path']}{suffix}")
+        return 0
     if args.strategy_command == "inspect":
         analysis = analyze_strategy(args.source, class_name=args.class_name)
         if args.output:

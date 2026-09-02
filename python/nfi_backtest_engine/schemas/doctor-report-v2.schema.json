@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/doctor-report-v2.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "healthy", "hardware", "docker", "execution_profile", "checks", "safe_fixes"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "healthy": {"type": "boolean"},
+    "hardware": {"type": "object"},
+    "docker": {"type": ["object", "null"]},
+    "execution_profile": {"type": ["object", "null"]},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "detail", "code", "severity", "remediation", "auto_fix_available"],
+        "properties": {
+          "name": {"type": "string"},
+          "status": {"enum": ["ok", "warning", "error"]},
+          "detail": {"type": "string"},
+          "code": {"type": "string"},
+          "severity": {"enum": ["info", "warning", "error"]},
+          "remediation": {"type": ["string", "null"]},
+          "auto_fix_available": {"type": "boolean"}
+        }
+      }
+    },
+    "safe_fixes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "status", "detail"],
+        "properties": {
+          "code": {"type": "string"},
+          "status": {"enum": ["applied"]},
+          "detail": {"type": "string"}
+        }
+      }
+    }
+  }
+}

@@ -24,18 +24,18 @@ import or execute that strategy Python.
 | Latest public release | [v1.10.6](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.10.6) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.10.6 stable release line; Linux/macOS verified |
+| Current `main` | v1.11.0 release candidate; validation in progress |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.10.6 renders the complete `NFI BACKTEST ENGINE` startup wordmark as five-row ASCII
-art. The selected strategy, timerange, pair count, and resume status remain directly
-beneath the banner. Native simulation and parity semantics are unchanged. The
-v1.10.5 Futures wallet projection repair and current-source compatibility for X7
-v17.4.587 at upstream commit `95b76043c3f610e0760e191deebd12304bfadbf8`
-remain intact.
+v1.11.0 adds a capability-derived strategy catalog, a focused beginner command
+surface, durable run status, and structured doctor diagnostics. Legacy, invalid, or
+semantically unsupported files remain inspectable but are hidden from the normal
+selection flow with an explicit reason. Branch discovery now consumes hash-pinned
+market catalogs and full market snapshots instead of depending on a live
+market-catalog request. Native simulation and parity semantics are unchanged.
 
 The v1.8.4 first-run market contract remains unchanged: BTC is the quick default;
 users can type `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`; numeric
@@ -44,11 +44,11 @@ then freeze the ranked result in the saved project. Large selections show the me
 long-run memory warning before data preparation. This presentation release does not
 claim a new continuous performance certificate.
 
-Current `main` tracks the v1.10.6 stable release and is usable from source for supported
-X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
-complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.10.6 publication remains
-checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
+Current `main` prepares the v1.11.0 release and is usable from source for supported X7
+workloads on Linux, macOS, and Windows through WSL2. The candidate wheels and sdist
+must complete exact Spot and Futures trade/state regression checks, and the release
+commit must pass same-commit Required CI on Linux and macOS. Publication remains
+checksum-sealed and promotes release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
 

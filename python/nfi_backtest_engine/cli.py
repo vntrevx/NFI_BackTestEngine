@@ -136,10 +136,26 @@ def _add_fallback_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def build_parser() -> argparse.ArgumentParser:
+PRIMARY_COMMANDS = frozenset(
+    {"update", "doctor", "clean", "init", "run", "status", "report", "runs", "help"}
+)
+
+
+def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nfi-bte")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    subcommands = parser.add_subparsers(dest="command_name", required=True)
+    subcommands = parser.add_subparsers(
+        dest="command_name",
+        required=True,
+        metavar=(
+            None
+            if show_advanced
+            else "{help,update,doctor,clean,init,run,status,report,runs}"
+        ),
+    )
+
+    help_command = subcommands.add_parser("help", help="show beginner or complete command help")
+    help_command.add_argument("--all", action="store_true", help="show every expert command")
 
     subcommands.add_parser("update", help="update the installed CLI to the latest release")
 
@@ -543,6 +559,17 @@ def build_parser() -> argparse.ArgumentParser:
     doctor = subcommands.add_parser("doctor", help="check local execution prerequisites")
     doctor.add_argument("--profile", type=Path)
     doctor.add_argument("--output", "-o", type=Path)
+    doctor.add_argument("--json", action="store_true", help="print the versioned JSON report")
+    doctor.add_argument(
+        "--fix",
+        action="store_true",
+        help="apply consented safe local fixes; never install or reconfigure Docker",
+    )
+    doctor.add_argument(
+        "--export-diagnostics",
+        type=Path,
+        help="write a local, privacy-filtered diagnostic bundle",
+    )
 
     clean = subcommands.add_parser(
         "clean",
@@ -765,6 +792,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     strategy = subcommands.add_parser("strategy", help="inspect and prepare strategy sources")
     strategy_commands = strategy.add_subparsers(dest="strategy_command", required=True)
+    strategy_list = strategy_commands.add_parser(
+        "list", help="list capability-classified local strategy sources"
+    )
+    strategy_list.add_argument("--workspace", type=Path, default=Path("."))
+    strategy_list.add_argument("--show-unsupported", action="store_true")
+    strategy_list.add_argument("--json", action="store_true")
     strategy_inspect = strategy_commands.add_parser(
         "inspect", help="emit static capability IR and exact diagnostics"
     )
@@ -1168,7 +1201,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = subcommands.add_parser(
         "report",
-        help="build a readable HTML, JSON summary, and trades CSV for a research run",
+        help="build readable Markdown, JSON summary, and CSVs for a research run",
     )
     report.add_argument("run_directory", type=Path)
     report.add_argument(
@@ -1207,6 +1240,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="emit the machine-readable registry record and run report",
     )
     _add_full_report_argument(runs_show)
+
+    status = subcommands.add_parser("status", help="show the latest or selected run status")
+    status.add_argument("run_id", nargs="?")
+    status.add_argument("--registry", type=Path, default=Path(".nfi/runs.sqlite"))
+    status.add_argument("--json", action="store_true")
+    _add_full_report_argument(status)
 
     batch = subcommands.add_parser("batch", help="run independent candidate jobs safely")
     batch.add_argument("manifest", type=Path)
@@ -1478,7 +1517,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify repository evidence and pin release identities without downloading assets",
     )
     contract_verify.add_argument("--output", type=Path)
+    if not show_advanced:
+        _hide_advanced_commands(parser)
     return parser
+
+
+def _hide_advanced_commands(parser: argparse.ArgumentParser) -> None:
+    """Keep expert commands callable while presenting a small default help surface."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            action._choices_actions[:] = [
+                choice
+                for choice in action._choices_actions
+                if choice.dest in PRIMARY_COMMANDS
+            ]
+            return
 
 
 def _dispatch_command(
@@ -1518,17 +1571,31 @@ def _dispatch_command(
 
 def main(argv: Sequence[str] | None = None) -> int:
     raw_args = list(argv) if argv is not None else sys.argv[1:]
+    if not raw_args:
+        if sys.stdin.isatty() and sys.stdout.isatty():
+            raw_args = _home_arguments(Path.cwd())
+            if not raw_args:
+                return 0
+        else:
+            build_parser().print_help()
+            return 0
     benchmark_command: list[str] | None = None
     if raw_args[:1] == ["benchmark"] and "--" in raw_args:
         separator = raw_args.index("--")
         benchmark_command = raw_args[separator + 1 :]
         raw_args = raw_args[:separator]
     args = build_parser().parse_args(raw_args)
+    if args.command_name == "help":
+        build_parser(show_advanced=args.all).print_help()
+        return 0
     try:
         require_supported_execution_platform()
         result = _dispatch_command(args, benchmark_command=benchmark_command)
-        if result == 0 and args.command_name != "update" and not (
-            args.command_name == "release" and args.release_command == "score"
+        if (
+            result == 0
+            and not getattr(args, "json", False)
+            and args.command_name != "update"
+            and not (args.command_name == "release" and args.release_command == "score")
         ):
             maybe_print_update_notice(__version__)
         return result
@@ -1541,6 +1608,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (NfiBacktestError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+
+def _home_arguments(workspace: Path) -> list[str]:
+    project = workspace / ".nfi" / "project.json"
+    if project.is_file():
+        print("NFI Backtest Engine\n")
+        print("  1. Continue the saved backtest")
+        print("  2. Start a new backtest")
+        print("  3. Show recent runs")
+        print("  4. Diagnose this computer")
+        choice = input("\nChoose [1]: ").strip() or "1"
+        return {
+            "1": ["run"],
+            "2": ["run", "--new-run"],
+            "3": ["runs", "list"],
+            "4": ["doctor"],
+        }.get(choice, [])
+    print("NFI Backtest Engine\n")
+    print("  1. Set up and run a backtest")
+    print("  2. Diagnose this computer")
+    print("  3. Show help")
+    choice = input("\nChoose [1]: ").strip() or "1"
+    return {"1": ["run"], "2": ["doctor"], "3": ["help"]}.get(choice, [])
 
 
 # Compatibility wrappers for callers that used the original private helpers.

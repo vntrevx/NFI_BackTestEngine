@@ -111,8 +111,6 @@ def run_research_backtest(
 ) -> dict[str, Any]:
     """Prepare an immutable X7 run and stop exactly at unsupported semantics."""
     require_supported_execution_platform()
-    if progress is not None:
-        progress(5, "Checking strategy and settings")
     pipeline_started_ns = time.perf_counter_ns()
     pipeline_started_at = _utc_now()
     stage_started_ns = pipeline_started_ns
@@ -126,6 +124,8 @@ def run_research_backtest(
             f"research output directory must be empty: {output}; use --resume to continue it"
         )
     output.mkdir(parents=True, exist_ok=True)
+    if progress is not None:
+        progress(5, "Checking strategy and settings")
     resuming_existing = resume and output_had_files
     identity_path = output / "identity.json"
     existing_identity_document: dict[str, Any] | None = None

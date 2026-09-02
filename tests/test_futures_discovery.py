@@ -11,9 +11,11 @@ import polars as pl
 import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import (
+    BenchmarkError,
     DiscoveryInfrastructureError,
     SpecValidationError,
 )
+from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.futures_discovery import (
     build_discovery_request,
     discover_futures_targets,
@@ -198,13 +200,29 @@ def test_policy_is_declarative_and_repository_bound() -> None:
     assert policy.completed_years == 5
     assert policy.shard_months == 3
     assert policy.pair_limit == 80
+    assert policy.market_catalog.is_file()
+    assert policy.market_catalog_sha256 == sha256_file(policy.market_catalog)
+    assert policy.market_snapshot.is_file()
+    assert policy.market_snapshot_sha256 == sha256_file(policy.market_snapshot)
     assert policy.budget_seconds == 7200
+    assert policy.archive_workers == 8
+    assert policy.archive_source == "binance-public-data-monthly"
     assert policy.deferred_http_statuses == frozenset({451})
     assert policy.external_retry == "identity-change-or-manual"
     assert policy.compact_artifact_retention_days == 1
     assert policy.context_days == 1
     assert policy.max_candidate_bytes == 30 * 1024 * 1024
     assert policy.template_config.is_file()
+
+
+def test_policy_rejects_changed_market_catalog_hash(tmp_path: Path) -> None:
+    document = read_json(POLICY)
+    document["universe"]["market_catalog"]["sha256"] = "0" * 64
+    policy = tmp_path / "policy.json"
+    write_json(policy, document)
+
+    with pytest.raises(SpecValidationError, match="market_catalog SHA-256 differs"):
+        load_discovery_policy(policy, repository_root=ROOT)
 
 
 def test_policy_rejects_non_divisible_calendar_shards(tmp_path: Path) -> None:
@@ -383,6 +401,23 @@ def test_external_market_failure_is_infrastructure_not_unsupported_semantics(
     assert report["message"] == "market catalog HTTP 451"
     assert report["attempts"][0]["outcome"] == "infrastructure_failed"
     assert report["official_fallback_available"] is True
+
+
+def test_benchmark_failure_is_infrastructure_not_unsupported_semantics(
+    tmp_path: Path,
+) -> None:
+    report = _discover(
+        tmp_path,
+        output_name="benchmark-infrastructure",
+        scout_service=lambda *_args: (_ for _ in ()).throw(
+            BenchmarkError("sealed dependency download failed")
+        ),
+    )
+
+    assert report["status"] == "infrastructure_failed"
+    assert report["complete"] is False
+    assert report["next_shard"] == 0
+    assert report["attempts"][0]["outcome"] == "infrastructure_failed"
 
 
 def test_policy_selected_external_status_is_deferred_without_advancing(
@@ -623,6 +658,103 @@ def test_discovery_config_loads_only_the_requested_market_type(
     }
 
 
+def test_discovery_universe_reuses_policy_pinned_market_inputs(
+    tmp_path: Path,
+) -> None:
+    policy = load_discovery_policy(POLICY)
+    context = SimpleNamespace(
+        policy=policy,
+        all_shards=search_shards(
+            date(2026, 7, 30),
+            completed_years=policy.completed_years,
+            shard_months=policy.shard_months,
+        ),
+    )
+    shared = tmp_path / "shared"
+    shared.mkdir()
+
+    config, pairs, market_snapshot = discovery_runtime._ensure_universe(context, shared)
+
+    assert config.is_file()
+    assert len(pairs) == policy.pair_limit
+    assert sha256_file(market_snapshot) == policy.market_snapshot_sha256
+    assert read_json(shared / "pairs.json")["catalog_sha256"] == (
+        policy.market_catalog_sha256
+    )
+
+    market_snapshot.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(SpecValidationError, match="missing or changed"):
+        discovery_runtime._ensure_universe(context, shared)
+
+
+def test_scout_archive_uses_strategy_requirements_and_persists_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = tmp_path / "config.json"
+    write_json(
+        config,
+        {
+            "stake_currency": "USDT",
+            "trading_mode": "spot",
+            "exchange": {"name": "binance", "pair_whitelist": ["ETH/USDT"]},
+        },
+    )
+    strategy = tmp_path / "strategy.py"
+    strategy.write_text("class Demo: pass\n", encoding="utf-8")
+    seen: dict[str, Any] = {}
+
+    monkeypatch.setattr(
+        "nfi_backtest_engine.vector_runtime.load_strategy_analysis",
+        lambda *_args, **_kwargs: {
+            "strategies": [
+                {
+                    "required_timeframes": ["5m", "1h"],
+                    "constants": {"startup_candle_count": 10},
+                }
+            ]
+        },
+    )
+
+    def prepare(_data_directory, **kwargs):
+        seen.update(kwargs)
+        return {"aggregate_sha256": "a" * 64}
+
+    monkeypatch.setattr(
+        "nfi_backtest_engine.binance_archive.prepare_binance_archive_data",
+        prepare,
+    )
+    context = SimpleNamespace(
+        class_name="Demo",
+        output=tmp_path / "output",
+        policy=SimpleNamespace(
+            archive_source="binance-public-data-monthly",
+            archive_workers=8,
+            trading_mode="spot",
+        ),
+    )
+    destination = tmp_path / "archive-download.json"
+
+    report = discovery_runtime._prepare_scout_archive(
+        search_shards(date(2026, 7, 30), completed_years=1, shard_months=3)[0],
+        context,
+        strategy_path=strategy,
+        config_path=config,
+        data_directory=tmp_path / "data",
+        pairs=["ETH/USDT"],
+        destination=destination,
+    )
+
+    assert report["aggregate_sha256"] == "a" * 64
+    assert read_json(destination) == report
+    assert seen["pairs"] == ["ETH/USDT", "BTC/USDT"]
+    assert seen["timeframes"] == ["5m", "1h"]
+    assert seen["workers"] == 8
+    assert seen["coverage_start_timestamp_ms_by_timeframe"]["1h"] == (
+        int(datetime(2025, 10, 1, tzinfo=UTC).timestamp() * 1000) - 10 * 3_600_000
+    )
+
+
 def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
     config = tmp_path / "config.json"
     write_json(config, {"timeframe": "5m", "trading_mode": "spot"})
@@ -658,11 +790,13 @@ def test_spot_search_universe_accepts_missing_onboarding_dates(
                 "BTC/USDT": {
                     "active": True,
                     "created": None,
+                    "quote_volume": 100.0,
                     "spot": True,
                 },
                 "ETH/BTC": {
                     "active": True,
                     "created": None,
+                    "quote_volume": 200.0,
                     "spot": True,
                 },
             },
@@ -677,6 +811,33 @@ def test_spot_search_universe_accepts_missing_onboarding_dates(
 
     assert report["pairs"] == ["BTC/USDT"]
     assert report["rejected"] == [{"pair": "ETH/BTC", "reason": "PAIR_CONTRACT"}]
+
+
+def test_spot_search_universe_is_ranked_by_frozen_quote_volume(
+    tmp_path: Path,
+) -> None:
+    markets = tmp_path / "markets.json"
+    write_json(
+        markets,
+        {
+            "exchange": "binance",
+            "trading_mode": "spot",
+            "pairs": ["BTC/USDT", "ETH/USDT", "XRP/USDT"],
+            "markets": {
+                "BTC/USDT": {"active": True, "spot": True, "quote_volume": 200.0},
+                "ETH/USDT": {"active": True, "spot": True, "quote_volume": 300.0},
+                "XRP/USDT": {"active": True, "spot": True, "quote_volume": 100.0},
+            },
+        },
+    )
+
+    report = discovery_runtime._discover_spot_search_universe(
+        read_json(ROOT / "planning" / "spot-discovery-config.json"),
+        market_snapshot_path=markets,
+        destination=tmp_path / "universe.json",
+    )
+
+    assert report["pairs"] == ["ETH/USDT", "BTC/USDT", "XRP/USDT"]
 
 
 def test_spot_policy_uses_the_shared_discovery_service(tmp_path: Path) -> None:
@@ -803,4 +964,4 @@ def test_infrastructure_failure_is_not_misreported_as_semantic_gap(
 
     assert report["status"] == "infrastructure_failed"
     assert report["complete"] is False
-    assert read_json(tmp_path / "infra" / "cursor.json")["next_shard"] == 1
+    assert read_json(tmp_path / "infra" / "cursor.json")["next_shard"] == 0

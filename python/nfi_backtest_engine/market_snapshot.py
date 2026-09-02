@@ -15,6 +15,7 @@ from .fixture import sha256_file
 from .release_contract import ReleaseModeContract, release_contract_for_config
 
 MARKET_SNAPSHOT_VERSION = "1.3.0"
+MARKET_CATALOG_VERSION = "1.1.0"
 
 
 def validate_release_market_snapshot(
@@ -199,7 +200,20 @@ def capture_market_catalog(
     The selected pairs receive a full simulator snapshot afterwards.
     """
     contract = release_contract_for_config(config)
-    _client, loaded, exchange_name = _load_ccxt_markets(config)
+    client, loaded, exchange_name = _load_ccxt_markets(config)
+    tickers: dict[str, Any] = {}
+    if contract.trading_mode == "spot":
+        try:
+            raw_tickers = client.fetch_tickers()
+        except Exception as exc:
+            raise BenchmarkError(
+                f"CCXT ticker capture failed for {exchange_name}: {exc}"
+            ) from exc
+        if not isinstance(raw_tickers, dict):
+            raise BenchmarkError(
+                f"CCXT ticker capture returned invalid data for {exchange_name}"
+            )
+        tickers = raw_tickers
     pairs = sorted(
         pair
         for pair in loaded
@@ -212,6 +226,8 @@ def capture_market_catalog(
             continue
         info = market.get("info")
         onboarding = info.get("onboardDate") if isinstance(info, dict) else None
+        ticker = tickers.get(pair)
+        quote_volume = ticker.get("quoteVolume") if isinstance(ticker, dict) else None
         records[pair] = {
             "symbol": market.get("symbol", pair),
             "quote": market.get("quote"),
@@ -225,9 +241,13 @@ def capture_market_catalog(
             "created": market.get("created"),
             "marginModes": market.get("marginModes"),
             "info": {"onboardDate": onboarding},
+            "quote_volume": _optional_catalog_number(
+                quote_volume,
+                field=f"{pair}.quoteVolume",
+            ),
         }
     document = {
-        "schema_version": "1.0.0",
+        "schema_version": MARKET_CATALOG_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "ccxt_version": ccxt.__version__,
         "exchange": exchange_name,
@@ -242,6 +262,17 @@ def capture_market_catalog(
         "path": str(Path(destination).resolve()),
         "sha256": sha256_file(destination),
     }
+
+
+def _optional_catalog_number(value: Any, *, field: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise BenchmarkError(f"CCXT market catalog number is invalid: {field}")
+    result = float(value)
+    if not math.isfinite(result) or result < 0.0:
+        raise BenchmarkError(f"CCXT market catalog number is invalid: {field}")
+    return result
 
 
 def _load_ccxt_markets(
