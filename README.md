@@ -21,21 +21,21 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.10.4](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.10.4) |
+| Latest public release | [v1.10.5](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.10.5) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.10.4 stable release line; Linux/macOS verified |
+| Current `main` | v1.10.5 stable release line; Linux/macOS verified |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
 benchmark, and they must not be combined into a newer full-certification claim.
 
-v1.10.4 preserves current-source compatibility for X7 v17.4.587 at upstream commit
-`95b76043c3f610e0760e191deebd12304bfadbf8`. A guided restart now presents a numbered
-strategy menu discovered from the NFI checkout instead of asking users to type a file
-path. X7, X6, and older generations are ordered clearly, with the current strategy
-marked and selected by default. The complete Freqtrade-style terminal report and
-Native simulation semantics are unchanged.
+v1.10.5 restores deterministic nano-USDT canonicalization for Futures free-wallet
+values in exact full-state projections. This removes sub-nano native float noise that
+caused false nightly state mismatches; trades and wallet accounting are unchanged.
+Current-source compatibility for X7 v17.4.587 at upstream commit
+`95b76043c3f610e0760e191deebd12304bfadbf8` remains intact, as does the guided
+strategy selection menu introduced in v1.10.4.
 
 The v1.8.4 first-run market contract remains unchanged: BTC is the quick default;
 users can type `1`, `10`, `20`, `40`, `80`, `100`, `all`, or `custom`; numeric
@@ -44,10 +44,10 @@ then freeze the ranked result in the saved project. Large selections show the me
 long-run memory warning before data preparation. This presentation release does not
 claim a new continuous performance certificate.
 
-Current `main` tracks the v1.10.4 stable release and is usable from source for supported
+Current `main` tracks the v1.10.5 stable release and is usable from source for supported
 X7 workloads on Linux, macOS, and Windows through WSL2. Its public wheels and sdist
 complete exact Spot and Futures trade/state regression checks, and the release commit
-must pass same-commit Required CI on Linux and macOS. v1.10.4 publication remains
+must pass same-commit Required CI on Linux and macOS. v1.10.5 publication remains
 checksum-sealed and promotes the release-candidate assets byte-for-byte to stable.
 
 ## Certified performance
@@ -191,7 +191,7 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.10.4`.
+The latest public installer currently returns `nfi-bte 1.10.5`.
 
 ### Keep the CLI updated
 
@@ -205,7 +205,7 @@ Successful commands check GitHub Releases at most once every 24 hours. When a ne
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.10.3 -> 1.10.4. Run `nfi-bte update`.
+Update available: 1.10.4 -> 1.10.5. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
