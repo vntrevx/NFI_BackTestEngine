@@ -174,7 +174,7 @@ def test_current_contract_identity_and_unknown_callback_omission_are_characteriz
         "ccxt_version": "4.5.55",
     }
     assert profile["fingerprint"] == (
-        "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8"
+        "0cbd5daa212d8be490e5657561f89b3fe40fd66d0cfedef8c5530d686a6e1cd4"
     )
 
     source = tmp_path / "UnknownCallback.py"

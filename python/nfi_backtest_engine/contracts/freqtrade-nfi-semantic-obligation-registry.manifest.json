@@ -5,10 +5,10 @@
   "registry_schema_version": "semantic-obligation-registry-v1",
   "registry_schema_bytes": 20881,
   "registry_schema_sha256": "b68588db19867595d626f674c3abbd85ef8678ceef5fe214999d53e462406083",
-  "compressed_sha256": "757e9f1455f49beeb3260c67c1909ccf3405d6f8f4d8a996d7072c51bd73457c",
+  "compressed_sha256": "d4e37e6a0854425d46d78ec5888c4aa9ba600107142bec989ecd501b23cee7a6",
   "uncompressed_bytes": 157513493,
-  "uncompressed_sha256": "8c5f4f4237703c9fe427e8a20820f5a0113670c67663f3ce05a9aee0645c0035",
-  "registry_fingerprint": "bd83b422c073c5a8133d539870c432de9737e30ea1b365ed822ea1833f532084",
+  "uncompressed_sha256": "b5a64374788ea1a1e73ea0c3e3a50c90e7bdb8bf276b6cd3f5975c8754c25c99",
+  "registry_fingerprint": "1a19b3f236a542ef211901eefc5081370158df8a60315c0a40bc7d5f3da67259",
   "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
   "upstream_ref": "refs/heads/main",
   "upstream_commit": "b22cc60d1c018eeb984cb02a125bb790042bebd0"

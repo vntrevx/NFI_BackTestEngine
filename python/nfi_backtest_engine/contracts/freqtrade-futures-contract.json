@@ -1,8 +1,8 @@
 {
   "schema_version": "freqtrade-futures-contract-v1",
-  "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8",
-  "scheduler_contract_sha256": "bbd84f6c1eebd789cc0b70055962be84e90886bbbb34797f470d0696fe93e631",
-  "base_execution_contract_sha256": "15a22468b693039546db79f932159804975bea7fc3c1f428f7e7bd4636b69293",
+  "semantic_profile_sha256": "0cbd5daa212d8be490e5657561f89b3fe40fd66d0cfedef8c5530d686a6e1cd4",
+  "scheduler_contract_sha256": "6c1f89d3959b1dd0ee45a5b5a85abf947b1e5ed35349eec10e5f5c85ad638adf",
+  "base_execution_contract_sha256": "b528d46cda6fd824cd1058db90eb68b9d90f9c242befd0f2418e966926eadda8",
   "scope": {
     "trading_mode": "futures",
     "exchange": "binance",
@@ -122,5 +122,5 @@
       "locks"
     ]
   },
-  "fingerprint": "a6cefe12eb01de1c504e150506f646ccb41042ab72d3deb5c8cd6663e974dd32"
+  "fingerprint": "f830d684714f7d6511896122d666b94d75ff794bd05a34298c1838275d66bbda"
 }
