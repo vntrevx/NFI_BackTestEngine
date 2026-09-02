@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "strategy_sha256": "a8a97a060b5c0191d0deb8a1cbba655bb0f337646ce832925e114bbe9bbd45dc",
+  "classification": "ir-compatible",
+  "verification_state": "latest_checked",
+  "changed_branch_reached": false,
+  "trade_surface_exact": null,
+  "full_state_exact": null,
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    }
+  ]
+}
