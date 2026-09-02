@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,6 @@ from .reference_tracer.nfi_reference_trace import REFERENCE_STATE_SCHEMA_VERSION
 from .state_trace import StateTraceWriter, iter_validated_trace_events
 
 PROJECTED_PHASE = "portfolio.after_candle"
-FUTURES_QUOTE_BALANCE_QUANTUM = Decimal("0.000000001")
 
 
 def project_reference_trace(
@@ -134,7 +133,7 @@ def _reference_state(
         raise TraceError(f"unsupported reference state schema: {state_schema!r}")
     counters = state["counters"]
     projected = {
-        "quote_free": _quote_balance(quote[1], trading_mode),
+        "quote_free": _quote_balance(quote[1]),
         "base_balances": base_balances,
         "open_trade_count": state["open_trade_count"],
         "realized_profit": _decimal(state["total_profit"]),
@@ -158,7 +157,7 @@ def _reference_state(
 
 def _engine_state(state: dict[str, Any], trading_mode: str) -> dict[str, Any]:
     projected = {
-        "quote_free": _quote_balance(state["quote_free"], trading_mode),
+        "quote_free": _quote_balance(state["quote_free"]),
         "base_balances": (
             []
             if trading_mode == "futures"
@@ -221,21 +220,10 @@ def _decimal(value: Any) -> str:
     return result
 
 
-def _quote_balance(value: Any, trading_mode: str) -> str:
-    """Normalize sub-nano futures wallet noise for exact parity.
+def _quote_balance(value: Any) -> str:
+    """Canonicalize the exact caller-provided wallet representation."""
 
-    Freqtrade and the native engine derive free balance through different,
-    economically equivalent arithmetic paths. One nano-USDT is finer than the
-    exchange precision and gives both traces one stable byte representation.
-    """
-
-    if trading_mode != "futures":
-        return _decimal(value)
-    normalized = Decimal(str(value)).quantize(
-        FUTURES_QUOTE_BALANCE_QUANTUM,
-        rounding=ROUND_HALF_EVEN,
-    )
-    return _decimal(normalized)
+    return _decimal(value)
 
 
 def _projected_locks(
