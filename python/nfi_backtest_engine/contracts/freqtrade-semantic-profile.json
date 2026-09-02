@@ -13,7 +13,7 @@
     "tracer_version": "1.1.0",
     "trace_schema_version": "1.0.0",
     "tracer_source_sha256": "b2281ce34eda34848a7217fc4f850f4af9f852a82fe074229cddf2a1439e8afe",
-    "state_projection_source_sha256": "0e83db41af6dfb7b85b6752445f80563a0d67cae168837f8bddaefab4759860e",
+    "state_projection_source_sha256": "63c29070c98a116e88238466dc93132c81e5327de016b67a6294e3ee9407ff82",
     "semantic_projection_source_sha256": "9fc193c39d5261b5a82bdd7173fde02c84e9a086e7fa5254ccc8bcb1f56ee970",
     "observed_methods": [
       {
@@ -153,5 +153,5 @@
     "unknown_behavior": "fail-before-native-promotion",
     "parity_requirement": "trade-surface-and-full-state-exact"
   },
-  "fingerprint": "0cbd5daa212d8be490e5657561f89b3fe40fd66d0cfedef8c5530d686a6e1cd4"
+  "fingerprint": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8"
 }

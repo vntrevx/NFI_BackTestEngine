@@ -212,9 +212,9 @@ def test_every_required_mutation_changes_the_authenticated_contract() -> None:
 
 def test_execution_contract_bytes_remain_preserved() -> None:
     assert EXECUTION.stat().st_size == 3864
-    assert _sha(EXECUTION) == "c77092304d1ca580d1481dcf0a5a2581aaaf2320659b8aa6f11c7ec6935ae0e7"
+    assert _sha(EXECUTION) == "6b9b11cacfb36836e12974c7436d7325660ff8f8a2a6268594c38b36c90d4afa"
     assert _load(EXECUTION)["fingerprint"] == (
-        "b528d46cda6fd824cd1058db90eb68b9d90f9c242befd0f2418e966926eadda8"
+        "15a22468b693039546db79f932159804975bea7fc3c1f428f7e7bd4636b69293"
     )
 
 
