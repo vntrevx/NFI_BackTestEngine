@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "workflow": ".github/workflows/certify-release-candidate.yml",
   "events": [
     "workflow_dispatch"
@@ -26,9 +26,17 @@
   },
   "oracle": {
     "allows_new_run": false,
-    "index_schema_version": "1.0.0",
+    "index_schema_versions": [
+      "1.0.0",
+      "2.0.0"
+    ],
+    "preferred_index_schema_version": "2.0.0",
+    "input_identity_schema_version": "oracle-input-identity-v2",
     "required_status": "exact_parity",
     "requires_immutable_record": true
+  },
+  "candidate": {
+    "identity_schema_version": "candidate-certification-identity-v2"
   },
   "storage": {
     "provider": "aws-s3",

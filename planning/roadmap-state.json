@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 151,
+  "revision": 152,
   "updated_at": "2026-08-14T23:21:38+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M23-01",
+  "active_task_id": "M23-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5108,7 +5108,7 @@
       "order": 2301,
       "milestone": "M23",
       "title": "Define the machine-readable 10/10 product support contract",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": ["M22-04"],
       "manual_gate": false,
       "scope": ["X7 Native support boundary", "supported platforms and distributions", "accuracy, performance, certification, and operations gates"],
@@ -5116,9 +5116,16 @@
       "acceptance_profile": "product_support_contract",
       "expected_evidence": ["versioned product support contract", "JSON Schema validation", "public claim drift tests"],
       "started_at": "2026-09-03",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-09-03T15:59:49+09:00",
+      "commit_sha": "f64bbdc45674c142e61e59c53833f2f7239f3bbb",
+      "evidence": [
+        "planning/product-support-contract.json",
+        "python/nfi_backtest_engine/schemas/product-support-contract-v1.schema.json",
+        "tests/test_product_support_contract.py",
+        "2109 passed, 53 skipped",
+        "ruff clean",
+        "basedpyright 0 errors"
+      ],
       "blocker": null
     },
     {
@@ -5126,14 +5133,14 @@
       "order": 2302,
       "milestone": "M23",
       "title": "Separate Oracle input and candidate certification fingerprints",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": ["M23-01"],
       "manual_gate": false,
       "scope": ["Oracle input identity", "candidate wheel and binary identity", "immutable reuse migration"],
       "forbidden_changes": ["reusing a certificate across candidate binaries", "rerunning an identical Oracle after an engine-only change"],
       "acceptance_profile": "certification_identity_v2",
       "expected_evidence": ["fingerprint-v2 schemas", "reuse and rejection tests", "legacy record migration tests"],
-      "started_at": null,
+      "started_at": "2026-09-03T15:59:49+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -9460,6 +9467,37 @@
         "external_2022_report_exact_claimed": false,
         "roadmap_complete": true,
         "next_eligible_task": null
+      }
+    },
+    {
+      "sequence": 198,
+      "timestamp": "2026-09-03T15:59:49+09:00",
+      "task_id": "M23-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "f64bbdc45674c142e61e59c53833f2f7239f3bbb",
+        "contract_id": "nfi-backtest-engine-product-support-v1",
+        "native_strategy_scope": ["NostalgiaForInfinityX7"],
+        "native_windows_supported": false,
+        "pypi_status": "planned",
+        "combined_status": "preview",
+        "python_test_count": 2109,
+        "python_skipped_count": 53,
+        "ruff_clean": true,
+        "basedpyright_error_count": 0,
+        "next_eligible_task": "M23-02"
+      }
+    },
+    {
+      "sequence": 199,
+      "timestamp": "2026-09-03T15:59:49+09:00",
+      "task_id": "M23-02",
+      "event": "task_started",
+      "details": {
+        "objective": "separate reusable Official Oracle inputs from candidate-specific package certification",
+        "oracle_reuse_after_engine_only_change_required": true,
+        "candidate_certificate_reuse_after_binary_change_allowed": false,
+        "legacy_records_must_remain_readable": true
       }
     }
   ]

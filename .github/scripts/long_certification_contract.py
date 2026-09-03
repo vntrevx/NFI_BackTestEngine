@@ -53,7 +53,7 @@ def load_contract(path: str | Path) -> dict[str, Any]:
     oracle = value.get("oracle")
     storage = value.get("storage")
     if (
-        value.get("schema_version") != "1.0.0"
+        value.get("schema_version") != "2.0.0"
         or value.get("events") != ["workflow_dispatch"]
         or value.get("permissions")
         != {"actions": "read", "contents": "read", "id-token": "write"}
@@ -65,9 +65,13 @@ def load_contract(path: str | Path) -> dict[str, Any]:
         or concurrency.get("cancel_in_progress") is not False
         or not isinstance(oracle, dict)
         or oracle.get("allows_new_run") is not False
-        or oracle.get("index_schema_version") != "1.0.0"
+        or oracle.get("index_schema_versions") != ["1.0.0", "2.0.0"]
+        or oracle.get("preferred_index_schema_version") != "2.0.0"
+        or oracle.get("input_identity_schema_version") != "oracle-input-identity-v2"
         or oracle.get("required_status") != "exact_parity"
         or oracle.get("requires_immutable_record") is not True
+        or value.get("candidate")
+        != {"identity_schema_version": "candidate-certification-identity-v2"}
         or not isinstance(storage, dict)
         or storage.get("provider") != "aws-s3"
         or not all(
@@ -116,19 +120,25 @@ def build_plan(
         "data_directory",
         "engine_markets",
         "oracle_index",
-        "oracle_fingerprint",
         "host_lock",
     )
+    config_version = config.get("schema_version")
+    fingerprint_field = (
+        "oracle_fingerprint"
+        if config_version == "1.0.0"
+        else "oracle_input_fingerprint"
+    )
     if (
-        config.get("schema_version") != "1.0.0"
+        config_version not in {"1.0.0", "2.0.0"}
         or any(not _nonempty_string(config.get(name)) for name in required_strings)
+        or not _nonempty_string(config.get(fingerprint_field))
         or config["mode"] != mode
         or not _unique_strings(config.get("state_probes"))
         or (
             config.get("reference_markets") is not None
             and not _nonempty_string(config.get("reference_markets"))
         )
-        or not SHA256_PATTERN.fullmatch(config["oracle_fingerprint"])
+        or not SHA256_PATTERN.fullmatch(config[fingerprint_field])
     ):
         raise ValueError("protected certification config is incomplete or inconsistent")
 
@@ -166,9 +176,16 @@ def build_plan(
     if Path(config["host_lock"]).resolve().is_dir():
         raise ValueError("host lock path must not be a directory")
 
-    input_identity = _input_identity(config)
+    input_identity = _input_identity(
+        config,
+        version=(
+            contract["oracle"]["input_identity_schema_version"]
+            if config_version == "2.0.0"
+            else "oracle-input-identity-v1"
+        ),
+    )
     fingerprint = canonical_sha256(input_identity)
-    if fingerprint != config["oracle_fingerprint"]:
+    if fingerprint != config[fingerprint_field]:
         raise ValueError("configured Oracle fingerprint differs from sealed inputs")
     oracle = _lookup_oracle(
         Path(config["oracle_index"]).resolve(),
@@ -183,6 +200,24 @@ def build_plan(
         raise ValueError(f"indexed Oracle has no run report: {oracle_directory}")
     if sha256_file(run_report) != oracle["run_json_sha256"]:
         raise ValueError("indexed Oracle run report differs from its immutable record")
+
+    candidate_wheel_record = {
+        "path": str(wheel),
+        "bytes": wheel.stat().st_size,
+        "sha256": sha256_file(wheel),
+    }
+    candidate_identity = {
+        "schema_version": contract["candidate"]["identity_schema_version"],
+        "candidate_commit": candidate_commit,
+        "candidate_wheel_sha256": candidate_wheel_record["sha256"],
+        "mode": mode,
+        "oracle_input_fingerprint": fingerprint,
+        "release_candidate_plan_sha256": sha256_file(
+            Path(release_candidate_plan_path).resolve()
+        ),
+        "state_probe_sha256": [record["sha256"] for record in declared_state_probes],
+    }
+    candidate_fingerprint = canonical_sha256(candidate_identity)
 
     command = [
         executable,
@@ -219,12 +254,12 @@ def build_plan(
     if resume:
         command.append("--resume")
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "candidate_commit": candidate_commit,
-        "candidate_wheel": {
-            "path": str(wheel),
-            "bytes": wheel.stat().st_size,
-            "sha256": sha256_file(wheel),
+        "candidate_wheel": candidate_wheel_record,
+        "candidate_certification": {
+            "fingerprint": candidate_fingerprint,
+            "identity": candidate_identity,
         },
         "mode": mode,
         "resume": resume,
@@ -232,6 +267,8 @@ def build_plan(
         "host_lock": str(Path(config["host_lock"]).resolve()),
         "oracle": {
             "fingerprint": fingerprint,
+            "input_fingerprint": fingerprint,
+            "input_identity": input_identity,
             "directory": str(oracle_directory),
             "run_json_sha256": oracle["run_json_sha256"],
             "tree_sha256": oracle["tree_sha256"],
@@ -329,7 +366,11 @@ def _load_release_candidate_probes(
     return result
 
 
-def _input_identity(config: Mapping[str, Any]) -> dict[str, Any]:
+def _input_identity(
+    config: Mapping[str, Any],
+    *,
+    version: str = "oracle-input-identity-v1",
+) -> dict[str, Any]:
     release_lock_path = Path(str(config["release_lock"])).resolve()
     release_lock = read_object(release_lock_path, label="release input lock")
     strategy = Path(str(config["strategy"])).resolve()
@@ -356,7 +397,7 @@ def _input_identity(config: Mapping[str, Any]) -> dict[str, Any]:
         or not _nonempty_string(reference.get("image_platform_digest"))
     ):
         raise ValueError("release input lock lacks certification identities")
-    return {
+    identity = {
         "mode": config["mode"],
         "release_lock_sha256": sha256_file(release_lock_path),
         "release_lock_identity_sha256": identity_sha,
@@ -369,6 +410,11 @@ def _input_identity(config: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "reference_image_digest": reference["image_platform_digest"],
     }
+    if version == "oracle-input-identity-v1":
+        return identity
+    if version != "oracle-input-identity-v2":
+        raise ValueError(f"unsupported Oracle input identity schema: {version}")
+    return {"schema_version": version, **identity}
 
 
 def _lookup_oracle(
@@ -381,9 +427,9 @@ def _lookup_oracle(
 ) -> dict[str, Any]:
     index = read_object(index_path, label="Oracle fingerprint index")
     records = index.get("oracles")
-    if (
-        index.get("schema_version") != contract["oracle"]["index_schema_version"]
-        or not isinstance(records, list)
+    index_version = index.get("schema_version")
+    if index_version not in contract["oracle"]["index_schema_versions"] or not isinstance(
+        records, list
     ):
         raise ValueError("Oracle fingerprint index has an unsupported schema")
     matches = [
@@ -391,13 +437,23 @@ def _lookup_oracle(
         for record in records
         if isinstance(record, dict)
         and record.get("mode") == mode
-        and record.get("fingerprint") == fingerprint
+        and (
+            record.get("fingerprint")
+            if index_version == "1.0.0"
+            else record.get("input_fingerprint")
+        )
+        == fingerprint
     ]
     if len(matches) != 1:
         raise ValueError("Oracle fingerprint lookup must resolve exactly one record")
     record = matches[0]
     if (
-        record.get("identity") != input_identity
+        (
+            record.get("identity")
+            if index_version == "1.0.0"
+            else record.get("input_identity")
+        )
+        != input_identity
         or record.get("status") != contract["oracle"]["required_status"]
         or record.get("immutable") is not True
         or not _nonempty_string(record.get("directory"))

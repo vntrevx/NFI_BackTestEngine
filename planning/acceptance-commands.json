@@ -309,16 +309,16 @@
       "platform": "any",
       "timeout_seconds": 600,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "certification_identity_v2_tests": {
-      "command": "uv run pytest -q tests/test_certification_identity_v2.py tests/test_long_certification_contract.py tests/test_full_x7_certification.py",
+      "command": "uv run pytest -q tests/test_certification_identity_v2.py tests/test_release_contract.py tests/test_full_x7_certification.py",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 900,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "current_x7_closure_tests": {
