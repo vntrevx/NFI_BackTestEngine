@@ -327,7 +327,7 @@
       "platform": "any",
       "timeout_seconds": 1200,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "legacy_strategy_boundary_tests": {
