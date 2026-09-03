@@ -14,7 +14,7 @@ from .canonical import read_json, write_json
 from .config_loader import load_effective_config, sanitize_config
 from .data_seal import (
     build_data_request,
-    candle_file_coverage,
+    candle_file_has_execution_slice,
     candle_files_for,
     inspect_candle_quality,
 )
@@ -77,6 +77,7 @@ def run_shard_scout(
             config_path=generated_config,
             start_timestamp_ms=_date_timestamp_ms(shard.start),
             end_timestamp_ms=_date_timestamp_ms(shard.stop),
+            startup_candles=_archive_startup_candles(archive_report),
         )
         if not available_pairs:
             raise DiscoveryInfrastructureError(
@@ -112,6 +113,7 @@ def run_shard_scout(
             config_path=generated_config,
             start_timestamp_ms=_date_timestamp_ms(shard.start),
             end_timestamp_ms=_date_timestamp_ms(shard.stop),
+            startup_candles=_archive_startup_candles(archive_report),
         )
         if not available_pairs or available_pairs == pairs:
             raise
@@ -262,6 +264,7 @@ def _prepare_scout_archive(
         end_timestamp_ms=request["end_timestamp_ms"],
         workers=context.policy.archive_workers,
     )
+    report["strategy_startup_candles"] = startup
     write_json(destination, report)
     return report
 
@@ -315,6 +318,7 @@ def _pairs_with_nonempty_base_candles(
     config_path: Path,
     start_timestamp_ms: int,
     end_timestamp_ms: int,
+    startup_candles: int,
 ) -> list[str]:
     config = read_json(config_path)
     timeframe = config.get("timeframe") if isinstance(config, dict) else None
@@ -336,10 +340,11 @@ def _pairs_with_nonempty_base_candles(
                 if str(exc).startswith("candle file is empty: "):
                     continue
                 raise
-            coverage = candle_file_coverage(path)
-            if (
-                coverage["end_timestamp_ms"] < start_timestamp_ms
-                or coverage["start_timestamp_ms"] >= end_timestamp_ms
+            if not candle_file_has_execution_slice(
+                path,
+                start_timestamp_ms=start_timestamp_ms,
+                end_timestamp_ms=end_timestamp_ms,
+                startup_candles=startup_candles,
             ):
                 continue
             available.append(pair)
@@ -349,6 +354,15 @@ def _pairs_with_nonempty_base_candles(
 
 def _date_timestamp_ms(value: date) -> int:
     return int(datetime(value.year, value.month, value.day, tzinfo=UTC).timestamp() * 1000)
+
+
+def _archive_startup_candles(report: Mapping[str, Any]) -> int:
+    value = report.get("strategy_startup_candles")
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise DiscoveryInfrastructureError(
+            "discovery archive report lacks strategy startup candle identity"
+        )
+    return value
 
 
 def _write_discovery_pair_config(

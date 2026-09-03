@@ -810,6 +810,7 @@ def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
         config_path=config,
         start_timestamp_ms=int(datetime(2025, 10, 1, tzinfo=UTC).timestamp() * 1000),
         end_timestamp_ms=int(datetime(2026, 1, 1, tzinfo=UTC).timestamp() * 1000),
+        startup_candles=0,
     )
 
     assert available == ["BTC/USDT"]
@@ -833,6 +834,34 @@ def test_spot_discovery_drops_pair_without_candles_inside_shard(tmp_path: Path) 
         config_path=config,
         start_timestamp_ms=int(datetime(2025, 7, 1, tzinfo=UTC).timestamp() * 1000),
         end_timestamp_ms=int(datetime(2025, 10, 1, tzinfo=UTC).timestamp() * 1000),
+        startup_candles=0,
+    )
+
+    assert available == ["BTC/USDT"]
+
+
+def test_spot_discovery_drops_pair_consumed_by_startup_window(tmp_path: Path) -> None:
+    config = tmp_path / "config.json"
+    write_json(config, {"timeframe": "5m", "trading_mode": "spot"})
+    data = tmp_path / "data"
+    data.mkdir()
+    for pair, row_count in (("NEW", 2), ("BTC", 3)):
+        pl.DataFrame(
+            {
+                "date": [
+                    datetime(2025, 9, 30, 23, 45 + index * 5, tzinfo=UTC)
+                    for index in range(row_count)
+                ]
+            }
+        ).write_ipc(data / f"{pair}_USDT-5m.feather")
+
+    available = discovery_runtime._pairs_with_nonempty_base_candles(
+        data,
+        pairs=["NEW/USDT", "BTC/USDT"],
+        config_path=config,
+        start_timestamp_ms=int(datetime(2025, 9, 30, tzinfo=UTC).timestamp() * 1000),
+        end_timestamp_ms=int(datetime(2025, 10, 1, tzinfo=UTC).timestamp() * 1000),
+        startup_candles=2,
     )
 
     assert available == ["BTC/USDT"]
@@ -866,7 +895,10 @@ def test_spot_scout_filters_fully_unlisted_pairs_before_backtest(
     )
 
     def prepare_archive(*_args, destination: Path, **_kwargs):
-        report = {"aggregate_sha256": "a" * 64}
+        report = {
+            "aggregate_sha256": "a" * 64,
+            "strategy_startup_candles": 0,
+        }
         write_json(destination, report)
         return report
 
