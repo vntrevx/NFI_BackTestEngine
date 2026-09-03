@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 154,
-  "updated_at": "2026-09-03T16:47:51+09:00",
+  "revision": 155,
+  "updated_at": "2026-09-03T17:02:00+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M24-01",
+  "active_task_id": "M24-02",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5186,7 +5186,7 @@
       "order": 2401,
       "milestone": "M24",
       "title": "Freeze and analyze the current upstream X7 compatibility identity",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": ["M23-03"],
       "manual_gate": false,
       "scope": ["latest upstream and engine identity", "Spot and Futures changed targets", "resumable discovery cursor"],
@@ -5194,9 +5194,20 @@
       "acceptance_profile": "current_x7_closure",
       "expected_evidence": ["source-bound analysis", "mode-specific target inventory", "cursor identity"],
       "started_at": "2026-09-03T16:47:51+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-09-03T17:02:00+09:00",
+      "commit_sha": "f3983a64142703d026e185ebc13e71db48264ac0",
+      "evidence": [
+        "benchmarks/evidence/m24/current-x7-e4fb2a7d/closure-analysis.json",
+        "upstream e4fb2a7dabb961a34d54d8052f2deba0105591cb rechecked after analysis",
+        "source SHA-256 35430af20d92548fa86fad95a13778dcebd2acd1a211800625287cea3e67b52d",
+        "5 source-derived changed targets per mode",
+        "Spot and Futures independent 20-shard cursors",
+        "54 current-X7 focused tests passed",
+        "162 future-compatibility tests passed",
+        "Spot and Futures representative full parity exact",
+        "ruff clean",
+        "basedpyright 0 errors"
+      ],
       "blocker": null
     },
     {
@@ -5204,14 +5215,14 @@
       "order": 2402,
       "milestone": "M24",
       "title": "Complete bounded Spot and Futures branch discovery",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": ["M24-01"],
       "manual_gate": false,
       "scope": ["parallel mode discovery", "independent Official and Native capture", "trade, state, and coverage equality"],
       "forbidden_changes": ["unbounded scout traces", "approximating unsupported semantics"],
       "acceptance_profile": "current_x7_closure",
       "expected_evidence": ["100 percent active-target coverage", "minimal captured fixtures", "exact parity reports"],
-      "started_at": null,
+      "started_at": "2026-09-03T17:02:00+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -9573,6 +9584,36 @@
         "objective": "freeze the latest upstream X7 and engine identities and derive mode-specific changed-target inventories",
         "hardcoded_target_results_allowed": false,
         "cursor_advance_on_infrastructure_failure_allowed": false
+      }
+    },
+    {
+      "sequence": 204,
+      "timestamp": "2026-09-03T17:02:00+09:00",
+      "task_id": "M24-01",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "f3983a64142703d026e185ebc13e71db48264ac0",
+        "upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+        "baseline_upstream_commit": "e94a4b2ef941e14f014154469de36bc9a78d46af",
+        "engine_commit": "713e2fe49b6e22212d7f28f274cba5a3c8e8e249",
+        "source_sha256": "35430af20d92548fa86fad95a13778dcebd2acd1a211800625287cea3e67b52d",
+        "changed_target_count_per_mode": 5,
+        "spot_cursor_fingerprint": "ab445dd54a484bfb271ce25ba0b5b09df4af52e0517ac9add3e18a12b880db96",
+        "futures_cursor_fingerprint": "aba8df356f8b652692707046ed4e465c694712e83123dab3d304896a6310d06e",
+        "next_eligible_task": "M24-02"
+      }
+    },
+    {
+      "sequence": 205,
+      "timestamp": "2026-09-03T17:02:00+09:00",
+      "task_id": "M24-02",
+      "event": "task_started",
+      "details": {
+        "objective": "search the frozen Spot and Futures queues and promote only minimal independently exact candidates",
+        "upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+        "engine_commit": "713e2fe49b6e22212d7f28f274cba5a3c8e8e249",
+        "spot_cursor_next_shard": 0,
+        "futures_cursor_next_shard": 0
       }
     }
   ]
