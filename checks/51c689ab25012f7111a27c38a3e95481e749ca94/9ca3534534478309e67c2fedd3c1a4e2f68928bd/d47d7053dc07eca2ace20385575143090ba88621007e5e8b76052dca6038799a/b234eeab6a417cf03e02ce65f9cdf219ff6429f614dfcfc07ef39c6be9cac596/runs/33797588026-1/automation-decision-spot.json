@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "51c689ab25012f7111a27c38a3e95481e749ca94",
+    "engine_sha": "9ca3534534478309e67c2fedd3c1a4e2f68928bd",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "51c1822c19a49d7519153d0a4cb3174581dc3cb3e23fbc4f722d9863c129f2fa"
+  },
+  "trading_mode": "spot",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "bounded_discovery",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "1122ea50affcc4597fdf698e80f577e0e47d75fba5ebc63e12052c2c55538d8e",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2d9ec3c271a030c290cf34b0d1f6fe58900feb350f6e403127e9a92362012948",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "4e30a7773d741cacafdd52c16a3c6d64c464afadf2ee2b40638fcba89df4dd15",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "5c98e2b00a43b7cb5644b17d78ce6a096ffc1619e66e84de6d5208e89e656446",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "60e8603fab566dd236c8280835290d1865f594462976229b308cc5f2c0231f50",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "7831a8209845abdd21432496b2a80f1b081444c87f15c1899c97a1611e3f15e1",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8bbcf93cafbd342a079ec64120e427ecb8f7bffd93b80b98bb86cdaea089bd28",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8d35e07d98834c5d50ce1e61444f7c5f9de2fd07275ac96fdd9911301025ba47",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "8fa40bea1874b631de1d5a263c60a74fe529aa14483090aa486ef1fb7e9a2ae6",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "bb36908d510b9af31b5338799a986aacd31085fcb6a014574223453445130cc8",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c5cf70286a385ef7b4ccec039a9783a04050a4fa4ac17e5a8008bef39caefb18",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "ef10476d73a769103d598dcf8bdceb7e9e98f5e553eddd36cfaed1a021d99f72",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "17 changed behavior target(s) have no branch-reaching fixture: callback, signal"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": true,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "569ba9245ee166c23e4356223daf755edad24d60f7daeae57501644c73c0be8b",
+  "decision_fingerprint": "ac2d3dc5f47972a592f0fb34b8dec869266da01541298ea47c9965ae2e907efe",
+  "message": "Exact branch evidence is missing; continue bounded discovery."
+}
