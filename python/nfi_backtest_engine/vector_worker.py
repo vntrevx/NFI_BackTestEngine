@@ -301,11 +301,12 @@ def _attach_funding_events(
 ) -> pd.DataFrame:
     """Attach Freqtrade funding events without forward-filling them.
 
-    Freqtrade 2026.5.1 performs an inner join on the sparse 1h funding-rate
-    candles and 1h mark candles, then charges `amount * open_fund *
-    open_mark` only at matching timestamps. Materializing those two scalars
-    on the base candle keeps Rust's chronological loop allocation-free and
-    preserves the official order: funding, position adjustment, then exit.
+    Freqtrade 2026.5.1 floors funding-rate dates to whole seconds before its
+    inner join with the sparse mark candles. Binance archive timestamps can
+    be a few milliseconds late, so preserving their raw value would silently
+    omit a real funding event. Materializing the two joined scalars on the
+    base candle keeps Rust's chronological loop allocation-free and preserves
+    the official order: funding, position adjustment, then exit.
     """
     result = frame.copy(deep=False)
     result["nfi_exec_funding_rate"] = float("nan")
@@ -314,6 +315,8 @@ def _attach_funding_events(
         return result
 
     funding = _read_frame(Path(funding_data["funding_rate_path"]))
+    funding["date"] = pd.to_datetime(funding["date"], utc=True).dt.floor("s")
+    funding.drop_duplicates("date", keep="first", inplace=True)
     mark = _read_frame(Path(funding_data["mark_path"]))
     events = mark[["date", "open"]].merge(
         funding[["date", "open"]],

@@ -379,7 +379,9 @@ def test_funding_events_use_the_exact_inner_join_without_forward_fill(
     )
     funding = pd.DataFrame(
         {
-            "date": [pd.Timestamp("2022-06-10T00:00:00Z")],
+            # Binance funding archives can be a few milliseconds late. Freqtrade
+            # floors this role to seconds before joining it to mark candles.
+            "date": [pd.Timestamp("2022-06-10T00:00:00.006Z")],
             "open": [0.00002067],
             "high": [0.0],
             "low": [0.0],

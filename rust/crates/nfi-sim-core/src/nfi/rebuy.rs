@@ -139,7 +139,7 @@ fn evaluate_compiled_rebuy_program(
     if trade.side != expected_side || compiled_rebuy_delegates(program, trade) {
         return None;
     }
-    let minimum_stake = rebuy_minimum_stake(pair, candle, trade, config)?;
+    let minimum_stake = rebuy_minimum_stake(pair, candle, config)?;
     let first = trade.orders.first()?;
     if !first.is_entry {
         return None;
@@ -258,7 +258,7 @@ fn evaluate_rebuy_ladder_legacy(
     if trade.custom_data.get("system_version")?.as_str()? != system_version {
         return None;
     }
-    let minimum_stake = rebuy_minimum_stake(pair, candle, trade, config)?;
+    let minimum_stake = rebuy_minimum_stake(pair, candle, config)?;
     let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
     let sub_grind_count = entries_since_latest_exit(trade, first_entry.id);
@@ -381,19 +381,18 @@ fn rebuy_entry_features_allow(
 fn rebuy_minimum_stake(
     pair: &PairSeries,
     candle: &Candle,
-    trade: &OpenTrade,
     config: &PortfolioConfig,
 ) -> Option<f64> {
     let has_limit = pair.minimum_stake.is_some()
         || pair.minimum_amount.is_some()
         || pair.minimum_cost.is_some();
     has_limit.then(|| {
-        // Backtesting passes the exchange minimum to the callback with no
-        // leverage argument. Both X7 rebuy callbacks then divide that value
-        // before sizing entries and the level-3 residual. Omitting this
-        // second step leaves leverage-times too much position after de-risk.
+        // Backtesting asks the exchange for this callback boundary without a
+        // leverage argument. X7's `correct_min_stake` only enforces its own
+        // lower floor; it does not divide a non-smaller exchange value again.
+        // Entry sizing still divides `slice_amount` explicitly where the
+        // source does so.
         adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent)
-            / trade.leverage
     })
 }
 
@@ -638,5 +637,17 @@ mod tests {
         .expect("short entry action");
         assert!(signal.stake_amount > 0.0);
         assert_eq!(signal.tag, "source_rebuy");
+    }
+
+    #[test]
+    fn futures_rebuy_keeps_unleveraged_adjustment_minimum() {
+        let (pair, candle, mut config) = pair_and_config();
+        config.is_futures = true;
+
+        let minimum = rebuy_minimum_stake(&pair, &candle, &config).expect("exchange minimum");
+
+        // minimum_cost=5 with the callback's fixed -10% reserve becomes
+        // 5 * (1 / 0.9) = 5.555..., independent of the trade leverage.
+        assert!((minimum - 5.555_555_555_555_555).abs() < 1e-12);
     }
 }
