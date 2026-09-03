@@ -6,13 +6,18 @@ import math
 import re
 import shutil
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config, sanitize_config
-from .data_seal import build_data_request, candle_files_for, inspect_candle_quality
+from .data_seal import (
+    build_data_request,
+    candle_file_has_execution_slice,
+    candle_files_for,
+    inspect_candle_quality,
+)
 from .errors import (
     BenchmarkError,
     BranchCoverageError,
@@ -25,6 +30,7 @@ from .release_contract import release_contract_for_config
 from .release_inputs import discover_release_universe
 from .targeted_verification import (
     assess_targeted_coverage,
+    completed_probe_semantic_failure,
     observable_tag_forms,
     target_observed,
 )
@@ -65,11 +71,32 @@ def run_shard_scout(
         )
     except BenchmarkError as exc:
         raise _discovery_infrastructure_error(exc) from exc
+    archive_pairs = archive_report.get("discovery_pairs", pairs)
+    if (
+        not isinstance(archive_pairs, list)
+        or not archive_pairs
+        or not all(isinstance(pair, str) and pair for pair in archive_pairs)
+        or not set(archive_pairs).issubset(pairs)
+    ):
+        raise DiscoveryInfrastructureError(
+            "discovery archive returned an invalid executable pair set"
+        )
+    if archive_pairs != pairs:
+        generated_config = _write_discovery_pair_config(
+            generated_config,
+            shard_root / "archive-available-config.json",
+            archive_pairs,
+        )
+        pairs = archive_pairs
+        engine_output = shard_root / "engine-available"
     if context.policy.trading_mode == "spot":
         available_pairs = _pairs_with_nonempty_base_candles(
             shared / "data",
             pairs=pairs,
             config_path=generated_config,
+            start_timestamp_ms=_date_timestamp_ms(shard.start),
+            end_timestamp_ms=_date_timestamp_ms(shard.stop),
+            startup_candles=_archive_startup_candles(archive_report),
         )
         if not available_pairs:
             raise DiscoveryInfrastructureError(
@@ -103,6 +130,9 @@ def run_shard_scout(
             shared / "data",
             pairs=pairs,
             config_path=generated_config,
+            start_timestamp_ms=_date_timestamp_ms(shard.start),
+            end_timestamp_ms=_date_timestamp_ms(shard.stop),
+            startup_candles=_archive_startup_candles(archive_report),
         )
         if not available_pairs or available_pairs == pairs:
             raise
@@ -202,7 +232,10 @@ def _prepare_scout_archive(
     destination: Path,
 ) -> dict[str, Any]:
     """Prepare a reproducible shard input without invoking exchange REST APIs."""
-    from .binance_archive import prepare_binance_archive_data
+    from .binance_archive import (
+        BinanceArchiveContinuityError,
+        prepare_binance_archive_data,
+    )
     from .research_runner import required_data_pairs
     from .vector_runtime import load_strategy_analysis
 
@@ -233,8 +266,6 @@ def _prepare_scout_archive(
         or startup < 0
     ):
         raise SpecValidationError("discovery archive strategy requirements differ")
-    data_pairs = required_data_pairs({"pairs": pairs}, config)
-    exchange["pair_whitelist"] = data_pairs
     request = build_data_request(
         config,
         shard.timerange,
@@ -242,17 +273,38 @@ def _prepare_scout_archive(
         startup_candles=startup,
         history_coverage_policy="available",
     )
-    report = prepare_binance_archive_data(
-        data_directory,
-        pairs=data_pairs,
-        timeframes=list(timeframes),
-        trading_mode=context.policy.trading_mode,
-        coverage_start_timestamp_ms_by_timeframe=request[
-            "coverage_start_timestamp_ms_by_timeframe"
-        ],
-        end_timestamp_ms=request["end_timestamp_ms"],
-        workers=context.policy.archive_workers,
-    )
+    discovery_pairs = list(pairs)
+    excluded_pairs: list[dict[str, str]] = []
+    while True:
+        data_pairs = required_data_pairs({"pairs": discovery_pairs}, config)
+        exchange["pair_whitelist"] = data_pairs
+        try:
+            report = prepare_binance_archive_data(
+                data_directory,
+                pairs=data_pairs,
+                timeframes=list(timeframes),
+                trading_mode=context.policy.trading_mode,
+                coverage_start_timestamp_ms_by_timeframe=request[
+                    "coverage_start_timestamp_ms_by_timeframe"
+                ],
+                end_timestamp_ms=request["end_timestamp_ms"],
+                workers=context.policy.archive_workers,
+            )
+            break
+        except BinanceArchiveContinuityError as exc:
+            if (
+                context.policy.trading_mode != "spot"
+                or exc.pair not in discovery_pairs
+                or len(discovery_pairs) == 1
+            ):
+                raise
+            discovery_pairs.remove(exc.pair)
+            excluded_pairs.append(
+                {"pair": exc.pair, "reason": "INTERNAL_ARCHIVE_GAP"}
+            )
+    report["discovery_pairs"] = discovery_pairs
+    report["excluded_discovery_pairs"] = excluded_pairs
+    report["strategy_startup_candles"] = startup
     write_json(destination, report)
     return report
 
@@ -304,6 +356,9 @@ def _pairs_with_nonempty_base_candles(
     *,
     pairs: list[str],
     config_path: Path,
+    start_timestamp_ms: int,
+    end_timestamp_ms: int,
+    startup_candles: int,
 ) -> list[str]:
     config = read_json(config_path)
     timeframe = config.get("timeframe") if isinstance(config, dict) else None
@@ -325,9 +380,29 @@ def _pairs_with_nonempty_base_candles(
                 if str(exc).startswith("candle file is empty: "):
                     continue
                 raise
+            if not candle_file_has_execution_slice(
+                path,
+                start_timestamp_ms=start_timestamp_ms,
+                end_timestamp_ms=end_timestamp_ms,
+                startup_candles=startup_candles,
+            ):
+                continue
             available.append(pair)
             break
     return available
+
+
+def _date_timestamp_ms(value: date) -> int:
+    return int(datetime(value.year, value.month, value.day, tzinfo=UTC).timestamp() * 1000)
+
+
+def _archive_startup_candles(report: Mapping[str, Any]) -> int:
+    value = report.get("strategy_startup_candles")
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise DiscoveryInfrastructureError(
+            "discovery archive report lacks strategy startup candle identity"
+        )
+    return value
 
 
 def _write_discovery_pair_config(
@@ -599,6 +674,7 @@ def _capture_candidate(
     hit: dict[str, Any],
     target_ids: list[str],
 ) -> dict[str, Any] | None:
+    from .fixture_engine import run_fixture_engine
     from .probe_capture import capture_x7_probe
     from .research_runner import required_data_pairs
 
@@ -611,17 +687,18 @@ def _capture_candidate(
         _candidate_timeranges(shard, hit, context.policy.context_days),
         start=1,
     ):
-        output = context.output / "work" / f"candidate-fixture-attempt-{attempt}"
-        work = capture_work_root / f"latest-attempt-{attempt}"
-        spec_path = context.output / "work" / f"candidate-probe-{attempt}.json"
-        market_path = context.output / "work" / f"candidate-market-{attempt}.json"
+        attempt_key = _candidate_attempt_key(shard, attempt)
+        output = context.output / "work" / f"candidate-fixture-{attempt_key}"
+        work = capture_work_root / f"latest-{attempt_key}"
+        spec_path = context.output / "work" / f"candidate-probe-{attempt_key}.json"
+        market_path = context.output / "work" / f"candidate-market-{attempt_key}.json"
         _filter_market_snapshot(engine_market_path, market_path, [pair])
         config = read_json(generated_config)
         exchange = config.get("exchange") if isinstance(config, dict) else None
         if not isinstance(exchange, dict):
             raise SpecValidationError("generated discovery config is invalid")
         exchange["pair_whitelist"] = [pair]
-        candidate_config = context.output / "work" / f"candidate-config-{attempt}.json"
+        candidate_config = context.output / "work" / f"candidate-config-{attempt_key}.json"
         write_json(candidate_config, config)
         data_pairs = required_data_pairs({"pairs": [pair]}, config)
         informative_pairs = [item for item in data_pairs if item != pair]
@@ -675,6 +752,7 @@ def _capture_candidate(
             )
             baseline_manifest = _capture_transition_baseline(
                 context,
+                shard=shard,
                 attempt=attempt,
                 latest_spec=spec,
                 latest_spec_path=spec_path,
@@ -687,9 +765,40 @@ def _capture_candidate(
                 baseline_manifest=baseline_manifest or output / "manifest.json",
                 candidate_manifest=output / "manifest.json",
             )
-        except (BenchmarkError, BranchCoverageError, SpecValidationError):
+        except BranchCoverageError:
             continue
+        except BenchmarkError as exc:
+            baseline_work = capture_work_root / f"baseline-{attempt_key}"
+            if (
+                completed_probe_semantic_failure(work) is not None
+                or completed_probe_semantic_failure(baseline_work) is not None
+            ):
+                continue
+            raise _discovery_infrastructure_error(exc) from exc
         if not coverage["complete"] or not coverage["changed_branch_reached"]:
+            continue
+        try:
+            latest_exact = run_fixture_engine(
+                output / "manifest.json",
+                context.output / "work" / f"candidate-exact-latest-{attempt_key}",
+                timeout_seconds=max(1, context.policy.budget_seconds),
+                verification_level="full",
+            )
+            baseline_exact = (
+                run_fixture_engine(
+                    baseline_manifest,
+                    context.output / "work" / f"candidate-exact-baseline-{attempt_key}",
+                    timeout_seconds=max(1, context.policy.budget_seconds),
+                    verification_level="full",
+                )
+                if baseline_manifest is not None
+                else None
+            )
+        except BenchmarkError as exc:
+            raise _discovery_infrastructure_error(exc) from exc
+        if not _full_exact(latest_exact) or (
+            baseline_exact is not None and not _full_exact(baseline_exact)
+        ):
             continue
         baseline_output = baseline_manifest.parent if baseline_manifest is not None else None
         logical_bytes = sum(
@@ -730,9 +839,26 @@ def _capture_candidate(
     return None
 
 
+def _full_exact(report: Mapping[str, Any]) -> bool:
+    parity = report.get("parity")
+    if not isinstance(parity, Mapping):
+        return False
+    trade_surface = parity.get("trade_surface")
+    state_trace = parity.get("state_trace")
+    return (
+        report.get("complete") is True
+        and isinstance(trade_surface, Mapping)
+        and trade_surface.get("equal") is True
+        and isinstance(state_trace, Mapping)
+        and state_trace.get("checked") is True
+        and state_trace.get("equal") is True
+    )
+
+
 def _capture_transition_baseline(
     context: DiscoveryContext,
     *,
+    shard: SearchShard,
     attempt: int,
     latest_spec: Mapping[str, Any],
     latest_spec_path: Path,
@@ -769,10 +895,13 @@ def _capture_transition_baseline(
             ),
         },
     }
-    baseline_spec_path = latest_spec_path.with_name(f"candidate-baseline-probe-{attempt}.json")
+    attempt_key = _candidate_attempt_key(shard, attempt)
+    baseline_spec_path = latest_spec_path.with_name(
+        f"candidate-baseline-probe-{attempt_key}.json"
+    )
     write_json(baseline_spec_path, baseline_spec)
-    output = context.output / "work" / f"candidate-baseline-attempt-{attempt}"
-    work = context.output / "work" / "candidate-capture" / f"baseline-attempt-{attempt}"
+    output = context.output / "work" / f"candidate-baseline-{attempt_key}"
+    work = context.output / "work" / "candidate-capture" / f"baseline-{attempt_key}"
     capture_x7_probe(
         baseline_spec_path,
         output,
@@ -781,6 +910,13 @@ def _capture_transition_baseline(
         workers=workers,
     )
     return output / "manifest.json"
+
+
+def _candidate_attempt_key(shard: SearchShard, attempt: int) -> str:
+    """Return a collision-free key for candidate work across discovery shards."""
+    if attempt < 1:
+        raise SpecValidationError("candidate attempt must be positive")
+    return f"shard-{shard.index:03d}-attempt-{attempt}"
 
 
 def _baseline_boolean_toggles(
@@ -827,12 +963,14 @@ def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
     trades = surface.get("trades")
     if not isinstance(trades, list):
         raise SpecValidationError("discovery trade surface has no trades")
+    entry_tags: set[str] = set()
     tags: set[str] = set()
     for trade in trades:
         if not isinstance(trade, Mapping):
             continue
         entry = trade.get("entry_tag")
         if isinstance(entry, str) and entry.strip():
+            entry_tags.add(entry.strip())
             tags.add(entry.strip())
         exit_reason = trade.get("exit_reason")
         if isinstance(exit_reason, str) and exit_reason.strip():
@@ -845,11 +983,13 @@ def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
                     tags.add(tag.strip())
     tags = {form for tag in tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
+    entry_tokens = {token for tag in entry_tags for token in tag.split() if token}
     grind_levels = {int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)}
     return {
         "callbacks": set(),
         "tags": tags,
         "tokens": tokens,
+        "entry_tokens": entry_tokens,
         "grind_levels": grind_levels,
     }
 

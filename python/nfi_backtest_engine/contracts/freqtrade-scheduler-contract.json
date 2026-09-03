@@ -1,6 +1,6 @@
 {
   "schema_version": "freqtrade-scheduler-contract-v1",
-  "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8",
+  "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
   "chronology": {
     "timestamp_order": "ascending",
     "same_timestamp_pair_order": [
@@ -32,5 +32,5 @@
     ],
     "unknown_schedule": "fail-before-native-promotion"
   },
-  "fingerprint": "bbd84f6c1eebd789cc0b70055962be84e90886bbbb34797f470d0696fe93e631"
+  "fingerprint": "8ebad4ac999390b722ae521b95f2e60e8e9e173cefd4b1d8e0ce9fdc0afa04dc"
 }

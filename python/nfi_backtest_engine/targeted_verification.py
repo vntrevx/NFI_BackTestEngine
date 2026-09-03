@@ -124,7 +124,7 @@ def verify_targeted_strategy(
                 )
                 break
             except BenchmarkError:
-                blocker = _completed_semantic_failure(root / "capture-work")
+                blocker = completed_probe_semantic_failure(root / "capture-work")
                 if blocker is None:
                     raise
                 execution_blockers.append(blocker)
@@ -685,7 +685,14 @@ def _operational_blockers(
     return [unique[key] for key in sorted(unique)]
 
 
-def _completed_semantic_failure(work: Path) -> dict[str, str] | None:
+def completed_probe_semantic_failure(work: Path) -> dict[str, str] | None:
+    """Classify a completed probe failure without hiding infrastructure faults.
+
+    A missing report, a non-zero Official exit, or an incomplete artifact is not
+    semantic evidence.  Callers must surface those failures as infrastructure
+    errors so that discovery can retry the same shard without advancing its
+    cursor.
+    """
     engine_path = work / "engine" / "run.json"
     if engine_path.is_file():
         engine = _document(engine_path, "targeted Native run")
@@ -699,8 +706,10 @@ def _completed_semantic_failure(work: Path) -> dict[str, str] | None:
                 "code": "TARGETED_NATIVE_EXECUTION_BLOCKED",
                 "message": ("targeted Native execution remained unsupported: " + ", ".join(codes)),
             }
-    reference_path = work / "reference" / "run.json"
-    if reference_path.is_file():
+    for phase in ("reference-market-capture", "reference"):
+        reference_path = work / phase / "run.json"
+        if not reference_path.is_file():
+            continue
         reference = _document(reference_path, "targeted official run")
         if reference.get("exit_code") == 0 and reference.get("exact_parity") is False:
             difference = reference.get("difference")
@@ -832,11 +841,18 @@ def _fixture_features(
     raw_tags = entry_tags | compound_tags | exit_reasons | order_tags
     tags = {form for tag in raw_tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
+    entry_tokens = {
+        token
+        for tag in entry_tags | compound_tags
+        for token in tag.split()
+        if token
+    }
     grind_levels = {int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)}
     return {
         "callbacks": callbacks,
         "tags": tags,
         "tokens": tokens,
+        "entry_tokens": entry_tokens,
         "grind_levels": grind_levels,
     }
 
@@ -853,9 +869,15 @@ def target_observed(
     callbacks = features["callbacks"]
     tags = features["tags"]
     tokens = features["tokens"]
+    entry_tokens = features["entry_tokens"]
     grind_levels = features["grind_levels"]
     if kind == "signal":
-        return str(value) in tokens
+        methods = target.get("methods")
+        entry_signal = isinstance(methods, list) and any(
+            isinstance(method, str) and method.startswith("populate_entry")
+            for method in methods
+        )
+        return str(value) in (entry_tokens if entry_signal else tokens)
     if kind == "tag":
         return str(value).strip() in tags
     if kind == "grind_level":
@@ -871,6 +893,16 @@ def target_observed(
     # diff supplied such selectors. Added callbacks without a selector retain
     # the callback-level proof used by existing fixtures.
     if _target_proof_mode(target) == "transition" and target_tags:
+        methods = target.get("methods")
+        entry_callback = isinstance(methods, list) and any(
+            isinstance(method, str) and method.startswith("populate_entry")
+            for method in methods
+        )
+        if entry_callback:
+            return any(
+                isinstance(tag, str) and tag.strip() in entry_tokens
+                for tag in target_tags
+            )
         return tag_observed
     return str(value) in callbacks or tag_observed
 

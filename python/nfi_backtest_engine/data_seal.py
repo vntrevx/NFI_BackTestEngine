@@ -538,6 +538,48 @@ def candle_files_for(
     )
 
 
+def candle_file_coverage(path: str | Path) -> dict[str, int]:
+    """Return the exact timestamp coverage of one non-empty candle file."""
+    return _file_coverage(Path(path).resolve())
+
+
+def candle_file_has_execution_slice(
+    path: str | Path,
+    *,
+    start_timestamp_ms: int,
+    end_timestamp_ms: int,
+    startup_candles: int,
+) -> bool:
+    """Return whether startup removal leaves a candle inside one closed-open shard."""
+    source = Path(path).resolve()
+    if (
+        not isinstance(start_timestamp_ms, int)
+        or isinstance(start_timestamp_ms, bool)
+        or not isinstance(end_timestamp_ms, int)
+        or isinstance(end_timestamp_ms, bool)
+        or end_timestamp_ms <= start_timestamp_ms
+        or not isinstance(startup_candles, int)
+        or isinstance(startup_candles, bool)
+        or startup_candles < 0
+    ):
+        raise SpecValidationError("candle execution slice bounds are invalid")
+    try:
+        if source.suffix.lower() == ".feather":
+            frame = pl.read_ipc(source, columns=["date"], memory_map=False, rechunk=False)
+        else:
+            frame = pl.read_parquet(source, columns=["date"], rechunk=False)
+    except Exception as exc:
+        raise SpecValidationError(f"cannot read candle dates from {source}: {exc}") from exc
+    if frame.height == 0:
+        return False
+    dates = _date_milliseconds(frame.get_column("date"), source)
+    before_end = dates.filter(dates < end_timestamp_ms)
+    if len(before_end) <= startup_candles:
+        return False
+    executable = before_end.slice(startup_candles)
+    return bool((executable >= start_timestamp_ms).any())
+
+
 def compact_candle_directory(
     source_directory: str | Path,
     destination_directory: str | Path,

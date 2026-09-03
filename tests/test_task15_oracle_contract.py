@@ -152,7 +152,7 @@ def test_portfolio_contract_is_byte_equal_authenticated_and_additive() -> None:
         "90f813bc66c479415f5eb1cd30868d39abec1f3b74b644be367114af4eff422a"
     )
     assert contract["scheduler_contract"]["mutation"] == "forbidden"
-    assert _sha(SCHEDULER) == "b2c6fa685502756f16ba14737ac98033e3695b8e2fd50780f7226f4166789df0"
+    assert _sha(SCHEDULER) == "0a03b4cf158b8b355f547f1d331d3bebac90c511cab73d5f4b03b2db7704d7ba"
 
     closure = contract["source_closure"]
     assert len(closure) == contract["derivation"]["closure_count"] == 16

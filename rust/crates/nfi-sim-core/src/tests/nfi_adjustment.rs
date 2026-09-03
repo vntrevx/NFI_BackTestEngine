@@ -376,9 +376,10 @@ fn nfi_short_rebuy_transfer_accepts_the_source_rebuy_tag() {
     let post_derisk_tag = trade.orders[derisk_index + 1].tag.as_deref();
     assert_eq!(post_derisk_tag, Some("grind_4_entry"));
     assert!(trade.orders[derisk_index + 1].is_entry);
-    // Dividing the callback minimum by leverage leaves 0.2 contracts;
-    // retaining the raw exchange minimum would incorrectly leave 0.4.
-    assert!((remaining_amount - 0.2).abs() < 1e-12);
+    // Freqtrade passes the exchange minimum to the rebuy callback without a
+    // leverage argument. The source keeps that boundary intact, leaving 0.4
+    // contracts after exchange amount precision.
+    assert!((remaining_amount - 0.4).abs() < 1e-12);
 }
 
 #[test]

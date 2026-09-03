@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn order_filled_program_updates_compiled_trade_custom_state() {
+fn order_filled_program_updates_custom_state_and_projects_liquidation_price() {
     let mut config = config(1);
     config.callback_program = Some(CallbackProgram {
         order_filled: Some(OrderFilledProgram {
@@ -45,7 +45,7 @@ fn order_filled_program_updates_compiled_trade_custom_state() {
     };
     let entry_candle = pair.candles.get(0).expect("fixture candle");
 
-    let trade = enter_trade(
+    let mut trade = enter_trade(
         EntryRequest {
             pair_index: 0,
             pair: &pair,
@@ -72,6 +72,12 @@ fn order_filled_program_updates_compiled_trade_custom_state() {
     assert_eq!(
         trade.custom_data.get("grind_1_cluster_max_profit_stake"),
         Some(&serde_json::json!(0.0))
+    );
+    trade.liquidation_price = Some(80.0);
+    assert_eq!(
+        crate::callbacks::scalar_trade_value(&trade)
+            .and_then(|value| value.get("liquidation_price").cloned()),
+        Some(serde_json::json!(80.0))
     );
 }
 

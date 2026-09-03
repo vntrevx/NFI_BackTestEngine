@@ -2,8 +2,10 @@
 //!
 //! Freqtrade keeps funding-rate and mark-price archives as separate roles.
 //! Each role is stable-sorted and deduplicated by timestamp with the last row
-//! winning, then the two roles are inner-joined. Only those paired events are
-//! mapped to equal base-candle timestamps; funding is never forward-filled.
+//! winning. Freqtrade then floors funding-rate timestamps to whole seconds to
+//! absorb exchange millisecond jitter before inner-joining them to mark prices.
+//! Only those paired events are mapped to equal base-candle timestamps; funding
+//! is never forward-filled.
 
 use std::collections::BTreeMap;
 
@@ -85,7 +87,10 @@ pub fn prepare_events(
     };
     validate_frame_set(frame_set, pair)?;
     let interval = frame_set.funding_rate.identity.timeframe.clone();
-    let funding = stable_deduplicate_open(&frame_set.funding_rate, "funding-rate")?;
+    let funding = floor_funding_timestamps_to_seconds(stable_deduplicate_open(
+        &frame_set.funding_rate,
+        "funding-rate",
+    )?);
     let mark_by_time = stable_deduplicate_open(&frame_set.mark, "mark-price")?;
 
     let mut paired = BTreeMap::new();
@@ -156,6 +161,19 @@ fn stable_deduplicate_open(
         result.insert(frame.timestamps_ms[row], value);
     }
     Ok(result)
+}
+
+fn floor_funding_timestamps_to_seconds(events: BTreeMap<i64, f64>) -> BTreeMap<i64, f64> {
+    let mut normalized = BTreeMap::new();
+    for (timestamp_ms, value) in events {
+        let timestamp_ms = timestamp_ms.div_euclid(1_000) * 1_000;
+        // The exact-timestamp pass above has already applied the transport's
+        // keep-last rule. If exchange jitter puts multiple distinct records in
+        // one second, Freqtrade's subsequent groupby keeps the chronologically
+        // first open value.
+        normalized.entry(timestamp_ms).or_insert(value);
+    }
+    normalized
 }
 
 fn missing_events(pair: &str, rows: usize, funding_interval: Option<Timeframe>) -> PreparedEvents {
@@ -280,6 +298,33 @@ mod tests {
             assert_nan(result.funding_rates[row]);
             assert_nan(result.mark_prices[row]);
         }
+    }
+
+    #[test]
+    fn funding_timestamp_jitter_is_floored_to_seconds_before_mark_join() {
+        let frames = [frame_set(
+            "ORACLE/USDT",
+            "1h",
+            vec![6, 28_800_999],
+            vec![Some(0.001), Some(-0.002)],
+            vec![0, 28_800_000],
+            vec![Some(100.0), Some(80.0)],
+        )];
+
+        let result = prepare_events(
+            TradingMode::Futures,
+            "ORACLE/USDT",
+            &[0, 300_000, 28_800_000],
+            &frames,
+        )
+        .expect("jitter-normalized events");
+
+        assert_eq!(result.funding_rates[0], Some(0.001));
+        assert_nan(result.funding_rates[1]);
+        assert_eq!(result.funding_rates[2], Some(-0.002));
+        assert_eq!(result.mark_prices[0], Some(100.0));
+        assert_nan(result.mark_prices[1]);
+        assert_eq!(result.mark_prices[2], Some(80.0));
     }
 
     #[test]

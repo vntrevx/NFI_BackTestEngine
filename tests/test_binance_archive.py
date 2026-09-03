@@ -58,6 +58,17 @@ def test_archive_frame_normalizes_microseconds_and_headers() -> None:
     }
 
 
+def test_archive_frame_does_not_infer_integer_volume_from_prefix() -> None:
+    payload = _zip_csv(
+        "1759276800000,1,2,0.5,1.5,9,1759276800001,0,0,0,0,0\n"
+        "1759277100000,1,2,0.5,1.5,153391.41,1759277100001,0,0,0,0,0\n"
+    )
+
+    frame = archive._archive_frame(payload, role="base", source="fixture")
+
+    assert frame.get_column("volume").to_list() == [9.0, 153391.41]
+
+
 def test_archive_frame_converts_funding_rate_shape() -> None:
     payload = _zip_csv(
         "calc_time,funding_interval_hours,last_funding_rate\n"

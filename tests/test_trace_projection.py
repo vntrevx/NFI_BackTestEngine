@@ -251,9 +251,24 @@ def test_futures_projection_omits_synthetic_base_position_balances() -> None:
     assert engine["base_balances"] == []
 
 
-def test_futures_quote_balance_preserves_exact_float_representation() -> None:
-    assert _quote_balance("4592.188874112047") == "4592.188874112047"
-    assert _quote_balance("4592.188874112048") == "4592.188874112048"
+def test_futures_quote_balance_normalizes_both_projection_sources() -> None:
+    assert _quote_balance("4592.188874112047", "futures") == "4592.188874112"
+    assert _quote_balance("4592.1888741125", "futures") == "4592.188874112"
+    assert _quote_balance("4592.1888741135", "futures") == "4592.188874114"
+    assert _quote_balance("4592.188874112047", "spot") == "4592.188874112047"
+
+
+def test_futures_reference_and_engine_quote_projection_are_symmetric() -> None:
+    reference_state = _reference_fixture_state()
+    reference_state["wallets"]["USDT"][1] = "7527.645966666667"
+    engine_state = _engine_fixture_state()
+    engine_state["quote_free"] = "7527.645966667"
+
+    reference = _reference_state(reference_state, "USDT", "futures")
+    engine = _engine_state(engine_state, "futures")
+
+    assert reference["quote_free"] == "7527.645966667"
+    assert reference["quote_free"] == engine["quote_free"]
 
 
 def test_lock_projection_has_one_order_for_global_and_pair_locks() -> None:

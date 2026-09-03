@@ -83,6 +83,13 @@ pub(crate) fn scalar_trade_value(trade: &OpenTrade) -> Option<Value> {
         ("open_rate".to_owned(), number_value(trade.open_rate)?),
         ("leverage".to_owned(), number_value(trade.leverage)?),
         (
+            "liquidation_price".to_owned(),
+            match trade.liquidation_price {
+                Some(price) => number_value(price)?,
+                None => Value::Null,
+            },
+        ),
+        (
             "open_date_utc".to_owned(),
             Value::Number(trade.open_timestamp_ms.into()),
         ),

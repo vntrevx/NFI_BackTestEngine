@@ -128,6 +128,7 @@ pub(super) fn wallet_free(
     starting_balance: f64,
     open_trades: &[OpenTrade],
     closed_trades: &[ClosedTrade],
+    is_futures: bool,
 ) -> Result<f64, SimError> {
     let realized_profit = checked_float_sum(
         &closed_trades
@@ -158,6 +159,7 @@ pub(super) fn wallet_free(
         realized_profit,
         open_realized_profit,
         tied_up_stake,
+        is_futures,
     )
 }
 
@@ -166,15 +168,16 @@ fn wallet_free_from_totals(
     realized_profit: f64,
     open_realized_profit: f64,
     tied_up_stake: f64,
+    is_futures: bool,
 ) -> Result<f64, SimError> {
     let total_profit = checked_float_sum(
         &[realized_profit, open_realized_profit],
         "wallet-total-profit",
     )?;
-    if total_profit == 0.0 || tied_up_stake == 0.0 {
-        // Freqtrade's ungrouped wallet paths preserve decimal-text balance
-        // arithmetic. Binary addition/subtraction alone moves valid entry and
-        // fully-closed wallet boundaries by several ULPs.
+    if is_futures && (total_profit == 0.0 || tied_up_stake == 0.0) {
+        // Futures collateral has already crossed Freqtrade's decimal precision
+        // boundary. Preserve that representation for ungrouped wallet paths.
+        // Spot keeps Python's ordinary left-associated float subtraction.
         return precise_sum(&[starting_balance, total_profit, -tied_up_stake]).map_err(|_| {
             SimError::ExactArithmetic {
                 operation: "wallet-final-balance",
@@ -198,6 +201,7 @@ mod tests {
             1_707.555_080_630_000_2,
             -509.448_001_5,
             9_273.294_6,
+            false,
         )
         .expect("finite wallet");
 
@@ -206,7 +210,8 @@ mod tests {
 
     #[test]
     fn wallet_free_preserves_no_profit_decimal_boundary() {
-        let quote_free = wallet_free_from_totals(110.0, 0.0, 0.0, 95.9792).expect("finite wallet");
+        let quote_free =
+            wallet_free_from_totals(110.0, 0.0, 0.0, 95.9792, true).expect("finite wallet");
 
         assert_eq!(quote_free.to_bits(), 14.0208_f64.to_bits());
     }
@@ -214,8 +219,16 @@ mod tests {
     #[test]
     fn wallet_free_preserves_fully_closed_decimal_boundary() {
         let quote_free =
-            wallet_free_from_totals(110.0, -67.585_389_07, 0.0, 0.0).expect("finite wallet");
+            wallet_free_from_totals(110.0, -67.585_389_07, 0.0, 0.0, true).expect("finite wallet");
 
         assert_eq!(quote_free.to_bits(), 42.414_610_93_f64.to_bits());
+    }
+
+    #[test]
+    fn spot_wallet_free_preserves_python_subtraction_boundary() {
+        let quote_free = wallet_free_from_totals(10_000.0, 0.0, 0.0, 9_899.999_187_6, false)
+            .expect("finite wallet");
+
+        assert_eq!(quote_free.to_bits(), 100.000_812_399_999_63_f64.to_bits());
     }
 }

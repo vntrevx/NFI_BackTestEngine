@@ -38,13 +38,15 @@ from .reference.contracts import (
 
 _REPOSITORY: Final = Path(__file__).resolve().parents[2]
 _CONTRACT: Final = Path("benchmarks/reference/strategies/CurrentChangedPredicateContract.py")
-_PROFILE: Final = Path("planning/freqtrade-semantic-profile.json")
 _UPSTREAM_SOURCE: Final = Path(
     "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source"
 )
 _INTERFACE_SHA256: Final = "93ddb2f5579acd7a20d489174ffb68cd191428ff996d291b33be81d97fa9bf66"
 _UPSTREAM_COMMIT: Final = "eebaf97c1434bd8f208b7cd9c417606646e1e478"
 _SOURCE_SHA256: Final = "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a"
+_SEMANTIC_PROFILE_SHA256: Final = (
+    "87f9549fcdea09a4b55be8bed7ef549a8e1df99fc532ea1110e04c252e61483f"
+)
 _REGISTRY_FINGERPRINT: Final = "4a99c6aaf6a4379d5afcf8010213fe182cef4bf728fbbd8328d062b67c6c2e73"
 _TARGET_ID: Final = "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47"
 _CALLBACK_TARGET_ID: Final = "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185"
@@ -56,7 +58,7 @@ def validate_authoritative_proof(document: Mapping[str, Any]) -> None:
     expected_identity = {
         "upstream_commit": _UPSTREAM_COMMIT,
         "source_sha256": _SOURCE_SHA256,
-        "semantic_profile_sha256": _file_sha256(_PROFILE),
+        "semantic_profile_sha256": _SEMANTIC_PROFILE_SHA256,
         "semantic_registry_fingerprint": _REGISTRY_FINGERPRINT,
         "freqtrade_digest": REFERENCE_INDEX_DIGEST,
         "target_id": _TARGET_ID,

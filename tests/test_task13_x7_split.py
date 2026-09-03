@@ -20,8 +20,8 @@ from nfi_backtest_engine.x7.route_contracts import (
 _SOURCE = Path("benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source")
 # CPython patch releases can change ast.dump output embedded in predicate identities.
 _EXPECTED_MANAGER_SHA256 = {
-    (3, 12, 3): "fd31bdfb0c9239e82bbe6e98a723ce7f1cd0b48f3dd50d266b853cfbd671cce5",
-    (3, 12, 10): "fa6a2a71a7faa51a462c362f3993585ef7f07e0ae1876bd0f9f678fc1110e38d",
+    (3, 12, 3): "76d0a73e8db7e751ef0e5de00708ead80c88664f16efdcdc895325af911ad768",
+    (3, 12, 10): "19f4101a9370990d68d1520e0bde706b481d4a69838d75403825b07ff739fea3",
 }
 
 

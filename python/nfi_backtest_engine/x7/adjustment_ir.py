@@ -85,6 +85,7 @@ class _SourceAction:
     tag: str
     statement: ast.If
     append_entry_ids: bool
+    exit_call: ast.Call | None = None
 
 
 def compile_system_adjustment_ir(
@@ -107,22 +108,19 @@ def compile_system_adjustment_ir(
     order_scan = _compile_order_scan(method, actions, levels, side=side)
     feature_aliases = _method_feature_aliases(method)
     runtime_aliases = _runtime_aliases(method)
-    exit_program = _compile_exit_program(
-        exit_method,
-        constants,
-        feature_aliases=_exit_feature_aliases(feature_aliases, exit_method),
-    )
     constant_aliases = _constant_aliases(method, constants)
     compiled_actions = []
     for action in actions:
         if action.kind == "grind-exit":
-            bindings = [
-                {
-                    **binding,
-                    **({"level": action.level} if binding.get("level") == "action" else {}),
-                }
-                for binding in exit_program["bindings"]
-            ]
+            compiled = _compile_exit_action_program(
+                action,
+                exit_method,
+                constants,
+                constant_aliases=constant_aliases,
+                feature_aliases=feature_aliases,
+                runtime_aliases=runtime_aliases,
+            )
+            bindings = compiled["bindings"]
             level_state = next(
                 record for record in order_scan["grind_levels"] if record["level"] == action.level
             )
@@ -144,9 +142,7 @@ def compile_system_adjustment_ir(
                     "level": action.level,
                     "tag": action.tag,
                     "append_entry_ids": True,
-                    "decision_program": exit_program["decision_program"],
-                    "bindings": bindings,
-                    "input_contract": exit_program["input_contract"],
+                    **compiled,
                     "location": _location(action.statement),
                 }
             )
@@ -264,7 +260,10 @@ def _source_actions(method: ast.FunctionDef, exit_method_name: str) -> list[_Sou
                 raise StrategyAnalysisError("system adjustment Grind exit call changed")
             level = int(match.group(1))
             _validate_exit_call(exit_call, level)
-            actions.append(_SourceAction("grind-exit", level, tag, statement, True))
+            _validate_exit_wrapper(statement, exit_call)
+            actions.append(
+                _SourceAction("grind-exit", level, tag, statement, True, exit_call)
+            )
             continue
         tag = _returned_or_assigned_tag(statement)
         if tag is None:
@@ -745,23 +744,6 @@ class _RuntimeAliasLowerer(ast.NodeTransformer):
         )
 
 
-def _exit_feature_aliases(
-    aliases: Mapping[str, str],
-    exit_method: ast.FunctionDef,
-) -> dict[str, str]:
-    parameters = {
-        argument.arg
-        for argument in exit_method.args.args
-        if argument.arg.startswith("last_") and argument.arg != "last_candle"
-    }
-    missing = sorted(parameters - aliases.keys())
-    if missing:
-        raise StrategyAnalysisError(
-            "system adjustment exit feature aliases changed: " + ", ".join(missing)
-        )
-    return {name: aliases[name] for name in sorted(parameters)}
-
-
 class _ExitFeatureAliasLowerer(ast.NodeTransformer):
     def __init__(self, aliases: Mapping[str, str]) -> None:
         self.aliases = aliases
@@ -780,24 +762,90 @@ class _ExitFeatureAliasLowerer(ast.NodeTransformer):
         )
 
 
-def _compile_exit_program(
+class _ExitParameterLowerer(ast.NodeTransformer):
+    def __init__(self, arguments: Mapping[str, ast.expr]) -> None:
+        self.arguments = arguments
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        argument = self.arguments.get(node.id)
+        if argument is None or not isinstance(getattr(node, "ctx", None), ast.Load):
+            return node
+        return ast.copy_location(copy.deepcopy(argument), node)
+
+
+def _compile_exit_action_program(
+    action: _SourceAction,
     method: ast.FunctionDef,
     constants: Mapping[str, Any],
     *,
+    constant_aliases: frozenset[str],
     feature_aliases: Mapping[str, str],
+    runtime_aliases: Mapping[str, tuple[str, str]],
 ) -> dict[str, Any]:
-    alias_lowerer = _ExitFeatureAliasLowerer(feature_aliases)
-    body = [
-        alias_lowerer.visit(statement)
-        for statement in copy.deepcopy(method.body)
+    call = action.exit_call
+    if call is None:
+        raise StrategyAnalysisError("system adjustment Grind exit call is missing")
+    parameters = [*method.args.posonlyargs, *method.args.args]
+    if not parameters or parameters[0].arg != "self":
+        raise StrategyAnalysisError("system adjustment Grind exit signature changed")
+    parameters = parameters[1:]
+    if (
+        method.args.vararg is not None
+        or method.args.kwonlyargs
+        or method.args.kwarg is not None
+        or method.args.defaults
+        or call.keywords
+        or len(call.args) != len(parameters)
+    ):
+        raise StrategyAnalysisError("system adjustment Grind exit arguments changed")
+    parameter_names = {parameter.arg for parameter in parameters}
+    if any(
+        isinstance(node, ast.Name)
+        and isinstance(getattr(node, "ctx", None), ast.Store)
+        and node.id in parameter_names
+        for statement in method.body
+        for node in ast.walk(statement)
+    ):
+        raise StrategyAnalysisError("system adjustment Grind exit parameter mutation changed")
+    arguments = {
+        parameter.arg: argument for parameter, argument in zip(parameters, call.args, strict=True)
+    }
+    parameter_lowerer = _ExitParameterLowerer(arguments)
+    helper_body = [
+        parameter_lowerer.visit(statement) for statement in copy.deepcopy(method.body)
     ]
+    body: list[ast.stmt] = [
+        ast.copy_location(
+            ast.If(
+                test=copy.deepcopy(action.statement.test),
+                body=helper_body,
+                orelse=[],
+            ),
+            action.statement,
+        )
+    ]
+    transformed: ast.AST = ast.Module(body=body, type_ignores=[])
+    for lowerer in (
+        _ConstantAliasLowerer(constant_aliases),
+        _ExitFeatureAliasLowerer(feature_aliases),
+        _RuntimeAliasLowerer(runtime_aliases),
+        _FirstEntryAmountLowerer(),
+    ):
+        transformed = lowerer.visit(transformed)
+    if not isinstance(transformed, ast.Module):
+        raise StrategyAnalysisError("system adjustment Grind exit lowering failed")
+    body = transformed.body
     lowerer = _ActionLowerer(
         none_result="continue",
         observability_only_locals=_observability_only_config_locals(body),
     )
     lowered = [node for statement in body if (node := lowerer.visit(statement)) is not None]
-    fragment = _decision_fragment("__system_adjustment_grind_exit", lowered)
-    bindings = _bindings_for_fragment(fragment, None)
+    lowered.append(ast.Return(value=ast.Constant(value="continue")))
+    fragment = _decision_fragment(
+        f"__system_adjustment_grind_exit_{action.level}",
+        lowered,
+    )
+    bindings = _bindings_for_fragment(fragment, action.level)
     program = compile_scalar_ast_program(fragment, constants=dict(constants))
     return {
         "decision_program": program,
@@ -1096,6 +1144,50 @@ def _validate_exit_call(call: ast.Call, level: int) -> None:
     }
     if not names or any(not name.startswith(prefix) for name in names):
         raise StrategyAnalysisError(f"system adjustment Grind {level} exit bindings changed")
+
+
+def _validate_exit_wrapper(statement: ast.If, call: ast.Call) -> None:
+    if statement.orelse or len(statement.body) != 2:
+        raise StrategyAnalysisError("system adjustment Grind exit wrapper changed")
+    assignment, result_branch = statement.body
+    if (
+        not isinstance(assignment, ast.Assign)
+        or len(assignment.targets) != 1
+        or not isinstance(assignment.targets[0], (ast.Tuple, ast.List))
+        or len(assignment.targets[0].elts) != 2
+        or not all(isinstance(item, ast.Name) for item in assignment.targets[0].elts)
+        or assignment.value is not call
+        or not isinstance(result_branch, ast.If)
+        or result_branch.orelse
+        or len(result_branch.body) != 1
+        or not isinstance(result_branch.body[0], ast.Return)
+    ):
+        raise StrategyAnalysisError("system adjustment Grind exit wrapper changed")
+    result_names = [item.id for item in assignment.targets[0].elts if isinstance(item, ast.Name)]
+    expected_test = ast.BoolOp(
+        op=ast.And(),
+        values=[
+            ast.Compare(
+                left=ast.Name(id=name, ctx=ast.Load()),
+                ops=[ast.IsNot()],
+                comparators=[ast.Constant(value=None)],
+            )
+            for name in result_names
+        ],
+    )
+    expected_return = ast.Tuple(
+        elts=[ast.Name(id=name, ctx=ast.Load()) for name in result_names],
+        ctx=ast.Load(),
+    )
+    returned = result_branch.body[0].value
+    if (
+        ast.dump(result_branch.test, include_attributes=False)
+        != ast.dump(expected_test, include_attributes=False)
+        or not isinstance(returned, ast.Tuple)
+        or ast.dump(returned, include_attributes=False)
+        != ast.dump(expected_return, include_attributes=False)
+    ):
+        raise StrategyAnalysisError("system adjustment Grind exit wrapper changed")
 
 
 def _input_contract(fragment: ast.FunctionDef) -> dict[str, Any]:

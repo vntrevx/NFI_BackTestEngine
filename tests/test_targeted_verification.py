@@ -146,6 +146,29 @@ def test_targeted_plan_uses_deterministic_minimum_fixture_set(
     assert report["missing_targets"] == []
 
 
+def test_entry_signal_is_not_covered_by_numeric_adjustment_order_tag(
+    tmp_path: Path,
+) -> None:
+    _fixture(
+        tmp_path,
+        fixture_id="grind-level-only",
+        mode="spot",
+        entry_tags=["120"],
+        order_tags=["gd2 62"],
+    )
+    target = _target("s", kind="signal", change="changed", value="62", tags=["62"])
+    target["methods"] = ["populate_entry_trend"]
+
+    report = plan_targeted_verification(
+        _difference(target),
+        tmp_path,
+        trading_mode="spot",
+    )
+
+    assert report["status"] == "coverage-gap"
+    assert report["missing_targets"] == [target]
+
+
 def test_targeted_probe_requires_only_selected_changed_behavior(
     tmp_path: Path,
 ) -> None:

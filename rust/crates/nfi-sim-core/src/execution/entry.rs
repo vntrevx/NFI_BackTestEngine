@@ -128,6 +128,7 @@ impl EntryExecution<'_, '_> {
             self.config.starting_balance,
             self.open_trades,
             self.closed_trades,
+            self.config.is_futures,
         )?;
         let mut detail = entry_detail(
             None,

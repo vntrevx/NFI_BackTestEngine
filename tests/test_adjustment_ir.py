@@ -106,6 +106,17 @@ def _without_maximum_state(
     return changed
 
 
+def _without_maximum_parameters(method: ast.FunctionDef) -> ast.FunctionDef:
+    changed = copy.deepcopy(method)
+    changed.args.args = [
+        argument
+        for argument in changed.args.args
+        if argument.arg not in {"max_profit", "max_profit_rate"}
+    ]
+    ast.fix_missing_locations(changed)
+    return changed
+
+
 def _with_grind_enable_aliases(method: ast.FunctionDef) -> ast.FunctionDef:
     changed = copy.deepcopy(method)
     aliases: list[ast.stmt] = []
@@ -351,8 +362,13 @@ def test_adjustment_compiles_complete_absence_of_maximum_state(
     methods, _constants = _inputs()
     original = _compile() if side == "long" else _compile_short()
     changed = _without_maximum_state(methods[method_name])
+    changed_exit = _without_maximum_parameters(methods[f"{side}_grind_exit_v3"])
 
-    program = _compile(method=changed) if side == "long" else _compile_short(method=changed)
+    program = (
+        _compile(method=changed, exit_method=changed_exit)
+        if side == "long"
+        else _compile_short(method=changed, exit_method=changed_exit)
+    )
 
     assert program["source_order"] == original["source_order"]
     original_scan = copy.deepcopy(original["order_scan"])
@@ -394,26 +410,12 @@ def test_adjustment_rejects_maximum_state_on_unknown_level() -> None:
         _compile(method=changed)
 
 
-def test_adjustment_rejects_maximum_binding_without_source_state() -> None:
+def test_adjustment_rejects_exit_argument_removal_without_signature_change() -> None:
     methods, _constants = _inputs()
     changed = _without_maximum_state(methods["long_grind_adjust_trade_position_v3"])
-    changed_exit = copy.deepcopy(methods["long_grind_exit_v3"])
-    branch = next(statement for statement in changed_exit.body if isinstance(statement, ast.If))
-    branch.test = ast.BoolOp(
-        op=ast.And(),
-        values=[
-            ast.Compare(
-                left=ast.Name(id="max_profit_rate", ctx=ast.Load()),
-                ops=[ast.Gt()],
-                comparators=[ast.Constant(value=0.0)],
-            ),
-            branch.test,
-        ],
-    )
-    ast.fix_missing_locations(changed_exit)
 
-    with pytest.raises(StrategyAnalysisError, match="binding has no source state"):
-        _compile(method=changed, exit_method=changed_exit)
+    with pytest.raises(StrategyAnalysisError, match="exit arguments changed"):
+        _compile(method=changed)
 
 
 @pytest.mark.parametrize("mutation", ["partial", "renamed"])
@@ -489,6 +491,54 @@ def test_long_adjustment_exit_condition_mutation_recompiles() -> None:
         mutated["source_order"][5]["decision_program"]
         != (original["source_order"][5]["decision_program"])
     )
+
+
+def test_long_adjustment_exit_wrapper_condition_is_compiled() -> None:
+    methods, _constants = _inputs()
+    changed = copy.deepcopy(methods["long_grind_adjust_trade_position_v3"])
+    wrapper = next(
+        statement
+        for statement in changed.body
+        if isinstance(statement, ast.If)
+        and any(
+            isinstance(node, ast.Constant) and node.value == "grind_1_exit"
+            for node in ast.walk(statement)
+        )
+    )
+    wrapper.test = ast.BoolOp(
+        op=ast.And(),
+        values=[
+            wrapper.test,
+            ast.Compare(
+                left=ast.Name(id="grind_1_current_grind_profit_rate", ctx=ast.Load()),
+                ops=[ast.GtE()],
+                comparators=[
+                    ast.BinOp(
+                        left=ast.BinOp(
+                            left=ast.Name(id="grind_1_profit_threshold", ctx=ast.Load()),
+                            op=ast.Add(),
+                            right=ast.Name(id="fee_open_rate", ctx=ast.Load()),
+                        ),
+                        op=ast.Add(),
+                        right=ast.Name(id="fee_close_rate", ctx=ast.Load()),
+                    )
+                ],
+            ),
+        ],
+    )
+    ast.fix_missing_locations(changed)
+
+    original = _compile()
+    mutated = _compile(method=changed)
+    action = mutated["source_order"][5]
+    bindings = {binding["name"]: binding for binding in action["bindings"]}
+
+    assert mutated["fingerprint"] != original["fingerprint"]
+    assert action["decision_program"] != original["source_order"][5]["decision_program"]
+    assert bindings["grind_1_current_grind_profit_rate"]["kind"] == "cluster-profit-rate"
+    assert bindings["grind_1_profit_threshold"]["kind"] == "cluster-profit-threshold"
+    assert bindings["fee_open_rate"]["kind"] == "fee-open-rate"
+    assert bindings["fee_close_rate"]["kind"] == "fee-close-rate"
 
 
 def test_long_adjustment_ignores_config_read_used_only_by_observability() -> None:

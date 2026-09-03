@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vntrevx/NFI_BackTestEngine/schemas/product-support-contract-v1.schema.json",
+  "title": "NFI Backtest Engine product support contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "product",
+    "strategies",
+    "modes",
+    "platforms",
+    "distribution",
+    "accuracy",
+    "certification",
+    "operations",
+    "release_train"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "contract_id": {"const": "nfi-backtest-engine-product-support-v1"},
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "purpose", "live_trading_supported"],
+      "properties": {
+        "package": {"const": "nfi-backtest-engine"},
+        "purpose": {"type": "string", "minLength": 1},
+        "live_trading_supported": {"const": false}
+      }
+    },
+    "strategies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["native_supported", "official_only_legacy", "unknown_semantics_policy"],
+      "properties": {
+        "native_supported": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/native_strategy"}
+        },
+        "official_only_legacy": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/legacy_strategy"}
+        },
+        "unknown_semantics_policy": {"const": "fail-closed"}
+      }
+    },
+    "modes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/mode"}
+    },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported", "native_windows_supported", "windows_abi"],
+      "properties": {
+        "supported": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["linux-x86_64", "linux-aarch64", "macos-arm64", "windows-wsl2-x86_64"]}
+        },
+        "native_windows_supported": {"const": false},
+        "windows_abi": {"const": "linux-under-wsl2"}
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channels", "build_once", "byte_identical_github_rc_stable", "cross_channel_sha_required"],
+      "properties": {
+        "channels": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"$ref": "#/$defs/channel"}
+        },
+        "build_once": {"const": true},
+        "byte_identical_github_rc_stable": {"const": true},
+        "cross_channel_sha_required": {"const": true}
+      }
+    },
+    "accuracy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "trade_surface_tolerance", "full_state_tolerance", "unsupported_policy"],
+      "properties": {
+        "authority": {"const": "official-freqtrade"},
+        "trade_surface_tolerance": {"const": 0},
+        "full_state_tolerance": {"const": 0},
+        "unsupported_policy": {"const": "fail-closed"}
+      }
+    },
+    "certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["combined_status", "target_release", "pair_count_per_mode", "timerange", "minimum_days", "history_policy", "timeframes", "minimum_native_repetitions", "maximum_native_repetitions", "adaptive_spread_threshold", "minimum_native_speedup", "memory_cap_required", "swap_cap_required"],
+      "properties": {
+        "combined_status": {"enum": ["preview", "release-certified"]},
+        "target_release": {"const": "v1.15.0"},
+        "pair_count_per_mode": {"const": 80},
+        "timerange": {"pattern": "^[0-9]{8}-[0-9]{8}$"},
+        "minimum_days": {"minimum": 1825, "type": "integer"},
+        "history_policy": {"const": "listing-aware-continuous-portfolio"},
+        "timeframes": {
+          "const": ["5m", "15m", "1h", "4h", "1d"]
+        },
+        "minimum_native_repetitions": {"const": 3},
+        "maximum_native_repetitions": {"const": 5},
+        "adaptive_spread_threshold": {"const": 0.05},
+        "minimum_native_speedup": {"const": 10.0},
+        "memory_cap_required": {"const": true},
+        "swap_cap_required": {"const": true}
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["latest_checked_max_age_seconds", "release_soak_cycles", "duplicate_issue_policy", "preserve_last_success_on_failure"],
+      "properties": {
+        "latest_checked_max_age_seconds": {"const": 86400},
+        "release_soak_cycles": {"const": 7},
+        "duplicate_issue_policy": {"const": "one-per-fingerprint"},
+        "preserve_last_success_on_failure": {"const": true}
+      }
+    },
+    "release_train": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"$ref": "#/$defs/release"}
+    }
+  },
+  "$defs": {
+    "native_strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "selection", "exactness_required"],
+      "properties": {
+        "family": {"type": "string", "minLength": 1},
+        "selection": {"const": "capability-derived"},
+        "exactness_required": {"const": true}
+      }
+    },
+    "legacy_strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "generation", "default_visible", "native_supported", "fallback_status"],
+      "properties": {
+        "family": {"type": "string", "minLength": 1},
+        "generation": {"enum": ["V8", "V9"]},
+        "default_visible": {"const": false},
+        "native_supported": {"const": false},
+        "fallback_status": {"enum": ["planned", "qualified"]}
+      }
+    },
+    "mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "contract", "margin_mode"],
+      "properties": {
+        "slug": {"enum": ["spot", "futures"]},
+        "contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
+        "margin_mode": {"enum": ["none", "isolated"]}
+      }
+    },
+    "channel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "status"],
+      "properties": {
+        "slug": {"enum": ["github-releases", "pypi"]},
+        "status": {"enum": ["planned", "stable"]},
+        "authentication": {"const": "oidc-trusted-publishing"}
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "milestones", "combined_full_x7_certified"],
+      "properties": {
+        "version": {"pattern": "^v1\\.[0-9]+\\.0$"},
+        "milestones": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"pattern": "^M(?:2[3-9]|3[0-2])$"}
+        },
+        "combined_full_x7_certified": {"type": "boolean"}
+      }
+    }
+  }
+}

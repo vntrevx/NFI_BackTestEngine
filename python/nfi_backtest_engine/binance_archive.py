@@ -35,6 +35,15 @@ _DOWNLOAD_ATTEMPTS = 3
 ArchiveFetcher = Callable[[str], tuple[bytes, str] | None]
 
 
+class BinanceArchiveContinuityError(BenchmarkError):
+    """A listed pair has a missing month after its archive history began."""
+
+    def __init__(self, *, pair: str, source: Path) -> None:
+        self.pair = pair
+        self.source = source
+        super().__init__(f"Binance archive has an internal missing month: {source}")
+
+
 def prepare_binance_archive_data(
     data_directory: str | Path,
     *,
@@ -198,7 +207,7 @@ def _materialize_series(
         records.append({"url": url, "sha256": digest})
         downloaded += 1
     records.sort(key=lambda item: str(item["url"]))
-    _validate_archive_sequence(records, source=destination)
+    _validate_archive_sequence(records, source=destination, pair=pair)
     missing_total = sum(record["sha256"] is None for record in records)
     if not frames:
         _write_series_manifest(
@@ -325,7 +334,14 @@ def _archive_frame(payload: bytes, *, role: str, source: str) -> pl.DataFrame:
     first = csv_payload.lstrip()[:1]
     has_header = bool(first and not first.isdigit())
     try:
-        raw = pl.read_csv(io.BytesIO(csv_payload), has_header=has_header)
+        # Binance occasionally emits an integer-looking prefix followed by decimal
+        # values in the same numeric column. Keep ingestion independent of sampling
+        # length; every required field is strictly cast below.
+        raw = pl.read_csv(
+            io.BytesIO(csv_payload),
+            has_header=has_header,
+            infer_schema=False,
+        )
     except Exception as exc:
         raise BenchmarkError(f"Binance archive CSV is invalid: {source}: {exc}") from exc
     if raw.width < 2 or (role != "funding" and raw.width < 6):
@@ -460,7 +476,7 @@ def _read_existing(
         raise BenchmarkError(f"existing Binance archive cache schema differs: {path}")
     if frame.schema["date"] != pl.Datetime(time_unit="ms", time_zone="UTC"):
         raise BenchmarkError(f"existing Binance archive cache date type differs: {path}")
-    _validate_archive_sequence(records, source=path)
+    _validate_archive_sequence(records, source=path, pair=pair)
     return frame, records
 
 
@@ -515,14 +531,13 @@ def _validate_archive_sequence(
     records: list[dict[str, str | None]],
     *,
     source: Path,
+    pair: str,
 ) -> None:
     seen_data = False
     for record in sorted(records, key=_record_month):
         if record["sha256"] is None:
             if seen_data:
-                raise BenchmarkError(
-                    f"Binance archive has an internal missing month: {source}"
-                )
+                raise BinanceArchiveContinuityError(pair=pair, source=source)
         else:
             seen_data = True
 
