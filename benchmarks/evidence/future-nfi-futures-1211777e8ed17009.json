@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching futures fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "1211777e8ed17009a5ea51aac6e2ff42b77b4c5f81059078aaa92e21a5b0877d",
+  "trading_mode": "futures",
+  "upstream_commit": "51c689ab25012f7111a27c38a3e95481e749ca94",
+  "engine_commit": "9ca3534534478309e67c2fedd3c1a4e2f68928bd",
+  "strategy_sha256": "51c1822c19a49d7519153d0a4cb3174581dc3cb3e23fbc4f722d9863c129f2fa",
+  "fixture_id": "future-nfi-futures-1211777e8ed17009",
+  "manifest_sha256": "9ae9a0bfde3629b27cfb39ceb4bc1cb8d3161f6208aae59015705a4380dea394",
+  "logical_bytes": 16680684,
+  "target_ids": [
+    "d3068c6f57eb42ef00c0c3860bedd3d532c865ab0686fb8dad28f4a31afb93a7"
+  ],
+  "pair": "LTC/USDT:USDT",
+  "timerange": "20251009-20251012",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
