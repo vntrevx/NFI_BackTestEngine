@@ -73,6 +73,7 @@ NATIVE_SCORE_RAW_EVIDENCE_SCHEMA = "native-score-raw-evidence-v1.schema.json"
 NATIVE_SCORE_MACHINE_RECORD_SCHEMA = "native-score-machine-record-v1.schema.json"
 NATIVE_SCORE_DOMAIN_EVIDENCE_SCHEMA = "native-score-domain-evidence-v1.schema.json"
 RELEASE_PROVENANCE_ENVELOPE_SCHEMA = "release-provenance-envelope-v2.schema.json"
+PRODUCT_SUPPORT_CONTRACT_SCHEMA = "product-support-contract-v1.schema.json"
 
 _TRADE_DECIMAL_FIELDS = (
     "open_rate",
