@@ -6,13 +6,18 @@ import math
 import re
 import shutil
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .canonical import read_json, write_json
 from .config_loader import load_effective_config, sanitize_config
-from .data_seal import build_data_request, candle_files_for, inspect_candle_quality
+from .data_seal import (
+    build_data_request,
+    candle_file_coverage,
+    candle_files_for,
+    inspect_candle_quality,
+)
 from .errors import (
     BenchmarkError,
     BranchCoverageError,
@@ -70,6 +75,8 @@ def run_shard_scout(
             shared / "data",
             pairs=pairs,
             config_path=generated_config,
+            start_timestamp_ms=_date_timestamp_ms(shard.start),
+            end_timestamp_ms=_date_timestamp_ms(shard.stop),
         )
         if not available_pairs:
             raise DiscoveryInfrastructureError(
@@ -103,6 +110,8 @@ def run_shard_scout(
             shared / "data",
             pairs=pairs,
             config_path=generated_config,
+            start_timestamp_ms=_date_timestamp_ms(shard.start),
+            end_timestamp_ms=_date_timestamp_ms(shard.stop),
         )
         if not available_pairs or available_pairs == pairs:
             raise
@@ -304,6 +313,8 @@ def _pairs_with_nonempty_base_candles(
     *,
     pairs: list[str],
     config_path: Path,
+    start_timestamp_ms: int,
+    end_timestamp_ms: int,
 ) -> list[str]:
     config = read_json(config_path)
     timeframe = config.get("timeframe") if isinstance(config, dict) else None
@@ -325,9 +336,19 @@ def _pairs_with_nonempty_base_candles(
                 if str(exc).startswith("candle file is empty: "):
                     continue
                 raise
+            coverage = candle_file_coverage(path)
+            if (
+                coverage["end_timestamp_ms"] < start_timestamp_ms
+                or coverage["start_timestamp_ms"] >= end_timestamp_ms
+            ):
+                continue
             available.append(pair)
             break
     return available
+
+
+def _date_timestamp_ms(value: date) -> int:
+    return int(datetime(value.year, value.month, value.day, tzinfo=UTC).timestamp() * 1000)
 
 
 def _write_discovery_pair_config(

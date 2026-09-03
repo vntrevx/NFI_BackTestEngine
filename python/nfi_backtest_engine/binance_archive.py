@@ -325,7 +325,14 @@ def _archive_frame(payload: bytes, *, role: str, source: str) -> pl.DataFrame:
     first = csv_payload.lstrip()[:1]
     has_header = bool(first and not first.isdigit())
     try:
-        raw = pl.read_csv(io.BytesIO(csv_payload), has_header=has_header)
+        # Binance occasionally emits an integer-looking prefix followed by decimal
+        # values in the same numeric column. Keep ingestion independent of sampling
+        # length; every required field is strictly cast below.
+        raw = pl.read_csv(
+            io.BytesIO(csv_payload),
+            has_header=has_header,
+            infer_schema=False,
+        )
     except Exception as exc:
         raise BenchmarkError(f"Binance archive CSV is invalid: {source}: {exc}") from exc
     if raw.width < 2 or (role != "funding" and raw.width < 6):

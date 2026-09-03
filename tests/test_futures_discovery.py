@@ -808,6 +808,31 @@ def test_spot_discovery_retry_drops_empty_base_candles(tmp_path: Path) -> None:
         data,
         pairs=["AAOIB/USDT", "BTC/USDT"],
         config_path=config,
+        start_timestamp_ms=int(datetime(2025, 10, 1, tzinfo=UTC).timestamp() * 1000),
+        end_timestamp_ms=int(datetime(2026, 1, 1, tzinfo=UTC).timestamp() * 1000),
+    )
+
+    assert available == ["BTC/USDT"]
+
+
+def test_spot_discovery_drops_pair_without_candles_inside_shard(tmp_path: Path) -> None:
+    config = tmp_path / "config.json"
+    write_json(config, {"timeframe": "5m", "trading_mode": "spot"})
+    data = tmp_path / "data"
+    data.mkdir()
+    pl.DataFrame({"date": [datetime(2025, 10, 1, tzinfo=UTC)]}).write_ipc(
+        data / "ASTER_USDT-5m.feather"
+    )
+    pl.DataFrame({"date": [datetime(2025, 9, 30, tzinfo=UTC)]}).write_ipc(
+        data / "BTC_USDT-5m.feather"
+    )
+
+    available = discovery_runtime._pairs_with_nonempty_base_candles(
+        data,
+        pairs=["ASTER/USDT", "BTC/USDT"],
+        config_path=config,
+        start_timestamp_ms=int(datetime(2025, 7, 1, tzinfo=UTC).timestamp() * 1000),
+        end_timestamp_ms=int(datetime(2025, 10, 1, tzinfo=UTC).timestamp() * 1000),
     )
 
     assert available == ["BTC/USDT"]

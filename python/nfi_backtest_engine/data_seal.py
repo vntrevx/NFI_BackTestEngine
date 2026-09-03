@@ -538,6 +538,11 @@ def candle_files_for(
     )
 
 
+def candle_file_coverage(path: str | Path) -> dict[str, int]:
+    """Return the exact timestamp coverage of one non-empty candle file."""
+    return _file_coverage(Path(path).resolve())
+
+
 def compact_candle_directory(
     source_directory: str | Path,
     destination_directory: str | Path,
