@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250203-20250206"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "10535.27037996",
+    "profit_total_abs": "535.27037996",
+    "total_volume": "59991.752886",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "TRB/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1738655100000,
+      "close_timestamp_ms": 1738664700000,
+      "open_rate": "32.175",
+      "close_rate": "32.789",
+      "amount": "923",
+      "stake_amount": "9899.175",
+      "max_stake_amount": "9899.175",
+      "leverage": "3",
+      "entry_tag": "42 ",
+      "exit_reason": "exit_long_quick_d_1_58 ( 42 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "-1.4707340426155"
+      },
+      "profit": {
+        "absolute": "535.27037996",
+        "ratio": "0.05404519856662193"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "21.558",
+      "stop_loss": "21.558",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1738655100000,
+          "amount": "923",
+          "price": "32.175",
+          "cost": "29712.373762499996",
+          "tag": "42 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1738664700000,
+          "amount": "923",
+          "price": "32.789",
+          "cost": "30279.379123500003",
+          "tag": "exit_long_quick_d_1_58 ( 42 )"
+        }
+      ],
+      "duration_minutes": 160,
+      "is_open": false,
+      "minimum_rate": "31.697",
+      "maximum_rate": "32.837",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    }
+  ]
+}
