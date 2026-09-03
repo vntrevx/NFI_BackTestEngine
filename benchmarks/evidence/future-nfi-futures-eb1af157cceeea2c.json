@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching futures fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "eb1af157cceeea2cb82f46346784efb9ce491b2f1dd219fe51c5788c3563b62a",
+  "trading_mode": "futures",
+  "upstream_commit": "51c689ab25012f7111a27c38a3e95481e749ca94",
+  "engine_commit": "fb786ce9d7c2ceac729986086bea83e50bc5b3f1",
+  "strategy_sha256": "51c1822c19a49d7519153d0a4cb3174581dc3cb3e23fbc4f722d9863c129f2fa",
+  "fixture_id": "future-nfi-futures-eb1af157cceeea2c",
+  "manifest_sha256": "ef95bbe6e7afe24a99a6e0ffb37bb11766fede241fc510a96ace4f63acab12a0",
+  "logical_bytes": 18010219,
+  "target_ids": [
+    "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540"
+  ],
+  "pair": "ETH/USDT:USDT",
+  "timerange": "20250405-20250408",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
