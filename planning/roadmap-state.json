@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 156,
-  "updated_at": "2026-09-04T02:53:52+09:00",
+  "revision": 157,
+  "updated_at": "2026-09-04T03:14:12+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": null,
+  "active_task_id": "M24-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5246,14 +5246,14 @@
       "order": 2403,
       "milestone": "M24",
       "title": "Review captured fixtures and reconcile compatibility issues",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": ["M24-02"],
       "manual_gate": true,
       "scope": ["evidence-only Draft pull requests", "Required CI and human review", "compatibility ledger and issue reconciliation"],
       "forbidden_changes": ["automatic approval or merge", "closing a blocker without exact evidence"],
       "acceptance_profile": "current_x7_closure",
       "expected_evidence": ["merged captured fixtures", "quick-verified Spot and Futures", "reconciled issues 248, 280, and 303"],
-      "started_at": null,
+      "started_at": "2026-09-04T03:14:12+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -9667,6 +9667,31 @@
         "observed_post_freeze_upstream_commit": "2835ddb99c0ec71b3bc32e4ab4a92b5fd9e92e5a",
         "automatic_approval_or_merge_allowed": false,
         "execution_started": false
+      }
+    },
+    {
+      "sequence": 208,
+      "timestamp": "2026-09-04T03:14:12+09:00",
+      "task_id": "M24-03",
+      "event": "manual_gate_approved",
+      "details": {
+        "approval_source": "user",
+        "approval_text": "진행승인",
+        "automatic_approval_or_merge_allowed": false
+      }
+    },
+    {
+      "sequence": 209,
+      "timestamp": "2026-09-04T03:14:12+09:00",
+      "task_id": "M24-03",
+      "event": "task_started",
+      "details": {
+        "objective": "review captured fixtures against current immutable refs, publish evidence-only Draft pull requests, wait for Required CI and human review, and reconcile compatibility issues 248, 280, and 303",
+        "frozen_upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+        "current_upstream_commit": "2835ddb99c0ec71b3bc32e4ab4a92b5fd9e92e5a",
+        "remote_engine_commit": "d8a516c5101342b24ead52224314deda74d3a7d9",
+        "local_engine_commit": "7cb6da758a4180c9a030acfdad527f3ed515f63d",
+        "automatic_approval_or_merge_allowed": false
       }
     }
   ]
