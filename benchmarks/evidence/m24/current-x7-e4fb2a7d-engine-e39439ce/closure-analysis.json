@@ -1,0 +1,194 @@
+{
+  "schema_version": "current-x7-closure-v1",
+  "observed_at": "2026-09-03T20:44:10+09:00",
+  "identity": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_ref": "refs/heads/main",
+    "upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+    "baseline_upstream_commit": "e94a4b2ef941e14f014154469de36bc9a78d46af",
+    "engine_commit": "e39439ced1db605f5b0065a887f7ff1ca035085c",
+    "baseline_source_sha256": "72969d885a7c30d13c25dd02f4d8a0d0bc5cd565596e19abeaf3ede4ddd6f60c",
+    "source_sha256": "35430af20d92548fa86fad95a13778dcebd2acd1a211800625287cea3e67b52d",
+    "semantic_profile_sha256": "5b3c11b13e4a3d9fe00e3231755d5d6369ff9a32957a794bf0ffc807b76ce2a8"
+  },
+  "source_analysis": {
+    "classification": "ir-compatible",
+    "changed_callbacks": [
+      "populate_entry_trend",
+      "version"
+    ],
+    "target_count": 5,
+    "targets": [
+      {
+        "id": "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "kind": "signal",
+        "change": "changed",
+        "value": "46",
+        "methods": [
+          "populate_entry_trend"
+        ],
+        "semantic_callers": [
+          "populate_entry_trend"
+        ],
+        "tags": [
+          "46"
+        ],
+        "runtime_observable": true
+      },
+      {
+        "id": "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "kind": "signal",
+        "change": "changed",
+        "value": "41",
+        "methods": [
+          "populate_entry_trend"
+        ],
+        "semantic_callers": [
+          "populate_entry_trend"
+        ],
+        "tags": [
+          "41"
+        ],
+        "runtime_observable": true
+      },
+      {
+        "id": "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "kind": "signal",
+        "change": "changed",
+        "value": "62",
+        "methods": [
+          "populate_entry_trend"
+        ],
+        "semantic_callers": [
+          "populate_entry_trend"
+        ],
+        "tags": [
+          "62"
+        ],
+        "runtime_observable": true
+      },
+      {
+        "id": "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "kind": "callback",
+        "change": "changed",
+        "value": "populate_entry_trend",
+        "methods": [
+          "populate_entry_trend"
+        ],
+        "semantic_callers": [
+          "populate_entry_trend"
+        ],
+        "tags": [
+          "41",
+          "46",
+          "61",
+          "62"
+        ],
+        "runtime_observable": true
+      },
+      {
+        "id": "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028",
+        "kind": "signal",
+        "change": "changed",
+        "value": "61",
+        "methods": [
+          "populate_entry_trend"
+        ],
+        "semantic_callers": [
+          "populate_entry_trend"
+        ],
+        "tags": [
+          "61"
+        ],
+        "runtime_observable": true
+      }
+    ]
+  },
+  "modes": {
+    "spot": {
+      "native_compatible": true,
+      "plan_status": "coverage-gap",
+      "target_ids": [
+        "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+      ],
+      "missing_target_ids": [
+        "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+      ],
+      "searchable_target_ids": [
+        "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+      ],
+      "unsearchable_target_ids": [],
+      "policy_sha256": "2f7bbdf4dcd0406e72016c1b80a612f227bbd634bce1d11b8c16c6f117be7df3",
+      "market_catalog": {
+        "path": "planning/market-catalogs/binance-spot-2026-09-03.json",
+        "sha256": "b010dffc5db8106baeae557e9fb21221395d456c880804adb4329c4089a05ebe"
+      },
+      "market_snapshot": {
+        "path": "planning/market-snapshots/binance-spot-80-2026-09-03.json",
+        "sha256": "3ba1600708f31fe7e69aed8393480aec24c6f294b4872f2e338fe521cb82d2ab"
+      },
+      "discovery_request_fingerprint": "7dc04e54fbc8602bcc438707beae504c850bf3d59369027cd9cbf7106ec8817d",
+      "initial_cursor": {
+        "schema_version": "1.0.0",
+        "fingerprint": "7dc04e54fbc8602bcc438707beae504c850bf3d59369027cd9cbf7106ec8817d",
+        "next_shard": 0,
+        "shard_count": 20
+      }
+    },
+    "futures": {
+      "native_compatible": true,
+      "plan_status": "coverage-gap",
+      "target_ids": [
+        "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+      ],
+      "missing_target_ids": [
+        "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+      ],
+      "searchable_target_ids": [
+        "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+        "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+        "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+        "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+        "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+      ],
+      "unsearchable_target_ids": [],
+      "policy_sha256": "ddb38261d6ad4476605694d7120adfe37534024d6c262e5533234791e089c2fe",
+      "market_catalog": {
+        "path": "planning/market-catalogs/binance-futures-2026-09-03.json",
+        "sha256": "a3256ff0d00ef616e15bbdb44c29611fb3db7ddf40e72f9329bfec9ed6300832"
+      },
+      "market_snapshot": {
+        "path": "planning/market-snapshots/binance-futures-80-2026-09-03.json",
+        "sha256": "45a1e67a7d55f3be90cc77474afeb99786bfe9dd0cb88e13b50209b1d8b889ab"
+      },
+      "discovery_request_fingerprint": "353b72195e83b083b537551edaa50434a5055c47631f1eec0226bd07c5ff69cd",
+      "initial_cursor": {
+        "schema_version": "1.0.0",
+        "fingerprint": "353b72195e83b083b537551edaa50434a5055c47631f1eec0226bd07c5ff69cd",
+        "next_shard": 0,
+        "shard_count": 20
+      }
+    }
+  },
+  "fingerprint": "92da7f3740b88553efeadd88c92dcb467137dd91fdbe2b08969ab578995a07c8"
+}

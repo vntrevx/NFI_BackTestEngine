@@ -20,9 +20,14 @@ EVIDENCE = (
     ROOT
     / "benchmarks/evidence/m24/current-x7-e4fb2a7d/closure-analysis.json"
 )
+CURRENT_EVIDENCE = (
+    ROOT
+    / "benchmarks/evidence/m24/current-x7-e4fb2a7d-engine-e39439ce/closure-analysis.json"
+)
 UPSTREAM = "e4fb2a7dabb961a34d54d8052f2deba0105591cb"
 BASELINE = "e94a4b2ef941e14f014154469de36bc9a78d46af"
 ENGINE = "713e2fe49b6e22212d7f28f274cba5a3c8e8e249"
+CURRENT_ENGINE = "e39439ced1db605f5b0065a887f7ff1ca035085c"
 OLD_SOURCE = "1" * 64
 NEW_SOURCE = "2" * 64
 PROFILE = "3" * 64
@@ -206,6 +211,23 @@ def test_repository_current_x7_closure_is_identity_bound() -> None:
         assert inventory["unsearchable_target_ids"] == []
         policy = ROOT / f"planning/{mode}-discovery-policy.json"
         assert inventory["policy_sha256"] == sha256_file(policy)
+
+
+def test_repository_refreshed_current_x7_closure_is_identity_bound() -> None:
+    evidence = read_json(CURRENT_EVIDENCE)
+
+    validate_current_x7_closure(evidence)
+    assert evidence["identity"]["upstream_commit"] == UPSTREAM
+    assert evidence["identity"]["baseline_upstream_commit"] == BASELINE
+    assert evidence["identity"]["engine_commit"] == CURRENT_ENGINE
+    assert evidence["source_analysis"]["target_count"] == 5
+    for mode in ("spot", "futures"):
+        inventory = evidence["modes"][mode]
+        assert inventory["plan_status"] == "coverage-gap"
+        assert inventory["missing_target_ids"] == inventory["target_ids"]
+        assert inventory["missing_target_ids"] == inventory["searchable_target_ids"]
+        assert inventory["unsearchable_target_ids"] == []
+        assert inventory["initial_cursor"]["next_shard"] == 0
 
 
 def test_current_x7_closure_evidence_mutation_is_detected() -> None:
