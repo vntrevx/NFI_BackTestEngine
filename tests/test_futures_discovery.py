@@ -116,6 +116,47 @@ def test_candidate_hit_stops_at_first_reached_target_order() -> None:
     assert discovery_runtime._candidate_targets(targets, list(hit["target_ids"])) == [targets[0]]
 
 
+def test_entry_signal_target_ignores_numeric_grind_order_level() -> None:
+    target = {
+        **_target("signal-62"),
+        "kind": "signal",
+        "value": "62",
+        "tags": ["62"],
+        "methods": ["populate_entry_trend"],
+    }
+    surface = {
+        "trades": [
+            {
+                "pair": "ZEC/USDT",
+                "open_timestamp_ms": 10,
+                "close_timestamp_ms": 100,
+                "entry_tag": "120",
+                "exit_reason": "exit_long_grind_g ( 120 )",
+                "orders": [{"filled_timestamp_ms": 80, "tag": "gd2 62"}],
+            },
+            {
+                "pair": "ENSO/USDT",
+                "open_timestamp_ms": 200,
+                "close_timestamp_ms": 300,
+                "entry_tag": "62",
+                "exit_reason": "force_exit",
+                "orders": [],
+            },
+        ]
+    }
+    features = discovery_runtime._surface_features(surface)
+
+    assert discovery_runtime.target_observed(target, features) is True
+    assert discovery_runtime._locate_hit([target], ["signal-62"], surface) == {
+        "pair": "ENSO/USDT",
+        "open_timestamp_ms": 200,
+        "event_timestamp_ms": 200,
+        "entry_tag": "62",
+        "exit_reason": "force_exit",
+        "target_ids": ["signal-62"],
+    }
+
+
 def test_previous_lane_replays_boolean_mapping_transition_from_diff() -> None:
     assert discovery_runtime._baseline_boolean_toggles(
         {

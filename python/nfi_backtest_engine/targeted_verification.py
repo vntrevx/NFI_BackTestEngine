@@ -832,11 +832,18 @@ def _fixture_features(
     raw_tags = entry_tags | compound_tags | exit_reasons | order_tags
     tags = {form for tag in raw_tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
+    entry_tokens = {
+        token
+        for tag in entry_tags | compound_tags
+        for token in tag.split()
+        if token
+    }
     grind_levels = {int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)}
     return {
         "callbacks": callbacks,
         "tags": tags,
         "tokens": tokens,
+        "entry_tokens": entry_tokens,
         "grind_levels": grind_levels,
     }
 
@@ -853,9 +860,15 @@ def target_observed(
     callbacks = features["callbacks"]
     tags = features["tags"]
     tokens = features["tokens"]
+    entry_tokens = features["entry_tokens"]
     grind_levels = features["grind_levels"]
     if kind == "signal":
-        return str(value) in tokens
+        methods = target.get("methods")
+        entry_signal = isinstance(methods, list) and any(
+            isinstance(method, str) and method.startswith("populate_entry")
+            for method in methods
+        )
+        return str(value) in (entry_tokens if entry_signal else tokens)
     if kind == "tag":
         return str(value).strip() in tags
     if kind == "grind_level":
@@ -871,6 +884,16 @@ def target_observed(
     # diff supplied such selectors. Added callbacks without a selector retain
     # the callback-level proof used by existing fixtures.
     if _target_proof_mode(target) == "transition" and target_tags:
+        methods = target.get("methods")
+        entry_callback = isinstance(methods, list) and any(
+            isinstance(method, str) and method.startswith("populate_entry")
+            for method in methods
+        )
+        if entry_callback:
+            return any(
+                isinstance(tag, str) and tag.strip() in entry_tokens
+                for tag in target_tags
+            )
         return tag_observed
     return str(value) in callbacks or tag_observed
 

@@ -914,12 +914,14 @@ def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
     trades = surface.get("trades")
     if not isinstance(trades, list):
         raise SpecValidationError("discovery trade surface has no trades")
+    entry_tags: set[str] = set()
     tags: set[str] = set()
     for trade in trades:
         if not isinstance(trade, Mapping):
             continue
         entry = trade.get("entry_tag")
         if isinstance(entry, str) and entry.strip():
+            entry_tags.add(entry.strip())
             tags.add(entry.strip())
         exit_reason = trade.get("exit_reason")
         if isinstance(exit_reason, str) and exit_reason.strip():
@@ -932,11 +934,13 @@ def _surface_features(surface: Any) -> dict[str, set[str] | set[int]]:
                     tags.add(tag.strip())
     tags = {form for tag in tags for form in observable_tag_forms(tag)}
     tokens = {token for tag in tags for token in tag.split() if token}
+    entry_tokens = {token for tag in entry_tags for token in tag.split() if token}
     grind_levels = {int(match.group(1)) for tag in tags for match in _GRIND_LEVEL.finditer(tag)}
     return {
         "callbacks": set(),
         "tags": tags,
         "tokens": tokens,
+        "entry_tokens": entry_tokens,
         "grind_levels": grind_levels,
     }
 
