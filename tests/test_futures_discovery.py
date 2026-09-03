@@ -637,6 +637,20 @@ def test_removed_target_does_not_block_searchable_transition_partner(
     ]
 
 
+def test_candidate_attempt_keys_do_not_collide_across_shards() -> None:
+    first, second = search_shards(
+        date(2026, 7, 30),
+        completed_years=5,
+        shard_months=3,
+    )[:2]
+
+    assert discovery_runtime._candidate_attempt_key(first, 1) == "shard-000-attempt-1"
+    assert discovery_runtime._candidate_attempt_key(second, 1) == "shard-001-attempt-1"
+    assert discovery_runtime._candidate_attempt_key(first, 2) == "shard-000-attempt-2"
+    with pytest.raises(SpecValidationError, match="attempt must be positive"):
+        discovery_runtime._candidate_attempt_key(first, 0)
+
+
 @pytest.mark.parametrize(
     ("trading_mode", "market_type"),
     [("spot", "spot"), ("futures", "linear")],

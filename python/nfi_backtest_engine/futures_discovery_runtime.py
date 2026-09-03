@@ -685,17 +685,18 @@ def _capture_candidate(
         _candidate_timeranges(shard, hit, context.policy.context_days),
         start=1,
     ):
-        output = context.output / "work" / f"candidate-fixture-attempt-{attempt}"
-        work = capture_work_root / f"latest-attempt-{attempt}"
-        spec_path = context.output / "work" / f"candidate-probe-{attempt}.json"
-        market_path = context.output / "work" / f"candidate-market-{attempt}.json"
+        attempt_key = _candidate_attempt_key(shard, attempt)
+        output = context.output / "work" / f"candidate-fixture-{attempt_key}"
+        work = capture_work_root / f"latest-{attempt_key}"
+        spec_path = context.output / "work" / f"candidate-probe-{attempt_key}.json"
+        market_path = context.output / "work" / f"candidate-market-{attempt_key}.json"
         _filter_market_snapshot(engine_market_path, market_path, [pair])
         config = read_json(generated_config)
         exchange = config.get("exchange") if isinstance(config, dict) else None
         if not isinstance(exchange, dict):
             raise SpecValidationError("generated discovery config is invalid")
         exchange["pair_whitelist"] = [pair]
-        candidate_config = context.output / "work" / f"candidate-config-{attempt}.json"
+        candidate_config = context.output / "work" / f"candidate-config-{attempt_key}.json"
         write_json(candidate_config, config)
         data_pairs = required_data_pairs({"pairs": [pair]}, config)
         informative_pairs = [item for item in data_pairs if item != pair]
@@ -749,6 +750,7 @@ def _capture_candidate(
             )
             baseline_manifest = _capture_transition_baseline(
                 context,
+                shard=shard,
                 attempt=attempt,
                 latest_spec=spec,
                 latest_spec_path=spec_path,
@@ -807,6 +809,7 @@ def _capture_candidate(
 def _capture_transition_baseline(
     context: DiscoveryContext,
     *,
+    shard: SearchShard,
     attempt: int,
     latest_spec: Mapping[str, Any],
     latest_spec_path: Path,
@@ -843,10 +846,13 @@ def _capture_transition_baseline(
             ),
         },
     }
-    baseline_spec_path = latest_spec_path.with_name(f"candidate-baseline-probe-{attempt}.json")
+    attempt_key = _candidate_attempt_key(shard, attempt)
+    baseline_spec_path = latest_spec_path.with_name(
+        f"candidate-baseline-probe-{attempt_key}.json"
+    )
     write_json(baseline_spec_path, baseline_spec)
-    output = context.output / "work" / f"candidate-baseline-attempt-{attempt}"
-    work = context.output / "work" / "candidate-capture" / f"baseline-attempt-{attempt}"
+    output = context.output / "work" / f"candidate-baseline-{attempt_key}"
+    work = context.output / "work" / "candidate-capture" / f"baseline-{attempt_key}"
     capture_x7_probe(
         baseline_spec_path,
         output,
@@ -855,6 +861,13 @@ def _capture_transition_baseline(
         workers=workers,
     )
     return output / "manifest.json"
+
+
+def _candidate_attempt_key(shard: SearchShard, attempt: int) -> str:
+    """Return a collision-free key for candidate work across discovery shards."""
+    if attempt < 1:
+        raise SpecValidationError("candidate attempt must be positive")
+    return f"shard-{shard.index:03d}-attempt-{attempt}"
 
 
 def _baseline_boolean_toggles(
