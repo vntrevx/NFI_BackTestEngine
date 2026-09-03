@@ -1,0 +1,121 @@
+{
+  "schema_version": "m24-branch-discovery-closure-v1",
+  "observed_at": "2026-09-04T02:53:52+09:00",
+  "identity": {
+    "upstream_repository": "https://github.com/iterativv/NostalgiaForInfinity.git",
+    "upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+    "baseline_upstream_commit": "e94a4b2ef941e14f014154469de36bc9a78d46af",
+    "engine_commit": "0a0a72226d981be5e159b5b624eebb3d35d3cc1e",
+    "source_sha256": "35430af20d92548fa86fad95a13778dcebd2acd1a211800625287cea3e67b52d",
+    "baseline_source_sha256": "72969d885a7c30d13c25dd02f4d8a0d0bc5cd565596e19abeaf3ede4ddd6f60c",
+    "semantic_profile_fingerprint": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "semantic_profile_file_sha256": "c9bfe335fa317bdba337771d929cf01c39dbe2fccb86326a5a7271a320be234c"
+  },
+  "coverage": {
+    "active_target_count_per_mode": 5,
+    "covered_target_count_per_mode": 5,
+    "missing_target_count_per_mode": 0,
+    "coverage_percent_per_mode": 100,
+    "target_ids": [
+      "0a1cf3c1d5158323dfd8a8fabf88cc611620a0678eecea097971f3012b5f26cc",
+      "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+      "3ffb39d126beb62f7261d663852d79a2c9d59865513bf3926642a08983701540",
+      "45027b20b5bfce6a6bb8ed7f14b9ec8afe01918eb6887f85784de0a053f05d19",
+      "9022d789757a7d4aab44b926f899572097884835b4c28b15468d135056b33028"
+    ]
+  },
+  "modes": {
+    "spot": {
+      "selected_fixture_count": 4,
+      "selected_fixture_ids": [
+        "future-nfi-spot-3f259448be312691",
+        "future-nfi-spot-50ff0adcd0dc631e",
+        "future-nfi-spot-d58a97b3ed44839a",
+        "future-nfi-spot-df0711f04c559184"
+      ],
+      "latest": {
+        "verification_state": "quick_verified",
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "report_path": ".nfi/m24-targeted-e4fb2a7d-ab243a74/spot-r2/run.json",
+        "report_sha256": "1ae56b277cc38a9ae640dfc6cc034441a23a2df404deac7d5dc6cad5c9329c1a"
+      },
+      "baseline": {
+        "verification_state": "quick_verified",
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "report_path": ".nfi/m24-targeted-e4fb2a7d-ab243a74/spot-baseline-r1/run.json",
+        "report_sha256": "1d8d73d79ebc858f1a452fa00c93b92590ccf95f38b7e5c83662cbf25aaf0f52"
+      },
+      "closure": {
+        "status": "no_gap",
+        "searched_shard_count": 0,
+        "planned_shard_count": 20,
+        "report_path": ".nfi/m24-discovery-e4fb2a7d-0a0a7222/spot-closure/discovery-report.json",
+        "report_sha256": "2d3bee1b011e0905709d1eb5ade59ad3eff0553adf429a2af6d9919bcac2cda7"
+      }
+    },
+    "futures": {
+      "selected_fixture_count": 4,
+      "selected_fixture_ids": [
+        "future-nfi-futures-01c79f61524c0201",
+        "future-nfi-futures-02e4986a86b47c44",
+        "future-nfi-futures-9a2b9b2bce42687f",
+        "future-nfi-futures-a32799990d07217d"
+      ],
+      "latest": {
+        "verification_state": "quick_verified",
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "report_path": ".nfi/m24-targeted-e4fb2a7d-ab243a74/futures-r2/run.json",
+        "report_sha256": "f0f1d44e33f8f079e4a146c52c0701864ee35a1a27b711af3d50a453a4ebefd0"
+      },
+      "baseline": {
+        "verification_state": "quick_verified",
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "report_path": ".nfi/m24-targeted-e4fb2a7d-ab243a74/futures-baseline-r1/run.json",
+        "report_sha256": "d3fb25c47ca6bc9f0f26b2b22cfc0cfb8e5988daa1170df41424da672a85c6f2"
+      },
+      "closure": {
+        "status": "no_gap",
+        "searched_shard_count": 0,
+        "planned_shard_count": 20,
+        "report_path": ".nfi/m24-discovery-e4fb2a7d-0a0a7222/futures-closure/discovery-report.json",
+        "report_sha256": "50dd9da36dc99e9e472dcce34b920caf7b8e7d2dc688285348b6e6fa0f13a343"
+      }
+    }
+  },
+  "representative_full_parity": {
+    "spot": {
+      "trade_surface_exact": true,
+      "full_state_exact": true,
+      "report_path": ".nfi/roadmap-acceptance/M24-02/0a0a72226d981be5e159b5b624eebb3d35d3cc1e/x7-spot/run.json",
+      "report_sha256": "843c56d6a722f26542c8441cc3dd5bed2374115f84b21ee0c1017247a36317d4"
+    },
+    "futures": {
+      "trade_surface_exact": true,
+      "full_state_exact": true,
+      "report_path": ".nfi/roadmap-acceptance/M24-02/0a0a72226d981be5e159b5b624eebb3d35d3cc1e/x7-futures/run.json",
+      "report_sha256": "479e652840d9bb06cbaab85c26b55eda57fc83d885e5fa3c2e8454d50afb71cb"
+    }
+  },
+  "acceptance": {
+    "planning_json": true,
+    "diff_check": true,
+    "lock_check": true,
+    "ruff": true,
+    "basedpyright_error_count": 0,
+    "current_x7_closure_tests": "67 passed",
+    "future_nfi_compatibility_tests": "163 passed",
+    "futures_discovery_tests": "123 passed",
+    "rust_workspace_tests": true,
+    "rust_clippy_warnings": 0
+  },
+  "post_freeze_upstream_observation": {
+    "ref": "refs/heads/main",
+    "observed_commit": "2835ddb99c0ec71b3bc32e4ab4a92b5fd9e92e5a",
+    "frozen_identity_moved": true,
+    "disposition": "Preserve the M24 frozen identity and reconcile the newer head at the M24-03 manual review gate."
+  }
+}
