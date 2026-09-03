@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 155,
-  "updated_at": "2026-09-03T17:02:00+09:00",
+  "revision": 156,
+  "updated_at": "2026-09-04T02:53:52+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M24-02",
+  "active_task_id": null,
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5215,7 +5215,7 @@
       "order": 2402,
       "milestone": "M24",
       "title": "Complete bounded Spot and Futures branch discovery",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": ["M24-01"],
       "manual_gate": false,
       "scope": ["parallel mode discovery", "independent Official and Native capture", "trade, state, and coverage equality"],
@@ -5223,9 +5223,22 @@
       "acceptance_profile": "current_x7_closure",
       "expected_evidence": ["100 percent active-target coverage", "minimal captured fixtures", "exact parity reports"],
       "started_at": "2026-09-03T17:02:00+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-09-04T02:53:52+09:00",
+      "commit_sha": "0a0a72226d981be5e159b5b624eebb3d35d3cc1e",
+      "evidence": [
+        "benchmarks/evidence/m24/current-x7-e4fb2a7d/branch-discovery-closure.json",
+        "Spot active-target coverage 5/5 with 4 selected fixtures",
+        "Futures active-target coverage 5/5 with 4 selected fixtures",
+        "previous and latest Spot/Futures independently quick-verified",
+        "trade-surface and full-state exact with zero tolerance",
+        "final-engine Spot and Futures discovery closures both no_gap",
+        "67 current-X7 closure tests passed",
+        "163 future-compatibility tests passed",
+        "123 discovery tests passed",
+        "representative Spot and Futures full parity exact",
+        "Rust workspace tests and Clippy passed",
+        "ruff clean and basedpyright 0 errors"
+      ],
       "blocker": null
     },
     {
@@ -9614,6 +9627,46 @@
         "engine_commit": "713e2fe49b6e22212d7f28f274cba5a3c8e8e249",
         "spot_cursor_next_shard": 0,
         "futures_cursor_next_shard": 0
+      }
+    },
+    {
+      "sequence": 206,
+      "timestamp": "2026-09-04T02:53:52+09:00",
+      "task_id": "M24-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "0a0a72226d981be5e159b5b624eebb3d35d3cc1e",
+        "evidence_commit": "9f23a3c8f141fa47aa13e3f2f90194ee76fc5981",
+        "upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+        "baseline_upstream_commit": "e94a4b2ef941e14f014154469de36bc9a78d46af",
+        "active_target_count_per_mode": 5,
+        "covered_target_count_per_mode": 5,
+        "selected_fixture_count_per_mode": 4,
+        "latest_spot_quick_verified": true,
+        "latest_futures_quick_verified": true,
+        "baseline_spot_quick_verified": true,
+        "baseline_futures_quick_verified": true,
+        "trade_surface_exact": true,
+        "full_state_exact": true,
+        "spot_closure_status": "no_gap",
+        "futures_closure_status": "no_gap",
+        "hardcoded_target_results_added": false,
+        "post_freeze_upstream_commit": "2835ddb99c0ec71b3bc32e4ab4a92b5fd9e92e5a",
+        "next_eligible_task": "M24-03",
+        "next_task_requires_manual_approval": true
+      }
+    },
+    {
+      "sequence": 207,
+      "timestamp": "2026-09-04T02:53:52+09:00",
+      "task_id": "M24-03",
+      "event": "manual_gate_approval_requested",
+      "details": {
+        "objective": "review the captured fixtures, publish evidence-only Draft pull requests, wait for Required CI and human review, and reconcile compatibility issues 248, 280, and 303",
+        "frozen_upstream_commit": "e4fb2a7dabb961a34d54d8052f2deba0105591cb",
+        "observed_post_freeze_upstream_commit": "2835ddb99c0ec71b3bc32e4ab4a92b5fd9e92e5a",
+        "automatic_approval_or_merge_allowed": false,
+        "execution_started": false
       }
     }
   ]
