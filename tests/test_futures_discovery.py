@@ -824,6 +824,152 @@ def test_candidate_capture_does_not_hide_invalid_specification(
         _run_failing_candidate_capture(tmp_path, monkeypatch, SpecValidationError)
 
 
+def _run_candidate_with_exact_reports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    exact_reports: list[bool],
+    transition: bool,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    context = _candidate_capture_context(tmp_path)
+    context.output.mkdir()
+    target = _target()
+    if transition:
+        target["change"] = "changed"
+        context.targets = [target]
+        context.baseline_source = tmp_path / "baseline.py"
+        context.baseline_source.write_text("class Demo: pass\n", encoding="utf-8")
+        context.baseline_upstream_commit = "c" * 40
+    config = tmp_path / "config.json"
+    write_json(config, {"exchange": {"pair_whitelist": ["ETH/USDT"]}})
+    markets = tmp_path / "markets.json"
+    write_json(markets, {})
+    monkeypatch.setattr(
+        discovery_runtime,
+        "_candidate_timeranges",
+        lambda *_args: ["20260101-20260104"],
+    )
+    monkeypatch.setattr(
+        discovery_runtime,
+        "_filter_market_snapshot",
+        lambda _source, destination, _pairs: write_json(destination, {}),
+    )
+    monkeypatch.setattr(
+        "nfi_backtest_engine.research_runner.required_data_pairs",
+        lambda *_args: ["ETH/USDT"],
+    )
+
+    def capture(_spec: Path, output: Path, _work: Path, **_kwargs: Any) -> dict[str, Any]:
+        Path(output).mkdir(parents=True)
+        write_json(Path(output) / "manifest.json", {"fixture_id": "candidate"})
+        return {"fixture_id": "candidate"}
+
+    monkeypatch.setattr("nfi_backtest_engine.probe_capture.capture_x7_probe", capture)
+
+    def baseline(*_args: Any, **_kwargs: Any) -> Path | None:
+        if not transition:
+            return None
+        root = context.output / "work" / "baseline-fixture"
+        root.mkdir(parents=True)
+        manifest = root / "manifest.json"
+        write_json(manifest, {"fixture_id": "baseline"})
+        return manifest
+
+    monkeypatch.setattr(discovery_runtime, "_capture_transition_baseline", baseline)
+    monkeypatch.setattr(
+        discovery_runtime,
+        "assess_targeted_coverage",
+        lambda *_args, **_kwargs: {
+            "complete": True,
+            "changed_branch_reached": True,
+            "reached_target_ids": [target["id"]],
+            "target_proofs": [],
+        },
+    )
+    calls: list[str] = []
+
+    def verify(manifest: Path, _output: Path, **kwargs: Any) -> dict[str, Any]:
+        calls.append(Path(manifest).parent.name)
+        assert kwargs["verification_level"] == "full"
+        exact = exact_reports[len(calls) - 1]
+        return {
+            "complete": exact,
+            "parity": {
+                "trade_surface": {"equal": exact},
+                "state_trace": {"checked": True, "equal": exact},
+            },
+        }
+
+    monkeypatch.setattr("nfi_backtest_engine.fixture_engine.run_fixture_engine", verify)
+    shard = search_shards(date(2026, 7, 30), completed_years=1, shard_months=3)[0]
+    result = discovery_runtime._capture_candidate(
+        shard,
+        context,
+        generated_config=config,
+        data_directory=tmp_path / "data",
+        engine_market_path=markets,
+        hit={
+            "pair": "ETH/USDT",
+            "entry_tag": "new-route",
+            "exit_reason": "force_exit",
+            "open_timestamp_ms": 1,
+            "event_timestamp_ms": 2,
+            "target_ids": [target["id"]],
+        },
+        target_ids=[target["id"]],
+    )
+    return result, calls
+
+
+def test_candidate_capture_requires_full_exact_latest_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, calls = _run_candidate_with_exact_reports(
+        tmp_path,
+        monkeypatch,
+        exact_reports=[False],
+        transition=False,
+    )
+
+    assert result is None
+    assert calls == ["candidate-fixture-shard-000-attempt-1"]
+    assert not (tmp_path / "output" / "candidate-fixture").exists()
+
+
+def test_candidate_capture_requires_full_exact_transition_baseline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, calls = _run_candidate_with_exact_reports(
+        tmp_path,
+        monkeypatch,
+        exact_reports=[True, False],
+        transition=True,
+    )
+
+    assert result is None
+    assert calls == ["candidate-fixture-shard-000-attempt-1", "baseline-fixture"]
+    assert not (tmp_path / "output" / "candidate-fixture").exists()
+
+
+def test_candidate_capture_promotes_only_after_full_exact_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, calls = _run_candidate_with_exact_reports(
+        tmp_path,
+        monkeypatch,
+        exact_reports=[True],
+        transition=False,
+    )
+
+    assert result is not None
+    assert result["trade_surface_exact"] is True
+    assert result["full_state_exact"] is True
+    assert calls == ["candidate-fixture-shard-000-attempt-1"]
+
+
 @pytest.mark.parametrize(
     ("trading_mode", "market_type"),
     [("spot", "spot"), ("futures", "linear")],

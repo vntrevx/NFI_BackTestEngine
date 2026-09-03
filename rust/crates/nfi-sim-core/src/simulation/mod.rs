@@ -542,8 +542,12 @@ fn simulate_internal_impl(
                             if open_trades[trade_index].orders.len() > order_count {
                                 next_order_id += 1;
                             }
-                            available_balance =
-                                wallet_free(config.starting_balance, &open_trades, &closed_trades)?;
+                            available_balance = wallet_free(
+                                config.starting_balance,
+                                &open_trades,
+                                &closed_trades,
+                                config.is_futures,
+                            )?;
                             if open_trades[trade_index].orders.len() > order_count {
                                 let state_after = scheduler_observer::state(
                                     available_balance,
@@ -648,8 +652,12 @@ fn simulate_internal_impl(
                         if open_trades[trade_index].orders.len() > order_count {
                             next_order_id += 1;
                         }
-                        available_balance =
-                            wallet_free(config.starting_balance, &open_trades, &closed_trades)?;
+                        available_balance = wallet_free(
+                            config.starting_balance,
+                            &open_trades,
+                            &closed_trades,
+                            config.is_futures,
+                        )?;
                         if open_trades[trade_index].orders.len() > order_count {
                             let state_after = scheduler_observer::state(
                                 available_balance,
@@ -873,8 +881,12 @@ fn simulate_internal_impl(
                         if open_trades[trade_index].orders.len() > order_count {
                             next_order_id += 1;
                         }
-                        available_balance =
-                            wallet_free(config.starting_balance, &open_trades, &closed_trades)?;
+                        available_balance = wallet_free(
+                            config.starting_balance,
+                            &open_trades,
+                            &closed_trades,
+                            config.is_futures,
+                        )?;
                         if open_trades[trade_index].orders.len() > order_count {
                             let adjustment_state_after = scheduler_observer::state(
                                 available_balance,
@@ -1252,8 +1264,12 @@ fn simulate_internal_impl(
                                     config.starting_balance,
                                 )?;
                             }
-                            available_balance =
-                                wallet_free(config.starting_balance, &open_trades, &closed_trades)?;
+                            available_balance = wallet_free(
+                                config.starting_balance,
+                                &open_trades,
+                                &closed_trades,
+                                config.is_futures,
+                            )?;
                             let close_state_after = scheduler_observer::state(
                                 available_balance,
                                 &open_trades,

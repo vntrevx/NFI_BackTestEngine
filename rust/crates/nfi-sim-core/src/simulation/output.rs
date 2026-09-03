@@ -88,6 +88,7 @@ fn force_exit_open_trades(
         config.starting_balance,
         &state.open_trades,
         &state.closed_trades,
+        config.is_futures,
     )?;
     let mut force_exit_index = 0_usize;
     while !state.open_trades.is_empty() {
@@ -134,6 +135,7 @@ fn force_exit_open_trades(
             config.starting_balance,
             &state.open_trades,
             &state.closed_trades,
+            config.is_futures,
         )?;
         let after = scheduler_observer::state(
             available_balance,

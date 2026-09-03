@@ -674,6 +674,7 @@ def _capture_candidate(
     hit: dict[str, Any],
     target_ids: list[str],
 ) -> dict[str, Any] | None:
+    from .fixture_engine import run_fixture_engine
     from .probe_capture import capture_x7_probe
     from .research_runner import required_data_pairs
 
@@ -776,6 +777,29 @@ def _capture_candidate(
             raise _discovery_infrastructure_error(exc) from exc
         if not coverage["complete"] or not coverage["changed_branch_reached"]:
             continue
+        try:
+            latest_exact = run_fixture_engine(
+                output / "manifest.json",
+                context.output / "work" / f"candidate-exact-latest-{attempt_key}",
+                timeout_seconds=max(1, context.policy.budget_seconds),
+                verification_level="full",
+            )
+            baseline_exact = (
+                run_fixture_engine(
+                    baseline_manifest,
+                    context.output / "work" / f"candidate-exact-baseline-{attempt_key}",
+                    timeout_seconds=max(1, context.policy.budget_seconds),
+                    verification_level="full",
+                )
+                if baseline_manifest is not None
+                else None
+            )
+        except BenchmarkError as exc:
+            raise _discovery_infrastructure_error(exc) from exc
+        if not _full_exact(latest_exact) or (
+            baseline_exact is not None and not _full_exact(baseline_exact)
+        ):
+            continue
         baseline_output = baseline_manifest.parent if baseline_manifest is not None else None
         logical_bytes = sum(
             path.stat().st_size
@@ -813,6 +837,22 @@ def _capture_candidate(
             "transition_baseline": baseline_record,
         }
     return None
+
+
+def _full_exact(report: Mapping[str, Any]) -> bool:
+    parity = report.get("parity")
+    if not isinstance(parity, Mapping):
+        return False
+    trade_surface = parity.get("trade_surface")
+    state_trace = parity.get("state_trace")
+    return (
+        report.get("complete") is True
+        and isinstance(trade_surface, Mapping)
+        and trade_surface.get("equal") is True
+        and isinstance(state_trace, Mapping)
+        and state_trace.get("checked") is True
+        and state_trace.get("equal") is True
+    )
 
 
 def _capture_transition_baseline(

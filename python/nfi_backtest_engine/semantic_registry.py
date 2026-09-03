@@ -916,8 +916,12 @@ def build_semantic_obligation_registry(
     return report
 
 
-def validate_semantic_obligation_registry(document: Any) -> None:
-    """Validate schema, IDs, totals, blocker references, and content fingerprint."""
+def validate_semantic_obligation_registry(
+    document: Any,
+    *,
+    require_current_contracts: bool = True,
+) -> None:
+    """Validate registry integrity and, by default, its current contract binding."""
     validate_schema(
         semantic_registry_schema_projection(document),
         SEMANTIC_OBLIGATION_REGISTRY_SCHEMA,
@@ -930,19 +934,22 @@ def validate_semantic_obligation_registry(document: Any) -> None:
             "semantic obligation registry fingerprint differs from canonical content"
         )
 
-    expected_freqtrade, expected_contracts = _load_freqtrade_contract(
-        semantic_profile_path=_DEFAULT_PROFILE,
-        scheduler_contract_path=_DEFAULT_SCHEDULER,
-        execution_contract_path=_DEFAULT_EXECUTION,
-        futures_contract_path=_DEFAULT_FUTURES,
-    )
-    if document["freqtrade"] != expected_freqtrade:
-        raise SpecValidationError(
-            "semantic obligation registry does not match the pinned Freqtrade contract"
+    expected_contracts: dict[str, Mapping[str, Any]] | None = None
+    if require_current_contracts:
+        expected_freqtrade, expected_contracts = _load_freqtrade_contract(
+            semantic_profile_path=_DEFAULT_PROFILE,
+            scheduler_contract_path=_DEFAULT_SCHEDULER,
+            execution_contract_path=_DEFAULT_EXECUTION,
+            futures_contract_path=_DEFAULT_FUTURES,
         )
+        if document["freqtrade"] != expected_freqtrade:
+            raise SpecValidationError(
+                "semantic obligation registry does not match the pinned Freqtrade contract"
+            )
     _validate_callback_contract_obligations(document)
-    _validate_portfolio_contract_obligations(document, expected_contracts["scheduler"])
-    _validate_execution_contract_obligations(document, expected_contracts["execution"])
+    if expected_contracts is not None:
+        _validate_portfolio_contract_obligations(document, expected_contracts["scheduler"])
+        _validate_execution_contract_obligations(document, expected_contracts["execution"])
     _validate_source_closure_identity(document)
 
     groups = document["obligation_groups"]
@@ -1274,7 +1281,7 @@ def _load_packaged_semantic_obligation_registry_integrity() -> tuple[
         payload_bytes,
         max_bytes=_MAX_SEMANTIC_REGISTRY_JSON_BYTES,
     )
-    validate_semantic_obligation_registry(document)
+    validate_semantic_obligation_registry(document, require_current_contracts=False)
     upstream = document["strategy"]["upstream"]
     if (
         document["fingerprint"] != manifest["registry_fingerprint"]
