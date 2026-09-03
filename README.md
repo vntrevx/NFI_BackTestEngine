@@ -21,10 +21,10 @@ import or execute that strategy Python.
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.10.6](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.10.6) |
+| Latest public release | [v1.11.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.11.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.11.0 release candidate; validation in progress |
+| Current `main` | v1.11.0 stable; same-commit CI and release checks passed |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -44,11 +44,11 @@ then freeze the ranked result in the saved project. Large selections show the me
 long-run memory warning before data preparation. This presentation release does not
 claim a new continuous performance certificate.
 
-Current `main` prepares the v1.11.0 release and is usable from source for supported X7
-workloads on Linux, macOS, and Windows through WSL2. The candidate wheels and sdist
-must complete exact Spot and Futures trade/state regression checks, and the release
-commit must pass same-commit Required CI on Linux and macOS. Publication remains
-checksum-sealed and promotes release-candidate assets byte-for-byte to stable.
+v1.11.0 is the current stable release for supported X7 workloads on Linux, macOS, and
+Windows through WSL2. Its wheels and sdist completed exact Spot and Futures trade/state
+regression checks, and the release commit passed same-commit Required CI on Linux and
+macOS. The checksum-sealed stable assets are byte-for-byte identical to the published
+release candidate.
 
 ## Certified performance
 
