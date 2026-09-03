@@ -755,6 +755,85 @@ def test_scout_archive_uses_strategy_requirements_and_persists_provenance(
     )
 
 
+def test_spot_scout_archive_excludes_a_base_pair_with_an_internal_gap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nfi_backtest_engine.binance_archive import BinanceArchiveContinuityError
+
+    config = tmp_path / "config.json"
+    write_json(
+        config,
+        {
+            "stake_currency": "USDT",
+            "trading_mode": "spot",
+            "exchange": {
+                "name": "binance",
+                "pair_whitelist": ["ETH/USDT", "SOL/USDT"],
+            },
+        },
+    )
+    strategy = tmp_path / "strategy.py"
+    strategy.write_text("class Demo: pass\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(
+        "nfi_backtest_engine.vector_runtime.load_strategy_analysis",
+        lambda *_args, **_kwargs: {
+            "strategies": [
+                {
+                    "required_timeframes": ["5m"],
+                    "constants": {"startup_candle_count": 0},
+                }
+            ]
+        },
+    )
+
+    def prepare(data_directory: Path, **kwargs):
+        pairs = list(kwargs["pairs"])
+        calls.append(pairs)
+        if "ETH/USDT" in pairs:
+            raise BinanceArchiveContinuityError(
+                pair="ETH/USDT",
+                source=data_directory / "ETH_USDT-5m.feather",
+            )
+        return {"aggregate_sha256": "a" * 64}
+
+    monkeypatch.setattr(
+        "nfi_backtest_engine.binance_archive.prepare_binance_archive_data",
+        prepare,
+    )
+    context = SimpleNamespace(
+        class_name="Demo",
+        output=tmp_path / "output",
+        policy=SimpleNamespace(
+            archive_source="binance-public-data-monthly",
+            archive_workers=2,
+            trading_mode="spot",
+        ),
+    )
+    destination = tmp_path / "archive-download.json"
+
+    report = discovery_runtime._prepare_scout_archive(
+        search_shards(date(2026, 7, 30), completed_years=1, shard_months=3)[0],
+        context,
+        strategy_path=strategy,
+        config_path=config,
+        data_directory=tmp_path / "data",
+        pairs=["ETH/USDT", "SOL/USDT"],
+        destination=destination,
+    )
+
+    assert calls == [
+        ["ETH/USDT", "SOL/USDT", "BTC/USDT"],
+        ["SOL/USDT", "BTC/USDT"],
+    ]
+    assert report["discovery_pairs"] == ["SOL/USDT"]
+    assert report["excluded_discovery_pairs"] == [
+        {"pair": "ETH/USDT", "reason": "INTERNAL_ARCHIVE_GAP"}
+    ]
+
+
 def test_scout_uses_compact_surface_without_unbounded_event_trace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

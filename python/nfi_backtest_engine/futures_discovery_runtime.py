@@ -70,6 +70,24 @@ def run_shard_scout(
         )
     except BenchmarkError as exc:
         raise _discovery_infrastructure_error(exc) from exc
+    archive_pairs = archive_report.get("discovery_pairs", pairs)
+    if (
+        not isinstance(archive_pairs, list)
+        or not archive_pairs
+        or not all(isinstance(pair, str) and pair for pair in archive_pairs)
+        or not set(archive_pairs).issubset(pairs)
+    ):
+        raise DiscoveryInfrastructureError(
+            "discovery archive returned an invalid executable pair set"
+        )
+    if archive_pairs != pairs:
+        generated_config = _write_discovery_pair_config(
+            generated_config,
+            shard_root / "archive-available-config.json",
+            archive_pairs,
+        )
+        pairs = archive_pairs
+        engine_output = shard_root / "engine-available"
     if context.policy.trading_mode == "spot":
         available_pairs = _pairs_with_nonempty_base_candles(
             shared / "data",
@@ -213,7 +231,10 @@ def _prepare_scout_archive(
     destination: Path,
 ) -> dict[str, Any]:
     """Prepare a reproducible shard input without invoking exchange REST APIs."""
-    from .binance_archive import prepare_binance_archive_data
+    from .binance_archive import (
+        BinanceArchiveContinuityError,
+        prepare_binance_archive_data,
+    )
     from .research_runner import required_data_pairs
     from .vector_runtime import load_strategy_analysis
 
@@ -244,8 +265,6 @@ def _prepare_scout_archive(
         or startup < 0
     ):
         raise SpecValidationError("discovery archive strategy requirements differ")
-    data_pairs = required_data_pairs({"pairs": pairs}, config)
-    exchange["pair_whitelist"] = data_pairs
     request = build_data_request(
         config,
         shard.timerange,
@@ -253,17 +272,37 @@ def _prepare_scout_archive(
         startup_candles=startup,
         history_coverage_policy="available",
     )
-    report = prepare_binance_archive_data(
-        data_directory,
-        pairs=data_pairs,
-        timeframes=list(timeframes),
-        trading_mode=context.policy.trading_mode,
-        coverage_start_timestamp_ms_by_timeframe=request[
-            "coverage_start_timestamp_ms_by_timeframe"
-        ],
-        end_timestamp_ms=request["end_timestamp_ms"],
-        workers=context.policy.archive_workers,
-    )
+    discovery_pairs = list(pairs)
+    excluded_pairs: list[dict[str, str]] = []
+    while True:
+        data_pairs = required_data_pairs({"pairs": discovery_pairs}, config)
+        exchange["pair_whitelist"] = data_pairs
+        try:
+            report = prepare_binance_archive_data(
+                data_directory,
+                pairs=data_pairs,
+                timeframes=list(timeframes),
+                trading_mode=context.policy.trading_mode,
+                coverage_start_timestamp_ms_by_timeframe=request[
+                    "coverage_start_timestamp_ms_by_timeframe"
+                ],
+                end_timestamp_ms=request["end_timestamp_ms"],
+                workers=context.policy.archive_workers,
+            )
+            break
+        except BinanceArchiveContinuityError as exc:
+            if (
+                context.policy.trading_mode != "spot"
+                or exc.pair not in discovery_pairs
+                or len(discovery_pairs) == 1
+            ):
+                raise
+            discovery_pairs.remove(exc.pair)
+            excluded_pairs.append(
+                {"pair": exc.pair, "reason": "INTERNAL_ARCHIVE_GAP"}
+            )
+    report["discovery_pairs"] = discovery_pairs
+    report["excluded_discovery_pairs"] = excluded_pairs
     report["strategy_startup_candles"] = startup
     write_json(destination, report)
     return report
