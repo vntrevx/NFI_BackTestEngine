@@ -1517,6 +1517,12 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
         help="verify repository evidence and pin release identities without downloading assets",
     )
     contract_verify.add_argument("--output", type=Path)
+    contract_support = contract_commands.add_parser(
+        "support",
+        help="show the versioned product support and certification boundary",
+    )
+    contract_support.add_argument("--contract", type=Path)
+    contract_support.add_argument("--json", action="store_true")
     if not show_advanced:
         _hide_advanced_commands(parser)
     return parser

@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "nfi-backtest-engine-product-support-v1",
+  "product": {
+    "package": "nfi-backtest-engine",
+    "purpose": "exact-parity NFI research backtesting",
+    "live_trading_supported": false
+  },
+  "strategies": {
+    "native_supported": [
+      {
+        "family": "NostalgiaForInfinityX7",
+        "selection": "capability-derived",
+        "exactness_required": true
+      }
+    ],
+    "official_only_legacy": [
+      {
+        "family": "NostalgiaForInfinityNext",
+        "generation": "V8",
+        "default_visible": false,
+        "native_supported": false,
+        "fallback_status": "planned"
+      },
+      {
+        "family": "NostalgiaForInfinityNextGen",
+        "generation": "V9",
+        "default_visible": false,
+        "native_supported": false,
+        "fallback_status": "planned"
+      }
+    ],
+    "unknown_semantics_policy": "fail-closed"
+  },
+  "modes": [
+    {
+      "slug": "spot",
+      "contract": "binance-spot",
+      "margin_mode": "none"
+    },
+    {
+      "slug": "futures",
+      "contract": "binance-usdtm-isolated",
+      "margin_mode": "isolated"
+    }
+  ],
+  "platforms": {
+    "supported": [
+      "linux-x86_64",
+      "linux-aarch64",
+      "macos-arm64",
+      "windows-wsl2-x86_64"
+    ],
+    "native_windows_supported": false,
+    "windows_abi": "linux-under-wsl2"
+  },
+  "distribution": {
+    "channels": [
+      {
+        "slug": "github-releases",
+        "status": "stable"
+      },
+      {
+        "slug": "pypi",
+        "status": "planned",
+        "authentication": "oidc-trusted-publishing"
+      }
+    ],
+    "build_once": true,
+    "byte_identical_github_rc_stable": true,
+    "cross_channel_sha_required": true
+  },
+  "accuracy": {
+    "authority": "official-freqtrade",
+    "trade_surface_tolerance": 0,
+    "full_state_tolerance": 0,
+    "unsupported_policy": "fail-closed"
+  },
+  "certification": {
+    "combined_status": "preview",
+    "target_release": "v1.15.0",
+    "pair_count_per_mode": 80,
+    "timerange": "20210101-20260101",
+    "minimum_days": 1825,
+    "history_policy": "listing-aware-continuous-portfolio",
+    "timeframes": ["5m", "15m", "1h", "4h", "1d"],
+    "minimum_native_repetitions": 3,
+    "maximum_native_repetitions": 5,
+    "adaptive_spread_threshold": 0.05,
+    "minimum_native_speedup": 10.0,
+    "memory_cap_required": true,
+    "swap_cap_required": true
+  },
+  "operations": {
+    "latest_checked_max_age_seconds": 86400,
+    "release_soak_cycles": 7,
+    "duplicate_issue_policy": "one-per-fingerprint",
+    "preserve_last_success_on_failure": true
+  },
+  "release_train": [
+    {
+      "version": "v1.12.0",
+      "milestones": ["M23", "M24", "M25"],
+      "combined_full_x7_certified": false
+    },
+    {
+      "version": "v1.13.0",
+      "milestones": ["M26", "M27"],
+      "combined_full_x7_certified": false
+    },
+    {
+      "version": "v1.14.0",
+      "milestones": ["M28", "M29"],
+      "combined_full_x7_certified": false
+    },
+    {
+      "version": "v1.15.0",
+      "milestones": ["M30", "M31", "M32"],
+      "combined_full_x7_certified": true
+    }
+  ]
+}

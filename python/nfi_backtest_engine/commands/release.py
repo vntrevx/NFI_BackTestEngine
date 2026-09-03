@@ -363,6 +363,26 @@ def execute_release(args: argparse.Namespace) -> int:
 
 
 def execute_regression_contract(args: argparse.Namespace) -> int:
+    if args.contract_command == "support":
+        from ..product_support_contract import load_product_support_contract
+
+        contract = load_product_support_contract(args.contract)
+        if args.json:
+            print(json.dumps(contract, indent=2, sort_keys=True))
+        else:
+            native = ", ".join(
+                item["family"] for item in contract["strategies"]["native_supported"]
+            )
+            platforms = ", ".join(contract["platforms"]["supported"])
+            certification = contract["certification"]
+            print(
+                "product support contract: "
+                f"native={native}; platforms={platforms}; "
+                f"combined={certification['combined_status']}; "
+                f"target={certification['target_release']}"
+            )
+        return 0
+
     from ..regression_contract import (
         parse_release_asset_roots,
         verify_regression_contract,

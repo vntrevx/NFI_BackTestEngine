@@ -19,6 +19,10 @@ import or execute that strategy Python.
 
 ## Release status
 
+The current and target boundaries are also available in the
+[machine-readable product support contract](docs/product-support.md) and through
+`nfi-bte contract support --json`.
+
 | Scope | Status |
 | --- | --- |
 | Latest public release | [v1.11.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.11.0) |

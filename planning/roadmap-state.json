@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 152,
+  "revision": 153,
   "updated_at": "2026-08-14T23:21:38+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
-  "active_task_id": "M23-02",
+  "active_task_id": "M23-03",
   "execution_policy": {
     "max_in_progress": 1,
     "selection": "lowest order pending task whose dependencies are completed",
@@ -5133,7 +5133,7 @@
       "order": 2302,
       "milestone": "M23",
       "title": "Separate Oracle input and candidate certification fingerprints",
-      "status": "in_progress",
+      "status": "completed",
       "depends_on": ["M23-01"],
       "manual_gate": false,
       "scope": ["Oracle input identity", "candidate wheel and binary identity", "immutable reuse migration"],
@@ -5141,9 +5141,17 @@
       "acceptance_profile": "certification_identity_v2",
       "expected_evidence": ["fingerprint-v2 schemas", "reuse and rejection tests", "legacy record migration tests"],
       "started_at": "2026-09-03T15:59:49+09:00",
-      "completed_at": null,
-      "commit_sha": null,
-      "evidence": [],
+      "completed_at": "2026-09-03T16:23:35+09:00",
+      "commit_sha": "c8fb675dcb0307de4523ff7b6fd484e1455f05eb",
+      "evidence": [
+        ".github/long-certification-contract.json",
+        ".github/scripts/long_certification_contract.py",
+        "tests/test_certification_identity_v2.py",
+        "65 focused tests passed",
+        "2112 full tests passed, 53 skipped",
+        "ruff clean",
+        "basedpyright 0 errors"
+      ],
       "blocker": null
     },
     {
@@ -5151,14 +5159,14 @@
       "order": 2303,
       "milestone": "M23",
       "title": "Bind CLI, documentation, release policy, and roadmap to the support contract",
-      "status": "pending",
+      "status": "in_progress",
       "depends_on": ["M23-02"],
       "manual_gate": false,
       "scope": ["installed contract inspection", "claim drift validation", "M23-M32 acceptance routing"],
       "forbidden_changes": ["rewriting superseded M6 history", "duplicating mutable support truth"],
       "acceptance_profile": "product_support_contract",
       "expected_evidence": ["CLI contract output", "documentation drift tests", "roadmap dependency validation"],
-      "started_at": null,
+      "started_at": "2026-09-03T16:23:35+09:00",
       "completed_at": null,
       "commit_sha": null,
       "evidence": [],
@@ -9498,6 +9506,36 @@
         "oracle_reuse_after_engine_only_change_required": true,
         "candidate_certificate_reuse_after_binary_change_allowed": false,
         "legacy_records_must_remain_readable": true
+      }
+    },
+    {
+      "sequence": 200,
+      "timestamp": "2026-09-03T16:23:35+09:00",
+      "task_id": "M23-02",
+      "event": "task_completed",
+      "details": {
+        "implementation_commit": "c8fb675dcb0307de4523ff7b6fd484e1455f05eb",
+        "oracle_input_identity_version": "oracle-input-identity-v2",
+        "candidate_identity_version": "candidate-certification-identity-v2",
+        "legacy_oracle_index_readable": true,
+        "engine_only_change_reuses_oracle": true,
+        "candidate_change_invalidates_certificate": true,
+        "focused_test_count": 65,
+        "python_test_count": 2112,
+        "python_skipped_count": 53,
+        "next_eligible_task": "M23-03"
+      }
+    },
+    {
+      "sequence": 201,
+      "timestamp": "2026-09-03T16:23:35+09:00",
+      "task_id": "M23-03",
+      "event": "task_started",
+      "details": {
+        "objective": "make the product support contract inspectable from installed artifacts and reject public claim drift",
+        "roadmap_history_rewrite_allowed": false,
+        "installed_contract_copy_required": true,
+        "release_policy_alignment_required": true
       }
     }
   ]
