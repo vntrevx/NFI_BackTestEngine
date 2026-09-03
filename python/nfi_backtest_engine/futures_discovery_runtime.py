@@ -30,6 +30,7 @@ from .release_contract import release_contract_for_config
 from .release_inputs import discover_release_universe
 from .targeted_verification import (
     assess_targeted_coverage,
+    completed_probe_semantic_failure,
     observable_tag_forms,
     target_observed,
 )
@@ -763,8 +764,16 @@ def _capture_candidate(
                 baseline_manifest=baseline_manifest or output / "manifest.json",
                 candidate_manifest=output / "manifest.json",
             )
-        except (BenchmarkError, BranchCoverageError, SpecValidationError):
+        except BranchCoverageError:
             continue
+        except BenchmarkError as exc:
+            baseline_work = capture_work_root / f"baseline-{attempt_key}"
+            if (
+                completed_probe_semantic_failure(work) is not None
+                or completed_probe_semantic_failure(baseline_work) is not None
+            ):
+                continue
+            raise _discovery_infrastructure_error(exc) from exc
         if not coverage["complete"] or not coverage["changed_branch_reached"]:
             continue
         baseline_output = baseline_manifest.parent if baseline_manifest is not None else None

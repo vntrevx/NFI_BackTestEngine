@@ -12,6 +12,7 @@ import pytest
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.errors import (
     BenchmarkError,
+    BranchCoverageError,
     DiscoveryInfrastructureError,
     SpecValidationError,
 )
@@ -690,6 +691,137 @@ def test_candidate_attempt_keys_do_not_collide_across_shards() -> None:
     assert discovery_runtime._candidate_attempt_key(first, 2) == "shard-000-attempt-2"
     with pytest.raises(SpecValidationError, match="attempt must be positive"):
         discovery_runtime._candidate_attempt_key(first, 0)
+
+
+def _candidate_capture_context(tmp_path: Path) -> SimpleNamespace:
+    source = tmp_path / "strategy.py"
+    source.write_text("class Demo: pass\n", encoding="utf-8")
+    profile = tmp_path / "profile.json"
+    write_json(profile, {})
+    return SimpleNamespace(
+        output=tmp_path / "output",
+        targets=[_target()],
+        policy=SimpleNamespace(
+            context_days=1,
+            budget_seconds=60,
+            max_candidate_bytes=30 * 1024 * 1024,
+            trading_mode="spot",
+        ),
+        workers=1,
+        profile_path=profile,
+        fingerprint="f" * 64,
+        source=source,
+        class_name="Demo",
+        upstream_repository="iterativv/NostalgiaForInfinity",
+        upstream_commit="a" * 40,
+        baseline_source=None,
+        baseline_upstream_commit=None,
+        strategy_diff=_difference(_target()),
+    )
+
+
+def _run_failing_candidate_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: type[Exception],
+    *,
+    semantic_report: bool = False,
+) -> dict[str, Any] | None:
+    context = _candidate_capture_context(tmp_path)
+    context.output.mkdir()
+    config = tmp_path / "config.json"
+    write_json(config, {"exchange": {"pair_whitelist": ["ETH/USDT"]}})
+    markets = tmp_path / "markets.json"
+    write_json(markets, {})
+    monkeypatch.setattr(
+        discovery_runtime,
+        "_candidate_timeranges",
+        lambda *_args: ["20260101-20260104"],
+    )
+    monkeypatch.setattr(
+        discovery_runtime,
+        "_filter_market_snapshot",
+        lambda _source, destination, _pairs: write_json(destination, {}),
+    )
+    monkeypatch.setattr(
+        "nfi_backtest_engine.research_runner.required_data_pairs",
+        lambda *_args: ["ETH/USDT"],
+    )
+
+    def capture(_spec, _output, work, **_kwargs):
+        if semantic_report:
+            reference = Path(work) / "reference"
+            reference.mkdir(parents=True)
+            write_json(
+                reference / "run.json",
+                {"exit_code": 0, "exact_parity": False, "difference": None},
+            )
+        raise failure("candidate capture failed")
+
+    monkeypatch.setattr(
+        "nfi_backtest_engine.probe_capture.capture_x7_probe",
+        capture,
+    )
+    shard = search_shards(
+        date(2026, 7, 30), completed_years=1, shard_months=3
+    )[0]
+    return discovery_runtime._capture_candidate(
+        shard,
+        context,
+        generated_config=config,
+        data_directory=tmp_path / "data",
+        engine_market_path=markets,
+        hit={
+            "pair": "ETH/USDT",
+            "entry_tag": "new-route",
+            "exit_reason": "force_exit",
+            "open_timestamp_ms": 1,
+            "event_timestamp_ms": 2,
+            "target_ids": ["target-new-route"],
+        },
+        target_ids=["target-new-route"],
+    )
+
+
+def test_candidate_capture_surfaces_unclassified_benchmark_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(DiscoveryInfrastructureError, match="candidate capture failed"):
+        _run_failing_candidate_capture(tmp_path, monkeypatch, BenchmarkError)
+
+
+def test_candidate_capture_continues_only_for_completed_semantic_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert (
+        _run_failing_candidate_capture(
+            tmp_path,
+            monkeypatch,
+            BenchmarkError,
+            semantic_report=True,
+        )
+        is None
+    )
+
+
+def test_candidate_capture_continues_after_branch_miss(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert (
+        _run_failing_candidate_capture(tmp_path, monkeypatch, BranchCoverageError)
+        is None
+    )
+
+
+def test_candidate_capture_does_not_hide_invalid_specification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(SpecValidationError, match="candidate capture failed"):
+        _run_failing_candidate_capture(tmp_path, monkeypatch, SpecValidationError)
 
 
 @pytest.mark.parametrize(
