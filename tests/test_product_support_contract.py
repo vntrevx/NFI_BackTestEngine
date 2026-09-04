@@ -83,6 +83,8 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
             "macos-arm64",
             "windows-wsl2-x86_64",
         ],
+        "pypi_trusted_publishing": True,
+        "cross_channel_sha_required": True,
         "valid": True,
     }
 
@@ -93,6 +95,8 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
         ("build_once", False, "distribution policy differs"),
         ("byte_identical_rc_stable", False, "distribution policy differs"),
         ("supported_platform_slugs", ["linux-x86_64"], "platform policy differs"),
+        ("pypi_trusted_publishing", False, "supply-chain policy differs"),
+        ("spdx_sbom_required", False, "supply-chain policy differs"),
     ],
 )
 def test_release_policy_drift_is_rejected(field: str, value: object, message: str) -> None:

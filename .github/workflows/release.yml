@@ -545,6 +545,11 @@ jobs:
              and .distribution_policy.sha256_manifest_required == true
              and .distribution_policy.required_ci_commit_match == true
              and .distribution_policy.supported_platform_exact_fixture_evidence == true
+             and .distribution_policy.pypi_project == "nfi-backtest-engine"
+             and .distribution_policy.pypi_trusted_publishing == true
+             and .distribution_policy.pypi_attestations_required == true
+             and .distribution_policy.spdx_sbom_required == true
+             and .distribution_policy.cross_channel_sha_required == true
              and .distribution_policy.supported_platform_slugs == ["linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             .github/product-release-contract.json
@@ -564,6 +569,21 @@ jobs:
             cp "dist/platform/$mode/platform-evidence-bundle.zip" \
               "product-release/full-x7-$mode-platform-evidence.zip"
           done
+          distribution_arguments=()
+          for distribution in product-release/*.whl product-release/*.tar.gz; do
+            distribution_arguments+=(--distribution "$distribution")
+          done
+          python .github/scripts/release_supply_chain.py seal \
+            "${distribution_arguments[@]}" \
+            --output-dir product-release \
+            --project nfi-backtest-engine \
+            --version "$package_version" \
+            --candidate-commit "$GITHUB_SHA" \
+            --created-at "$(git show -s --format=%cI "$GITHUB_SHA")"
+          python .github/scripts/release_supply_chain.py verify \
+            --directory product-release \
+            --identity product-release/distribution-identity.json \
+            --sbom product-release/nfi-backtest-engine.spdx.json
           cd product-release
           find . -type f ! -name SHA256SUMS.txt -print0 \
             | LC_ALL=C sort -z \
@@ -581,5 +601,14 @@ jobs:
         with:
           name: product-release-bundle-${{ github.sha }}
           path: product-release/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload build-once Python distributions
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: python-distributions-${{ github.sha }}
+          path: |
+            product-release/*.whl
+            product-release/*.tar.gz
           if-no-files-found: error
           retention-days: 30

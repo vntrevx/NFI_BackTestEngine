@@ -9,6 +9,11 @@
     "sha256_manifest_required": true,
     "required_ci_commit_match": true,
     "supported_platform_exact_fixture_evidence": true,
+    "pypi_project": "nfi-backtest-engine",
+    "pypi_trusted_publishing": true,
+    "pypi_attestations_required": true,
+    "spdx_sbom_required": true,
+    "cross_channel_sha_required": true,
     "supported_platform_slugs": [
       "linux-aarch64",
       "linux-x86_64",

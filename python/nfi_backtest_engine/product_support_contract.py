@@ -67,6 +67,20 @@ def validate_product_release_alignment(
     expected_platform_slugs = sorted(product["platforms"]["supported"])
     if distribution.get("supported_platform_slugs") != expected_platform_slugs:
         raise SpecValidationError("product release platform policy differs")
+    expected_supply_chain = {
+        "pypi_project": product["product"]["package"],
+        "pypi_trusted_publishing": True,
+        "pypi_attestations_required": True,
+        "spdx_sbom_required": True,
+        "cross_channel_sha_required": product["distribution"][
+            "cross_channel_sha_required"
+        ],
+    }
+    if any(
+        distribution.get(field) != expected
+        for field, expected in expected_supply_chain.items()
+    ):
+        raise SpecValidationError("product release supply-chain policy differs")
     combined = release.get("combined_full_x7_certified")
     expected_combined = product["certification"]["combined_status"] == "release-certified"
     if combined is not expected_combined:
@@ -78,6 +92,8 @@ def validate_product_release_alignment(
         "package_version": release.get("package_version"),
         "combined_full_x7_certified": combined,
         "supported_platform_slugs": distribution["supported_platform_slugs"],
+        "pypi_trusted_publishing": distribution["pypi_trusted_publishing"],
+        "cross_channel_sha_required": distribution["cross_channel_sha_required"],
         "valid": True,
     }
 

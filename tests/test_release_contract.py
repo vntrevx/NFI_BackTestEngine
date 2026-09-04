@@ -860,6 +860,11 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "sha256_manifest_required": True,
             "required_ci_commit_match": True,
             "supported_platform_exact_fixture_evidence": True,
+            "pypi_project": "nfi-backtest-engine",
+            "pypi_trusted_publishing": True,
+            "pypi_attestations_required": True,
+            "spdx_sbom_required": True,
+            "cross_channel_sha_required": True,
             "supported_platform_slugs": [
                 "linux-aarch64",
                 "linux-x86_64",
@@ -891,12 +896,19 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "supported_platform_exact_fixture_evidence == true" in publish
     assert "supported_platform_slugs" in publish
     assert "test \"$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)\" -eq 3" in publish
-    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 11" in publish
+    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 13" in publish
     assert '"windows-wsl2-x86_64"' in publish
     assert "native-score" not in publish
     assert "nfi-bte release score" not in publish
     assert "find candidate -mindepth 1 ! -type f" in publish
     assert 'gh release create "$RELEASE_TAG" "${assets[@]}"' in publish
+    assert "environment:\n      name: testpypi" in publish
+    assert "id-token: write" in publish
+    assert "PYPI_TOKEN" not in publish
+    assert "repository-url: https://test.pypi.org/legacy/" in publish
+    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in publish
+    assert "[.platforms[].slug]" in publish
+    assert "release_supply_chain.py verify" in publish
     assert "candidate/*" not in publish
     assert "test ! -e candidate/release-gate.json" in publish
     assert "test ! -e candidate/full-x7-release-result.json" in publish
@@ -918,7 +930,13 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "nfi-bte release score" not in promote
     assert "find candidate -mindepth 1 ! -type f" in promote
     assert 'gh release create "$STABLE_TAG" "${assets[@]}"' in promote
-    assert "candidate/*" not in promote
+    assert "environment:\n      name: pypi" in promote
+    assert "id-token: write" in promote
+    assert "PYPI_TOKEN" not in promote
+    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in promote
+    assert "uv tool install" in promote
+    assert "release_supply_chain.py verify" in promote
+    assert 'gh release create "$STABLE_TAG" candidate/*' not in promote
     assert "diff -qr candidate stable" in promote
     assert "windows-latest" not in promote
     assert "Audit latest macOS installer" in promote
