@@ -1,0 +1,218 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "future-nfi-futures-d3ab7ba8710ed3dd-baseline",
+  "description": "Automatically discovered branch fixture with independent official and Native exact evidence.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-09-03T23:33:59.122323Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20250203-20250206",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20250203-20250206",
+      "--pairs",
+      "TRB/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "6d90acb87143a7f9f9638c8177c1d7cd18bd523feeb6bc580ec8a4199db05699",
+      "bytes": 3495847
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "87570815d34069dd66aeb8b0e6ef03d8c3ecdfc60fe62eb0050e355e1d1bced6",
+      "bytes": 967
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "99d178503937d00803f91d769c4bd56534fcc8013fa93e5f2ec1fd842a32e0a3",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "4c11fd4254d60a69b0ff79f13a8ab9c168656d740c037eeaaacb442628a41586",
+      "bytes": 39983
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "d5f7ade9321b60df82771a6f02341d8eaa6a6059153c555dbbd82d684587f0fc",
+      "bytes": 117167
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "7222eb78513a701012bbd20fcc98d08a60a699eaa584200c992efe76c63a1b33",
+      "bytes": 43439
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "9a9ba36b88d10bd2d5717c5dbbccf5a468a902dde9901d7c045ee4dd999c096b",
+      "bytes": 925487
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "1aa1ea841662b402758cdc570c0bab26af36c145860edd0e9e8d29c141e57c0c",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "866437cbf30855a3fe004c61d37ef2c377d360a05be68fa67f014fdfb170a4cc",
+      "bytes": 81455
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-15m-futures.feather",
+      "sha256": "0c1337cffaa1f132e5987291ce85fd98f3d4f4e5e1ae29a5ca24dba46d50b1b0",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-1d-futures.feather",
+      "sha256": "4ee94b83b9a52f80813233fa19c484e4b39f57ce59d7e4b5ce9d71c0760a0af0",
+      "bytes": 39983
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "c40863617226ac2f0194c0cbc9846aeccc3ddc8ec93dbf431df28e067b28ea5b",
+      "bytes": 186671
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-1h-futures.feather",
+      "sha256": "5893594eba9e6fa6fe813bf43e3a58405eb8928ed0e10e191ad6cbf84b3d77d0",
+      "bytes": 43439
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-1h-mark.feather",
+      "sha256": "ba332828b9995bb8c4262ea7faca806aa83696fe50af54b6f943e3a0759e3a8a",
+      "bytes": 925487
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-4h-futures.feather",
+      "sha256": "8766d369fa2fe0d161db3608d94b918554be3f80a2d8541763f843259d98a9fe",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/TRB_USDT_USDT-5m-futures.feather",
+      "sha256": "7b8499be0e033de41fa55f1fe62b7c1a10ae6b8170d6f1e56e1a1567f2db4ac9",
+      "bytes": 81455
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/candidate-market-shard-003-attempt-1.json",
+      "sha256": "2f9554c380a9f194523aaa870776f1927e0b5638b2a9c3260225f1f4b5143d6c",
+      "bytes": 3810
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "c90fff3557d7e0c39e20bf259aa8a1dbbc8b023ec3d2d7f909832f89b12154d9",
+      "bytes": 9226
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "e9a05c6cb1e16507bfde1fde6f884c4946af791a7d377428ff869720b4644c04",
+      "bytes": 351233
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "1f85e959f5f27bde3cd5179c47c1405e189464fe60a16a0da71e18a200ab0a95",
+      "bytes": 2357
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "069dbdc5ce3ae5a51a13575b9200efc9c0acad14a08309af355b36710692e475",
+      "bytes": 2141390
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "b498e2ec54c05a26228d2d25db71f878469eb4b00452a212e7f890e325cb64f0",
+      "bytes": 699
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "2b8a0b18c3e6d9eccbc9469c21ea6d4be11b951e0649f7b6e33324d4b248db0f",
+      "bytes": 419963
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "future-nfi-target",
+  "strategy_provenance": {
+    "upstream_repository": "iterativv/NostalgiaForInfinity",
+    "upstream_commit": "b35320d681793648e9cb8cf34d5a7f8b225a7558",
+    "base_source_sha256": "6d90acb87143a7f9f9638c8177c1d7cd18bd523feeb6bc580ec8a4199db05699",
+    "effective_source_sha256": "6d90acb87143a7f9f9638c8177c1d7cd18bd523feeb6bc580ec8a4199db05699",
+    "transformations": [
+      {
+        "kind": "observer-only",
+        "description": "No source mutation; official read-only tracer only"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [],
+    "entry_tags": [
+      "42"
+    ],
+    "compound_tags": [],
+    "protection_methods": [],
+    "exit_reasons": [],
+    "sides": [],
+    "minimum_lock_count": 0,
+    "minimum_distinct_leverages": 1,
+    "minimum_funded_trades": 0,
+    "require_rejected_locked_entry": false
+  }
+}
