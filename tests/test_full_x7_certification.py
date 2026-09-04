@@ -575,6 +575,29 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     assert "reference" not in report["runs"]
     assert report["runs"]["official_reference"]["result_sha256"] == surface_sha
 
+    capture = full_x7_certification.run_full_x7_certification(
+        tmp_path / "lock.json",
+        tmp_path / "oracle-capture",
+        strategy_path=tmp_path / "strategy.py",
+        class_name="NostalgiaForInfinityX7",
+        config_path=tmp_path / "config.json",
+        data_directory=tmp_path / "data",
+        engine_market_snapshot=tmp_path / "engine-markets.json",
+        reference_market_snapshot=tmp_path / "markets.json",
+        wheel_path=tmp_path / "candidate.whl",
+        execution_profile_path=tmp_path / "profile.json",
+        state_probe_manifests=[],
+        repetitions=3,
+        timeout_seconds=60,
+        swap_cap_bytes=1_000,
+        capture_oracle_only=True,
+    )
+
+    assert calls == {"engine": 5, "reference": 2}
+    assert capture["status"] == "exact_parity"
+    assert capture["result_sha256"] == surface_sha
+    assert (tmp_path / "oracle-capture/oracle-capture.json").is_file()
+
 
 @pytest.mark.parametrize(
     ("native_peak", "official_peak", "complete", "expected"),

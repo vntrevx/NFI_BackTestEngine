@@ -45,11 +45,19 @@ def execute(args: argparse.Namespace) -> int:
             repetitions=args.runs,
             timeout_seconds=args.timeout,
             official_oracle_directory=args.official_oracle,
+            capture_oracle_only=args.capture_oracle_only,
             resume=args.resume,
             swap_cap_bytes=(
                 int(args.swap_cap_gib * 1024**3) if args.swap_cap_gib is not None else None
             ),
         )
+        if args.capture_oracle_only:
+            print(
+                f"Full X7 Oracle capture: status={report['status']}, "
+                f"result={report['result_sha256']} -> "
+                f"{args.output_dir / 'oracle-capture.json'}"
+            )
+            return 0 if report["complete"] else 1
         print(
             f"Full X7 certification: status={report['status']}, "
             f"speedup={report['gates']['speed']['observed_speedup']:.3f}x, "

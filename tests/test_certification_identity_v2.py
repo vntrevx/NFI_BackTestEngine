@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -91,6 +93,7 @@ def _inputs(tmp_path: Path) -> tuple[ModuleType, dict[str, object], Path, Path]:
         "oracle_input_fingerprint": "0" * 64,
         "host_lock": str(tmp_path / "certification.lock"),
         "state_probes": [str(probe)],
+        "swap_cap_bytes": 8 * 1024**3,
     }
     identity = module._input_identity(config, version="oracle-input-identity-v2")
     fingerprint = module.canonical_sha256(identity)
@@ -155,6 +158,65 @@ def test_v2_candidate_identity_tracks_commit_without_rerunning_oracle(tmp_path: 
         first["candidate_certification"]["fingerprint"]
         != second["candidate_certification"]["fingerprint"]
     )
+
+
+def test_oracle_capture_plan_uses_input_identity_and_no_existing_oracle(
+    tmp_path: Path,
+) -> None:
+    module, arguments, config_path, _wheel = _inputs(tmp_path)
+    capture_contract = module.load_oracle_capture_contract(
+        Path(__file__).parents[1] / ".github/oracle-capture-contract.json"
+    )
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    Path(config["oracle_index"]).unlink()
+    arguments["contract"] = capture_contract
+
+    plan = module.build_oracle_capture_plan(**arguments)
+
+    assert plan["oracle"]["input_fingerprint"] == config["oracle_input_fingerprint"]
+    assert "--capture-oracle-only" in plan["command"]
+    assert "--official-oracle" not in plan["command"]
+    assert "candidate_commit" not in plan["oracle"]["input_identity"]
+
+
+def test_oracle_capture_registration_is_atomic_and_idempotent(tmp_path: Path) -> None:
+    module, arguments, config_path, _wheel = _inputs(tmp_path)
+    capture_contract = module.load_oracle_capture_contract(
+        Path(__file__).parents[1] / ".github/oracle-capture-contract.json"
+    )
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    index_path = Path(config["oracle_index"])
+    index_path.unlink()
+    arguments["contract"] = capture_contract
+    plan = module.build_oracle_capture_plan(**arguments)
+    plan_path = tmp_path / "capture-plan.json"
+    _write(plan_path, plan)
+    oracle = Path(plan["oracle"]["directory"])
+    oracle.mkdir(parents=True)
+    _write(oracle / "run.json", {"complete": True})
+    _write(
+        Path(plan["oracle"]["capture_report"]),
+        {"status": "exact_parity", "complete": True, "result_sha256": "a" * 64},
+    )
+
+    sealed = module.build_oracle_capture_record(plan_path)
+    created = module.register_oracle_capture(plan_path)
+    reused = module.register_oracle_capture(plan_path)
+
+    assert created == {**sealed, "registration_status": "created"}
+    assert reused == {**sealed, "registration_status": "reused"}
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    assert index == {"schema_version": "2.0.0", "oracles": [sealed]}
+
+
+def test_oracle_capture_plan_refuses_an_already_indexed_input(tmp_path: Path) -> None:
+    module, arguments, _config_path, _wheel = _inputs(tmp_path)
+    arguments["contract"] = module.load_oracle_capture_contract(
+        Path(__file__).parents[1] / ".github/oracle-capture-contract.json"
+    )
+
+    with pytest.raises(ValueError, match="already indexed"):
+        module.build_oracle_capture_plan(**arguments)
 
 
 def test_v1_oracle_index_remains_readable(tmp_path: Path) -> None:

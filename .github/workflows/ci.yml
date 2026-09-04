@@ -8,6 +8,7 @@ on:
       - "pyproject.toml"
       - ".github/product-release-contract.json"
       - ".github/release-candidate-contract.json"
+      - ".github/oracle-capture-contract.json"
   pull_request:
   workflow_dispatch:
 

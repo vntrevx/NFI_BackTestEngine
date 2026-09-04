@@ -1358,6 +1358,11 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
         ),
     )
     certify.add_argument(
+        "--capture-oracle-only",
+        action="store_true",
+        help="stop after one exact Official Oracle capture without certifying a candidate",
+    )
+    certify.add_argument(
         "--resume",
         action="store_true",
         help="resume completed Full X7 stages from the selected output directory",

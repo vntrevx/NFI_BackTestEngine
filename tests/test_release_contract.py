@@ -803,6 +803,40 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert promote.index("nfi-bte release verify-combined") < promote.index("gh release create")
 
 
+def test_oracle_capture_is_a_single_run_protected_workflow() -> None:
+    root = Path(__file__).parents[1]
+    workflow = (
+        root / ".github/workflows/capture-full-x7-oracle.yml"
+    ).read_text(encoding="utf-8")
+    contract = json.loads(
+        (root / ".github/oracle-capture-contract.json").read_text(encoding="utf-8")
+    )
+
+    assert contract["oracle"] == {
+        "allows_new_run": True,
+        "maximum_runs_per_input": 1,
+        "index_schema_version": "2.0.0",
+        "input_identity_schema_version": "oracle-input-identity-v2",
+        "required_status": "exact_parity",
+    }
+    assert contract["storage"]["conditional_create"] is True
+    assert "name: Capture Full X7 Oracle" in workflow
+    assert "group: full-x7-oracle-${{ inputs.mode }}" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "environment: full-x7-oracle-capture" in workflow
+    assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in workflow
+    assert "--capture-oracle-only" not in workflow
+    assert "capture-plan" in workflow
+    assert "flock --exclusive --nonblock" in workflow
+    assert workflow.count("--if-none-match '*'") == 2
+    assert "register-oracle" in workflow
+    assert workflow.index("Publish Oracle bytes and record with conditional create") < (
+        workflow.index("Register immutable record in the protected local index")
+    )
+    assert "candidate and Oracle capture commits differ" in workflow
+    assert "id-token: write" in workflow
+
+
 def test_external_certificate_and_combined_publication_reauthorize_each_write() -> None:
     root = Path(__file__).parents[1] / ".github/workflows"
     certify = (root / "certify-release-candidate.yml").read_text(encoding="utf-8")

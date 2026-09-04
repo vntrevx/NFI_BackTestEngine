@@ -134,6 +134,7 @@ def run_full_x7_certification(
     timeout_seconds: int,
     swap_cap_bytes: int | None = None,
     official_oracle_directory: str | Path | None = None,
+    capture_oracle_only: bool = False,
     resume: bool = False,
 ) -> dict[str, Any]:
     """Certify one cold seed, one official oracle, and repeated vector reuse.
@@ -154,6 +155,8 @@ def run_full_x7_certification(
         )
     if swap_cap_bytes is None or swap_cap_bytes <= 0:
         raise BenchmarkError("Full X7 certification requires a positive sealed swap cap")
+    if capture_oracle_only and official_oracle_directory is not None:
+        raise BenchmarkError("Oracle capture cannot import an existing Official Oracle")
     output = Path(output_directory).resolve()
     if output.exists() and any(output.iterdir()) and not resume:
         raise BenchmarkError(f"Full X7 output directory must be empty: {output}")
@@ -253,6 +256,19 @@ def run_full_x7_certification(
             "official Full X7 warmup did not complete exact parity; "
             "inspect warmups/reference/run.json"
         )
+
+    if capture_oracle_only:
+        capture_report = {
+            "schema_version": "1.0.0",
+            "status": "exact_parity",
+            "complete": True,
+            "mode_contract": inputs["public"]["mode_contract"],
+            "result_sha256": reference_warmup["result_sha256"],
+            "inputs": inputs["public"],
+            "oracle": _public_run_record(reference_warmup, root=output),
+        }
+        write_json(output / "oracle-capture.json", capture_report)
+        return capture_report
 
     preserved_cache = _seal_preserved_vector_cache(
         baseline,
