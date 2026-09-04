@@ -501,7 +501,7 @@ class CiContractTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         cache_action = (
             "mozilla-actions/sccache-action@"
-            "7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9"
+            "fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11"
         )
 
         self.assertEqual(workflow.count(cache_action), 3)
