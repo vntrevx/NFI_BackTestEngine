@@ -54,6 +54,7 @@ def publish_candidate(
             "pull_request_url": existing["url"],
             "created": False,
             "ci_dispatched": False,
+            "ci_trigger": "existing-pull-request",
             "superseded_pull_requests": reconciliation["closed"],
         }
     blocked = reconciliation["blocked"]
@@ -171,15 +172,12 @@ def publish_candidate(
         ],
         cwd=root,
     ).strip()
-    _run(
-        ["gh", "workflow", "run", "ci.yml", "--repo", repository, "--ref", branch],
-        cwd=root,
-    )
     return {
         "branch": branch,
         "pull_request_url": url,
         "created": True,
-        "ci_dispatched": True,
+        "ci_dispatched": False,
+        "ci_trigger": "pull_request",
         "superseded_pull_requests": reconciliation["closed"],
     }
 

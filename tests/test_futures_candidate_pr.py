@@ -198,7 +198,7 @@ def test_candidate_pr_rechecks_refs_immediately_before_create(
     monkeypatch.setattr(MODULE, "_open_pr", lambda *_args: None)
     monkeypatch.setattr(MODULE, "_run", fake_run)
 
-    MODULE.publish_candidate(
+    result = MODULE.publish_candidate(
         _publication_plan(),
         repository_root=tmp_path,
         repository="owner/repository",
@@ -213,6 +213,9 @@ def test_candidate_pr_rechecks_refs_immediately_before_create(
         "https://github.com/iterativv/NostalgiaForInfinity.git",
         "refs/heads/main",
     ]
+    assert not any(call[:3] == ["gh", "workflow", "run"] for call in calls)
+    assert result["ci_dispatched"] is False
+    assert result["ci_trigger"] == "pull_request"
 
 
 @pytest.mark.parametrize(
