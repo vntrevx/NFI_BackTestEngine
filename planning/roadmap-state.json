@@ -20,7 +20,7 @@
     "milestones": {
       "M25": {
         "implementation_state": "complete",
-        "commits": ["a1afc4664", "eaf538a27", "4a0d95095"],
+        "commits": ["a1afc4664", "eaf538a27", "4a0d95095", "c427da492"],
         "remaining": ["close M24-03 human review gate"]
       },
       "M26": {
