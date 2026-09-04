@@ -115,18 +115,33 @@ def _method_calls(method: ast.AST, method_names: set[str]) -> set[str]:
 def _method_routes(method: ast.AST) -> dict[str, str]:
     route_nodes: dict[str, list[str]] = {}
     for node in ast.walk(method):
-        if not isinstance(node, ast.If) or not _route_selector(node.test):
+        if not isinstance(node, ast.If):
+            continue
+        routes = _route_values(node.test) if _route_selector(node.test) else set()
+        routes.update(_direct_branch_tags(node.body))
+        routes.update(_direct_branch_tags(node.orelse))
+        if not routes:
             continue
         fingerprint_source = ast.dump(
             node,
             annotate_fields=True,
             include_attributes=False,
         )
-        for value in _route_values(node.test):
+        for value in routes:
             route_nodes.setdefault(value, []).append(fingerprint_source)
     return {
         route: hashlib.sha256("\n".join(sorted(nodes)).encode()).hexdigest()
         for route, nodes in route_nodes.items()
+    }
+
+
+def _direct_branch_tags(statements: list[ast.stmt]) -> set[str]:
+    """Return tags produced by a branch without claiming nested routes."""
+    return {
+        tag
+        for statement in statements
+        if not isinstance(statement, ast.If)
+        for tag in _method_tags(statement)
     }
 
 

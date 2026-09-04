@@ -120,6 +120,53 @@ class Demo(IStrategy):
     assert target["runtime_observable"] is True
 
 
+def test_strategy_diff_limits_changed_tag_branch_to_its_direct_tag(
+    tmp_path: Path,
+) -> None:
+    old = tmp_path / "old.py"
+    new = tmp_path / "new.py"
+    source = """
+class Demo(IStrategy):
+    def tagged_helper(self, value):
+        # old g1 wording
+        if value > 20:
+            self._entry_tag = "g1"
+            return True
+        if value > 10:
+            self._entry_tag = "g2"
+            return True
+        return False
+
+    def populate_entry_trend(self, dataframe, metadata):
+        if self.tagged_helper(dataframe["close"]):
+            dataframe["enter_tag"] = self._entry_tag
+        return dataframe
+""".lstrip()
+    old.write_text(source, encoding="utf-8")
+    new.write_text(
+        source.replace("old g1 wording", "new g1 wording").replace(
+            "value > 10", "value >= 10"
+        ),
+        encoding="utf-8",
+    )
+
+    report = diff_strategies(old, new, class_name="Demo")
+
+    helper = next(
+        target
+        for target in report["behavior_targets"]
+        if target["kind"] == "callback" and target["value"] == "tagged_helper"
+    )
+    assert helper["tags"] == ["g2"]
+    assert helper["semantic_callers"] == ["populate_entry_trend"]
+    changed_tags = {
+        target["value"]
+        for target in report["behavior_targets"]
+        if target["kind"] == "tag" and target["change"] == "changed"
+    }
+    assert changed_tags == {"g2"}
+
+
 def test_strategy_diff_follows_helpers_but_ignores_metadata_methods(
     tmp_path: Path,
 ) -> None:
