@@ -1,0 +1,34 @@
+{
+  "schema_version": "compatibility-product-status-v1",
+  "identity": {
+    "upstream_sha": "07f60d44c4278a711697de8363a06f917f92c4d3",
+    "engine_sha": "8a7298fd81ba0fce83064829eb871e98696661ac",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "01c9cd235918fd5e9458bbe69c6499a63dab6c292d015adac5bb08a69cdf907a"
+  },
+  "observed_identity": {
+    "engine_sha": "8a7298fd81ba0fce83064829eb871e98696661ac",
+    "upstream_sha": "07f60d44c4278a711697de8363a06f917f92c4d3"
+  },
+  "workflow": {
+    "state": "succeeded"
+  },
+  "product": {
+    "state": "blocked",
+    "reason": "bounded_discovery_required"
+  },
+  "discovery_execution": {
+    "spot": "not_required",
+    "futures": "not_required"
+  },
+  "same_engine_proof": {
+    "complete": false,
+    "engine_sha": "8a7298fd81ba0fce83064829eb871e98696661ac",
+    "source_run_id": null,
+    "manifest_sha256": null,
+    "artifact_sha256": {}
+  },
+  "required_status_passed": false,
+  "fingerprint": "f0225f36dc8206fcf270edb17f8dae42c684169e5a43b03c3b3c9da0ea7774cf"
+}
