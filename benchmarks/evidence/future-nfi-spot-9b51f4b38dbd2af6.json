@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching spot fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "9b51f4b38dbd2af60977a294e6b9ab90937ddaced852fc0ea7b25bdb405f3be4",
+  "trading_mode": "spot",
+  "upstream_commit": "8ac7e16c64c95924680a39deb8e36300b84827a4",
+  "engine_commit": "e4d45e26f5c921b6b39157533f0c62a71782b3b3",
+  "strategy_sha256": "272a138f22761428c79e0c8abc1043efa4294f393fa410e1c735d6acd066600b",
+  "fixture_id": "future-nfi-spot-9b51f4b38dbd2af6",
+  "manifest_sha256": "fbc21c65f6d01a82c14dcaf19bda7dc420b6a82e456681004d75dc1f72c3b3b0",
+  "logical_bytes": 26288852,
+  "target_ids": [
+    "d4e987a9717846c627529b2581a455bacfa59382737518f02124fdc168a9eafb"
+  ],
+  "pair": "TRUMP/USDT",
+  "timerange": "20250502-20250505",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
