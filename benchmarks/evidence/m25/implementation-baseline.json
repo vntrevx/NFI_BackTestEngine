@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "captured_at": "2026-09-05",
+  "engine_commit": "20c530e84d6d8f25e366b53e151860dafe2395da",
+  "purpose": "Audit-first baseline for the M25-M30 10/10 roadmap",
+  "policy": {
+    "reuse_existing_implementation_first": true,
+    "evidence_only_completion_allowed": true,
+    "new_module_is_last_resort": true,
+    "runtime_result_hardcoding_allowed": false,
+    "resume_reimplementation_allowed": false,
+    "performance_system_reimplementation_allowed": false,
+    "combined_release_reimplementation_allowed": false
+  },
+  "existing_implementation": [
+    "capability-derived strategy catalog and hidden legacy sources",
+    "explicit Official fallback with official_only result isolation",
+    "checkpointed research runner and run registry",
+    "evidence-aware clean and immutable result artifacts",
+    "cold and preserved-vector performance measurement",
+    "Full X7 certification and Combined release sealing",
+    "platform wheel build and signed provenance",
+    "compatibility, discovery, and nightly workflows"
+  ],
+  "remaining_gaps": [
+    "legacy Official runtime qualification",
+    "repository-independent clean-room harness",
+    "release swap gate",
+    "four-slug platform evidence",
+    "PyPI Trusted Publishing and cross-channel identity",
+    "protected immutable Oracle capture",
+    "seven-cycle RC soak",
+    "public-artifact 10/10 audit"
+  ],
+  "automation_duplication": {
+    "location": "scripts/futures_candidate_pr.py",
+    "duplicate_dispatch": "gh workflow run ci.yml",
+    "authoritative_trigger": ".github/workflows/ci.yml pull_request"
+  },
+  "external_prerequisite": {
+    "task": "M24-03",
+    "pull_request": 327,
+    "state": "draft_required_ci_passed_human_review_pending"
+  }
+}
