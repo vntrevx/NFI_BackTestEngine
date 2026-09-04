@@ -479,12 +479,14 @@ def run_official_fallback(
     from .research_reference import run_research_reference
 
     try:
+        legacy_runtime_record = _qualified_legacy_runtime_for_run(source_run)
         report = run_research_reference(
             root,
             attempt,
             timeout_seconds=timeout_seconds,
             purpose="fallback",
             reference_storage_mode="spooled",
+            legacy_runtime_record=legacy_runtime_record,
         )
     except BenchmarkError as exc:
         attempt.mkdir(parents=True, exist_ok=True)
@@ -508,6 +510,27 @@ def run_official_fallback(
 
         write_official_selection(root, report_path)
     return report, report_path, False
+
+
+def _qualified_legacy_runtime_for_run(run: Mapping[str, Any]) -> dict[str, Any] | None:
+    inputs = run.get("inputs")
+    strategy = inputs.get("strategy") if isinstance(inputs, Mapping) else None
+    family = strategy.get("class_name") if isinstance(strategy, Mapping) else None
+    source_sha256 = strategy.get("file_sha256") if isinstance(strategy, Mapping) else None
+    if not isinstance(family, str) or not isinstance(source_sha256, str):
+        return None
+    from .legacy_reference import legacy_runtime_for_source, load_legacy_runtime_registry
+
+    registry = load_legacy_runtime_registry()
+    legacy_families = {record["family"] for record in registry["strategies"]}
+    if family not in legacy_families:
+        return None
+    qualified = legacy_runtime_for_source(family, source_sha256, registry=registry)
+    if qualified is None:
+        raise BenchmarkError(
+            f"LEGACY_REFERENCE_UNAVAILABLE: {family} source {source_sha256} is not qualified"
+        )
+    return qualified
 
 
 def record_official_completion(

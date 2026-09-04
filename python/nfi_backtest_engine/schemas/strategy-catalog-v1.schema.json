@@ -12,7 +12,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "display_path", "name", "classes", "status", "reason_code", "reason", "blockers", "legacy"],
+        "required": ["path", "display_path", "name", "classes", "status", "reason_code", "reason", "blockers", "legacy", "generation", "fallback_status", "reference_runtime"],
         "properties": {
           "path": {"type": "string"},
           "display_path": {"type": "string"},
@@ -30,7 +30,26 @@
               "properties": {"code": {"type": "string"}, "message": {"type": "string"}}
             }
           },
-          "legacy": {"type": "boolean"}
+          "legacy": {"type": "boolean"},
+          "generation": {"enum": ["V8", "V9", null]},
+          "fallback_status": {"enum": ["qualified", "unavailable", null]},
+          "reference_runtime": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["version", "image", "image_index_digest", "image_platform_digest", "platform"],
+                "properties": {
+                  "version": {"type": "string"},
+                  "image": {"const": "freqtradeorg/freqtrade"},
+                  "image_index_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+                  "image_platform_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+                  "platform": {"const": "linux/amd64"}
+                }
+              }
+            ]
+          }
         }
       }
     },

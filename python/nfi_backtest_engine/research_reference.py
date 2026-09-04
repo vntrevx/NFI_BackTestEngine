@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
+from collections.abc import Mapping
 from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
@@ -84,6 +85,52 @@ exit "$status"
 """
 
 
+def _validate_legacy_runtime_record(
+    record: Mapping[str, Any] | None,
+    *,
+    purpose: str,
+    strategy: str,
+    strategy_sha256: str,
+) -> dict[str, Any] | None:
+    if record is None:
+        return None
+    if purpose != "fallback":
+        raise BenchmarkError("legacy Official runtime is allowed only for fallback")
+    from .legacy_reference import legacy_runtime_for_source
+
+    qualified = legacy_runtime_for_source(strategy, strategy_sha256)
+    if qualified is None or dict(record) != qualified:
+        raise BenchmarkError("LEGACY_REFERENCE_UNAVAILABLE: exact source is not qualified")
+    runtime = qualified.get("runtime")
+    if not isinstance(runtime, dict):
+        raise BenchmarkError("qualified legacy runtime identity is invalid")
+    return dict(runtime)
+
+
+def _runtime_image_ref(runtime: Mapping[str, Any]) -> str:
+    return f"{runtime['image']}@{runtime['image_platform_digest']}"
+
+
+def _reference_identity(legacy_runtime: Mapping[str, Any] | None) -> dict[str, Any]:
+    if legacy_runtime is None:
+        return {
+            "version": REFERENCE_VERSION,
+            "image": REFERENCE_IMAGE,
+            "image_index_digest": REFERENCE_INDEX_DIGEST,
+            "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
+            "platform": REFERENCE_PLATFORM,
+            "network": "none",
+        }
+    return {
+        "version": legacy_runtime["version"],
+        "image": legacy_runtime["image"],
+        "image_index_digest": legacy_runtime["image_index_digest"],
+        "image_platform_digest": legacy_runtime["image_platform_digest"],
+        "platform": legacy_runtime["platform"],
+        "network": "public-exchange-metadata",
+    }
+
+
 def run_research_reference(
     run_directory: str | Path,
     output_directory: str | Path,
@@ -97,6 +144,7 @@ def run_research_reference(
     swap_cap_bytes: int | None = None,
     trace_identity: dict[str, Any] | None = None,
     purpose: str = "verification",
+    legacy_runtime_record: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the pinned oracle against the exact sealed inputs of one run.
 
@@ -117,6 +165,12 @@ def run_research_reference(
         inputs,
         input_directory,
         require_engine_surface=purpose == "verification",
+    )
+    legacy_runtime = _validate_legacy_runtime_record(
+        legacy_runtime_record,
+        purpose=purpose,
+        strategy=materialized["strategy"],
+        strategy_sha256=sha256_file(input_directory / "strategy.py"),
     )
 
     snapshot_path = output / "reference-markets.json"
@@ -144,7 +198,8 @@ def run_research_reference(
         )
 
     docker_config = ensure_docker_config()
-    ensure_reference_image(docker_config=docker_config)
+    if legacy_runtime is None:
+        ensure_reference_image(docker_config=docker_config)
     project_root = _project_root()
     validated_trace_identity = _validate_trace_identity(
         trace_identity,
@@ -165,6 +220,8 @@ def run_research_reference(
     timed_out = False
     resources: dict[str, Any] | None = None
     audit_timestamps = _validate_audit_timestamps(audit_timestamps_ms or [])
+    if legacy_runtime is not None and (audit_timestamps or validated_trace_identity is not None):
+        raise BenchmarkError("legacy Official fallback does not support parity trace capture")
     if reference_memory_mode not in {"normal", "certification-swap"}:
         raise BenchmarkError("reference memory mode must be 'normal' or 'certification-swap'")
     if reference_storage_mode not in {"in-memory", "spooled"}:
@@ -176,9 +233,12 @@ def run_research_reference(
                 if dependency_directory is not None
                 else nullcontext()
             )
-            with dependency_guard, reference_execution.reference_runtime_volume(
-                docker_config
-            ) as runtime_volume, managed_docker_run(
+            runtime_guard = (
+                nullcontext(None)
+                if legacy_runtime is not None
+                else reference_execution.reference_runtime_volume(docker_config)
+            )
+            with dependency_guard, runtime_guard as runtime_volume, managed_docker_run(
                 docker_config=docker_config,
                 role="reference",
                 swap_mode=(
@@ -186,7 +246,13 @@ def run_research_reference(
                 ),
                 swap_cap_bytes=swap_cap_bytes,
                 swap_probe_image=(
-                    REFERENCE_IMAGE_REF if reference_memory_mode == "certification-swap" else None
+                    (
+                        _runtime_image_ref(legacy_runtime)
+                        if legacy_runtime is not None
+                        else REFERENCE_IMAGE_REF
+                    )
+                    if reference_memory_mode == "certification-swap"
+                    else None
                 ),
             ) as lease:
                 if dependency_directory is not None:
@@ -211,6 +277,7 @@ def run_research_reference(
                     trace_identity=validated_trace_identity,
                     dependency_directory=dependency_directory,
                     runtime_volume=runtime_volume,
+                    legacy_runtime=legacy_runtime,
                 )
                 completed = subprocess.run(
                     command,
@@ -265,7 +332,7 @@ def run_research_reference(
     trace_path = output / "state-trace.nfitrace"
     storage_path = output / "reference-storage.json"
     storage_metrics = read_json(storage_path) if storage_path.is_file() else None
-    storage_complete = reference_storage_mode == "in-memory" or (
+    storage_complete = legacy_runtime is not None or reference_storage_mode == "in-memory" or (
         isinstance(storage_metrics, dict)
         and storage_metrics.get("mode") == "spooled"
         and storage_metrics.get("removed_on_exit") is True
@@ -286,14 +353,7 @@ def run_research_reference(
         "schema_version": RESEARCH_REFERENCE_VERSION,
         "run_id": run["run_id"],
         "purpose": purpose,
-        "reference": {
-            "version": REFERENCE_VERSION,
-            "image": REFERENCE_IMAGE,
-            "image_index_digest": REFERENCE_INDEX_DIGEST,
-            "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
-            "platform": REFERENCE_PLATFORM,
-            "network": "none",
-        },
+        "reference": _reference_identity(legacy_runtime),
         "started_at": _utc_string(started_at),
         "ended_at": _utc_string(datetime.now(UTC)),
         "wall_time_seconds": (time.perf_counter_ns() - started_ns) / 1_000_000_000,
@@ -329,7 +389,7 @@ def run_research_reference(
         ),
         "state_trace": (_file_record(trace_path) if trace_path.is_file() else None),
         "reference_storage": {
-            "mode": reference_storage_mode,
+            "mode": "freqtrade-native" if legacy_runtime is not None else reference_storage_mode,
             "complete": storage_complete,
             "metrics": storage_metrics,
             "artifact": (_file_record(storage_path) if storage_path.is_file() else None),
@@ -470,17 +530,24 @@ def build_research_reference_command(
     trace_identity: dict[str, str] | None = None,
     dependency_directory: Path | None = None,
     runtime_volume: str | None = None,
+    legacy_runtime: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Build a shell-safe Docker argv for one official research rerun."""
-    tracer_root = reference_tracer_root()
-    package_root = reference_package_root()
+    tracer_root = reference_tracer_root() if legacy_runtime is None else None
+    package_root = reference_package_root() if legacy_runtime is None else None
+    platform = str(legacy_runtime["platform"]) if legacy_runtime is not None else REFERENCE_PLATFORM
+    image_ref = (
+        _runtime_image_ref(legacy_runtime)
+        if legacy_runtime is not None
+        else REFERENCE_IMAGE_REF
+    )
     validate_managed_run_prefix(run_prefix)
     command = [
         *run_prefix,
         "--platform",
-        REFERENCE_PLATFORM,
+        platform,
         "--network",
-        "none",
+        "bridge" if legacy_runtime is not None else "none",
         *docker_root_with_bind_owner_arguments(output_directory),
         "--workdir",
         "/input",
@@ -490,22 +557,27 @@ def build_research_reference_command(
         f"{output_directory}:/output",
         "--volume",
         f"{data_directory}:/data:ro",
-        "--volume",
-        f"{tracer_root}:/nfi-reference-tracer:ro",
-        "--volume",
-        f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
-        "--env",
-        "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
-        + (":/nfi-deps/site" if dependency_directory is not None else "")
-        + (
-            ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
-            if runtime_volume is not None
-            else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
-        ),
-        "--env",
-        "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
     ]
-    if storage_mode == "spooled":
+    if legacy_runtime is None:
+        command.extend(
+            [
+                "--volume",
+                f"{tracer_root}:/nfi-reference-tracer:ro",
+                "--volume",
+                f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
+                "--env",
+                "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
+                + (":/nfi-deps/site" if dependency_directory is not None else "")
+                + (
+                    ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+                    if runtime_volume is not None
+                    else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+                ),
+                "--env",
+                "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
+            ]
+        )
+    if storage_mode == "spooled" and legacy_runtime is None:
         command.extend(
             [
                 "--env",
@@ -516,7 +588,7 @@ def build_research_reference_command(
                 "NFI_REFERENCE_SPOOL_DIRECTORY=/tmp/nfi-reference-spool",
             ]
         )
-    elif storage_mode != "in-memory":
+    elif storage_mode not in {"in-memory", "spooled"}:
         raise BenchmarkError("reference storage mode must be 'in-memory' or 'spooled'")
     if audit_timestamps_ms:
         command.extend(
@@ -528,9 +600,9 @@ def build_research_reference_command(
                 + ",".join(str(value) for value in audit_timestamps_ms),
             ]
         )
-    if dependency_directory is not None:
+    if dependency_directory is not None and legacy_runtime is None:
         command.extend(["--volume", f"{dependency_directory}:/reference-deps:ro"])
-    if runtime_volume is not None:
+    if runtime_volume is not None and legacy_runtime is None:
         command.extend(
             [
                 "--mount",
@@ -558,7 +630,7 @@ def build_research_reference_command(
         [
             "--entrypoint",
             "/bin/sh",
-            REFERENCE_IMAGE_REF,
+            image_ref,
             "-c",
             _RESOURCE_CAPTURE_SCRIPT,
             "nfi-research-reference",
@@ -590,29 +662,36 @@ def build_research_reference_command(
         f"{input_directory}:/input:ro",
         f"{output_directory}:/output",
         f"{data_directory}:/data:ro",
-        f"{tracer_root}:/nfi-reference-tracer:ro",
-        f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
     ]
-    if dependency_directory is not None:
+    if legacy_runtime is None:
+        expected_volumes.extend(
+            [
+                f"{tracer_root}:/nfi-reference-tracer:ro",
+                f"{package_root}:/nfi-python/nfi_backtest_engine:ro",
+            ]
+        )
+    if dependency_directory is not None and legacy_runtime is None:
         expected_volumes.append(f"{dependency_directory}:/reference-deps:ro")
     expected_mounts = (
         [f"type=volume,source={runtime_volume},target=/nfi-runtime,readonly"]
-        if runtime_volume is not None
+        if runtime_volume is not None and legacy_runtime is None
         else []
     )
-    expected_environment = [
-        f"NFI_BIND_UID={owner.st_uid}",
-        f"NFI_BIND_GID={owner.st_gid}",
-        "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
-        + (":/nfi-deps/site" if dependency_directory is not None else "")
-        + (
-            ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
-            if runtime_volume is not None
-            else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
-        ),
-        "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
-    ]
-    if storage_mode == "spooled":
+    expected_environment = [f"NFI_BIND_UID={owner.st_uid}", f"NFI_BIND_GID={owner.st_gid}"]
+    if legacy_runtime is None:
+        expected_environment.extend(
+            [
+                "PYTHONPATH=/nfi-reference-tracer:/nfi-python"
+                + (":/nfi-deps/site" if dependency_directory is not None else "")
+                + (
+                    ":/nfi-runtime/lib/python3.14/site-packages:/freqtrade"
+                    if runtime_volume is not None
+                    else ":/home/ftuser/.local/lib/python3.14/site-packages:/freqtrade"
+                ),
+                "NFI_MARKET_SNAPSHOT_PATH=/output/reference-markets.json",
+            ]
+        )
+    if storage_mode == "spooled" and legacy_runtime is None:
         expected_environment.extend(
             [
                 "NFI_REFERENCE_DATASTORE=spooled",
@@ -641,14 +720,15 @@ def build_research_reference_command(
         )
     validate_final_managed_command(
         command,
-        image=REFERENCE_IMAGE_REF,
-        platform=REFERENCE_PLATFORM,
+        image=image_ref,
+        platform=platform,
         user=f"{owner.st_uid}:{owner.st_gid}",
         workdir="/input",
         entrypoint="/bin/sh",
         volumes=expected_volumes,
         mounts=expected_mounts,
         environment=expected_environment,
+        network="bridge" if legacy_runtime is not None else "none",
     )
     return command
 

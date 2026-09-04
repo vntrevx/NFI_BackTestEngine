@@ -63,7 +63,10 @@ def test_catalog_hides_legacy_and_incompatible_sources_by_default(
     advanced_output = capsys.readouterr().out
     assert "NostalgiaForInfinityNext" in advanced_output
     assert "LEGACY_SOURCE" in advanced_output
-    assert "LOOKAHEAD_NEGATIVE_SHIFT" in advanced_output
+    assert "LOOKAHEAD_NEGATIVE_SHIFT" not in advanced_output
+    legacy_candidates = [item for item in catalog["candidates"] if item["legacy"]]
+    assert [item["generation"] for item in legacy_candidates] == ["V8", "V9"]
+    assert all(item["fallback_status"] == "unavailable" for item in legacy_candidates)
 
 
 def test_strategy_list_json_has_a_versioned_machine_contract(tmp_path: Path, capsys) -> None:

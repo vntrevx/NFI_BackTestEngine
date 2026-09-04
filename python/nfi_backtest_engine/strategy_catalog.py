@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from .errors import StrategyAnalysisError
+from .fixture import sha256_file
+from .legacy_reference import load_legacy_runtime_registry
 from .strategy_compatibility import check_strategy_compatibility
 
 CATALOG_SCHEMA_VERSION = "1.0.0"
@@ -60,13 +62,10 @@ def _classify(workspace: Path, source: Path) -> dict[str, Any]:
     display_path = _display_path(workspace, source)
     legacy = "legacy" in {part.lower() for part in resolved.parts}
     if legacy:
-        return _unsupported_source(
+        return _legacy_source(
             resolved,
             display_path=display_path,
-            name=source.stem,
-            code="LEGACY_SOURCE",
-            reason="legacy strategy sources are outside the supported current product lane",
-            legacy=True,
+            family=source.stem,
         )
     try:
         report = check_strategy_compatibility(resolved)
@@ -81,10 +80,15 @@ def _classify(workspace: Path, source: Path) -> dict[str, Any]:
             "reason": str(exc),
             "blockers": [],
             "legacy": legacy,
+            "generation": None,
+            "fallback_status": None,
+            "reference_runtime": None,
         }
 
     selected_class = report.get("selected_class")
     classes = [selected_class] if isinstance(selected_class, str) else []
+    if isinstance(selected_class, str) and _legacy_generation(selected_class) is not None:
+        return _legacy_source(resolved, display_path=display_path, family=selected_class)
     blockers = [
         {"code": str(item["code"]), "message": str(item["message"])}
         for item in report["blockers"]
@@ -111,6 +115,9 @@ def _classify(workspace: Path, source: Path) -> dict[str, Any]:
         "reason": reason,
         "blockers": blockers,
         "legacy": legacy,
+        "generation": None,
+        "fallback_status": None,
+        "reference_runtime": None,
     }
 
 
@@ -122,18 +129,66 @@ def _unsupported_source(
     code: str,
     reason: str,
     legacy: bool,
+    classes: list[str] | None = None,
+    generation: str | None = None,
+    fallback_status: str | None = None,
+    reference_runtime: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "path": str(path),
         "display_path": display_path,
         "name": name,
-        "classes": [],
+        "classes": classes or [],
         "status": "unsupported",
         "reason_code": code,
         "reason": reason,
         "blockers": [{"code": code, "message": reason}],
         "legacy": legacy,
+        "generation": generation,
+        "fallback_status": fallback_status,
+        "reference_runtime": reference_runtime,
     }
+
+
+def _legacy_source(path: Path, *, display_path: str, family: str) -> dict[str, Any]:
+    generation = _legacy_generation(family)
+    qualified = None
+    if generation is not None:
+        registry = load_legacy_runtime_registry()
+        qualified = next(
+            (
+                record
+                for record in registry["strategies"]
+                if record["family"] == family and record["source_sha256"] == sha256_file(path)
+            ),
+            None,
+        )
+    fallback_status = "qualified" if qualified is not None else "unavailable"
+    reason = (
+        "legacy strategy is available only through the qualified Official fallback"
+        if qualified is not None
+        else "legacy strategy source has no qualified exact-source Official runtime"
+    )
+    return _unsupported_source(
+        path,
+        display_path=display_path,
+        name=family,
+        code="LEGACY_SOURCE",
+        reason=reason,
+        legacy=True,
+        classes=[family] if generation is not None else [],
+        generation=generation,
+        fallback_status=fallback_status,
+        reference_runtime=dict(qualified["runtime"]) if qualified is not None else None,
+    )
+
+
+def _legacy_generation(family: str) -> str | None:
+    registry = load_legacy_runtime_registry()
+    return next(
+        (record["generation"] for record in registry["strategies"] if record["family"] == family),
+        None,
+    )
 
 
 def _candidate_sort_key(item: dict[str, Any]) -> tuple[int, str, str]:

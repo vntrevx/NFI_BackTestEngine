@@ -1,0 +1,41 @@
+{
+  "schema_version": "legacy-reference-runtime-registry-v1",
+  "strategies": [
+    {
+      "family": "NostalgiaForInfinityNext",
+      "generation": "V8",
+      "source_sha256": "827de0773661be31566b18ef5b5744d86ce53752243dcf45871b3ce08e129db5",
+      "source_bytes": 285848,
+      "runtime": {
+        "version": "2025.5",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:b50e0e7b77bd040297c20b7843084f078def991906310a74fafd570928145b0d",
+        "image_platform_digest": "sha256:9aa296498d496db89664d59aa502a83d6c00dc269469f29185f6bde140b0942b",
+        "platform": "linux/amd64"
+      },
+      "fixture_id": "x7-v17.4.435-tag-121-btc-spot",
+      "fixture_manifest_sha256": "84228551813dda0543220ac6e51f05dcd893ebcb6b849d1777e09c41881a60aa",
+      "network_requirement": "public-exchange-metadata",
+      "result_status": "official_only",
+      "native_supported": false
+    },
+    {
+      "family": "NostalgiaForInfinityNextGen",
+      "generation": "V9",
+      "source_sha256": "c6d0b909c30cd28bb56924088224a8ede7359c3803fb1f4b804b480392e3886c",
+      "source_bytes": 311505,
+      "runtime": {
+        "version": "2025.5",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:b50e0e7b77bd040297c20b7843084f078def991906310a74fafd570928145b0d",
+        "image_platform_digest": "sha256:9aa296498d496db89664d59aa502a83d6c00dc269469f29185f6bde140b0942b",
+        "platform": "linux/amd64"
+      },
+      "fixture_id": "x7-v17.4.435-tag-121-btc-spot",
+      "fixture_manifest_sha256": "84228551813dda0543220ac6e51f05dcd893ebcb6b849d1777e09c41881a60aa",
+      "network_requirement": "public-exchange-metadata",
+      "result_status": "official_only",
+      "native_supported": false
+    }
+  ]
+}

@@ -555,6 +555,13 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     reference_capture.add_argument("manifest", type=Path)
     reference_capture.add_argument("--output", "-o", type=Path, required=True)
     reference_capture.add_argument("--timeout", type=int, default=180)
+    reference_qualify_legacy = reference_commands.add_parser(
+        "qualify-legacy",
+        help="qualify digest-pinned Official runtimes for sealed V8/V9 sources",
+    )
+    reference_qualify_legacy.add_argument("spec", type=Path)
+    reference_qualify_legacy.add_argument("--output", "-o", type=Path, required=True)
+    reference_qualify_legacy.add_argument("--timeout", type=int, default=900)
 
     doctor = subcommands.add_parser("doctor", help="check local execution prerequisites")
     doctor.add_argument("--profile", type=Path)
