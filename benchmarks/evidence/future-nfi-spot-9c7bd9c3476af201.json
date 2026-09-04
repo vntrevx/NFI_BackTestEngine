@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching spot fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "9c7bd9c3476af201c23b48867015d17c81dad627d85613f5870f06027fdab2af",
+  "trading_mode": "spot",
+  "upstream_commit": "51c689ab25012f7111a27c38a3e95481e749ca94",
+  "engine_commit": "27cde26244baa94489f4b9f0d38b1f52dae82828",
+  "strategy_sha256": "51c1822c19a49d7519153d0a4cb3174581dc3cb3e23fbc4f722d9863c129f2fa",
+  "fixture_id": "future-nfi-spot-9c7bd9c3476af201",
+  "manifest_sha256": "15ca380450fd0562833371554e43d0d9c03ce917bfff4748ea08db6f68f76ab4",
+  "logical_bytes": 14293776,
+  "target_ids": [
+    "2d9ec3c271a030c290cf34b0d1f6fe58900feb350f6e403127e9a92362012948"
+  ],
+  "pair": "PROM/USDT",
+  "timerange": "20251009-20251012",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
