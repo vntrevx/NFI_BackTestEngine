@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 159,
+  "revision": 160,
   "updated_at": "2026-09-05T12:00:00+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
@@ -12,6 +12,43 @@
     "preserve_completed_evidence": true,
     "fail_closed_on_identity_mismatch": true,
     "manual_gate_requires_user_approval": true
+  },
+  "implementation_snapshot": {
+    "captured_at": "2026-09-05",
+    "formal_active_gate": "M24-03",
+    "status_note": "Task status remains dependency-ordered; implementation state records code and evidence prepared ahead of external gates.",
+    "milestones": {
+      "M25": {
+        "implementation_state": "complete",
+        "commits": ["a1afc4664", "eaf538a27", "4a0d95095"],
+        "remaining": ["close M24-03 human review gate"]
+      },
+      "M26": {
+        "implementation_state": "complete",
+        "commits": ["cd9103c63", "132788e5a", "272b329e1", "b0231696a"],
+        "remaining": []
+      },
+      "M27": {
+        "implementation_state": "complete",
+        "commits": ["035d51008", "af8e468a6"],
+        "remaining": []
+      },
+      "M28": {
+        "implementation_state": "ready_for_external_execution",
+        "commits": ["459eb4f4d", "527053c7c", "544330b5e"],
+        "remaining": ["run four target-native evidence jobs", "configure and run TestPyPI Trusted Publisher"]
+      },
+      "M29": {
+        "implementation_state": "ready_for_external_execution",
+        "commits": ["5e64b0b04", "544330b5e"],
+        "remaining": ["capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
+      },
+      "M30": {
+        "implementation_state": "ready_for_external_execution",
+        "commits": ["10951c23f"],
+        "remaining": ["run seven fixed-RC cycles", "seal public audit", "promote identical stable and PyPI assets"]
+      }
+    }
   },
   "baseline": {
     "stable_tag": "v1.1.0",
@@ -5475,7 +5512,7 @@
       "scope": ["clean-room audit reuse", "contract and asset identity graph", "legacy boundary failures"],
       "forbidden_changes": ["duplicate audit engine", "local checkout assistance"],
       "acceptance_profile": "ten_of_ten_audit",
-      "expected_evidence": ["four-platform audit report", "public claim graph", "fault injection matrix"],
+      "expected_evidence": ["seven-cycle identity graph", "signed four-platform release evidence", "repeated public asset restore"],
       "started_at": null, "completed_at": null, "commit_sha": null, "evidence": [], "blocker": null
     },
     {
