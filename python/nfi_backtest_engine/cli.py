@@ -157,7 +157,12 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     help_command = subcommands.add_parser("help", help="show beginner or complete command help")
     help_command.add_argument("--all", action="store_true", help="show every expert command")
 
-    subcommands.add_parser("update", help="update the installed CLI to the latest release")
+    update = subcommands.add_parser("update", help="update the installed CLI to the latest release")
+    update.add_argument(
+        "--check",
+        action="store_true",
+        help="check for an update without changing the installed environment",
+    )
 
     fixture = subcommands.add_parser("fixture", help="manage benchmark fixtures")
     fixture_commands = fixture.add_subparsers(dest="fixture_command", required=True)
@@ -1475,6 +1480,13 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     release_combined_verify.add_argument("--native-score-evidence", type=Path, required=True)
     release_combined_verify.add_argument("--native-score-identity", type=Path, required=True)
     release_combined_verify.add_argument("--provenance-ledger", type=Path, required=True)
+    release_cleanroom = release_commands.add_parser(
+        "cleanroom",
+        help="run the installed-artifact first-result journey without a checkout",
+    )
+    release_cleanroom.add_argument("--fixture", type=Path, required=True)
+    release_cleanroom.add_argument("--output-dir", type=Path, required=True)
+    release_cleanroom.add_argument("--timeout", type=int, default=900)
     for command_name in ("finalize-combined", "abort-combined"):
         publication_command = release_commands.add_parser(
             command_name,

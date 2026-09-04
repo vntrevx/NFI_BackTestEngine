@@ -182,6 +182,11 @@ bundle for:
 - macOS arm64;
 - source distribution.
 
+The same workflow also runs an x86_64 clean-room job with no source checkout. It
+installs only the downloaded wheel and executes doctor, strategy discovery, init,
+Native run, report, status, clean dry-run, and a non-mutating update check against a
+sealed one-pair scenario. Its hash-bound report is retained with the candidate.
+
 After the downloaded candidate passes the Full X7 host certificate, the
 `Publish release candidate` workflow binds that successful build run to an `-rc.N`
 tag and publishes the already-built files. The `Promote stable release` workflow then

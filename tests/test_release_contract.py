@@ -668,6 +668,13 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "sccache: true" in wheels_section
     sdist_section = build[build.index("  sdist:"):build.index("  provenance-prepare:")]
     assert "sccache: true" not in sdist_section
+    cleanroom_section = build[
+        build.index("  cleanroom:"):build.index("  provenance-prepare:")
+    ]
+    assert "actions/checkout" not in cleanroom_section
+    assert "Install only the downloaded wheel" in cleanroom_section
+    assert "release cleanroom" in cleanroom_section
+    assert "--fixture ../scenario/manifest.json" in cleanroom_section
     assert "  provenance-prepare:" in build
     prepare_section = build[
         build.index("  provenance-prepare:"):build.index("  provenance-signing:")
@@ -678,7 +685,7 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assemble_section = build[
         build.index("  provenance-assemble:"):build.index("  platform-evidence:")
     ]
-    assert "needs: [verify]" in prepare_section
+    assert "needs: [verify, cleanroom]" in prepare_section
     assert "needs: [verify, provenance-prepare]" in signing_section
     assert "runs-on: ubuntu-latest" in signing_section
     assert "environment: release-provenance" not in signing_section

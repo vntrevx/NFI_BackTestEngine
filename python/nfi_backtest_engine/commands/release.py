@@ -239,6 +239,20 @@ def execute_platform(args: argparse.Namespace) -> int:
 
 
 def execute_release(args: argparse.Namespace) -> int:
+    if args.release_command == "cleanroom":
+        from ..cleanroom_e2e import run_cleanroom_e2e
+
+        report = run_cleanroom_e2e(
+            args.fixture,
+            args.output_dir,
+            timeout_seconds=args.timeout,
+        )
+        print(
+            "clean-room user journey: "
+            f"complete={report['complete']}, commands={len(report['commands'])} -> "
+            f"{args.output_dir / 'cleanroom-report.json'}"
+        )
+        return 0
     if args.release_command == "score":
         from ..native_scorecard import evaluate_native_scorecard
 

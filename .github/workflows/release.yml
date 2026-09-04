@@ -108,6 +108,13 @@ jobs:
           name: wheel-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
+      - name: Upload clean-room scenario
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cleanroom-scenario
+          path: benchmarks/fixtures/captured/x7-tag121-spot-v17.4.435-2023-01-01_02
+          if-no-files-found: error
 
   sdist:
     name: Source distribution
@@ -163,9 +170,51 @@ jobs:
             --output-dir .release-check \
             --level full
 
+  cleanroom:
+    name: Clean-room installed-artifact journey
+    needs: [wheels]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux x86_64 wheel
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: wheel-x86_64-unknown-linux-gnu
+          path: dist
+      - name: Download sealed scenario
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: cleanroom-scenario
+          path: scenario
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install only the downloaded wheel
+        run: |
+          uv venv --python 3.12 .cleanroom-venv
+          uv pip install --python .cleanroom-venv/bin/python dist/*.whl
+      - name: Run repository-independent user journey
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir audit-work
+          cd audit-work
+          ../.cleanroom-venv/bin/nfi-bte release cleanroom \
+            --fixture ../scenario/manifest.json \
+            --output-dir cleanroom-evidence \
+            --timeout 900
+      - name: Upload clean-room evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cleanroom-evidence-linux-x86_64
+          path: audit-work/cleanroom-evidence
+          if-no-files-found: warn
+          include-hidden-files: true
+
   provenance-prepare:
     name: Prepare platform provenance signing inputs
-    needs: [verify]
+    needs: [verify, cleanroom]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
