@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250406-20250409"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "10244.06245785",
+    "profit_total_abs": "244.06245785",
+    "total_volume": "20084.056142150002",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "DOGE/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1744008300000,
+      "close_timestamp_ms": 1744014300000,
+      "open_rate": "0.13381",
+      "close_rate": "0.13738",
+      "amount": "73985",
+      "stake_amount": "9899.93285",
+      "max_stake_amount": "9899.93285",
+      "leverage": "1",
+      "entry_tag": "42 62 ",
+      "exit_reason": "exit_long_quick_w_2_11 ( 42 62 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "244.06245785",
+        "ratio": "0.024628312424441263"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.00134",
+      "stop_loss": "0.00134",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1744008300000,
+          "amount": "73985",
+          "price": "0.13381",
+          "cost": "9909.83278285",
+          "tag": "42 62 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1744014300000,
+          "amount": "73985",
+          "price": "0.13738",
+          "cost": "10174.2233593",
+          "tag": "exit_long_quick_w_2_11 ( 42 62 )"
+        }
+      ],
+      "duration_minutes": 100,
+      "is_open": false,
+      "minimum_rate": "0.12986",
+      "maximum_rate": "0.13754",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}
