@@ -35,6 +35,7 @@ def write_measurement_checkpoint(
             "schema_version": "1.0.0",
             "wall_time_seconds": float(measurement["wall_time_seconds"]),
             "peak_rss_bytes": int(measurement["peak_rss_bytes"]),
+            "peak_swap_bytes": measurement.get("peak_swap_bytes"),
             "exit_code": int(measurement["exit_code"]),
             "timed_out": bool(measurement["timed_out"]),
         },
@@ -71,6 +72,9 @@ def load_engine_measurement(
             if checkpoint is not None
             else _persisted_engine_peak(report)
         ),
+        "peak_swap_bytes": (
+            checkpoint.get("peak_swap_bytes") if checkpoint is not None else None
+        ),
         "exit_code": int(checkpoint["exit_code"]) if checkpoint is not None else 0,
         "timed_out": bool(checkpoint["timed_out"]) if checkpoint is not None else False,
         "stdout": _existing_stream(output.parent / f"{output.name}.stdout.log"),
@@ -99,6 +103,8 @@ def load_reference_measurement(output: Path) -> Measurement | None:
     checkpoint = read_json(checkpoint_path) if checkpoint_path.is_file() else None
     memory = report.get("container_memory")
     container_peak = memory.get("peak_bytes") if isinstance(memory, dict) else None
+    swap = report.get("container_swap")
+    swap_peak = swap.get("peak_bytes") if isinstance(swap, dict) else None
     return {
         "wall_time_seconds": (
             float(checkpoint["wall_time_seconds"])
@@ -110,6 +116,7 @@ def load_reference_measurement(output: Path) -> Measurement | None:
             if checkpoint is not None
             else int(container_peak or 0)
         ),
+        "peak_swap_bytes": swap_peak if isinstance(swap_peak, int) else None,
         "exit_code": (
             int(checkpoint["exit_code"]) if checkpoint is not None else int(report["exit_code"])
         ),

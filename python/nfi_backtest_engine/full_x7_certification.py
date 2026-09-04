@@ -152,6 +152,8 @@ def run_full_x7_certification(
         raise BenchmarkError(
             f"Full X7 certification permits at most {MAX_CERTIFICATION_REPETITIONS} runs"
         )
+    if swap_cap_bytes is None or swap_cap_bytes <= 0:
+        raise BenchmarkError("Full X7 certification requires a positive sealed swap cap")
     output = Path(output_directory).resolve()
     if output.exists() and any(output.iterdir()) and not resume:
         raise BenchmarkError(f"Full X7 output directory must be empty: {output}")
@@ -327,6 +329,12 @@ def run_full_x7_certification(
         engine_summary["peak_rss_bytes"]["maximum"],
     )
     memory_met = observed_peak <= profile_memory
+    swap_gate = _swap_gate(
+        cold_summary,
+        engine_summary,
+        reference_summary,
+        limit_bytes=swap_cap_bytes,
+    )
     probe_met = all(
         item["complete"]
         and item["trade_surface_equal"]
@@ -372,6 +380,7 @@ def run_full_x7_certification(
             "cold_seed_peak_bytes": cold_summary["peak_rss_bytes"]["maximum"],
             "reuse_peak_bytes": engine_summary["peak_rss_bytes"]["maximum"],
         },
+        "swap": swap_gate,
         "state_probes": {
             "met": probe_met,
             "required_kinds": sorted(inputs["contract"].required_probe_kinds),
@@ -403,6 +412,7 @@ def run_full_x7_certification(
             "execution_profile": {
                 "hardware_fingerprint": profile["hardware_fingerprint"],
                 "working_memory_bytes": profile_memory,
+                "swap_cap_bytes": swap_cap_bytes,
             },
             "package_version": __version__,
             "engine_build": public_engine_build_record(build),
@@ -445,3 +455,41 @@ def run_full_x7_certification(
     result = {**report, "bundle": bundle}
     write_json(output / "full-x7-result.json", result)
     return result
+
+
+def _swap_gate(
+    cold_summary: dict[str, Any],
+    engine_summary: dict[str, Any],
+    reference_summary: dict[str, Any],
+    *,
+    limit_bytes: int,
+) -> dict[str, Any]:
+    native_complete = bool(
+        cold_summary["peak_swap_bytes"]["measurements_complete"]
+        and engine_summary["peak_swap_bytes"]["measurements_complete"]
+    )
+    official_complete = bool(
+        reference_summary["peak_swap_bytes"]["measurements_complete"]
+    )
+    native_peak = max(
+        int(cold_summary["peak_swap_bytes"]["maximum"] or 0),
+        int(engine_summary["peak_swap_bytes"]["maximum"] or 0),
+    )
+    official_peak = int(reference_summary["peak_swap_bytes"]["maximum"] or 0)
+    return {
+        "met": (
+            native_complete
+            and official_complete
+            and native_peak <= limit_bytes
+            and official_peak <= limit_bytes
+        ),
+        "limit_bytes": limit_bytes,
+        "native_measurement_complete": native_complete,
+        "official_measurement_complete": official_complete,
+        "native_observed_peak_bytes": native_peak,
+        "official_observed_peak_bytes": official_peak,
+        "rule": (
+            "Native process-tree and Official cgroup swap peaks must not exceed "
+            "the sealed cap"
+        ),
+    }

@@ -1089,6 +1089,7 @@ def _long_certification_plan_inputs(
         "oracle_fingerprint": "0" * 64,
         "host_lock": str(tmp_path / "locks/certification.lock"),
         "state_probes": [str(state_probe)],
+        "swap_cap_bytes": 8 * 1024**3,
     }
     identity = module._input_identity(config)
     fingerprint = module.canonical_sha256(identity)
@@ -1140,6 +1141,8 @@ def test_long_certification_plan_reuses_only_the_indexed_oracle(
     assert plan["candidate_commit"] == "e" * 40
     assert plan["mode"] == "spot"
     assert "--official-oracle" in plan["command"]
+    assert plan["command"][plan["command"].index("--swap-cap-gib") + 1] == "8.0"
+    assert plan["candidate_certification"]["identity"]["swap_cap_bytes"] == 8 * 1024**3
     assert "--resume" not in plan["command"]
     assert "reference" not in plan["command"]
     assert plan["state_probes"] == [

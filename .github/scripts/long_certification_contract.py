@@ -134,6 +134,9 @@ def build_plan(
         or not _nonempty_string(config.get(fingerprint_field))
         or config["mode"] != mode
         or not _unique_strings(config.get("state_probes"))
+        or not isinstance(config.get("swap_cap_bytes"), int)
+        or isinstance(config.get("swap_cap_bytes"), bool)
+        or config["swap_cap_bytes"] <= 0
         or (
             config.get("reference_markets") is not None
             and not _nonempty_string(config.get("reference_markets"))
@@ -216,6 +219,7 @@ def build_plan(
             Path(release_candidate_plan_path).resolve()
         ),
         "state_probe_sha256": [record["sha256"] for record in declared_state_probes],
+        "swap_cap_bytes": config["swap_cap_bytes"],
     }
     candidate_fingerprint = canonical_sha256(candidate_identity)
 
@@ -243,6 +247,8 @@ def build_plan(
         str(oracle_directory),
         "--wheel",
         str(wheel),
+        "--swap-cap-gib",
+        str(config["swap_cap_bytes"] / 1024**3),
     ]
     reference_markets = config.get("reference_markets")
     if reference_markets is not None:

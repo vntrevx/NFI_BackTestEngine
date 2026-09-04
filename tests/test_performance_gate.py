@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.performance_gate import (
     _certification_verdict,
     _determinism_assessment,
+    _process_tree_swap,
     _relative_spread,
     _representative_scope,
 )
@@ -101,3 +103,16 @@ def test_relative_spread_uses_median_and_is_order_independent() -> None:
         {"wall_time_seconds": 102.0},
     ]
     assert _relative_spread(runs) == pytest.approx(4.0 / 102.0)
+
+
+def test_process_tree_swap_sums_root_and_descendants() -> None:
+    child = SimpleNamespace(
+        children=lambda recursive: [],
+        memory_full_info=lambda: SimpleNamespace(swap=7),
+    )
+    root = SimpleNamespace(
+        children=lambda recursive: [child],
+        memory_full_info=lambda: SimpleNamespace(swap=5),
+    )
+
+    assert _process_tree_swap(root) == 12

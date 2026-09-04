@@ -156,8 +156,10 @@ Before tagging:
 16. Verify the representative run uses at least 80 pairs and 1,825 days before
     publishing any 10x or long-horizon memory claim
 17. Run the continuous 80-pair, five-year official Freqtrade oracle once, then run
-    `nfi-bte certify` with at least three fresh native candidate repetitions and one or
-    more branch-reaching `--state-probe` fixtures; retain the reproducible bundle.
+    `nfi-bte certify` with a sealed positive `--swap-cap-gib`, at least three fresh
+    native candidate repetitions, and one or more branch-reaching `--state-probe`
+    fixtures; retain the reproducible bundle. Missing Native process-tree or Official
+    cgroup swap measurements fail the release gate.
     Extend the native candidate to five repetitions when its wall-time spread exceeds
     5%; never repeat the multi-year official oracle merely to calculate native timing
     variance.

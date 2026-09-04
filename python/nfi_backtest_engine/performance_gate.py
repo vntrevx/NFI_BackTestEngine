@@ -339,6 +339,7 @@ def _measure_cli(
     project_root = Path(__file__).resolve().parents[2]
     started_ns = time.perf_counter_ns()
     peak_rss_bytes = 0
+    peak_swap_bytes: int | None = None
     timed_out = False
     with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
         process = subprocess.Popen(
@@ -354,17 +355,32 @@ def _measure_cli(
                 peak_rss_bytes,
                 _process_tree_rss(root_process),
             )
+            current_swap = _process_tree_swap(root_process)
+            if current_swap is not None:
+                peak_swap_bytes = (
+                    current_swap
+                    if peak_swap_bytes is None
+                    else max(peak_swap_bytes, current_swap)
+                )
             if (time.perf_counter_ns() - started_ns) / 1_000_000_000 > timeout_seconds:
                 timed_out = True
                 _terminate_process_tree(root_process)
                 break
             time.sleep(0.01)
         peak_rss_bytes = max(peak_rss_bytes, _process_tree_rss(root_process))
+        current_swap = _process_tree_swap(root_process)
+        if current_swap is not None:
+            peak_swap_bytes = (
+                current_swap
+                if peak_swap_bytes is None
+                else max(peak_swap_bytes, current_swap)
+            )
         exit_code = process.wait()
     return {
         "command": command,
         "wall_time_seconds": (time.perf_counter_ns() - started_ns) / 1_000_000_000,
         "peak_rss_bytes": peak_rss_bytes,
+        "peak_swap_bytes": peak_swap_bytes,
         "exit_code": exit_code,
         "timed_out": timed_out,
         "stdout": _artifact(stdout_path),
@@ -400,6 +416,24 @@ def _process_tree_rss(root_process: psutil.Process) -> int:
         except psutil.Error:
             continue
     return total
+
+
+def _process_tree_swap(root_process: psutil.Process) -> int | None:
+    try:
+        processes = [root_process, *root_process.children(recursive=True)]
+    except psutil.Error:
+        processes = [root_process]
+    total = 0
+    measured = False
+    for process in processes:
+        try:
+            value = getattr(process.memory_full_info(), "swap", None)
+        except psutil.Error:
+            continue
+        if isinstance(value, int) and value >= 0:
+            total += value
+            measured = True
+    return total if measured else None
 
 
 def _terminate_process_tree(root_process: psutil.Process) -> None:

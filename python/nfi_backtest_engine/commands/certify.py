@@ -25,6 +25,7 @@ def execute(args: argparse.Namespace) -> int:
             "--data-dir": args.data_dir,
             "--engine-markets": args.engine_markets,
             "--wheel": args.wheel,
+            "--swap-cap-gib": args.swap_cap_gib,
         }
         missing = [name for name, value in required.items() if value is None]
         if missing:
