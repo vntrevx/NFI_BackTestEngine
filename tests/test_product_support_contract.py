@@ -75,7 +75,7 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
 
     assert report == {
         "schema_version": "1.0.0",
-        "package_version": "1.11.0",
+        "package_version": "1.15.0",
         "combined_full_x7_certified": False,
         "supported_platform_slugs": [
             "linux-aarch64",
