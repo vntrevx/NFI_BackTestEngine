@@ -87,7 +87,7 @@
     },
     "distributions": {
       "type": "array",
-      "minItems": 5,
+      "minItems": 4,
       "maxItems": 5,
       "items": {
         "$ref": "#/$defs/artifact"

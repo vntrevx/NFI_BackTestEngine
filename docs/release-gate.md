@@ -22,8 +22,8 @@ The command rejects the candidate unless all of these identities agree:
 - its evidence ZIP contains exactly the same certificate document;
 - the certificate wheel SHA identifies exactly one prebuilt candidate wheel;
 - the certificate package version matches that wheel;
-- the certificate portable-package SHA matches the sealed three-OS evidence;
-- Windows, Linux, and macOS records are all present;
+- the certificate portable-package SHA matches the sealed platform evidence;
+- Linux x86_64/aarch64, macOS arm64, and Windows WSL2 x86_64 records are all present;
 - one platform wheel SHA equals the host-certified wheel SHA;
 - the platform evidence itself was already sealed by the candidate checksum manifest.
 

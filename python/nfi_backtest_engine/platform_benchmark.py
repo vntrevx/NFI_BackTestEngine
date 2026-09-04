@@ -59,14 +59,14 @@ REQUIRED_PLATFORM_MACHINES = {
 
 
 def _platform_slug(system: str, machine: str, *, wsl: bool) -> str:
-    normalized_machine = {"amd64": "x86_64", "aarch64": "aarch64", "arm64": "arm64"}.get(
+    normalized_machine = {"amd64": "x86_64", "aarch64": "aarch64", "arm64": "aarch64"}.get(
         machine, machine
     )
     if system == "linux" and normalized_machine == "x86_64":
         return "windows-wsl2-x86_64" if wsl else "linux-x86_64"
     if system == "linux" and normalized_machine == "aarch64" and not wsl:
         return "linux-aarch64"
-    if system == "darwin" and normalized_machine == "arm64" and not wsl:
+    if system == "darwin" and normalized_machine == "aarch64" and not wsl:
         return "macos-arm64"
     raise SpecValidationError(
         f"unsupported release platform identity: system={system}, machine={machine}, wsl={wsl}"

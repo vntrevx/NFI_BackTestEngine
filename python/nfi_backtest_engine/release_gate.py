@@ -16,6 +16,7 @@ from .canonical import loads_json_bytes, read_json, write_json
 from .certification_policy import validate_certification_semantics
 from .errors import BenchmarkError, SpecValidationError
 from .fixture import sha256_file
+from .platform_benchmark import REQUIRED_PLATFORM_SLUGS
 from .portable_paths import (
     parse_portable_relative_path,
     validate_portable_filesystem_path,
@@ -501,22 +502,22 @@ def _load_platform_evidence(
     if not isinstance(document, dict):
         raise SpecValidationError("platform evidence must be a JSON object")
     validate_certification_semantics(document, label="platform evidence")
-    verified = verify_embedded_platform_evidence(
-        document,
-        policy=provenance_policy,
-        expected_commit=expected_commit,
-        expected_candidate_id=expected_candidate_id,
-    )
     platforms = document.get("platforms")
     platform_records = (
         [item for item in platforms if isinstance(item, dict)]
         if isinstance(platforms, list)
         else []
     )
-    systems = (
-        {item.get("system") for item in platform_records}
-        if len(platform_records) == 3
-        else set()
+    slugs = {item.get("slug") for item in platform_records}
+    uses_slug_contract = slugs == REQUIRED_PLATFORM_SLUGS
+    systems = {item.get("system") for item in platform_records}
+    uses_legacy_contract = len(platform_records) == 3 and systems == _REQUIRED_SYSTEMS
+    verified = verify_embedded_platform_evidence(
+        document,
+        policy=provenance_policy,
+        expected_commit=expected_commit,
+        expected_candidate_id=expected_candidate_id,
+        required_platform_slugs=(REQUIRED_PLATFORM_SLUGS if uses_slug_contract else None),
     )
     if (
         document.get("schema_version") != PLATFORM_EVIDENCE_VERSION
@@ -525,20 +526,20 @@ def _load_platform_evidence(
         or document.get("lane") != "exact-fixture"
         or not isinstance(document.get("package_version"), str)
         or not document["package_version"]
-        or len(platform_records) != 3
-        or systems != _REQUIRED_SYSTEMS
+        or not (uses_slug_contract or uses_legacy_contract)
         or any(
             not _is_sha256(item.get("wheel_sha256"))
             for item in platform_records
         )
         or not _is_sha256(document.get("portable_package_sha256"))
     ):
-        raise SpecValidationError("platform evidence is preview, incomplete, or not three-OS")
-    report_by_system = {
-        report["platform"]["system"]: report for report in verified["reports"]
+        raise SpecValidationError("platform evidence is preview, incomplete, or unsupported")
+    identity_field = "slug" if uses_slug_contract else "system"
+    report_by_identity = {
+        report["platform"].get(identity_field): report for report in verified["reports"]
     }
     for item in platform_records:
-        report = report_by_system.get(item.get("system"))
+        report = report_by_identity.get(item.get(identity_field))
         if report is None or any(
             item.get(key) != report["package"].get(key)
             for key in ("wheel_sha256", "native_extension_sha256")
@@ -575,7 +576,7 @@ def _match_release_identities(
         or platform.get("portable_package_sha256") != portable_sha
     ):
         raise SpecValidationError(
-            "host certificate portable package differs from three-OS evidence"
+            "host certificate portable package differs from platform evidence"
         )
     platform_wheels = {
         item.get("wheel_sha256")
@@ -583,7 +584,12 @@ def _match_release_identities(
         if isinstance(item, dict)
     }
     linux = next(
-        (item for item in platform["platforms"] if item.get("system") == "linux"),
+        (
+            item
+            for item in platform["platforms"]
+            if item.get("slug") == "linux-x86_64"
+            or (item.get("slug") is None and item.get("system") == "linux")
+        ),
         None,
     )
     if (
@@ -595,7 +601,7 @@ def _match_release_identities(
         )
     if wheel_sha not in platform_wheels:
         raise SpecValidationError(
-            "host certificate wheel is absent from three-OS platform evidence"
+            "host certificate wheel is absent from platform evidence"
         )
     return {
         "package_version": version,

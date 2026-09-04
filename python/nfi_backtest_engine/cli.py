@@ -1437,14 +1437,14 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
         action="append",
         type=Path,
         default=[],
-        help="sealed three-OS evidence for one mode; repeat for spot and futures",
+        help="sealed supported-platform evidence for one mode; repeat per mode",
     )
     release_combine.add_argument("--native-score-evidence", type=Path, required=True)
     release_combine.add_argument("--native-score-identity", type=Path, required=True)
     release_combine.add_argument("--output-dir", type=Path, required=True)
     release_gate = release_commands.add_parser(
         "gate",
-        help="bind a build-once candidate to host and three-OS certificates",
+        help="bind a build-once candidate to host and supported-platform evidence",
     )
     release_gate.add_argument("--candidate-dir", type=Path, required=True)
     release_gate.add_argument("--certificate", type=Path, required=True)
@@ -1458,7 +1458,7 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     release_gate.add_argument("--output-dir", type=Path, required=True)
     release_combined_gate = release_commands.add_parser(
         "gate-combined",
-        help="seal a public candidate after both modes and three OSes certify it",
+        help="seal a public candidate after both modes and all platform targets certify it",
     )
     release_combined_gate.add_argument(
         "--candidate-dir",

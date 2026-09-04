@@ -46,6 +46,9 @@ PRODUCTION_KEY_ID = "nfi-release-ed25519-2026-03"
 PRODUCTION_PUBLIC_KEY = base64.b64decode("2Mn2hsM1wkqgwkgX17HlevcwcTytLjuyO7BRwTEM+qI=")
 _SUPPORTED_PROVENANCE_PLATFORM_SYSTEMS = frozenset({"darwin", "linux", "windows"})
 _PRODUCT_PROVENANCE_PLATFORM_SYSTEMS = frozenset({"darwin", "linux"})
+_SUPPORTED_PROVENANCE_PLATFORM_SLUGS = frozenset(
+    {"linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"}
+)
 _LEDGER_UMASK_LOCK = threading.Lock()
 _LEDGER_SCHEMA = (
     "CREATE TABLE IF NOT EXISTS certificate_publications ("
@@ -416,6 +419,7 @@ def verify_embedded_platform_evidence(
     expected_bundle_id: str | None = None,
     expected_challenge: str | None = None,
     required_platform_systems: frozenset[str] = _SUPPORTED_PROVENANCE_PLATFORM_SYSTEMS,
+    required_platform_slugs: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     """Recompute a complete embedded graph for the required platforms."""
     provenance = document.get("provenance")
@@ -431,8 +435,14 @@ def verify_embedded_platform_evidence(
     ):
         raise SpecValidationError("platform evidence required systems are unauthorized")
     if (
+        required_platform_slugs is not None
+        and required_platform_slugs != _SUPPORTED_PROVENANCE_PLATFORM_SLUGS
+    ):
+        raise SpecValidationError("platform evidence required slugs are unauthorized")
+    required_count = len(required_platform_slugs or required_platform_systems)
+    if (
         provenance.get("policy_id") != policy.policy_id
-        or len(attestations) != len(required_platform_systems)
+        or len(attestations) != required_count
     ):
         raise SpecValidationError("platform evidence provenance policy or cardinality differs")
     graph_bundle_id = provenance.get("bundle_id")
@@ -479,8 +489,8 @@ def verify_embedded_platform_evidence(
         (item["producer"]["run_id"], item["producer"]["run_attempt"]) for item in verified
     }
     if (
-        len(attestation_ids) != len(required_platform_systems)
-        or len(nonces) != len(required_platform_systems)
+        len(attestation_ids) != required_count
+        or len(nonces) != required_count
         or len(run_identities) != 1
     ):
         raise SpecValidationError("platform provenance run, nonce, or attestation was replayed")
@@ -489,7 +499,11 @@ def verify_embedded_platform_evidence(
         raise SpecValidationError("platform provenance commits differ")
     commit = next(iter(commits))
     _verify_evidence_projection(
-        document, reports, commit, required_platform_systems=required_platform_systems
+        document,
+        reports,
+        commit,
+        required_platform_systems=required_platform_systems,
+        required_platform_slugs=required_platform_slugs,
     )
     return {
         "commit": commit,
@@ -1132,16 +1146,26 @@ def _verify_evidence_projection(
     commit: str,
     *,
     required_platform_systems: frozenset[str],
+    required_platform_slugs: frozenset[str] | None = None,
 ) -> None:
-    systems = {report["platform"]["system"] for report in reports}
+    identity_field = "slug" if required_platform_slugs is not None else "system"
+    if required_platform_slugs is not None:
+        for report in reports:
+            platform_record = report["platform"]
+            if platform_record.get("slug") != _release_platform_slug(platform_record):
+                raise SpecValidationError("platform provenance slug identity differs")
+    identities = {report["platform"].get(identity_field) for report in reports}
+    required_identities = required_platform_slugs or required_platform_systems
     projections = document.get("platforms")
-    if systems != required_platform_systems or not isinstance(projections, list):
-        raise SpecValidationError("platform provenance systems are incomplete")
-    report_by_system = {report["platform"]["system"]: report for report in reports}
+    if identities != required_identities or not isinstance(projections, list):
+        raise SpecValidationError(f"platform provenance {identity_field}s are incomplete")
+    report_by_identity = {
+        report["platform"].get(identity_field): report for report in reports
+    }
     for item in projections:
         if not isinstance(item, dict):
             raise SpecValidationError("platform evidence projection is malformed")
-        report = report_by_system.get(item.get("system"))
+        report = report_by_identity.get(item.get(identity_field))
         if report is None or any(
             item.get(key) != report[source].get(source_key)
             for key, source, source_key in (
@@ -1171,6 +1195,20 @@ def _verify_evidence_projection(
         or document.get("result_sha256") != next(iter(result_hashes))
     ):
         raise SpecValidationError("platform evidence recomputed fields differ from signed reports")
+
+
+def _release_platform_slug(platform_record: Mapping[str, Any]) -> str | None:
+    system = str(platform_record.get("system", "")).lower()
+    machine = str(platform_record.get("machine", "")).lower()
+    machine = {"amd64": "x86_64", "arm64": "aarch64"}.get(machine, machine)
+    wsl = platform_record.get("wsl") is True
+    if system == "linux" and machine == "x86_64":
+        return "windows-wsl2-x86_64" if wsl else "linux-x86_64"
+    if system == "linux" and machine == "aarch64" and not wsl:
+        return "linux-aarch64"
+    if system == "darwin" and machine == "aarch64" and not wsl:
+        return "macos-arm64"
+    return None
 
 
 def _decode_dsse(envelope: Any) -> tuple[bytes, dict[str, str]]:
