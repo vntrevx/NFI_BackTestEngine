@@ -1,0 +1,194 @@
+{
+  "schema_version": "3.0.0",
+  "fixture_id": "future-nfi-spot-18c04a98c8ebdeed-baseline",
+  "description": "Automatically discovered branch fixture with independent official and Native exact evidence.",
+  "fixture_kind": "x7-branch-probe",
+  "evidence_status": "captured",
+  "created_at": "2026-09-04T02:02:32.148123Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX7",
+    "timerange": "20251010-20251013",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": null,
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX7",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20251010-20251013",
+      "--pairs",
+      "ZEC/USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "6d90acb87143a7f9f9638c8177c1d7cd18bd523feeb6bc580ec8a4199db05699",
+      "bytes": 3495847
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "72dbab9d62f7a9ba89e5c128810531aa662b73ffbcfeee9081928a1d17f626ff",
+      "bytes": 928
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-15m.feather",
+      "sha256": "466bb7f051a67eb7d5c99b4c151200eabbeb8ec764275bd6eac08a4638bd9f59",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1d.feather",
+      "sha256": "00f1c53aec895fe68781757f7d5bdac023f79dc8c751cb5a9943df84454c784d",
+      "bytes": 39983
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1h.feather",
+      "sha256": "53fb31f09061b6993efb8a8f80adaf1648ed5a7ac9d812792982c92e58e2463d",
+      "bytes": 43439
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-4h.feather",
+      "sha256": "cbcd92b14a5d574232c42079bf89010e7c3fa280e0ba61b138c3fcc29e90444b",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "b1d46e0d395697f8448600c23f2045883d296bbaaf8c7f28e8e1322695011990",
+      "bytes": 81455
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ZEC_USDT-15m.feather",
+      "sha256": "83d6f63f5bd6a41a9d2c152001f2193032a9e1f436d76f91138c6efcaa32dd21",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ZEC_USDT-1d.feather",
+      "sha256": "4616c1b61cd72c00554c7e19564685750b6ea221fd57ecaf58aa88976b30ae0a",
+      "bytes": 39983
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ZEC_USDT-1h.feather",
+      "sha256": "f5e47f1dea8ab278a1d910eed17f99befc5f029c49177384bc6d59e7aa055648",
+      "bytes": 43439
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ZEC_USDT-4h.feather",
+      "sha256": "feafb2cf54689adeda1ca03a1b0115bd841e0edd8b1ac6b0edde9c938a3fdd8f",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ZEC_USDT-5m.feather",
+      "sha256": "4fb2a85ae107415735c268c57c716504e8e22ef4bb76ef56981db6146b65e042",
+      "bytes": 81455
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/candidate-market-shard-000-attempt-1.json",
+      "sha256": "9b1ad628f153395a4360783cbb4f60d4ebbd938f1b3de490f70b5a9e2bd6d4a0",
+      "bytes": 1055
+    },
+    {
+      "role": "reference_market_metadata",
+      "path": "inputs/reference_market_metadata/reference-markets.json",
+      "sha256": "6319ecd888259b689ca4baeafbed468ddf8417e16fad1800d2e95a494b133c87",
+      "bytes": 16490
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "5c2b805969031493c468582c152ab9890cb3e148bbb12fa9e19ea77b7a210325",
+      "bytes": 353038
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "5b0c7aee56dfe13b590f084facde75756fa79aae95b32f63460bdd3a38a6be81",
+      "bytes": 7319
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "d8a9e9c8f8a4e6520afd5afb202cf39558759f0db368561f4c46e25ecb8c7d9e",
+      "bytes": 6391504
+    },
+    "coverage_report": {
+      "path": "artifacts/coverage-report.json",
+      "sha256": "e4b1424e2e5e42ed5825a7ef23fff6e14dafebecde3bbe22e2b9835ed2d63af9",
+      "bytes": 822
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "d0007b58baf3952b1832d2a5b920323b77434921e8a67451e9e6e4bae696b266",
+      "bytes": 423402
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  },
+  "probe_kind": "future-nfi-target",
+  "strategy_provenance": {
+    "upstream_repository": "iterativv/NostalgiaForInfinity",
+    "upstream_commit": "b35320d681793648e9cb8cf34d5a7f8b225a7558",
+    "base_source_sha256": "6d90acb87143a7f9f9638c8177c1d7cd18bd523feeb6bc580ec8a4199db05699",
+    "effective_source_sha256": "6d90acb87143a7f9f9638c8177c1d7cd18bd523feeb6bc580ec8a4199db05699",
+    "transformations": [
+      {
+        "kind": "observer-only",
+        "description": "No source mutation; official read-only tracer only"
+      }
+    ]
+  },
+  "required_coverage": {
+    "callbacks": [],
+    "entry_tags": [
+      "141"
+    ],
+    "compound_tags": [],
+    "protection_methods": [],
+    "exit_reasons": [],
+    "sides": [],
+    "minimum_lock_count": 0,
+    "minimum_distinct_leverages": 1,
+    "minimum_funded_trades": 0,
+    "require_rejected_locked_entry": false
+  }
+}

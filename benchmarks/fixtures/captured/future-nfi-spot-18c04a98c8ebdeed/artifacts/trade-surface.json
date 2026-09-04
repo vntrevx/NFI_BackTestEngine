@@ -1,0 +1,268 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20251010-20251013"
+  },
+  "summary": {
+    "total_trades": 4,
+    "starting_balance": "10000",
+    "final_balance": "11443.06329477",
+    "profit_total_abs": "1443.0632947699999",
+    "total_volume": "85362.09204522999",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "ZEC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1760092200000,
+      "close_timestamp_ms": 1760100300000,
+      "open_rate": "227.45",
+      "close_rate": "234.19",
+      "amount": "43.526",
+      "stake_amount": "9899.9887",
+      "max_stake_amount": "9899.9887",
+      "leverage": "1",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_w_2_14 ( 144 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "273.27189736",
+        "ratio": "0.02757567778451489"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "2.28",
+      "stop_loss": "2.28",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1760092200000,
+          "amount": "43.526",
+          "price": "227.45",
+          "cost": "9909.888688699999",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1760100300000,
+          "amount": "43.526",
+          "price": "234.19",
+          "cost": "10203.54729394",
+          "tag": "exit_long_tc_w_2_14 ( 144 )"
+        }
+      ],
+      "duration_minutes": 135,
+      "is_open": false,
+      "minimum_rate": "218.36",
+      "maximum_rate": "235.33",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    },
+    {
+      "sequence": 1,
+      "pair": "ZEC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1760142000000,
+      "close_timestamp_ms": 1760143500000,
+      "open_rate": "215.07",
+      "close_rate": "228.26",
+      "amount": "47.289",
+      "stake_amount": "10170.44523",
+      "max_stake_amount": "10170.44523",
+      "leverage": "1",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_d_5_99 ( 144 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "602.77727763",
+        "ratio": "0.05920833246820135"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "2.16",
+      "stop_loss": "2.16",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1760142000000,
+          "amount": "47.289",
+          "price": "215.07",
+          "cost": "10180.615675229998",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1760143500000,
+          "amount": "47.289",
+          "price": "228.26",
+          "cost": "10804.981327139998",
+          "tag": "exit_long_tc_d_5_99 ( 144 )"
+        }
+      ],
+      "duration_minutes": 25,
+      "is_open": false,
+      "minimum_rate": "215.07",
+      "maximum_rate": "231",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    },
+    {
+      "sequence": 2,
+      "pair": "ZEC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1760145900000,
+      "close_timestamp_ms": 1760146800000,
+      "open_rate": "213.48",
+      "close_rate": "219.31",
+      "amount": "50.436",
+      "stake_amount": "10767.07728",
+      "max_stake_amount": "10767.07728",
+      "leverage": "1",
+      "entry_tag": "141 ",
+      "exit_reason": "exit_long_tc_d_2_99 ( 141 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "272.21368356",
+        "ratio": "0.02525678368848689"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "2.14",
+      "stop_loss": "2.14",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1760145900000,
+          "amount": "50.436",
+          "price": "213.48",
+          "cost": "10777.844357279999",
+          "tag": "141 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1760146800000,
+          "amount": "50.436",
+          "price": "219.31",
+          "cost": "11072.180279159998",
+          "tag": "exit_long_tc_d_2_99 ( 141 )"
+        }
+      ],
+      "duration_minutes": 15,
+      "is_open": false,
+      "minimum_rate": "212.83",
+      "maximum_rate": "221.21",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    },
+    {
+      "sequence": 3,
+      "pair": "ZEC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1760289900000,
+      "close_timestamp_ms": 1760290800000,
+      "open_rate": "246.35",
+      "close_rate": "253.43",
+      "amount": "44.801",
+      "stake_amount": "11036.72635",
+      "max_stake_amount": "11036.72635",
+      "leverage": "1",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_d_2_99 ( 144 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "294.80043622",
+        "ratio": "0.02668417436024499"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "2.47",
+      "stop_loss": "2.47",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1760289900000,
+          "amount": "44.801",
+          "price": "246.35",
+          "cost": "11047.76307635",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1760290800000,
+          "amount": "44.801",
+          "price": "253.43",
+          "cost": "11365.27134743",
+          "tag": "exit_long_tc_d_2_99 ( 144 )"
+        }
+      ],
+      "duration_minutes": 15,
+      "is_open": false,
+      "minimum_rate": "246.17",
+      "maximum_rate": "255.75",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 6
+    }
+  ]
+}

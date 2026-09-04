@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching spot fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "18c04a98c8ebdeed15ef21b02788230bfd71c547a0fcfae7fdd24179b96b3f33",
+  "trading_mode": "spot",
+  "upstream_commit": "51c689ab25012f7111a27c38a3e95481e749ca94",
+  "engine_commit": "664520be4ddcc3b69f9f8f89181c1b71809e2e45",
+  "strategy_sha256": "51c1822c19a49d7519153d0a4cb3174581dc3cb3e23fbc4f722d9863c129f2fa",
+  "fixture_id": "future-nfi-spot-18c04a98c8ebdeed",
+  "manifest_sha256": "1869c03f89aeb66e526ab74cabb35598c63a1b85f40154127d4f0a81abac4d37",
+  "logical_bytes": 22435009,
+  "target_ids": [
+    "8bbcf93cafbd342a079ec64120e427ecb8f7bffd93b80b98bb86cdaea089bd28"
+  ],
+  "pair": "ZEC/USDT",
+  "timerange": "20251010-20251013",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
