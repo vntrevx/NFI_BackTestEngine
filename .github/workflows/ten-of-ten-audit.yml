@@ -1,0 +1,215 @@
+# yamllint disable rule:line-length
+name: Audit fixed release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_tag:
+        description: Fixed combined RC tag, for example v1.15.0-rc.1
+        required: true
+        type: string
+      cycle:
+        description: Daily soak cycle number from 1 through 7
+        required: true
+        type: number
+      compatibility_run_id:
+        description: Successful same-commit Latest NFI compatibility run
+        required: true
+        type: string
+      discovery_run_id:
+        description: Successful same-commit NFI branch discovery run
+        required: true
+        type: string
+      nightly_run_id:
+        description: Successful same-commit Nightly validation run
+        required: true
+        type: string
+      prior_cycle_run_ids:
+        description: Comma-separated six prior audit run IDs; required only for cycle 7
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ten-of-ten-${{ inputs.candidate_tag }}-${{ inputs.cycle }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Fixed-RC soak cycle ${{ inputs.cycle }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the fixed candidate definition
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.candidate_tag }}
+          persist-credentials: false
+      - name: Validate fixed release and workflow identities
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+          CYCLE: ${{ inputs.cycle }}
+          COMPATIBILITY_RUN_ID: ${{ inputs.compatibility_run_id }}
+          DISCOVERY_RUN_ID: ${{ inputs.discovery_run_id }}
+          NIGHTLY_RUN_ID: ${{ inputs.nightly_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]
+          [[ "$CYCLE" =~ ^[1-7]$ ]]
+          candidate_sha="$(git rev-parse HEAD)"
+          tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${CANDIDATE_TAG}" --jq .object.sha)"
+          test "$candidate_sha" = "$tag_sha"
+          mkdir checks
+          while IFS=$'\t' read -r slug run_id expected_name; do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > "checks/$slug-run.json"
+            jq -e \
+              --arg name "$expected_name" \
+              --arg sha "$candidate_sha" \
+              '.name == $name and .event == "workflow_dispatch" and .conclusion == "success" and .head_sha == $sha' \
+              "checks/$slug-run.json"
+            age="$(python - "$PWD/checks/$slug-run.json" <<'PY'
+          import datetime
+          import json
+          import pathlib
+          import sys
+
+          value = json.loads(pathlib.Path(sys.argv[1]).read_text())["updated_at"]
+          then = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+          print(max(0, int((datetime.datetime.now(datetime.UTC) - then).total_seconds())))
+          PY
+            )"
+            sha256="$(sha256sum "checks/$slug-run.json" | cut -d' ' -f1)"
+            jq -n \
+              --argjson run_id "$run_id" \
+              --arg head_sha "$candidate_sha" \
+              --arg evidence_sha256 "$sha256" \
+              --argjson age "$age" \
+              '{run_id: $run_id, head_sha: $head_sha, conclusion: "success", evidence_sha256: $evidence_sha256, latest_checked_age_seconds: $age}' \
+              > "checks/$slug.json"
+          done <<EOF
+          compatibility	$COMPATIBILITY_RUN_ID	Latest NFI compatibility
+          discovery	$DISCOVERY_RUN_ID	NFI branch discovery
+          nightly	$NIGHTLY_RUN_ID	Nightly validation
+          EOF
+          echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+      - name: Download and verify public RC bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir candidate
+          gh release download "$CANDIDATE_TAG" --repo "$GITHUB_REPOSITORY" --dir candidate
+          (cd candidate && sha256sum --check RELEASE-SHA256SUMS.txt)
+          mapfile -t wheels < <(find candidate -maxdepth 1 -type f -name '*manylinux*x86_64.whl')
+          test "${#wheels[@]}" -eq 1
+          python -m venv .audit-venv
+          .audit-venv/bin/python -m pip install "${wheels[0]}"
+          {
+            .audit-venv/bin/nfi-bte --version
+            .audit-venv/bin/nfi-bte doctor --json
+            .audit-venv/bin/nfi-bte contract support --json
+            .audit-venv/bin/nfi-bte release verify-assets \
+              --release-dir candidate --candidate-commit "$CANDIDATE_SHA"
+          } > checks/public-install.log
+          public_sha="$(sha256sum checks/public-install.log | cut -d' ' -f1)"
+          jq -n \
+            --argjson run_id "${GITHUB_RUN_ID}" \
+            --arg head_sha "$CANDIDATE_SHA" \
+            --arg evidence_sha256 "$public_sha" \
+            '{run_id: $run_id, head_sha: $head_sha, conclusion: "success", evidence_sha256: $evidence_sha256}' \
+            > checks/public_install.json
+
+          cp -a candidate restored
+          .audit-venv/bin/nfi-bte release verify-assets \
+            --release-dir restored --candidate-commit "$CANDIDATE_SHA" \
+            > checks/asset-restore.log
+          diff -qr candidate restored >> checks/asset-restore.log
+          restore_sha="$(sha256sum checks/asset-restore.log | cut -d' ' -f1)"
+          jq -n \
+            --argjson run_id "${GITHUB_RUN_ID}" \
+            --arg head_sha "$CANDIDATE_SHA" \
+            --arg evidence_sha256 "$restore_sha" \
+            '{run_id: $run_id, head_sha: $head_sha, conclusion: "success", evidence_sha256: $evidence_sha256}' \
+            > checks/asset_restore.json
+      - name: Seal cycle receipt
+        env:
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+          CYCLE: ${{ inputs.cycle }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          .audit-venv/bin/nfi-bte release record-soak \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --release-tag "$CANDIDATE_TAG" \
+            --cycle "$CYCLE" \
+            --checked-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --public-manifest-sha256 "$(sha256sum candidate/RELEASE-SHA256SUMS.txt | cut -d' ' -f1)" \
+            --check compatibility=checks/compatibility.json \
+            --check discovery=checks/discovery.json \
+            --check nightly=checks/nightly.json \
+            --check public_install=checks/public_install.json \
+            --check asset_restore=checks/asset_restore.json \
+            --output "operations-soak-cycle-${CYCLE}.json"
+      - name: Download six prior receipts for final audit
+        if: inputs.cycle == 7
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRIOR_RUN_IDS: ${{ inputs.prior_cycle_run_ids }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra run_ids <<< "$PRIOR_RUN_IDS"
+          test "${#run_ids[@]}" -eq 6
+          mkdir prior-receipts
+          for run_id in "${run_ids[@]}"; do
+            [[ "$run_id" =~ ^[0-9]+$ ]]
+            gh run download "$run_id" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern 'operations-soak-cycle-*' \
+              --dir prior-receipts
+          done
+          find prior-receipts -type f -name 'operations-soak-cycle-*.json' -exec cp {} . \;
+          test "$(find . -maxdepth 1 -type f -name 'operations-soak-cycle-*.json' | wc -l)" -eq 7
+      - name: Seal final public 10/10 audit
+        if: inputs.cycle == 7
+        env:
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t receipts < <(find . -maxdepth 1 -type f -name 'operations-soak-cycle-*.json' | LC_ALL=C sort)
+          arguments=()
+          for receipt in "${receipts[@]}"; do arguments+=(--soak-receipt "$receipt"); done
+          .audit-venv/bin/nfi-bte release audit \
+            --release-dir candidate \
+            --candidate-commit "$CANDIDATE_SHA" \
+            --release-tag "$CANDIDATE_TAG" \
+            "${arguments[@]}" \
+            --output ten-of-ten-release-audit.json
+      - name: Retain immutable cycle receipt
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: operations-soak-cycle-${{ inputs.cycle }}-${{ steps.identity.outputs.sha }}
+          path: operations-soak-cycle-${{ inputs.cycle }}.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain final 10/10 audit
+        if: inputs.cycle == 7
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ten-of-ten-audit-${{ steps.identity.outputs.sha }}
+          path: ten-of-ten-release-audit.json
+          if-no-files-found: error
+          retention-days: 90

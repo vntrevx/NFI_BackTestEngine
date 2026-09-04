@@ -1490,6 +1490,41 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     release_combined_verify.add_argument("--native-score-evidence", type=Path, required=True)
     release_combined_verify.add_argument("--native-score-identity", type=Path, required=True)
     release_combined_verify.add_argument("--provenance-ledger", type=Path, required=True)
+    release_asset_verify = release_commands.add_parser(
+        "verify-assets",
+        help="verify public combined-release bytes without private ledger access",
+    )
+    release_asset_verify.add_argument("--release-dir", type=Path, required=True)
+    release_asset_verify.add_argument("--candidate-commit", required=True)
+    release_soak = release_commands.add_parser(
+        "record-soak",
+        help="seal one fixed-candidate operations-soak receipt",
+    )
+    release_soak.add_argument("--candidate-commit", required=True)
+    release_soak.add_argument("--release-tag", required=True)
+    release_soak.add_argument("--cycle", type=int, required=True)
+    release_soak.add_argument("--checked-at", required=True)
+    release_soak.add_argument("--public-manifest-sha256", required=True)
+    release_soak.add_argument(
+        "--check",
+        action="append",
+        default=[],
+        required=True,
+        help="required check as name=JSON-path; repeat for all five checks",
+    )
+    release_soak.add_argument("--output", type=Path, required=True)
+    release_audit = release_commands.add_parser(
+        "audit",
+        help="seal a seven-cycle public-artifact 10/10 audit",
+    )
+    release_audit.add_argument("--release-dir", type=Path, required=True)
+    release_audit.add_argument("--candidate-commit", required=True)
+    release_audit.add_argument("--release-tag", required=True)
+    release_audit.add_argument(
+        "--soak-receipt", action="append", type=Path, default=[], required=True
+    )
+    release_audit.add_argument("--product-contract", type=Path)
+    release_audit.add_argument("--output", type=Path, required=True)
     release_cleanroom = release_commands.add_parser(
         "cleanroom",
         help="run the installed-artifact first-result journey without a checkout",

@@ -623,6 +623,22 @@ def verify_combined_release_candidate(
     return gate
 
 
+def verify_combined_release_assets(
+    source: str | Path,
+    *,
+    expected_commit: str,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+) -> dict[str, Any]:
+    """Verify public bytes without asserting the private publication-ledger state."""
+    if _COMMIT_PATTERN.fullmatch(expected_commit) is None:
+        raise SpecValidationError("combined release candidate commit is invalid")
+    return _verify_combined_release_assets(
+        source,
+        expected_commit=expected_commit,
+        provenance_policy=provenance_policy,
+    )
+
+
 def _verify_combined_release_assets(
     source: str | Path,
     *,

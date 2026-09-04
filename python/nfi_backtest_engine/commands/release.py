@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 
 from ..canonical import read_json, write_json
 
@@ -377,7 +378,63 @@ def execute_release(args: argparse.Namespace) -> int:
         )
         print(
             f"combined release valid: commit={report['candidate_commit']}, "
-            f"assets=10, version={report['package_version']}"
+            f"distributions={len(report['distributions'])}, "
+            f"version={report['package_version']}"
+        )
+        return 0
+    if args.release_command == "verify-assets":
+        from ..combined_release import verify_combined_release_assets
+
+        report = verify_combined_release_assets(
+            args.release_dir,
+            expected_commit=args.candidate_commit,
+        )
+        print(
+            f"combined public assets valid: commit={report['candidate_commit']}, "
+            f"distributions={len(report['distributions'])}, "
+            f"version={report['package_version']}"
+        )
+        return 0
+    if args.release_command == "record-soak":
+        from ..release_audit import record_operations_soak_cycle
+
+        checks: dict[str, dict[str, object]] = {}
+        for supplied in args.check:
+            name, separator, raw_path = supplied.partition("=")
+            if not separator or not name or name in checks:
+                raise ValueError("--check must be a unique name=JSON-path value")
+            document = read_json(Path(raw_path))
+            if not isinstance(document, dict):
+                raise ValueError(f"soak check must be a JSON object: {raw_path}")
+            checks[name] = document
+        report = record_operations_soak_cycle(
+            candidate_commit=args.candidate_commit,
+            release_tag=args.release_tag,
+            cycle=args.cycle,
+            checked_at=args.checked_at,
+            public_manifest_sha256=args.public_manifest_sha256,
+            checks=checks,
+            output_path=args.output,
+        )
+        print(
+            f"operations soak cycle sealed: cycle={report['cycle']}/7, "
+            f"commit={report['candidate_commit']} -> {args.output}"
+        )
+        return 0
+    if args.release_command == "audit":
+        from ..release_audit import seal_ten_of_ten_release_audit
+
+        report = seal_ten_of_ten_release_audit(
+            release_directory=args.release_dir,
+            candidate_commit=args.candidate_commit,
+            release_tag=args.release_tag,
+            soak_receipt_paths=args.soak_receipt,
+            output_path=args.output,
+            product_contract_path=args.product_contract,
+        )
+        print(
+            f"10/10 public release audit sealed: cycles={report['operations']['cycles']}, "
+            f"identity={report['identity_sha256']} -> {args.output}"
         )
         return 0
     raise AssertionError(f"unhandled release command: {args.release_command}")

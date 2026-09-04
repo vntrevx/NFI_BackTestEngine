@@ -651,6 +651,7 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     publish = (root / ".github/workflows/publish-release-candidate.yml").read_text(encoding="utf-8")
     certify = (root / ".github/workflows/certify-release-candidate.yml").read_text(encoding="utf-8")
     promote = (root / ".github/workflows/promote-release.yml").read_text(encoding="utf-8")
+    audit = (root / ".github/workflows/ten-of-ten-audit.yml").read_text(encoding="utf-8")
     assert "permissions:\n  contents: read" in build
     assert "release_candidate_contract.py" in build
     assert "Measure exact Spot and Futures fixtures" in build
@@ -737,7 +738,15 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
         "/var/lib/nfi-release/provenance/used-certificates.sqlite"
     ) == 1
     assert promote.count("--provenance-ledger \"$PROVENANCE_LEDGER\"") == 2
-    assert "runs-on: ubuntu-latest" not in promote
+    promote_job = promote[promote.index("  promote:"):promote.index("  pypi-publish:")]
+    assert "runs-on: ubuntu-latest" not in promote_job
+    assert "ten-of-ten-audit-${{ steps.identity.outputs.sha }}" in promote_job
+    assert promote_job.index("Enforce audit identity") < promote_job.index(
+        "Create stable release"
+    )
+    assert "environment:\n      name: pypi" in promote
+    assert "id-token: write" in promote
+    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in promote
     combined_consumers = {
         path.name: path.read_text(encoding="utf-8")
         for path in (root / ".github/workflows").glob("*.yml")
@@ -801,6 +810,17 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "--native-score-evidence" in promote
     assert "--native-score-identity" in promote
     assert promote.index("nfi-bte release verify-combined") < promote.index("gh release create")
+    assert "name: Audit fixed release candidate" in audit
+    assert "cancel-in-progress: false" in audit
+    assert "contents: write" not in audit
+    assert "compatibility_run_id:" in audit
+    assert "discovery_run_id:" in audit
+    assert "nightly_run_id:" in audit
+    assert "nfi-bte release verify-assets" in audit
+    assert "nfi-bte release record-soak" in audit
+    assert "nfi-bte release audit" in audit
+    assert "test \"${#run_ids[@]}\" -eq 6" in audit
+    assert "ten-of-ten-audit-${{ steps.identity.outputs.sha }}" in audit
 
 
 def test_oracle_capture_is_a_single_run_protected_workflow() -> None:

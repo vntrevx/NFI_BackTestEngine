@@ -20,6 +20,7 @@ from nfi_backtest_engine.combined_release import (
     combine_full_x7_release,
     finalize_combined_release_publication,
     seal_combined_release_candidate,
+    verify_combined_release_assets,
     verify_combined_release_candidate,
 )
 from nfi_backtest_engine.errors import SpecValidationError
@@ -624,6 +625,13 @@ def test_combined_release_gate_accepts_current_platform_and_wheel_set(
     assert verified == result
     assert len(list(release.iterdir())) == CURRENT_PUBLIC_RELEASE_ASSET_COUNT
     assert len(result["distributions"]) == 4
+
+    public_only = verify_combined_release_assets(
+        release,
+        expected_commit=str(inputs["candidate_commit"]),
+        provenance_policy=TEST_POLICY,
+    )
+    assert public_only == result
     assert result["candidate_manifest"]["sha256"] != sha256_file(
         release / "SHA256SUMS.txt"
     )
