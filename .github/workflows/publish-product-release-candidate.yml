@@ -116,7 +116,7 @@ jobs:
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.required_ci_commit_match == true
              and .distribution_policy.supported_platform_exact_fixture_evidence == true
-             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
+             and .distribution_policy.supported_platform_slugs == ["linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"]
              and .certification_boundary.latest_same_candidate_spot_certificate == false
              and .certification_boundary.latest_same_candidate_futures_certificate == false
              and .certification_boundary.prior_certificates_remain_version_bound == true' \

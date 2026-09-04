@@ -108,7 +108,7 @@ jobs:
              and .combined_full_x7_certified == false
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.supported_platform_exact_fixture_evidence == true
-             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
+             and .distribution_policy.supported_platform_slugs == ["linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             candidate/product-release-contract.json
           test ! -e candidate/release-gate.json

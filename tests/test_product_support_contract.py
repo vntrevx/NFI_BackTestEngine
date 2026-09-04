@@ -77,7 +77,12 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
         "schema_version": "1.0.0",
         "package_version": "1.11.0",
         "combined_full_x7_certified": False,
-        "supported_platform_systems": ["darwin", "linux"],
+        "supported_platform_slugs": [
+            "linux-aarch64",
+            "linux-x86_64",
+            "macos-arm64",
+            "windows-wsl2-x86_64",
+        ],
         "valid": True,
     }
 
@@ -87,7 +92,7 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
     [
         ("build_once", False, "distribution policy differs"),
         ("byte_identical_rc_stable", False, "distribution policy differs"),
-        ("supported_platform_systems", ["darwin", "linux", "windows"], "platform policy differs"),
+        ("supported_platform_slugs", ["linux-x86_64"], "platform policy differs"),
     ],
 )
 def test_release_policy_drift_is_rejected(field: str, value: object, message: str) -> None:

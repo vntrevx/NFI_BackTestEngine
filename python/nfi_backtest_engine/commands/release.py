@@ -181,6 +181,8 @@ def execute_platform(args: argparse.Namespace) -> int:
         )
         return 0
     if args.platform_command == "seal":
+        from ..platform_benchmark import REQUIRED_PLATFORM_SLUGS
+
         evidence = seal_platform_evidence(
             args.report,
             args.output_dir,
@@ -190,6 +192,11 @@ def execute_platform(args: argparse.Namespace) -> int:
             expected_candidate_id=args.candidate_id,
             expected_bundle_id=args.bundle_id,
             expected_challenge=args.challenge,
+            required_platform_slugs=(
+                REQUIRED_PLATFORM_SLUGS
+                if args.platform_contract == "v2-slugs"
+                else None
+            ),
         )
         print(
             "platform evidence sealed: "

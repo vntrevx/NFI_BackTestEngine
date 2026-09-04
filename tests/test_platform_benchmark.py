@@ -11,6 +11,7 @@ from nfi_backtest_engine.fixture import validate_fixture as validate_fixture_rea
 from nfi_backtest_engine.platform_benchmark import (
     EXACT_FIXTURE_LANE,
     RAW_INPUT_LANE,
+    REQUIRED_PLATFORM_SLUGS,
     _fixture_result_sha256,
     _portable_timerange,
     seal_platform_evidence,
@@ -26,6 +27,8 @@ def _report(
     result: str = "a" * 64,
     mode_contract: str = "binance-usdtm-isolated",
     lane: str = RAW_INPUT_LANE,
+    slug: str | None = None,
+    wsl: bool | None = None,
 ) -> dict:
     workload = {
         "mode_contract": mode_contract,
@@ -57,9 +60,10 @@ def _report(
         "complete": True,
         "lane": lane,
         "platform": {
+            "slug": slug,
             "system": system,
             "machine": machine,
-            "wsl": system == "linux",
+            "wsl": system == "linux" if wsl is None else wsl,
         },
         "package": package,
         "workload": workload,
@@ -156,6 +160,32 @@ def test_platform_seal_requires_supported_systems_and_one_result(tmp_path: Path)
     )
     assert evidence["result_sha256"] == "a" * 64
     assert [item["system"] for item in evidence["platforms"]] == ["darwin", "linux"]
+
+
+def test_platform_v2_seal_requires_four_exact_target_slugs(tmp_path: Path) -> None:
+    targets = (
+        ("linux-x86_64", "linux", "x86_64", False),
+        ("linux-aarch64", "linux", "aarch64", False),
+        ("macos-arm64", "darwin", "arm64", False),
+        ("windows-wsl2-x86_64", "linux", "x86_64", True),
+    )
+    paths = []
+    for slug, system, machine, wsl in targets:
+        path = tmp_path / f"{slug}.json"
+        write_json(path, _report(system, machine, slug=slug, wsl=wsl))
+        sign_report(path, run_id=1)
+        paths.append(path)
+
+    evidence = seal_platform_evidence(
+        paths,
+        tmp_path / "sealed-v2",
+        provenance_policy=TEST_POLICY,
+        required_platform_slugs=REQUIRED_PLATFORM_SLUGS,
+    )
+
+    assert [item["slug"] for item in evidence["platforms"]] == sorted(
+        REQUIRED_PLATFORM_SLUGS
+    )
 
 
 def test_platform_seal_rejects_native_windows_report(tmp_path: Path) -> None:

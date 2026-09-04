@@ -669,7 +669,7 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     sdist_section = build[build.index("  sdist:"):build.index("  provenance-prepare:")]
     assert "sccache: true" not in sdist_section
     cleanroom_section = build[
-        build.index("  cleanroom:"):build.index("  provenance-prepare:")
+        build.index("  cleanroom:"):build.index("  wsl-platform:")
     ]
     assert "actions/checkout" not in cleanroom_section
     assert "Install only the downloaded wheel" in cleanroom_section
@@ -685,7 +685,10 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assemble_section = build[
         build.index("  provenance-assemble:"):build.index("  platform-evidence:")
     ]
-    assert "needs: [verify, cleanroom]" in prepare_section
+    assert "needs: [verify, cleanroom, wsl-platform]" in prepare_section
+    assert "runs-on: [self-hosted, linux, x64, wsl2, nfi-release]" in build
+    assert "--platform-contract v2-slugs" in build
+    assert 'test "${#mode_reports[@]}" -eq 4' in build
     assert "needs: [verify, provenance-prepare]" in signing_section
     assert "runs-on: ubuntu-latest" in signing_section
     assert "environment: release-provenance" not in signing_section
@@ -857,7 +860,12 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "sha256_manifest_required": True,
             "required_ci_commit_match": True,
             "supported_platform_exact_fixture_evidence": True,
-            "supported_platform_systems": ["darwin", "linux"],
+            "supported_platform_slugs": [
+                "linux-aarch64",
+                "linux-x86_64",
+                "macos-arm64",
+                "windows-wsl2-x86_64",
+            ],
         },
         "certification_boundary": {
             "latest_same_candidate_spot_certificate": False,
@@ -881,10 +889,10 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "product-release-bundle-${{ steps.candidate.outputs.sha }}" in publish
     assert "combined_full_x7_certified == false" in publish
     assert "supported_platform_exact_fixture_evidence == true" in publish
-    assert 'supported_platform_systems == ["darwin", "linux"]' in publish
+    assert "supported_platform_slugs" in publish
     assert "test \"$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)\" -eq 3" in publish
     assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 11" in publish
-    assert '== ["darwin", "linux"]' in publish
+    assert '"windows-wsl2-x86_64"' in publish
     assert "native-score" not in publish
     assert "nfi-bte release score" not in publish
     assert "find candidate -mindepth 1 ! -type f" in publish
@@ -905,7 +913,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "candidate and promotion workflow commits differ" in promote
     assert "combined_full_x7_certified == false" in promote
     assert "supported_platform_exact_fixture_evidence == true" in promote
-    assert 'supported_platform_systems == ["darwin", "linux"]' in promote
+    assert "supported_platform_slugs" in promote
     assert "native-score" not in promote
     assert "nfi-bte release score" not in promote
     assert "find candidate -mindepth 1 ! -type f" in promote

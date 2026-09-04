@@ -357,7 +357,7 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     platform_assemble.add_argument("--output", type=Path, required=True)
     platform_seal = platform_commands.add_parser(
         "seal",
-        help="combine Linux and macOS benchmark reports",
+        help="combine the four supported platform-slug benchmark reports",
     )
     platform_seal.add_argument(
         "--report",
@@ -372,6 +372,11 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     platform_seal.add_argument("--challenge", required=True)
     platform_seal.add_argument("--candidate-commit", required=True)
     platform_seal.add_argument("--output-dir", type=Path, required=True)
+    platform_seal.add_argument(
+        "--platform-contract",
+        choices=("v2-slugs", "legacy-systems"),
+        default="v2-slugs",
+    )
 
     normalize = subcommands.add_parser(
         "normalize", help="normalize an official Freqtrade JSON export"

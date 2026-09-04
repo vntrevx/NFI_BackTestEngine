@@ -64,12 +64,8 @@ def validate_product_release_alignment(
         is not product["distribution"]["byte_identical_github_rc_stable"]
     ):
         raise SpecValidationError("product release distribution policy differs")
-    platform_systems = {
-        "darwin" if platform.startswith("macos-") else "linux"
-        for platform in product["platforms"]["supported"]
-    }
-    expected_platform_systems = sorted(platform_systems)
-    if distribution.get("supported_platform_systems") != expected_platform_systems:
+    expected_platform_slugs = sorted(product["platforms"]["supported"])
+    if distribution.get("supported_platform_slugs") != expected_platform_slugs:
         raise SpecValidationError("product release platform policy differs")
     combined = release.get("combined_full_x7_certified")
     expected_combined = product["certification"]["combined_status"] == "release-certified"
@@ -81,7 +77,7 @@ def validate_product_release_alignment(
         "schema_version": PRODUCT_SUPPORT_CONTRACT_VERSION,
         "package_version": release.get("package_version"),
         "combined_full_x7_certified": combined,
-        "supported_platform_systems": distribution["supported_platform_systems"],
+        "supported_platform_slugs": distribution["supported_platform_slugs"],
         "valid": True,
     }
 
