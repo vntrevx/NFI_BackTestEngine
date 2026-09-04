@@ -40,6 +40,13 @@ def test_repository_product_support_contract_is_valid() -> None:
         "status": "planned",
         "authentication": "oidc-trusted-publishing",
     }
+    assert contract["release_train"] == [
+        {
+            "version": "v1.15.0",
+            "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
+            "combined_full_x7_certified": True,
+        }
+    ]
 
 
 def test_packaged_contract_is_byte_identical_to_planning_authority() -> None:
@@ -126,13 +133,20 @@ def test_product_contract_rejects_native_windows_claim(tmp_path: Path) -> None:
         load_product_support_contract(path)
 
 
-def test_product_contract_rejects_early_combined_claim(tmp_path: Path) -> None:
+def test_product_contract_rejects_multi_release_train(tmp_path: Path) -> None:
     contract = deepcopy(load_product_support_contract(CONTRACT))
-    contract["release_train"][2]["combined_full_x7_certified"] = True
+    contract["release_train"].insert(
+        0,
+        {
+            "version": "v1.14.0",
+            "milestones": ["M25"],
+            "combined_full_x7_certified": False,
+        },
+    )
     path = tmp_path / "contract.json"
     write_json(path, contract)
 
-    with pytest.raises(SpecValidationError, match="only the gated v1.15.0"):
+    with pytest.raises(SpecValidationError):
         load_product_support_contract(path)
 
 

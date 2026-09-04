@@ -136,13 +136,10 @@ def _validate_product_policy(document: dict[str, Any]) -> None:
         )
 
     releases = document["release_train"]
-    if [item["version"] for item in releases] != [
-        "v1.12.0",
-        "v1.13.0",
-        "v1.14.0",
-        "v1.15.0",
-    ]:
+    if [item["version"] for item in releases] != ["v1.15.0"]:
         raise SpecValidationError("product release train differs")
+    if releases[0]["milestones"] != ["M25", "M26", "M27", "M28", "M29", "M30"]:
+        raise SpecValidationError("product release milestones differ")
     combined = [item["version"] for item in releases if item["combined_full_x7_certified"]]
     if combined != ["v1.15.0"]:
         raise SpecValidationError("only the gated v1.15.0 target may claim combined certification")
