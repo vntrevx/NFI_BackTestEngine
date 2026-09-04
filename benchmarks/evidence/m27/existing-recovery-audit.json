@@ -1,0 +1,39 @@
+{
+  "schema_version": "existing-recovery-audit-v1",
+  "captured_at": "2026-09-05",
+  "engine_commit": "b0231696abd53c87f18e7c9ec38ef42b669aef35",
+  "implementation_action": "evidence_only",
+  "new_resume_subsystem_added": false,
+  "coverage": {
+    "run_checkpoint_resume": [
+      "tests/test_engine_runtime.py",
+      "tests/test_project_setup.py"
+    ],
+    "artifact_regeneration_and_source_preservation": [
+      "tests/test_result_artifacts_v2.py"
+    ],
+    "clean_audit_and_protected_evidence": [
+      "tests/test_clean.py"
+    ],
+    "idempotent_verification_ledger": [
+      "tests/test_verification_ledger.py"
+    ],
+    "publication_interruption_and_wal_recovery": [
+      "tests/test_release_provenance_sqlite_publication.py",
+      "tests/test_combined_release.py"
+    ]
+  },
+  "validation": {
+    "command": "uv run pytest -q tests/test_clean.py tests/test_project_setup.py tests/test_result_artifacts_v2.py tests/test_verification_ledger.py tests/test_engine_runtime.py tests/test_release_provenance_sqlite_publication.py tests/test_combined_release.py",
+    "passed": 217,
+    "failed": 0,
+    "duration_seconds": 128.44
+  },
+  "conclusion": {
+    "existing_success_evidence_preserved": true,
+    "partial_publications_rejected_or_recovered": true,
+    "duplicate_ledger_events_prevented": true,
+    "clean_dry_run_contract_present": true,
+    "remaining_code_gap": "release swap gate only"
+  }
+}
