@@ -20,14 +20,14 @@
         "generation": "V8",
         "default_visible": false,
         "native_supported": false,
-        "fallback_status": "planned"
+        "fallback_status": "qualified"
       },
       {
         "family": "NostalgiaForInfinityNextGen",
         "generation": "V9",
         "default_visible": false,
         "native_supported": false,
-        "fallback_status": "planned"
+        "fallback_status": "qualified"
       }
     ],
     "unknown_semantics_policy": "fail-closed"

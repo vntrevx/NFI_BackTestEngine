@@ -1,0 +1,38 @@
+{
+  "schema_version": "legacy-official-qualification-evidence-v1",
+  "captured_at": "2026-09-05",
+  "engine_commit": "4a0d95095e961b126a631b4d4b287e834e613ad3",
+  "upstream_commit": "5e168431991e05a889514eb1e16fdbebc6a09811",
+  "fixture_id": "x7-v17.4.435-tag-121-btc-spot",
+  "fixture_manifest_sha256": "84228551813dda0543220ac6e51f05dcd893ebcb6b849d1777e09c41881a60aa",
+  "candidate_order": ["2026.5.1", "2025.5"],
+  "strategies": [
+    {
+      "family": "NostalgiaForInfinityNext",
+      "generation": "V8",
+      "source_sha256": "827de0773661be31566b18ef5b5744d86ce53752243dcf45871b3ce08e129db5",
+      "selected_version": "2025.5",
+      "selected_platform_digest": "sha256:9aa296498d496db89664d59aa502a83d6c00dc269469f29185f6bde140b0942b",
+      "attempts": [
+        {"version": "2026.5.1", "import_exit_code": 0, "backtest_exit_code": 1},
+        {"version": "2025.5", "import_exit_code": 0, "backtest_exit_code": 0}
+      ],
+      "result_status": "official_only"
+    },
+    {
+      "family": "NostalgiaForInfinityNextGen",
+      "generation": "V9",
+      "source_sha256": "c6d0b909c30cd28bb56924088224a8ede7359c3803fb1f4b804b480392e3886c",
+      "selected_version": "2025.5",
+      "selected_platform_digest": "sha256:9aa296498d496db89664d59aa502a83d6c00dc269469f29185f6bde140b0942b",
+      "attempts": [
+        {"version": "2026.5.1", "import_exit_code": 0, "backtest_exit_code": 2},
+        {"version": "2025.5", "import_exit_code": 0, "backtest_exit_code": 0}
+      ],
+      "result_status": "official_only"
+    }
+  ],
+  "source_rewriting": false,
+  "native_supported": false,
+  "network_requirement": "public-exchange-metadata"
+}

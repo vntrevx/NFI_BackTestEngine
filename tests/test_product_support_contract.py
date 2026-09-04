@@ -35,6 +35,13 @@ def test_repository_product_support_contract_is_valid() -> None:
         "windows_abi": "linux-under-wsl2",
     }
     assert contract["certification"]["combined_status"] == "preview"
+    assert {
+        item["family"]: item["fallback_status"]
+        for item in contract["strategies"]["official_only_legacy"]
+    } == {
+        "NostalgiaForInfinityNext": "qualified",
+        "NostalgiaForInfinityNextGen": "qualified",
+    }
     assert contract["distribution"]["channels"][1] == {
         "slug": "pypi",
         "status": "planned",

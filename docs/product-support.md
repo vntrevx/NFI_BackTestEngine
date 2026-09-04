@@ -13,7 +13,9 @@ nfi-bte contract support --json
 
 - Native execution supports capability-compatible `NostalgiaForInfinityX7` sources.
 - `NostalgiaForInfinityNext` and `NostalgiaForInfinityNextGen` are legacy V8/V9
-  sources. They are hidden from normal selection and are not Native-certified.
+  sources. They are hidden from normal selection and are not Native-certified. Their
+  sealed upstream sources have an explicit-consent, digest-pinned Official fallback;
+  modified source bytes fail closed as `LEGACY_REFERENCE_UNAVAILABLE`.
 - Spot and isolated USDT-M Futures use official Freqtrade as the zero-tolerance
   authority.
 - Linux x86_64/aarch64, macOS arm64, and Windows through WSL2 are supported. Native
