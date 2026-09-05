@@ -24,6 +24,11 @@ MeasurementValidator = Callable[[Measurement], bool]
 CHECKPOINT_FILENAME = "certification-measurement.json"
 
 
+def _valid_swap_peak(value: Any) -> int | None:
+    """Return one measured peak, excluding JSON values that only resemble bytes."""
+    return value if type(value) is int and value >= 0 else None
+
+
 def write_measurement_checkpoint(
     output: Path,
     measurement: Measurement,
@@ -72,7 +77,7 @@ def load_engine_measurement(
             if checkpoint is not None
             else _persisted_engine_peak(report)
         ),
-        "peak_swap_bytes": (
+        "peak_swap_bytes": _valid_swap_peak(
             checkpoint.get("peak_swap_bytes") if checkpoint is not None else None
         ),
         "exit_code": int(checkpoint["exit_code"]) if checkpoint is not None else 0,
@@ -116,7 +121,7 @@ def load_reference_measurement(output: Path) -> Measurement | None:
             if checkpoint is not None
             else int(container_peak or 0)
         ),
-        "peak_swap_bytes": swap_peak if isinstance(swap_peak, int) else None,
+        "peak_swap_bytes": _valid_swap_peak(swap_peak),
         "exit_code": (
             int(checkpoint["exit_code"]) if checkpoint is not None else int(report["exit_code"])
         ),

@@ -14,6 +14,7 @@ from ..errors import BenchmarkError
 from ..evidence_bundle import artifact_record
 from ..fixture import sha256_file
 from ..full_x7_resume import (
+    _valid_swap_peak,
     write_measurement_checkpoint,
 )
 from ..performance_gate import measure_cli_process
@@ -81,11 +82,6 @@ def _measure_engine(
     )
     report_path = output / "run.json"
     measurement["report"] = read_json(report_path) if report_path.is_file() else None
-    report = measurement["report"]
-    swap = report.get("container_swap") if isinstance(report, dict) else None
-    measurement["peak_swap_bytes"] = (
-        swap.get("peak_bytes") if isinstance(swap, dict) else None
-    )
     measurement["output_directory"] = output
     measurement["result_sha256"] = _engine_surface_sha(measurement)
     write_measurement_checkpoint(output, measurement)
@@ -134,6 +130,11 @@ def _measure_reference(
     )
     report_path = output / "run.json"
     measurement["report"] = read_json(report_path) if report_path.is_file() else None
+    report = measurement["report"]
+    swap = report.get("container_swap") if isinstance(report, dict) else None
+    measurement["peak_swap_bytes"] = _valid_swap_peak(
+        swap.get("peak_bytes") if isinstance(swap, dict) else None
+    )
     measurement["output_directory"] = output
     measurement["result_sha256"] = _reference_surface_sha(measurement)
     write_measurement_checkpoint(output, measurement)
@@ -416,6 +417,11 @@ def _determinism(
 def _run_summary(runs: list[dict[str, Any]], *, lane: str) -> dict[str, Any]:
     wall = [float(run["wall_time_seconds"]) for run in runs]
     peaks = []
+    swap_peaks = [
+        peak
+        for run in runs
+        if (peak := _valid_swap_peak(run.get("peak_swap_bytes"))) is not None
+    ]
     for run in runs:
         peak = int(run["peak_rss_bytes"])
         report = run.get("report")
@@ -442,17 +448,8 @@ def _run_summary(runs: list[dict[str, Any]], *, lane: str) -> dict[str, Any]:
             "maximum": max(peaks),
         },
         "peak_swap_bytes": {
-            "maximum": max(
-                (
-                    int(run["peak_swap_bytes"])
-                    for run in runs
-                    if isinstance(run.get("peak_swap_bytes"), int)
-                ),
-                default=None,
-            ),
-            "measurements_complete": all(
-                isinstance(run.get("peak_swap_bytes"), int) for run in runs
-            ),
+            "maximum": max(swap_peaks, default=None),
+            "measurements_complete": len(swap_peaks) == len(runs),
         },
     }
 
