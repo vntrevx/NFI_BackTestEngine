@@ -1,0 +1,148 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20241209-20241212"
+  },
+  "summary": {
+    "total_trades": 2,
+    "starting_balance": "10000",
+    "final_balance": "10170.5254479",
+    "profit_total_abs": "170.5254479",
+    "total_volume": "25070.4975521",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "XLM/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1733781600000,
+      "close_timestamp_ms": 1733786700000,
+      "open_rate": "0.4026",
+      "close_rate": "0.4117",
+      "amount": "6147",
+      "stake_amount": "2474.7822",
+      "max_stake_amount": "2474.7822",
+      "leverage": "1",
+      "entry_tag": "63 ",
+      "exit_reason": "exit_long_rebuy_d_2_81 ( 63 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "50.9321979",
+        "ratio": "0.020559916983165866"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0041",
+      "stop_loss": "0.0041",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1733781600000,
+          "amount": "6147",
+          "price": "0.4026",
+          "cost": "2477.2569822",
+          "tag": "63 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1733786700000,
+          "amount": "6147",
+          "price": "0.4117",
+          "cost": "2533.2506199",
+          "tag": "exit_long_rebuy_d_2_81 ( 63 )"
+        }
+      ],
+      "duration_minutes": 85,
+      "is_open": false,
+      "minimum_rate": "0.3688",
+      "maximum_rate": "0.4135",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    },
+    {
+      "sequence": 1,
+      "pair": "XLM/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1733801400000,
+      "close_timestamp_ms": 1733801700000,
+      "open_rate": "0.3848",
+      "close_rate": "0.3902",
+      "amount": "25858",
+      "stake_amount": "9950.1584",
+      "max_stake_amount": "9950.1584",
+      "leverage": "1",
+      "entry_tag": "104 ",
+      "exit_reason": "exit_long_rapid_d_1_71 ( 104 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "119.59325",
+        "ratio": "0.012007223545685085"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0039",
+      "stop_loss": "0.0039",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1733801400000,
+          "amount": "25858",
+          "price": "0.3848",
+          "cost": "9960.1085584",
+          "tag": "104 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1733801700000,
+          "amount": "25858",
+          "price": "0.3902",
+          "cost": "10099.8813916",
+          "tag": "exit_long_rapid_d_1_71 ( 104 )"
+        }
+      ],
+      "duration_minutes": 5,
+      "is_open": false,
+      "minimum_rate": "0.3841",
+      "maximum_rate": "0.3903",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    }
+  ]
+}
