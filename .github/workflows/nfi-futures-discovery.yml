@@ -861,13 +861,23 @@ jobs:
         run: |
           set -euo pipefail
           status=.discovery/status/compatibility-product-status.json
+          authorization=.discovery/authorization/discovery-publication-authorization.json
           expected_engine_sha="$(jq -er .observed_identity.engine_sha "${status}")"
           expected_upstream_sha="$(jq -er .observed_identity.upstream_sha "${status}")"
+          discovery_status="$(jq -er --arg mode "${MODE}" '.modes[$mode].status' \
+            "${authorization}")"
+          reconcile_identity=()
+          if [ "${discovery_status}" != "no_gap" ]; then
+            request_fingerprint="$(jq -er --arg mode "${MODE}" \
+              '.modes[$mode].request_fingerprint' "${authorization}")"
+            reconcile_identity=(--preserve-request-fingerprint "${request_fingerprint}")
+          fi
           uv run python scripts/futures_candidate_pr.py \
             --repo-root "${GITHUB_WORKSPACE}" \
             --repository "${GITHUB_REPOSITORY}" \
             --base main \
             --reconcile-mode "${MODE}" \
+            "${reconcile_identity[@]}" \
             --expected-engine-sha "${expected_engine_sha}" \
             --expected-upstream-sha "${expected_upstream_sha}"
       - name: Open Draft PR and dispatch required CI when exact

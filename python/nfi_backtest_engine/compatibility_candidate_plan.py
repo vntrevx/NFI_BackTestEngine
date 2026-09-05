@@ -36,6 +36,13 @@ class CandidatePublicationError(ValueError):
         return self.message
 
 
+def candidate_branch(trading_mode: object, fingerprint: object) -> str:
+    """Return the one automation branch reserved for a discovery request."""
+    if trading_mode not in _MODES or _FINGERPRINT.fullmatch(str(fingerprint)) is None:
+        raise CandidatePlanError("discovery candidate identity is invalid")
+    return f"automation/{trading_mode}-fixture-{str(fingerprint)[:16]}"
+
+
 def build_candidate_plan(
     report: Mapping[str, Any],
     candidate_directory: str | Path,
@@ -121,7 +128,7 @@ def build_candidate_plan(
         raise CandidatePlanError("fixture candidate target ids are invalid")
     return {
         "fingerprint": fingerprint,
-        "branch": f"automation/{trading_mode}-fixture-{suffix}",
+        "branch": candidate_branch(trading_mode, fingerprint),
         "trading_mode": trading_mode,
         "fixture_id": fixture_id,
         "fixture_source": str(candidate_root),

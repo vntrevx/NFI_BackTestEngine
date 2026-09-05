@@ -101,6 +101,14 @@ def test_candidate_plan_allows_only_exact_size_bounded_fixture(
     )
 
 
+def test_candidate_branch_is_derived_from_the_full_request_identity() -> None:
+    assert MODULE.candidate_branch("futures", "a" * 64) == (
+        "automation/futures-fixture-" + "a" * 16
+    )
+    with pytest.raises(ValueError, match="identity is invalid"):
+        MODULE.candidate_branch("futures", "a" * 63)
+
+
 def test_candidate_plan_rejects_non_exact_or_size_mismatched_evidence(
     tmp_path: Path,
 ) -> None:
@@ -316,6 +324,25 @@ def test_candidate_pr_reconciliation_keeps_one_review_slot_per_mode() -> None:
         "close": [41],
         "blocked": [42],
     }
+
+
+def test_deferred_reconciliation_preserves_the_current_request_draft() -> None:
+    current = MODULE.candidate_branch("futures", "a" * 64)
+    plan = MODULE.build_candidate_pr_reconciliation(
+        [
+            {"number": 40, "headRefName": current, "isDraft": True},
+            {
+                "number": 41,
+                "headRefName": "automation/futures-fixture-stale",
+                "isDraft": True,
+            },
+        ],
+        trading_mode="futures",
+        desired_branch=current,
+    )
+
+    assert plan["keep"] == 40
+    assert plan["close"] == [41]
 
 
 def test_candidate_pr_reconciliation_closes_only_stale_drafts(

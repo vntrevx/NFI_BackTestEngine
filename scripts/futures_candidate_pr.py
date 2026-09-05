@@ -15,6 +15,7 @@ from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.compatibility_candidate_plan import (
     CandidatePublicationError,
     build_candidate_plan,
+    candidate_branch,
 )
 from nfi_backtest_engine.fixture import sha256_file, validate_fixture
 
@@ -212,6 +213,7 @@ def main() -> int:
     parser.add_argument("--expected-engine-sha", required=True)
     parser.add_argument("--expected-upstream-sha", required=True)
     parser.add_argument("--reconcile-mode", choices=("spot", "futures"))
+    parser.add_argument("--preserve-request-fingerprint")
     parser.add_argument("--github-output", type=Path)
     args = parser.parse_args()
     if args.reconcile_mode is not None:
@@ -223,15 +225,22 @@ def main() -> int:
             args.repo_root.resolve(),
             args.base,
         )
+        desired_branch = (
+            None
+            if args.preserve_request_fingerprint is None
+            else candidate_branch(args.reconcile_mode, args.preserve_request_fingerprint)
+        )
         result = reconcile_candidate_prs(
             args.repository,
             trading_mode=args.reconcile_mode,
-            desired_branch=None,
+            desired_branch=desired_branch,
             upstream_commit=args.expected_upstream_sha,
             engine_commit=args.expected_engine_sha,
             cwd=args.repo_root.resolve(),
         )
     else:
+        if args.preserve_request_fingerprint is not None:
+            parser.error("--preserve-request-fingerprint requires --reconcile-mode")
         if args.report is None or args.candidate_dir is None or args.max_bytes is None:
             parser.error("--report, --candidate-dir, and --max-bytes are required for publication")
         report = read_json(args.report)
