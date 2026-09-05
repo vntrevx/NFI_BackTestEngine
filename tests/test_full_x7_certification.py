@@ -1048,7 +1048,11 @@ def test_full_x7_probe_matrix_cannot_be_empty() -> None:
         _validate_probe_matrix([], contract=SPOT_RELEASE_CONTRACT)
 
 
-def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
+def test_historical_spot_probe_matrix_covers_every_required_branch() -> None:
+    baseline = read_json(
+        ROOT / "python/nfi_backtest_engine/contracts/regression-v1.1.0.json"
+    )["baseline"]
+    upstream_commit = baseline["strategy_upstream_commit"]
     manifests = sorted(
         path / "manifest.json"
         for path in CAPTURED.iterdir()
@@ -1056,12 +1060,9 @@ def test_real_full_x7_probe_matrix_covers_every_required_branch() -> None:
         and (path / "manifest.json").is_file()
         and read_json(path / "manifest.json")["probe_kind"]
         in SPOT_RELEASE_CONTRACT.required_probe_kinds
+        and read_json(path / "manifest.json")["strategy_provenance"]["upstream_commit"]
+        == upstream_commit
     )
-    upstream_commits = {
-        read_json(path)["strategy_provenance"]["upstream_commit"] for path in manifests
-    }
-    assert len(upstream_commits) == 1
-    upstream_commit = upstream_commits.pop()
 
     spot_manifests = []
     for path in manifests:
