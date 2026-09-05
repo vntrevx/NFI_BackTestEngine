@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching spot fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "bdc2d2866103e1df4dc5e01bcf524ff64225f5c74882dd640e8695a14809366d",
+  "trading_mode": "spot",
+  "upstream_commit": "67649888ab8c431caea972c79adb993c6b96e5ab",
+  "engine_commit": "cde8a1cedbbd660ec4621b640c4a0c30765e7d3a",
+  "strategy_sha256": "5bb94406bfa24aded0006f0d54403f0eed079342faa573632874fc0271b79352",
+  "fixture_id": "future-nfi-spot-bdc2d2866103e1df",
+  "manifest_sha256": "150a026947d9a34b264823984b4c86574b51e6e3770fd66cc0c9280c88d766a6",
+  "logical_bytes": 14477300,
+  "target_ids": [
+    "d7505a369eadb6d15095172be645276ba1c9cfbe78b6ed7a903754381bcb32ee"
+  ],
+  "pair": "MUBARAK/USDT",
+  "timerange": "20251007-20251010",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}

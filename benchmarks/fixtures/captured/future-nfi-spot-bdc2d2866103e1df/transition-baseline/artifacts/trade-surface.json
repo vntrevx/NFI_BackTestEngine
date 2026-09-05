@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20251007-20251010"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "10114.01331572",
+    "profit_total_abs": "114.01331572",
+    "total_volume": "5074.149364284",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "MUBARAK/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1759892100000,
+      "close_timestamp_ms": 1759906500000,
+      "open_rate": "0.04136",
+      "close_rate": "0.04335",
+      "amount": "59840.4",
+      "stake_amount": "2474.998944",
+      "max_stake_amount": "2474.998944",
+      "leverage": "1",
+      "entry_tag": "65 ",
+      "exit_reason": "exit_long_rebuy_d_4_100 ( 65 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "114.01331572",
+        "ratio": "0.04601998581850558"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.00042",
+      "stop_loss": "0.00042",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1759892100000,
+          "amount": "59840.4",
+          "price": "0.04136",
+          "cost": "2477.4739429439996",
+          "tag": "65 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1759906500000,
+          "amount": "59840.4",
+          "price": "0.04335",
+          "cost": "2596.67542134",
+          "tag": "exit_long_rebuy_d_4_100 ( 65 )"
+        }
+      ],
+      "duration_minutes": 240,
+      "is_open": false,
+      "minimum_rate": "0.03826",
+      "maximum_rate": "0.04397",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 2
+    }
+  ]
+}
