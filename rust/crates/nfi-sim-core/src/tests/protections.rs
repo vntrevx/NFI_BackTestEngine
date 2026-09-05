@@ -237,11 +237,13 @@ fn low_profit_pairs_and_max_drawdown_create_local_and_global_locks() {
                 trade_limit: 1,
                 only_per_side: false,
                 required_profit: -0.02,
+                required_profit_repr: None,
             },
             ProtectionHandler::MaxDrawdown {
                 timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
                 trade_limit: 2,
                 maximum_allowed_drawdown: 0.2,
+                maximum_allowed_drawdown_repr: None,
                 calculation_mode: DrawdownMode::Ratios,
             },
         ],
@@ -274,6 +276,103 @@ fn low_profit_pairs_and_max_drawdown_create_local_and_global_locks() {
 }
 
 #[test]
+fn protection_reasons_preserve_integer_and_float_threshold_display() {
+    let closed = vec![protection_trade(
+        1,
+        "AAA/USDT",
+        300_000,
+        -0.25,
+        "exit_signal",
+        TradeSide::Long,
+    )];
+    for (low_repr, drawdown_repr, expected_low, expected_drawdown) in [
+        (
+            Some("1".to_owned()),
+            Some("0".to_owned()),
+            "-0.25 < 1 in 60 minutes, locking for 10 minutes.",
+            "0.25 passed 0 in 60 minutes, locking for 10 minutes.",
+        ),
+        (
+            None,
+            None,
+            "-0.25 < 1.0 in 60 minutes, locking for 10 minutes.",
+            "0.25 passed 0.0 in 60 minutes, locking for 10 minutes.",
+        ),
+    ] {
+        let program = ProtectionProgram {
+            timeframe_ms: 300_000,
+            handlers: vec![
+                ProtectionHandler::LowProfitPairs {
+                    timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+                    trade_limit: 1,
+                    only_per_side: false,
+                    required_profit: 1.0,
+                    required_profit_repr: low_repr,
+                },
+                ProtectionHandler::MaxDrawdown {
+                    timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+                    trade_limit: 1,
+                    maximum_allowed_drawdown: 0.0,
+                    maximum_allowed_drawdown_repr: drawdown_repr,
+                    calculation_mode: DrawdownMode::Ratios,
+                },
+            ],
+        };
+        assert!(program.is_valid());
+
+        let mut state = ProtectionState::default();
+        state
+            .after_trade_close(&program, &closed[0], &closed, 1_000.0)
+            .expect("finite protection arithmetic");
+
+        assert_eq!(state.locks()[0].reason, expected_low);
+        assert_eq!(state.locks()[1].reason, expected_drawdown);
+    }
+}
+
+#[test]
+fn protection_threshold_display_rejects_noncanonical_or_mismatched_values() {
+    for required_profit_repr in ["1.0", "01", "2"] {
+        let program = ProtectionProgram {
+            timeframe_ms: 300_000,
+            handlers: vec![ProtectionHandler::LowProfitPairs {
+                timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+                trade_limit: 1,
+                only_per_side: false,
+                required_profit: 1.0,
+                required_profit_repr: Some(required_profit_repr.to_owned()),
+            }],
+        };
+
+        assert!(!program.is_valid(), "accepted {required_profit_repr:?}");
+    }
+
+    let program = ProtectionProgram {
+        timeframe_ms: 300_000,
+        handlers: vec![ProtectionHandler::MaxDrawdown {
+            timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+            trade_limit: 1,
+            maximum_allowed_drawdown: 0.0,
+            maximum_allowed_drawdown_repr: Some("-0".to_owned()),
+            calculation_mode: DrawdownMode::Ratios,
+        }],
+    };
+    assert!(!program.is_valid());
+
+    let rounded_integer = ProtectionProgram {
+        timeframe_ms: 300_000,
+        handlers: vec![ProtectionHandler::LowProfitPairs {
+            timing: protection_timing(3_600_000, 600_000, "60 minutes", "for 10 minutes"),
+            trade_limit: 1,
+            only_per_side: false,
+            required_profit: 9_007_199_254_740_992.0,
+            required_profit_repr: Some("9007199254740993".to_owned()),
+        }],
+    };
+    assert!(!rounded_integer.is_valid());
+}
+
+#[test]
 fn low_profit_accumulation_overflow_is_typed() {
     let program = ProtectionProgram {
         timeframe_ms: 300_000,
@@ -282,6 +381,7 @@ fn low_profit_accumulation_overflow_is_typed() {
             trade_limit: 2,
             only_per_side: false,
             required_profit: 0.0,
+            required_profit_repr: None,
         }],
     };
     let mut first = protection_trade(1, "AAA/USDT", 300_000, 1.0, "exit_signal", TradeSide::Long);

@@ -416,23 +416,29 @@ def _x7_protection_contract(
                 index=index,
                 specific={"trade_limit", "only_per_side", "required_profit"},
             )
-            handlers.append(
-                {
-                    **common,
-                    "trade_limit": _positive_integer(
-                        definition.get("trade_limit", 1),
-                        f"protection {index} trade_limit",
-                    ),
-                    "only_per_side": _boolean(
-                        definition.get("only_per_side", False),
-                        f"protection {index} only_per_side",
-                    ),
-                    "required_profit": _finite_float(
-                        definition.get("required_profit", 0.0),
-                        f"protection {index} required_profit",
-                    ),
-                }
+            required_profit = definition.get("required_profit", 0.0)
+            handler = {
+                **common,
+                "trade_limit": _positive_integer(
+                    definition.get("trade_limit", 1),
+                    f"protection {index} trade_limit",
+                ),
+                "only_per_side": _boolean(
+                    definition.get("only_per_side", False),
+                    f"protection {index} only_per_side",
+                ),
+                "required_profit": _finite_float(
+                    required_profit,
+                    f"protection {index} required_profit",
+                ),
+            }
+            required_profit_repr = _integer_numeric_repr(
+                required_profit,
+                f"protection {index} required_profit",
             )
+            if required_profit_repr is not None:
+                handler["required_profit_repr"] = required_profit_repr
+            handlers.append(handler)
         else:
             _protection_keys(
                 definition,
@@ -444,20 +450,26 @@ def _x7_protection_contract(
                 raise StrategyAnalysisError(
                     f"protection {index} calculation_mode must be ratios or equity"
                 )
-            handlers.append(
-                {
-                    **common,
-                    "trade_limit": _positive_integer(
-                        definition.get("trade_limit", 1),
-                        f"protection {index} trade_limit",
-                    ),
-                    "maximum_allowed_drawdown": _non_negative_float(
-                        definition.get("max_allowed_drawdown", 0.0),
-                        f"protection {index} max_allowed_drawdown",
-                    ),
-                    "calculation_mode": calculation_mode,
-                }
+            maximum_allowed_drawdown = definition.get("max_allowed_drawdown", 0.0)
+            handler = {
+                **common,
+                "trade_limit": _positive_integer(
+                    definition.get("trade_limit", 1),
+                    f"protection {index} trade_limit",
+                ),
+                "maximum_allowed_drawdown": _non_negative_float(
+                    maximum_allowed_drawdown,
+                    f"protection {index} max_allowed_drawdown",
+                ),
+                "calculation_mode": calculation_mode,
+            }
+            maximum_allowed_drawdown_repr = _integer_numeric_repr(
+                maximum_allowed_drawdown,
+                f"protection {index} max_allowed_drawdown",
             )
+            if maximum_allowed_drawdown_repr is not None:
+                handler["maximum_allowed_drawdown_repr"] = maximum_allowed_drawdown_repr
+            handlers.append(handler)
     return {
         "timeframe_ms": timeframe_ms,
         "handlers": handlers,
@@ -570,7 +582,18 @@ def _finite_float(value: Any, field: str) -> float:
     result = float(value)
     if not math.isfinite(result):
         raise StrategyAnalysisError(f"{field} must be finite")
+    if isinstance(value, numbers.Integral) and int(result) != value:
+        raise StrategyAnalysisError(f"{field} integer must be exactly representable as a float")
     return result
+
+
+def _integer_numeric_repr(value: Any, field: str) -> str | None:
+    """Preserve Python's display for integer thresholds used in protection reasons."""
+    if isinstance(value, bool) or not isinstance(value, numbers.Integral):
+        return None
+    if int(float(value)) != value:
+        raise StrategyAnalysisError(f"{field} integer must be exactly representable as a float")
+    return str(value)
 
 
 def _plural(count: int, singular: str, plural: str) -> str:

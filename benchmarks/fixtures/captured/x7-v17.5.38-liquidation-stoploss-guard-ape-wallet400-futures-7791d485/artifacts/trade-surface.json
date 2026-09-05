@@ -1,0 +1,365 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20220429-20220502"
+  },
+  "summary": {
+    "total_trades": 5,
+    "starting_balance": "400",
+    "final_balance": "150.7340545",
+    "profit_total_abs": "-249.2659455",
+    "total_volume": "38945.3539455",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [
+    {
+      "sequence": 0,
+      "pair": "APE/USDT:USDT",
+      "side": "*",
+      "lock_timestamp_ms": 1651259400000,
+      "lock_end_timestamp_ms": 1651260300000,
+      "reason": "1 stoplosses in 25000 min, locking for 2 candles.",
+      "active": true
+    },
+    {
+      "sequence": 1,
+      "pair": "*",
+      "side": "*",
+      "lock_timestamp_ms": 1651259400000,
+      "lock_end_timestamp_ms": 1651260300000,
+      "reason": "1 stoplosses in 25000 min, locking for 2 candles.",
+      "active": true
+    },
+    {
+      "sequence": 2,
+      "pair": "APE/USDT:USDT",
+      "side": "*",
+      "lock_timestamp_ms": 1651260600000,
+      "lock_end_timestamp_ms": 1651261500000,
+      "reason": "1 stoplosses in 25000 min, locking for 2 candles.",
+      "active": true
+    },
+    {
+      "sequence": 3,
+      "pair": "*",
+      "side": "*",
+      "lock_timestamp_ms": 1651260600000,
+      "lock_end_timestamp_ms": 1651261500000,
+      "reason": "1 stoplosses in 25000 min, locking for 2 candles.",
+      "active": true
+    }
+  ],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651259400000,
+      "close_timestamp_ms": 1651259400000,
+      "open_rate": "20.881",
+      "close_rate": "20.378",
+      "amount": "474",
+      "stake_amount": "395.90376",
+      "max_stake_amount": "395.90376",
+      "leverage": "25",
+      "entry_tag": "144 ",
+      "exit_reason": "liquidation",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-248.200383",
+        "ratio": "-0.6266077008907068"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "20.055",
+      "stop_loss": "20.055",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651259400000,
+          "amount": "474",
+          "price": "20.881",
+          "cost": "9902.542797",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651259400000,
+          "amount": "474",
+          "price": "20.378",
+          "cost": "9664.001586",
+          "tag": "liquidation"
+        }
+      ],
+      "duration_minutes": 0,
+      "is_open": false,
+      "minimum_rate": "20.15",
+      "maximum_rate": "20.931",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    },
+    {
+      "sequence": 1,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651260300000,
+      "close_timestamp_ms": 1651260600000,
+      "open_rate": "20.301",
+      "close_rate": "19.812",
+      "amount": "185",
+      "stake_amount": "150.2274",
+      "max_stake_amount": "150.2274",
+      "leverage": "25",
+      "entry_tag": "143 ",
+      "exit_reason": "liquidation",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-94.1754525",
+        "ratio": "-0.626572704485647"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "19.498",
+      "stop_loss": "19.498",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651260300000,
+          "amount": "185",
+          "price": "20.301",
+          "cost": "3757.562842499999",
+          "tag": "143 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651260600000,
+          "amount": "185",
+          "price": "19.812",
+          "cost": "3667.05261",
+          "tag": "liquidation"
+        }
+      ],
+      "duration_minutes": 5,
+      "is_open": false,
+      "minimum_rate": "19.615",
+      "maximum_rate": "20.575",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    },
+    {
+      "sequence": 2,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651261500000,
+      "close_timestamp_ms": 1651262400000,
+      "open_rate": "19.575",
+      "close_rate": "19.798",
+      "amount": "72",
+      "stake_amount": "56.376",
+      "max_stake_amount": "56.376",
+      "leverage": "25",
+      "entry_tag": "143 ",
+      "exit_reason": "exit_long_tc_u_1 ( 143 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "14.638572",
+        "ratio": "0.25952987746229056"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "18.8",
+      "stop_loss": "18.8",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651261500000,
+          "amount": "72",
+          "price": "19.575",
+          "cost": "1410.1046999999999",
+          "tag": "143 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651262400000,
+          "amount": "72",
+          "price": "19.798",
+          "cost": "1426.1687279999999",
+          "tag": "exit_long_tc_u_1 ( 143 )"
+        }
+      ],
+      "duration_minutes": 15,
+      "is_open": false,
+      "minimum_rate": "19.304",
+      "maximum_rate": "20.3",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    },
+    {
+      "sequence": 3,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651335300000,
+      "close_timestamp_ms": 1651340400000,
+      "open_rate": "21.069",
+      "close_rate": "21.558",
+      "amount": "84",
+      "stake_amount": "70.79184",
+      "max_stake_amount": "70.79184",
+      "leverage": "25",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_d_2_3 ( 144 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "39.285666",
+        "ratio": "0.5546689135853545"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "20.235",
+      "stop_loss": "20.235",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651335300000,
+          "amount": "84",
+          "price": "21.069",
+          "cost": "1770.6808979999996",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651340400000,
+          "amount": "84",
+          "price": "21.558",
+          "cost": "1811.777436",
+          "tag": "exit_long_tc_d_2_3 ( 144 )"
+        }
+      ],
+      "duration_minutes": 85,
+      "is_open": false,
+      "minimum_rate": "20.589",
+      "maximum_rate": "21.72",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    },
+    {
+      "sequence": 4,
+      "pair": "APE/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1651354500000,
+      "close_timestamp_ms": 1651356300000,
+      "open_rate": "19.894",
+      "close_rate": "20.198",
+      "amount": "138",
+      "stake_amount": "109.81488",
+      "max_stake_amount": "109.81488",
+      "leverage": "25",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_d_1_70 ( 144 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "39.185652",
+        "ratio": "0.3566553910136517"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "19.107",
+      "stop_loss": "19.107",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1651354500000,
+          "amount": "138",
+          "price": "19.894",
+          "cost": "2746.7446859999995",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1651356300000,
+          "amount": "138",
+          "price": "20.198",
+          "cost": "2788.717662",
+          "tag": "exit_long_tc_d_1_70 ( 144 )"
+        }
+      ],
+      "duration_minutes": 30,
+      "is_open": false,
+      "minimum_rate": "19.855",
+      "maximum_rate": "20.55",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    }
+  ]
+}

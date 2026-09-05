@@ -26,8 +26,8 @@ pub(crate) use entry::{
 pub(crate) use exit::exit_decision;
 pub(crate) use exit::{
     close_trade, current_profit_ratio, executable_custom_exit, executable_custom_stoploss,
-    executable_exit_confirmation, exit_decisions, ordered_risk_candidates, rule_adjustment,
-    CloseTradeContext, ExitDecision,
+    executable_exit_confirmation, exit_decisions, liquidation_reached, ordered_risk_candidates,
+    rule_adjustment, CloseTradeContext, ExitDecision,
 };
 #[cfg(test)]
 pub(crate) use position::replay_spot_profit;

@@ -17,8 +17,9 @@ use crate::execution::{
     current_profit_ratio, evaluate_exit_confirm_program, evaluate_state_machine_adjustment,
     executable_custom_exit, executable_custom_stoploss, executable_exit_confirmation,
     executable_order_filled, executable_position_adjustment, exit_decisions, finish_callback_trace,
-    minimum_pair_stake, ordered_risk_candidates, rule_adjustment, trace_trade_callback,
-    update_extrema, CloseTradeContext, EntryExecution, ExecutableCallbacks, ExitDecision,
+    liquidation_reached, minimum_pair_stake, ordered_risk_candidates, rule_adjustment,
+    trace_trade_callback, update_extrema, CloseTradeContext, EntryExecution, ExecutableCallbacks,
+    ExitDecision,
 };
 use crate::execution_observer::{self, AdjustmentEventInput, EventInput, ExitFillEventInput};
 use crate::futures::apply_funding;
@@ -704,12 +705,19 @@ fn simulate_internal_impl(
                 }
             }
 
-            // Official Backtesting evaluates ROI after a successful entry on
-            // the same candle. Legacy callback routes retain their prior
-            // first-candle boundary until they carry an ROI table.
+            let same_candle_liquidation = opened_now
+                && open_trades
+                    .iter()
+                    .find(|trade| trade.pair_index == pair_index)
+                    .is_some_and(|trade| liquidation_reached(trade, candle));
+            // Official Backtesting evaluates ROI and futures liquidation after
+            // a successful entry on the same candle. Legacy callback routes
+            // retain their prior first-candle boundary for all other exits
+            // until they carry an ROI table.
             if !opened_now
                 || config.executable_callback_program.is_some()
                 || !config.minimal_roi.is_empty()
+                || same_candle_liquidation
             {
                 let mut exited_side = None;
                 if let Some(trade_index) = open_trades

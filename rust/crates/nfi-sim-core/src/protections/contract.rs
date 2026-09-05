@@ -28,6 +28,8 @@ pub enum ProtectionHandler {
         timing: ProtectionTiming,
         trade_limit: usize,
         maximum_allowed_drawdown: f64,
+        #[serde(default)]
+        maximum_allowed_drawdown_repr: Option<String>,
         calculation_mode: DrawdownMode,
     },
     LowProfitPairs {
@@ -35,6 +37,8 @@ pub enum ProtectionHandler {
         trade_limit: usize,
         only_per_side: bool,
         required_profit: f64,
+        #[serde(default)]
+        required_profit_repr: Option<String>,
     },
 }
 
@@ -98,6 +102,22 @@ impl ProtectionHandler {
             && trade_limit.is_none_or(|value| value > 0)
             && numeric.is_none_or(f64::is_finite)
             && match self {
+                Self::LowProfitPairs {
+                    required_profit,
+                    required_profit_repr,
+                    ..
+                } => numeric_repr_is_valid(*required_profit, required_profit_repr.as_deref()),
+                Self::MaxDrawdown {
+                    maximum_allowed_drawdown,
+                    maximum_allowed_drawdown_repr,
+                    ..
+                } => numeric_repr_is_valid(
+                    *maximum_allowed_drawdown,
+                    maximum_allowed_drawdown_repr.as_deref(),
+                ),
+                _ => true,
+            }
+            && match self {
                 Self::MaxDrawdown {
                     maximum_allowed_drawdown,
                     ..
@@ -105,6 +125,23 @@ impl ProtectionHandler {
                 _ => true,
             }
     }
+}
+
+fn numeric_repr_is_valid(value: f64, numeric_repr: Option<&str>) -> bool {
+    numeric_repr.is_none_or(|text| {
+        canonical_integer_repr(text)
+            && text.parse::<f64>().is_ok_and(|parsed| {
+                parsed.to_bits() == value.to_bits() && format!("{parsed:.0}") == text
+            })
+    })
+}
+
+fn canonical_integer_repr(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty()
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
+        && text != "-0"
 }
 
 impl ProtectionTiming {

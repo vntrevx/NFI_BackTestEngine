@@ -422,11 +422,7 @@ pub(crate) fn ordered_risk_candidates(
     }
     if !stopped {
         if let Some(liquidation_price) = trade.liquidation_price {
-            let liquidated = match trade.side {
-                TradeSide::Long => candle.low <= liquidation_price,
-                TradeSide::Short => candle.high >= liquidation_price,
-            };
-            if liquidated {
+            if liquidation_reached(trade, candle) {
                 candidates.push(ExitDecision {
                     rate: stop_or_liquidation_exit_rate(trade, candle, liquidation_price),
                     reason: "liquidation".to_owned(),
@@ -461,6 +457,15 @@ pub(crate) fn ordered_risk_candidates(
         });
     }
     Ok(candidates)
+}
+
+pub(crate) fn liquidation_reached(trade: &OpenTrade, candle: &Candle) -> bool {
+    trade
+        .liquidation_price
+        .is_some_and(|liquidation_price| match trade.side {
+            TradeSide::Long => candle.low <= liquidation_price,
+            TradeSide::Short => candle.high >= liquidation_price,
+        })
 }
 fn update_trailing_stop(trade: &mut OpenTrade, candle: &Candle, config: &PortfolioConfig) {
     if !config.trailing_stop {

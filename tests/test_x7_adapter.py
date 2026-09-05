@@ -9,6 +9,7 @@ from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.errors import StrategyAnalysisError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.vector_manifest import EMPTY_TAG_TRANSPORT_SENTINEL
+from nfi_backtest_engine.x7.contracts import _x7_protection_contract
 from nfi_backtest_engine.x7_adapter import (
     _nfi_trade_manager_config,
     _optional_text,
@@ -164,6 +165,60 @@ def _hot_ir() -> dict:
             },
         ],
     }
+
+
+def test_protection_contract_preserves_integer_threshold_display() -> None:
+    analysis = {
+        "strategies": [
+            {
+                "constants": {"timeframe": "5m"},
+                "protections_static": True,
+                "protections": [
+                    {"method": "LowProfitPairs", "required_profit": 1},
+                    {"method": "LowProfitPairs", "required_profit": 1.0},
+                    {"method": "MaxDrawdown", "max_allowed_drawdown": 0},
+                    {"method": "MaxDrawdown", "max_allowed_drawdown": 0.0},
+                ],
+            }
+        ]
+    }
+
+    contract = _x7_protection_contract(analysis, {"enable_protections": True})
+
+    assert contract is not None
+    handlers = contract["handlers"]
+    assert handlers[0]["required_profit"] == 1.0
+    assert handlers[0]["required_profit_repr"] == "1"
+    assert "required_profit_repr" not in handlers[1]
+    assert handlers[2]["maximum_allowed_drawdown"] == 0.0
+    assert handlers[2]["maximum_allowed_drawdown_repr"] == "0"
+    assert "maximum_allowed_drawdown_repr" not in handlers[3]
+
+
+@pytest.mark.parametrize(
+    ("method", "field"),
+    [
+        ("StoplossGuard", "required_profit"),
+        ("LowProfitPairs", "required_profit"),
+        ("MaxDrawdown", "max_allowed_drawdown"),
+    ],
+)
+def test_protection_contract_rejects_integer_threshold_lost_by_float(
+    method: str,
+    field: str,
+) -> None:
+    analysis = {
+        "strategies": [
+            {
+                "constants": {"timeframe": "5m"},
+                "protections_static": True,
+                "protections": [{"method": method, field: 9_007_199_254_740_993}],
+            }
+        ]
+    }
+
+    with pytest.raises(StrategyAnalysisError, match="exactly representable"):
+        _x7_protection_contract(analysis, {"enable_protections": True})
 
 
 def _config() -> dict:

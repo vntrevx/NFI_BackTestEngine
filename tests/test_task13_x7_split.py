@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -18,11 +17,15 @@ from nfi_backtest_engine.x7.route_contracts import (
 )
 
 _SOURCE = Path("benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source")
-# CPython patch releases can change ast.dump output embedded in predicate identities.
-_EXPECTED_MANAGER_SHA256 = {
-    (3, 12, 3): "76d0a73e8db7e751ef0e5de00708ead80c88664f16efdcdc895325af911ad768",
-    (3, 12, 10): "19f4101a9370990d68d1520e0bde706b481d4a69838d75403825b07ff739fea3",
-}
+# CPython can change ast.dump output embedded in predicate identities. Keep the
+# reviewed serialization variants as version-independent full-document goldens;
+# an unknown manager digest must still fail closed.
+_REVIEWED_MANAGER_SHA256 = frozenset(
+    {
+        "76d0a73e8db7e751ef0e5de00708ead80c88664f16efdcdc895325af911ad768",
+        "19f4101a9370990d68d1520e0bde706b481d4a69838d75403825b07ff739fea3",
+    }
+)
 
 
 def _compile() -> dict[str, object]:
@@ -93,9 +96,7 @@ def test_current_manager_program_is_canonical_and_repeatable() -> None:
     second = _compile()
 
     assert first == second
-    expected_sha256 = _EXPECTED_MANAGER_SHA256.get(sys.version_info[:3])
-    assert expected_sha256 is not None
-    assert _canonical_sha256(first) == expected_sha256
+    assert _canonical_sha256(first) in _REVIEWED_MANAGER_SHA256
     operation = first["operation"]
     assert isinstance(operation, dict)
     assert operation["route_order"] == [
