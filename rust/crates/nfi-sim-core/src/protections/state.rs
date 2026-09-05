@@ -154,11 +154,12 @@ impl ProtectionHandler {
                 trade_limit,
                 only_per_side,
                 required_profit,
+                required_profit_repr,
             } => low_profit_lock(
                 timing,
                 *trade_limit,
                 *only_per_side,
-                *required_profit,
+                (*required_profit, required_profit_repr.as_deref()),
                 closed_trade,
                 side,
                 closed_trades,
@@ -195,11 +196,15 @@ impl ProtectionHandler {
                 timing,
                 trade_limit,
                 maximum_allowed_drawdown,
+                maximum_allowed_drawdown_repr,
                 calculation_mode,
             } => max_drawdown_lock(
                 timing,
                 *trade_limit,
-                *maximum_allowed_drawdown,
+                (
+                    *maximum_allowed_drawdown,
+                    maximum_allowed_drawdown_repr.as_deref(),
+                ),
                 *calculation_mode,
                 closed_trade.close_timestamp_ms,
                 closed_trades,
@@ -267,11 +272,12 @@ fn low_profit_lock(
     timing: &ProtectionTiming,
     trade_limit: usize,
     only_per_side: bool,
-    required_profit: f64,
+    required_profit: (f64, Option<&str>),
     closed_trade: &ClosedTrade,
     side: TradeSide,
     closed_trades: &[ClosedTrade],
 ) -> Result<Option<LockRequest>, SimError> {
+    let (required_profit, required_profit_repr) = required_profit;
     let trades = recent_trades(
         closed_trades,
         closed_trade.close_timestamp_ms,
@@ -297,7 +303,7 @@ fn low_profit_lock(
         reason: format!(
             "{} < {} in {}, locking {}.",
             python_float_repr(profit),
-            python_float_repr(required_profit),
+            protection_number_repr(required_profit, required_profit_repr),
             timing.lookback_text,
             timing.lock_text
         ),
@@ -308,12 +314,13 @@ fn low_profit_lock(
 fn max_drawdown_lock(
     timing: &ProtectionTiming,
     trade_limit: usize,
-    maximum_allowed_drawdown: f64,
+    maximum_allowed_drawdown: (f64, Option<&str>),
     calculation_mode: DrawdownMode,
     now_ms: i64,
     closed_trades: &[ClosedTrade],
     starting_balance: f64,
 ) -> Result<Option<LockRequest>, SimError> {
+    let (maximum_allowed_drawdown, maximum_allowed_drawdown_repr) = maximum_allowed_drawdown;
     let trades = recent_trades(closed_trades, now_ms, timing.lookback_ms, None);
     if trades.len() < trade_limit {
         return Ok(None);
@@ -349,7 +356,7 @@ fn max_drawdown_lock(
         reason: format!(
             "{} passed {} in {}, locking {}.",
             python_float_repr(drawdown),
-            python_float_repr(maximum_allowed_drawdown),
+            protection_number_repr(maximum_allowed_drawdown, maximum_allowed_drawdown_repr),
             timing.lookback_text,
             timing.lock_text
         ),
@@ -418,4 +425,8 @@ fn python_float_repr(value: f64) -> String {
         text.push_str(".0");
     }
     text
+}
+
+fn protection_number_repr(value: f64, integer_repr: Option<&str>) -> String {
+    integer_repr.map_or_else(|| python_float_repr(value), str::to_owned)
 }
