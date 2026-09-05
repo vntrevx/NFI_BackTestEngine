@@ -17,7 +17,11 @@ from .canonical import loads_json_bytes, read_json, write_json
 from .engine_runtime import build_engine
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import public_hardware_record, write_evidence_bundle
-from .execution_platform import require_supported_execution_platform
+from .execution_platform import (
+    current_execution_platform_identity,
+    is_wsl2_kernel_release,
+    require_supported_execution_platform,
+)
 from .fixture import materialized_fixture, sha256_file, validate_fixture
 from .full_x7_certification import (
     validate_full_x7_inputs,
@@ -74,15 +78,14 @@ def _platform_slug(system: str, machine: str, *, wsl: bool) -> str:
 
 
 def _current_platform_record() -> dict[str, Any]:
-    system = platform.system().lower()
+    identity = current_execution_platform_identity()
+    system = str(identity["system"])
     machine = platform.machine().lower()
-    wsl = system == "linux" and "microsoft" in platform.release().lower()
     return {
-        "slug": _platform_slug(system, machine, wsl=wsl),
-        "system": system,
+        "slug": _platform_slug(system, machine, wsl=identity["wsl"] is True),
+        **identity,
         "machine": machine,
         "python": platform.python_version(),
-        "wsl": wsl,
     }
 
 
@@ -568,6 +571,9 @@ def seal_platform_evidence(
                 "system": report["platform"]["system"],
                 "machine": report["platform"]["machine"],
                 "slug": report["platform"].get("slug"),
+                "kernel_release": report["platform"].get("kernel_release"),
+                "wsl": report["platform"].get("wsl"),
+                "wsl_version": report["platform"].get("wsl_version"),
                 "wheel_sha256": report["package"]["wheel_sha256"],
                 "native_extension_sha256": report["package"].get(
                     "native_extension_sha256"
@@ -781,6 +787,8 @@ def _validate_platform_report(
     if required_platform_slugs is not None:
         platform_record = report.get("platform", {})
         slug = platform_record.get("slug")
+        kernel_release = platform_record.get("kernel_release")
+        kernel_is_wsl2 = is_wsl2_kernel_release(kernel_release)
         expected_slug = _platform_slug(
             system,
             machine,
@@ -788,6 +796,31 @@ def _validate_platform_report(
         )
         if slug != expected_slug or slug not in required_platform_slugs:
             raise SpecValidationError(f"unsupported platform evidence slug: {slug!r}")
+        if not isinstance(kernel_release, str) or not kernel_release:
+            raise SpecValidationError(
+                "platform evidence lacks a sealed kernel release identity required "
+                "for WSL2 proof"
+            )
+        wsl_target = slug == "windows-wsl2-x86_64"
+        wsl_version = platform_record.get("wsl_version")
+        wsl_proof_valid = (
+            platform_record.get("wsl") is True
+            and type(wsl_version) is int
+            and wsl_version == 2
+            and kernel_is_wsl2
+        )
+        non_wsl_proof_valid = (
+            platform_record.get("wsl") is False
+            and wsl_version is None
+            and not kernel_is_wsl2
+            and "microsoft" not in kernel_release.lower()
+        )
+        if (wsl_target and not wsl_proof_valid) or (
+            not wsl_target and not non_wsl_proof_valid
+        ):
+            raise SpecValidationError(
+                "platform slug, WSL2 version, and kernel proof are inconsistent"
+            )
     mode_contract = report.get("workload", {}).get("mode_contract")
     if mode_contract not in {"binance-spot", "binance-usdtm-isolated"}:
         raise SpecValidationError("platform report has an unsupported mode contract")

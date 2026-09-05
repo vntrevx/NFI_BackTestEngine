@@ -30,6 +30,7 @@ def _report(
     slug: str | None = None,
     wsl: bool | None = None,
 ) -> dict:
+    is_wsl = system == "linux" if wsl is None else wsl
     workload = {
         "mode_contract": mode_contract,
         "identity_sha256": "d" * 64,
@@ -63,7 +64,11 @@ def _report(
             "slug": slug,
             "system": system,
             "machine": machine,
-            "wsl": system == "linux" if wsl is None else wsl,
+            "kernel_release": (
+                "6.6.87.2-microsoft-standard-WSL2" if is_wsl else "6.8.0-generic"
+            ),
+            "wsl": is_wsl,
+            "wsl_version": 2 if is_wsl else None,
         },
         "package": package,
         "workload": workload,
@@ -141,6 +146,33 @@ def test_portable_workload_uses_last_complete_year_of_release_timerange() -> Non
     assert _portable_timerange("20210101-20260101") == "20250101-20260101"
 
 
+def test_platform_report_identity_seals_genuine_wsl2_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        platform_benchmark,
+        "current_execution_platform_identity",
+        lambda: {
+            "system": "linux",
+            "kernel_release": "6.6.87.2-microsoft-standard-WSL2",
+            "wsl": True,
+            "wsl_version": 2,
+        },
+    )
+    monkeypatch.setattr(platform_benchmark.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(platform_benchmark.platform, "python_version", lambda: "3.12.13")
+
+    assert platform_benchmark._current_platform_record() == {
+        "slug": "windows-wsl2-x86_64",
+        "system": "linux",
+        "kernel_release": "6.6.87.2-microsoft-standard-WSL2",
+        "machine": "x86_64",
+        "python": "3.12.13",
+        "wsl": True,
+        "wsl_version": 2,
+    }
+
+
 def test_platform_seal_requires_supported_systems_and_one_result(tmp_path: Path) -> None:
     paths = []
     for system, machine in (("linux", "x86_64"), ("darwin", "arm64")):
@@ -186,6 +218,58 @@ def test_platform_v2_seal_requires_four_exact_target_slugs(tmp_path: Path) -> No
     assert [item["slug"] for item in evidence["platforms"]] == sorted(
         REQUIRED_PLATFORM_SLUGS
     )
+    wsl = next(
+        item
+        for item in evidence["platforms"]
+        if item["slug"] == "windows-wsl2-x86_64"
+    )
+    assert wsl["wsl_version"] == 2
+    assert wsl["kernel_release"] == "6.6.87.2-microsoft-standard-WSL2"
+
+
+@pytest.mark.parametrize(
+    ("target_slug", "kernel_release", "wsl", "wsl_version"),
+    [
+        ("windows-wsl2-x86_64", None, True, None),
+        ("windows-wsl2-x86_64", "4.4.0-19041-Microsoft", True, 1),
+        ("windows-wsl2-x86_64", "5.15.90.1-microsoft-custom", True, 2),
+        ("windows-wsl2-x86_64", "5.15.90.1-microsoft-standard-WSL20", True, 2),
+        ("windows-wsl2-x86_64", "6.6.87.2-microsoft-standard-WSL2", True, True),
+        ("linux-x86_64", "6.6.87.2-microsoft-standard-WSL2", False, None),
+    ],
+)
+def test_platform_v2_seal_requires_genuine_wsl2_kernel_proof(
+    tmp_path: Path,
+    target_slug: str,
+    kernel_release: str | None,
+    wsl: bool,
+    wsl_version: object,
+) -> None:
+    targets = (
+        ("linux-x86_64", "linux", "x86_64", False),
+        ("linux-aarch64", "linux", "aarch64", False),
+        ("macos-arm64", "darwin", "arm64", False),
+        ("windows-wsl2-x86_64", "linux", "x86_64", True),
+    )
+    paths = []
+    for slug, system, machine, target_wsl in targets:
+        path = tmp_path / f"{slug}.json"
+        report = _report(system, machine, slug=slug, wsl=target_wsl)
+        if slug == target_slug:
+            report["platform"]["kernel_release"] = kernel_release
+            report["platform"]["wsl"] = wsl
+            report["platform"]["wsl_version"] = wsl_version
+        write_json(path, report)
+        sign_report(path, run_id=1)
+        paths.append(path)
+
+    with pytest.raises(SpecValidationError, match="WSL2"):
+        seal_platform_evidence(
+            paths,
+            tmp_path / "sealed-v2",
+            provenance_policy=TEST_POLICY,
+            required_platform_slugs=REQUIRED_PLATFORM_SLUGS,
+        )
 
 
 def test_platform_seal_rejects_native_windows_report(tmp_path: Path) -> None:
