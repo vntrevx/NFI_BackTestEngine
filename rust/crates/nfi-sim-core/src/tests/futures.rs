@@ -322,6 +322,100 @@ fn computed_isolated_liquidation_matches_binance_long_and_short_formula() {
 }
 
 #[test]
+fn liquidation_is_processed_on_the_entry_candle_for_both_sides() {
+    let pair_name = "AAA/USDT:USDT";
+    for side in [TradeSide::Long, TradeSide::Short] {
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        portfolio.stoploss_ratio = -0.99;
+        let mut entry = candle(1, 100.0, 95.1);
+        entry.high = 104.9;
+        let signal = EntrySignal {
+            tag: None,
+            leverage: Some(20.0),
+            liquidation_price: Some(if side == TradeSide::Short {
+                104.8
+            } else {
+                95.2
+            }),
+        };
+        if side == TradeSide::Short {
+            entry.enter_short = Some(signal);
+        } else {
+            entry.enter_long = Some(signal);
+        }
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, candle(2, 100.0, 100.0)].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid same-candle liquidation");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.open_timestamp_ms, 1);
+        assert_eq!(trade.close_timestamp_ms, 1);
+        assert_eq!(trade.exit_reason, "liquidation");
+    }
+}
+
+#[test]
+fn non_liquidating_entry_candle_keeps_the_legacy_exit_boundary() {
+    let pair_name = "AAA/USDT:USDT";
+    for liquidation_price in [Some(95.2), None] {
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        // The entry candle crosses this regular stop at 97.50, but does not
+        // cross the optional liquidation boundary at 95.20. This preserves
+        // the legacy first-candle exit boundary outside liquidation handling.
+        portfolio.stoploss_ratio = -0.5;
+        let mut entry = candle(1, 100.0, 95.3);
+        entry.enter_long = Some(EntrySignal {
+            tag: None,
+            leverage: Some(20.0),
+            liquidation_price,
+        });
+        let mut exit = candle(2, 100.0, 100.0);
+        exit.exit_long = Some(ExitSignal {
+            reason: "done".to_owned(),
+        });
+        let input = SimulationInput {
+            schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+            config: portfolio,
+            pairs: vec![PairSeries {
+                pair: pair_name.to_owned(),
+                execution_start_index: 0,
+                amount_step: None,
+                price_step: None,
+                price_steps: Vec::new(),
+                minimum_stake: None,
+                minimum_amount: None,
+                minimum_cost: None,
+                feature_columns: BTreeMap::new(),
+                candles: vec![entry, exit].into(),
+            }],
+        };
+
+        let result = simulate(&input).expect("valid non-liquidating entry candle");
+        let trade = &result.trades[0];
+
+        assert_eq!(trade.close_timestamp_ms, 2);
+        assert_eq!(trade.exit_reason, "done");
+    }
+}
+
+#[test]
 fn isolated_liquidation_recalculates_after_position_adjustment() {
     let pair_name = "AAA/USDT:USDT";
     let mut portfolio = config(1);

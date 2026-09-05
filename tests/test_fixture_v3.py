@@ -26,6 +26,13 @@ LIQUIDATION_FIXTURE = (
     / "captured"
     / "x7-liquidation-stoploss-guard-futures-v17.4.435-2022-04-29_05-02"
 )
+LATEST_LIQUIDATION_FIXTURE = (
+    ROOT
+    / "benchmarks"
+    / "fixtures"
+    / "captured"
+    / "x7-v17.5.38-liquidation-stoploss-guard-ape-wallet400-futures-7791d485"
+)
 DERISK_BUYBACK_FIXTURE = (
     ROOT / "benchmarks" / "fixtures" / "captured" / "x7-derisk-buyback-spot-v17.4.488-2023-01-01_16"
 )
@@ -128,6 +135,25 @@ def test_futures_lifecycle_contract_counts_funding_from_the_official_surface() -
 
     assert coverage["met"] is True
     assert coverage["observed"]["funded_trades"] == 2
+
+
+def test_latest_liquidation_fixture_seals_same_entry_candle_oracle_ordering() -> None:
+    manifest_path = LATEST_LIQUIDATION_FIXTURE / "manifest.json"
+    manifest = validate_fixture(manifest_path)
+    coverage = validate_fixture_coverage(manifest_path, manifest)
+    surface = read_json(
+        LATEST_LIQUIDATION_FIXTURE / manifest["artifacts"]["trade_surface"]["path"]
+    )
+    liquidation = next(
+        trade for trade in surface["trades"] if trade["exit_reason"] == "liquidation"
+    )
+
+    assert manifest["strategy_provenance"]["upstream_commit"] == (
+        "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c"
+    )
+    assert coverage["met"] is True
+    assert liquidation["open_timestamp_ms"] == liquidation["close_timestamp_ms"]
+    assert [order["tag"] for order in liquidation["orders"]] == ["144 ", "liquidation"]
 
 
 def test_future_nfi_target_probe_kind_is_schema_valid() -> None:
