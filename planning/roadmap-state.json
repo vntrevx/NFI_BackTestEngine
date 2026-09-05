@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 160,
-  "updated_at": "2026-09-05T12:00:00+09:00",
+  "revision": 161,
+  "updated_at": "2026-09-06T06:56:56+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -14,14 +14,14 @@
     "manual_gate_requires_user_approval": true
   },
   "implementation_snapshot": {
-    "captured_at": "2026-09-05",
+    "captured_at": "2026-09-06",
     "formal_active_gate": "M24-03",
     "status_note": "Task status remains dependency-ordered; implementation state records code and evidence prepared ahead of external gates.",
     "milestones": {
       "M25": {
         "implementation_state": "complete",
         "commits": ["a1afc4664", "eaf538a27", "4a0d95095", "c427da492"],
-        "remaining": ["close M24-03 human review gate"]
+        "remaining": ["close M24-03 current-source Futures proof and dual-mode issue reconciliation; fixture PRs 327 and 344 are merged"]
       },
       "M26": {
         "implementation_state": "complete",
@@ -41,7 +41,7 @@
       "M29": {
         "implementation_state": "ready_for_external_execution",
         "commits": ["5e64b0b04", "544330b5e"],
-        "remaining": ["capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
+        "remaining": ["reconcile the planning Futures 80-pair snapshot against historical data (five pairs, 24 onboarding/candle edges) before sealing 20210101-20260101 inputs; reject diagnostic replacement pairs", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
       },
       "M30": {
         "implementation_state": "ready_for_external_execution",
@@ -9492,6 +9492,44 @@
         "remote_engine_commit": "d8a516c5101342b24ead52224314deda74d3a7d9",
         "local_engine_commit": "7cb6da758a4180c9a030acfdad527f3ed515f63d",
         "automatic_approval_or_merge_allowed": false
+      }
+    },
+    {
+      "sequence": 210,
+      "timestamp": "2026-09-06T06:56:56+09:00",
+      "task_id": "M24-03",
+      "event": "local_evidence_progress",
+      "details": {
+        "engine_commit": "0ea428c97f7a757632fa9197c15751d5f4a7a8ee",
+        "upstream_commit": "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c",
+        "merged_fixture_pull_requests": [327, 344],
+        "required_ci_run": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/33991117797",
+        "local_spot_target_coverage": "4/4; full-state and trade-surface exact; one Native run reused with identical runtime source and binary",
+        "local_linux_installed_wheel_journey": "8/8; self-contained wheel outside checkout; not a public artifact audit",
+        "futures_input_adoption": "rejected; historical and planning universes differ; authoritative snapshot has five pairs with 24 onboarding/candle edge gaps",
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/M24-03/0ea428c97f7a757632fa9197c15751d5f4a7a8ee/spot-reused-evidence-v2.json",
+            "bytes": 7696,
+            "sha256": "980f3e344eb9ba7c6578d9a362a85421d00e856b1a8c9f6851e0a3f76551b193"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M28-01/0ea428c97f7a757632fa9197c15751d5f4a7a8ee/local-linux-cleanroom/preservation-receipt.json",
+            "bytes": 3201,
+            "sha256": "1ba6b1d41e1eb88af090d4b13a0c645df44d8dfc999d17f5e6a888f457a83c8b"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M29-02/0ea428c97f7a757632fa9197c15751d5f4a7a8ee/futures-selection-adoption-v2.json",
+            "bytes": 3316,
+            "sha256": "376257d8364add6a005fc988f5254569135f9fc85f73c9183404c76571ad05fa"
+          }
+        ],
+        "new_official_runs": 0,
+        "runtime_code_changes": false,
+        "hosted_dual_mode_quick_verification_complete": false,
+        "release_certified": false,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
       }
     }
   ]
