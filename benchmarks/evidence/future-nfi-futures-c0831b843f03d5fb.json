@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching futures fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "c0831b843f03d5fb1f10dacfff47ca4135ed3ba1d8c2ec91337606785ab8219e",
+  "trading_mode": "futures",
+  "upstream_commit": "1772e98e7ab7f9176dcfb50c7f53daf3ed79e204",
+  "engine_commit": "cde8a1cedbbd660ec4621b640c4a0c30765e7d3a",
+  "strategy_sha256": "f218f19949712683d0147d6f9a1cd8555f84b219f56501eedf4e494c723fec3f",
+  "fixture_id": "future-nfi-futures-c0831b843f03d5fb",
+  "manifest_sha256": "3c530e271caed58846a15d5290ef0590b014038d2eb1fc07b0ac5ee53903a743",
+  "logical_bytes": 16794686,
+  "target_ids": [
+    "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8"
+  ],
+  "pair": "BNB/USDT:USDT",
+  "timerange": "20251009-20251012",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
