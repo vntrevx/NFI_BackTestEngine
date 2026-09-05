@@ -716,6 +716,8 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "actions/checkout" not in signing_section
     assert "setup-uv" not in signing_section
     assert "find . -type f ! -name SHA256SUMS.txt" in build
+    assert "cp product-release/distribution-identity.json dist/" in build
+    assert "cp product-release/nfi-backtest-engine.spdx.json dist/" in build
     assert "name: Certify release candidate" in certify
     assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in certify
     assert "environment: full-x7-certification" in certify
@@ -1026,6 +1028,27 @@ def test_native_stateful_rc_and_stable_promotion_have_separate_profiles() -> Non
         "lock_check",
         "promote_product_release",
     ]
+
+
+def test_audit_first_profiles_keep_code_evidence_and_external_work_separate() -> None:
+    root = Path(__file__).parents[1]
+    commands = json.loads(
+        (root / "planning/acceptance-commands.json").read_text(encoding="utf-8")
+    )
+    profiles = commands["profiles"]
+
+    assert profiles["legacy_qualification"][-1] == "legacy_qualification_tests"
+    legacy = commands["commands"]["legacy_qualification_tests"]["command"]
+    assert "tests/test_legacy_reference.py" in legacy
+    assert "tests/test_official_fallback.py" in legacy
+    assert profiles["existing_recovery_audit"] == [
+        "planning_json",
+        "diff_check",
+        "recovery_audit_tests",
+    ]
+    assert profiles["release_resource_gate"][-1] == "release_resource_gate_tests"
+    assert "benchmark_repetitions" not in profiles["release_resource_gate"]
+    assert "benchmark_repetitions" in profiles["performance_measurement"]
 
 
 def _long_certification_module() -> ModuleType:

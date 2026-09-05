@@ -62,8 +62,13 @@ COMBINED_RELEASE_GATE_VERSION = "1.0.0"
 COMBINED_RELEASE_GATE_NAME = "release-gate.json"
 COMBINED_RELEASE_REPORT_NAME = "full-x7-release.json"
 COMBINED_RELEASE_BUNDLE_NAME = "full-x7-release-bundle.zip"
-PUBLIC_RELEASE_ASSET_COUNT = 10
-CURRENT_PUBLIC_RELEASE_ASSET_COUNT = 9
+PUBLIC_RELEASE_ASSET_COUNT = 12
+CURRENT_PUBLIC_RELEASE_ASSET_COUNT = 11
+LEGACY_PUBLIC_RELEASE_ASSET_COUNT = 10
+LEGACY_CURRENT_PUBLIC_RELEASE_ASSET_COUNT = 9
+SUPPLY_CHAIN_IDENTITY_NAME = "distribution-identity.json"
+SUPPLY_CHAIN_SBOM_NAME = "nfi-backtest-engine.spdx.json"
+SUPPLY_CHAIN_CHANNELS = ("github-rc", "testpypi", "github-stable", "pypi")
 REQUIRED_MODE_CONTRACTS = frozenset({SPOT_RELEASE_CONTRACT_ID, FUTURES_RELEASE_CONTRACT_ID})
 REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
 _COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -286,6 +291,14 @@ def seal_combined_release_candidate(
 
     shared = report["shared_candidate"]
     distributions = _candidate_distributions(candidate, shared)
+    supply_chain = _validate_supply_chain_files(
+        root=candidate_root,
+        distribution_paths=distributions,
+        identity_path=candidate_root / SUPPLY_CHAIN_IDENTITY_NAME,
+        sbom_path=candidate_root / SUPPLY_CHAIN_SBOM_NAME,
+        expected_commit=candidate_commit,
+        expected_version=shared["package_version"],
+    )
     platform_records = _candidate_platform_records(
         candidate,
         report=report,
@@ -354,6 +367,10 @@ def seal_combined_release_candidate(
             _copy_new_file(source, destination)
             copied_distributions.append(destination)
         _write_distribution_checksums(stage, copied_distributions)
+        identity_destination = stage / SUPPLY_CHAIN_IDENTITY_NAME
+        sbom_destination = stage / SUPPLY_CHAIN_SBOM_NAME
+        _copy_new_file(supply_chain["identity_path"], identity_destination)
+        _copy_new_file(supply_chain["sbom_path"], sbom_destination)
         report_destination = stage / COMBINED_RELEASE_REPORT_NAME
         bundle_destination = stage / COMBINED_RELEASE_BUNDLE_NAME
         _copy_new_file(report_source, report_destination)
@@ -384,6 +401,12 @@ def seal_combined_release_candidate(
                 _artifact_record(path)
                 for path in sorted(copied_distributions, key=lambda item: item.name)
             ],
+            "supply_chain": {
+                "distribution_identity": _artifact_record(identity_destination),
+                "sbom": _artifact_record(sbom_destination),
+                "identity_sha256": supply_chain["identity"]["identity_sha256"],
+                "distribution_sha256": supply_chain["distribution_sha256"],
+            },
             "platform_evidence": platform_records,
             "gates": {
                 "candidate_manifest": True,
@@ -396,6 +419,7 @@ def seal_combined_release_candidate(
                 "preview_rejected": True,
                 "public_asset_set": True,
                 "native_scorecard": True,
+                "supply_chain_identity": True,
             },
         }
         validate_combined_release_gate(gate)
@@ -645,11 +669,16 @@ def _verify_combined_release_assets(
     expected_commit: str | None = None,
     provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
 ) -> dict[str, Any]:
-    """Verify a current nine-file or historical ten-file combined asset set."""
+    """Verify current supply-chain-complete or preserved historical asset sets."""
 
     root = _plain_directory(source, label="combined release")
     entries = list(root.iterdir())
-    allowed_asset_counts = {CURRENT_PUBLIC_RELEASE_ASSET_COUNT, PUBLIC_RELEASE_ASSET_COUNT}
+    allowed_asset_counts = {
+        CURRENT_PUBLIC_RELEASE_ASSET_COUNT,
+        PUBLIC_RELEASE_ASSET_COUNT,
+        LEGACY_CURRENT_PUBLIC_RELEASE_ASSET_COUNT,
+        LEGACY_PUBLIC_RELEASE_ASSET_COUNT,
+    }
     if len(entries) not in allowed_asset_counts or any(
         path.is_symlink() or not path.is_file() for path in entries
     ):
@@ -683,9 +712,13 @@ def _verify_combined_release_assets(
         for record in gate_distributions
         if isinstance(record, dict) and isinstance(record.get("file"), str)
     }
+    has_supply_chain = isinstance(gate.get("supply_chain"), dict)
+    if has_supply_chain and gate["gates"].get("supply_chain_identity") is not True:
+        raise SpecValidationError("combined release supply-chain gate is incomplete")
+    expected_non_distribution_assets = 7 if has_supply_chain else 5
     if (
         len(distribution_records) not in {4, 5}
-        or len(entries) != len(distribution_records) + 5
+        or len(entries) != len(distribution_records) + expected_non_distribution_assets
         or set(distribution_records) != distribution_names
     ):
         raise SpecValidationError("distribution checksum manifest differs from the release gate")
@@ -698,6 +731,25 @@ def _verify_combined_release_assets(
         path = root / record["file"]
         if _artifact_record(path) != record:
             raise SpecValidationError(f"release distribution record differs: {record['file']}")
+    if has_supply_chain:
+        supply_chain = _validate_supply_chain_files(
+            root=root,
+            distribution_paths=[root / name for name in sorted(distribution_names)],
+            identity_path=root / SUPPLY_CHAIN_IDENTITY_NAME,
+            sbom_path=root / SUPPLY_CHAIN_SBOM_NAME,
+            expected_commit=gate["candidate_commit"],
+            expected_version=gate["package_version"],
+        )
+        expected_supply_chain = {
+            "distribution_identity": _artifact_record(
+                root / SUPPLY_CHAIN_IDENTITY_NAME
+            ),
+            "sbom": _artifact_record(root / SUPPLY_CHAIN_SBOM_NAME),
+            "identity_sha256": supply_chain["identity"]["identity_sha256"],
+            "distribution_sha256": supply_chain["distribution_sha256"],
+        }
+        if gate["supply_chain"] != expected_supply_chain:
+            raise SpecValidationError("combined release supply-chain identity differs")
 
     report_path = root / COMBINED_RELEASE_REPORT_NAME
     report = read_json(report_path)
@@ -964,6 +1016,99 @@ def _verify_checksum_records(
         path = root / name
         if not path.is_file() or path.is_symlink() or sha256_file(path) != expected:
             raise SpecValidationError(f"{label} checksum failed: {name}")
+
+
+def _validate_supply_chain_files(
+    *,
+    root: Path,
+    distribution_paths: list[Path],
+    identity_path: Path,
+    sbom_path: Path,
+    expected_commit: str,
+    expected_version: str,
+) -> dict[str, Any]:
+    """Validate the build-once distribution graph and its SPDX projection."""
+    if any(
+        path.parent != root or path.is_symlink() or not path.is_file()
+        for path in (identity_path, sbom_path)
+    ):
+        raise SpecValidationError("combined release supply-chain files are missing")
+    identity = read_json(identity_path)
+    sbom = read_json(sbom_path)
+    if not isinstance(identity, dict) or not isinstance(sbom, dict):
+        raise SpecValidationError("combined release supply-chain metadata is malformed")
+    claimed_identity = identity.get("identity_sha256")
+    body = {key: value for key, value in identity.items() if key != "identity_sha256"}
+    if (
+        identity.get("schema_version") != "1.0.0"
+        or identity.get("project") != "nfi-backtest-engine"
+        or identity.get("version") != expected_version
+        or identity.get("candidate_commit") != expected_commit
+        or identity.get("build_once") is not True
+        or claimed_identity != _document_sha256(body)
+    ):
+        raise SpecValidationError("combined release distribution identity is invalid")
+
+    distribution_records = [
+        {
+            "filename": path.name,
+            "sha256": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+        }
+        for path in sorted(distribution_paths, key=lambda item: item.name)
+    ]
+    declared_records = identity.get("distributions")
+    if not isinstance(declared_records, list) or [
+        {key: value for key, value in record.items() if key != "spdx_id"}
+        if isinstance(record, dict)
+        else record
+        for record in declared_records
+    ] != distribution_records:
+        raise SpecValidationError("combined release distribution hashes differ")
+    distribution_sha256 = {
+        record["filename"]: record["sha256"] for record in distribution_records
+    }
+    expected_channels = [
+        {
+            "slug": channel,
+            "required": True,
+            "expected_sha256": distribution_sha256,
+        }
+        for channel in SUPPLY_CHAIN_CHANNELS
+    ]
+    if identity.get("channels") != expected_channels or identity.get("sbom") != {
+        "filename": SUPPLY_CHAIN_SBOM_NAME,
+        "sha256": sha256_file(sbom_path),
+    }:
+        raise SpecValidationError("combined release cross-channel identity differs")
+
+    sbom_hashes: dict[str, Any] = {}
+    for package in sbom.get("packages", []):
+        if not isinstance(package, dict):
+            raise SpecValidationError("combined release SPDX packages are malformed")
+        checksums = package.get("checksums")
+        if not isinstance(checksums, list):
+            raise SpecValidationError("combined release SPDX checksum is incomplete")
+        sha256_values = [
+            item.get("checksumValue")
+            for item in checksums
+            if isinstance(item, dict) and item.get("algorithm") == "SHA256"
+        ]
+        if len(sha256_values) != 1:
+            raise SpecValidationError("combined release SPDX checksum is incomplete")
+        filename = package.get("packageFileName")
+        checksum = sha256_values[0]
+        if not isinstance(filename, str) or not isinstance(checksum, str):
+            raise SpecValidationError("combined release SPDX checksum is incomplete")
+        sbom_hashes[filename] = checksum
+    if sbom.get("spdxVersion") != "SPDX-2.3" or sbom_hashes != distribution_sha256:
+        raise SpecValidationError("combined release SPDX distribution hashes differ")
+    return {
+        "identity": identity,
+        "identity_path": identity_path,
+        "sbom_path": sbom_path,
+        "distribution_sha256": distribution_sha256,
+    }
 
 
 def _publication_checkpoint(_name: str) -> None:

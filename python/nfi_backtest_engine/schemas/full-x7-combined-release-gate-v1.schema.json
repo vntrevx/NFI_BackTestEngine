@@ -93,6 +93,35 @@
         "$ref": "#/$defs/artifact"
       }
     },
+    "supply_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "distribution_identity",
+        "sbom",
+        "identity_sha256",
+        "distribution_sha256"
+      ],
+      "properties": {
+        "distribution_identity": {
+          "$ref": "#/$defs/artifact"
+        },
+        "sbom": {
+          "$ref": "#/$defs/artifact"
+        },
+        "identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "distribution_sha256": {
+          "type": "object",
+          "minProperties": 4,
+          "maxProperties": 5,
+          "additionalProperties": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
     "platform_evidence": {
       "type": "object",
       "additionalProperties": false,
@@ -153,6 +182,9 @@
           "const": true
         },
         "native_scorecard": {
+          "const": true
+        },
+        "supply_chain_identity": {
           "const": true
         }
       }

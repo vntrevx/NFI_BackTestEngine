@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +30,9 @@ REQUIRED_SOAK_CHECKS = frozenset(
 _SHA1 = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _RC_TAG = re.compile(r"^v(\d+\.\d+\.\d+)-rc\.\d+$")
+MIN_SOAK_CYCLE_INTERVAL = timedelta(hours=24)
+REQUIRED_SOAK_CYCLES = 7
+MIN_SOAK_DURATION = MIN_SOAK_CYCLE_INTERVAL * (REQUIRED_SOAK_CYCLES - 1)
 
 
 def record_operations_soak_cycle(
@@ -44,7 +47,7 @@ def record_operations_soak_cycle(
 ) -> dict[str, Any]:
     """Seal one successful cycle without executing or duplicating existing workflows."""
     _validate_identity(candidate_commit, release_tag)
-    if cycle not in range(1, 8):
+    if cycle not in range(1, REQUIRED_SOAK_CYCLES + 1):
         raise SpecValidationError("operations soak cycle must be between 1 and 7")
     _timestamp(checked_at)
     if _SHA256.fullmatch(public_manifest_sha256) is None:
@@ -82,7 +85,10 @@ def seal_ten_of_ten_release_audit(
     version = _validate_identity(candidate_commit, release_tag)
     contract = load_product_support_contract(product_contract_path)
     required_cycles = contract["operations"]["release_soak_cycles"]
-    if required_cycles != 7 or len(soak_receipt_paths) != required_cycles:
+    if (
+        required_cycles != REQUIRED_SOAK_CYCLES
+        or len(soak_receipt_paths) != required_cycles
+    ):
         raise SpecValidationError("10/10 audit requires exactly seven soak receipts")
 
     receipts: list[tuple[Path, dict[str, Any]]] = []
@@ -94,11 +100,20 @@ def seal_ten_of_ten_release_audit(
         _validate_receipt(document, candidate_commit, release_tag, contract)
         receipts.append((path, document))
     receipts.sort(key=lambda item: item[1]["cycle"])
-    if [item[1]["cycle"] for item in receipts] != list(range(1, 8)):
+    if [item[1]["cycle"] for item in receipts] != list(
+        range(1, REQUIRED_SOAK_CYCLES + 1)
+    ):
         raise SpecValidationError("operations soak receipts must cover cycles 1 through 7")
     timestamps = [_timestamp(item[1]["checked_at"]) for item in receipts]
     if any(right <= left for left, right in zip(timestamps, timestamps[1:], strict=False)):
         raise SpecValidationError("operations soak receipt timestamps are not increasing")
+    if any(
+        right - left < MIN_SOAK_CYCLE_INTERVAL
+        for left, right in zip(timestamps, timestamps[1:], strict=False)
+    ):
+        raise SpecValidationError("operations soak cycles must be at least 24 hours apart")
+    if timestamps[-1] - timestamps[0] < MIN_SOAK_DURATION:
+        raise SpecValidationError("operations soak must cover the full seven-cycle span")
     manifest_hashes = {item[1]["public_manifest_sha256"] for item in receipts}
     if len(manifest_hashes) != 1:
         raise SpecValidationError("operations soak cycles do not target identical public bytes")
@@ -111,6 +126,9 @@ def seal_ten_of_ten_release_audit(
     )
     if gate.get("package_version") != version:
         raise SpecValidationError("release tag version differs from combined release")
+    supply_chain = gate.get("supply_chain")
+    if not isinstance(supply_chain, dict):
+        raise SpecValidationError("10/10 audit requires public supply-chain identity")
     manifest = root / RELEASE_CHECKSUMS_NAME
     if sha256_file(manifest) != next(iter(manifest_hashes)):
         raise SpecValidationError("soak receipts differ from audited public release bytes")
@@ -131,6 +149,13 @@ def seal_ten_of_ten_release_audit(
         "release_gate": _path_record(root / COMBINED_RELEASE_GATE_NAME),
         "combined_report": _path_record(root / COMBINED_RELEASE_REPORT_NAME),
         "public_manifest": _path_record(manifest),
+        "distributions": supply_chain["distribution_sha256"],
+        "distribution_identity": _path_record(
+            root / supply_chain["distribution_identity"]["file"]
+        ),
+        "sbom": _path_record(root / supply_chain["sbom"]["file"]),
+        "cross_channel_identity_sha256": supply_chain["identity_sha256"],
+        "platform_provenance": gate["platform_evidence"],
         "soak_receipts": [_path_record(path) for path, _document in receipts],
     }
     document_without_identity = {
@@ -180,7 +205,7 @@ def _validate_receipt(
         or document.get("complete") is not True
         or not isinstance(cycle, int)
         or isinstance(cycle, bool)
-        or cycle not in range(1, 8)
+        or cycle not in range(1, REQUIRED_SOAK_CYCLES + 1)
         or _SHA256.fullmatch(str(document.get("public_manifest_sha256"))) is None
     ):
         raise SpecValidationError("operations soak receipt identity is incomplete")
@@ -259,6 +284,9 @@ def _canonical_sha256(document: Mapping[str, Any]) -> str:
 
 
 __all__ = [
+    "MIN_SOAK_CYCLE_INTERVAL",
+    "MIN_SOAK_DURATION",
+    "REQUIRED_SOAK_CYCLES",
     "REQUIRED_SOAK_CHECKS",
     "SOAK_CYCLE_VERSION",
     "TEN_OF_TEN_AUDIT_VERSION",
