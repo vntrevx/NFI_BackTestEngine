@@ -212,6 +212,28 @@ def test_actionable_pytest_resources_and_slowest_are_machine_validated(
     assert aggregate["pytest"]["slowest_tests"][0]["duration_seconds"] == 0.5
 
 
+def test_retry_validation_accepts_prior_attempt_artifacts_from_same_run(
+    tmp_path: Path,
+) -> None:
+    timing = _load_script("ci_timing.py")
+    contract = _load_script("ci_contract.py").load_contract(
+        ROOT / ".github/ci-contract.json"
+    )
+    reports, _, lock_sha = _complete_reports(timing, contract, tmp_path)
+    reports[0]["identity"]["run_attempt"] = "2"
+
+    aggregate = timing.validate_timing_reports(
+        reports,
+        contract=contract,
+        expected_run_id="9001",
+        expected_run_attempt="3",
+        expected_commit_sha="a" * 40,
+        expected_lock_sha256=lock_sha,
+    )
+
+    assert aggregate["identity"]["run_attempt"] == "3"
+
+
 def test_compare_uses_trusted_inputs_not_mutual_report_identity(tmp_path: Path) -> None:
     timing = _load_script("ci_timing.py")
     contract = _load_script("ci_contract.py").load_contract(

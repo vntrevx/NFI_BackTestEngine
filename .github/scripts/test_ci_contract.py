@@ -722,6 +722,37 @@ class CiContractTests(unittest.TestCase):
                 expected_commit_sha="a" * 40,
             )
 
+    def test_timing_report_accepts_prior_attempt_from_same_run(self) -> None:
+        timing = _load_timing_module()
+        reports = _complete_timing_reports()
+        reports[0]["identity"]["run_attempt"] = "2"  # type: ignore[index]
+
+        aggregate = timing.validate_timing_reports(
+            reports,
+            contract=self.contract,
+            expected_run_id="9001",
+            expected_run_attempt="3",
+            expected_commit_sha="a" * 40,
+        )
+
+        self.assertEqual(aggregate["identity"]["run_attempt"], "3")
+
+    def test_timing_report_rejects_invalid_run_attempt(self) -> None:
+        timing = _load_timing_module()
+        for invalid in ("0", "01", "not-a-number"):
+            reports = _complete_timing_reports()
+            reports[0]["identity"]["run_attempt"] = invalid  # type: ignore[index]
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                ValueError, "run attempt identity mismatch"
+            ):
+                timing.validate_timing_reports(
+                    reports,
+                    contract=self.contract,
+                    expected_run_id="9001",
+                    expected_run_attempt="3",
+                    expected_commit_sha="a" * 40,
+                )
+
     def test_three_run_comparison_rejects_stale_repository_cache_or_candidate(
         self,
     ) -> None:

@@ -129,6 +129,20 @@ def _is_sha(value: Any, *, length: int) -> bool:
     )
 
 
+def _run_attempt(value: Any) -> int:
+    if (
+        not isinstance(value, str)
+        or not value.isascii()
+        or not value.isdecimal()
+        or value.startswith("0")
+    ):
+        raise ValueError("run attempt identity mismatch")
+    attempt = int(value)
+    if attempt <= 0:
+        raise ValueError("run attempt identity mismatch")
+    return attempt
+
+
 def _timing_contract(contract: Mapping[str, Any]) -> Mapping[str, Any]:
     timing = contract.get("timing")
     if not isinstance(timing, Mapping):
@@ -820,7 +834,10 @@ def _validate_identity(
         raise ValueError("repository identity mismatch")
     if identity.get("run_id") != expected_run_id:
         raise ValueError("run identity mismatch")
-    if identity.get("run_attempt") != expected_run_attempt:
+    # A failed-jobs-only rerun keeps successful artifacts from earlier attempts.
+    # The run ID and candidate identities below remain exact, while an artifact
+    # attempt may be any completed attempt up to the current validation attempt.
+    if _run_attempt(identity.get("run_attempt")) > _run_attempt(expected_run_attempt):
         raise ValueError("run attempt identity mismatch")
     if identity.get("commit_sha") != expected_commit_sha:
         raise ValueError("commit identity mismatch")
@@ -859,7 +876,7 @@ def validate_timing_reports(
     expected_lock_sha256: str | None = None,
     expected_report_ids: Sequence[str] | None = None,
 ) -> dict[str, Any]:
-    """Validate exact job/OS/step coverage and return a flattened aggregate."""
+    """Validate job coverage from the current run through its current attempt."""
     timing = _timing_contract(contract)
     specs = _selected_report_specs(contract, expected_report_ids)
     expected = {_spec_key(spec): spec for spec in specs}
