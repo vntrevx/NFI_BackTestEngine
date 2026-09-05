@@ -1028,6 +1028,27 @@ def test_native_stateful_rc_and_stable_promotion_have_separate_profiles() -> Non
     ]
 
 
+def test_audit_first_profiles_keep_code_evidence_and_external_work_separate() -> None:
+    root = Path(__file__).parents[1]
+    commands = json.loads(
+        (root / "planning/acceptance-commands.json").read_text(encoding="utf-8")
+    )
+    profiles = commands["profiles"]
+
+    assert profiles["legacy_qualification"][-1] == "legacy_qualification_tests"
+    legacy = commands["commands"]["legacy_qualification_tests"]["command"]
+    assert "tests/test_legacy_reference.py" in legacy
+    assert "tests/test_official_fallback.py" in legacy
+    assert profiles["existing_recovery_audit"] == [
+        "planning_json",
+        "diff_check",
+        "recovery_audit_tests",
+    ]
+    assert profiles["release_resource_gate"][-1] == "release_resource_gate_tests"
+    assert "benchmark_repetitions" not in profiles["release_resource_gate"]
+    assert "benchmark_repetitions" in profiles["performance_measurement"]
+
+
 def _long_certification_module() -> ModuleType:
     path = Path(__file__).parents[1] / ".github/scripts/long_certification_contract.py"
     spec = importlib.util.spec_from_file_location(

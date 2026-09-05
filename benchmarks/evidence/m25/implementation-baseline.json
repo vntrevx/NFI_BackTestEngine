@@ -40,6 +40,8 @@
   "external_prerequisite": {
     "task": "M24-03",
     "pull_request": 327,
-    "state": "draft_required_ci_passed_human_review_pending"
+    "state": "merged",
+    "merged_at": "2026-09-05T05:10:41Z",
+    "merge_commit": "3e705ddbc7f64a1e0d30d71cbcd2fe2cef38ef70"
   }
 }

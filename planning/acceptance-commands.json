@@ -249,6 +249,15 @@
       "availability": "available",
       "mutates_external_state": false
     },
+    "legacy_qualification_tests": {
+      "command": "uv run pytest -q tests/test_legacy_reference.py tests/test_official_fallback.py tests/test_research_reference.py tests/test_strategy_catalog.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
     "reference_certification_tests": {
       "command": "uv run pytest -q tests/test_reference_runtime.py tests/test_reference_assets.py tests/test_certification.py tests/test_full_x7_certification.py tests/test_evidence_bundle.py tests/test_result_report.py",
       "working_directory": ".",
@@ -278,6 +287,24 @@
     },
     "user_flow_tests": {
       "command": "uv run pytest -q tests/test_product_contract.py tests/test_project_setup.py tests/test_research_runner.py tests/test_cli.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "recovery_audit_tests": {
+      "command": "uv run pytest -q tests/test_clean.py tests/test_project_setup.py tests/test_research_runner.py tests/test_result_artifacts_v2.py tests/test_verification_ledger.py tests/test_engine_runtime.py tests/test_release_provenance_sqlite_publication.py tests/test_combined_release.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1800,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "release_resource_gate_tests": {
+      "command": "uv run pytest -q tests/test_full_x7_certification.py tests/test_performance_gate.py tests/test_release_contract.py",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 1200,
@@ -773,19 +800,18 @@
     ],
     "legacy_qualification": [
       "planning_json", "diff_check", "lock_check", "ruff", "basedpyright",
-      "strategy_tests", "reference_certification_tests", "user_flow_tests"
+      "legacy_qualification_tests"
     ],
     "cleanroom_harness": [
       "planning_json", "diff_check", "lock_check", "ruff", "basedpyright",
       "user_flow_tests", "release_contract_tests", "python_all"
     ],
     "existing_recovery_audit": [
-      "planning_json", "diff_check", "clean_tests", "user_flow_tests",
-      "result_artifact_v2_tests", "python_all"
+      "planning_json", "diff_check", "recovery_audit_tests"
     ],
     "release_resource_gate": [
       "planning_json", "diff_check", "lock_check", "ruff", "basedpyright",
-      "reference_certification_tests", "python_all", "benchmark_repetitions"
+      "release_resource_gate_tests"
     ],
     "cross_platform_distribution": [
       "planning_json", "diff_check", "lock_check", "release_contract_tests",
