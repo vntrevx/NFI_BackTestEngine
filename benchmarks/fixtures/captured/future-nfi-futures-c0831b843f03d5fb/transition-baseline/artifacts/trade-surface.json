@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20251009-20251012"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "10330.741523",
+    "profit_total_abs": "330.741523",
+    "total_volume": "15194.947677",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BNB/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1760133900000,
+      "close_timestamp_ms": 1760136600000,
+      "open_rate": "1082.29",
+      "close_rate": "1131.61",
+      "amount": "6.86",
+      "stake_amount": "2474.83646667",
+      "max_stake_amount": "2474.83646667",
+      "leverage": "3",
+      "entry_tag": "63 ",
+      "exit_reason": "exit_long_rebuy_d_4_45 ( 63 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "330.741523",
+        "ratio": "0.1335749813513168"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "725.14",
+      "stop_loss": "725.14",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1760133900000,
+          "amount": "6.86",
+          "price": "1082.29",
+          "cost": "7428.2216547",
+          "tag": "63 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1760136600000,
+          "amount": "6.86",
+          "price": "1131.61",
+          "cost": "7766.726022299999",
+          "tag": "exit_long_rebuy_d_4_45 ( 63 )"
+        }
+      ],
+      "duration_minutes": 45,
+      "is_open": false,
+      "minimum_rate": "1057.17",
+      "maximum_rate": "1142.96",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    }
+  ]
+}
