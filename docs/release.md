@@ -165,11 +165,14 @@ Before tagging:
     variance.
 
 The CI workflow runs tests on Linux and macOS and repeats native full parity on Linux.
-Release-candidate wheels additionally run one sealed Futures full-state fixture on
+Release-candidate wheels additionally run sealed Spot and Futures full-state fixtures on
 Linux x86_64, Linux aarch64, and macOS arm64 with one excluded warmup and three measured
 fresh processes, extending to five above 5% spread. This `exact-fixture` lane records
 each supported-platform median and peak RSS and proves wheel portability; WSL2 uses the
-Linux ABI rather than a separate native Windows lane. It is not presented as the
+Linux ABI rather than a separate native Windows lane. Its Windows-hosted job must
+prove distribution version 2 before running the same wheel and fixture commands
+inside WSL2. Platform reports seal the guest kernel identity; WSL1 and ambiguous
+Microsoft-kernel identities cannot satisfy the WSL2 release gate. It is not presented as the
 representative five-year speed claim. Docker-free CI validates portable resource and
 command contracts, while the release gate additionally exercises the managed container
 path on a real Docker Engine host.

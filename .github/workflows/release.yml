@@ -215,9 +215,10 @@ jobs:
   wsl-platform:
     name: Wheel windows-wsl2-x86_64
     needs: [wheels]
-    runs-on: [self-hosted, linux, x64, wsl2, nfi-release]
+    runs-on: windows-2025
+    timeout-minutes: 120
     steps:
-      - name: Check out source inside WSL2
+      - name: Check out source on Windows host
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -226,37 +227,62 @@ jobs:
         with:
           name: wheel-x86_64-unknown-linux-gnu
           path: dist
-      - name: Install wheel inside WSL2
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          python-version: "3.12"
-      - name: Measure exact Spot and Futures fixtures inside WSL2
-        shell: bash
+      - name: Provision bounded WSL2 Ubuntu 24.04 guest
+        shell: pwsh
+        timeout-minutes: 20
         run: |
-          set -euo pipefail
-          uv venv --python 3.12 .wsl-venv
-          uv pip install --python .wsl-venv/bin/python dist/*.whl
-          .wsl-venv/bin/python .github/scripts/release_candidate_contract.py \
-            --output .release-candidate-plan.json
-          wheels=(dist/*.whl)
-          runs="$(jq -er .platform_evidence.runs .release-candidate-plan.json)"
-          timeout="$(jq -er .platform_evidence.timeout_seconds .release-candidate-plan.json)"
-          while IFS=$'\t' read -r slug manifest; do
-            .wsl-venv/bin/nfi-bte platform fixture-benchmark \
-              "$manifest" \
-              --wheel "${wheels[0]}" \
-              --output-dir ".platform-evidence/$slug" \
-              --runs "$runs" \
-              --timeout "$timeout"
-          done < <(
-            jq -er '.platform_evidence.modes[] | [.slug, .manifest] | @tsv' \
-              .release-candidate-plan.json
-          )
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force .platform-evidence/wsl-host | Out-Null
+          $wslVersion = (& wsl.exe --version 2>&1 | Out-String).Replace([string][char]0, "")
+          $wslVersionExit = $LASTEXITCODE
+          $wslVersion | Set-Content -Encoding utf8 .platform-evidence/wsl-host/wsl-version.txt
+          if ($wslVersionExit -ne 0) { throw "could not read WSL version" }
+          & wsl.exe --set-default-version 2
+          if ($LASTEXITCODE -ne 0) { throw "could not set WSL2 as the default" }
+          $installed = @(& wsl.exe --list --quiet) |
+            ForEach-Object { $_.Replace([string][char]0, "").Trim() } |
+            Where-Object { $_ }
+          if ($installed -notcontains "Ubuntu-24.04") {
+            & wsl.exe --install --distribution Ubuntu-24.04 --no-launch --web-download
+            if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 WSL2 installation failed" }
+          }
+          & wsl.exe --set-version Ubuntu-24.04 2
+          if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 is not convertible to WSL2" }
+          & wsl.exe --distribution Ubuntu-24.04 --user root --exec /bin/true
+          if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 WSL2 first launch failed" }
+          $wslStatus = (& wsl.exe --status 2>&1 | Out-String).Replace([string][char]0, "")
+          $wslStatusExit = $LASTEXITCODE
+          $wslStatus | Set-Content -Encoding utf8 .platform-evidence/wsl-host/wsl-status.txt
+          if ($wslStatusExit -ne 0) { throw "could not read WSL status" }
+          $listing = (& wsl.exe --list --verbose 2>&1 | Out-String).Replace([string][char]0, "")
+          $listing | Set-Content -Encoding utf8 .platform-evidence/wsl-host/wsl-list-verbose.txt
+          if ($LASTEXITCODE -ne 0 -or $listing -notmatch "(?m)^\s*\*?\s*Ubuntu-24\.04\s+\S+\s+2\s*$") {
+            throw "Ubuntu 24.04 is not running as WSL2"
+          }
+          [ordered]@{
+            schema_version = "wsl2-host-identity-v1"
+            platform_slug = "windows-wsl2-x86_64"
+            runner_os = $env:RUNNER_OS
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            github_sha = $env:GITHUB_SHA
+            distribution = "Ubuntu-24.04"
+            distribution_version = 2
+          } | ConvertTo-Json | Set-Content -Encoding utf8 .platform-evidence/wsl-host/host-identity.json
+      - name: Measure exact Spot and Futures fixtures inside WSL2
+        shell: pwsh
+        timeout-minutes: 95
+        run: |
+          & wsl.exe --distribution Ubuntu-24.04 --user root --cd "$env:GITHUB_WORKSPACE" --exec bash .github/scripts/run_wsl2_platform.sh
+          if ($LASTEXITCODE -ne 0) { throw "WSL2 platform evidence failed" }
       - name: Upload WSL2 platform reports
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: platform-report-windows-wsl2-x86_64
-          path: .platform-evidence/*/platform-benchmark*.json
+          path: |
+            .platform-evidence/*/platform-benchmark*.json
+            .platform-evidence/wsl-host/*
           if-no-files-found: error
           include-hidden-files: true
 
