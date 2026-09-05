@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "strategy_sha256": "3bd017944b13da4c88a53c1505a1bcca49cfa60bb5652655781b2b889f108d41",
+  "classification": "ir-compatible",
+  "verification_state": "quick_verified",
+  "changed_branch_reached": true,
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "blockers": []
+}
