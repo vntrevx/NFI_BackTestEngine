@@ -1,0 +1,148 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20240412-20240415"
+  },
+  "summary": {
+    "total_trades": 2,
+    "starting_balance": "10000",
+    "final_balance": "10930.00408074",
+    "profit_total_abs": "930.0040807400001",
+    "total_volume": "121231.94419926",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "NEO/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1712946900000,
+      "close_timestamp_ms": 1712953200000,
+      "open_rate": "20.375",
+      "close_rate": "20.555",
+      "amount": "1457.66",
+      "stake_amount": "9899.94083333",
+      "max_stake_amount": "9899.94083333",
+      "leverage": "3",
+      "entry_tag": "142 ",
+      "exit_reason": "exit_long_tc_d_0_118 ( 142 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "232.5477881",
+        "ratio": "0.02347807691246401"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "13.652",
+      "stop_loss": "13.652",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1712946900000,
+          "amount": "1457.66",
+          "price": "20.375",
+          "cost": "29714.67241125",
+          "tag": "142 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1712953200000,
+          "amount": "1457.66",
+          "price": "20.555",
+          "cost": "29977.18240065",
+          "tag": "exit_long_tc_d_0_118 ( 142 )"
+        }
+      ],
+      "duration_minutes": 105,
+      "is_open": false,
+      "minimum_rate": "18.911",
+      "maximum_rate": "20.623",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    },
+    {
+      "sequence": 1,
+      "pair": "NEO/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1712972100000,
+      "close_timestamp_ms": 1712974200000,
+      "open_rate": "18.613",
+      "close_rate": "19.059",
+      "amount": "1632.76",
+      "stake_amount": "10130.18729333",
+      "max_stake_amount": "10130.18729333",
+      "leverage": "3",
+      "entry_tag": "104 ",
+      "exit_reason": "exit_long_rapid_d_2_64 ( 104 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "697.45629264",
+        "ratio": "0.06881489143141319"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "12.471",
+      "stop_loss": "12.471",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1712972100000,
+          "amount": "1632.76",
+          "price": "18.613",
+          "cost": "30405.757160939997",
+          "tag": "104 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1712974200000,
+          "amount": "1632.76",
+          "price": "19.059",
+          "cost": "31134.33222642",
+          "tag": "exit_long_rapid_d_2_64 ( 104 )"
+        }
+      ],
+      "duration_minutes": 35,
+      "is_open": false,
+      "minimum_rate": "18.429",
+      "maximum_rate": "19.211",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 5
+    }
+  ]
+}
