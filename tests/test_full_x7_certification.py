@@ -291,6 +291,7 @@ def test_full_x7_native_measurement_forwards_resume_to_the_research_state_machin
         return {
             "wall_time_seconds": 1.0,
             "peak_rss_bytes": 1,
+            "peak_swap_bytes": 37,
             "exit_code": 2,
             "timed_out": False,
         }
@@ -308,7 +309,7 @@ def test_full_x7_native_measurement_forwards_resume_to_the_research_state_machin
         },
     }
 
-    _measure_engine(
+    measured = _measure_engine(
         inputs,
         tmp_path / "run",
         profile_path=tmp_path / "profile.json",
@@ -323,6 +324,10 @@ def test_full_x7_native_measurement_forwards_resume_to_the_research_state_machin
     assert captured[captured.index("--cache-dir") + 1] == str(
         (tmp_path / "preserved-cache").resolve()
     )
+    assert measured["peak_swap_bytes"] == 37
+    assert read_json(tmp_path / "run/certification-measurement.json")[
+        "peak_swap_bytes"
+    ] == 37
 
 
 def test_full_x7_loader_delegates_only_incomplete_reports_to_resume(
@@ -356,6 +361,45 @@ def test_full_x7_loader_delegates_only_incomplete_reports_to_resume(
             validator=lambda _measurement: False,
             allow_report_fallback=False,
         )
+
+
+@pytest.mark.parametrize(
+    ("stored_peak", "expected"),
+    [(0, 0), (41, 41), (None, None), (-1, None), (True, None), (1.5, None), ("41", None)],
+)
+def test_full_x7_resume_loaders_normalize_swap_peaks(
+    tmp_path: Path,
+    stored_peak: object,
+    expected: int | None,
+) -> None:
+    checkpoint = {
+        "wall_time_seconds": 1.0,
+        "peak_rss_bytes": 2,
+        "peak_swap_bytes": stored_peak,
+        "exit_code": 0,
+        "timed_out": False,
+    }
+    native = tmp_path / "native"
+    write_json(native / "run.json", {"complete": True})
+    write_json(native / "certification-measurement.json", checkpoint)
+    official = tmp_path / "official"
+    write_json(
+        official / "run.json",
+        {"container_swap": {"peak_bytes": stored_peak}},
+    )
+    write_json(official / "certification-measurement.json", checkpoint)
+
+    loaded_native = full_x7_resume.load_engine_measurement(
+        native,
+        validator=lambda _measurement: True,
+        allow_report_fallback=False,
+    )
+    loaded_official = full_x7_resume.load_reference_measurement(official)
+
+    assert loaded_native is not None
+    assert loaded_official is not None
+    assert loaded_native["peak_swap_bytes"] == expected
+    assert loaded_official["peak_swap_bytes"] == expected
 
 
 def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
@@ -1391,3 +1435,84 @@ def test_full_x7_warmup_can_capture_or_reuse_reference_markets(
     assert ("--no-market-capture" in arguments) is reuse_snapshot
     storage_index = arguments.index("--storage-mode")
     assert arguments[storage_index + 1] == "spooled"
+
+
+@pytest.mark.parametrize(
+    ("container_peak", "expected"),
+    [(None, None), (-1, None), (True, None), (1.5, None), ("41", None), (41, 41)],
+)
+def test_full_x7_reference_measurement_uses_only_valid_container_swap_peak(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    container_peak: object,
+    expected: int | None,
+) -> None:
+    output = tmp_path / "reference"
+
+    def fake_measure(*_args, **_kwargs):
+        write_json(
+            output / "run.json",
+            {"container_swap": {"peak_bytes": container_peak}},
+        )
+        return {
+            "wall_time_seconds": 1.0,
+            "peak_rss_bytes": 2,
+            "peak_swap_bytes": 7,
+            "exit_code": 0,
+            "timed_out": False,
+        }
+
+    monkeypatch.setattr(full_x7_certification, "measure_cli_process", fake_measure)
+    monkeypatch.setattr(
+        full_x7_certification,
+        "_reference_surface_sha",
+        lambda _measurement: None,
+    )
+
+    measured = _measure_reference(
+        tmp_path / "engine",
+        None,
+        output,
+        timeout_seconds=60,
+        swap_cap_bytes=1024,
+    )
+
+    assert measured["peak_swap_bytes"] == expected
+    assert read_json(output / "certification-measurement.json")[
+        "peak_swap_bytes"
+    ] == expected
+
+
+def test_full_x7_swap_summary_rejects_missing_malformed_and_over_cap_peaks() -> None:
+    def measured(peak: object) -> dict[str, object]:
+        return {
+            "wall_time_seconds": 1.0,
+            "peak_rss_bytes": 2,
+            "peak_swap_bytes": peak,
+        }
+
+    valid = full_x7_certification._run_summary([measured(40)], lane="engine")
+    over_cap = full_x7_certification._run_summary([measured(101)], lane="reference")
+    for malformed in (None, -1, True, 1.5, "40"):
+        incomplete = full_x7_certification._run_summary(
+            [measured(malformed)],
+            lane="reference",
+        )
+        gate = full_x7_certification._swap_gate(
+            valid,
+            valid,
+            incomplete,
+            limit_bytes=100,
+        )
+        assert incomplete["peak_swap_bytes"]["measurements_complete"] is False
+        assert gate["met"] is False
+
+    assert (
+        full_x7_certification._swap_gate(
+            valid,
+            valid,
+            over_cap,
+            limit_bytes=100,
+        )["met"]
+        is False
+    )

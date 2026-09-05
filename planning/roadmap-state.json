@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 161,
-  "updated_at": "2026-09-06T06:56:56+09:00",
+  "revision": 162,
+  "updated_at": "2026-09-06T07:19:39+09:00",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -41,7 +41,7 @@
       "M29": {
         "implementation_state": "ready_for_external_execution",
         "commits": ["5e64b0b04", "544330b5e"],
-        "remaining": ["reconcile the planning Futures 80-pair snapshot against historical data (five pairs, 24 onboarding/candle edges) before sealing 20210101-20260101 inputs; reject diagnostic replacement pairs", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
+        "remaining": ["freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
       },
       "M30": {
         "implementation_state": "ready_for_external_execution",
@@ -9527,6 +9527,46 @@
         "new_official_runs": 0,
         "runtime_code_changes": false,
         "hosted_dual_mode_quick_verification_complete": false,
+        "release_certified": false,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 211,
+      "timestamp": "2026-09-06T07:19:39+09:00",
+      "task_id": "M29-02",
+      "event": "release_input_authority_corrected",
+      "details": {
+        "supersedes_interpretation_in_event": 210,
+        "correction": "The planning 80-pair snapshots are branch-discovery inputs, not mandatory certification pairlists. Five rejected pairs and 24 edge gaps remain valid discovery diagnostics, not required release repairs.",
+        "selection_policy": "Use existing deterministic release universe selection and seal the resulting 80 eligible covered pairs before certification; preserve historical certificates and the conservative activation gate.",
+        "spot_input_preflight": "passed: current frozen X7 source, 80 pairs, 20210101-20260101, 400 reused files, Native and raw Official market snapshots",
+        "futures_input_preflight": "passed: full catalog to 80 coverage-qualified pairs, 20210101-20260101, 560 reused files and newly captured Native markets; raw Official markets remain for authorized Oracle capture",
+        "release_probe_matrix": "existing current-source 4 Spot and 9 Futures manifests validated; no probe reruns",
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/M29-02/ad21a1361c2b077cbc6b27bffb1a7b44adcaedf6/release-input-authority-correction.json",
+            "bytes": 3873,
+            "sha256": "59d2703dec8e1dbdac6c4dac7d98b6a3b1d9e36492027c5820bfc70c6795ea58"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M29-02/ad21a1361c2b077cbc6b27bffb1a7b44adcaedf6/spot-input-readiness.json",
+            "bytes": 3515,
+            "sha256": "523ab013a751050dc790b23890f04ba58b7f1568e8f40828305ed2cef63a541e"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M29-02/ad21a1361c2b077cbc6b27bffb1a7b44adcaedf6/futures-release-inputs/full-input-preflight-receipt.json",
+            "bytes": 2897,
+            "sha256": "fc4ca7e30c59fb50998baeaa33253233df3d019c40f6d7e6d6e73255e40ae9b9"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M29-02/ad21a1361c2b077cbc6b27bffb1a7b44adcaedf6/latest-source-release-probe-matrix-readiness.json",
+            "bytes": 8346,
+            "sha256": "2829564ddaf94a00e7d7474b348635c0bb7590dd512c4ab3de124769d827dc3f"
+          }
+        ],
+        "new_official_backtests": 0,
         "release_certified": false,
         "combined_full_x7_certified": false,
         "task_status_changed": false
