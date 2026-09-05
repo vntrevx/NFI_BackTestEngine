@@ -584,6 +584,15 @@ jobs:
             --directory product-release \
             --identity product-release/distribution-identity.json \
             --sbom product-release/nfi-backtest-engine.spdx.json
+          cp product-release/distribution-identity.json dist/
+          cp product-release/nfi-backtest-engine.spdx.json dist/
+          (
+            cd dist
+            find . -type f ! -name SHA256SUMS.txt -print0 \
+              | LC_ALL=C sort -z \
+              | xargs -0 sha256sum > SHA256SUMS.txt
+            sha256sum --check SHA256SUMS.txt
+          )
           cd product-release
           find . -type f ! -name SHA256SUMS.txt -print0 \
             | LC_ALL=C sort -z \

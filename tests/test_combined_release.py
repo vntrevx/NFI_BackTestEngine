@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -58,6 +59,64 @@ def _stable_current_ref_authorization(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 WHEEL_SHA = "a" * 64
+
+
+def _write_supply_chain(candidate: Path, *, commit: str = "1" * 40) -> None:
+    distributions = sorted(
+        [*candidate.glob("*.whl"), *candidate.glob("*.tar.gz")],
+        key=lambda path: path.name,
+    )
+    records = [
+        {
+            "filename": path.name,
+            "sha256": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+            "spdx_id": f"SPDXRef-Package-{index}",
+        }
+        for index, path in enumerate(distributions, start=1)
+    ]
+    sbom = {
+        "spdxVersion": "SPDX-2.3",
+        "packages": [
+            {
+                "packageFileName": record["filename"],
+                "checksums": [
+                    {"algorithm": "SHA256", "checksumValue": record["sha256"]}
+                ],
+            }
+            for record in records
+        ],
+    }
+    sbom_path = candidate / "nfi-backtest-engine.spdx.json"
+    write_json(sbom_path, sbom)
+    hashes = {record["filename"]: record["sha256"] for record in records}
+    body = {
+        "schema_version": "1.0.0",
+        "project": "nfi-backtest-engine",
+        "version": "1.0.0",
+        "candidate_commit": commit,
+        "build_once": True,
+        "distributions": records,
+        "sbom": {
+            "filename": sbom_path.name,
+            "sha256": sha256_file(sbom_path),
+        },
+        "channels": [
+            {"slug": slug, "required": True, "expected_sha256": hashes}
+            for slug in ("github-rc", "testpypi", "github-stable", "pypi")
+        ],
+    }
+    canonical = json.dumps(
+        body,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    write_json(
+        candidate / "distribution-identity.json",
+        {**body, "identity_sha256": hashlib.sha256(canonical).hexdigest()},
+    )
 NATIVE_SHA = "b" * 64
 STRATEGY_SHA = "c" * 64
 DURABLE_LEDGER_AVAILABLE = (
@@ -471,6 +530,7 @@ def _combined_gate_inputs(
     for index, name in enumerate(wheel_names):
         (candidate / name).write_bytes(f"wheel-{index}".encode())
     (candidate / "nfi_backtest_engine-1.0.0.tar.gz").write_bytes(b"sdist")
+    _write_supply_chain(candidate)
     linux_wheel_sha256 = sha256_file(candidate / wheel_names[0])
     candidate_id = candidate_distribution_identity(
         {
@@ -596,6 +656,10 @@ def test_combined_release_gate_seals_exact_public_asset_set(tmp_path: Path) -> N
     assert verified == result
     assert len(list(release.iterdir())) == PUBLIC_RELEASE_ASSET_COUNT
     assert len(result["distributions"]) == 5
+    assert result["supply_chain"]["identity_sha256"]
+    assert set(result["supply_chain"]["distribution_sha256"]) == {
+        record["file"] for record in result["distributions"]
+    }
     assert result["candidate_manifest"]["candidate_file"] == "SHA256SUMS.txt"
 
 
@@ -625,6 +689,8 @@ def test_combined_release_gate_accepts_current_platform_and_wheel_set(
     assert verified == result
     assert len(list(release.iterdir())) == CURRENT_PUBLIC_RELEASE_ASSET_COUNT
     assert len(result["distributions"]) == 4
+    assert (release / "distribution-identity.json").is_file()
+    assert (release / "nfi-backtest-engine.spdx.json").is_file()
 
     public_only = verify_combined_release_assets(
         release,
@@ -643,6 +709,47 @@ def test_combined_release_gate_accepts_current_platform_and_wheel_set(
         record["candidate_file"].startswith("platform/")
         for record in result["platform_evidence"].values()
     )
+
+
+def test_combined_release_rejects_public_sbom_drift(tmp_path: Path) -> None:
+    inputs = _combined_gate_inputs(tmp_path, slug_contract=True)
+    seal_combined_release_candidate(**inputs)
+    release = Path(inputs["output_directory"])
+    sbom_path = release / "nfi-backtest-engine.spdx.json"
+    sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
+    sbom["packages"][0]["checksums"][0]["checksumValue"] = "0" * 64
+    write_json(sbom_path, sbom)
+    _reseal_public_checksums(release)
+
+    with pytest.raises(SpecValidationError, match="cross-channel identity differs"):
+        verify_combined_release_assets(
+            release,
+            expected_commit=str(inputs["candidate_commit"]),
+            provenance_policy=TEST_POLICY,
+        )
+
+
+def test_combined_release_keeps_historical_public_assets_readable(
+    tmp_path: Path,
+) -> None:
+    inputs = _combined_gate_inputs(tmp_path, slug_contract=True)
+    seal_combined_release_candidate(**inputs)
+    release = Path(inputs["output_directory"])
+    (release / "distribution-identity.json").unlink()
+    (release / "nfi-backtest-engine.spdx.json").unlink()
+    gate_path = release / "release-gate.json"
+    gate = json.loads(gate_path.read_text(encoding="utf-8"))
+    del gate["supply_chain"]
+    del gate["gates"]["supply_chain_identity"]
+    write_json(gate_path, gate)
+    _reseal_public_checksums(release)
+
+    verified = verify_combined_release_assets(
+        release,
+        expected_commit=str(inputs["candidate_commit"]),
+        provenance_policy=TEST_POLICY,
+    )
+    assert "supply_chain" not in verified
 
 
 def test_deferred_publication_stays_reserved_until_remote_finalize(

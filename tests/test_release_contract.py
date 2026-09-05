@@ -716,6 +716,8 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "actions/checkout" not in signing_section
     assert "setup-uv" not in signing_section
     assert "find . -type f ! -name SHA256SUMS.txt" in build
+    assert "cp product-release/distribution-identity.json dist/" in build
+    assert "cp product-release/nfi-backtest-engine.spdx.json dist/" in build
     assert "name: Certify release candidate" in certify
     assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in certify
     assert "environment: full-x7-certification" in certify

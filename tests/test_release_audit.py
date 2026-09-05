@@ -89,13 +89,14 @@ def test_seal_ten_of_ten_release_audit_binds_one_fixed_public_candidate(
     manifest_sha256 = sha256_file(release / RELEASE_CHECKSUMS_NAME)
     start = datetime(2026, 9, 1, tzinfo=UTC)
     receipts = []
-    for cycle in range(1, 8):
+    cycle_offsets = range(7)
+    for cycle, day_offset in enumerate(cycle_offsets, start=1):
         path = tmp_path / "receipts" / f"cycle-{cycle}.json"
         record_operations_soak_cycle(
             candidate_commit=COMMIT,
             release_tag=TAG,
             cycle=cycle,
-            checked_at=(start + timedelta(days=cycle - 1)).isoformat(),
+            checked_at=(start + timedelta(days=day_offset)).isoformat(),
             public_manifest_sha256=manifest_sha256,
             checks=_checks(),
             output_path=path,
@@ -121,6 +122,46 @@ def test_seal_ten_of_ten_release_audit_binds_one_fixed_public_candidate(
         "windows-wsl2-x86_64",
     ]
     assert len(report["identity_graph"]["soak_receipts"]) == 7
+    assert report["identity_graph"]["distributions"]
+    assert (
+        report["identity_graph"]["distribution_identity"]["file"]
+        == "distribution-identity.json"
+    )
+    assert (
+        report["identity_graph"]["sbom"]["file"]
+        == "nfi-backtest-engine.spdx.json"
+    )
+    assert report["identity_graph"]["cross_channel_identity_sha256"]
+    assert set(report["identity_graph"]["platform_provenance"]) == {
+        "binance-spot",
+        "binance-usdtm-isolated",
+    }
+
+
+def test_ten_of_ten_audit_rejects_same_day_cycle_stacking(tmp_path: Path) -> None:
+    start = datetime(2026, 9, 1, tzinfo=UTC)
+    receipts = []
+    for cycle in range(1, 8):
+        path = tmp_path / f"cycle-{cycle}.json"
+        record_operations_soak_cycle(
+            candidate_commit=COMMIT,
+            release_tag=TAG,
+            cycle=cycle,
+            checked_at=(start + timedelta(hours=cycle - 1)).isoformat(),
+            public_manifest_sha256="a" * 64,
+            checks=_checks(),
+            output_path=path,
+        )
+        receipts.append(path)
+
+    with pytest.raises(SpecValidationError, match="at least 24 hours apart"):
+        seal_ten_of_ten_release_audit(
+            release_directory=tmp_path / "unneeded",
+            candidate_commit=COMMIT,
+            release_tag=TAG,
+            soak_receipt_paths=receipts,
+            output_path=tmp_path / "audit.json",
+        )
 
 
 def test_ten_of_ten_audit_rejects_stale_discovery_receipt(tmp_path: Path) -> None:
