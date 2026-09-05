@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "updated_at": "2026-09-03",
+  "updated_at": "2026-09-05",
   "execution": {
     "default_working_directory": ".",
     "placeholder_rules": {
@@ -201,7 +201,7 @@
       "platform": "any",
       "timeout_seconds": 600,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "clean_tests": {
@@ -210,11 +210,20 @@
       "platform": "any",
       "timeout_seconds": 600,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "release_contract_tests": {
       "command": "uv run pytest -q tests/test_release_contract.py tests/test_platform_benchmark.py tests/test_evidence_bundle.py tests/test_combined_release.py",
+      "working_directory": ".",
+      "platform": "any",
+      "timeout_seconds": 1200,
+      "required": true,
+      "availability": "available",
+      "mutates_external_state": false
+    },
+    "release_audit_tests": {
+      "command": "uv run pytest -q tests/test_release_audit.py tests/test_combined_release.py tests/test_release_contract.py",
       "working_directory": ".",
       "platform": "any",
       "timeout_seconds": 1200,
@@ -264,7 +273,7 @@
       "platform": "any",
       "timeout_seconds": 600,
       "required": true,
-      "availability": "planned",
+      "availability": "available",
       "mutates_external_state": false
     },
     "user_flow_tests": {
@@ -328,78 +337,6 @@
       "timeout_seconds": 1200,
       "required": true,
       "availability": "available",
-      "mutates_external_state": false
-    },
-    "legacy_strategy_boundary_tests": {
-      "command": "uv run pytest -q tests/test_strategy_catalog.py tests/test_legacy_official_fallback.py tests/test_official_fallback.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 900,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "cleanroom_e2e_tests": {
-      "command": "uv run pytest -q tests/test_cleanroom_e2e.py tests/test_doctor.py tests/test_user_flow.py tests/test_strategy_catalog.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1800,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "fault_injection_recovery_tests": {
-      "command": "uv run pytest -q tests/test_fault_injection_recovery.py tests/test_research_runner.py tests/test_clean.py tests/test_runs_registry.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1800,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "release_performance_v2_tests": {
-      "command": "uv run pytest -q tests/test_performance_gate.py tests/test_full_x7_certification.py tests/test_performance_budget_v2.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1200,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "cross_channel_distribution_tests": {
-      "command": "uv run pytest -q tests/test_platform_evidence_v2.py tests/test_release_contract.py tests/test_pypi_distribution.py tests/test_release_provenance.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1200,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "combined_x7_v2_tests": {
-      "command": "uv run pytest -q tests/test_oracle_capture_contract.py tests/test_long_certification_contract.py tests/test_full_x7_certification.py tests/test_combined_release.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1800,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "operations_soak_tests": {
-      "command": "uv run pytest -q tests/test_operations_soak.py tests/test_compatibility_issue.py tests/test_futures_discovery_health_issue.py tests/test_evidence_restore.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1200,
-      "required": true,
-      "availability": "planned",
-      "mutates_external_state": false
-    },
-    "ten_of_ten_release_tests": {
-      "command": "uv run pytest -q tests/test_ten_of_ten_audit.py tests/test_product_support_contract.py tests/test_release_contract.py",
-      "working_directory": ".",
-      "platform": "any",
-      "timeout_seconds": 1200,
-      "required": true,
-      "availability": "planned",
       "mutates_external_state": false
     },
     "benchmark_repetitions": {
@@ -828,99 +765,39 @@
       "x7_spot_full",
       "x7_futures_full"
     ],
-    "legacy_strategy_boundary": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "ruff",
-      "basedpyright",
-      "legacy_strategy_boundary_tests",
-      "python_all"
+    "roadmap_baseline": [
+      "planning_json", "diff_check", "product_support_contract_tests", "release_contract_tests"
     ],
-    "legacy_strategy_release": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "product_support_contract_tests",
-      "legacy_strategy_boundary_tests",
-      "platform_release_workflow",
-      "publish_product_release",
-      "promote_product_release"
+    "fixture_ci_deduplication": [
+      "planning_json", "diff_check", "futures_discovery_tests", "workflow_contract_tests"
     ],
-    "cleanroom_e2e": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "ruff",
-      "basedpyright",
-      "cleanroom_e2e_tests",
-      "python_all",
-      "platform_release_workflow"
+    "legacy_qualification": [
+      "planning_json", "diff_check", "lock_check", "ruff", "basedpyright",
+      "strategy_tests", "reference_certification_tests", "user_flow_tests"
     ],
-    "fault_injection_recovery": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "ruff",
-      "basedpyright",
-      "fault_injection_recovery_tests",
-      "python_all"
+    "cleanroom_harness": [
+      "planning_json", "diff_check", "lock_check", "ruff", "basedpyright",
+      "user_flow_tests", "release_contract_tests", "python_all"
     ],
-    "release_performance_v2": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "ruff",
-      "basedpyright",
-      "release_performance_v2_tests",
-      "python_all",
-      "rust_fmt",
-      "rust_test",
-      "rust_clippy",
-      "benchmark_repetitions"
+    "existing_recovery_audit": [
+      "planning_json", "diff_check", "clean_tests", "user_flow_tests",
+      "result_artifact_v2_tests", "python_all"
     ],
-    "cross_channel_distribution": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "cross_channel_distribution_tests",
-      "workflow_contract_tests",
-      "platform_release_workflow"
+    "release_resource_gate": [
+      "planning_json", "diff_check", "lock_check", "ruff", "basedpyright",
+      "reference_certification_tests", "python_all", "benchmark_repetitions"
     ],
-    "cross_channel_distribution_release": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "cross_channel_distribution_tests",
-      "platform_release_workflow",
-      "publish_product_release",
-      "promote_product_release"
+    "cross_platform_distribution": [
+      "planning_json", "diff_check", "lock_check", "release_contract_tests",
+      "workflow_contract_tests", "platform_release_workflow"
     ],
-    "combined_x7_v2": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "combined_x7_v2_tests",
-      "python_all",
-      "rust_fmt",
-      "rust_test",
-      "rust_clippy",
-      "full_mode_certification"
+    "combined_oracle_capture": [
+      "planning_json", "diff_check", "lock_check", "reference_certification_tests",
+      "release_contract_tests", "full_mode_certification"
     ],
-    "operations_soak": [
-      "planning_json",
-      "diff_check",
-      "operations_soak_tests",
-      "ci_required_checks"
-    ],
-    "ten_of_ten_release": [
-      "planning_json",
-      "diff_check",
-      "lock_check",
-      "ten_of_ten_release_tests",
-      "cross_channel_distribution_tests",
-      "combined_x7_v2_tests",
-      "platform_release_workflow",
+    "ten_of_ten_audit": [
+      "planning_json", "diff_check", "lock_check", "release_contract_tests",
+      "release_audit_tests", "workflow_contract_tests", "ci_required_checks",
       "publish_combined_release"
     ]
   }

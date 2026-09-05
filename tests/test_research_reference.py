@@ -6,6 +6,7 @@ import pytest
 from nfi_backtest_engine import research_reference
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.legacy_reference import load_legacy_runtime_registry
 from nfi_backtest_engine.reference_runtime import REFERENCE_CCXT_VERSION
 from nfi_backtest_engine.research_reference import (
     RESEARCH_REFERENCE_VERSION,
@@ -125,6 +126,32 @@ def test_research_reference_command_keeps_inputs_as_argv(tmp_path: Path) -> None
         "--backtest-directory",
         "/output",
     ]
+
+
+def test_legacy_reference_command_uses_only_qualified_official_runtime(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
+    runtime = load_legacy_runtime_registry()["strategies"][0]["runtime"]
+
+    command = build_research_reference_command(
+        run_prefix=_managed_prefix(),
+        input_directory=tmp_path / "inputs",
+        output_directory=output,
+        data_directory=tmp_path / "data",
+        strategy="NostalgiaForInfinityNext",
+        timerange="20250101-20250102",
+        pairs=["BTC/USDT"],
+        audit_timestamps_ms=[],
+        legacy_runtime=runtime,
+    )
+
+    assert command[command.index("--network") + 1] == "bridge"
+    assert f"{runtime['image']}@{runtime['image_platform_digest']}" in command
+    assert not any("nfi-reference-tracer" in value for value in command)
+    assert not any(value.startswith("PYTHONPATH=") for value in command)
+    assert "NFI_REFERENCE_DATASTORE=spooled" not in command
 
 
 def test_market_capture_uses_the_pinned_list_pairs_contract(tmp_path: Path) -> None:

@@ -1,0 +1,30 @@
+{
+  "schema_version": "installed-wheel-cleanroom-evidence-v1",
+  "captured_at": "2026-09-05",
+  "candidate_commit": "272b329e17f67c6426543e963ef28c57a5ad28a0",
+  "package_version": "1.11.0",
+  "wheel": {
+    "name": "nfi_backtest_engine-1.11.0-cp312-abi3-manylinux_2_34_x86_64.whl",
+    "sha256": "6473b95e375b1963ca2a9c61d407d7b79855321a4e49985bb1550958330f2199"
+  },
+  "fixture_id": "x7-v17.4.435-tag-121-btc-spot",
+  "fixture_manifest_sha256": "84228551813dda0543220ac6e51f05dcd893ebcb6b849d1777e09c41881a60aa",
+  "repository_checkout_used": false,
+  "commands": [
+    {"name": "doctor", "exit_code": 0},
+    {"name": "strategy-list", "exit_code": 0},
+    {"name": "init", "exit_code": 0},
+    {"name": "run", "exit_code": 0},
+    {"name": "report", "exit_code": 0},
+    {"name": "status", "exit_code": 0},
+    {"name": "clean-dry-run", "exit_code": 0},
+    {"name": "update-check", "exit_code": 0}
+  ],
+  "result": {
+    "run_sha256": "e45ce14b9be20ea4aafb44bcb97d99a2fbfc7a4d0d4baf0e88afd4f385687ac4",
+    "report_sha256": "28f9219485e2f2365c38a0e56cb6357d68df229ca48dfdacf21afeae598d418c",
+    "clean_audit_sha256": "235c7823c6d9819bd2a727880d1430ada3f09f9ebe1253a9f0e12f61da043fc6",
+    "cleanroom_report_sha256": "4cca866fbac5f1824b1a8e0a33482bc0231b7c57d0c5e204f6b553aed031cb07",
+    "complete": true
+  }
+}

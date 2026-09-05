@@ -15,10 +15,12 @@ import pytest
 from nfi_backtest_engine import combined_release, native_scorecard, release_provenance
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.combined_release import (
+    CURRENT_PUBLIC_RELEASE_ASSET_COUNT,
     PUBLIC_RELEASE_ASSET_COUNT,
     combine_full_x7_release,
     finalize_combined_release_publication,
     seal_combined_release_candidate,
+    verify_combined_release_assets,
     verify_combined_release_candidate,
 )
 from nfi_backtest_engine.errors import SpecValidationError
@@ -27,6 +29,7 @@ from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.platform_benchmark import (
     EXACT_FIXTURE_LANE,
     LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+    REQUIRED_PLATFORM_SLUGS,
     seal_platform_evidence,
 )
 from nfi_backtest_engine.release_gate import RELEASE_CHECKSUMS_NAME
@@ -185,33 +188,55 @@ def _platform_evidence(
     platform_wheel_sha256: dict[str, str] | None = None,
     base_strategy_sha256: str = STRATEGY_SHA,
     candidate_id: str | None = None,
+    slug_contract: bool = False,
 ) -> Path:
     root = tmp_path / f"{mode}-platform"
     reports = root / "reports"
     reports.mkdir(parents=True)
     paths: list[str | Path] = []
-    for _index, (system, machine) in enumerate(
-        (("windows", "amd64"), ("linux", "x86_64"), ("darwin", "arm64")),
+    targets = (
+        (
+            ("windows-wsl2-x86_64", "linux", "x86_64", True),
+            ("linux-x86_64", "linux", "x86_64", False),
+            ("linux-aarch64", "linux", "aarch64", False),
+            ("macos-arm64", "darwin", "arm64", False),
+        )
+        if slug_contract
+        else (
+            (None, "windows", "amd64", False),
+            (None, "linux", "x86_64", False),
+            (None, "darwin", "arm64", False),
+        )
+    )
+    for _index, (platform_slug, system, machine, wsl) in enumerate(
+        targets,
         start=1,
     ):
+        platform_key = platform_slug or system
         wheel = (
-            platform_wheel_sha256[system]
+            platform_wheel_sha256[platform_key]
             if platform_wheel_sha256 is not None
             else wheel_sha256
-            if system == "linux"
+            if platform_key in {"linux", "linux-x86_64", "windows-wsl2-x86_64"}
             else "9" * 64
         )
         report = {
             "schema_version": "1.2.0",
             "complete": True,
             "lane": EXACT_FIXTURE_LANE,
-            "platform": {"system": system, "machine": machine, "wsl": False},
+            "platform": {
+                "slug": platform_slug,
+                "system": system,
+                "machine": machine,
+                "wsl": wsl,
+            },
             "package": {
                 "version": "1.0.0",
                 "wheel_sha256": wheel,
                 "native_extension_sha256": (
                     NATIVE_SHA
-                    if system == "linux"
+                    if platform_key
+                    in {"linux", "linux-x86_64", "windows-wsl2-x86_64"}
                     else ("1" if system == "windows" else "2") * 64
                 ),
                 "installed_extension_equal": True,
@@ -234,7 +259,7 @@ def _platform_evidence(
                 "measured_repetitions": 3,
             },
         }
-        path = reports / f"{system}.json"
+        path = reports / f"{platform_key}.json"
         write_json(path, report)
         sign_report(
             path,
@@ -247,6 +272,7 @@ def _platform_evidence(
         root / "sealed",
         provenance_policy=TEST_POLICY,
         required_platform_systems=LEGACY_REQUIRED_PLATFORM_SYSTEMS,
+        required_platform_slugs=(REQUIRED_PLATFORM_SLUGS if slug_contract else None),
     )
     return root / "sealed" / "platform-evidence.json"
 
@@ -299,6 +325,34 @@ def test_combined_release_certifies_two_modes_and_three_os_evidence(
     assert (
         tmp_path / "release" / "evidence" / "binance-usdtm-isolated" / "platform-bundle.zip"
     ).is_file()
+
+
+def test_combined_release_accepts_four_current_platform_slugs(tmp_path: Path) -> None:
+    spot = _certificate(tmp_path, "binance-spot")
+    futures = _certificate(tmp_path, "binance-usdtm-isolated")
+    score_evidence, score_identity = _scorecard_inputs(tmp_path / "native-score")
+
+    result = combine_full_x7_release(
+        spot_certificate_path=spot,
+        futures_certificate_path=futures,
+        platform_evidence_paths=[
+            _platform_evidence(tmp_path, "binance-spot", slug_contract=True),
+            _platform_evidence(
+                tmp_path,
+                "binance-usdtm-isolated",
+                slug_contract=True,
+            ),
+        ],
+        output_directory=tmp_path / "release-v2",
+        native_score_evidence_path=score_evidence,
+        native_score_identity_path=score_identity,
+        provenance_policy=TEST_POLICY,
+    )
+
+    assert result["release_certified"] is True
+    assert result["gates"]["platform_evidence"]["required_slugs"] == sorted(
+        REQUIRED_PLATFORM_SLUGS
+    )
 
 
 def test_combined_release_rejects_a_certificate_changed_after_bundling(
@@ -391,16 +445,28 @@ def test_combined_release_rejects_platform_base_strategy_mismatch(
         )
 
 
-def _combined_gate_inputs(tmp_path: Path) -> dict[str, Any]:
+def _combined_gate_inputs(
+    tmp_path: Path,
+    *,
+    slug_contract: bool = False,
+) -> dict[str, Any]:
     if not DURABLE_LEDGER_AVAILABLE:
         pytest.skip("requires the durable publication ledger platform contract")
     candidate = tmp_path / "candidate"
     candidate.mkdir()
     wheel_names = (
-        "nfi_backtest_engine-1.0.0-cp312-cp312-manylinux_2_17_x86_64.whl",
-        "nfi_backtest_engine-1.0.0-cp312-cp312-manylinux_2_17_aarch64.whl",
-        "nfi_backtest_engine-1.0.0-cp312-cp312-win_amd64.whl",
-        "nfi_backtest_engine-1.0.0-cp312-cp312-macosx_11_0_arm64.whl",
+        (
+            "nfi_backtest_engine-1.0.0-cp312-cp312-manylinux_2_17_x86_64.whl",
+            "nfi_backtest_engine-1.0.0-cp312-cp312-manylinux_2_17_aarch64.whl",
+            "nfi_backtest_engine-1.0.0-cp312-cp312-macosx_11_0_arm64.whl",
+        )
+        if slug_contract
+        else (
+            "nfi_backtest_engine-1.0.0-cp312-cp312-manylinux_2_17_x86_64.whl",
+            "nfi_backtest_engine-1.0.0-cp312-cp312-manylinux_2_17_aarch64.whl",
+            "nfi_backtest_engine-1.0.0-cp312-cp312-win_amd64.whl",
+            "nfi_backtest_engine-1.0.0-cp312-cp312-macosx_11_0_arm64.whl",
+        )
     )
     for index, name in enumerate(wheel_names):
         (candidate / name).write_bytes(f"wheel-{index}".encode())
@@ -413,11 +479,20 @@ def _combined_gate_inputs(tmp_path: Path) -> dict[str, Any]:
             if path.name.endswith(".whl") or path.name.endswith(".tar.gz")
         }
     )
-    platform_wheel_sha256 = {
-        "linux": linux_wheel_sha256,
-        "windows": sha256_file(candidate / wheel_names[2]),
-        "darwin": sha256_file(candidate / wheel_names[3]),
-    }
+    platform_wheel_sha256 = (
+        {
+            "linux-x86_64": linux_wheel_sha256,
+            "windows-wsl2-x86_64": linux_wheel_sha256,
+            "linux-aarch64": sha256_file(candidate / wheel_names[1]),
+            "macos-arm64": sha256_file(candidate / wheel_names[2]),
+        }
+        if slug_contract
+        else {
+            "linux": linux_wheel_sha256,
+            "windows": sha256_file(candidate / wheel_names[2]),
+            "darwin": sha256_file(candidate / wheel_names[3]),
+        }
+    )
 
     platform_paths: dict[str, Path] = {}
     for slug, mode in (
@@ -430,6 +505,7 @@ def _combined_gate_inputs(tmp_path: Path) -> dict[str, Any]:
             wheel_sha256=linux_wheel_sha256,
             platform_wheel_sha256=platform_wheel_sha256,
             candidate_id=candidate_id,
+            slug_contract=slug_contract,
         ).parent
         destination = candidate / "platform" / slug
         shutil.copytree(source, destination)
@@ -521,6 +597,41 @@ def test_combined_release_gate_seals_exact_public_asset_set(tmp_path: Path) -> N
     assert len(list(release.iterdir())) == PUBLIC_RELEASE_ASSET_COUNT
     assert len(result["distributions"]) == 5
     assert result["candidate_manifest"]["candidate_file"] == "SHA256SUMS.txt"
+
+
+def test_combined_release_gate_accepts_current_platform_and_wheel_set(
+    tmp_path: Path,
+) -> None:
+    inputs = _combined_gate_inputs(tmp_path, slug_contract=True)
+
+    result = seal_combined_release_candidate(**inputs)
+    release = Path(inputs["output_directory"])
+    finalize_combined_release_publication(
+        release,
+        provenance_ledger_path=inputs["provenance_ledger_path"],
+        publication_attempt_id=inputs["publication_attempt_id"],
+        expected_commit=inputs["candidate_commit"],
+        provenance_policy=TEST_POLICY,
+    )
+    verified = verify_combined_release_candidate(
+        release,
+        expected_commit=str(inputs["candidate_commit"]),
+        provenance_policy=TEST_POLICY,
+        provenance_ledger_path=inputs["provenance_ledger_path"],
+        native_score_evidence_path=inputs["native_score_evidence_path"],
+        native_score_identity_path=inputs["native_score_identity_path"],
+    )
+
+    assert verified == result
+    assert len(list(release.iterdir())) == CURRENT_PUBLIC_RELEASE_ASSET_COUNT
+    assert len(result["distributions"]) == 4
+
+    public_only = verify_combined_release_assets(
+        release,
+        expected_commit=str(inputs["candidate_commit"]),
+        provenance_policy=TEST_POLICY,
+    )
+    assert public_only == result
     assert result["candidate_manifest"]["sha256"] != sha256_file(
         release / "SHA256SUMS.txt"
     )

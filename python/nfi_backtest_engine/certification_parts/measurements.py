@@ -81,6 +81,11 @@ def _measure_engine(
     )
     report_path = output / "run.json"
     measurement["report"] = read_json(report_path) if report_path.is_file() else None
+    report = measurement["report"]
+    swap = report.get("container_swap") if isinstance(report, dict) else None
+    measurement["peak_swap_bytes"] = (
+        swap.get("peak_bytes") if isinstance(swap, dict) else None
+    )
     measurement["output_directory"] = output
     measurement["result_sha256"] = _engine_surface_sha(measurement)
     write_measurement_checkpoint(output, measurement)
@@ -436,6 +441,19 @@ def _run_summary(runs: list[dict[str, Any]], *, lane: str) -> dict[str, Any]:
             "minimum": min(peaks),
             "maximum": max(peaks),
         },
+        "peak_swap_bytes": {
+            "maximum": max(
+                (
+                    int(run["peak_swap_bytes"])
+                    for run in runs
+                    if isinstance(run.get("peak_swap_bytes"), int)
+                ),
+                default=None,
+            ),
+            "measurements_complete": all(
+                isinstance(run.get("peak_swap_bytes"), int) for run in runs
+            ),
+        },
     }
 
 
@@ -450,6 +468,7 @@ def _public_run_record(
     record: dict[str, Any] = {
         "wall_time_seconds": measurement["wall_time_seconds"],
         "peak_rss_bytes": measurement["peak_rss_bytes"],
+        "peak_swap_bytes": measurement.get("peak_swap_bytes"),
         "exit_code": measurement["exit_code"],
         "timed_out": measurement["timed_out"],
         "result_sha256": measurement.get("result_sha256"),

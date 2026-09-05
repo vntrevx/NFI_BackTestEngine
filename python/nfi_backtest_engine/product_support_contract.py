@@ -64,13 +64,23 @@ def validate_product_release_alignment(
         is not product["distribution"]["byte_identical_github_rc_stable"]
     ):
         raise SpecValidationError("product release distribution policy differs")
-    platform_systems = {
-        "darwin" if platform.startswith("macos-") else "linux"
-        for platform in product["platforms"]["supported"]
-    }
-    expected_platform_systems = sorted(platform_systems)
-    if distribution.get("supported_platform_systems") != expected_platform_systems:
+    expected_platform_slugs = sorted(product["platforms"]["supported"])
+    if distribution.get("supported_platform_slugs") != expected_platform_slugs:
         raise SpecValidationError("product release platform policy differs")
+    expected_supply_chain = {
+        "pypi_project": product["product"]["package"],
+        "pypi_trusted_publishing": True,
+        "pypi_attestations_required": True,
+        "spdx_sbom_required": True,
+        "cross_channel_sha_required": product["distribution"][
+            "cross_channel_sha_required"
+        ],
+    }
+    if any(
+        distribution.get(field) != expected
+        for field, expected in expected_supply_chain.items()
+    ):
+        raise SpecValidationError("product release supply-chain policy differs")
     combined = release.get("combined_full_x7_certified")
     expected_combined = product["certification"]["combined_status"] == "release-certified"
     if combined is not expected_combined:
@@ -81,7 +91,9 @@ def validate_product_release_alignment(
         "schema_version": PRODUCT_SUPPORT_CONTRACT_VERSION,
         "package_version": release.get("package_version"),
         "combined_full_x7_certified": combined,
-        "supported_platform_systems": distribution["supported_platform_systems"],
+        "supported_platform_slugs": distribution["supported_platform_slugs"],
+        "pypi_trusted_publishing": distribution["pypi_trusted_publishing"],
+        "cross_channel_sha_required": distribution["cross_channel_sha_required"],
         "valid": True,
     }
 
@@ -136,13 +148,10 @@ def _validate_product_policy(document: dict[str, Any]) -> None:
         )
 
     releases = document["release_train"]
-    if [item["version"] for item in releases] != [
-        "v1.12.0",
-        "v1.13.0",
-        "v1.14.0",
-        "v1.15.0",
-    ]:
+    if [item["version"] for item in releases] != ["v1.15.0"]:
         raise SpecValidationError("product release train differs")
+    if releases[0]["milestones"] != ["M25", "M26", "M27", "M28", "M29", "M30"]:
+        raise SpecValidationError("product release milestones differ")
     combined = [item["version"] for item in releases if item["combined_full_x7_certified"]]
     if combined != ["v1.15.0"]:
         raise SpecValidationError("only the gated v1.15.0 target may claim combined certification")

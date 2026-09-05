@@ -35,11 +35,25 @@ def test_repository_product_support_contract_is_valid() -> None:
         "windows_abi": "linux-under-wsl2",
     }
     assert contract["certification"]["combined_status"] == "preview"
+    assert {
+        item["family"]: item["fallback_status"]
+        for item in contract["strategies"]["official_only_legacy"]
+    } == {
+        "NostalgiaForInfinityNext": "qualified",
+        "NostalgiaForInfinityNextGen": "qualified",
+    }
     assert contract["distribution"]["channels"][1] == {
         "slug": "pypi",
         "status": "planned",
         "authentication": "oidc-trusted-publishing",
     }
+    assert contract["release_train"] == [
+        {
+            "version": "v1.15.0",
+            "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
+            "combined_full_x7_certified": True,
+        }
+    ]
 
 
 def test_packaged_contract_is_byte_identical_to_planning_authority() -> None:
@@ -61,9 +75,16 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
 
     assert report == {
         "schema_version": "1.0.0",
-        "package_version": "1.11.0",
+        "package_version": "1.15.0",
         "combined_full_x7_certified": False,
-        "supported_platform_systems": ["darwin", "linux"],
+        "supported_platform_slugs": [
+            "linux-aarch64",
+            "linux-x86_64",
+            "macos-arm64",
+            "windows-wsl2-x86_64",
+        ],
+        "pypi_trusted_publishing": True,
+        "cross_channel_sha_required": True,
         "valid": True,
     }
 
@@ -73,7 +94,9 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
     [
         ("build_once", False, "distribution policy differs"),
         ("byte_identical_rc_stable", False, "distribution policy differs"),
-        ("supported_platform_systems", ["darwin", "linux", "windows"], "platform policy differs"),
+        ("supported_platform_slugs", ["linux-x86_64"], "platform policy differs"),
+        ("pypi_trusted_publishing", False, "supply-chain policy differs"),
+        ("spdx_sbom_required", False, "supply-chain policy differs"),
     ],
 )
 def test_release_policy_drift_is_rejected(field: str, value: object, message: str) -> None:
@@ -126,13 +149,20 @@ def test_product_contract_rejects_native_windows_claim(tmp_path: Path) -> None:
         load_product_support_contract(path)
 
 
-def test_product_contract_rejects_early_combined_claim(tmp_path: Path) -> None:
+def test_product_contract_rejects_multi_release_train(tmp_path: Path) -> None:
     contract = deepcopy(load_product_support_contract(CONTRACT))
-    contract["release_train"][2]["combined_full_x7_certified"] = True
+    contract["release_train"].insert(
+        0,
+        {
+            "version": "v1.14.0",
+            "milestones": ["M25"],
+            "combined_full_x7_certified": False,
+        },
+    )
     path = tmp_path / "contract.json"
     write_json(path, contract)
 
-    with pytest.raises(SpecValidationError, match="only the gated v1.15.0"):
+    with pytest.raises(SpecValidationError):
         load_product_support_contract(path)
 
 

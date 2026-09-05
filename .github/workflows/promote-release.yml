@@ -12,8 +12,13 @@ on:
         description: Stable tag, for example v1.0.0
         required: true
         type: string
+      audit_run_id:
+        description: Successful cycle-7 Audit fixed release candidate run ID
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -21,6 +26,9 @@ jobs:
     name: Promote byte-identical assets
     runs-on: [self-hosted, linux, x64, nfi-release-signer]
     environment: release-publication
+    outputs:
+      candidate_sha: ${{ steps.identity.outputs.sha }}
+      stable_tag: ${{ inputs.stable_tag }}
     env:
       PROVENANCE_LEDGER: /var/lib/nfi-release/provenance/used-certificates.sqlite
     steps:
@@ -30,6 +38,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_TAG: ${{ inputs.candidate_tag }}
           STABLE_TAG: ${{ inputs.stable_tag }}
+          AUDIT_RUN_ID: ${{ inputs.audit_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -45,11 +54,40 @@ jobs:
           candidate_sha="$(
             gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${CANDIDATE_TAG}" --jq .object.sha
           )"
+          audit_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${AUDIT_RUN_ID}")"
+          [[ "$(jq -r .name <<<"$audit_json")" == "Audit fixed release candidate" ]]
+          [[ "$(jq -r .event <<<"$audit_json")" == "workflow_dispatch" ]]
+          [[ "$(jq -r .conclusion <<<"$audit_json")" == "success" ]]
+          [[ "$(jq -r .head_sha <<<"$audit_json")" == "$candidate_sha" ]]
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${STABLE_TAG}" >/dev/null 2>&1; then
             echo "stable tag already exists: $STABLE_TAG" >&2
             exit 1
           fi
           echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+      - name: Download and verify the completed 10/10 audit
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ten-of-ten-audit-${{ steps.identity.outputs.sha }}
+          path: audit
+          run-id: ${{ inputs.audit_run_id }}
+          github-token: ${{ github.token }}
+      - name: Enforce audit identity before stable publication
+        env:
+          CANDIDATE_SHA: ${{ steps.identity.outputs.sha }}
+          CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e \
+            --arg commit "$CANDIDATE_SHA" \
+            --arg tag "$CANDIDATE_TAG" \
+            '.schema_version == "ten-of-ten-release-audit-v1"
+             and .candidate_commit == $commit
+             and .release_tag == $tag
+             and .combined_full_x7_certified == true
+             and .operations.cycles == 7
+             and .complete == true' \
+            audit/ten-of-ten-release-audit.json
       - name: Download candidate assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -133,3 +171,67 @@ jobs:
             --native-score-identity \
               .promotion-score/evidence/native-score/identity.json \
             --provenance-ledger "$PROVENANCE_LEDGER"
+      - name: Retain exact stable distributions for Trusted Publishing
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: combined-stable-python-distributions-${{ steps.identity.outputs.sha }}
+          path: |
+            candidate/*.whl
+            candidate/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+  pypi-publish:
+    name: Publish combined build-once distributions to PyPI
+    needs: promote
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/nfi-backtest-engine
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Download exact stable distributions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: combined-stable-python-distributions-${{ needs.promote.outputs.candidate_sha }}
+          path: dist
+      - name: Publish to PyPI with OIDC and attestations
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  pypi-audit:
+    name: Audit combined PyPI distribution identity
+    needs: [promote, pypi-publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact stable distributions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: combined-stable-python-distributions-${{ needs.promote.outputs.candidate_sha }}
+          path: dist
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Compare published hashes and run post-release smoke
+        env:
+          STABLE_TAG: ${{ needs.promote.outputs.stable_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${STABLE_TAG#v}"
+          curl --fail --retry 6 --retry-all-errors \
+            "https://pypi.org/pypi/nfi-backtest-engine/$version/json" \
+            --output pypi.json
+          for distribution in dist/*; do
+            filename="$(basename "$distribution")"
+            expected="$(sha256sum "$distribution" | cut -d' ' -f1)"
+            observed="$(jq -er --arg filename "$filename" '.urls[] | select(.filename == $filename) | .digests.sha256' pypi.json)"
+            test "$observed" = "$expected"
+          done
+          uv tool install "nfi-backtest-engine==$version"
+          test "$(nfi-bte --version)" = "nfi-bte $version"
+          nfi-bte doctor --json
+          uv tool uninstall nfi-backtest-engine

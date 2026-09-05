@@ -213,12 +213,15 @@ def validate_final_managed_command(
     volumes: list[str],
     mounts: list[str],
     environment: list[str],
+    network: str = "none",
 ) -> None:
     """Validate the complete effective Docker argv immediately before execution."""
     parsed = _parse_docker_run_options(command, image=image)
     validate_managed_run_prefix(command[: command.index("--platform")])
     _require_single_option(parsed, "--platform", platform)
-    _require_single_option(parsed, "--network", "none")
+    if network not in {"none", "bridge"}:
+        raise BenchmarkError("managed Docker sandbox network policy is invalid")
+    _require_single_option(parsed, "--network", network)
     _require_single_option(parsed, "--user", user)
     _require_single_option(parsed, "--workdir", workdir)
     _require_single_option(parsed, "--entrypoint", entrypoint)

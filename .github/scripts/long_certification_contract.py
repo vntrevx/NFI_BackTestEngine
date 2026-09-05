@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -91,6 +93,41 @@ def load_contract(path: str | Path) -> dict[str, Any]:
     return value
 
 
+def load_oracle_capture_contract(path: str | Path) -> dict[str, Any]:
+    """Validate the narrower protected workflow allowed to create one Oracle."""
+    value = read_object(path, label="Oracle capture contract")
+    concurrency = value.get("concurrency")
+    oracle = value.get("oracle")
+    storage = value.get("storage")
+    if (
+        value.get("schema_version") != "1.0.0"
+        or value.get("workflow") != ".github/workflows/capture-full-x7-oracle.yml"
+        or value.get("events") != ["workflow_dispatch"]
+        or value.get("permissions")
+        != {"actions": "read", "contents": "read", "id-token": "write"}
+        or not _nonempty_string(value.get("environment"))
+        or not _unique_strings(value.get("runner_labels"))
+        or value.get("modes") != ["spot", "futures"]
+        or not isinstance(concurrency, dict)
+        or concurrency.get("group") != "full-x7-oracle-${{ inputs.mode }}"
+        or concurrency.get("cancel_in_progress") is not False
+        or not isinstance(oracle, dict)
+        or oracle.get("allows_new_run") is not True
+        or oracle.get("maximum_runs_per_input") != 1
+        or oracle.get("index_schema_version") != "2.0.0"
+        or oracle.get("input_identity_schema_version") != "oracle-input-identity-v2"
+        or oracle.get("required_status") != "exact_parity"
+        or not isinstance(storage, dict)
+        or storage.get("provider") != "aws-s3"
+        or storage.get("object_prefix") != "full-x7-oracles"
+        or storage.get("content_addressed_key") is not True
+        or storage.get("conditional_create") is not True
+        or storage.get("server_side_encryption") != "AES256"
+    ):
+        raise ValueError("Oracle capture contract is incomplete or unsafe")
+    return value
+
+
 def build_plan(
     *,
     contract: Mapping[str, Any],
@@ -134,6 +171,9 @@ def build_plan(
         or not _nonempty_string(config.get(fingerprint_field))
         or config["mode"] != mode
         or not _unique_strings(config.get("state_probes"))
+        or not isinstance(config.get("swap_cap_bytes"), int)
+        or isinstance(config.get("swap_cap_bytes"), bool)
+        or config["swap_cap_bytes"] <= 0
         or (
             config.get("reference_markets") is not None
             and not _nonempty_string(config.get("reference_markets"))
@@ -216,6 +256,7 @@ def build_plan(
             Path(release_candidate_plan_path).resolve()
         ),
         "state_probe_sha256": [record["sha256"] for record in declared_state_probes],
+        "swap_cap_bytes": config["swap_cap_bytes"],
     }
     candidate_fingerprint = canonical_sha256(candidate_identity)
 
@@ -243,6 +284,8 @@ def build_plan(
         str(oracle_directory),
         "--wheel",
         str(wheel),
+        "--swap-cap-gib",
+        str(config["swap_cap_bytes"] / 1024**3),
     ]
     reference_markets = config.get("reference_markets")
     if reference_markets is not None:
@@ -286,6 +329,272 @@ def build_plan(
         ],
         "command": command,
     }
+
+
+def build_oracle_capture_plan(
+    *,
+    contract: Mapping[str, Any],
+    config_path: str | Path,
+    release_candidate_plan_path: str | Path,
+    mode: str,
+    candidate_commit: str,
+    candidate_wheel: str | Path,
+    output_directory: str | Path,
+    executable: str,
+    resume: bool,
+) -> dict[str, Any]:
+    """Plan one protected Oracle-only run without adding candidate identity to it."""
+    if mode not in contract["modes"]:
+        raise ValueError(f"unsupported Oracle capture mode: {mode}")
+    if not COMMIT_PATTERN.fullmatch(candidate_commit):
+        raise ValueError("candidate commit must be a lowercase 40-character Git SHA")
+    config_source = Path(config_path).resolve()
+    config = read_object(config_source, label="protected certification config")
+    required_strings = (
+        "mode",
+        "release_lock",
+        "execution_profile",
+        "strategy",
+        "strategy_class",
+        "config",
+        "data_directory",
+        "engine_markets",
+        "oracle_index",
+        "oracle_input_fingerprint",
+        "host_lock",
+    )
+    if (
+        config.get("schema_version") != "2.0.0"
+        or any(not _nonempty_string(config.get(name)) for name in required_strings)
+        or config["mode"] != mode
+        or not _unique_strings(config.get("state_probes"))
+        or not isinstance(config.get("swap_cap_bytes"), int)
+        or isinstance(config.get("swap_cap_bytes"), bool)
+        or config["swap_cap_bytes"] <= 0
+        or (
+            config.get("reference_markets") is not None
+            and not _nonempty_string(config.get("reference_markets"))
+        )
+        or not SHA256_PATTERN.fullmatch(config["oracle_input_fingerprint"])
+    ):
+        raise ValueError("protected Oracle capture config is incomplete or inconsistent")
+    wheel = Path(candidate_wheel).resolve()
+    if not wheel.is_file() or wheel.suffix != ".whl":
+        raise ValueError(f"candidate wheel does not exist: {wheel}")
+    output = Path(output_directory).resolve()
+    if output.exists() and any(output.iterdir()) and not resume:
+        raise ValueError("non-empty Oracle capture output requires explicit resume")
+    execution_profile = Path(config["execution_profile"]).resolve()
+    data_directory = Path(config["data_directory"]).resolve()
+    if not execution_profile.is_file() or not data_directory.is_dir():
+        raise ValueError("Oracle capture profile or data directory does not exist")
+    if Path(config["host_lock"]).resolve().is_dir():
+        raise ValueError("host lock path must not be a directory")
+    declared_state_probes = _load_release_candidate_probes(
+        release_candidate_plan_path,
+        mode=mode,
+    )
+    configured_probe_hashes = [
+        sha256_file(Path(value).resolve()) for value in config["state_probes"]
+    ]
+    declared_probe_hashes = [record["sha256"] for record in declared_state_probes]
+    if (
+        len(configured_probe_hashes) != len(declared_probe_hashes)
+        or set(configured_probe_hashes) != set(declared_probe_hashes)
+    ):
+        raise ValueError("protected state probes differ from the sealed release-candidate plan")
+    input_identity = _input_identity(
+        config,
+        version=contract["oracle"]["input_identity_schema_version"],
+    )
+    fingerprint = canonical_sha256(input_identity)
+    if fingerprint != config["oracle_input_fingerprint"]:
+        raise ValueError("configured Oracle fingerprint differs from sealed inputs")
+    index_path = Path(config["oracle_index"]).resolve()
+    _require_oracle_not_indexed(
+        index_path,
+        mode=mode,
+        fingerprint=fingerprint,
+        input_identity=input_identity,
+    )
+    command = [
+        executable,
+        "certify",
+        str(Path(config["release_lock"]).resolve()),
+        "--certification-profile",
+        "full-x7",
+        "--capture-oracle-only",
+        "--output-dir",
+        str(output),
+        "--profile",
+        str(execution_profile),
+        "--strategy",
+        str(Path(config["strategy"]).resolve()),
+        "--class-name",
+        config["strategy_class"],
+        "--config",
+        str(Path(config["config"]).resolve()),
+        "--data-dir",
+        str(data_directory),
+        "--engine-markets",
+        str(Path(config["engine_markets"]).resolve()),
+        "--wheel",
+        str(wheel),
+        "--swap-cap-gib",
+        str(config["swap_cap_bytes"] / 1024**3),
+    ]
+    reference_markets = config.get("reference_markets")
+    if reference_markets is not None:
+        command.extend(["--reference-markets", str(Path(reference_markets).resolve())])
+    for probe in declared_state_probes:
+        command.extend(["--state-probe", str(probe["path"])])
+    if resume:
+        command.append("--resume")
+    return {
+        "schema_version": "1.0.0",
+        "mode": mode,
+        "host_lock": str(Path(config["host_lock"]).resolve()),
+        "resume": resume,
+        "oracle": {
+            "input_identity": input_identity,
+            "input_fingerprint": fingerprint,
+            "index": str(index_path),
+            "directory": str(output / "warmups" / "reference"),
+            "capture_report": str(output / "oracle-capture.json"),
+        },
+        "execution": {
+            "candidate_commit": candidate_commit,
+            "candidate_wheel_sha256": sha256_file(wheel),
+        },
+        "command": command,
+    }
+
+
+def register_oracle_capture(plan_path: str | Path) -> dict[str, Any]:
+    """Atomically add one hash-sealed local Oracle record to the v2 index."""
+    import fcntl
+
+    plan = read_object(plan_path, label="Oracle capture plan")
+    record = build_oracle_capture_record(plan_path)
+    oracle = plan["oracle"]
+    index_path = Path(oracle["index"]).resolve()
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = index_path.with_suffix(f"{index_path.suffix}.lock")
+    if index_path.is_symlink() or lock_path.is_symlink():
+        raise ValueError("Oracle index and lock must not be symlinks")
+    with lock_path.open("a+b") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        index = (
+            read_object(index_path, label="Oracle fingerprint index")
+            if index_path.exists()
+            else {"schema_version": "2.0.0", "oracles": []}
+        )
+        if index.get("schema_version") != "2.0.0" or not isinstance(
+            index.get("oracles"), list
+        ):
+            raise ValueError("Oracle capture requires a v2 fingerprint index")
+        matching = [
+            item
+            for item in index["oracles"]
+            if isinstance(item, dict)
+            and item.get("mode") == record["mode"]
+            and item.get("input_fingerprint") == record["input_fingerprint"]
+        ]
+        if matching:
+            if matching != [record]:
+                raise ValueError("Oracle fingerprint is already registered with other bytes")
+            return {**record, "registration_status": "reused"}
+        index["oracles"].append(record)
+        index["oracles"].sort(
+            key=lambda item: (item["mode"], item["input_fingerprint"])
+        )
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=index_path.parent,
+            prefix=f".{index_path.name}.",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            json.dump(index, temporary, ensure_ascii=False, indent=2, sort_keys=True)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        try:
+            os.replace(temporary_path, index_path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+    return {**record, "registration_status": "created"}
+
+
+def build_oracle_capture_record(plan_path: str | Path) -> dict[str, Any]:
+    """Hash one completed capture without mutating its protected local index."""
+    plan = read_object(plan_path, label="Oracle capture plan")
+    oracle = plan.get("oracle")
+    if (
+        plan.get("schema_version") != "1.0.0"
+        or plan.get("mode") not in {"spot", "futures"}
+        or not isinstance(oracle, dict)
+        or not SHA256_PATTERN.fullmatch(str(oracle.get("input_fingerprint", "")))
+        or not isinstance(oracle.get("input_identity"), dict)
+        or canonical_sha256(oracle["input_identity"]) != oracle["input_fingerprint"]
+        or not _nonempty_string(oracle.get("index"))
+        or not _nonempty_string(oracle.get("directory"))
+        or not _nonempty_string(oracle.get("capture_report"))
+    ):
+        raise ValueError("Oracle capture plan is incomplete or has identity drift")
+    directory = Path(oracle["directory"]).resolve()
+    run_report = directory / "run.json"
+    capture_report = Path(oracle["capture_report"]).resolve()
+    capture = read_object(capture_report, label="Oracle capture report")
+    if (
+        capture.get("status") != "exact_parity"
+        or capture.get("complete") is not True
+        or not SHA256_PATTERN.fullmatch(str(capture.get("result_sha256", "")))
+        or not run_report.is_file()
+    ):
+        raise ValueError("Oracle capture did not complete exact parity")
+    record = {
+        "mode": plan["mode"],
+        "input_fingerprint": oracle["input_fingerprint"],
+        "input_identity": oracle["input_identity"],
+        "directory": str(directory),
+        "run_json_sha256": sha256_file(run_report),
+        "tree_sha256": directory_tree_sha256(directory),
+        "capture_report_sha256": sha256_file(capture_report),
+        "status": "exact_parity",
+        "immutable": True,
+    }
+    return record
+
+
+def _require_oracle_not_indexed(
+    index_path: Path,
+    *,
+    mode: str,
+    fingerprint: str,
+    input_identity: Mapping[str, Any],
+) -> None:
+    if not index_path.exists():
+        return
+    if index_path.is_symlink():
+        raise ValueError("Oracle index must not be a symlink")
+    index = read_object(index_path, label="Oracle fingerprint index")
+    if index.get("schema_version") != "2.0.0" or not isinstance(
+        index.get("oracles"), list
+    ):
+        raise ValueError("Oracle capture requires a v2 fingerprint index")
+    matching = [
+        record
+        for record in index["oracles"]
+        if isinstance(record, dict)
+        and record.get("mode") == mode
+        and record.get("input_fingerprint") == fingerprint
+    ]
+    if matching:
+        if len(matching) != 1 or matching[0].get("input_identity") != input_identity:
+            raise ValueError("Oracle fingerprint index contains conflicting records")
+        raise ValueError("exact Oracle input is already indexed; reuse it for certification")
 
 
 def _load_release_candidate_probes(
@@ -530,12 +839,32 @@ def parser() -> argparse.ArgumentParser:
     plan.add_argument("--executable", required=True)
     plan.add_argument("--resume", action="store_true")
     plan.add_argument("--output", type=Path, required=True)
+    capture = commands.add_parser("capture-plan")
+    capture.add_argument("--config", type=Path, required=True)
+    capture.add_argument("--release-candidate-plan", type=Path, required=True)
+    capture.add_argument("--mode", required=True)
+    capture.add_argument("--candidate-commit", required=True)
+    capture.add_argument("--candidate-wheel", type=Path, required=True)
+    capture.add_argument("--output-directory", type=Path, required=True)
+    capture.add_argument("--executable", required=True)
+    capture.add_argument("--resume", action="store_true")
+    capture.add_argument("--output", type=Path, required=True)
+    register = commands.add_parser("register-oracle")
+    register.add_argument("--plan", type=Path, required=True)
+    register.add_argument("--output", type=Path, required=True)
+    seal = commands.add_parser("seal-oracle")
+    seal.add_argument("--plan", type=Path, required=True)
+    seal.add_argument("--output", type=Path, required=True)
     return command
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
-    contract = load_contract(args.contract)
+    contract = (
+        load_oracle_capture_contract(args.contract)
+        if args.command in {"capture-plan", "register-oracle", "seal-oracle"}
+        else load_contract(args.contract)
+    )
     if args.command == "plan":
         plan = build_plan(
             contract=contract,
@@ -557,6 +886,60 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "oracle_fingerprint": plan["oracle"]["fingerprint"],
                     "oracle_reused": plan["oracle"]["reused"],
                     "resume": plan["resume"],
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+    if args.command == "capture-plan":
+        plan = build_oracle_capture_plan(
+            contract=contract,
+            config_path=args.config,
+            release_candidate_plan_path=args.release_candidate_plan,
+            mode=args.mode,
+            candidate_commit=args.candidate_commit,
+            candidate_wheel=args.candidate_wheel,
+            output_directory=args.output_directory,
+            executable=args.executable,
+            resume=args.resume,
+        )
+        write_json(args.output, plan)
+        print(
+            json.dumps(
+                {
+                    "mode": plan["mode"],
+                    "oracle_input_fingerprint": plan["oracle"][
+                        "input_fingerprint"
+                    ],
+                    "resume": plan["resume"],
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+    if args.command == "register-oracle":
+        record = register_oracle_capture(args.plan)
+        write_json(args.output, record)
+        print(
+            json.dumps(
+                {
+                    "mode": record["mode"],
+                    "oracle_input_fingerprint": record["input_fingerprint"],
+                    "registration_status": record["registration_status"],
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+    if args.command == "seal-oracle":
+        record = build_oracle_capture_record(args.plan)
+        write_json(args.output, record)
+        print(
+            json.dumps(
+                {
+                    "mode": record["mode"],
+                    "oracle_input_fingerprint": record["input_fingerprint"],
+                    "tree_sha256": record["tree_sha256"],
                 },
                 sort_keys=True,
             )

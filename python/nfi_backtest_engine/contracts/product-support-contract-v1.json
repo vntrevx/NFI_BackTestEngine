@@ -20,14 +20,14 @@
         "generation": "V8",
         "default_visible": false,
         "native_supported": false,
-        "fallback_status": "planned"
+        "fallback_status": "qualified"
       },
       {
         "family": "NostalgiaForInfinityNextGen",
         "generation": "V9",
         "default_visible": false,
         "native_supported": false,
-        "fallback_status": "planned"
+        "fallback_status": "qualified"
       }
     ],
     "unknown_semantics_policy": "fail-closed"
@@ -99,23 +99,8 @@
   },
   "release_train": [
     {
-      "version": "v1.12.0",
-      "milestones": ["M23", "M24", "M25"],
-      "combined_full_x7_certified": false
-    },
-    {
-      "version": "v1.13.0",
-      "milestones": ["M26", "M27"],
-      "combined_full_x7_certified": false
-    },
-    {
-      "version": "v1.14.0",
-      "milestones": ["M28", "M29"],
-      "combined_full_x7_certified": false
-    },
-    {
       "version": "v1.15.0",
-      "milestones": ["M30", "M31", "M32"],
+      "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
       "combined_full_x7_certified": true
     }
   ]

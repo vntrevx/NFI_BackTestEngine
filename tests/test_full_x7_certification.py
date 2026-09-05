@@ -403,6 +403,7 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
         return {
             "wall_time_seconds": 10.0,
             "peak_rss_bytes": 100,
+            "peak_swap_bytes": 0,
             "exit_code": 0,
             "timed_out": False,
             "stdout": None,
@@ -552,14 +553,102 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
         state_probe_manifests=[],
         repetitions=3,
         timeout_seconds=60,
+        swap_cap_bytes=1_000,
     )
 
     assert calls == {"engine": 4, "reference": 1}
     assert report["measurement"]["native_lane"] == "preserved-vector-reuse"
     assert report["measurement"]["native_measured_repetitions"] == 3
     assert report["measurement"]["official_reference_repetitions"] == 1
+    assert report["gates"]["swap"] == {
+        "met": True,
+        "limit_bytes": 1_000,
+        "native_measurement_complete": True,
+        "official_measurement_complete": True,
+        "native_observed_peak_bytes": 0,
+        "official_observed_peak_bytes": 0,
+        "rule": (
+            "Native process-tree and Official cgroup swap peaks must not exceed "
+            "the sealed cap"
+        ),
+    }
     assert "reference" not in report["runs"]
     assert report["runs"]["official_reference"]["result_sha256"] == surface_sha
+
+    capture = full_x7_certification.run_full_x7_certification(
+        tmp_path / "lock.json",
+        tmp_path / "oracle-capture",
+        strategy_path=tmp_path / "strategy.py",
+        class_name="NostalgiaForInfinityX7",
+        config_path=tmp_path / "config.json",
+        data_directory=tmp_path / "data",
+        engine_market_snapshot=tmp_path / "engine-markets.json",
+        reference_market_snapshot=tmp_path / "markets.json",
+        wheel_path=tmp_path / "candidate.whl",
+        execution_profile_path=tmp_path / "profile.json",
+        state_probe_manifests=[],
+        repetitions=3,
+        timeout_seconds=60,
+        swap_cap_bytes=1_000,
+        capture_oracle_only=True,
+    )
+
+    assert calls == {"engine": 5, "reference": 2}
+    assert capture["status"] == "exact_parity"
+    assert capture["result_sha256"] == surface_sha
+    assert (tmp_path / "oracle-capture/oracle-capture.json").is_file()
+
+
+@pytest.mark.parametrize(
+    ("native_peak", "official_peak", "complete", "expected"),
+    [
+        (10, 20, True, True),
+        (101, 20, True, False),
+        (10, 101, True, False),
+        (0, 0, False, False),
+    ],
+)
+def test_full_x7_swap_gate_fails_closed(
+    native_peak: int,
+    official_peak: int,
+    complete: bool,
+    expected: bool,
+) -> None:
+    def summary(peak: int, measured: bool = True) -> dict[str, object]:
+        return {
+            "peak_swap_bytes": {
+                "maximum": peak if measured else None,
+                "measurements_complete": measured,
+            }
+        }
+
+    gate = full_x7_certification._swap_gate(  # pyright: ignore[reportPrivateUsage]
+        summary(native_peak, complete),
+        summary(native_peak, complete),
+        summary(official_peak, complete),
+        limit_bytes=100,
+    )
+
+    assert gate["met"] is expected
+
+
+def test_full_x7_requires_a_sealed_swap_cap(tmp_path: Path) -> None:
+    with pytest.raises(BenchmarkError, match="positive sealed swap cap"):
+        full_x7_certification.run_full_x7_certification(
+            tmp_path / "lock.json",
+            tmp_path / "output",
+            strategy_path=tmp_path / "strategy.py",
+            class_name="NostalgiaForInfinityX7",
+            config_path=tmp_path / "config.json",
+            data_directory=tmp_path / "data",
+            engine_market_snapshot=tmp_path / "engine-markets.json",
+            reference_market_snapshot=tmp_path / "reference-markets.json",
+            wheel_path=tmp_path / "candidate.whl",
+            execution_profile_path=tmp_path / "profile.json",
+            state_probe_manifests=[],
+            timeout_seconds=60,
+            swap_cap_bytes=None,
+        )
 
 
 def test_imported_official_oracle_accepts_engine_identity_change_when_seals_match(

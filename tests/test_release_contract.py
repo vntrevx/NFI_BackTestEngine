@@ -651,6 +651,7 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     publish = (root / ".github/workflows/publish-release-candidate.yml").read_text(encoding="utf-8")
     certify = (root / ".github/workflows/certify-release-candidate.yml").read_text(encoding="utf-8")
     promote = (root / ".github/workflows/promote-release.yml").read_text(encoding="utf-8")
+    audit = (root / ".github/workflows/ten-of-ten-audit.yml").read_text(encoding="utf-8")
     assert "permissions:\n  contents: read" in build
     assert "release_candidate_contract.py" in build
     assert "Measure exact Spot and Futures fixtures" in build
@@ -668,6 +669,13 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "sccache: true" in wheels_section
     sdist_section = build[build.index("  sdist:"):build.index("  provenance-prepare:")]
     assert "sccache: true" not in sdist_section
+    cleanroom_section = build[
+        build.index("  cleanroom:"):build.index("  wsl-platform:")
+    ]
+    assert "actions/checkout" not in cleanroom_section
+    assert "Install only the downloaded wheel" in cleanroom_section
+    assert "release cleanroom" in cleanroom_section
+    assert "--fixture ../scenario/manifest.json" in cleanroom_section
     assert "  provenance-prepare:" in build
     prepare_section = build[
         build.index("  provenance-prepare:"):build.index("  provenance-signing:")
@@ -678,7 +686,10 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assemble_section = build[
         build.index("  provenance-assemble:"):build.index("  platform-evidence:")
     ]
-    assert "needs: [verify]" in prepare_section
+    assert "needs: [verify, cleanroom, wsl-platform]" in prepare_section
+    assert "runs-on: [self-hosted, linux, x64, wsl2, nfi-release]" in build
+    assert "--platform-contract v2-slugs" in build
+    assert 'test "${#mode_reports[@]}" -eq 4' in build
     assert "needs: [verify, provenance-prepare]" in signing_section
     assert "runs-on: ubuntu-latest" in signing_section
     assert "environment: release-provenance" not in signing_section
@@ -727,7 +738,15 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
         "/var/lib/nfi-release/provenance/used-certificates.sqlite"
     ) == 1
     assert promote.count("--provenance-ledger \"$PROVENANCE_LEDGER\"") == 2
-    assert "runs-on: ubuntu-latest" not in promote
+    promote_job = promote[promote.index("  promote:"):promote.index("  pypi-publish:")]
+    assert "runs-on: ubuntu-latest" not in promote_job
+    assert "ten-of-ten-audit-${{ steps.identity.outputs.sha }}" in promote_job
+    assert promote_job.index("Enforce audit identity") < promote_job.index(
+        "Create stable release"
+    )
+    assert "environment:\n      name: pypi" in promote
+    assert "id-token: write" in promote
+    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in promote
     combined_consumers = {
         path.name: path.read_text(encoding="utf-8")
         for path in (root / ".github/workflows").glob("*.yml")
@@ -791,6 +810,51 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "--native-score-evidence" in promote
     assert "--native-score-identity" in promote
     assert promote.index("nfi-bte release verify-combined") < promote.index("gh release create")
+    assert "name: Audit fixed release candidate" in audit
+    assert "cancel-in-progress: false" in audit
+    assert "contents: write" not in audit
+    assert "compatibility_run_id:" in audit
+    assert "discovery_run_id:" in audit
+    assert "nightly_run_id:" in audit
+    assert "nfi-bte release verify-assets" in audit
+    assert "nfi-bte release record-soak" in audit
+    assert "nfi-bte release audit" in audit
+    assert "test \"${#run_ids[@]}\" -eq 6" in audit
+    assert "ten-of-ten-audit-${{ steps.identity.outputs.sha }}" in audit
+
+
+def test_oracle_capture_is_a_single_run_protected_workflow() -> None:
+    root = Path(__file__).parents[1]
+    workflow = (
+        root / ".github/workflows/capture-full-x7-oracle.yml"
+    ).read_text(encoding="utf-8")
+    contract = json.loads(
+        (root / ".github/oracle-capture-contract.json").read_text(encoding="utf-8")
+    )
+
+    assert contract["oracle"] == {
+        "allows_new_run": True,
+        "maximum_runs_per_input": 1,
+        "index_schema_version": "2.0.0",
+        "input_identity_schema_version": "oracle-input-identity-v2",
+        "required_status": "exact_parity",
+    }
+    assert contract["storage"]["conditional_create"] is True
+    assert "name: Capture Full X7 Oracle" in workflow
+    assert "group: full-x7-oracle-${{ inputs.mode }}" in workflow
+    assert "cancel-in-progress: false" in workflow
+    assert "environment: full-x7-oracle-capture" in workflow
+    assert "runs-on: [self-hosted, linux, x64, nfi-certification]" in workflow
+    assert "--capture-oracle-only" not in workflow
+    assert "capture-plan" in workflow
+    assert "flock --exclusive --nonblock" in workflow
+    assert workflow.count("--if-none-match '*'") == 2
+    assert "register-oracle" in workflow
+    assert workflow.index("Publish Oracle bytes and record with conditional create") < (
+        workflow.index("Register immutable record in the protected local index")
+    )
+    assert "candidate and Oracle capture commits differ" in workflow
+    assert "id-token: write" in workflow
 
 
 def test_external_certificate_and_combined_publication_reauthorize_each_write() -> None:
@@ -841,7 +905,7 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert contract["package_version"] == project_version
     assert contract == {
         "schema_version": "1.0.0",
-        "package_version": "1.11.0",
+        "package_version": "1.15.0",
         "release_kind": "product",
         "combined_full_x7_certified": False,
         "distribution_policy": {
@@ -850,7 +914,17 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
             "sha256_manifest_required": True,
             "required_ci_commit_match": True,
             "supported_platform_exact_fixture_evidence": True,
-            "supported_platform_systems": ["darwin", "linux"],
+            "pypi_project": "nfi-backtest-engine",
+            "pypi_trusted_publishing": True,
+            "pypi_attestations_required": True,
+            "spdx_sbom_required": True,
+            "cross_channel_sha_required": True,
+            "supported_platform_slugs": [
+                "linux-aarch64",
+                "linux-x86_64",
+                "macos-arm64",
+                "windows-wsl2-x86_64",
+            ],
         },
         "certification_boundary": {
             "latest_same_candidate_spot_certificate": False,
@@ -874,14 +948,21 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "product-release-bundle-${{ steps.candidate.outputs.sha }}" in publish
     assert "combined_full_x7_certified == false" in publish
     assert "supported_platform_exact_fixture_evidence == true" in publish
-    assert 'supported_platform_systems == ["darwin", "linux"]' in publish
+    assert "supported_platform_slugs" in publish
     assert "test \"$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)\" -eq 3" in publish
-    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 11" in publish
-    assert '== ["darwin", "linux"]' in publish
+    assert "test \"$(find candidate -mindepth 1 -maxdepth 1 | wc -l)\" -eq 13" in publish
+    assert '"windows-wsl2-x86_64"' in publish
     assert "native-score" not in publish
     assert "nfi-bte release score" not in publish
     assert "find candidate -mindepth 1 ! -type f" in publish
     assert 'gh release create "$RELEASE_TAG" "${assets[@]}"' in publish
+    assert "environment:\n      name: testpypi" in publish
+    assert "id-token: write" in publish
+    assert "PYPI_TOKEN" not in publish
+    assert "repository-url: https://test.pypi.org/legacy/" in publish
+    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in publish
+    assert "[.platforms[].slug]" in publish
+    assert "release_supply_chain.py verify" in publish
     assert "candidate/*" not in publish
     assert "test ! -e candidate/release-gate.json" in publish
     assert "test ! -e candidate/full-x7-release-result.json" in publish
@@ -898,12 +979,18 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "candidate and promotion workflow commits differ" in promote
     assert "combined_full_x7_certified == false" in promote
     assert "supported_platform_exact_fixture_evidence == true" in promote
-    assert 'supported_platform_systems == ["darwin", "linux"]' in promote
+    assert "supported_platform_slugs" in promote
     assert "native-score" not in promote
     assert "nfi-bte release score" not in promote
     assert "find candidate -mindepth 1 ! -type f" in promote
     assert 'gh release create "$STABLE_TAG" "${assets[@]}"' in promote
-    assert "candidate/*" not in promote
+    assert "environment:\n      name: pypi" in promote
+    assert "id-token: write" in promote
+    assert "PYPI_TOKEN" not in promote
+    assert "pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33" in promote
+    assert "uv tool install" in promote
+    assert "release_supply_chain.py verify" in promote
+    assert 'gh release create "$STABLE_TAG" candidate/*' not in promote
     assert "diff -qr candidate stable" in promote
     assert "windows-latest" not in promote
     assert "Audit latest macOS installer" in promote
@@ -1082,6 +1169,7 @@ def _long_certification_plan_inputs(
         "oracle_fingerprint": "0" * 64,
         "host_lock": str(tmp_path / "locks/certification.lock"),
         "state_probes": [str(state_probe)],
+        "swap_cap_bytes": 8 * 1024**3,
     }
     identity = module._input_identity(config)
     fingerprint = module.canonical_sha256(identity)
@@ -1133,6 +1221,8 @@ def test_long_certification_plan_reuses_only_the_indexed_oracle(
     assert plan["candidate_commit"] == "e" * 40
     assert plan["mode"] == "spot"
     assert "--official-oracle" in plan["command"]
+    assert plan["command"][plan["command"].index("--swap-cap-gib") + 1] == "8.0"
+    assert plan["candidate_certification"]["identity"]["swap_cap_bytes"] == 8 * 1024**3
     assert "--resume" not in plan["command"]
     assert "reference" not in plan["command"]
     assert plan["state_probes"] == [

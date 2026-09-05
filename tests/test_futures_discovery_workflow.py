@@ -234,6 +234,8 @@ def test_candidate_job_reconciles_stale_drafts_without_opening_a_queue() -> None
 
     assert "steps.candidate.outputs.found != 'true'" in reconcile
     assert "--reconcile-mode" in reconcile
+    assert 'discovery_status}" != "no_gap"' in reconcile
+    assert "--preserve-request-fingerprint" in reconcile
     assert "--expected-engine-sha" in reconcile
     assert "--expected-upstream-sha" in reconcile
     assert "steps.candidate.outputs.found == 'true'" in publish

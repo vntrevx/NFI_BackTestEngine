@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "workflow": ".github/workflows/capture-full-x7-oracle.yml",
+  "events": ["workflow_dispatch"],
+  "permissions": {
+    "actions": "read",
+    "contents": "read",
+    "id-token": "write"
+  },
+  "environment": "full-x7-oracle-capture",
+  "runner_labels": ["self-hosted", "linux", "x64", "nfi-certification"],
+  "modes": ["spot", "futures"],
+  "concurrency": {
+    "group": "full-x7-oracle-${{ inputs.mode }}",
+    "cancel_in_progress": false
+  },
+  "oracle": {
+    "allows_new_run": true,
+    "maximum_runs_per_input": 1,
+    "index_schema_version": "2.0.0",
+    "input_identity_schema_version": "oracle-input-identity-v2",
+    "required_status": "exact_parity"
+  },
+  "storage": {
+    "provider": "aws-s3",
+    "object_prefix": "full-x7-oracles",
+    "content_addressed_key": true,
+    "conditional_create": true,
+    "server_side_encryption": "AES256"
+  }
+}

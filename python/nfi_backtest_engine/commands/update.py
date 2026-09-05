@@ -112,7 +112,14 @@ def execute(args: object) -> int:
         release = fetch_latest_release()
     except (OSError, ValueError) as exc:
         raise NfiBacktestError(f"could not read the latest GitHub release: {exc}") from exc
-    if not is_newer_release(release.version, __version__):
+    newer = is_newer_release(release.version, __version__)
+    if getattr(args, "check", False):
+        if newer:
+            print(f"Update available: {__version__} -> {release.version}.")
+        else:
+            print(f"Already up to date: {__version__}.")
+        return 0
+    if not newer:
         print(f"Already up to date: {__version__}.")
         return 0
 

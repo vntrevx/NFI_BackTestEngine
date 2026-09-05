@@ -8,6 +8,7 @@ on:
       - "pyproject.toml"
       - ".github/product-release-contract.json"
       - ".github/release-candidate-contract.json"
+      - ".github/oracle-capture-contract.json"
   pull_request:
   workflow_dispatch:
 
@@ -161,7 +162,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Configure Rust compiler cache
         if: matrix.suite == 'full'
-        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        uses: mozilla-actions/sccache-action@fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11
         with:
           version: "v0.10.0"
       - name: Sync locked environment
@@ -304,7 +305,7 @@ jobs:
           --commit-sha "${{ github.sha }}"
           --cache-file uv.lock
       - name: Configure Rust compiler cache
-        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        uses: mozilla-actions/sccache-action@fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11
         with:
           version: "v0.10.0"
       - name: Rust format
@@ -381,7 +382,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: Configure Rust compiler cache
-        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+        uses: mozilla-actions/sccache-action@fd02668681acd5f960e1372061bee5e3e987195c # v0.0.11
         with:
           version: "v0.10.0"
       - name: Sync locked parity environment

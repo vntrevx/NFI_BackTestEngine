@@ -104,6 +104,20 @@ def execute(
             f"sha256={record['sha256']} -> {args.output}"
         )
         return 0
+    if args.reference_command == "qualify-legacy":
+        from ..legacy_reference import qualify_legacy_runtimes
+
+        registry = qualify_legacy_runtimes(
+            args.spec,
+            args.output,
+            timeout_seconds=args.timeout,
+        )
+        selected = ", ".join(
+            f"{item['generation']}={item['runtime']['version']}"
+            for item in registry["strategies"]
+        )
+        print(f"legacy Official runtimes qualified: {selected} -> {args.output}")
+        return 0
     if args.reference_command == "research":
         return execute_research_reference(args)
     report = run_reference_fixture(

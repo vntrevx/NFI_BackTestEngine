@@ -156,8 +156,10 @@ Before tagging:
 16. Verify the representative run uses at least 80 pairs and 1,825 days before
     publishing any 10x or long-horizon memory claim
 17. Run the continuous 80-pair, five-year official Freqtrade oracle once, then run
-    `nfi-bte certify` with at least three fresh native candidate repetitions and one or
-    more branch-reaching `--state-probe` fixtures; retain the reproducible bundle.
+    `nfi-bte certify` with a sealed positive `--swap-cap-gib`, at least three fresh
+    native candidate repetitions, and one or more branch-reaching `--state-probe`
+    fixtures; retain the reproducible bundle. Missing Native process-tree or Official
+    cgroup swap measurements fail the release gate.
     Extend the native candidate to five repetitions when its wall-time spread exceeds
     5%; never repeat the multi-year official oracle merely to calculate native timing
     variance.
@@ -174,7 +176,7 @@ path on a real Docker Engine host.
 
 ## Publishing
 
-The `Build release candidate` workflow builds three ABI3 wheels and one source
+The `Build release candidate` workflow builds three wheels and one source
 distribution once, verifies the Linux wheel, and stores a SHA-256-sealed candidate
 bundle for:
 
@@ -182,19 +184,32 @@ bundle for:
 - macOS arm64;
 - source distribution.
 
-After the downloaded candidate passes the Full X7 host certificate, the
-`Publish release candidate` workflow binds that successful build run to an `-rc.N`
-tag and publishes the already-built files. The `Promote stable release` workflow then
-creates the stable tag at the same commit and copies the prerelease assets without
-rebuilding them. Both publishing workflows download their own result and compare every
-asset byte before succeeding. This makes the certified candidate, prerelease, and
-stable distribution files identical.
+The same workflow also runs an x86_64 clean-room job with no source checkout. It
+installs only the downloaded wheel and executes doctor, strategy discovery, init,
+Native run, report, status, clean dry-run, and a non-mutating update check against a
+sealed one-pair scenario. Its hash-bound report is retained with the candidate.
 
-GitHub Releases is the only supported registry. `install.sh` selects the supported
+After the downloaded candidate passes both Full X7 host certificates, the
+`Publish release candidate` workflow binds that successful build run to an `-rc.N`
+tag and publishes the already-built files. Run `Audit fixed release candidate` once
+per day for cycles 1 through 7, using same-commit successful compatibility, discovery,
+and nightly run IDs. Each cycle re-installs the public Linux wheel and restores and
+revalidates the complete public asset set. Cycle 7 accepts exactly the six earlier
+receipt run IDs and seals `ten-of-ten-release-audit.json`.
+
+`Promote stable release` requires that cycle-7 audit run ID before it creates the
+stable tag at the same commit. It copies the prerelease assets without rebuilding,
+publishes those exact distributions to PyPI through the protected `pypi` environment
+and OIDC Trusted Publishing, downloads the PyPI hashes, and runs a post-release
+installed-tool smoke test. A failed audit or byte comparison leaves the RC published
+but does not create the stable release.
+
+GitHub Releases and PyPI are the supported distribution channels. `install.sh` selects the supported
 Linux or macOS wheel, verifies its asset digest, and calls `uv tool install`. On
 Windows, run that installer inside WSL2, which uses the Linux build and ABI; native
-Windows fails closed. Candidate build jobs remain read-only; only the two explicitly
-dispatched publishing workflows receive `contents: write`.
+Windows fails closed. Candidate build and audit jobs remain read-only; only the
+explicitly dispatched publishing workflows receive `contents: write`, and only the
+protected PyPI job receives `id-token: write`.
 
 ## Full X7 v1 gates
 

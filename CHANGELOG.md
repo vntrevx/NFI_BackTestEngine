@@ -4,6 +4,20 @@ All notable changes are recorded here. This project follows Semantic Versioning.
 
 ## Unreleased
 
+## 1.15.0 - Pending
+
+- Consolidate the audit-first M25-M30 release train without rebuilding the existing
+  resume, performance, or Combined Full X7 foundations.
+- Qualify legacy V8/V9 sources for explicit Official-only fallback and add an
+  installed-wheel clean-room user journey.
+- Require sealed swap budgets and signed evidence for Linux x86_64/aarch64, macOS
+  arm64, and Windows WSL2 x86_64.
+- Add OIDC Trusted Publishing, immutable Oracle capture, a seven-cycle fixed-RC
+  audit, and audit-gated byte-identical stable promotion.
+
+Combined Full X7 certification remains pending until the same v1.15.0 candidate
+passes both five-year mode certificates and the final public audit.
+
 ## 1.11.0 - 2026-09-03
 
 - Added a capability-derived strategy catalog that shows compatible strategies by

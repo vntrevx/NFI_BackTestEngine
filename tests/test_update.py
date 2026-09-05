@@ -101,6 +101,27 @@ def test_update_does_not_downgrade_newer_installed_version(
     assert "Already up to date: 1.6.1." in capsys.readouterr().out
 
 
+def test_update_check_never_changes_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    release = update_check.LatestRelease(version="99.0.0", assets=())
+    monkeypatch.setattr(update_commands, "_is_source_checkout", lambda: False)
+    monkeypatch.setattr(update_commands, "fetch_latest_release", lambda: release)
+    monkeypatch.setattr(
+        update_commands.subprocess,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("check-only update attempted installation"),
+    )
+
+    result = update_commands.execute(
+        argparse.Namespace(command_name="update", check=True)
+    )
+
+    assert result == 0
+    assert "Update available" in capsys.readouterr().out
+
+
 def test_uv_tool_install_selects_verified_wheel(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

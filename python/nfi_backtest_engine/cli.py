@@ -157,7 +157,12 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     help_command = subcommands.add_parser("help", help="show beginner or complete command help")
     help_command.add_argument("--all", action="store_true", help="show every expert command")
 
-    subcommands.add_parser("update", help="update the installed CLI to the latest release")
+    update = subcommands.add_parser("update", help="update the installed CLI to the latest release")
+    update.add_argument(
+        "--check",
+        action="store_true",
+        help="check for an update without changing the installed environment",
+    )
 
     fixture = subcommands.add_parser("fixture", help="manage benchmark fixtures")
     fixture_commands = fixture.add_subparsers(dest="fixture_command", required=True)
@@ -352,7 +357,7 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     platform_assemble.add_argument("--output", type=Path, required=True)
     platform_seal = platform_commands.add_parser(
         "seal",
-        help="combine Linux and macOS benchmark reports",
+        help="combine the four supported platform-slug benchmark reports",
     )
     platform_seal.add_argument(
         "--report",
@@ -367,6 +372,11 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     platform_seal.add_argument("--challenge", required=True)
     platform_seal.add_argument("--candidate-commit", required=True)
     platform_seal.add_argument("--output-dir", type=Path, required=True)
+    platform_seal.add_argument(
+        "--platform-contract",
+        choices=("v2-slugs", "legacy-systems"),
+        default="v2-slugs",
+    )
 
     normalize = subcommands.add_parser(
         "normalize", help="normalize an official Freqtrade JSON export"
@@ -555,6 +565,13 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     reference_capture.add_argument("manifest", type=Path)
     reference_capture.add_argument("--output", "-o", type=Path, required=True)
     reference_capture.add_argument("--timeout", type=int, default=180)
+    reference_qualify_legacy = reference_commands.add_parser(
+        "qualify-legacy",
+        help="qualify digest-pinned Official runtimes for sealed V8/V9 sources",
+    )
+    reference_qualify_legacy.add_argument("spec", type=Path)
+    reference_qualify_legacy.add_argument("--output", "-o", type=Path, required=True)
+    reference_qualify_legacy.add_argument("--timeout", type=int, default=900)
 
     doctor = subcommands.add_parser("doctor", help="check local execution prerequisites")
     doctor.add_argument("--profile", type=Path)
@@ -1341,6 +1358,11 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
         ),
     )
     certify.add_argument(
+        "--capture-oracle-only",
+        action="store_true",
+        help="stop after one exact Official Oracle capture without certifying a candidate",
+    )
+    certify.add_argument(
         "--resume",
         action="store_true",
         help="resume completed Full X7 stages from the selected output directory",
@@ -1415,14 +1437,14 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
         action="append",
         type=Path,
         default=[],
-        help="sealed three-OS evidence for one mode; repeat for spot and futures",
+        help="sealed supported-platform evidence for one mode; repeat per mode",
     )
     release_combine.add_argument("--native-score-evidence", type=Path, required=True)
     release_combine.add_argument("--native-score-identity", type=Path, required=True)
     release_combine.add_argument("--output-dir", type=Path, required=True)
     release_gate = release_commands.add_parser(
         "gate",
-        help="bind a build-once candidate to host and three-OS certificates",
+        help="bind a build-once candidate to host and supported-platform evidence",
     )
     release_gate.add_argument("--candidate-dir", type=Path, required=True)
     release_gate.add_argument("--certificate", type=Path, required=True)
@@ -1436,7 +1458,7 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     release_gate.add_argument("--output-dir", type=Path, required=True)
     release_combined_gate = release_commands.add_parser(
         "gate-combined",
-        help="seal a public candidate after both modes and three OSes certify it",
+        help="seal a public candidate after both modes and all platform targets certify it",
     )
     release_combined_gate.add_argument(
         "--candidate-dir",
@@ -1468,6 +1490,48 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
     release_combined_verify.add_argument("--native-score-evidence", type=Path, required=True)
     release_combined_verify.add_argument("--native-score-identity", type=Path, required=True)
     release_combined_verify.add_argument("--provenance-ledger", type=Path, required=True)
+    release_asset_verify = release_commands.add_parser(
+        "verify-assets",
+        help="verify public combined-release bytes without private ledger access",
+    )
+    release_asset_verify.add_argument("--release-dir", type=Path, required=True)
+    release_asset_verify.add_argument("--candidate-commit", required=True)
+    release_soak = release_commands.add_parser(
+        "record-soak",
+        help="seal one fixed-candidate operations-soak receipt",
+    )
+    release_soak.add_argument("--candidate-commit", required=True)
+    release_soak.add_argument("--release-tag", required=True)
+    release_soak.add_argument("--cycle", type=int, required=True)
+    release_soak.add_argument("--checked-at", required=True)
+    release_soak.add_argument("--public-manifest-sha256", required=True)
+    release_soak.add_argument(
+        "--check",
+        action="append",
+        default=[],
+        required=True,
+        help="required check as name=JSON-path; repeat for all five checks",
+    )
+    release_soak.add_argument("--output", type=Path, required=True)
+    release_audit = release_commands.add_parser(
+        "audit",
+        help="seal a seven-cycle public-artifact 10/10 audit",
+    )
+    release_audit.add_argument("--release-dir", type=Path, required=True)
+    release_audit.add_argument("--candidate-commit", required=True)
+    release_audit.add_argument("--release-tag", required=True)
+    release_audit.add_argument(
+        "--soak-receipt", action="append", type=Path, default=[], required=True
+    )
+    release_audit.add_argument("--product-contract", type=Path)
+    release_audit.add_argument("--output", type=Path, required=True)
+    release_cleanroom = release_commands.add_parser(
+        "cleanroom",
+        help="run the installed-artifact first-result journey without a checkout",
+    )
+    release_cleanroom.add_argument("--fixture", type=Path, required=True)
+    release_cleanroom.add_argument("--output-dir", type=Path, required=True)
+    release_cleanroom.add_argument("--timeout", type=int, default=900)
     for command_name in ("finalize-combined", "abort-combined"):
         publication_command = release_commands.add_parser(
             command_name,

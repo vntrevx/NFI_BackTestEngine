@@ -262,7 +262,8 @@
     "release_paths": [
       "pyproject.toml",
       ".github/product-release-contract.json",
-      ".github/release-candidate-contract.json"
+      ".github/release-candidate-contract.json",
+      ".github/oracle-capture-contract.json"
     ]
   },
   "concurrency": {

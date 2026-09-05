@@ -116,14 +116,23 @@ jobs:
              and .distribution_policy.byte_identical_rc_stable == true
              and .distribution_policy.required_ci_commit_match == true
              and .distribution_policy.supported_platform_exact_fixture_evidence == true
-             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
+             and .distribution_policy.pypi_project == "nfi-backtest-engine"
+             and .distribution_policy.pypi_trusted_publishing == true
+             and .distribution_policy.pypi_attestations_required == true
+             and .distribution_policy.spdx_sbom_required == true
+             and .distribution_policy.cross_channel_sha_required == true
+             and .distribution_policy.supported_platform_slugs == ["linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"]
              and .certification_boundary.latest_same_candidate_spot_certificate == false
              and .certification_boundary.latest_same_candidate_futures_certificate == false
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             candidate/product-release-contract.json
           test "$(find candidate -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 3
           test "$(find candidate -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
-          test "$(find candidate -mindepth 1 -maxdepth 1 | wc -l)" -eq 11
+          test "$(find candidate -mindepth 1 -maxdepth 1 | wc -l)" -eq 13
+          python .github/scripts/release_supply_chain.py verify \
+            --directory candidate \
+            --identity candidate/distribution-identity.json \
+            --sbom candidate/nfi-backtest-engine.spdx.json
           test -f candidate/full-x7-spot-platform-evidence.json
           test -f candidate/full-x7-spot-platform-evidence.zip
           test -f candidate/full-x7-futures-platform-evidence.json
@@ -134,16 +143,16 @@ jobs:
               '.release_certified == true
                and .lane == "exact-fixture"
                and .package_version == $version
-               and ([.platforms[].system] | sort)
-                 == ["darwin", "linux"]' \
+               and ([.platforms[].slug] | sort)
+                 == ["linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"]' \
               "candidate/full-x7-$mode-platform-evidence.json"
           done
           jq -s -e \
             '.[0].portable_package_sha256 == .[1].portable_package_sha256
              and (
-               [.[0].platforms[] | [.system, .wheel_sha256]] | sort
+               [.[0].platforms[] | [.slug, .wheel_sha256]] | sort
              ) == (
-               [.[1].platforms[] | [.system, .wheel_sha256]] | sort
+               [.[1].platforms[] | [.slug, .wheel_sha256]] | sort
              )' \
             candidate/full-x7-spot-platform-evidence.json \
             candidate/full-x7-futures-platform-evidence.json
@@ -208,6 +217,61 @@ jobs:
           diff -qr candidate published
           (cd published && sha256sum --check SHA256SUMS.txt)
           ./install.sh
+
+  testpypi-publish:
+    name: Publish build-once distributions to TestPyPI
+    needs: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/nfi-backtest-engine
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Download exact build candidate distributions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: python-distributions-${{ needs.publish.outputs.candidate_sha }}
+          path: dist
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Publish to TestPyPI with OIDC and attestations
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  testpypi-audit:
+    name: Audit TestPyPI distribution identity
+    needs: [publish, testpypi-publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact build candidate distributions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: python-distributions-${{ needs.publish.outputs.candidate_sha }}
+          path: dist
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Compare TestPyPI bytes
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          version="${version%%-rc.*}"
+          curl --fail --retry 6 --retry-all-errors \
+            "https://test.pypi.org/pypi/nfi-backtest-engine/$version/json" \
+            --output testpypi.json
+          for distribution in dist/*; do
+            filename="$(basename "$distribution")"
+            expected="$(sha256sum "$distribution" | cut -d' ' -f1)"
+            observed="$(jq -er --arg filename "$filename" \
+              '.urls[] | select(.filename == $filename) | .digests.sha256' testpypi.json)"
+            test "$observed" = "$expected"
+          done
 
   macos-installer:
     name: Audit macOS product installer

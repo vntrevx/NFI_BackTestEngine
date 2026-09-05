@@ -19,7 +19,12 @@ from .certification_policy import validate_certification_semantics
 from .errors import BenchmarkError, SpecValidationError
 from .evidence_bundle import write_evidence_bundle
 from .fixture import sha256_file
-from .platform_benchmark import REQUIRED_PLATFORM_SYSTEMS as PRODUCT_PLATFORM_SYSTEMS
+from .platform_benchmark import (
+    REQUIRED_PLATFORM_SLUGS,
+)
+from .platform_benchmark import (
+    REQUIRED_PLATFORM_SYSTEMS as PRODUCT_PLATFORM_SYSTEMS,
+)
 from .release_contract import (
     FUTURES_RELEASE_CONTRACT_ID,
     SPOT_RELEASE_CONTRACT_ID,
@@ -58,6 +63,7 @@ COMBINED_RELEASE_GATE_NAME = "release-gate.json"
 COMBINED_RELEASE_REPORT_NAME = "full-x7-release.json"
 COMBINED_RELEASE_BUNDLE_NAME = "full-x7-release-bundle.zip"
 PUBLIC_RELEASE_ASSET_COUNT = 10
+CURRENT_PUBLIC_RELEASE_ASSET_COUNT = 9
 REQUIRED_MODE_CONTRACTS = frozenset({SPOT_RELEASE_CONTRACT_ID, FUTURES_RELEASE_CONTRACT_ID})
 REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
 _COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -73,7 +79,7 @@ def combine_full_x7_release(
     native_score_identity_path: str | Path | None = None,
     provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
 ) -> dict[str, Any]:
-    """Bind two exact certificates and three-OS evidence after current score validation."""
+    """Bind two exact certificates and supported-platform evidence after score validation."""
     from .native_scorecard import (
         require_fresh_current_ref_for_authorization,
         require_native_scorecard_candidate_binding,
@@ -172,6 +178,7 @@ def combine_full_x7_release(
             "required_modes": sorted(REQUIRED_MODE_CONTRACTS),
             "completed_modes": sorted(platform_modes),
             "required_systems": sorted(REQUIRED_PLATFORM_SYSTEMS),
+            "required_slugs": sorted(REQUIRED_PLATFORM_SLUGS),
         },
     }
     release_certified = all(bool(gate["met"]) for gate in gates.values())
@@ -216,7 +223,7 @@ def seal_combined_release_candidate(
     native_score_evidence_path: str | Path | None = None,
     native_score_identity_path: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Seal one build-once candidate after both modes and three OSes certify it."""
+    """Seal one build-once candidate after both modes and all platform targets certify it."""
     from .native_scorecard import (
         require_fresh_current_ref_for_authorization,
         require_native_scorecard_candidate_binding,
@@ -616,21 +623,38 @@ def verify_combined_release_candidate(
     return gate
 
 
+def verify_combined_release_assets(
+    source: str | Path,
+    *,
+    expected_commit: str,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+) -> dict[str, Any]:
+    """Verify public bytes without asserting the private publication-ledger state."""
+    if _COMMIT_PATTERN.fullmatch(expected_commit) is None:
+        raise SpecValidationError("combined release candidate commit is invalid")
+    return _verify_combined_release_assets(
+        source,
+        expected_commit=expected_commit,
+        provenance_policy=provenance_policy,
+    )
+
+
 def _verify_combined_release_assets(
     source: str | Path,
     *,
     expected_commit: str | None = None,
     provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
 ) -> dict[str, Any]:
-    """Verify the exact ten-file public combined-release asset set."""
+    """Verify a current nine-file or historical ten-file combined asset set."""
 
     root = _plain_directory(source, label="combined release")
     entries = list(root.iterdir())
-    if len(entries) != PUBLIC_RELEASE_ASSET_COUNT or any(
+    allowed_asset_counts = {CURRENT_PUBLIC_RELEASE_ASSET_COUNT, PUBLIC_RELEASE_ASSET_COUNT}
+    if len(entries) not in allowed_asset_counts or any(
         path.is_symlink() or not path.is_file() for path in entries
     ):
         raise SpecValidationError(
-            f"combined release must contain exactly {PUBLIC_RELEASE_ASSET_COUNT} regular files"
+            "combined release has an unsupported regular-file count"
         )
 
     release_manifest = root / RELEASE_CHECKSUMS_NAME
@@ -659,7 +683,11 @@ def _verify_combined_release_assets(
         for record in gate_distributions
         if isinstance(record, dict) and isinstance(record.get("file"), str)
     }
-    if len(distribution_records) != 5 or set(distribution_records) != distribution_names:
+    if (
+        len(distribution_records) not in {4, 5}
+        or len(entries) != len(distribution_records) + 5
+        or set(distribution_records) != distribution_names
+    ):
         raise SpecValidationError("distribution checksum manifest differs from the release gate")
     _verify_checksum_records(
         root,
@@ -752,12 +780,12 @@ def _candidate_distributions(
         name for name in files if name.endswith(".whl") or name.endswith(".tar.gz")
     }
     if (
-        len(wheel_names) != 4
+        len(wheel_names) not in {3, 4}
         or len(sdist_names) != 1
         or all_distribution_names != {*wheel_names, *sdist_names}
     ):
         raise SpecValidationError(
-            "candidate must contain exactly four top-level wheels and one sdist"
+            "candidate must contain three current or four historical wheels and one sdist"
         )
     version = shared_identity["package_version"]
     wheel_prefix = f"nfi_backtest_engine-{version}-"
@@ -821,7 +849,8 @@ def _candidate_platform_records(
             raise SpecValidationError(f"candidate platform evidence mode differs for {mode}")
         document = loaded[mode]["document"]
         platform_wheels_by_mode[mode] = {
-            item["system"]: item["wheel_sha256"] for item in document["platforms"]
+            str(item.get("slug") or item["system"]): item["wheel_sha256"]
+            for item in document["platforms"]
         }
         result[mode] = {
             "candidate_file": relative,
@@ -841,14 +870,22 @@ def _candidate_platform_records(
         record["sha256"] for name, record in candidate_files.items() if name.endswith(".whl")
     }
     evidenced_wheel_hashes = set(platform_wheel_maps[0].values())
-    if (
-        len(evidenced_wheel_hashes) != len(REQUIRED_PLATFORM_SYSTEMS)
-        or not evidenced_wheel_hashes.issubset(candidate_wheel_hashes)
-        or len(candidate_wheel_hashes - evidenced_wheel_hashes) != 1
-    ):
+    uses_slug_contract = set(platform_wheel_maps[0]) == REQUIRED_PLATFORM_SLUGS
+    valid_wheels = (
+        (
+            len(evidenced_wheel_hashes) == 3
+            and evidenced_wheel_hashes == candidate_wheel_hashes
+        )
+        if uses_slug_contract
+        else (
+            len(evidenced_wheel_hashes) == len(REQUIRED_PLATFORM_SYSTEMS)
+            and evidenced_wheel_hashes.issubset(candidate_wheel_hashes)
+            and len(candidate_wheel_hashes - evidenced_wheel_hashes) == 1
+        )
+    )
+    if not valid_wheels:
         raise SpecValidationError(
-            "three-OS evidence must bind three distinct candidate wheels "
-            "and leave exactly one additional wheel"
+            "platform evidence does not bind the exact candidate wheel set"
         )
     return result
 
@@ -906,7 +943,10 @@ def _write_public_release_checksums(root: Path) -> None:
         (path for path in root.iterdir() if path.is_file() and path.name != RELEASE_CHECKSUMS_NAME),
         key=lambda item: item.name,
     )
-    if len(paths) != PUBLIC_RELEASE_ASSET_COUNT - 1:
+    if len(paths) not in {
+        CURRENT_PUBLIC_RELEASE_ASSET_COUNT - 1,
+        PUBLIC_RELEASE_ASSET_COUNT - 1,
+    }:
         raise SpecValidationError("combined release does not have the exact public asset set")
     (root / RELEASE_CHECKSUMS_NAME).write_text(
         "\n".join(f"{sha256_file(path)}  {path.name}" for path in paths) + "\n",
@@ -1013,6 +1053,16 @@ def _verify_public_combined_bundle(
                     validate_certification_semantics(
                         platform_document, label="combined platform evidence"
                     )
+                    platforms = platform_document.get("platforms")
+                    slugs = (
+                        {
+                            item.get("slug")
+                            for item in platforms
+                            if isinstance(item, dict)
+                        }
+                        if isinstance(platforms, list)
+                        else set()
+                    )
                     verify_embedded_platform_evidence(
                         platform_document,
                         policy=provenance_policy,
@@ -1022,6 +1072,11 @@ def _verify_public_combined_bundle(
                             PRODUCT_PLATFORM_SYSTEMS
                             if relative.parts[:2] == ("evidence", "native-score")
                             else REQUIRED_PLATFORM_SYSTEMS
+                        ),
+                        required_platform_slugs=(
+                            REQUIRED_PLATFORM_SLUGS
+                            if slugs == REQUIRED_PLATFORM_SLUGS
+                            else None
                         ),
                     )
             if set(names) != {*records, "bundle-manifest.json"}:
@@ -1282,12 +1337,6 @@ def _load_platform_evidence(
         if not isinstance(document, dict):
             raise SpecValidationError(f"platform evidence must be an object: {path}")
         validate_certification_semantics(document, label="platform evidence")
-        verified = verify_embedded_platform_evidence(
-            document,
-            policy=provenance_policy,
-            expected_commit=expected_commit,
-            expected_candidate_id=expected_candidate_id,
-        )
         mode = document.get("mode_contract")
         if mode not in REQUIRED_MODE_CONTRACTS:
             raise SpecValidationError("platform evidence has an unsupported mode")
@@ -1298,11 +1347,23 @@ def _load_platform_evidence(
         if not isinstance(platforms, list):
             raise SpecValidationError(f"platform evidence is incomplete for {mode}")
         systems = {item.get("system") for item in platforms if isinstance(item, dict)}
+        slugs = {item.get("slug") for item in platforms if isinstance(item, dict)}
+        uses_slug_contract = slugs == REQUIRED_PLATFORM_SLUGS
+        uses_legacy_contract = systems == REQUIRED_PLATFORM_SYSTEMS and len(platforms) == 3
+        verified = verify_embedded_platform_evidence(
+            document,
+            policy=provenance_policy,
+            expected_commit=expected_commit,
+            expected_candidate_id=expected_candidate_id,
+            required_platform_slugs=(
+                REQUIRED_PLATFORM_SLUGS if uses_slug_contract else None
+            ),
+        )
         if (
             document.get("schema_version") != PLATFORM_EVIDENCE_VERSION
             or document.get("release_certified") is not True
             or document.get("candidate_commit") != verified["commit"]
-            or systems != REQUIRED_PLATFORM_SYSTEMS
+            or not (uses_slug_contract or uses_legacy_contract)
             or not isinstance(workload, dict)
             or workload.get("mode_contract") != mode
             or workload.get(
@@ -1318,7 +1379,14 @@ def _load_platform_evidence(
             (
                 item
                 for item in platforms
-                if isinstance(item, dict) and item.get("system") == "linux"
+                if isinstance(item, dict)
+                and (
+                    item.get("slug") == "linux-x86_64"
+                    or (
+                        item.get("slug") is None
+                        and item.get("system") == "linux"
+                    )
+                )
             ),
             None,
         )
@@ -1340,11 +1408,13 @@ def _load_platform_evidence(
             expected_document=document,
             label=f"{mode} platform evidence",
         )
-        report_by_system = {
-            report["platform"]["system"]: report for report in verified["reports"]
+        identity_field = "slug" if uses_slug_contract else "system"
+        report_by_identity = {
+            report["platform"].get(identity_field): report
+            for report in verified["reports"]
         }
         for item in platforms:
-            signed_report = report_by_system.get(item.get("system"))
+            signed_report = report_by_identity.get(item.get(identity_field))
             if signed_report is None or any(
                 item.get(key) != signed_report["package"].get(key)
                 for key in ("wheel_sha256", "native_extension_sha256")

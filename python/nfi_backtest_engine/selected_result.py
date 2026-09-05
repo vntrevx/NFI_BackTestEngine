@@ -210,14 +210,7 @@ def _validate_official_fallback(
     ):
         raise BenchmarkError("official fallback did not complete successfully")
     reference = report.get("reference")
-    expected_reference = {
-        "version": REFERENCE_VERSION,
-        "image": REFERENCE_IMAGE,
-        "image_index_digest": REFERENCE_INDEX_DIGEST,
-        "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
-        "platform": REFERENCE_PLATFORM,
-        "network": "none",
-    }
+    expected_reference, expected_storage_mode = _expected_fallback_runtime(run)
     if not isinstance(reference, Mapping) or any(
         reference.get(key) != value for key, value in expected_reference.items()
     ):
@@ -234,10 +227,10 @@ def _validate_official_fallback(
     storage = report.get("reference_storage")
     if (
         not isinstance(storage, Mapping)
-        or storage.get("mode") != "spooled"
+        or storage.get("mode") != expected_storage_mode
         or storage.get("complete") is not True
     ):
-        raise BenchmarkError("official fallback spooled storage is incomplete")
+        raise BenchmarkError("official fallback storage record is incomplete")
     if not report_path.is_relative_to(root):
         raise BenchmarkError("official fallback report is outside the run directory")
     record = report.get("official_trade_surface")
@@ -257,6 +250,39 @@ def _validate_official_fallback(
     surface = _read_object(path, "official fallback trade surface")
     validate_trade_surface(surface)
     return path
+
+
+def _expected_fallback_runtime(run: Mapping[str, Any]) -> tuple[dict[str, Any], str]:
+    inputs = run.get("inputs")
+    strategy = inputs.get("strategy") if isinstance(inputs, Mapping) else None
+    family = strategy.get("class_name") if isinstance(strategy, Mapping) else None
+    source_sha256 = strategy.get("file_sha256") if isinstance(strategy, Mapping) else None
+    if isinstance(family, str) and isinstance(source_sha256, str):
+        from .legacy_reference import legacy_runtime_for_source, load_legacy_runtime_registry
+
+        registry = load_legacy_runtime_registry()
+        legacy_families = {record["family"] for record in registry["strategies"]}
+        if family in legacy_families:
+            record = legacy_runtime_for_source(family, source_sha256, registry=registry)
+            if record is None:
+                raise BenchmarkError("official fallback legacy source is not qualified")
+            runtime = record["runtime"]
+            return {
+                "version": runtime["version"],
+                "image": runtime["image"],
+                "image_index_digest": runtime["image_index_digest"],
+                "image_platform_digest": runtime["image_platform_digest"],
+                "platform": runtime["platform"],
+                "network": "public-exchange-metadata",
+            }, "freqtrade-native"
+    return {
+        "version": REFERENCE_VERSION,
+        "image": REFERENCE_IMAGE,
+        "image_index_digest": REFERENCE_INDEX_DIGEST,
+        "image_platform_digest": REFERENCE_PLATFORM_DIGEST,
+        "platform": REFERENCE_PLATFORM,
+        "network": "none",
+    }, "spooled"
 
 
 def _validate_absolute_record(

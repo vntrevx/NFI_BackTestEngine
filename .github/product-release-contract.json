@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "package_version": "1.11.0",
+  "package_version": "1.15.0",
   "release_kind": "product",
   "combined_full_x7_certified": false,
   "distribution_policy": {
@@ -9,7 +9,17 @@
     "sha256_manifest_required": true,
     "required_ci_commit_match": true,
     "supported_platform_exact_fixture_evidence": true,
-    "supported_platform_systems": ["darwin", "linux"]
+    "pypi_project": "nfi-backtest-engine",
+    "pypi_trusted_publishing": true,
+    "pypi_attestations_required": true,
+    "spdx_sbom_required": true,
+    "cross_channel_sha_required": true,
+    "supported_platform_slugs": [
+      "linux-aarch64",
+      "linux-x86_64",
+      "macos-arm64",
+      "windows-wsl2-x86_64"
+    ]
   },
   "certification_boundary": {
     "latest_same_candidate_spot_certificate": false,

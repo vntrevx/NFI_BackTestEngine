@@ -45,14 +45,45 @@ EXACT_FIXTURE_LANE = "exact-fixture"
 PORTABLE_PAIR_COUNT = 20
 REQUIRED_PLATFORM_SYSTEMS = frozenset({"linux", "darwin"})
 LEGACY_REQUIRED_PLATFORM_SYSTEMS = frozenset({"windows", "linux", "darwin"})
+REQUIRED_PLATFORM_SLUGS = frozenset(
+    {"linux-x86_64", "linux-aarch64", "macos-arm64", "windows-wsl2-x86_64"}
+)
 _PLATFORM_MACHINES = {
     "windows": frozenset({"amd64", "x86_64"}),
-    "linux": frozenset({"amd64", "x86_64"}),
+    "linux": frozenset({"amd64", "x86_64", "aarch64"}),
     "darwin": frozenset({"arm64", "aarch64"}),
 }
 REQUIRED_PLATFORM_MACHINES = {
     system: _PLATFORM_MACHINES[system] for system in REQUIRED_PLATFORM_SYSTEMS
 }
+
+
+def _platform_slug(system: str, machine: str, *, wsl: bool) -> str:
+    normalized_machine = {"amd64": "x86_64", "aarch64": "aarch64", "arm64": "aarch64"}.get(
+        machine, machine
+    )
+    if system == "linux" and normalized_machine == "x86_64":
+        return "windows-wsl2-x86_64" if wsl else "linux-x86_64"
+    if system == "linux" and normalized_machine == "aarch64" and not wsl:
+        return "linux-aarch64"
+    if system == "darwin" and normalized_machine == "aarch64" and not wsl:
+        return "macos-arm64"
+    raise SpecValidationError(
+        f"unsupported release platform identity: system={system}, machine={machine}, wsl={wsl}"
+    )
+
+
+def _current_platform_record() -> dict[str, Any]:
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    wsl = system == "linux" and "microsoft" in platform.release().lower()
+    return {
+        "slug": _platform_slug(system, machine, wsl=wsl),
+        "system": system,
+        "machine": machine,
+        "python": platform.python_version(),
+        "wsl": wsl,
+    }
 
 
 def run_platform_benchmark(
@@ -158,18 +189,13 @@ def run_platform_benchmark(
     )
     wall = [float(run["wall_time_seconds"]) for run in runs]
     peaks = [int(run["peak_rss_bytes"]) for run in runs]
-    system = platform.system().lower()
+    platform_record = _current_platform_record()
     report = {
         "schema_version": PLATFORM_BENCHMARK_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "complete": deterministic,
         "lane": RAW_INPUT_LANE,
-        "platform": {
-            "system": system,
-            "machine": platform.machine().lower(),
-            "python": platform.python_version(),
-            "wsl": system == "linux" and "microsoft" in platform.release().lower(),
-        },
+        "platform": platform_record,
         "hardware": public_hardware_record(inspect_hardware()),
         "package": {
             "version": __version__,
@@ -204,7 +230,9 @@ def run_platform_benchmark(
     write_json(output / "platform-benchmark.json", report)
     bundle = write_evidence_bundle(
         output,
-        evidence_id=f"{workload_sha}-{system}-{platform.machine().lower()}",
+        evidence_id=(
+            f"{workload_sha}-{platform_record['system']}-{platform_record['machine']}"
+        ),
         release_certified=False,
         archive_name="platform-benchmark-bundle.zip",
         include_paths=[output / "platform-benchmark.json"],
@@ -338,18 +366,13 @@ def _run_platform_fixture_benchmark_materialized(
     )
     wall = [float(run["wall_time_seconds"]) for run in runs]
     peaks = [int(run["peak_rss_bytes"]) for run in runs]
-    system = platform.system().lower()
+    platform_record = _current_platform_record()
     report = {
         "schema_version": PLATFORM_BENCHMARK_VERSION,
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "complete": deterministic,
         "lane": EXACT_FIXTURE_LANE,
-        "platform": {
-            "system": system,
-            "machine": platform.machine().lower(),
-            "python": platform.python_version(),
-            "wsl": system == "linux" and "microsoft" in platform.release().lower(),
-        },
+        "platform": platform_record,
         "hardware": public_hardware_record(inspect_hardware()),
         "package": {
             "version": __version__,
@@ -389,7 +412,9 @@ def _run_platform_fixture_benchmark_materialized(
     write_json(output / "platform-benchmark.json", report)
     bundle = write_evidence_bundle(
         output,
-        evidence_id=f"{workload_sha}-{system}-{platform.machine().lower()}",
+        evidence_id=(
+            f"{workload_sha}-{platform_record['system']}-{platform_record['machine']}"
+        ),
         release_certified=False,
         archive_name="platform-benchmark-bundle.zip",
         include_paths=[output / "platform-benchmark.json"],
@@ -411,6 +436,7 @@ def seal_platform_evidence(
     expected_bundle_id: str | None = None,
     expected_challenge: str | None = None,
     required_platform_systems: frozenset[str] = REQUIRED_PLATFORM_SYSTEMS,
+    required_platform_slugs: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     """Recompute and authenticate supported-host reports before certifying them."""
     output = Path(output_directory).resolve()
@@ -425,11 +451,15 @@ def seal_platform_evidence(
         LEGACY_REQUIRED_PLATFORM_SYSTEMS,
     ):
         raise SpecValidationError("platform evidence required systems are unauthorized")
+    if required_platform_slugs is not None and required_platform_slugs != REQUIRED_PLATFORM_SLUGS:
+        raise SpecValidationError("platform evidence required slugs are unauthorized")
     envelopes: list[dict[str, Any]] = []
     statements: list[dict[str, Any]] = []
     for path, report, payload in zip(report_paths, reports, report_bytes, strict=True):
         _validate_platform_report(
-            report, required_platform_systems=required_platform_systems
+            report,
+            required_platform_systems=required_platform_systems,
+            required_platform_slugs=required_platform_slugs,
         )
         envelope_path = Path(f"{path}.provenance.json")
         if not envelope_path.is_file():
@@ -453,14 +483,18 @@ def seal_platform_evidence(
         )
         envelopes.append(envelope)
 
-    systems = {report["platform"]["system"] for report in reports}
-    missing = sorted(required_platform_systems - systems)
+    identity_field = "slug" if required_platform_slugs is not None else "system"
+    identities = {report["platform"].get(identity_field) for report in reports}
+    required_identities = required_platform_slugs or required_platform_systems
+    missing = sorted(required_identities - identities)
     if missing:
         raise SpecValidationError(
-            "platform evidence is missing systems: " + ", ".join(missing)
+            f"platform evidence is missing {identity_field}s: " + ", ".join(missing)
         )
-    if len(systems) != len(reports):
-        raise SpecValidationError("platform evidence must contain exactly one report per system")
+    if len(identities) != len(reports):
+        raise SpecValidationError(
+            f"platform evidence must contain exactly one report per {identity_field}"
+        )
     run_identities = {
         (statement["producer"]["run_id"], statement["producer"]["run_attempt"])
         for statement in statements
@@ -511,7 +545,7 @@ def seal_platform_evidence(
         )
     ordered = sorted(
         zip(report_paths, reports, report_bytes, envelopes, strict=True),
-        key=lambda item: item[1]["platform"]["system"],
+        key=lambda item: item[1]["platform"].get(identity_field, ""),
     )
     evidence = {
         "schema_version": PLATFORM_EVIDENCE_VERSION,
@@ -533,6 +567,7 @@ def seal_platform_evidence(
             {
                 "system": report["platform"]["system"],
                 "machine": report["platform"]["machine"],
+                "slug": report["platform"].get("slug"),
                 "wheel_sha256": report["package"]["wheel_sha256"],
                 "native_extension_sha256": report["package"].get(
                     "native_extension_sha256"
@@ -726,7 +761,10 @@ def _relative_spread(runs: list[dict[str, Any]]) -> float:
 
 
 def _validate_platform_report(
-    report: Any, *, required_platform_systems: frozenset[str]
+    report: Any,
+    *,
+    required_platform_systems: frozenset[str],
+    required_platform_slugs: frozenset[str] | None = None,
 ) -> None:
     if not isinstance(report, dict) or report.get("schema_version") != (
         PLATFORM_BENCHMARK_VERSION
@@ -740,6 +778,16 @@ def _validate_platform_report(
         raise SpecValidationError(
             f"{system} platform evidence has unsupported machine: {machine!r}"
         )
+    if required_platform_slugs is not None:
+        platform_record = report.get("platform", {})
+        slug = platform_record.get("slug")
+        expected_slug = _platform_slug(
+            system,
+            machine,
+            wsl=platform_record.get("wsl") is True,
+        )
+        if slug != expected_slug or slug not in required_platform_slugs:
+            raise SpecValidationError(f"unsupported platform evidence slug: {slug!r}")
     mode_contract = report.get("workload", {}).get("mode_contract")
     if mode_contract not in {"binance-spot", "binance-usdtm-isolated"}:
         raise SpecValidationError("platform report has an unsupported mode contract")

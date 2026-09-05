@@ -10,6 +10,7 @@ from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.cli import build_parser
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
+from nfi_backtest_engine.legacy_reference import load_legacy_runtime_registry
 from nfi_backtest_engine.reference_runtime import (
     REFERENCE_IMAGE,
     REFERENCE_INDEX_DIGEST,
@@ -52,12 +53,19 @@ def _canonical_sha256(value: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _blocked_run(root: Path) -> tuple[dict, Path, dict]:
+def _blocked_run(
+    root: Path,
+    *,
+    family: str = "FallbackStrategy",
+    source_sha256: str = "a" * 64,
+    reference: dict | None = None,
+    storage_mode: str = "spooled",
+) -> tuple[dict, Path, dict]:
     root.mkdir()
     inputs = {
         "strategy": {
-            "class_name": "FallbackStrategy",
-            "file_sha256": "a" * 64,
+            "class_name": family,
+            "file_sha256": source_sha256,
         },
         "config": {"run_effective_sha256": "b" * 64},
         "timerange": "20250101-20250104",
@@ -96,7 +104,7 @@ def _blocked_run(root: Path) -> tuple[dict, Path, dict]:
         "schema_version": "1.4.0",
         "run_id": run_id,
         "purpose": "fallback",
-        "reference": {
+        "reference": reference or {
             "version": REFERENCE_VERSION,
             "image": REFERENCE_IMAGE,
             "image_index_digest": REFERENCE_INDEX_DIGEST,
@@ -119,7 +127,7 @@ def _blocked_run(root: Path) -> tuple[dict, Path, dict]:
                 "sha256": sha256_file(root / "data-seal.json"),
             },
         },
-        "reference_storage": {"mode": "spooled", "complete": True},
+        "reference_storage": {"mode": storage_mode, "complete": True},
         "official_trade_surface": {
             "path": str(surface_path),
             "bytes": surface_path.stat().st_size,
@@ -187,6 +195,32 @@ def test_selected_official_result_preserves_native_evidence_and_labels_lane(
         "official_fallback_report",
         "official_trade_surface",
     } <= roles
+
+
+def test_selected_legacy_result_accepts_only_exact_qualified_runtime(tmp_path: Path) -> None:
+    qualified = load_legacy_runtime_registry()["strategies"][0]
+    runtime = qualified["runtime"]
+    reference = {
+        "version": runtime["version"],
+        "image": runtime["image"],
+        "image_index_digest": runtime["image_index_digest"],
+        "image_platform_digest": runtime["image_platform_digest"],
+        "platform": runtime["platform"],
+        "network": "public-exchange-metadata",
+    }
+    root = tmp_path / "legacy-run"
+    _run, report_path, _report = _blocked_run(
+        root,
+        family=qualified["family"],
+        source_sha256=qualified["source_sha256"],
+        reference=reference,
+        storage_mode="freqtrade-native",
+    )
+
+    selection = write_official_selection(root, report_path)
+
+    assert selection["selected_lane"] == "official"
+    assert selection["native_status"] == "blocked_unsupported_semantics"
 
 
 def test_selected_result_rejects_tampered_official_surface(tmp_path: Path) -> None:

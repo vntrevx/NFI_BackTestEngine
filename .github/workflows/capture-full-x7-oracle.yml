@@ -1,0 +1,226 @@
+# yamllint disable rule:line-length
+name: Capture Full X7 Oracle
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful same-commit Build release candidate workflow run ID
+        required: true
+        type: string
+      mode:
+        description: Full X7 Oracle mode bound to the protected input configuration
+        required: true
+        type: choice
+        options:
+          - spot
+          - futures
+      certification_config:
+        description: Host path to the protected v2 certification configuration
+        required: true
+        type: string
+      output_directory:
+        description: Persistent empty host path for Oracle checkpoints and evidence
+        required: true
+        type: string
+      resume:
+        description: Resume only identity-matching checkpoints in output_directory
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: full-x7-oracle-${{ inputs.mode }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture one immutable Official Oracle
+    runs-on: [self-hosted, linux, x64, nfi-certification]
+    environment: full-x7-oracle-capture
+    timeout-minutes: 4320
+    env:
+      AWS_REGION: ${{ vars.NFI_EVIDENCE_AWS_REGION }}
+      EVIDENCE_BUCKET: ${{ vars.NFI_EVIDENCE_BUCKET }}
+    steps:
+      - name: Check out candidate source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Validate candidate run identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          WORKFLOW_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CANDIDATE_RUN_ID}")"
+          [[ "$(jq -r .name <<<"$run_json")" == "Build release candidate" ]]
+          [[ "$(jq -r .event <<<"$run_json")" == "workflow_dispatch" ]]
+          [[ "$(jq -r .conclusion <<<"$run_json")" == "success" ]]
+          [[ "$(jq -r .head_sha <<<"$run_json")" == "$WORKFLOW_COMMIT" ]] \
+            || { echo "candidate and Oracle capture commits differ" >&2; exit 1; }
+      - name: Download exact candidate bundle
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: release-bundle-${{ github.sha }}
+          path: candidate
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Install frozen candidate
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Plan input-only Oracle capture
+        env:
+          CERTIFICATION_CONFIG: ${{ inputs.certification_config }}
+          MODE: ${{ inputs.mode }}
+          OUTPUT_DIRECTORY: ${{ inputs.output_directory }}
+          RESUME: ${{ inputs.resume }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(
+            find candidate -maxdepth 1 -type f -name '*manylinux*x86_64.whl'
+          )
+          test "${#wheels[@]}" -eq 1
+          (cd candidate && sha256sum --check SHA256SUMS.txt)
+          uv venv --python 3.12 .oracle-venv
+          uv pip install --python .oracle-venv/bin/python "${wheels[0]}"
+          .oracle-venv/bin/python .github/scripts/release_candidate_contract.py \
+            --output .release-candidate-plan.json
+          cmp .release-candidate-plan.json candidate/release-candidate-plan.json
+          arguments=(
+            --contract .github/oracle-capture-contract.json
+            capture-plan
+            --config "$CERTIFICATION_CONFIG"
+            --release-candidate-plan .release-candidate-plan.json
+            --mode "$MODE"
+            --candidate-commit "$GITHUB_SHA"
+            --candidate-wheel "${wheels[0]}"
+            --output-directory "$OUTPUT_DIRECTORY"
+            --executable "$PWD/.oracle-venv/bin/nfi-bte"
+            --output .oracle-capture-plan.json
+          )
+          if [[ "$RESUME" == "true" ]]; then
+            arguments+=(--resume)
+          fi
+          .oracle-venv/bin/python \
+            .github/scripts/long_certification_contract.py "${arguments[@]}"
+      - name: Run checkpointed Oracle under the host lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          host_lock="$(jq -er .host_lock .oracle-capture-plan.json)"
+          mapfile -t arguments < <(jq -er '.command[] | strings' .oracle-capture-plan.json)
+          test "${#arguments[@]}" -gt 0
+          mkdir -p "$(dirname "$host_lock")"
+          flock --exclusive --nonblock "$host_lock" "${arguments[@]}"
+      - name: Seal Oracle record and deterministic archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          .oracle-venv/bin/python .github/scripts/long_certification_contract.py \
+            --contract .github/oracle-capture-contract.json \
+            seal-oracle \
+            --plan .oracle-capture-plan.json \
+            --output oracle-record.json
+          oracle_directory="$(jq -er .oracle.directory .oracle-capture-plan.json)"
+          parent="$(dirname "$oracle_directory")"
+          name="$(basename "$oracle_directory")"
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -C "$parent" -cf - "$name" | gzip -n > oracle.tar.gz
+      - name: Configure short-lived immutable-storage credentials
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ vars.NFI_EVIDENCE_AWS_ROLE }}
+          aws-region: ${{ vars.NFI_EVIDENCE_AWS_REGION }}
+          role-session-name: nfi-oracle-${{ github.run_id }}
+      - name: Publish Oracle bytes and record with conditional create
+        env:
+          MODE: ${{ inputs.mode }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AWS_REGION"
+          test -n "$EVIDENCE_BUCKET"
+          fingerprint="$(jq -er .input_fingerprint oracle-record.json)"
+          tree_sha256="$(jq -er .tree_sha256 oracle-record.json)"
+          archive_sha256="$(sha256sum oracle.tar.gz | cut -d' ' -f1)"
+          archive_bytes="$(stat -c '%s' oracle.tar.gz)"
+          prefix="$(jq -er .storage.object_prefix .github/oracle-capture-contract.json)"
+          encryption="$(jq -er .storage.server_side_encryption .github/oracle-capture-contract.json)"
+          archive_key="$prefix/$MODE/$fingerprint/$tree_sha256.tar.gz"
+          record_key="$prefix/$MODE/$fingerprint/oracle-record.json"
+          if aws s3api head-object --bucket "$EVIDENCE_BUCKET" --key "$archive_key" \
+            > archive-head.json 2>/dev/null; then
+            jq -e --arg sha "$archive_sha256" --argjson bytes "$archive_bytes" \
+              '.Metadata.sha256 == $sha and .ContentLength == $bytes' archive-head.json
+            archive_status="reused"
+          else
+            aws s3api put-object \
+              --bucket "$EVIDENCE_BUCKET" \
+              --key "$archive_key" \
+              --body oracle.tar.gz \
+              --metadata "sha256=$archive_sha256" \
+              --server-side-encryption "$encryption" \
+              --if-none-match '*' > archive-put.json
+            archive_status="created"
+          fi
+          if aws s3api head-object --bucket "$EVIDENCE_BUCKET" --key "$record_key" \
+            >/dev/null 2>&1; then
+            aws s3api get-object --bucket "$EVIDENCE_BUCKET" --key "$record_key" \
+              stored-oracle-record.json >/dev/null
+            cmp oracle-record.json stored-oracle-record.json
+            record_status="reused"
+          else
+            aws s3api put-object \
+              --bucket "$EVIDENCE_BUCKET" \
+              --key "$record_key" \
+              --body oracle-record.json \
+              --metadata "sha256=$(sha256sum oracle-record.json | cut -d' ' -f1)" \
+              --server-side-encryption "$encryption" \
+              --if-none-match '*' > record-put.json
+            record_status="created"
+          fi
+          jq -n \
+            --arg archive_key "$archive_key" \
+            --arg archive_sha256 "$archive_sha256" \
+            --arg archive_status "$archive_status" \
+            --arg record_key "$record_key" \
+            --arg record_status "$record_status" \
+            '{archive_key: $archive_key, archive_sha256: $archive_sha256,
+              archive_status: $archive_status, record_key: $record_key,
+              record_status: $record_status, conditional_create: true}' \
+            > immutable-storage-receipt.json
+      - name: Register immutable record in the protected local index
+        shell: bash
+        run: |
+          set -euo pipefail
+          .oracle-venv/bin/python .github/scripts/long_certification_contract.py \
+            --contract .github/oracle-capture-contract.json \
+            register-oracle \
+            --plan .oracle-capture-plan.json \
+            --output registered-oracle-record.json
+          jq -S 'del(.registration_status)' registered-oracle-record.json \
+            > registered-comparable.json
+          jq -S . oracle-record.json > sealed-comparable.json
+          cmp registered-comparable.json sealed-comparable.json
+      - name: Upload Oracle capture receipt
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: full-x7-oracle-${{ inputs.mode }}-${{ github.sha }}
+          path: |
+            .oracle-capture-plan.json
+            oracle-record.json
+            registered-oracle-record.json
+            immutable-storage-receipt.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30

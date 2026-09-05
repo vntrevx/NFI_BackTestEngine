@@ -22,7 +22,7 @@ jobs:
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             manylinux: "2_17"
-            portable_evidence: false
+            portable_evidence: true
           - os: macos-14
             target: aarch64-apple-darwin
             manylinux: "off"
@@ -108,6 +108,13 @@ jobs:
           name: wheel-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
+      - name: Upload clean-room scenario
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cleanroom-scenario
+          path: benchmarks/fixtures/captured/x7-tag121-spot-v17.4.435-2023-01-01_02
+          if-no-files-found: error
 
   sdist:
     name: Source distribution
@@ -163,9 +170,99 @@ jobs:
             --output-dir .release-check \
             --level full
 
+  cleanroom:
+    name: Clean-room installed-artifact journey
+    needs: [wheels]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux x86_64 wheel
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: wheel-x86_64-unknown-linux-gnu
+          path: dist
+      - name: Download sealed scenario
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: cleanroom-scenario
+          path: scenario
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Install only the downloaded wheel
+        run: |
+          uv venv --python 3.12 .cleanroom-venv
+          uv pip install --python .cleanroom-venv/bin/python dist/*.whl
+      - name: Run repository-independent user journey
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir audit-work
+          cd audit-work
+          ../.cleanroom-venv/bin/nfi-bte release cleanroom \
+            --fixture ../scenario/manifest.json \
+            --output-dir cleanroom-evidence \
+            --timeout 900
+      - name: Upload clean-room evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: cleanroom-evidence-linux-x86_64
+          path: audit-work/cleanroom-evidence
+          if-no-files-found: warn
+          include-hidden-files: true
+
+  wsl-platform:
+    name: Wheel windows-wsl2-x86_64
+    needs: [wheels]
+    runs-on: [self-hosted, linux, x64, wsl2, nfi-release]
+    steps:
+      - name: Check out source inside WSL2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Download Linux x86_64 wheel
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: wheel-x86_64-unknown-linux-gnu
+          path: dist
+      - name: Install wheel inside WSL2
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+      - name: Measure exact Spot and Futures fixtures inside WSL2
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv --python 3.12 .wsl-venv
+          uv pip install --python .wsl-venv/bin/python dist/*.whl
+          .wsl-venv/bin/python .github/scripts/release_candidate_contract.py \
+            --output .release-candidate-plan.json
+          wheels=(dist/*.whl)
+          runs="$(jq -er .platform_evidence.runs .release-candidate-plan.json)"
+          timeout="$(jq -er .platform_evidence.timeout_seconds .release-candidate-plan.json)"
+          while IFS=$'\t' read -r slug manifest; do
+            .wsl-venv/bin/nfi-bte platform fixture-benchmark \
+              "$manifest" \
+              --wheel "${wheels[0]}" \
+              --output-dir ".platform-evidence/$slug" \
+              --runs "$runs" \
+              --timeout "$timeout"
+          done < <(
+            jq -er '.platform_evidence.modes[] | [.slug, .manifest] | @tsv' \
+              .release-candidate-plan.json
+          )
+      - name: Upload WSL2 platform reports
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: platform-report-windows-wsl2-x86_64
+          path: .platform-evidence/*/platform-benchmark*.json
+          if-no-files-found: error
+          include-hidden-files: true
+
   provenance-prepare:
     name: Prepare platform provenance signing inputs
-    needs: [verify]
+    needs: [verify, cleanroom, wsl-platform]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -363,7 +460,7 @@ jobs:
                 -path "*/$slug/platform-benchmark.json" \
                 | LC_ALL=C sort
             )
-            test "${#mode_reports[@]}" -eq 2
+            test "${#mode_reports[@]}" -eq 4
             arguments=()
             for report in "${mode_reports[@]}"; do
               jq -e \
@@ -376,6 +473,7 @@ jobs:
             coordinator="reports/provenance-coordinator.json"
             .seal-venv/bin/nfi-bte platform seal \
               "${arguments[@]}" \
+              --platform-contract v2-slugs \
               --run-id "$(jq -er .run_id "$coordinator")" \
               --run-attempt "$(jq -er .run_attempt "$coordinator")" \
               --candidate-id "$(jq -er .candidate_id "$coordinator")" \
@@ -447,7 +545,12 @@ jobs:
              and .distribution_policy.sha256_manifest_required == true
              and .distribution_policy.required_ci_commit_match == true
              and .distribution_policy.supported_platform_exact_fixture_evidence == true
-             and .distribution_policy.supported_platform_systems == ["darwin", "linux"]
+             and .distribution_policy.pypi_project == "nfi-backtest-engine"
+             and .distribution_policy.pypi_trusted_publishing == true
+             and .distribution_policy.pypi_attestations_required == true
+             and .distribution_policy.spdx_sbom_required == true
+             and .distribution_policy.cross_channel_sha_required == true
+             and .distribution_policy.supported_platform_slugs == ["linux-aarch64", "linux-x86_64", "macos-arm64", "windows-wsl2-x86_64"]
              and .certification_boundary.prior_certificates_remain_version_bound == true' \
             .github/product-release-contract.json
           cd dist
@@ -466,6 +569,21 @@ jobs:
             cp "dist/platform/$mode/platform-evidence-bundle.zip" \
               "product-release/full-x7-$mode-platform-evidence.zip"
           done
+          distribution_arguments=()
+          for distribution in product-release/*.whl product-release/*.tar.gz; do
+            distribution_arguments+=(--distribution "$distribution")
+          done
+          python .github/scripts/release_supply_chain.py seal \
+            "${distribution_arguments[@]}" \
+            --output-dir product-release \
+            --project nfi-backtest-engine \
+            --version "$package_version" \
+            --candidate-commit "$GITHUB_SHA" \
+            --created-at "$(git show -s --format=%cI "$GITHUB_SHA")"
+          python .github/scripts/release_supply_chain.py verify \
+            --directory product-release \
+            --identity product-release/distribution-identity.json \
+            --sbom product-release/nfi-backtest-engine.spdx.json
           cd product-release
           find . -type f ! -name SHA256SUMS.txt -print0 \
             | LC_ALL=C sort -z \
@@ -483,5 +601,14 @@ jobs:
         with:
           name: product-release-bundle-${{ github.sha }}
           path: product-release/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload build-once Python distributions
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: python-distributions-${{ github.sha }}
+          path: |
+            product-release/*.whl
+            product-release/*.tar.gz
           if-no-files-found: error
           retention-days: 30
