@@ -1,0 +1,519 @@
+{
+  "schema_version": "1.3.0",
+  "selected_class": "NostalgiaForInfinityX7",
+  "old": {
+    "name": "old.py",
+    "bytes": 3514410,
+    "sha256": "70a28ef140e1233cd8318027a5cbb3cbcf47c734cd7aa59f2db8bda154e53840",
+    "commit": "8e210b1b56754f6a8f0e2233bb95ae672c9c875b"
+  },
+  "new": {
+    "name": "new.py",
+    "bytes": 3515035,
+    "sha256": "5bb94406bfa24aded0006f0d54403f0eed079342faa573632874fc0271b79352",
+    "commit": "67649888ab8c431caea972c79adb993c6b96e5ab"
+  },
+  "classification": "ir-compatible",
+  "changes": {
+    "signals": {
+      "added": [],
+      "removed": []
+    },
+    "tags": {
+      "added": [],
+      "removed": []
+    },
+    "callbacks": {
+      "added": [],
+      "removed": [],
+      "changed": [
+        "populate_entry_trend",
+        "version"
+      ],
+      "locations": {
+        "populate_entry_trend": {
+          "line": 13150,
+          "column": 2,
+          "end_line": 30979,
+          "end_column": 13
+        },
+        "version": {
+          "line": 73,
+          "column": 2,
+          "end_line": 74,
+          "end_column": 21
+        }
+      }
+    },
+    "dataframe_columns": {
+      "added": [],
+      "removed": []
+    },
+    "custom_state_keys": {
+      "added": [],
+      "removed": []
+    },
+    "grind_levels": {
+      "added": [],
+      "removed": []
+    },
+    "opcodes": {
+      "added": [],
+      "removed": []
+    },
+    "boolean_mappings": []
+  },
+  "behavior_targets": [
+    {
+      "id": "21cfe9183b052154709b80f27f4f0d5d65a4496f720a06af4278c3192019453d",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "41",
+        "562",
+        "63",
+        "65"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "value": "562",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+      "kind": "signal",
+      "change": "changed",
+      "value": "63",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+      "kind": "signal",
+      "change": "changed",
+      "value": "41",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "41"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "d7505a369eadb6d15095172be645276ba1c9cfbe78b6ed7a903754381bcb32ee",
+      "kind": "signal",
+      "change": "changed",
+      "value": "65",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "65"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "diagnostics": {
+    "old": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1084,
+          "column": 51,
+          "end_line": 1084,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1086,
+          "column": 10,
+          "end_line": 1086,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/old.py",
+          "line": 1095,
+          "column": 8,
+          "end_line": 1095,
+          "end_column": 60
+        }
+      }
+    ],
+    "new": [
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "dynamic getattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1084,
+          "column": 51,
+          "end_line": 1084,
+          "end_column": 75
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1086,
+          "column": 10,
+          "end_line": 1086,
+          "end_column": 61
+        }
+      },
+      {
+        "severity": "warning",
+        "code": "DYNAMIC_ATTRIBUTE_INIT",
+        "message": "setattr() requires effective-config freezing during preparation",
+        "location": {
+          "path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/new.py",
+          "line": 1095,
+          "column": 8,
+          "end_line": 1095,
+          "end_column": 60
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "compatibility-source-run-v1",
+  "source_run_id": "33959649170",
+  "identity": {
+    "upstream_sha": "67649888ab8c431caea972c79adb993c6b96e5ab",
+    "engine_sha": "cde8a1cedbbd660ec4621b640c4a0c30765e7d3a",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "source_sha256": "5bb94406bfa24aded0006f0d54403f0eed079342faa573632874fc0271b79352"
+  }
+}

@@ -1,0 +1,549 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "coverage-gap",
+  "targets": [
+    {
+      "id": "21cfe9183b052154709b80f27f4f0d5d65a4496f720a06af4278c3192019453d",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "41",
+        "562",
+        "63",
+        "65"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "value": "562",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+      "kind": "signal",
+      "change": "changed",
+      "value": "63",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+      "kind": "signal",
+      "change": "changed",
+      "value": "41",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "41"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "d7505a369eadb6d15095172be645276ba1c9cfbe78b6ed7a903754381bcb32ee",
+      "kind": "signal",
+      "change": "changed",
+      "value": "65",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "65"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "future-nfi-futures-9ab9960b2eef228b",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/future-nfi-futures-9ab9960b2eef228b/manifest.json",
+      "target_ids": [
+        "21cfe9183b052154709b80f27f4f0d5d65a4496f720a06af4278c3192019453d",
+        "d7505a369eadb6d15095172be645276ba1c9cfbe78b6ed7a903754381bcb32ee"
+      ]
+    },
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json",
+      "target_ids": [
+        "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47"
+      ]
+    }
+  ],
+  "missing_targets": [
+    {
+      "id": "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+      "kind": "signal",
+      "change": "changed",
+      "value": "63",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "366cf13f2de8a75e2053c390fa01152495c3cf852e2b837175f74ab961c54dd1",
+      "kind": "signal",
+      "change": "changed",
+      "value": "41",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "41"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30971,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30979,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 18109,
+            "column": 0,
+            "end_line": 18110,
+            "end_column": 97
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22155,
+            "column": 0,
+            "end_line": 22156,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22680,
+            "column": 0,
+            "end_line": 22681,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29705,
+            "column": 0,
+            "end_line": 29708,
+            "end_column": 79
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29715,
+            "column": 0,
+            "end_line": 29715,
+            "end_column": 0
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "executable": false
+}
