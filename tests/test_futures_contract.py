@@ -84,6 +84,12 @@ def test_futures_contract_requires_all_dependency_paths() -> None:
         ),
         ("x7-cooldown-futures-v17.4.435-2023-01-01_16", "long", "CooldownPeriod", None),
         ("x7-low-profit-futures-v17.4.435-2023-01-01_16", "long", "LowProfitPairs", None),
+        (
+            "x7-low-profit-integer-futures-v17.5.38-2023-01-01_16",
+            "long",
+            "LowProfitPairs",
+            None,
+        ),
         ("x7-max-drawdown-futures-v17.4.435-2023-01-01_16", "long", "MaxDrawdown", None),
     ],
 )
