@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "claim_boundary": "Branch-reaching futures fixture candidate. This is compact quick-verification evidence, not a five-year certificate.",
+  "fingerprint": "58b7a2f2d1a0b8935389844cf86d889b0590f583909268f460f9dfa9df5821e3",
+  "trading_mode": "futures",
+  "upstream_commit": "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c",
+  "engine_commit": "4ebacd16cdf1ccc331bfc01177231dcdde1f1149",
+  "strategy_sha256": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+  "fixture_id": "future-nfi-futures-58b7a2f2d1a0b893",
+  "manifest_sha256": "f3ee034de400cbbc3c919f9cbe010d056c533c0c45e762d3f99722386ae3c8ac",
+  "logical_bytes": 22175702,
+  "target_ids": [
+    "38e8c5707405a9f8541c2b942acc8690ec1324aa6127a2801898b86dba42285c"
+  ],
+  "pair": "NEO/USDT:USDT",
+  "timerange": "20240412-20240415",
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "combined_full_x7_certified": false
+}
