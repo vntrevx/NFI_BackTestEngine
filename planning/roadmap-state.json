@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 162,
-  "updated_at": "2026-09-06T07:19:39+09:00",
+  "revision": 163,
+  "updated_at": "2026-09-06T04:01:23Z",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -35,8 +35,8 @@
       },
       "M28": {
         "implementation_state": "ready_for_external_execution",
-        "commits": ["459eb4f4d", "527053c7c", "544330b5e"],
-        "remaining": ["run four target-native evidence jobs", "configure and run TestPyPI Trusted Publisher"]
+        "commits": ["459eb4f4d", "527053c7c", "544330b5e", "89634cf42"],
+        "remaining": ["configure and run TestPyPI Trusted Publisher"]
       },
       "M29": {
         "implementation_state": "ready_for_external_execution",
@@ -9567,6 +9567,47 @@
           }
         ],
         "new_official_backtests": 0,
+        "release_certified": false,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 212,
+      "timestamp": "2026-09-06T04:01:23Z",
+      "task_id": "M28-01",
+      "event": "four_platform_exact_fixture_evidence_recorded",
+      "details": {
+        "candidate_commit": "89634cf42ad2eeb1725287465fc12e5bdda78fb4",
+        "pull_request": 349,
+        "required_ci_run": 34007865438,
+        "build_run": 34008878381,
+        "build_conclusion": "success",
+        "platform_slugs": [
+          "linux-aarch64",
+          "linux-x86_64",
+          "macos-arm64",
+          "windows-wsl2-x86_64"
+        ],
+        "mode_contracts": [
+          "binance-spot",
+          "binance-usdtm-isolated"
+        ],
+        "verified_platform_reports": 8,
+        "representative_fixture_trade_surface_and_full_state_exact": true,
+        "wsl2_guest": "Ubuntu 24.04.4 LTS; 6.18.33.2-microsoft-standard-WSL2; ext4 workspace owned by root with mode 700",
+        "base_strategy_sha256": "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db",
+        "latest_prepared_source_sha256_not_certified_here": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/wsl2-linux-workspace/89634cf42ad2eeb1725287465fc12e5bdda78fb4/build-34008878381/success-receipt.json",
+            "bytes": 3931,
+            "sha256": "134fc30a168a3ebb0e739c13c79c3d2c2c6aac5be04ec516edaffd4d0815299f"
+          }
+        ],
+        "testpypi_gate_complete": false,
+        "latest_source_fixture_promoted": false,
+        "five_year_or_80_pair_claim": false,
         "release_certified": false,
         "combined_full_x7_certified": false,
         "task_status_changed": false
