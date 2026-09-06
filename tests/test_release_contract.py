@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sqlite3
+import subprocess
 import zipfile
 from contextlib import closing
 from pathlib import Path
@@ -716,8 +717,23 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert 'runtime_identity.get("wsl") is not True' in wsl_guest
     assert 'runtime_identity.get("wsl_version") != 2' in wsl_guest
     assert "guest-identity.json" in wsl_guest
+    assert "guest-workspace-filesystem.txt" in wsl_guest
+    assert "mktemp -d /tmp/nfi-wsl-platform.XXXXXX" in wsl_guest
+    assert "trap export_wsl_evidence EXIT" in wsl_guest
+    assert '"$guest_filesystem" != ext4' in wsl_guest
     assert "diagnostics.sha256" in wsl_guest
     assert wsl_guest.count("platform fixture-benchmark") == 1
+    for diagnostic in (
+        ".platform-evidence/*/warmup.stdout.log",
+        ".platform-evidence/*/warmup.stderr.log",
+        ".platform-evidence/*/warmup/run.json",
+        ".platform-evidence/*/warmup/research/run.json",
+        ".platform-evidence/*/measurements/*.stdout.log",
+        ".platform-evidence/*/measurements/*.stderr.log",
+        ".platform-evidence/*/measurements/run-*/run.json",
+        ".platform-evidence/*/measurements/run-*/research/run.json",
+    ):
+        assert diagnostic in wsl_section
     assert "--platform-contract v2-slugs" in build
     assert 'test "${#mode_reports[@]}" -eq 4' in build
     assert "needs: [verify, provenance-prepare]" in signing_section
@@ -853,6 +869,57 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "nfi-bte release audit" in audit
     assert "test \"${#run_ids[@]}\" -eq 6" in audit
     assert "ten-of-ten-audit-${{ steps.identity.outputs.sha }}" in audit
+
+
+def test_wsl_evidence_export_is_bounded_and_preserves_exit_status(tmp_path: Path) -> None:
+    script = Path(__file__).parents[1] / ".github/scripts/run_wsl2_platform.sh"
+    host = tmp_path / "host"
+    guest = tmp_path / "guest"
+    diagnostic = guest / ".platform-evidence/futures/warmup.stderr.log"
+    raw_trace = guest / ".platform-evidence/futures/warmup/research/engine-events.jsonl"
+    diagnostic.parent.mkdir(parents=True)
+    raw_trace.parent.mkdir(parents=True)
+    diagnostic.write_text("bounded failure\n", encoding="utf-8")
+    raw_trace.write_text("do not export\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; host_workspace="$2"; guest_workspace="$3"; '
+            "trap export_wsl_evidence EXIT; exit 23",
+            "wsl-export-test",
+            str(script),
+            str(host),
+            str(guest),
+        ],
+        check=False,
+    )
+
+    assert completed.returncode == 23
+    assert (
+        host / ".platform-evidence/futures/warmup.stderr.log"
+    ).read_text(encoding="utf-8") == "bounded failure\n"
+    assert not (host / raw_trace.relative_to(guest)).exists()
+
+    blocked_host = tmp_path / "not-a-directory"
+    blocked_host.write_text("blocked\n", encoding="utf-8")
+    successful_body = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; host_workspace="$2"; guest_workspace="$3"; '
+            "trap export_wsl_evidence EXIT; exit 0",
+            "wsl-export-test",
+            str(script),
+            str(blocked_host),
+            str(guest),
+        ],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    assert successful_body.returncode != 0
 
 
 def test_oracle_capture_is_a_single_run_protected_workflow() -> None:

@@ -171,7 +171,11 @@ fresh processes, extending to five above 5% spread. This `exact-fixture` lane re
 each supported-platform median and peak RSS and proves wheel portability; WSL2 uses the
 Linux ABI rather than a separate native Windows lane. Its Windows-hosted job must
 prove distribution version 2 before running the same wheel and fixture commands
-inside WSL2. Platform reports seal the guest kernel identity; WSL1 and ambiguous
+inside WSL2. Installation and execution use a private directory on the guest Linux
+filesystem, following [Microsoft's WSL filesystem guidance](https://learn.microsoft.com/en-us/windows/wsl/filesystems).
+The job exports bounded failure logs and run reports to the Windows artifact directory
+without converting a failed command into success. Platform reports seal the guest
+kernel identity; WSL1 and ambiguous
 Microsoft-kernel identities cannot satisfy the WSL2 release gate. It is not presented as the
 representative five-year speed claim. Docker-free CI validates portable resource and
 command contracts, while the release gate additionally exercises the managed container
