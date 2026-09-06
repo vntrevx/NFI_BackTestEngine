@@ -31,6 +31,7 @@ _PRODUCER_ROLE_BY_TYPE: Final = {
     "mutant_outcome": "mutation-runner",
     "portfolio_certificate": "portfolio-certificate-verifier",
     "performance_process_sample": "process-resource-meter",
+    "full_x7_performance_certificate": "full-x7-performance-certificate-verifier",
 }
 
 

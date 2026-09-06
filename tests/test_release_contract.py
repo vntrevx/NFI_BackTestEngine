@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
+import re
+import shutil
 import sqlite3
 import subprocess
+import textwrap
 import zipfile
 from contextlib import closing
 from pathlib import Path
@@ -31,6 +35,7 @@ from nfi_backtest_engine.release_contract import (
 from nfi_backtest_engine.release_gate import (
     RELEASE_CHECKSUMS_NAME,
     seal_release_gate,
+    validate_host_certificate,
     verify_release_gate,
 )
 from nfi_backtest_engine.release_provenance import candidate_distribution_identity
@@ -326,6 +331,17 @@ def _release_gate_inputs(tmp_path: Path) -> dict[str, Any]:
     )
     platform = candidate / "full-x7-futures-platform-evidence.json"
     platform.write_bytes((sealed_platform / "platform-evidence.json").read_bytes())
+    write_json(
+        candidate / "release-candidate-plan.json",
+        {
+            "schema_version": "1.0.0",
+            "platform_evidence": {"base_strategy_sha256": "1" * 64},
+            "certification_probes": {
+                "base_source_sha256": "1" * 64,
+                "upstream_commit": "d" * 40,
+            },
+        },
+    )
     candidate_assets = sorted(candidate.iterdir(), key=lambda item: item.name)
     (candidate / "SHA256SUMS.txt").write_text(
         "".join(f"{sha256_file(asset)}  {asset.name}\n" for asset in candidate_assets),
@@ -364,6 +380,141 @@ def _reseal_candidate_manifest(candidate: Path) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def _host_validation_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in inputs.items()
+        if key not in {
+            "output_directory", "native_score_evidence_path", "native_score_identity_path"
+        }
+    }
+
+
+def test_host_certificate_storage_is_not_score_or_release_authorization(tmp_path: Path) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    manifest_before = sha256_file(inputs["candidate_directory"] / "SHA256SUMS.txt")
+    inputs["native_score_evidence_path"] = None
+    inputs["native_score_identity_path"] = None
+
+    result = validate_host_certificate(**_host_validation_inputs(inputs))
+
+    assert result["release_authorized"] is False
+    assert result["combined_full_x7_certified"] is False
+    assert result["certificate_evidence_sha256"] == sha256_file(
+        inputs["certificate_evidence_path"]
+    )
+    assert not inputs["output_directory"].exists()
+    assert sha256_file(inputs["candidate_directory"] / "SHA256SUMS.txt") == manifest_before
+    with pytest.raises(SpecValidationError, match="scorecard evidence and identity are required"):
+        seal_release_gate(**inputs)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "commit",
+        "wheel",
+        "archive",
+        "candidate",
+        "strategy",
+        "upstream",
+        "plan-source",
+        "missing-plan",
+    ],
+)
+def test_host_certificate_storage_rejects_mismatched_inputs(
+    tmp_path: Path, mutation: str,
+) -> None:
+    inputs = _host_validation_inputs(_release_gate_inputs(tmp_path))
+    if mutation == "commit":
+        inputs["candidate_commit"] = "f" * 40
+    elif mutation == "wheel":
+        _release_certificate(inputs["certificate_path"], wheel_sha256="0" * 64)
+        _write_certificate_evidence(
+            inputs["certificate_evidence_path"], inputs["certificate_path"]
+        )
+    elif mutation == "archive":
+        inputs["certificate_evidence_path"].write_bytes(b"not an evidence archive")
+    elif mutation == "strategy":
+        certificate = json.loads(inputs["certificate_path"].read_text())
+        certificate["inputs"]["strategy_sha256"] = "f" * 64
+        write_json(inputs["certificate_path"], certificate)
+        _write_certificate_evidence(
+            inputs["certificate_evidence_path"], inputs["certificate_path"]
+        )
+    elif mutation == "upstream":
+        certificate = json.loads(inputs["certificate_path"].read_text())
+        certificate["claim_scope"]["upstream_commit"] = "e" * 40
+        write_json(inputs["certificate_path"], certificate)
+        _write_certificate_evidence(
+            inputs["certificate_evidence_path"], inputs["certificate_path"]
+        )
+    elif mutation == "plan-source":
+        plan_path = inputs["candidate_directory"] / "release-candidate-plan.json"
+        plan = json.loads(plan_path.read_text())
+        plan["platform_evidence"]["base_strategy_sha256"] = "f" * 64
+        plan["certification_probes"]["base_source_sha256"] = "f" * 64
+        write_json(plan_path, plan)
+        _reseal_candidate_manifest(inputs["candidate_directory"])
+    elif mutation == "missing-plan":
+        (inputs["candidate_directory"] / "release-candidate-plan.json").unlink()
+        _reseal_candidate_manifest(inputs["candidate_directory"])
+    else:
+        next(inputs["candidate_directory"].glob("*.whl")).write_bytes(b"modified wheel")
+    with pytest.raises(SpecValidationError):
+        validate_host_certificate(**inputs)
+
+
+def test_host_certificate_storage_rejects_mixed_signed_platform_workloads(
+    tmp_path: Path,
+) -> None:
+    inputs = _host_validation_inputs(_release_gate_inputs(tmp_path))
+    candidate = inputs["candidate_directory"]
+    platform_path = inputs["platform_evidence_path"]
+    document = json.loads(platform_path.read_text())
+    attestation = document["provenance"]["attestations"][-1]
+    report = attestation["report"]
+    report["workload"]["strategy_sha256"] = "f" * 64
+    report["workload"]["base_strategy_sha256"] = "f" * 64
+    mixed_report = tmp_path / "darwin-mixed.json"
+    write_json(mixed_report, report)
+    candidate_id = candidate_distribution_identity(
+        {
+            path.name: sha256_file(path)
+            for path in candidate.iterdir()
+            if path.name.endswith(".whl") or path.name.endswith(".tar.gz")
+        }
+    )
+    envelope = sign_report(
+        mixed_report,
+        run_id=1,
+        commit=RELEASE_COMMIT,
+        candidate_id=candidate_id,
+        bundle_id=document["provenance"]["bundle_id"],
+        challenge=document["provenance"]["challenge"],
+        nonce="e" * 64,
+    )
+    attestation["report"] = json.loads(mixed_report.read_text())
+    attestation["report_bytes"] = base64.b64encode(mixed_report.read_bytes()).decode("ascii")
+    attestation["envelope"] = envelope
+    write_json(platform_path, document)
+    _reseal_candidate_manifest(candidate)
+
+    with pytest.raises(SpecValidationError, match="report workloads differ"):
+        validate_host_certificate(**inputs)
+
+
+def test_legacy_release_gate_does_not_require_candidate_plan(tmp_path: Path) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    candidate = inputs["candidate_directory"]
+    (candidate / "release-candidate-plan.json").unlink()
+    _reseal_candidate_manifest(candidate)
+
+    result = seal_release_gate(**inputs)
+
+    assert result["release_certified"] is True
 
 
 def test_release_gate_binds_certificate_and_complete_asset_manifest(
@@ -420,7 +571,7 @@ def test_release_gate_durable_first_winner_publishes_exact_asset_set(
     seal_release_gate(**inputs)
 
     output = Path(inputs["output_directory"])
-    assert len([path for path in output.rglob("*") if path.is_file()]) == 8
+    assert len([path for path in output.rglob("*") if path.is_file()]) == 9
     with closing(sqlite3.connect(inputs["provenance_ledger_path"])) as connection:
         assert connection.execute(
             "SELECT attempt_id, state FROM certificate_publications"
@@ -499,7 +650,7 @@ def test_release_gate_same_owner_recovers_exact_interruption_without_residue(
 
     monkeypatch.setattr(release_gate, "_publication_checkpoint", lambda _name: None)
     seal_release_gate(**inputs)
-    assert len([path for path in output.rglob("*") if path.is_file()]) == 8
+    assert len([path for path in output.rglob("*") if path.is_file()]) == 9
     with closing(sqlite3.connect(inputs["provenance_ledger_path"])) as connection:
         assert connection.execute(
             "SELECT state FROM certificate_publications"
@@ -800,9 +951,9 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "--if-none-match '*'" in certify
     assert "full-x7-certifications" not in certify
     assert "candidate and certification commits differ" in certify
-    assert "nfi-bte release gate" in certify
-    assert "--native-score-evidence candidate/native-score/score-evidence.json" in certify
-    assert "--native-score-identity candidate/native-score/identity.json" in certify
+    assert "nfi-bte release gate" not in certify
+    assert "candidate/native-score" not in certify
+    assert certify.count("long_certification_contract.py validate-host") == 2
     assert "runs-on: [self-hosted, linux, x64, nfi-release-signer]" in promote
     assert "environment: release-publication" in promote
     assert promote.count(
@@ -979,17 +1130,21 @@ def test_oracle_capture_is_a_single_run_protected_workflow() -> None:
     assert "id-token: write" in workflow
 
 
-def test_external_certificate_and_combined_publication_reauthorize_each_write() -> None:
+def test_host_storage_revalidates_inputs_and_publication_reauthorizes_each_write() -> None:
     root = Path(__file__).parents[1] / ".github/workflows"
     certify = (root / "certify-release-candidate.yml").read_text(encoding="utf-8")
     publish = (root / "publish-release-candidate.yml").read_text(encoding="utf-8")
     promote = (root / "promote-release.yml").read_text(encoding="utf-8")
 
-    assert (
-        'release authorize-current \\\n              --operation "certification-immutable-upload:'
-        in certify
+    assert "release authorize-current" not in certify
+    assert "cmp .host-certificate-validation.json .host-upload-validation.json" in certify
+    assert '--checksum-sha256 "$bundle_checksum"' in certify
+    assert "--checksum-algorithm SHA256" in certify
+    assert certify.count("--checksum-mode ENABLED") == 3
+    assert certify.count("and .ChecksumSHA256 == $checksum") == 3
+    assert certify.index("--output .host-upload-validation.json") < certify.index(
+        "aws s3api put-object"
     )
-    assert certify.index("release authorize-current") < certify.index("aws s3api put-object")
     for operation, consequence in (
         ("combined-draft-create:", 'gh release create "$RELEASE_TAG" --draft'),
         ("combined-draft-upload:", 'gh release upload "$RELEASE_TAG" release/*'),
@@ -1005,6 +1160,28 @@ def test_external_certificate_and_combined_publication_reauthorize_each_write() 
     assert "release authorize-current" in promote[
         stable_authorization - 100 : stable_authorization
     ]
+
+
+def test_host_certification_workflow_shell_steps_parse() -> None:
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is required to validate the Linux certification workflow")
+    workflow = (
+        Path(__file__).parents[1] / ".github/workflows/certify-release-candidate.yml"
+    ).read_text(encoding="utf-8")
+    scripts = re.findall(
+        r"^        run: \|\n((?:(?:          .*|)\n)+)", workflow, re.MULTILINE
+    )
+    assert scripts and len(scripts) == workflow.count("        run: |")
+    for script in scripts:
+        result = subprocess.run(
+            [bash, "-n"],
+            input=textwrap.dedent(script),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
 
 
 def test_product_release_workflows_preserve_non_combined_boundary() -> None:
@@ -1182,6 +1359,36 @@ def _long_certification_module() -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_long_certification_validate_host_uses_real_binding_without_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _release_gate_inputs(tmp_path)
+    output = tmp_path / "host-validation.json"
+    module = _long_certification_module()
+    monkeypatch.setattr(
+        release_gate,
+        "validate_host_certificate",
+        lambda **kwargs: validate_host_certificate(**kwargs, provenance_policy=TEST_POLICY),
+    )
+    arguments = [
+        "validate-host",
+        "--candidate-dir", str(inputs["candidate_directory"]),
+        "--certificate", str(inputs["certificate_path"]),
+        "--certificate-evidence", str(inputs["certificate_evidence_path"]),
+        "--platform-evidence", str(inputs["platform_evidence_path"]),
+        "--candidate-commit", inputs["candidate_commit"],
+        "--output", str(output),
+    ]
+    assert module.main(arguments) == 0
+    report = json.loads(output.read_text())
+    assert report["release_authorized"] is False
+    before = output.read_bytes()
+    with pytest.raises(ValueError, match="must not already exist"):
+        module.main(arguments)
+    assert output.read_bytes() == before
+    assert not inputs["output_directory"].exists()
 
 
 def _release_candidate_contract_module() -> ModuleType:

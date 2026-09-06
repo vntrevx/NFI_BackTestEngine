@@ -144,7 +144,7 @@ jobs:
                | select(.slug == $slug)
                | .candidate_evidence' \
               candidate/release-candidate-plan.json
-          )
+          )"
           platform_report="candidate/$platform_relative"
           test -f "$platform_report"
           jq -e \
@@ -158,15 +158,16 @@ jobs:
             )" \
             '.release_certified == true and .mode_contract == $mode' \
             "$platform_report"
-          .certificate-venv/bin/nfi-bte release gate \
+          # Retain per-mode inputs before scoring the combined release. This is
+          # not a public promotion; the public release gate still requires score.
+          .certificate-venv/bin/python \
+            .github/scripts/long_certification_contract.py validate-host \
             --candidate-dir candidate \
             --certificate "$OUTPUT_DIRECTORY/full-x7-certification.json" \
             --certificate-evidence "$OUTPUT_DIRECTORY/full-x7-certification-bundle.zip" \
             --platform-evidence "$platform_report" \
             --candidate-commit "$CANDIDATE_COMMIT" \
-            --native-score-evidence candidate/native-score/score-evidence.json \
-            --native-score-identity candidate/native-score/identity.json \
-            --output-dir .host-gate-check
+            --output .host-certificate-validation.json
 
           mkdir host-certificate
           cp "$OUTPUT_DIRECTORY/full-x7-certification.json" host-certificate/
@@ -174,6 +175,7 @@ jobs:
           cp "$OUTPUT_DIRECTORY/bundle.json" host-certificate/
           cp "$OUTPUT_DIRECTORY/bundle-manifest.json" host-certificate/
           cp .long-certification-plan.json host-certificate/
+          cp .host-certificate-validation.json host-certificate/
 
       - name: Configure short-lived immutable-storage credentials
         uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
@@ -199,6 +201,28 @@ jobs:
           bundle="${bundles[0]}"
           bundle_sha256="$(sha256sum "$bundle" | cut -d ' ' -f 1)"
           bundle_bytes="$(stat -c '%s' "$bundle")"
+          platform_relative="$(
+            jq -er --arg slug "$MODE" \
+              '.platform_evidence.modes[] | select(.slug == $slug) | .candidate_evidence' \
+              candidate/release-candidate-plan.json
+          )"
+          .certificate-venv/bin/python \
+            .github/scripts/long_certification_contract.py validate-host \
+            --candidate-dir candidate \
+            --certificate host-certificate/full-x7-certification.json \
+            --certificate-evidence "$bundle" \
+            --platform-evidence "candidate/$platform_relative" \
+            --candidate-commit "$CANDIDATE_COMMIT" \
+            --output .host-upload-validation.json
+          cmp .host-certificate-validation.json .host-upload-validation.json
+          test "$bundle_sha256" = "$(
+            jq -er .certificate_evidence_sha256 .host-upload-validation.json
+          )"
+          bundle_checksum="$(
+            .certificate-venv/bin/python -c \
+              'import base64, sys; print(base64.b64encode(bytes.fromhex(sys.argv[1])).decode("ascii"))' \
+              "$bundle_sha256"
+          )"
           prefix="$(jq -er .storage.object_prefix .github/long-certification-contract.json)"
           encryption="$(
             jq -er .storage.server_side_encryption \
@@ -209,22 +233,23 @@ jobs:
           if aws s3api head-object \
             --bucket "$EVIDENCE_BUCKET" \
             --key "$object_key" \
+            --checksum-mode ENABLED \
             > .immutable-head.json 2>/dev/null; then
             jq -e \
               --arg sha "$bundle_sha256" \
+              --arg checksum "$bundle_checksum" \
               --argjson bytes "$bundle_bytes" \
-              '.Metadata.sha256 == $sha and .ContentLength == $bytes' \
+              '.Metadata.sha256 == $sha and .ContentLength == $bytes
+               and .ChecksumSHA256 == $checksum' \
               .immutable-head.json
             upload_status="reused"
           else
-            .certificate-venv/bin/nfi-bte release authorize-current \
-              --operation "certification-immutable-upload:$MODE:$CANDIDATE_COMMIT:$bundle_sha256" \
-              --evidence candidate/native-score/score-evidence.json \
-              --identity candidate/native-score/identity.json
             if aws s3api put-object \
               --bucket "$EVIDENCE_BUCKET" \
               --key "$object_key" \
               --body "$bundle" \
+              --checksum-algorithm SHA256 \
+              --checksum-sha256 "$bundle_checksum" \
               --metadata "sha256=$bundle_sha256" \
               --server-side-encryption "$encryption" \
               --if-none-match '*' \
@@ -234,11 +259,14 @@ jobs:
               aws s3api head-object \
                 --bucket "$EVIDENCE_BUCKET" \
                 --key "$object_key" \
+                --checksum-mode ENABLED \
                 > .immutable-head.json
               jq -e \
                 --arg sha "$bundle_sha256" \
+                --arg checksum "$bundle_checksum" \
                 --argjson bytes "$bundle_bytes" \
-                '.Metadata.sha256 == $sha and .ContentLength == $bytes' \
+                '.Metadata.sha256 == $sha and .ContentLength == $bytes
+                 and .ChecksumSHA256 == $checksum' \
                 .immutable-head.json
               upload_status="reused-after-race"
             fi
@@ -247,11 +275,14 @@ jobs:
           aws s3api head-object \
             --bucket "$EVIDENCE_BUCKET" \
             --key "$object_key" \
+            --checksum-mode ENABLED \
             > .immutable-final-head.json
           jq -e \
             --arg sha "$bundle_sha256" \
+            --arg checksum "$bundle_checksum" \
             --argjson bytes "$bundle_bytes" \
-            '.Metadata.sha256 == $sha and .ContentLength == $bytes' \
+            '.Metadata.sha256 == $sha and .ContentLength == $bytes
+             and .ChecksumSHA256 == $checksum' \
             .immutable-final-head.json
           jq -n \
             --arg provider aws-s3 \

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nfi.local/schemas/native-score-raw-evidence-v2.json",
+  "title": "Native scorecard Full X7 performance certificate evidence v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evaluator_version", "gate_id", "identity", "records"],
+  "properties": {
+    "schema_version": {"const": "2.0.0"},
+    "evaluator_version": {"const": "native-score-performance-evaluator-v2"},
+    "gate_id": {"const": "deterministic_performance_resource_proof"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "records": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/record"}
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonempty": {"type": "string", "minLength": 1},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_closure_sha256", "engine_artifact_sha256", "oracle_sha256", "scope_sha256"],
+      "properties": {
+        "source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "engine_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "oracle_sha256": {"$ref": "#/$defs/sha256"},
+        "scope_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "certificate_sha256", "wheel_sha256", "native_extension_sha256",
+        "official_reference_repetitions", "native_initial_repetitions",
+        "native_measured_repetitions", "native_maximum_repetitions",
+        "native_spread_threshold", "engine_relative_spread",
+        "preserved_vector_speedup", "determinism_met", "memory_limit_bytes",
+        "observed_peak_rss_bytes", "swap_limit_bytes",
+        "native_observed_peak_swap_bytes", "official_observed_peak_swap_bytes"
+      ],
+      "properties": {
+        "certificate_sha256": {"$ref": "#/$defs/sha256"},
+        "wheel_sha256": {"$ref": "#/$defs/sha256"},
+        "native_extension_sha256": {"$ref": "#/$defs/sha256"},
+        "official_reference_repetitions": {"type": "integer", "minimum": 1},
+        "native_initial_repetitions": {"type": "integer", "minimum": 1},
+        "native_measured_repetitions": {"type": "integer", "minimum": 1},
+        "native_maximum_repetitions": {"type": "integer", "minimum": 1},
+        "native_spread_threshold": {"type": "number", "minimum": 0},
+        "engine_relative_spread": {"type": "number", "minimum": 0},
+        "preserved_vector_speedup": {"type": "number", "minimum": 0},
+        "determinism_met": {"type": "boolean"},
+        "memory_limit_bytes": {"type": "integer", "minimum": 1},
+        "observed_peak_rss_bytes": {"type": "integer", "minimum": 0},
+        "swap_limit_bytes": {"type": "integer", "minimum": 1},
+        "native_observed_peak_swap_bytes": {"type": "integer", "minimum": 0},
+        "official_observed_peak_swap_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version", "gate_id", "record_id", "record_type",
+        "source_identity_sha256", "candidate_identity_sha256", "mode_contract",
+        "platform", "workload_sha256", "run_id", "nonce", "source_artifact", "payload"
+      ],
+      "properties": {
+        "schema_version": {"const": "2.0.0"},
+        "gate_id": {"const": "deterministic_performance_resource_proof"},
+        "record_id": {"$ref": "#/$defs/nonempty"},
+        "record_type": {"const": "full_x7_performance_certificate"},
+        "source_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_identity_sha256": {"$ref": "#/$defs/sha256"},
+        "mode_contract": {"enum": ["binance-spot", "binance-usdtm-isolated"]},
+        "platform": {"const": "linux"},
+        "workload_sha256": {"$ref": "#/$defs/sha256"},
+        "run_id": {"$ref": "#/$defs/nonempty"},
+        "nonce": {"$ref": "#/$defs/sha256"},
+        "source_artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {"path": {"$ref": "#/$defs/nonempty"}, "sha256": {"$ref": "#/$defs/sha256"}}
+        },
+        "payload": {"$ref": "#/$defs/payload"}
+      }
+    }
+  }
+}

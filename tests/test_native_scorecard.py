@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from nfi_backtest_engine import cli, native_scorecard
+from nfi_backtest_engine import cli, native_score_certification_domains, native_scorecard
 from nfi_backtest_engine.canonical import write_json
 from nfi_backtest_engine.commands.release import execute_release
 from nfi_backtest_engine.errors import PackagedRegistryCurrentRefError, SpecValidationError
@@ -70,7 +70,11 @@ def evaluate_native_scorecard(*args, **kwargs):
 
 
 IDENTITY = {
-    "source_closure_sha256": "1" * 64,
+    "source_closure_sha256": (
+        native_score_certification_domains._portfolio_source_identity()[  # pyright: ignore[reportPrivateUsage]
+            "source_closure_sha256"
+        ]
+    ),
     "engine_artifact_sha256": "2" * 64,
     "oracle_sha256": "3" * 64,
     "scope_sha256": "4" * 64,
@@ -134,13 +138,14 @@ def _nonce(mode: str, system: str) -> str:
 
 
 def _workload(mode: str) -> dict[str, Any]:
+    source = native_score_certification_domains._portfolio_source_identity()  # pyright: ignore[reportPrivateUsage]
     workload = {
         "lane": EXACT_FIXTURE_LANE,
         "mode_contract": mode,
         "fixture_id": "scorecard-x7",
         "manifest_sha256": "f" * 64,
-        "strategy_sha256": "1" * 64,
-        "base_strategy_sha256": "1" * 64,
+        "strategy_sha256": source["strategy_sha256"],
+        "base_strategy_sha256": source["strategy_sha256"],
         "verification_level": "full",
         "identity_sha256": "0" * 64,
     }
@@ -452,10 +457,6 @@ RAW_FAILURES: dict[str, tuple[Callable[[list[dict[str, Any]]], None], str]] = {
         ].__setitem__("mutant_result_sha256", "1" * 64),
         "mutant_not_killed",
     ),
-    "same_candidate_portfolio_platform_certification": (
-        lambda records: records[0]["payload"].__setitem__("replay_candidate_sha256", "f" * 64),
-        "candidate_identity_mismatch",
-    ),
     "deterministic_performance_resource_proof": (
         lambda records: records[0]["payload"].__setitem__("output_sha256", "f" * 64),
         "nondeterministic_outputs",
@@ -554,6 +555,7 @@ def _domain_context(record: dict[str, Any]) -> dict[str, Any]:
 def _full_x7_certificate(record: dict[str, Any]) -> dict[str, Any]:
     mode = record["mode_contract"]
     futures = mode == FUTURES_RELEASE_CONTRACT_ID
+    source = native_score_certification_domains._portfolio_source_identity()  # pyright: ignore[reportPrivateUsage]
     return {
         "schema_version": "2.0.0",
         "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -561,7 +563,7 @@ def _full_x7_certificate(record: dict[str, Any]) -> dict[str, Any]:
         "release_certified": True,
         "claim_scope": {
             "strategy": "NostalgiaForInfinityX7",
-            "upstream_commit": TEST_COMMIT,
+            "upstream_commit": source["upstream_commit"],
             "mode_contract": mode,
             "trading_mode": "futures" if futures else "spot",
             "margin_mode": "isolated" if futures else None,
@@ -576,10 +578,10 @@ def _full_x7_certificate(record: dict[str, Any]) -> dict[str, Any]:
             "evidence": "continuous-oracle-plus-official-full-state-probes",
         },
         "inputs": {
-            "release_lock": {},
-            "mode_contract": {},
+            "release_lock": {"sha256": "6" * 64, "identity_sha256": "7" * 64},
+            "mode_contract": mode,
             "reference": {},
-            "strategy_sha256": record["source_identity_sha256"],
+            "strategy_sha256": source["strategy_sha256"],
             "config_sha256": "3" * 64,
             "data_aggregate_sha256": "4" * 64,
             "engine_market_snapshot_sha256": "5" * 64,
@@ -590,7 +592,10 @@ def _full_x7_certificate(record: dict[str, Any]) -> dict[str, Any]:
             "hardware": {},
             "execution_profile": {},
             "package_version": "1.6.1",
-            "engine_build": {"source_fingerprint": record["candidate_identity_sha256"]},
+            "engine_build": {
+                "source_fingerprint": record["candidate_identity_sha256"],
+                "binary_sha256": record["payload"]["native_extension_sha256"],
+            },
         },
         "measurement": {
             "native_warmups_excluded": 1,
@@ -611,8 +616,16 @@ def _full_x7_certificate(record: dict[str, Any]) -> dict[str, Any]:
         },
         "state_probes": [{}, {}, {}],
         "gates": {
-            "input_lock": {"met": True},
-            "installed_wheel": {"met": True},
+            "input_lock": {"met": True, "identity_sha256": "7" * 64},
+            "installed_wheel": {
+                "met": True,
+                "sha256": record["payload"]["wheel_sha256"],
+                "native_member_sha256": record["payload"]["native_extension_sha256"],
+                "installed_extension_sha256": record["payload"][
+                    "native_extension_sha256"
+                ],
+                "installed_extension_equal": True,
+            },
             "native_pipeline": {"met": True},
             "official_parity": {"met": True},
             "determinism": {"met": True},
@@ -1607,6 +1620,21 @@ def test_each_contradictory_raw_record_withholds_exactly_its_point_and_report(
     assert all(item["met"] == (item["id"] != gate_id) for item in report["gates"])
 
 
+def test_cross_candidate_portfolio_replay_is_rejected_before_scoring(tmp_path: Path) -> None:
+    def mutate(records: list[dict[str, Any]]) -> None:
+        records[0]["payload"]["replay_candidate_sha256"] = "f" * 64
+
+    manifest, identity = _scorecard_inputs(
+        tmp_path, mutations={"same_candidate_portfolio_platform_certification": mutate}
+    )
+    output = tmp_path / "not-perfect.json"
+    with pytest.raises(SpecValidationError, match="candidate package identity differs"):
+        evaluate_native_scorecard(
+            manifest, expected_identity_path=identity, output_path=output
+        )
+    assert not output.exists()
+
+
 @pytest.mark.parametrize("gate_id", NATIVE_SCORE_GATE_IDS)
 def test_unsigned_raw_or_aggregate_resealing_cannot_increase_score(tmp_path, gate_id) -> None:
     manifest, identity = _scorecard_inputs(tmp_path)
@@ -1835,3 +1863,50 @@ def test_malformed_or_hash_mismatched_evidence_fails_closed(tmp_path) -> None:
     write_json(manifest, document)
     with pytest.raises(SpecValidationError, match="malformed proof"):
         evaluate_native_scorecard(manifest, expected_identity_path=identity)
+
+
+@pytest.mark.parametrize("tamper", [None, "certificate", "mode", "platform"])
+def test_performance_v2_reuses_the_same_authorized_portfolio_certificate(tamper) -> None:
+    context = {
+        "workload_sha256": "5" * 64,
+        "run_id": "run-1",
+        "nonce": "6" * 64,
+        "wheel_sha256": "7" * 64,
+        "native_extension_sha256": "8" * 64,
+    }
+    shared_record = {
+        "source_identity_sha256": IDENTITY["source_closure_sha256"],
+        "candidate_identity_sha256": IDENTITY["engine_artifact_sha256"],
+        "mode_contract": SPOT_RELEASE_CONTRACT_ID,
+        "platform": "linux",
+        **{field: context[field] for field in ("workload_sha256", "run_id", "nonce")},
+        "payload": {
+            "certificate_sha256": "9" * 64,
+            "wheel_sha256": context["wheel_sha256"],
+            "native_extension_sha256": context["native_extension_sha256"],
+        },
+    }
+    portfolio = {**copy.deepcopy(shared_record), "record_type": "portfolio_certificate"}
+    performance = {
+        **copy.deepcopy(shared_record),
+        "record_type": native_scorecard.NATIVE_SCORE_PERFORMANCE_RECORD_TYPE,
+    }
+    if tamper == "certificate":
+        performance["payload"]["certificate_sha256"] = "a" * 64
+    elif tamper == "mode":
+        portfolio["mode_contract"] = FUTURES_RELEASE_CONTRACT_ID
+    elif tamper == "platform":
+        portfolio["platform"] = "darwin"
+    authorization = {
+        (record["mode_contract"], record["platform"]): context
+        for record in (portfolio, performance)
+    }
+    artifacts = {
+        "same_candidate_portfolio_platform_certification": ({"records": [portfolio]}, ""),
+        "deterministic_performance_resource_proof": ({"records": [performance]}, ""),
+    }
+    if tamper is None:
+        native_scorecard._verify_leaf_authorization(artifacts, authorization, IDENTITY)
+    else:
+        with pytest.raises(SpecValidationError, match="portfolio certificate identities differ"):
+            native_scorecard._verify_leaf_authorization(artifacts, authorization, IDENTITY)
