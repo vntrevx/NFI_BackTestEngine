@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 163,
-  "updated_at": "2026-09-06T04:01:23Z",
+  "revision": 164,
+  "updated_at": "2026-09-06T11:32:04Z",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -39,9 +39,9 @@
         "remaining": ["configure and run TestPyPI Trusted Publisher"]
       },
       "M29": {
-        "implementation_state": "ready_for_external_execution",
+        "implementation_state": "integration_gap_identified",
         "commits": ["5e64b0b04", "544330b5e"],
-        "remaining": ["freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
+        "remaining": ["resolve native-score production-evidence integration and certificate ordering; preserve unique checks and reconcile performance criteria with the product contract before implementation", "configure protected certification runner and immutable evidence storage", "freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
       },
       "M30": {
         "implementation_state": "ready_for_external_execution",
@@ -9609,6 +9609,95 @@
         "latest_source_fixture_promoted": false,
         "five_year_or_80_pair_claim": false,
         "release_certified": false,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 213,
+      "timestamp": "2026-09-06T11:03:44Z",
+      "task_id": "M28-01",
+      "event": "frozen_source_four_platform_candidate_verified",
+      "details": {
+        "candidate_commit": "d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb",
+        "pull_request": 352,
+        "required_ci_run": 34018272445,
+        "post_merge_ci_run": 34019274897,
+        "build_run": 34019400418,
+        "build_conclusion": "success",
+        "base_strategy_sha256": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+        "verified_platform_reports": 8,
+        "verified_distribution_checksums": 15,
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/latest-x7-promotion/d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb/build-34019400418/success-receipt.json",
+            "bytes": 7782,
+            "sha256": "9aebb810b312a8736ba0110136b6c6dbd318972ea3059700878294b50042c32d"
+          }
+        ],
+        "five_year_or_80_pair_claim": false,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 214,
+      "timestamp": "2026-09-06T11:03:44Z",
+      "task_id": "M29-02",
+      "event": "native_score_integration_gap_recorded",
+      "details": {
+        "candidate_commit": "d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb",
+        "implementation_snapshot_corrected": true,
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/latest-x7-promotion/d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb/native-score-integration-audit.json",
+            "bytes": 9676,
+            "sha256": "1e0494d69f4350da24e1dc01f3c16556966d914059bd62e0081dfc1b86cde6df"
+          }
+        ],
+        "release_gates_weakened": false,
+        "new_long_oracle_runs": 0,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 215,
+      "timestamp": "2026-09-06T11:09:39Z",
+      "task_id": "M24-03",
+      "event": "futures_signal103_local_transition_qualification_recorded",
+      "details": {
+        "candidate_commit": "d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb",
+        "target_id": "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006",
+        "candidate_and_immediate_baseline_full_parity": true,
+        "projected_state_events_per_fixture": 864,
+        "transition_coverage_complete": true,
+        "local_futures_qualification": "quick_verified",
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/M24-03/d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb/futures-signal103-people-transition-proof.json",
+            "bytes": 2860,
+            "sha256": "f08c44041965656bc2a77a642ecb6e038d6d036f50b1e84847dae4040d899741"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M24-03/d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb/futures-signal103-people-qualification.json",
+            "bytes": 340,
+            "sha256": "bbf47bbb3c07fcf02709b1cffd932caa69a8042cc3919c2eae79f16bd1ca65f4"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/M24-03/d22aec2f6c70b9b9765a61a5b804ecdb6a711cbb/futures103-upstream-boundary.json",
+            "bytes": 1175,
+            "sha256": "6eeaae18ffff1b0b8a72e407f7bc74a0b631535bca0b9791e9170eb540e36e72"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/latest-x7-promotion/local-validation/futures103-closure-pytest.xml",
+            "bytes": 336212,
+            "sha256": "428701f97ed4d2a0f0703edaa7346a057273428a2b60be499349de460d5981de"
+          }
+        ],
+        "frozen_source_is_not_latest_upstream": true,
+        "remaining": ["fixture Required CI and review", "merged-fixture dual-mode compatibility and issue reconciliation"],
+        "issue_closed": false,
         "combined_full_x7_certified": false,
         "task_status_changed": false
       }
