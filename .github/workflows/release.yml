@@ -296,6 +296,14 @@ jobs:
           name: platform-report-windows-wsl2-x86_64
           path: |
             .platform-evidence/*/platform-benchmark*.json
+            .platform-evidence/*/warmup.stdout.log
+            .platform-evidence/*/warmup.stderr.log
+            .platform-evidence/*/warmup/run.json
+            .platform-evidence/*/warmup/research/run.json
+            .platform-evidence/*/measurements/*.stdout.log
+            .platform-evidence/*/measurements/*.stderr.log
+            .platform-evidence/*/measurements/run-*/run.json
+            .platform-evidence/*/measurements/run-*/research/run.json
             .platform-evidence/wsl-host/*
           if-no-files-found: error
           include-hidden-files: true
