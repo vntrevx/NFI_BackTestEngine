@@ -2,6 +2,63 @@
 
 use super::*;
 
+fn open_futures_trade(side: TradeSide) -> (PairSeries, crate::portfolio::OpenTrade) {
+    let mut portfolio = config(1);
+    portfolio.is_futures = true;
+    let mut entry = candle(1, 100.0, 100.0);
+    let signal = EntrySignal {
+        tag: None,
+        leverage: None,
+        liquidation_price: None,
+    };
+    if side == TradeSide::Short {
+        entry.enter_short = Some(signal);
+    } else {
+        entry.enter_long = Some(signal);
+    }
+    let pair = PairSeries {
+        pair: "AAA/USDT:USDT".to_owned(),
+        execution_start_index: 0,
+        amount_step: None,
+        price_step: None,
+        price_steps: Vec::new(),
+        minimum_stake: None,
+        minimum_amount: None,
+        minimum_cost: None,
+        feature_columns: BTreeMap::new(),
+        candles: vec![entry].into(),
+    };
+    let trade = {
+        let entry_candle = pair.candles.get(0).expect("entry candle");
+        let signal = if side == TradeSide::Short {
+            entry_candle.enter_short.as_ref()
+        } else {
+            entry_candle.enter_long.as_ref()
+        }
+        .expect("entry signal");
+        enter_trade(
+            EntryRequest {
+                pair_index: 0,
+                pair: &pair,
+                candle: &entry_candle,
+                side,
+                signal,
+                stake: EntryStake {
+                    proposed: 100.0,
+                    maximum: 1_000.0,
+                },
+                open_trades: &[],
+                id: 1,
+                order_id: 1,
+            },
+            &portfolio,
+        )
+        .expect("valid entry")
+        .expect("sized entry")
+    };
+    (pair, trade)
+}
+
 #[test]
 fn leveraged_short_uses_side_specific_orders_and_funding() {
     let mut entry = candle(1, 100.0, 99.0);
@@ -318,6 +375,97 @@ fn computed_isolated_liquidation_matches_binance_long_and_short_formula() {
         // precision frozen when the position opened.
         assert_eq!(round_step(expected, 0.01), Ok(trade.close_rate));
         assert_eq!(trade.liquidation_price, Some(expected));
+    }
+}
+
+#[test]
+fn finite_negative_isolated_liquidation_clamps_to_inactive_zero() {
+    let pair_name = "AAA/USDT:USDT";
+    let mut portfolio = config(1);
+    portfolio.is_futures = true;
+    portfolio.leverage = Some(3.0);
+    portfolio.stoploss_ratio = -0.99;
+    portfolio.liquidation_model = Some(isolated_model(
+        pair_name,
+        vec![leverage_tier(0.0, None, 20.0, 0.005, 1_000.0)],
+    ));
+    let mut entry = candle(1, 100.0, 100.0);
+    entry.enter_long = Some(EntrySignal {
+        tag: None,
+        leverage: None,
+        liquidation_price: None,
+    });
+    let mut exit = candle(2, 100.0, 100.0);
+    exit.exit_long = Some(ExitSignal {
+        reason: "done".to_owned(),
+    });
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: portfolio,
+        pairs: vec![PairSeries {
+            pair: pair_name.to_owned(),
+            execution_start_index: 0,
+            amount_step: None,
+            price_step: None,
+            price_steps: Vec::new(),
+            minimum_stake: None,
+            minimum_amount: None,
+            minimum_cost: None,
+            feature_columns: BTreeMap::new(),
+            candles: vec![entry, exit].into(),
+        }],
+    };
+
+    let result = simulate(&input).expect("finite negative liquidation clamps to zero");
+    let trade = &result.trades[0];
+    let unclamped = buffered_liquidation_price(
+        TradeSide::Long,
+        trade.stake_amount,
+        trade.amount,
+        trade.open_rate,
+        0.005,
+        1_000.0,
+        0.05,
+    );
+
+    assert!(unclamped.is_finite() && unclamped < 0.0);
+    assert_eq!(trade.liquidation_price, Some(0.0));
+    assert_eq!(trade.exit_reason, "done");
+}
+
+#[test]
+fn zero_liquidation_is_inactive_for_both_trade_sides() {
+    for side in [TradeSide::Long, TradeSide::Short] {
+        let (pair, mut trade) = open_futures_trade(side);
+        let entry_candle = pair.candles.get(0).expect("entry candle");
+        trade.liquidation_price = Some(0.0);
+
+        assert!(!crate::execution::liquidation_reached(
+            &trade,
+            &entry_candle
+        ));
+    }
+}
+
+#[test]
+fn non_finite_buffered_liquidation_is_rejected_before_clamping() {
+    let pair_name = "AAA/USDT:USDT";
+    for buffer in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let (_, mut trade) = open_futures_trade(TradeSide::Long);
+        let mut portfolio = config(1);
+        portfolio.is_futures = true;
+        let mut model = isolated_model(pair_name, vec![leverage_tier(0.0, None, 20.0, 0.005, 0.0)]);
+        model.buffer = buffer;
+        portfolio.liquidation_model = Some(model);
+
+        assert_eq!(
+            crate::futures::update_isolated_liquidation_price(&mut trade, &portfolio, 1),
+            Err(SimError::InvalidLiquidationPrice {
+                pair: pair_name.to_owned(),
+                timestamp_ms: 1,
+            })
+        );
+        assert_eq!(trade.liquidation_price, None);
     }
 }
 

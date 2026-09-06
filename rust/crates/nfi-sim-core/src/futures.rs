@@ -126,15 +126,16 @@ pub(super) fn update_isolated_liquidation_price(
         raw_price - buffer_amount
     } else {
         raw_price + buffer_amount
-    }
-    .max(0.0);
-    if !buffered.is_finite() || buffered <= 0.0 {
+    };
+    // Reject non-finite arithmetic before `f64::max`, which would otherwise
+    // turn a NaN into the finite clamp operand and conceal the invalid value.
+    if !buffered.is_finite() {
         return Err(SimError::InvalidLiquidationPrice {
             pair: trade.pair.clone(),
             timestamp_ms,
         });
     }
-    trade.liquidation_price = Some(buffered);
+    trade.liquidation_price = Some(buffered.max(0.0));
     Ok(())
 }
 
