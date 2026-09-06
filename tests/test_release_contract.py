@@ -687,7 +687,29 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
         build.index("  provenance-assemble:"):build.index("  platform-evidence:")
     ]
     assert "needs: [verify, cleanroom, wsl-platform]" in prepare_section
-    assert "runs-on: [self-hosted, linux, x64, wsl2, nfi-release]" in build
+    wsl_section = build[build.index("  wsl-platform:"):build.index("  provenance-prepare:")]
+    assert "runs-on: windows-2025" in wsl_section
+    assert "runs-on: [self-hosted" not in wsl_section
+    assert "timeout-minutes: 120" in wsl_section
+    assert "wsl.exe --install --distribution Ubuntu-24.04 --no-launch" in wsl_section
+    assert "wsl.exe --set-default-version 2" in wsl_section
+    assert "wsl.exe --set-version Ubuntu-24.04 2" in wsl_section
+    assert "wsl.exe --list --verbose" in wsl_section
+    assert "Ubuntu-24\\.04\\s+\\S+\\s+2" in wsl_section
+    assert "--cd \"$env:GITHUB_WORKSPACE\" --exec bash" in wsl_section
+    assert "run_wsl2_platform.sh" in wsl_section
+    assert ".platform-evidence/wsl-host/*" in wsl_section
+    assert "if: always()" in wsl_section
+    assert "astral-sh/setup-uv" not in wsl_section
+    wsl_guest = (root / ".github/scripts/run_wsl2_platform.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "current_execution_platform_identity" in wsl_guest
+    assert 'runtime_identity.get("wsl") is not True' in wsl_guest
+    assert 'runtime_identity.get("wsl_version") != 2' in wsl_guest
+    assert "guest-identity.json" in wsl_guest
+    assert "diagnostics.sha256" in wsl_guest
+    assert wsl_guest.count("platform fixture-benchmark") == 1
     assert "--platform-contract v2-slugs" in build
     assert 'test "${#mode_reports[@]}" -eq 4' in build
     assert "needs: [verify, provenance-prepare]" in signing_section

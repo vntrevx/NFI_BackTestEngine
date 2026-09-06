@@ -287,7 +287,11 @@ def _platform_evidence(
                 "slug": platform_slug,
                 "system": system,
                 "machine": machine,
+                "kernel_release": (
+                    "6.6.87.2-microsoft-standard-WSL2" if wsl else "6.8.0-generic"
+                ),
                 "wsl": wsl,
+                "wsl_version": 2 if wsl else None,
             },
             "package": {
                 "version": "1.0.0",

@@ -75,12 +75,43 @@ def test_direct_engine_entrypoints_reject_native_windows_before_engine_work(
     assert str(run_error.value) == NATIVE_WINDOWS_UNSUPPORTED_MESSAGE
 
 
-def test_execution_platform_accepts_linux_abi_including_wsl2(
+@pytest.mark.parametrize(
+    "kernel_release",
+    [
+        "6.8.0-79-generic",
+        "4.19.128-microsoft-standard",
+        "5.15.153.1-microsoft-standard-WSL2",
+        "6.6.87.2-microsoft-standard-WSL2",
+    ],
+)
+def test_execution_platform_accepts_linux_abi_and_genuine_wsl2(
     monkeypatch: pytest.MonkeyPatch,
+    kernel_release: str,
 ) -> None:
     monkeypatch.setattr(execution_platform.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(execution_platform.platform, "release", lambda: kernel_release)
 
     execution_platform.require_supported_execution_platform()
+
+
+@pytest.mark.parametrize(
+    "kernel_release",
+    [
+        "4.4.0-19041-Microsoft",
+        "5.15.90.1-microsoft-custom",
+        "5.15.90.1-microsoft-standard-WSL20",
+        "not-a-version-microsoft-standard",
+    ],
+)
+def test_execution_platform_rejects_wsl1_or_unknown_microsoft_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+    kernel_release: str,
+) -> None:
+    monkeypatch.setattr(execution_platform.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(execution_platform.platform, "release", lambda: kernel_release)
+
+    with pytest.raises(BenchmarkError, match="WSL2"):
+        execution_platform.require_supported_execution_platform()
 
 
 def test_build_engine_uses_native_only_when_checkout_source_matches(
