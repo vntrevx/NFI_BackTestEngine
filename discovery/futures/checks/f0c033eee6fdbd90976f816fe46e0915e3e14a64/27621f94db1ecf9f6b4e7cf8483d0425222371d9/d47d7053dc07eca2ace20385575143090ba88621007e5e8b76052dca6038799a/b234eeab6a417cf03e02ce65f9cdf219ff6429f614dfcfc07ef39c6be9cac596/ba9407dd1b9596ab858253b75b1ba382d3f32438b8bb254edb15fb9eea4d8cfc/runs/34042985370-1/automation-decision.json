@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "f0c033eee6fdbd90976f816fe46e0915e3e14a64",
+    "engine_sha": "27621f94db1ecf9f6b4e7cf8483d0425222371d9",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "376c515fd233ade3c7972907b09e7da51bac7490c623c5744f6d812dda8fbd20"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "official_only",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": "no_gap",
+  "added_opcodes": [],
+  "behavior_targets": [],
+  "blockers": [
+    {
+      "code": "BASELINE_ONLY",
+      "message": "no upstream behavior difference was available to qualify"
+    },
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "e35e5a868b0059884f0126736aacd4e75b7c9cf45322f8366fb1d44cb3fb1e5c",
+  "decision_fingerprint": "e33486beffcf3ddfc9b39651cbd9345fc609a1dd5d311eb030a4336ace0490c6",
+  "message": "Native exactness is unproven; use the announced official fallback."
+}
