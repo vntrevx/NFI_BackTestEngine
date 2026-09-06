@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 167,
-  "updated_at": "2026-09-06T15:43:16Z",
+  "revision": 168,
+  "updated_at": "2026-09-06T17:33:28Z",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -16,7 +16,7 @@
   "implementation_snapshot": {
     "captured_at": "2026-09-06",
     "formal_active_gate": "M24-03",
-    "status_note": "After stopping the 10/10 workstream, the user authorized a non-combined v1.15.0 GitHub product release once automated CI passes. Installed-artifact, platform and distribution-integrity checks remain required. Deferred certification work and formal task statuses are preserved, not completed or authorized to resume; publication success must be recorded separately.",
+    "status_note": "The non-combined v1.15.0 GitHub product release is published at commit 23b041a1f9e0e697ba2b072242d0c5154c4708e1. Same-commit Required CI, build, four-platform exact fixtures, clean-room journey, byte-identical RC/stable promotion and post-release installer checks passed. PyPI remains planned. The 10/10 workstream remains stopped; deferred certification work and formal task statuses are preserved for a new user request, not marked complete.",
     "milestones": {
       "M25": {
         "implementation_state": "complete",
@@ -9788,6 +9788,44 @@
         "historical_evidence_preserved": true,
         "task_status_changed": false,
         "public_release_created": false,
+        "combined_full_x7_certified": false,
+        "ten_of_ten_complete": false
+      }
+    },
+    {
+      "sequence": 219,
+      "timestamp": "2026-09-06T17:33:28Z",
+      "task_id": "M29-02",
+      "event": "non_combined_v1_15_0_product_release_published",
+      "details": {
+        "release_url": "https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.15.0",
+        "candidate_tag": "v1.15.0-rc.1",
+        "stable_tag": "v1.15.0",
+        "release_commit": "23b041a1f9e0e697ba2b072242d0c5154c4708e1",
+        "published_at": "2026-09-06T17:32:21Z",
+        "implementation_pull_request": 356,
+        "pr_required_ci_run": 34045314972,
+        "same_commit_required_ci_run": 34046800273,
+        "candidate_build_run": 34046801945,
+        "rc_publish_run": 34048810578,
+        "stable_promote_run": 34048891055,
+        "workflow_conclusions": "all success",
+        "rc_stable_identical_asset_count": 13,
+        "four_platform_exact_fixtures_passed": true,
+        "cleanroom_journey_passed": true,
+        "post_release_installer_checks_passed": true,
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/v1.15.0-product-release/published-release-receipt.json",
+            "bytes": 6516,
+            "sha256": "6562bec4cf7ae94b60e81dc28c5965f72d0790eea3a3a92f353fb5bcb30836d4"
+          }
+        ],
+        "public_release_created": true,
+        "pypi_status": "planned",
+        "pypi_publication_attempted": false,
+        "task_status_changed": false,
+        "certification_work_remains_deferred": true,
         "combined_full_x7_certified": false,
         "ten_of_ten_complete": false
       }
