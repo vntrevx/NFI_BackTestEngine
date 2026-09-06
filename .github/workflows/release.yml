@@ -208,8 +208,13 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: cleanroom-evidence-linux-x86_64
-          path: audit-work/cleanroom-evidence
-          if-no-files-found: warn
+          path: |
+            audit-work/cleanroom-evidence/cleanroom-report.json
+            audit-work/cleanroom-evidence/workspace/.nfi/project.json
+            audit-work/cleanroom-evidence/workspace/.nfi/run/run.json
+            audit-work/cleanroom-evidence/workspace/.nfi/run/report.md
+            audit-work/cleanroom-evidence/workspace/.nfi/clean-audit.json
+          if-no-files-found: error
           include-hidden-files: true
 
   wsl-platform:

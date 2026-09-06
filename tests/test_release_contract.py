@@ -646,6 +646,29 @@ def test_release_gate_rejects_portable_package_identity_drift(
         seal_release_gate(**inputs)
 
 
+def test_cleanroom_upload_retains_only_report_bound_artifacts() -> None:
+    root = Path(__file__).parents[1]
+    workflow = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    cleanroom = workflow[workflow.index("  cleanroom:"):workflow.index("  wsl-platform:")]
+    upload = cleanroom[cleanroom.index("      - name: Upload clean-room evidence"):]
+    path_block = upload.split("          path: |\n", 1)[1].split(
+        "          if-no-files-found:", 1
+    )[0]
+    selected = {line.strip() for line in path_block.splitlines() if line.strip()}
+
+    assert selected == {
+        "audit-work/cleanroom-evidence/cleanroom-report.json",
+        "audit-work/cleanroom-evidence/workspace/.nfi/project.json",
+        "audit-work/cleanroom-evidence/workspace/.nfi/run/run.json",
+        "audit-work/cleanroom-evidence/workspace/.nfi/run/report.md",
+        "audit-work/cleanroom-evidence/workspace/.nfi/clean-audit.json",
+    }
+    assert "          if-no-files-found: error" in upload
+    assert "          include-hidden-files: true" in upload
+    assert "audit-work/cleanroom-evidence/workspace/.nfi/cache" not in upload
+    assert "audit-work/cleanroom-evidence/workspace/.nfi/run/**" not in upload
+
+
 def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     root = Path(__file__).parents[1]
     build = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
