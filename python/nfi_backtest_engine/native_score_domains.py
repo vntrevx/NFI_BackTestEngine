@@ -7,6 +7,7 @@ from typing import Any
 
 from .errors import SpecValidationError
 from .native_score_certification_domains import (
+    PERFORMANCE_CERTIFICATE_RECORD_TYPE,
     PROCESS_EVIDENCE_VERSION,
     REPLAY_EVIDENCE_VERSION,
     validate_certification_input,
@@ -46,11 +47,16 @@ def validate_domain_input(
     verification_clock: VerificationClockPolicy,
 ) -> None:
     """Reject opaque files and validate one domain document against its signed leaf."""
-    if record["record_type"] != "portfolio_certificate" or field != "certificate_sha256":
+    certificate_record = record["record_type"] in {
+        "portfolio_certificate",
+        PERFORMANCE_CERTIFICATE_RECORD_TYPE,
+    }
+    if not certificate_record or field != "certificate_sha256":
         validate_schema(document, NATIVE_SCORE_DOMAIN_EVIDENCE_SCHEMA)
     if record["record_type"] in {
         "portfolio_certificate",
         "performance_process_sample",
+        PERFORMANCE_CERTIFICATE_RECORD_TYPE,
     }:
         validate_certification_input(
             document,

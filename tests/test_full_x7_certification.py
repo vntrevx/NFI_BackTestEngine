@@ -4,11 +4,16 @@ import hashlib
 import json
 import shutil
 import zipfile
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 import pytest
-from nfi_backtest_engine import full_x7_certification, full_x7_resume
+from nfi_backtest_engine import (
+    full_x7_certification,
+    full_x7_resume,
+    native_score_certification_domains,
+)
 from nfi_backtest_engine.canonical import read_json, write_json
 from nfi_backtest_engine.certification_parts import inputs as certification_inputs
 from nfi_backtest_engine.config_loader import config_sha256
@@ -408,6 +413,12 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
 ) -> None:
     calls = {"engine": 0, "reference": 0}
     surface_sha = "a" * 64
+    source_identity = (
+        native_score_certification_domains._portfolio_source_identity()  # pyright: ignore[reportPrivateUsage]
+    )
+    candidate_sha = "8" * 64
+    wheel_sha = "9" * 64
+    native_sha = "0" * 64
     lock = {
         "identity_sha256": "b" * 64,
         "data": {"aggregate_sha256": "c" * 64},
@@ -419,7 +430,7 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
         "pairlist": {
             "pairs": [f"PAIR{index}/USDT" for index in range(80)],
         },
-        "strategy": {"upstream_commit": "d" * 40},
+        "strategy": {"upstream_commit": source_identity["upstream_commit"]},
     }
     inputs = {
         "lock": lock,
@@ -435,7 +446,7 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
                 "version": "2026.5.1",
                 "image_platform_digest": "sha256:" + "9" * 64,
             },
-            "strategy_sha256": "f" * 64,
+            "strategy_sha256": source_identity["strategy_sha256"],
             "config_sha256": "1" * 64,
             "data_aggregate_sha256": lock["data"]["aggregate_sha256"],
             "engine_market_snapshot_sha256": "2" * 64,
@@ -465,7 +476,9 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
 
     def fake_reference(_baseline, _markets, output, **_kwargs):
         calls["reference"] += 1
-        return measurement(output)
+        result = measurement(output)
+        result["wall_time_seconds"] = 100.0
+        return result
 
     monkeypatch.setattr(
         full_x7_certification,
@@ -475,12 +488,21 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     monkeypatch.setattr(
         full_x7_certification,
         "build_engine",
-        lambda: {"kind": "pyo3-extension"},
+        lambda: {
+            "kind": "pyo3-extension",
+            "source_fingerprint": candidate_sha,
+            "binary_sha256": native_sha,
+        },
     )
     monkeypatch.setattr(
         full_x7_certification,
         "verify_installed_wheel",
-        lambda *_args, **_kwargs: {"installed_extension_equal": True},
+        lambda *_args, **_kwargs: {
+            "sha256": wheel_sha,
+            "native_member_sha256": native_sha,
+            "installed_extension_sha256": native_sha,
+            "installed_extension_equal": True,
+        },
     )
     monkeypatch.setattr(
         full_x7_certification,
@@ -575,7 +597,7 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     monkeypatch.setattr(
         full_x7_certification,
         "public_engine_build_record",
-        lambda _build: {},
+        lambda build: dict(build),
     )
     monkeypatch.setattr(
         full_x7_certification,
@@ -618,6 +640,142 @@ def test_full_x7_repeats_native_candidate_but_runs_long_oracle_once(
     }
     assert "reference" not in report["runs"]
     assert report["runs"]["official_reference"]["result_sha256"] == surface_sha
+
+    certificate_path = tmp_path / "certificate/full-x7-certification.json"
+    certificate = read_json(certificate_path)
+    performance = native_score_certification_domains.performance_observation_from_certificate(
+        certificate,
+        certificate_sha256=hashlib.sha256(certificate_path.read_bytes()).hexdigest(),
+        mode_contract=SPOT_RELEASE_CONTRACT.contract_id,
+    )
+    assert performance == {
+        "certificate_sha256": hashlib.sha256(certificate_path.read_bytes()).hexdigest(),
+        "wheel_sha256": wheel_sha,
+        "native_extension_sha256": native_sha,
+        "official_reference_repetitions": 1,
+        "native_initial_repetitions": 3,
+        "native_measured_repetitions": 3,
+        "native_maximum_repetitions": 5,
+        "native_spread_threshold": 0.05,
+        "engine_relative_spread": 0.0,
+        "preserved_vector_speedup": 10.0,
+        "determinism_met": True,
+        "memory_limit_bytes": 1_000,
+        "observed_peak_rss_bytes": 100,
+        "swap_limit_bytes": 1_000,
+        "native_observed_peak_swap_bytes": 0,
+        "official_observed_peak_swap_bytes": 0,
+    }
+    portfolio_record = {
+        "source_identity_sha256": source_identity["source_closure_sha256"],
+        "candidate_identity_sha256": candidate_sha,
+        "mode_contract": SPOT_RELEASE_CONTRACT.contract_id,
+        "platform": "linux",
+        "workload_sha256": "4" * 64,
+        "run_id": "1",
+        "nonce": "5" * 64,
+        "source_artifact": {
+            "path": str(certificate_path),
+            "sha256": hashlib.sha256(certificate_path.read_bytes()).hexdigest(),
+        },
+        "payload": {
+            "certificate_sha256": hashlib.sha256(certificate_path.read_bytes()).hexdigest(),
+            "candidate_sha256": candidate_sha,
+            "wheel_sha256": wheel_sha,
+            "native_extension_sha256": native_sha,
+            "replay_result_sha256": "6" * 64,
+            "replay_candidate_sha256": candidate_sha,
+        },
+    }
+    native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+        certificate,
+        record=portfolio_record,
+        field="certificate_sha256",
+    )
+    assert "native_score_identity" not in certificate["inputs"]
+    legacy_certificate = deepcopy(certificate)
+    legacy_certificate["inputs"]["native_score_identity"] = {
+        field: portfolio_record[field]
+        for field in (
+            "source_identity_sha256",
+            "candidate_identity_sha256",
+            "mode_contract",
+            "platform",
+            "workload_sha256",
+            "run_id",
+            "nonce",
+        )
+    }
+    native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+        legacy_certificate,
+        record=portfolio_record,
+        field="certificate_sha256",
+    )
+    legacy_certificate["inputs"]["native_score_identity"]["workload_sha256"] = "d" * 64
+    with pytest.raises(SpecValidationError, match="score identity differs"):
+        native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+            legacy_certificate,
+            record=portfolio_record,
+            field="certificate_sha256",
+        )
+    legacy_certificate["inputs"]["native_score_identity"] = None
+    with pytest.raises(SpecValidationError, match="score identity differs"):
+        native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+            legacy_certificate,
+            record=portfolio_record,
+            field="certificate_sha256",
+        )
+    tampered_documents = []
+    for path, value in (
+        (("claim_scope", "strategy"), "AnotherStrategy"),
+        (("claim_scope", "upstream_commit"), "d" * 40),
+        (("inputs", "strategy_sha256"), "d" * 64),
+    ):
+        tampered = deepcopy(certificate)
+        tampered[path[0]][path[1]] = value
+        tampered_documents.append(tampered)
+    for tampered in tampered_documents:
+        with pytest.raises(SpecValidationError, match="source identity differs"):
+            native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+                tampered,
+                record=portfolio_record,
+                field="certificate_sha256",
+            )
+    mismatched_candidate = deepcopy(portfolio_record)
+    mismatched_candidate["payload"]["candidate_sha256"] = "d" * 64
+    with pytest.raises(SpecValidationError, match="candidate package identity differs"):
+        native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+            certificate,
+            record=mismatched_candidate,
+            field="certificate_sha256",
+        )
+    mismatched_lock = deepcopy(certificate)
+    mismatched_lock["gates"]["input_lock"]["identity_sha256"] = "d" * 64
+    with pytest.raises(SpecValidationError, match="sealed input identity differs"):
+        native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+            mismatched_lock,
+            record=portfolio_record,
+            field="certificate_sha256",
+        )
+    for malformed_sha in (None, "", "not-a-sha256", "a" * 63, 123):
+        malformed_lock = deepcopy(certificate)
+        malformed_lock["gates"]["input_lock"]["identity_sha256"] = malformed_sha
+        malformed_lock["inputs"]["release_lock"]["identity_sha256"] = malformed_sha
+        with pytest.raises(SpecValidationError, match="sealed input identity differs"):
+            native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+                malformed_lock,
+                record=portfolio_record,
+                field="certificate_sha256",
+            )
+    missing_lock = deepcopy(certificate)
+    del missing_lock["gates"]["input_lock"]["identity_sha256"]
+    del missing_lock["inputs"]["release_lock"]["identity_sha256"]
+    with pytest.raises(SpecValidationError, match="sealed input identity differs"):
+        native_score_certification_domains._validate_portfolio_document(  # pyright: ignore[reportPrivateUsage]
+            missing_lock,
+            record=portfolio_record,
+            field="certificate_sha256",
+        )
 
     capture = full_x7_certification.run_full_x7_certification(
         tmp_path / "lock.json",

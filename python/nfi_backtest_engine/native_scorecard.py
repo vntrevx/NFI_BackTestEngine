@@ -18,12 +18,14 @@ from typing import Any, Final
 from .canonical import read_json, write_json
 from .errors import SpecValidationError
 from .fixture import sha256_file
+from .native_score_certification_domains import PERFORMANCE_CERTIFICATE_RECORD_TYPE
 from .native_score_domain_identity import (
     VerificationClockPolicy,
     native_score_producer_role,
 )
 from .native_score_domains import validate_domain_input
 from .platform_benchmark import REQUIRED_PLATFORM_SYSTEMS
+from .product_support_contract import load_product_support_contract
 from .release_contract import FUTURES_RELEASE_CONTRACT_ID, SPOT_RELEASE_CONTRACT_ID
 from .release_provenance import (
     DEFAULT_PROVENANCE_POLICY,
@@ -41,7 +43,9 @@ from .semantic_registry import (
 from .specs import (
     NATIVE_SCORE_DOMAIN_EVIDENCE_SCHEMA,
     NATIVE_SCORE_MACHINE_RECORD_SCHEMA,
+    NATIVE_SCORE_MACHINE_RECORD_V2_SCHEMA,
     NATIVE_SCORE_RAW_EVIDENCE_SCHEMA,
+    NATIVE_SCORE_RAW_EVIDENCE_V2_SCHEMA,
     NATIVE_SCORECARD_SCHEMA,
     validate_schema,
 )
@@ -51,6 +55,9 @@ NATIVE_SCORE_EVIDENCE_VERSION = "1.0.0"
 NATIVE_SCORE_RAW_RECORD_VERSION = "1.0.0"
 NATIVE_SCORE_RECORD_ID_VERSION = "native-score-record-id-v1"
 NATIVE_SCORE_EVALUATOR_VERSION = "native-score-evaluator-v3"
+NATIVE_SCORE_PERFORMANCE_EVIDENCE_VERSION = "2.0.0"
+NATIVE_SCORE_PERFORMANCE_EVALUATOR_VERSION = "native-score-performance-evaluator-v2"
+NATIVE_SCORE_PERFORMANCE_RECORD_TYPE = PERFORMANCE_CERTIFICATE_RECORD_TYPE
 NATIVE_SCORE_EVALUATION_OPERATION: Final = "native-score-evaluation"
 PRODUCT_CANDIDATE_CREATE_OPERATION: Final = "product-candidate-create"
 PRODUCT_STABLE_CREATE_OPERATION: Final = "product-stable-create"
@@ -75,6 +82,14 @@ _TRUSTED_SCORE_SCHEMA_IDENTITIES = {
         3_207,
         "e0793fae08949e181aebd328eafa0750446cc50aece1251dd01ebb2a7997c6da",
     ),
+    NATIVE_SCORE_RAW_EVIDENCE_V2_SCHEMA: (
+        4_365,
+        "a7e6bb5a2e3d71ba248a5337226fecec1aea1997a108723a129154462e03177c",
+    ),
+    NATIVE_SCORE_MACHINE_RECORD_V2_SCHEMA: (
+        2_241,
+        "a4de042922b709a95b2fc45837e3d9666023e4932d6db25559509557f6a4cf33",
+    ),
 }
 _REQUIRED_MODE_CONTRACTS = frozenset({SPOT_RELEASE_CONTRACT_ID, FUTURES_RELEASE_CONTRACT_ID})
 RecordEvaluator = Callable[[list[dict[str, Any]], dict[str, str]], list[str]]
@@ -95,9 +110,14 @@ def native_score_record_preimage(record: dict[str, Any]) -> dict[str, Any]:
     source = fields.get("source_artifact")
     if isinstance(source, dict):
         fields["source_artifact"] = {"sha256": source.get("sha256")}
+    evaluator_version = (
+        NATIVE_SCORE_PERFORMANCE_EVALUATOR_VERSION
+        if record.get("schema_version") == NATIVE_SCORE_PERFORMANCE_EVIDENCE_VERSION
+        else NATIVE_SCORE_EVALUATOR_VERSION
+    )
     return {
         "record_id_version": NATIVE_SCORE_RECORD_ID_VERSION,
-        "evaluator_version": NATIVE_SCORE_EVALUATOR_VERSION,
+        "evaluator_version": evaluator_version,
         **fields,
     }
 
@@ -129,6 +149,8 @@ def _semantic_identity(record: dict[str, Any]) -> str:
             f"performance:{payload.get('runtime')}:{payload.get('population')}:"
             f"{payload.get('sample_index')}"
         )
+    if record_type == NATIVE_SCORE_PERFORMANCE_RECORD_TYPE:
+        return f"performance-certificate:{record['mode_contract']}"
     return f"{record_type}:{record['mode_contract']}:{record['platform']}"
 
 
@@ -226,6 +248,7 @@ _MACHINE_INPUT_FIELDS_BY_TYPE = {
     ),
     "portfolio_certificate": ("certificate_sha256", "replay_result_sha256"),
     "performance_process_sample": ("output_sha256",),
+    NATIVE_SCORE_PERFORMANCE_RECORD_TYPE: ("certificate_sha256",),
 }
 
 def _payload(record: dict[str, Any], fields: set[str]) -> dict[str, Any]:
@@ -496,6 +519,8 @@ def _portfolio_platform(records: list[dict[str, Any]], identity: dict[str, str])
 
 
 def _performance_resources(records: list[dict[str, Any]], _identity: dict[str, str]) -> list[str]:
+    if records and records[0]["record_type"] == NATIVE_SCORE_PERFORMANCE_RECORD_TYPE:
+        return _full_x7_performance_resources(records)
     failures: list[str] = []
     populations: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     fields = {
@@ -568,6 +593,91 @@ def _performance_resources(records: list[dict[str, Any]], _identity: dict[str, s
             < 10.0
         ):
             failures.append("reuse_speed_target_not_met")
+    return _unique(failures)
+
+
+def _full_x7_performance_resources(records: list[dict[str, Any]]) -> list[str]:
+    """Evaluate v2 records derived from the two real Full X7 certificates."""
+
+    contract = load_product_support_contract()["certification"]
+    failures: list[str] = []
+    for record in records:
+        payload = _payload(
+            record,
+            {
+                "certificate_sha256",
+                "wheel_sha256",
+                "native_extension_sha256",
+                "official_reference_repetitions",
+                "native_initial_repetitions",
+                "native_measured_repetitions",
+                "native_maximum_repetitions",
+                "native_spread_threshold",
+                "engine_relative_spread",
+                "preserved_vector_speedup",
+                "determinism_met",
+                "memory_limit_bytes",
+                "observed_peak_rss_bytes",
+                "swap_limit_bytes",
+                "native_observed_peak_swap_bytes",
+                "official_observed_peak_swap_bytes",
+            },
+        )
+        for field in ("certificate_sha256", "wheel_sha256", "native_extension_sha256"):
+            _sha256(payload[field], label=field)
+        initial = _nonnegative_int(
+            payload["native_initial_repetitions"], "initial Native repetitions"
+        )
+        measured = _nonnegative_int(
+            payload["native_measured_repetitions"], "measured Native repetitions"
+        )
+        maximum = _nonnegative_int(
+            payload["native_maximum_repetitions"], "maximum Native repetitions"
+        )
+        official = _nonnegative_int(
+            payload["official_reference_repetitions"], "Official repetitions"
+        )
+        threshold = _nonnegative_number_value(
+            payload["native_spread_threshold"], "spread threshold"
+        )
+        spread = _nonnegative_number_value(payload["engine_relative_spread"], "Native spread")
+        speedup = _number_value(payload["preserved_vector_speedup"], "Native speedup")
+        memory_limit = _nonnegative_int(payload["memory_limit_bytes"], "memory limit")
+        memory_peak = _nonnegative_int(payload["observed_peak_rss_bytes"], "peak RSS")
+        swap_limit = _nonnegative_int(payload["swap_limit_bytes"], "swap limit")
+        native_swap = _nonnegative_int(
+            payload["native_observed_peak_swap_bytes"], "Native swap peak"
+        )
+        official_swap = _nonnegative_int(
+            payload["official_observed_peak_swap_bytes"], "Official swap peak"
+        )
+        if official != 1:
+            failures.append("official_oracle_repetition_policy_not_met")
+        if (
+            initial != contract["minimum_native_repetitions"]
+            or maximum != contract["maximum_native_repetitions"]
+            or measured not in {initial, maximum}
+            or threshold != contract["adaptive_spread_threshold"]
+            or (spread > threshold and measured != maximum)
+        ):
+            failures.append("adaptive_native_repetition_policy_not_met")
+        if speedup < contract["minimum_native_speedup"]:
+            failures.append("reuse_speed_target_not_met")
+        if payload["determinism_met"] is not True:
+            failures.append("nondeterministic_outputs")
+        if (
+            contract["memory_cap_required"] is not True
+            or memory_limit == 0
+            or memory_peak > memory_limit
+        ):
+            failures.append("memory_limit_not_met")
+        if (
+            contract["swap_cap_required"] is not True
+            or swap_limit == 0
+            or native_swap > swap_limit
+            or official_swap > swap_limit
+        ):
+            failures.append("swap_limit_not_met")
     return _unique(failures)
 
 
@@ -852,8 +962,8 @@ def _load_raw_artifacts(
                 "schema_version": NATIVE_SCORE_EVIDENCE_VERSION,
                 "gate_id": gate.gate_id,
                 "artifact_sha256": artifact_sha,
-                "raw_record_schema_version": NATIVE_SCORE_RAW_RECORD_VERSION,
-                "evaluator_version": NATIVE_SCORE_EVALUATOR_VERSION,
+                "raw_record_schema_version": artifact["schema_version"],
+                "evaluator_version": artifact["evaluator_version"],
                 "expected_record_count": len(records),
                 "record_sha256s": leaf_hashes,
             }
@@ -873,16 +983,36 @@ def _validate_raw_artifact(
         raise SpecValidationError(
             f"{gate.gate_id} raw records are required; aggregate observations are forbidden"
         )
-    validate_schema(document, NATIVE_SCORE_RAW_EVIDENCE_SCHEMA)
+    performance_v2 = bool(
+        gate.gate_id == "deterministic_performance_resource_proof"
+        and isinstance(document, dict)
+        and document.get("schema_version") == NATIVE_SCORE_PERFORMANCE_EVIDENCE_VERSION
+    )
+    validate_schema(
+        document,
+        NATIVE_SCORE_RAW_EVIDENCE_V2_SCHEMA
+        if performance_v2
+        else NATIVE_SCORE_RAW_EVIDENCE_SCHEMA,
+    )
     _require_exact_fields(
         document,
         required={"schema_version", "evaluator_version", "gate_id", "identity", "records"},
         label=f"malformed raw evidence for {gate.gate_id}",
     )
     assert isinstance(document, dict)
+    expected_version = (
+        NATIVE_SCORE_PERFORMANCE_EVIDENCE_VERSION
+        if performance_v2
+        else NATIVE_SCORE_EVIDENCE_VERSION
+    )
+    expected_evaluator = (
+        NATIVE_SCORE_PERFORMANCE_EVALUATOR_VERSION
+        if performance_v2
+        else NATIVE_SCORE_EVALUATOR_VERSION
+    )
     if (
-        document["schema_version"] != NATIVE_SCORE_EVIDENCE_VERSION
-        or document["evaluator_version"] != NATIVE_SCORE_EVALUATOR_VERSION
+        document["schema_version"] != expected_version
+        or document["evaluator_version"] != expected_evaluator
         or document["gate_id"] != gate.gate_id
     ):
         raise SpecValidationError(f"malformed raw evidence for {gate.gate_id}: identity/version")
@@ -915,7 +1045,7 @@ def _validate_raw_artifact(
         )
         assert isinstance(record, dict)
         if (
-            record["schema_version"] != NATIVE_SCORE_RAW_RECORD_VERSION
+            record["schema_version"] != expected_version
             or record["gate_id"] != gate.gate_id
         ):
             raise SpecValidationError("raw record gate/schema identity differs")
@@ -948,19 +1078,35 @@ def _validate_raw_artifact(
         raise SpecValidationError("raw record duplicate semantic identity or record id")
     if record_ids != sorted(record_ids):
         raise SpecValidationError("raw records are reordered")
-    expected_contexts = {
-        (mode, system) for mode in _REQUIRED_MODE_CONTRACTS for system in REQUIRED_PLATFORM_SYSTEMS
-    }
-    if set(context_types) != expected_contexts:
-        raise SpecValidationError("raw records have incomplete mode/platform cardinality")
-    expected_types = Counter(gate.record_types)
-    if any(Counter(types) != expected_types for types in context_types.values()):
-        raise SpecValidationError("raw records have missing, extra, or cross-gate leaves")
-    for context, semantic_ids in context_semantics.items():
-        if len(semantic_ids) != len(set(semantic_ids)):
-            raise SpecValidationError("raw record duplicate semantic identity")
-        if set(semantic_ids) != _expected_semantic_identities(gate, *context):
-            raise SpecValidationError("raw record differs from authoritative universe")
+    if performance_v2:
+        if (
+            len(records) != len(_REQUIRED_MODE_CONTRACTS)
+            or {record["mode_contract"] for record in records} != set(_REQUIRED_MODE_CONTRACTS)
+            or any(record["platform"] != "linux" for record in records)
+            or any(
+                record["record_type"] != NATIVE_SCORE_PERFORMANCE_RECORD_TYPE
+                for record in records
+            )
+        ):
+            raise SpecValidationError(
+                "v2 performance records must contain one certificate per mode"
+            )
+    else:
+        expected_contexts = {
+            (mode, system)
+            for mode in _REQUIRED_MODE_CONTRACTS
+            for system in REQUIRED_PLATFORM_SYSTEMS
+        }
+        if set(context_types) != expected_contexts:
+            raise SpecValidationError("raw records have incomplete mode/platform cardinality")
+        expected_types = Counter(gate.record_types)
+        if any(Counter(types) != expected_types for types in context_types.values()):
+            raise SpecValidationError("raw records have missing, extra, or cross-gate leaves")
+        for context, semantic_ids in context_semantics.items():
+            if len(semantic_ids) != len(set(semantic_ids)):
+                raise SpecValidationError("raw record duplicate semantic identity")
+            if set(semantic_ids) != _expected_semantic_identities(gate, *context):
+                raise SpecValidationError("raw record differs from authoritative universe")
     if _validate_identity(document["identity"], label="artifact identity") != manifest_identity:
         return
 
@@ -978,7 +1124,13 @@ def _verify_machine_record(
     if path is None:
         raise SpecValidationError("machine record artifact is missing")
     document = read_json(path)
-    validate_schema(document, NATIVE_SCORE_MACHINE_RECORD_SCHEMA)
+    performance_v2 = record["record_type"] == NATIVE_SCORE_PERFORMANCE_RECORD_TYPE
+    validate_schema(
+        document,
+        NATIVE_SCORE_MACHINE_RECORD_V2_SCHEMA
+        if performance_v2
+        else NATIVE_SCORE_MACHINE_RECORD_SCHEMA,
+    )
     _require_exact_fields(
         document,
         required={
@@ -995,7 +1147,12 @@ def _verify_machine_record(
     )
     assert isinstance(document, dict)
     if (
-        document["schema_version"] != NATIVE_SCORE_RAW_RECORD_VERSION
+        document["schema_version"]
+        != (
+            NATIVE_SCORE_PERFORMANCE_EVIDENCE_VERSION
+            if performance_v2
+            else NATIVE_SCORE_RAW_RECORD_VERSION
+        )
         or document["gate_id"] != record["gate_id"]
         or document["record_type"] != record["record_type"]
         or document["semantic_identity"] != _semantic_identity(record)
@@ -1161,6 +1318,11 @@ def _verify_leaf_authorization(
     authorization: dict[tuple[str, str], dict[str, Any]],
     identity: dict[str, str],
 ) -> None:
+    portfolio_artifact, _ = artifacts["same_candidate_portfolio_platform_certification"]
+    portfolio_certificates = {
+        (record["mode_contract"], record["platform"]): record["payload"]["certificate_sha256"]
+        for record in portfolio_artifact["records"]
+    }
     for gate_id, (artifact, _artifact_sha) in artifacts.items():
         for record in artifact["records"]:
             context = authorization[(record["mode_contract"], record["platform"])]
@@ -1202,6 +1364,21 @@ def _verify_leaf_authorization(
                 or payload.get("native_extension_sha256") != context["native_extension_sha256"]
             ):
                 raise SpecValidationError("portfolio raw record package identity differs")
+            if gate_id == "deterministic_performance_resource_proof" and (
+                record["record_type"] == NATIVE_SCORE_PERFORMANCE_RECORD_TYPE
+                and (
+                    payload.get("wheel_sha256") != context["wheel_sha256"]
+                    or payload.get("native_extension_sha256")
+                    != context["native_extension_sha256"]
+                )
+            ):
+                raise SpecValidationError("performance raw record package identity differs")
+            if (
+                record["record_type"] == NATIVE_SCORE_PERFORMANCE_RECORD_TYPE
+                and payload["certificate_sha256"]
+                != portfolio_certificates.get((record["mode_contract"], record["platform"]))
+            ):
+                raise SpecValidationError("performance and portfolio certificate identities differ")
 
 
 def _validate_manifest(document: Any) -> None:
@@ -1498,6 +1675,15 @@ def _number_value(value: Any, label: str) -> float:
         raise SpecValidationError(f"{label}: expected a number")
     number = float(value)
     if not math.isfinite(number) or number <= 0:
+        raise SpecValidationError(f"{label}: outside allowed range")
+    return number
+
+
+def _nonnegative_number_value(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise SpecValidationError(f"{label}: expected a number")
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
         raise SpecValidationError(f"{label}: outside allowed range")
     return number
 
