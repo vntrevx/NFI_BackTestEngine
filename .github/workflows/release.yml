@@ -246,8 +246,22 @@ jobs:
             & wsl.exe --install --distribution Ubuntu-24.04 --no-launch --web-download
             if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 WSL2 installation failed" }
           }
-          & wsl.exe --set-version Ubuntu-24.04 2
-          if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 is not convertible to WSL2" }
+          $preStartListing = (& wsl.exe --list --verbose 2>&1 | Out-String).Replace([string][char]0, "")
+          $preStartListingExit = $LASTEXITCODE
+          $preStartListing | Set-Content -Encoding utf8 .platform-evidence/wsl-host/wsl-list-verbose-pre-start.txt
+          if ($preStartListingExit -ne 0) { throw "could not read pre-start WSL distribution versions" }
+          $preStartPattern = '(?m)^\s*\*?\s*Ubuntu-24\.04\s+\S+\s+(?<version>\d+)\s*$'
+          $preStartMatches = [regex]::Matches($preStartListing, $preStartPattern)
+          if ($preStartMatches.Count -ne 1) {
+            throw "Ubuntu 24.04 pre-start WSL version is missing or ambiguous"
+          }
+          $preStartVersion = [int]$preStartMatches[0].Groups["version"].Value
+          if ($preStartVersion -eq 1) {
+            & wsl.exe --set-version Ubuntu-24.04 2
+            if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 is not convertible to WSL2" }
+          } elseif ($preStartVersion -ne 2) {
+            throw "Ubuntu 24.04 pre-start WSL version is unsupported: $preStartVersion"
+          }
           & wsl.exe --distribution Ubuntu-24.04 --user root --exec /bin/true
           if ($LASTEXITCODE -ne 0) { throw "Ubuntu 24.04 WSL2 first launch failed" }
           $wslStatus = (& wsl.exe --status 2>&1 | Out-String).Replace([string][char]0, "")
