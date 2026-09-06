@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 164,
-  "updated_at": "2026-09-06T11:32:04Z",
+  "revision": 165,
+  "updated_at": "2026-09-06T13:07:13Z",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -39,9 +39,9 @@
         "remaining": ["configure and run TestPyPI Trusted Publisher"]
       },
       "M29": {
-        "implementation_state": "integration_gap_identified",
-        "commits": ["5e64b0b04", "544330b5e"],
-        "remaining": ["resolve native-score production-evidence integration and certificate ordering; preserve unique checks and reconcile performance criteria with the product contract before implementation", "configure protected certification runner and immutable evidence storage", "freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
+        "implementation_state": "partial_integration_implemented",
+        "commits": ["5e64b0b04", "544330b5e", "29144ca07", "8cdcad885"],
+        "remaining": ["finish real score-domain producers, four-slug identity binding, two-host portfolio representation, frozen-source authorization/freshness and the Full X7 v2 publication boundary; certificate adapters and raw-storage ordering are implemented", "configure protected certification runner and immutable evidence storage", "freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
       },
       "M30": {
         "implementation_state": "ready_for_external_execution",
@@ -9698,6 +9698,45 @@
         "frozen_source_is_not_latest_upstream": true,
         "remaining": ["fixture Required CI and review", "merged-fixture dual-mode compatibility and issue reconciliation"],
         "issue_closed": false,
+        "combined_full_x7_certified": false,
+        "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 216,
+      "timestamp": "2026-09-06T13:07:13Z",
+      "task_id": "M29-02",
+      "event": "certificate_reuse_and_storage_integration_locally_validated",
+      "details": {
+        "implementation_commits": ["29144ca07b44be713358bc70da8074d2b2c37097", "8cdcad88553f4cd61a2be8cfc37f63f9f6dbf8e6"],
+        "fixture_pull_request_353_merged": true,
+        "fixture_merge_commit": "622ac60eea375d5470c185c33de115d524332d67",
+        "latest_compatibility_run": 34032174838,
+        "latest_compatibility_conclusion": "success",
+        "latest_upstream_classification": "latest_checked_only",
+        "issue_248_remains_open": true,
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/certification-evidence-integration/implementation-scope.json",
+            "bytes": 2957,
+            "sha256": "80d050078b64938695bd44ac120f862ad5c29580b3622fcf84c2a82cc684d8be"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/certification-evidence-integration/local-validation/result.json",
+            "bytes": 2503,
+            "sha256": "bdfe4c3312f5ddb1a731d7bc7333355986c1e4ba8b8af43583005fb59147ec47"
+          },
+          {
+            "path": ".nfi/roadmap-acceptance/certification-evidence-integration/compatibility-run-34032174838.json",
+            "bytes": 3827,
+            "sha256": "fdd96a6c175fd1be4e80b37b18e432c80838fbd28ca7887b56b571372ab42e9e"
+          }
+        ],
+        "simulation_semantics_changed": false,
+        "legacy_score_evidence_rules_preserved": true,
+        "remaining_code_integration_recorded": true,
+        "new_long_oracle_runs": 0,
+        "public_release_created": false,
         "combined_full_x7_certified": false,
         "task_status_changed": false
       }
