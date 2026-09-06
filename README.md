@@ -25,10 +25,10 @@ The current and target boundaries are also available in the
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [v1.11.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.11.0) |
+| Latest public release | [GitHub Releases](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.15.0 candidate implementation; external certification pending |
+| v1.15.0 product boundary | [Release notes](docs/releases/v1.15.0.md); no new combined certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -48,8 +48,8 @@ then freeze the ranked result in the saved project. Large selections show the me
 long-run memory warning before data preparation. This presentation release does not
 claim a new continuous performance certificate.
 
-v1.11.0 is the current stable release for supported X7 workloads on Linux, macOS, and
-Windows through WSL2. Its wheels and sdist completed exact Spot and Futures trade/state
+v1.11.0 established a stable product release for supported X7 workloads on Linux,
+macOS, and Windows through WSL2. Its wheels and sdist completed exact Spot and Futures trade/state
 regression checks, and the release commit passed same-commit Required CI on Linux and
 macOS. The checksum-sealed stable assets are byte-for-byte identical to the published
 release candidate.

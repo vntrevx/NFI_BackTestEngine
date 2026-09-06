@@ -1184,6 +1184,99 @@ def test_host_certification_workflow_shell_steps_parse() -> None:
         assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.parametrize(("status", "expected"), [("planned", "false"), ("stable", "true")])
+def test_product_release_pypi_channel_policy_maps_supported_statuses(
+    tmp_path: Path,
+    status: str,
+    expected: str,
+) -> None:
+    bash = shutil.which("bash")
+    if bash is None or shutil.which("jq") is None:
+        pytest.skip("bash and jq are required to validate product channel policy")
+    root = Path(__file__).parents[1]
+    contract_path = tmp_path / "planning/product-support-contract.json"
+    contract_path.parent.mkdir()
+    contract_path.write_text(
+        json.dumps({"distribution": {"channels": [{"slug": "pypi", "status": status}]}}),
+        encoding="utf-8",
+    )
+
+    for workflow_name in (
+        "publish-product-release-candidate.yml",
+        "promote-product-release.yml",
+    ):
+        workflow = (root / ".github/workflows" / workflow_name).read_text(encoding="utf-8")
+        policy = re.search(
+            r'^          pypi_status="\$\(\n.*?^          fi$',
+            workflow,
+            re.MULTILINE | re.DOTALL,
+        )
+        assert policy is not None
+        result = subprocess.run(
+            [
+                bash,
+                "-c",
+                f'set -euo pipefail\n{textwrap.dedent(policy.group(0))}\n'
+                'printf "%s\\n" "$pypi_enabled"',
+            ],
+            cwd=tmp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    ("channels", "message"),
+    [
+        ([], "PyPI channel must appear exactly once"),
+        (
+            [{"slug": "pypi", "status": "planned"}, {"slug": "pypi", "status": "stable"}],
+            "PyPI channel must appear exactly once",
+        ),
+        ([{"slug": "pypi", "status": "unsupported"}], "PyPI channel status is unsupported"),
+    ],
+)
+def test_product_release_pypi_channel_policy_rejects_invalid_contracts(
+    tmp_path: Path,
+    channels: list[dict[str, str]],
+    message: str,
+) -> None:
+    bash = shutil.which("bash")
+    if bash is None or shutil.which("jq") is None:
+        pytest.skip("bash and jq are required to validate product channel policy")
+    root = Path(__file__).parents[1]
+    contract_path = tmp_path / "planning/product-support-contract.json"
+    contract_path.parent.mkdir()
+    contract_path.write_text(
+        json.dumps({"distribution": {"channels": channels}}),
+        encoding="utf-8",
+    )
+
+    for workflow_name in (
+        "publish-product-release-candidate.yml",
+        "promote-product-release.yml",
+    ):
+        workflow = (root / ".github/workflows" / workflow_name).read_text(encoding="utf-8")
+        policy = re.search(
+            r'^          pypi_status="\$\(\n.*?^          fi$',
+            workflow,
+            re.MULTILINE | re.DOTALL,
+        )
+        assert policy is not None
+        result = subprocess.run(
+            [bash, "-c", f"set -euo pipefail\n{textwrap.dedent(policy.group(0))}"],
+            cwd=tmp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode != 0
+        assert message in result.stderr
+
+
 def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     root = Path(__file__).parents[1]
     contract = json.loads(
@@ -1241,6 +1334,11 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "name: Publish product release candidate" in publish
     assert "group: product-release-${{ inputs.release_tag }}" in publish
     assert "cancel-in-progress: false" in publish
+    assert "pypi_enabled: ${{ steps.candidate.outputs.pypi_enabled }}" in publish
+    assert "planning/product-support-contract.json" in publish
+    assert 'error("PyPI channel must appear exactly once")' in publish
+    assert 'error("PyPI channel status is unsupported")' in publish
+    assert publish.count("if: needs.publish.outputs.pypi_enabled == 'true'") == 2
     assert "product releases must be built from main" in publish
     assert "candidate and publication workflow commits differ" in publish
     assert "actions/workflows/ci.yml/runs?head_sha=" in publish
@@ -1274,6 +1372,11 @@ def test_product_release_workflows_preserve_non_combined_boundary() -> None:
     assert "name: Promote product stable release" in promote
     assert "group: product-release-${{ inputs.stable_tag }}" in promote
     assert "cancel-in-progress: false" in promote
+    assert "pypi_enabled: ${{ steps.identity.outputs.pypi_enabled }}" in promote
+    assert "planning/product-support-contract.json" in promote
+    assert 'error("PyPI channel must appear exactly once")' in promote
+    assert 'error("PyPI channel status is unsupported")' in promote
+    assert promote.count("if: needs.promote.outputs.pypi_enabled == 'true'") == 2
     assert "actions/workflows/publish-product-release-candidate.yml/runs" in promote
     assert "candidate and promotion workflow commits differ" in promote
     assert "combined_full_x7_certified == false" in promote

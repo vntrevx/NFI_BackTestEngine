@@ -28,6 +28,7 @@ jobs:
     outputs:
       candidate_sha: ${{ steps.candidate.outputs.sha }}
       release_tag: ${{ inputs.release_tag }}
+      pypi_enabled: ${{ steps.candidate.outputs.pypi_enabled }}
     steps:
       - name: Check out release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -74,6 +75,25 @@ jobs:
           notes="docs/releases/v${package_version}.md"
           test -f "$notes"
 
+          pypi_status="$(
+            jq -er '
+              [.distribution.channels[] | select(.slug == "pypi")] as $channels
+              | if ($channels | length) != 1 then
+                  error("PyPI channel must appear exactly once")
+                elif ($channels[0].status == "planned"
+                      or $channels[0].status == "stable") then
+                  $channels[0].status
+                else
+                  error("PyPI channel status is unsupported")
+                end
+            ' planning/product-support-contract.json
+          )"
+          if [[ "$pypi_status" == "stable" ]]; then
+            pypi_enabled=true
+          else
+            pypi_enabled=false
+          fi
+
           ci_json="$(
             gh api \
               "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${candidate_sha}&status=completed&per_page=100"
@@ -89,6 +109,7 @@ jobs:
           fi
           echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
           echo "notes=$notes" >> "$GITHUB_OUTPUT"
+          echo "pypi_enabled=$pypi_enabled" >> "$GITHUB_OUTPUT"
       - name: Download exact sealed product bundle
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -221,6 +242,7 @@ jobs:
   testpypi-publish:
     name: Publish build-once distributions to TestPyPI
     needs: publish
+    if: needs.publish.outputs.pypi_enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: testpypi
@@ -245,6 +267,7 @@ jobs:
   testpypi-audit:
     name: Audit TestPyPI distribution identity
     needs: [publish, testpypi-publish]
+    if: needs.publish.outputs.pypi_enabled == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Download exact build candidate distributions

@@ -153,8 +153,11 @@ def _validate_product_policy(document: dict[str, Any]) -> None:
     if releases[0]["milestones"] != ["M25", "M26", "M27", "M28", "M29", "M30"]:
         raise SpecValidationError("product release milestones differ")
     combined = [item["version"] for item in releases if item["combined_full_x7_certified"]]
-    if combined != ["v1.15.0"]:
-        raise SpecValidationError("only the gated v1.15.0 target may claim combined certification")
+    target = certification["target_release"]
+    if combined != ([] if target is None else [target]):
+        raise SpecValidationError("combined release claims must match the certification target")
+    if target is None and certification["combined_status"] != "preview":
+        raise SpecValidationError("an unassigned certification target must remain preview")
 
 
 __all__ = [

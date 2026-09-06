@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
   "roadmap_id": "nfi-backtest-engine-post-v1.1.0",
-  "revision": 165,
-  "updated_at": "2026-09-06T13:07:13Z",
+  "revision": 167,
+  "updated_at": "2026-09-06T15:43:16Z",
   "acceptance_commands": "planning/acceptance-commands.json",
   "active_task_id": "M24-03",
   "execution_policy": {
@@ -16,12 +16,12 @@
   "implementation_snapshot": {
     "captured_at": "2026-09-06",
     "formal_active_gate": "M24-03",
-    "status_note": "Task status remains dependency-ordered; implementation state records code and evidence prepared ahead of external gates.",
+    "status_note": "After stopping the 10/10 workstream, the user authorized a non-combined v1.15.0 GitHub product release once automated CI passes. Installed-artifact, platform and distribution-integrity checks remain required. Deferred certification work and formal task statuses are preserved, not completed or authorized to resume; publication success must be recorded separately.",
     "milestones": {
       "M25": {
         "implementation_state": "complete",
         "commits": ["a1afc4664", "eaf538a27", "4a0d95095", "c427da492"],
-        "remaining": ["close M24-03 current-source Futures proof and dual-mode issue reconciliation; fixture PRs 327 and 344 are merged"]
+        "remaining": ["close M24-03 current-source coverage and dual-mode issue reconciliation; fixture PRs 327, 344 and 353 are merged, but the last observed latest-upstream classification remains latest_checked_only"]
       },
       "M26": {
         "implementation_state": "complete",
@@ -41,7 +41,7 @@
       "M29": {
         "implementation_state": "partial_integration_implemented",
         "commits": ["5e64b0b04", "544330b5e", "29144ca07", "8cdcad885"],
-        "remaining": ["finish real score-domain producers, four-slug identity binding, two-host portfolio representation, frozen-source authorization/freshness and the Full X7 v2 publication boundary; certificate adapters and raw-storage ordering are implemented", "configure protected certification runner and immutable evidence storage", "freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish v1.15.0 RC"]
+        "remaining": ["finish real score-domain producers, four-slug identity binding, two-host portfolio representation, frozen-source authorization/freshness and the Full X7 v2 publication boundary; certificate adapters and raw-storage ordering are implemented", "configure protected certification runner and immutable evidence storage", "freeze prepared release-input locks, selected market snapshots and candidate identities; discovery snapshots do not prescribe certification pairlists", "capture immutable Spot and Futures Oracles", "run same-candidate five-year certification", "publish a future combined RC; version unassigned, separate from the non-combined v1.15.0 product release"]
       },
       "M30": {
         "implementation_state": "ready_for_external_execution",
@@ -5487,12 +5487,12 @@
     },
     {
       "id": "M29-02", "order": 2902, "milestone": "M29",
-      "title": "Certify one Combined Full X7 v1.15.0 candidate", "status": "pending",
+      "title": "Certify one future Combined Full X7 candidate (version unassigned)", "status": "pending",
       "work_kind": "external_gate", "depends_on": ["M29-01"], "manual_gate": true,
       "scope": ["Spot and Futures 80-pair five-year certification", "same-candidate combination", "GitHub RC"],
       "forbidden_changes": ["reimplementing combined release", "mismatched mode identities"],
       "acceptance_profile": "combined_oracle_capture",
-      "expected_evidence": ["Spot certificate", "Futures certificate", "combined certificate", "v1.15.0-rc.1"],
+      "expected_evidence": ["Spot certificate", "Futures certificate", "combined certificate", "future combined RC (version unassigned)"],
       "started_at": null, "completed_at": null, "commit_sha": null, "evidence": [], "blocker": null
     },
     {
@@ -5517,12 +5517,12 @@
     },
     {
       "id": "M30-03", "order": 3003, "milestone": "M30",
-      "title": "Promote identical v1.15.0 assets to stable and PyPI", "status": "pending",
+      "title": "Promote identical future combined assets to stable and PyPI (version unassigned)", "status": "pending",
       "work_kind": "external_gate", "depends_on": ["M30-02"], "manual_gate": true,
       "scope": ["byte-identical GitHub promotion", "PyPI publication", "post-release download audit"],
       "forbidden_changes": ["stable rebuild", "publishing after a failed gate"],
       "acceptance_profile": "ten_of_ten_audit",
-      "expected_evidence": ["v1.15.0 stable", "PyPI distribution identity", "post-release smoke"],
+      "expected_evidence": ["future combined stable (version unassigned)", "PyPI distribution identity", "post-release smoke"],
       "started_at": null, "completed_at": null, "commit_sha": null, "evidence": [], "blocker": null
     }
   ],
@@ -9739,6 +9739,57 @@
         "public_release_created": false,
         "combined_full_x7_certified": false,
         "task_status_changed": false
+      }
+    },
+    {
+      "sequence": 217,
+      "timestamp": "2026-09-06T15:33:53Z",
+      "task_id": "M29-02",
+      "event": "integration_merged_and_work_stopped_at_user_request",
+      "details": {
+        "pull_request_url": "https://github.com/vntrevx/NFI_BackTestEngine/pull/355",
+        "merge_commit": "27621f94db1ecf9f6b4e7cf8483d0425222371d9",
+        "merged_at": "2026-09-06T13:36:06Z",
+        "tested_head": "958066550c58eb020632e8c29e695147b8e11e57",
+        "tested_and_merged_tree": "a769055b82393412cd761bd8efd2a1e3d264ab62",
+        "required_ci_run_url": "https://github.com/vntrevx/NFI_BackTestEngine/actions/runs/34035263191",
+        "required_ci_conclusion": "success",
+        "evidence": [
+          {
+            "path": ".nfi/roadmap-acceptance/certification-evidence-integration/pr355-ci-result.json",
+            "bytes": 2935,
+            "sha256": "bae0196922abf5e6f1b01f512f83a530723372fdbccc083c549cc31c57203ad3"
+          }
+        ],
+        "work_stopped_at_user_request": true,
+        "resume_requires_new_user_request": true,
+        "remaining_work_preserved_in": "implementation_snapshot.milestones",
+        "historical_evidence_preserved": true,
+        "task_status_changed": false,
+        "new_long_oracle_runs": 0,
+        "public_release_created": false,
+        "pypi_publication_attempted": false,
+        "combined_full_x7_certified": false,
+        "ten_of_ten_complete": false
+      }
+    },
+    {
+      "sequence": 218,
+      "timestamp": "2026-09-06T15:43:16Z",
+      "task_id": "M29-02",
+      "event": "non_combined_product_release_authorized",
+      "details": {
+        "version": "v1.15.0",
+        "channel": "github-releases",
+        "required_gates": ["same-commit Required CI", "release build and installed-artifact checks", "representative exact platform fixtures", "build-once checksum and supply-chain verification", "RC/stable byte identity and installer smoke"],
+        "pypi_status": "planned",
+        "certification_work_remains_deferred": true,
+        "pending_combined_task_versions_unassigned": ["M29-02", "M30-03"],
+        "historical_evidence_preserved": true,
+        "task_status_changed": false,
+        "public_release_created": false,
+        "combined_full_x7_certified": false,
+        "ten_of_ten_complete": false
       }
     }
   ]

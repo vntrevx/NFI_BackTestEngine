@@ -35,6 +35,7 @@ def test_repository_product_support_contract_is_valid() -> None:
         "windows_abi": "linux-under-wsl2",
     }
     assert contract["certification"]["combined_status"] == "preview"
+    assert contract["certification"]["target_release"] is None
     assert {
         item["family"]: item["fallback_status"]
         for item in contract["strategies"]["official_only_legacy"]
@@ -51,7 +52,7 @@ def test_repository_product_support_contract_is_valid() -> None:
         {
             "version": "v1.15.0",
             "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
-            "combined_full_x7_certified": True,
+            "combined_full_x7_certified": False,
         }
     ]
 
@@ -65,6 +66,32 @@ def test_packaged_contract_is_byte_identical_to_planning_authority() -> None:
 
     assert packaged.read_bytes() == CONTRACT.read_bytes()
     assert load_product_support_contract() == load_product_support_contract(CONTRACT)
+
+
+@pytest.mark.parametrize("claim", ["release_train", "combined_status"])
+def test_unassigned_certification_target_rejects_combined_claims(
+    tmp_path: Path, claim: str,
+) -> None:
+    contract = deepcopy(load_product_support_contract(CONTRACT))
+    if claim == "release_train":
+        contract["release_train"][0]["combined_full_x7_certified"] = True
+    else:
+        contract["certification"]["combined_status"] = "release-certified"
+    path = tmp_path / "contract.json"
+    write_json(path, contract)
+
+    with pytest.raises(SpecValidationError, match="certification target"):
+        load_product_support_contract(path)
+
+
+def test_historical_gated_certification_target_remains_readable(tmp_path: Path) -> None:
+    contract = deepcopy(load_product_support_contract(CONTRACT))
+    contract["certification"]["target_release"] = "v1.15.0"
+    contract["release_train"][0]["combined_full_x7_certified"] = True
+    path = tmp_path / "contract.json"
+    write_json(path, contract)
+
+    assert load_product_support_contract(path) == contract
 
 
 def test_current_release_policy_does_not_exceed_product_contract() -> None:

@@ -22,9 +22,13 @@ nfi-bte contract support --json
   Windows is not supported.
 - GitHub Releases is the current stable distribution. PyPI trusted publishing is a
   planned M28 gate and must not be advertised as available before it passes.
+- v1.15.0 is a non-combined product improvement release, subject to automated CI,
+  installed-artifact and representative platform checks. PyPI remains planned;
+  its publishing jobs run only when the release commit declares that channel stable.
 - Historical Spot and Futures certificates remain independently version-bound. The
   same-candidate combined status remains `preview` until M29 certification and the
-  M30 operating and clean-room gates pass.
+  M30 operating and clean-room gates pass. Its `target_release` is currently `null`;
+  these deferred gates are not claimed as completed by v1.15.0.
 
 Unknown active semantics fail before Native simulation. A strategy name, source hash,
 pair, timerange, or expected result never selects runtime behavior.
