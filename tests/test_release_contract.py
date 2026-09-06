@@ -1191,22 +1191,30 @@ def test_release_candidate_contract_declares_both_modes_without_identity_drift()
         "binance-usdtm-isolated",
     }
     assert len({item["strategy_sha256"] for item in platform["modes"]}) == 1
-    assert platform["base_strategy_sha256"] == (
-        "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db"
-    )
     assert {
         item["base_strategy_sha256"] for item in platform["modes"]
     } == {platform["base_strategy_sha256"]}
     assert all(item["manifest_sha256"] for item in platform["modes"])
     probes = plan["certification_probes"]
-    assert probes["upstream_commit"] == "8da6038be51654bdaa36839f3f1e296d2fc290ff"
+    assert probes["upstream_commit"] == "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c"
     assert probes["base_source_sha256"] == (
-        "82514cf8d122ef79f3baafa2d33e1a0a96871c0725af6e9300e173d2233cd2db"
+        "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d"
     )
+    assert platform["base_strategy_sha256"] == probes["base_source_sha256"]
     assert {
         item["slug"]: len(item["manifests"])
         for item in probes["modes"]
     } == {"spot": 4, "futures": 9}
+    tag_121 = {
+        mode["slug"]: record
+        for mode in probes["modes"]
+        for record in mode["manifests"]
+        if record["probe_kind"] == "tag-121"
+    }
+    assert set(tag_121) == {"spot", "futures"}
+    assert {
+        record["effective_strategy_sha256"] for record in tag_121.values()
+    } == {platform["strategy_sha256"]}
     assert all(
         record["manifest_sha256"]
         for mode in probes["modes"]

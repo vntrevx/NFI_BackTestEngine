@@ -1,0 +1,88 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX7",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20220401-20220420"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "10174.96113457",
+    "profit_total_abs": "174.96113457",
+    "total_volume": "14652.088182899999",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT:USDT",
+      "direction": "short",
+      "open_timestamp_ms": 1650236700000,
+      "close_timestamp_ms": 1650255600000,
+      "open_rate": "39858.3",
+      "close_rate": "38877",
+      "amount": "0.186",
+      "stake_amount": "2471.2146",
+      "max_stake_amount": "2471.2146",
+      "leverage": "3",
+      "entry_tag": "562 ",
+      "exit_reason": "exit_short_rebuy_3_1_1 ( 562 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "-0.2382825272104115"
+      },
+      "profit": {
+        "absolute": "174.96113457",
+        "ratio": "0.07083506988808247"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "53011.53",
+      "stop_loss": "53011.53",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "sell",
+          "is_entry": true,
+          "filled_timestamp_ms": 1650236700000,
+          "amount": "0.186",
+          "price": "39858.3",
+          "cost": "7417.3506219",
+          "tag": "562 "
+        },
+        {
+          "sequence": 1,
+          "side": "buy",
+          "is_entry": false,
+          "filled_timestamp_ms": 1650255600000,
+          "amount": "0.186",
+          "price": "38877",
+          "cost": "7234.737561",
+          "tag": "exit_short_rebuy_3_1_1 ( 562 )"
+        }
+      ],
+      "duration_minutes": 315,
+      "is_open": false,
+      "minimum_rate": "38600",
+      "maximum_rate": "39966.5",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}

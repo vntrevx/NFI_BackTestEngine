@@ -181,6 +181,16 @@ representative five-year speed claim. Docker-free CI validates portable resource
 command contracts, while the release gate additionally exercises the managed container
 path on a real Docker Engine host.
 
+The release-candidate contract freezes X7 upstream `7791d4856e86dd4bb3f3040cbb45c017ce4bb25c`
+for four Spot and nine Futures certification probes. Eleven newly promoted fixture
+trees retain their original captured bytes; the liquidation and integer LowProfit
+probes reuse existing captured fixtures. Older fixtures and certificates remain
+historical evidence. This matrix covers declared probe obligations, not all changed
+branches, and does not by itself close the current Futures compatibility blocker or
+certify an unmodified-source five-year run. New candidate platform and Full X7
+certificates must bind the updated contract; earlier platform results are not
+relabelled as evidence for this source.
+
 ## Publishing
 
 The `Build release candidate` workflow builds three wheels and one source
