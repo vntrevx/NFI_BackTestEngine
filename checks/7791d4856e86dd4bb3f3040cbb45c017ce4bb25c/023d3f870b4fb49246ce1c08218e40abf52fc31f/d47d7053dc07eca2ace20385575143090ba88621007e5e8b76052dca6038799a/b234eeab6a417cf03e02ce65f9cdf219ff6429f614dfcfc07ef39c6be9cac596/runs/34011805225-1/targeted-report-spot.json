@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "upstream_commit": "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c",
+  "source_sha256": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 2,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "future-nfi-spot-ea337d8d3ba7de6c",
+      "target_ids": [
+        "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+        "38e8c5707405a9f8541c2b942acc8690ec1324aa6127a2801898b86dba42285c",
+        "e798e3a26cd4137d226b93dc5d4933b53ac31a727f07e0998e12f7c5c43854ca"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "future-nfi-spot-ea337d8d3ba7de6c-targeted-af619e5e67de",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-ea337d8d3ba7de6c/official-fixture/manifest.json",
+        "manifest_sha256": "6ddf89406eaa8cbae991732358ffe11a37eea24f1b4f97d91ce4ab6e9b496c7b",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-ea337d8d3ba7de6c/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-ea337d8d3ba7de6c/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-ea337d8d3ba7de6c/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+          "38e8c5707405a9f8541c2b942acc8690ec1324aa6127a2801898b86dba42285c",
+          "e798e3a26cd4137d226b93dc5d4933b53ac31a727f07e0998e12f7c5c43854ca"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "38e8c5707405a9f8541c2b942acc8690ec1324aa6127a2801898b86dba42285c",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "e798e3a26cd4137d226b93dc5d4933b53ac31a727f07e0998e12f7c5c43854ca",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    },
+    {
+      "fixture_id": "current-signal103-spot-r1",
+      "target_ids": [
+        "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "current-signal103-spot-r1-targeted-af619e5e67de",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-current-signal103-spot-r1/official-fixture/manifest.json",
+        "manifest_sha256": "8faab95eed5e6a76579548ffa8e701359f62d443a075581363854278efa99380",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-current-signal103-spot-r1/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-current-signal103-spot-r1/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-current-signal103-spot-r1/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  ],
+  "proof": {
+    "complete": true,
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "trading_mode": "spot",
+    "strategy_sha256": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+    "classification": "ir-compatible",
+    "verification_state": "quick_verified",
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "blockers": []
+  },
+  "blockers": [],
+  "verification_state": "quick_verified",
+  "complete": true
+}
