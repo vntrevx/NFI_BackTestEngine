@@ -78,7 +78,7 @@
   },
   "certification": {
     "combined_status": "preview",
-    "target_release": "v1.15.0",
+    "target_release": null,
     "pair_count_per_mode": 80,
     "timerange": "20210101-20260101",
     "minimum_days": 1825,
@@ -101,7 +101,7 @@
     {
       "version": "v1.15.0",
       "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
-      "combined_full_x7_certified": true
+      "combined_full_x7_certified": false
     }
   ]
 }

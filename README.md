@@ -28,7 +28,7 @@ The current and target boundaries are also available in the
 | Latest public release | [v1.11.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.11.0) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| Current `main` | v1.15.0 candidate implementation; external certification pending |
+| Next product release | [v1.15.0](docs/releases/v1.15.0.md); no new combined certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures

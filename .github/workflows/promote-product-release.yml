@@ -28,6 +28,7 @@ jobs:
     outputs:
       candidate_sha: ${{ steps.identity.outputs.sha }}
       stable_tag: ${{ inputs.stable_tag }}
+      pypi_enabled: ${{ steps.identity.outputs.pypi_enabled }}
     steps:
       - name: Check out release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -80,8 +81,27 @@ jobs:
           fi
           package_version="${STABLE_TAG#v}"
           test -f "docs/releases/v${package_version}.md"
+          pypi_status="$(
+            jq -er '
+              [.distribution.channels[] | select(.slug == "pypi")] as $channels
+              | if ($channels | length) != 1 then
+                  error("PyPI channel must appear exactly once")
+                elif ($channels[0].status == "planned"
+                      or $channels[0].status == "stable") then
+                  $channels[0].status
+                else
+                  error("PyPI channel status is unsupported")
+                end
+            ' planning/product-support-contract.json
+          )"
+          if [[ "$pypi_status" == "stable" ]]; then
+            pypi_enabled=true
+          else
+            pypi_enabled=false
+          fi
           echo "sha=$candidate_sha" >> "$GITHUB_OUTPUT"
           echo "notes=docs/releases/v${package_version}.md" >> "$GITHUB_OUTPUT"
+          echo "pypi_enabled=$pypi_enabled" >> "$GITHUB_OUTPUT"
       - name: Download product candidate assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -202,6 +222,7 @@ jobs:
   pypi-publish:
     name: Publish build-once distributions to PyPI
     needs: promote
+    if: needs.promote.outputs.pypi_enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -222,6 +243,7 @@ jobs:
   pypi-audit:
     name: Audit PyPI distribution identity and installation
     needs: [promote, pypi-publish]
+    if: needs.promote.outputs.pypi_enabled == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Download exact stable distributions

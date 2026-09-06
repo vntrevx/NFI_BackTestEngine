@@ -100,7 +100,7 @@
       "required": ["combined_status", "target_release", "pair_count_per_mode", "timerange", "minimum_days", "history_policy", "timeframes", "minimum_native_repetitions", "maximum_native_repetitions", "adaptive_spread_threshold", "minimum_native_speedup", "memory_cap_required", "swap_cap_required"],
       "properties": {
         "combined_status": {"enum": ["preview", "release-certified"]},
-        "target_release": {"const": "v1.15.0"},
+        "target_release": {"type": ["string", "null"], "pattern": "^v1\\.[0-9]+\\.0$"},
         "pair_count_per_mode": {"const": 80},
         "timerange": {"pattern": "^[0-9]{8}-[0-9]{8}$"},
         "minimum_days": {"minimum": 1825, "type": "integer"},

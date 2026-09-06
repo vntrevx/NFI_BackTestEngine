@@ -147,6 +147,11 @@ the portfolio proof. It recomputes warm speed, repetitions and resource limits
 against the product support contract; legacy score evidence keeps its original
 rules. This adapter does not supply the other score domains or authorize publication.
 
+Product release workflows publish to GitHub Releases while the product support
+contract marks the PyPI channel `planned`; TestPyPI and PyPI jobs remain skipped.
+Changing that channel to `stable` enables their existing Trusted Publishing and
+cross-channel byte-identity audits, while a missing, duplicate, or unknown status fails closed.
+
 ## Main branch protection
 
 The policy targets `vntrevx/NFI_BackTestEngine` branch `main` with:
