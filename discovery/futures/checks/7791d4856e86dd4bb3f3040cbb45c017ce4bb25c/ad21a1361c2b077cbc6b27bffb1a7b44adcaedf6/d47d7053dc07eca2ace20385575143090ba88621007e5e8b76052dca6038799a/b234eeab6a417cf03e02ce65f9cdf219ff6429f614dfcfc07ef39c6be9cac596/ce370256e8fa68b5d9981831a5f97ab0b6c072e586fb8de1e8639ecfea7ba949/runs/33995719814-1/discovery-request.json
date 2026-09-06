@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "fingerprint": "ce370256e8fa68b5d9981831a5f97ab0b6c072e586fb8de1e8639ecfea7ba949",
+  "identity": {
+    "upstream_commit": "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c",
+    "baseline_upstream_commit": "1772e98e7ab7f9176dcfb50c7f53daf3ed79e204",
+    "engine_commit": "ad21a1361c2b077cbc6b27bffb1a7b44adcaedf6",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+    "baseline_strategy_sha256": "f218f19949712683d0147d6f9a1cd8555f84b219f56501eedf4e494c723fec3f",
+    "trading_mode": "futures",
+    "policy_sha256": "ddb38261d6ad4476605694d7120adfe37534024d6c262e5533234791e089c2fe",
+    "target_ids": [
+      "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006",
+      "kind": "signal",
+      "change": "changed",
+      "value": "103",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "103"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30997,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31005,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22179,
+            "column": 0,
+            "end_line": 22180,
+            "end_column": 103
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 23683,
+            "column": 0,
+            "end_line": 23684,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 23697,
+            "column": 0,
+            "end_line": 23698,
+            "end_column": 102
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 23875,
+            "column": 0,
+            "end_line": 23876,
+            "end_column": 98
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "cd725158989ab759ed718a7d7cb96c7f463671d175e4d4e87f9806aea2a01006",
+      "kind": "signal",
+      "change": "changed",
+      "value": "103",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "103"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 30997,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31005,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22179,
+            "column": 0,
+            "end_line": 22180,
+            "end_column": 103
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 23683,
+            "column": 0,
+            "end_line": 23684,
+            "end_column": 101
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 23697,
+            "column": 0,
+            "end_line": 23698,
+            "end_column": 102
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 23875,
+            "column": 0,
+            "end_line": 23876,
+            "end_column": 98
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "archive_workers": 8,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "source": "binance-public-data-monthly",
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}

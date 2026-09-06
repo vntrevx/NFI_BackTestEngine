@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "fingerprint": "fe2236b98bd6e7df13c84e0e80f0033306ca494962c8c65ee11eac34cea419f7",
+  "identity": {
+    "upstream_commit": "7791d4856e86dd4bb3f3040cbb45c017ce4bb25c",
+    "baseline_upstream_commit": "1772e98e7ab7f9176dcfb50c7f53daf3ed79e204",
+    "engine_commit": "ad21a1361c2b077cbc6b27bffb1a7b44adcaedf6",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "af619e5e67de259dd1f98d221f137bb2b5e96028d10c0161f68e617c456f095d",
+    "baseline_strategy_sha256": "f218f19949712683d0147d6f9a1cd8555f84b219f56501eedf4e494c723fec3f",
+    "trading_mode": "spot",
+    "policy_sha256": "2f7bbdf4dcd0406e72016c1b80a612f227bbd634bce1d11b8c16c6f117be7df3",
+    "target_ids": [],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "ready",
+  "missing_targets": [],
+  "searchable_targets": [],
+  "unsearchable_targets": [],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "archive_workers": 8,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "source": "binance-public-data-monthly",
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}

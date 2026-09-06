@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "fingerprint": "ce370256e8fa68b5d9981831a5f97ab0b6c072e586fb8de1e8639ecfea7ba949",
+  "next_shard": 12,
+  "shard_count": 20,
+  "complete": false,
+  "status": "budget_exhausted"
+}
