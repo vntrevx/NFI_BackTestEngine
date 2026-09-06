@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "strategy_sha256": "d09483817f781d815c52ad2d451e20db7d02d491135a65266d3719d550393ad1",
+  "classification": "ir-compatible",
+  "verification_state": "quick_verified",
+  "changed_branch_reached": true,
+  "trade_surface_exact": true,
+  "full_state_exact": true,
+  "blockers": []
+}
