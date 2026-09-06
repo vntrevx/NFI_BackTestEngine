@@ -460,12 +460,14 @@ pub(crate) fn ordered_risk_candidates(
 }
 
 pub(crate) fn liquidation_reached(trade: &OpenTrade, candle: &Candle) -> bool {
-    trade
-        .liquidation_price
-        .is_some_and(|liquidation_price| match trade.side {
-            TradeSide::Long => candle.low <= liquidation_price,
-            TradeSide::Short => candle.high >= liquidation_price,
-        })
+    trade.liquidation_price.is_some_and(|liquidation_price| {
+        // Freqtrade guards this comparison with Python float truthiness.
+        liquidation_price != 0.0
+            && match trade.side {
+                TradeSide::Long => candle.low <= liquidation_price,
+                TradeSide::Short => candle.high >= liquidation_price,
+            }
+    })
 }
 fn update_trailing_stop(trade: &mut OpenTrade, candle: &Candle, config: &PortfolioConfig) {
     if !config.trailing_stop {

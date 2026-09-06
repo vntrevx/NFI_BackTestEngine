@@ -694,6 +694,14 @@ def test_release_workflows_enforce_certificate_and_promotion_contract() -> None:
     assert "wsl.exe --install --distribution Ubuntu-24.04 --no-launch" in wsl_section
     assert "wsl.exe --set-default-version 2" in wsl_section
     assert "wsl.exe --set-version Ubuntu-24.04 2" in wsl_section
+    assert wsl_section.count("wsl.exe --set-version Ubuntu-24.04 2") == 1
+    assert "wsl-list-verbose-pre-start.txt" in wsl_section
+    assert "$preStartMatches.Count -ne 1" in wsl_section
+    assert "if ($preStartVersion -eq 1)" in wsl_section
+    assert "elseif ($preStartVersion -ne 2)" in wsl_section
+    assert wsl_section.index("wsl-list-verbose-pre-start.txt") < wsl_section.index(
+        "--user root --exec /bin/true"
+    )
     assert "wsl.exe --list --verbose" in wsl_section
     assert "Ubuntu-24\\.04\\s+\\S+\\s+2" in wsl_section
     assert "--cd \"$env:GITHUB_WORKSPACE\" --exec bash" in wsl_section
