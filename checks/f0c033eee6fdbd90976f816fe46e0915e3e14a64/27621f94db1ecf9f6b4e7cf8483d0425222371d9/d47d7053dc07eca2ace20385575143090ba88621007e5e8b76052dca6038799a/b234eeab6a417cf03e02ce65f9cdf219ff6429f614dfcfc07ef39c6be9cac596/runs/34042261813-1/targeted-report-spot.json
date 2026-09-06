@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "upstream_commit": "f0c033eee6fdbd90976f816fe46e0915e3e14a64",
+  "source_sha256": "376c515fd233ade3c7972907b09e7da51bac7490c623c5744f6d812dda8fbd20",
+  "plan": {
+    "status": "no-changes",
+    "selected_fixture_count": 0,
+    "missing_target_count": 0
+  },
+  "runs": [],
+  "proof": null,
+  "qualification": {
+    "schema_version": "1.0.0",
+    "trading_mode": "spot",
+    "strategy_sha256": "376c515fd233ade3c7972907b09e7da51bac7490c623c5744f6d812dda8fbd20",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "blockers": [
+      {
+        "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+        "message": "no bounded official fixture proof was supplied"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "BASELINE_ONLY",
+      "message": "no upstream behavior difference was available to qualify"
+    },
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
