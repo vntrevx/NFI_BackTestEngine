@@ -9,7 +9,7 @@ import zipfile
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 from .archive_security import read_zip_member, validate_zip_archive
 from .canonical import loads_json_bytes, read_json, write_json
@@ -39,11 +39,56 @@ from .specs import (
 
 RELEASE_GATE_VERSION = "1.0.0"
 CANDIDATE_CHECKSUMS_NAME = "SHA256SUMS.txt"
+RELEASE_CANDIDATE_PLAN_NAME = "release-candidate-plan.json"
 RELEASE_CHECKSUMS_NAME = "RELEASE-SHA256SUMS.txt"
 RELEASE_GATE_NAME = "release-gate.json"
 _COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _REQUIRED_SYSTEMS = frozenset({"windows", "linux", "darwin"})
+
+
+def validate_host_certificate(
+    *,
+    candidate_directory: str | Path,
+    certificate_path: str | Path,
+    certificate_evidence_path: str | Path,
+    platform_evidence_path: str | Path,
+    candidate_commit: str,
+    provenance_policy: ProvenancePolicy = DEFAULT_PROVENANCE_POLICY,
+) -> dict[str, Any]:
+    """Validate storage inputs without authorizing a release or requiring its score.
+
+    The immutable per-mode certificate is an input to the combined score, not a
+    publication. Public release gates still require the complete signed score.
+    """
+    if _COMMIT_PATTERN.fullmatch(candidate_commit) is None:
+        raise SpecValidationError("candidate commit must be a 40-character lowercase Git SHA")
+    candidate = _validate_candidate_manifest(
+        _plain_directory(candidate_directory, label="candidate")
+    )
+    certificate_file = _plain_file(certificate_path, label="host certificate")
+    evidence_file = _plain_file(certificate_evidence_path, label="host certificate evidence")
+    platform_file = _plain_file(platform_evidence_path, label="platform evidence")
+    certificate, _platform, identities = _validate_bound_host_certificate(
+        candidate,
+        certificate_file=certificate_file,
+        certificate_evidence=evidence_file,
+        platform_file=platform_file,
+        candidate_commit=candidate_commit,
+        provenance_policy=provenance_policy,
+    )
+    source_identity = _validate_host_candidate_source(candidate, certificate)
+    return {
+        "schema_version": "host-certificate-validation-v1",
+        "candidate_commit": candidate_commit,
+        "candidate_identity_sha256": _candidate_distribution_id(candidate),
+        "identities": {**identities, **source_identity},
+        "certificate_sha256": sha256_file(certificate_file),
+        "certificate_evidence_sha256": sha256_file(evidence_file),
+        "platform_evidence_sha256": sha256_file(platform_file),
+        "release_authorized": False,
+        "combined_full_x7_certified": False,
+    }
 
 
 def seal_release_gate(
@@ -113,30 +158,15 @@ def seal_release_gate(
     if len(certificate_names) != 2 or candidate_names & certificate_names:
         raise SpecValidationError("release assets have a filename collision")
     platform_file = _plain_file(platform_evidence_path, label="platform evidence")
-    if not platform_file.is_relative_to(candidate_root):
-        raise SpecValidationError("platform evidence must come from the sealed candidate bundle")
-    platform_relative = platform_file.relative_to(candidate_root).as_posix()
-    platform_record = candidate["files"].get(platform_relative)
-    if (
-        platform_record is None
-        or platform_record["sha256"] != sha256_file(platform_file)
-    ):
-        raise SpecValidationError("platform evidence is absent from candidate SHA256SUMS.txt")
-
-    certificate = _load_certificate(certificate_file)
-    _validate_certificate_archive(certificate_evidence, certificate)
-    candidate_id = _candidate_distribution_id(candidate)
-    platform = _load_platform_evidence(
-        platform_file,
-        provenance_policy=provenance_policy,
-        expected_commit=candidate_commit,
-        expected_candidate_id=candidate_id,
-    )
-    identities = _match_release_identities(
+    certificate, platform, identities = _validate_bound_host_certificate(
         candidate,
-        certificate,
-        platform,
+        certificate_file=certificate_file,
+        certificate_evidence=certificate_evidence,
+        platform_file=platform_file,
+        candidate_commit=candidate_commit,
+        provenance_policy=provenance_policy,
     )
+    platform_relative = platform_file.relative_to(candidate_root).as_posix()
     bundle_id = str(platform["provenance"]["bundle_id"])
     if ledger_enabled and output.exists() and any(output.iterdir()):
         assert provenance_ledger_path is not None
@@ -433,6 +463,33 @@ def _validate_candidate_manifest(root: Path) -> dict[str, Any]:
     }
 
 
+def _validate_bound_host_certificate(
+    candidate: Mapping[str, Any],
+    *,
+    certificate_file: Path,
+    certificate_evidence: Path,
+    platform_file: Path,
+    candidate_commit: str,
+    provenance_policy: ProvenancePolicy,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
+    candidate_root = candidate["root"]
+    if not platform_file.is_relative_to(candidate_root):
+        raise SpecValidationError("platform evidence must come from the sealed candidate bundle")
+    platform_relative = platform_file.relative_to(candidate_root).as_posix()
+    platform_record = candidate["files"].get(platform_relative)
+    if platform_record is None or platform_record["sha256"] != sha256_file(platform_file):
+        raise SpecValidationError("platform evidence is absent from candidate SHA256SUMS.txt")
+    certificate = _load_certificate(certificate_file)
+    _validate_certificate_archive(certificate_evidence, certificate)
+    platform = _load_platform_evidence(
+        platform_file,
+        provenance_policy=provenance_policy,
+        expected_commit=candidate_commit,
+        expected_candidate_id=_candidate_distribution_id(candidate),
+    )
+    return certificate, platform, _match_release_identities(candidate, certificate, platform)
+
+
 def _load_certificate(path: Path) -> dict[str, Any]:
     document = read_json(path)
     validate_schema(document, FULL_X7_CERTIFICATION_V2_SCHEMA)
@@ -462,6 +519,50 @@ def _load_certificate(path: Path) -> dict[str, Any]:
     ):
         raise SpecValidationError("host certificate is preview, failed, or incomplete")
     return document
+
+
+def _validate_host_candidate_source(
+    candidate: Mapping[str, Any],
+    certificate: Mapping[str, Any],
+) -> dict[str, str]:
+    """Bind a raw host certificate to the checksummed candidate source plan."""
+    plan_record = candidate["files"].get(RELEASE_CANDIDATE_PLAN_NAME)
+    if plan_record is None:
+        raise SpecValidationError("candidate is missing release-candidate-plan.json")
+    plan = read_json(plan_record["path"])
+    platform = plan.get("platform_evidence") if isinstance(plan, dict) else None
+    probes = plan.get("certification_probes") if isinstance(plan, dict) else None
+    if (
+        not isinstance(plan, dict)
+        or plan.get("schema_version") != "1.0.0"
+        or not isinstance(platform, dict)
+        or not isinstance(probes, dict)
+    ):
+        raise SpecValidationError("candidate release-candidate plan is malformed")
+    platform_source = platform.get("base_strategy_sha256")
+    source = probes.get("base_source_sha256")
+    upstream_commit = probes.get("upstream_commit")
+    if (
+        not _is_sha256(platform_source)
+        or not _is_sha256(source)
+        or platform_source != source
+        or not isinstance(upstream_commit, str)
+        or _COMMIT_PATTERN.fullmatch(upstream_commit) is None
+    ):
+        raise SpecValidationError("candidate release-candidate source identity is malformed")
+    inputs = certificate.get("inputs")
+    claim_scope = certificate.get("claim_scope")
+    if (
+        not isinstance(inputs, dict)
+        or inputs.get("strategy_sha256") != source
+        or not isinstance(claim_scope, dict)
+        or claim_scope.get("upstream_commit") != upstream_commit
+    ):
+        raise SpecValidationError("host certificate source differs from candidate plan")
+    return {
+        "strategy_sha256": cast(str, source),
+        "upstream_commit": upstream_commit,
+    }
 
 
 def _validate_certificate_archive(path: Path, certificate: Mapping[str, Any]) -> None:
@@ -519,6 +620,11 @@ def _load_platform_evidence(
         expected_candidate_id=expected_candidate_id,
         required_platform_slugs=(REQUIRED_PLATFORM_SLUGS if uses_slug_contract else None),
     )
+    workload = document.get("workload")
+    if not isinstance(workload, dict) or any(
+        report.get("workload") != workload for report in verified["reports"]
+    ):
+        raise SpecValidationError("signed platform report workloads differ")
     if (
         document.get("schema_version") != PLATFORM_EVIDENCE_VERSION
         or document.get("release_certified") is not True
@@ -558,6 +664,10 @@ def _match_release_identities(
     portable_sha = str(installed["portable_package_sha256"])
     version = str(certificate["environment"]["package_version"])
     mode = str(certificate["claim_scope"]["mode_contract"])
+    workload = platform.get("workload", {})
+    base_source = workload.get("base_strategy_sha256", workload.get("strategy_sha256"))
+    if not _is_sha256(base_source) or certificate["inputs"]["strategy_sha256"] != base_source:
+        raise SpecValidationError("host certificate strategy differs from signed platform evidence")
     matching_wheels = [
         name
         for name, record in candidate["files"].items()

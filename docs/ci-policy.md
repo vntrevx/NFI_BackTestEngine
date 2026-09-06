@@ -129,6 +129,24 @@ content-addressed object keys. Conditional creation plus metadata and byte-count
 verification prevents overwriting an existing immutable object. GitHub artifacts
 carry the same certificate, reuse plan, and storage receipt for the release gate.
 
+Per-mode immutable storage is not public release authorization. The protected job
+validates candidate checksums, the matching certificate archive, and signed platform
+identity before staging and again before storage. It explicitly records
+`release_authorized=false`. The combined Native score consumes those certificates
+after capture; RC/stable publication still requires the complete signed score and
+the public release gates. This ordering never requires a certificate to contain a
+score that itself depends on that certificate.
+
+Storage writes submit the validated SHA-256 as an S3 request checksum and compare
+the server checksum on every reuse and final verification. Metadata alone is not
+byte-integrity evidence; an existing object without the checksum fails closed and
+is not overwritten. See the [S3 checksum request contract](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-object.html).
+
+The versioned Native performance adapter reuses the same per-mode certificate as
+the portfolio proof. It recomputes warm speed, repetitions and resource limits
+against the product support contract; legacy score evidence keeps its original
+rules. This adapter does not supply the other score domains or authorize publication.
+
 ## Main branch protection
 
 The policy targets `vntrevx/NFI_BackTestEngine` branch `main` with:

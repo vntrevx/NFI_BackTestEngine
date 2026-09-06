@@ -855,6 +855,13 @@ def parser() -> argparse.ArgumentParser:
     seal = commands.add_parser("seal-oracle")
     seal.add_argument("--plan", type=Path, required=True)
     seal.add_argument("--output", type=Path, required=True)
+    validate_host = commands.add_parser("validate-host")
+    validate_host.add_argument("--candidate-dir", type=Path, required=True)
+    validate_host.add_argument("--certificate", type=Path, required=True)
+    validate_host.add_argument("--certificate-evidence", type=Path, required=True)
+    validate_host.add_argument("--platform-evidence", type=Path, required=True)
+    validate_host.add_argument("--candidate-commit", required=True)
+    validate_host.add_argument("--output", type=Path, required=True)
     return command
 
 
@@ -865,6 +872,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command in {"capture-plan", "register-oracle", "seal-oracle"}
         else load_contract(args.contract)
     )
+    if args.command == "validate-host":
+        from nfi_backtest_engine.release_gate import validate_host_certificate
+
+        if args.output.exists() or args.output.is_symlink():
+            raise ValueError("host validation output must not already exist")
+        report = validate_host_certificate(
+            candidate_directory=args.candidate_dir,
+            certificate_path=args.certificate,
+            certificate_evidence_path=args.certificate_evidence,
+            platform_evidence_path=args.platform_evidence,
+            candidate_commit=args.candidate_commit,
+        )
+        write_json(args.output, report)
+        print(json.dumps(report, sort_keys=True))
+        return 0
     if args.command == "plan":
         plan = build_plan(
             contract=contract,
