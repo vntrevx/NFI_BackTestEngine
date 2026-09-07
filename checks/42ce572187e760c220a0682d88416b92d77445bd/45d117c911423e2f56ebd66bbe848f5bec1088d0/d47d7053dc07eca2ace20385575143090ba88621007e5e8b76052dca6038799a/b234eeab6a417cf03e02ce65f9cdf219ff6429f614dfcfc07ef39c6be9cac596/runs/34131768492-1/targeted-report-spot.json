@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "upstream_commit": "42ce572187e760c220a0682d88416b92d77445bd",
+  "source_sha256": "ef03eb0af33868aca6c7b64ba63df52e6db287b8816e06d7c0255dfaedd961e5",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 2,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "future-nfi-spot-2a1ac38916ab2fbb",
+      "target_ids": [
+        "471786381735d4b7f1f461c71e580a8adeb9af3b3576e610c198cc4dde568e67",
+        "a15f1bb991ade5b6dae82be13d9361573417e867c747037f03e30e676099254e"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "future-nfi-spot-2a1ac38916ab2fbb-targeted-ef03eb0af338",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-2a1ac38916ab2fbb/official-fixture/manifest.json",
+        "manifest_sha256": "dfdb2b56da51cdb91ea2ae662ea58d3f6013169b54ff952dd5465ac683ac1fc7",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-2a1ac38916ab2fbb/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-2a1ac38916ab2fbb/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/01-future-nfi-spot-2a1ac38916ab2fbb/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "471786381735d4b7f1f461c71e580a8adeb9af3b3576e610c198cc4dde568e67",
+          "a15f1bb991ade5b6dae82be13d9361573417e867c747037f03e30e676099254e"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "471786381735d4b7f1f461c71e580a8adeb9af3b3576e610c198cc4dde568e67",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "a15f1bb991ade5b6dae82be13d9361573417e867c747037f03e30e676099254e",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    },
+    {
+      "fixture_id": "future-nfi-spot-9c7bd9c3476af201",
+      "target_ids": [
+        "2d9ec3c271a030c290cf34b0d1f6fe58900feb350f6e403127e9a92362012948"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "future-nfi-spot-9c7bd9c3476af201-targeted-ef03eb0af338",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-future-nfi-spot-9c7bd9c3476af201/official-fixture/manifest.json",
+        "manifest_sha256": "42bf38c536943ebef49da8b712a13d3e0f9ae49327e3ae03df7b798cb1ffa359",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-future-nfi-spot-9c7bd9c3476af201/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-future-nfi-spot-9c7bd9c3476af201/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-spot/runs/02-future-nfi-spot-9c7bd9c3476af201/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "2d9ec3c271a030c290cf34b0d1f6fe58900feb350f6e403127e9a92362012948"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "2d9ec3c271a030c290cf34b0d1f6fe58900feb350f6e403127e9a92362012948",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    }
+  ],
+  "proof": {
+    "complete": true,
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "trading_mode": "spot",
+    "strategy_sha256": "ef03eb0af33868aca6c7b64ba63df52e6db287b8816e06d7c0255dfaedd961e5",
+    "classification": "ir-compatible",
+    "verification_state": "quick_verified",
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "blockers": []
+  },
+  "blockers": [],
+  "verification_state": "quick_verified",
+  "complete": true
+}
