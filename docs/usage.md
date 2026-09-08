@@ -35,21 +35,22 @@ Update an existing installation:
 nfi-bte update
 ```
 
-### X8 release candidate: v1.16.0-rc.1
+### X8 in stable v1.16.0
 
-As of 2026-09-08, **v1.15.0 is the latest stable release**. The default installer
-and `nfi-bte update` select stable releases; they do not install the X8 RC.
-To install or replace an existing installation with the RC, explicitly select its tag:
+As of 2026-09-08, **v1.16.0 is the latest stable release** and includes Native X8
+support alongside X7. The default installer above installs it. To upgrade an older
+installation, use:
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte update --check
+nfi-bte update
 nfi-bte --version
 ```
 
-The package reports `1.16.0`; the release tag is `v1.16.0-rc.1`. Ordinary updates
-from older versions can select v1.16.0 after it is published as stable.
+The package reports `1.16.0`. Stable distributions are byte-for-byte identical to
+the validated `v1.16.0-rc.1` assets; existing RC installations need no reinstall.
 
-The RC adds Native X8 support alongside X7, including the qualified
+This release adds Native X8 support alongside X7, including the qualified
 `short_exit_top_coins`, grind/rebuy, buyback, v3/v3.2/v4 systems, virtual fees,
 stake/leverage, stop/ROI/trailing and trade-slot settings. Admission depends on the
 supplied source and configuration. Unsupported active behavior stops with a diagnostic.
@@ -91,7 +92,7 @@ look-ahead implementations cannot appear as valid choices merely because of a na
 Start the interactive setup and backtest:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py
+nfi-bte run NostalgiaForInfinityX8.py
 ```
 
 Press Enter to accept the recommended Spot mode, Binance exchange, BTC quick test, managed candle directory, and most recent seven complete days.
@@ -107,7 +108,7 @@ The market-count prompt accepts:
 
 Numeric selections are resolved once through the pinned Freqtrade image. Their ordered symbols are then stored in `.nfi/project.json`, so the saved project remains reproducible if exchange volumes later change.
 
-### First X8 run after installing the RC
+### First X8 run
 
 From a fresh NFI checkout without a saved engine project, use a small Spot run:
 
@@ -119,8 +120,8 @@ nfi-bte run NostalgiaForInfinityX8.py \
 
 For isolated Futures, use `--trading-mode futures --pair ETH/USDT:USDT` in a
 separate project. New NFI revisions are checked again; the filename alone does not
-guarantee compatibility. The remaining examples use stable X7; on the RC you can
-substitute `NostalgiaForInfinityX8.py` and give new runs distinct output directories.
+guarantee compatibility. The remaining examples also use X8. For X7, substitute
+`NostalgiaForInfinityX7.py`. Give new runs distinct output directories.
 For an existing project, use the explicit reconfiguration steps in section 5.
 
 Worker capacity is derived from the host's CPU and available memory. `--workers 2`
@@ -139,23 +140,23 @@ See [execution profiles](x8-support.md#bounded-execution-profiles).
 For a new non-interactive Spot project using the recommended seven-day period:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
   --yes
 ```
 
-An 80-market five-year workload can require about 39 GiB of memory. Confirm the seven-day run first before selecting a long timerange.
+A historical X7 workload with 80 markets over five years used about 39 GiB of memory; this is not an X8 memory estimate. Confirm the seven-day run first before selecting a long timerange.
 
 ### Replace an existing saved project
 
 If `.nfi/project.json` already exists, reconfigure it explicitly. A new output directory prevents old one-pair results from being resumed:
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py \
+nfi-bte init --force NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
-  --output-dir .nfi/runs/x7-80-pairs \
+  --output-dir .nfi/runs/x8-80-pairs \
   --yes
 
 nfi-bte run
@@ -168,24 +169,24 @@ Candle storage remains shared under `.nfi/data/binance`; hash-valid existing dow
 Repeat `--pair` for each Spot market:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair BTC/USDT \
   --pair ETH/USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-btc-eth \
+  --output-dir .nfi/runs/x8-btc-eth \
   --yes
 ```
 
 For isolated Futures, use the Futures mode and canonical settlement suffixes for explicit symbols:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode futures \
   --pair BTC/USDT:USDT \
   --pair ETH/USDT:USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-futures-btc-eth \
+  --output-dir .nfi/runs/x8-futures-btc-eth \
   --yes
 ```
 
@@ -196,7 +197,7 @@ For automatic Futures selection, replace the explicit `--pair` arguments with `-
 Use `YYYYMMDD-YYYYMMDD`. The stop date is exclusive:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --timerange 20260101-20260201 \
   --yes
@@ -283,7 +284,7 @@ The engine resumes only hash-valid completed stages. Use a different `--output-d
 To rank pairs, download required public candles, and prepare inputs without running the backtest:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --prepare-only \
   --yes
@@ -309,7 +310,7 @@ nfi-bte run
 or deliberately replace its setup:
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py
+nfi-bte init --force NostalgiaForInfinityX8.py
 ```
 
 If Docker or Binance is temporarily unavailable, retry the same command. Pair-ranking failures preserve technical details in `.nfi/pair-selection-error.log`; exhausted candle-download failures print the exact `download-error.log` path. Partial valid candle downloads are reusable.
