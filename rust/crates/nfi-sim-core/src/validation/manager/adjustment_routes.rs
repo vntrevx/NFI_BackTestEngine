@@ -2,10 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::domain::{
-    CompiledSystemAdjustmentSide, NfiX7AdjustmentConstants, NfiX7PositionAdjustment,
-    NfiX7TradeManager,
-};
+use crate::domain::{CompiledSystemAdjustmentSide, NfiX7PositionAdjustment, NfiX7TradeManager};
 
 use super::{
     uses_full_futures_manager_contract, valid_adjustment_source_callback,
@@ -69,7 +66,7 @@ fn valid_short(manager: &NfiX7TradeManager, short_tags: &BTreeSet<&String>) -> b
         .as_ref()
         .is_some_and(|adjustment| {
             let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
-            adjustment.enabled
+            (adjustment.enabled || super::finalization::source_disables_adjustments(manager))
                 && adjustment_tags == regular_tags
                 && adjustment_tags.len() == adjustment.entry_tags.len()
                 && valid_common(manager, adjustment, CompiledSystemAdjustmentSide::Short)
@@ -97,13 +94,14 @@ fn valid_common(
         CompiledSystemAdjustmentSide::Long => "long_grind_entry_v3",
         CompiledSystemAdjustmentSide::Short => "short_grind_entry_v3",
     };
-    adjustment.system_version == manager.constants.system_v3_2_name
+    let source_selected = manager.adjustment_dispatch.is_some();
+    adjustment.system_version == manager.constants.system_name_use
         && valid_adjustment_source_callback(
             &manager.schema_version,
             adjustment.source_callback.as_deref(),
         )
-        && adjustment.decision_program == decision_program
-        && adjustment.program_order == adjustment_program_order(&adjustment.constants)
+        && (source_selected || adjustment.decision_program == decision_program)
+        && adjustment.program_order == adjustment_program_order(adjustment)
         && adjustment.stateful_input_contract.is_object()
         && valid_versioned_system_adjustment_program(
             &manager.schema_version,
@@ -148,7 +146,18 @@ fn valid_versioned_rebuy_multiplier(
     }
 }
 
-fn adjustment_program_order(constants: &NfiX7AdjustmentConstants) -> Vec<String> {
+fn adjustment_program_order(adjustment: &NfiX7PositionAdjustment) -> Vec<String> {
+    let constants = &adjustment.constants;
+    let auxiliary_tags = adjustment.program.iter().flat_map(|program| {
+        program
+            .order_scan
+            .counted_entry_groups
+            .iter()
+            .filter(|group| group.entry_program.is_some())
+            .flat_map(|group| {
+                std::iter::once(group.entry_tag.clone()).chain(group.exit_action_tag.clone())
+            })
+    });
     constants
         .derisk_levels
         .iter()
@@ -158,5 +167,6 @@ fn adjustment_program_order(constants: &NfiX7AdjustmentConstants) -> Vec<String>
                 .into_iter()
                 .map(move |action| format!("grind_{}_{action}", grind.level))
         }))
+        .chain(auxiliary_tags)
         .collect()
 }

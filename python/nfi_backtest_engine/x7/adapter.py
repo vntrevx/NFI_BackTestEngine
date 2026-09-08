@@ -29,6 +29,7 @@ from .contracts import (
 )
 from .serialization import (
     _nfi_trade_manager_config,
+    _optional_trade_features,
     _required_trade_features,
     _x7_portfolio_config,
 )
@@ -115,7 +116,9 @@ def build_x7_simulation_input(
                 ),
                 "feature_columns": _x7_feature_columns(
                     frame,
-                    required_features,
+                    sorted(set(required_features) | (
+                        _optional_trade_features(hot_ir) & set(frame.columns)
+                    )),
                 ),
                 "candles": _x7_signal_candles(frame, can_short=can_short),
             }
@@ -127,6 +130,7 @@ def build_x7_simulation_input(
             "compiled X7 adapter requires one exact fee across selected markets"
         )
     portfolio_config = _x7_portfolio_config(
+        market_snapshot=market_snapshot,
         analysis=analysis,
         hot_ir=hot_ir,
         config=config,
@@ -287,7 +291,9 @@ def build_x7_vector_manifest(
                     "rows": len(precision_frame),
                     "format": "feather-ipc",
                 },
-                "feature_columns": required_features,
+                "feature_columns": sorted(set(required_features) | (
+                    _optional_trade_features(hot_ir) & columns
+                )),
                 "can_short": can_short,
                 "include_funding": can_short,
                 "use_exit_signal": True,
@@ -306,6 +312,7 @@ def build_x7_vector_manifest(
     document = {
         "schema_version": VECTOR_MANIFEST_VERSION,
         "config": _x7_portfolio_config(
+            market_snapshot=market_snapshot,
             analysis=analysis,
             hot_ir=hot_ir,
             config=config,

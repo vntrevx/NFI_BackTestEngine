@@ -23,31 +23,39 @@ def _build_adjustment_constants(
     method: ast.FunctionDef,
     *,
     side: str,
+    system_prefix: str = "system_v3",
+    derisk_prefix: str = "system_v3_2",
+    allow_disabled: bool = False,
+    allow_buyback: bool = False,
+    source_switches: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
-    """Freeze one side's reachable system-v3.2 adjustment constants.
+    """Freeze one side's adjustment constants from the selected source families.
 
-    Buyback and level-4 de-risk branches are deliberately required to be
-    disabled. Supporting a disabled branch by omission is exact; accepting it
-    after a strategy change would not be.
+    Enabled buyback requires the caller to compile the source action program.
+    Legacy descriptor-only callers retain the disabled-branch requirement.
     """
     if side not in {"long", "short"}:
         raise StrategyAnalysisError(f"NFI adjustment side is invalid: {side}")
-    for name in _ADJUSTMENT_BOOL_CONSTANTS:
+    for original_name in _ADJUSTMENT_BOOL_CONSTANTS:
+        name = original_name.replace("system_v3_", f"{system_prefix}_", 1)
         if not isinstance(constants.get(name), bool):
             raise StrategyAnalysisError(f"NFI adjustment constant {name} must be boolean")
-    for name in _ADJUSTMENT_NUMBER_CONSTANTS:
+    for original_name in _ADJUSTMENT_NUMBER_CONSTANTS:
+        name = original_name.replace("system_v3_", f"{system_prefix}_", 1)
         value = constants.get(name)
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise StrategyAnalysisError(f"NFI adjustment constant {name} must be numeric")
-    if not constants["position_adjustment_enable"]:
+    if not constants["position_adjustment_enable"] and not allow_disabled:
         raise StrategyAnalysisError("NFI position adjustment is disabled")
-    if constants["system_v3_buyback_1_enable"]:
+    if constants[f"{system_prefix}_buyback_1_enable"] and not allow_buyback:
         raise StrategyAnalysisError("NFI buyback route is not lowered")
 
-    grind_levels = _numbered_constant_levels(constants, r"system_v3_grind_(\d+)_enable")
+    grind_levels = _numbered_constant_levels(
+        constants, rf"{re.escape(system_prefix)}_grind_(\d+)_enable"
+    )
     grinds: list[dict[str, Any]] = []
     for level in grind_levels:
-        prefix = f"system_v3_grind_{level}_"
+        prefix = f"{system_prefix}_grind_{level}_"
         record: dict[str, Any] = {
             "level": level,
             "enabled": _boolean_constant(constants, f"{prefix}enable"),
@@ -81,11 +89,28 @@ def _build_adjustment_constants(
     derisk_levels = _method_derisk_levels(method)
     derisk_records = []
     for level in derisk_levels:
-        prefix = f"system_v3_2_derisk_level_{level}_"
+        prefix = f"{derisk_prefix}_derisk_level_{level}_"
+        local_enable = (source_switches or {}).get(f"derisk_{level}_enable")
+        if local_enable is False and f"{prefix}enable" not in constants:
+            # The selected source branch leaves this level disabled and does
+            # not assign its thresholds. Keep its source-order slot inert.
+            derisk_records.append(
+                {
+                    "level": level,
+                    "enabled": False,
+                    "threshold_futures": 0.0,
+                    "threshold_spot": 0.0,
+                    "stake_futures": 0.0,
+                    "stake_spot": 0.0,
+                }
+            )
+            continue
         derisk_record: dict[str, Any] = {
             "level": level,
             "enabled": _boolean_constant(constants, f"{prefix}enable"),
         }
+        if source_switches is not None and f"derisk_{level}_enable" in source_switches:
+            derisk_record["enabled"] = source_switches[f"derisk_{level}_enable"]
         for mode in ("futures", "spot"):
             pair_name = f"{prefix}{mode}"
             values = constants.get(pair_name)
@@ -103,20 +128,20 @@ def _build_adjustment_constants(
             stake_name = f"{prefix}stake_{mode}"
             stake = constants.get(stake_name)
             if isinstance(stake, bool) or not isinstance(stake, int | float):
-                raise StrategyAnalysisError(
-                    f"NFI adjustment constant {stake_name} must be numeric"
-                )
+                raise StrategyAnalysisError(f"NFI adjustment constant {stake_name} must be numeric")
             derisk_record[f"threshold_{mode}"] = values[1]
             derisk_record[f"stake_{mode}"] = stake
         derisk_records.append(derisk_record)
 
     return {
         "derisk_enable": constants["derisk_enable"],
-        "max_stake_multiplier": constants["system_v3_max_stake"],
-        "rebuy_stake_multiplier": constants["system_v3_rebuy_mode_stake_multiplier"],
+        "max_stake_multiplier": constants[f"{system_prefix}_max_stake"],
+        "rebuy_stake_multiplier": constants[f"{system_prefix}_rebuy_mode_stake_multiplier"],
         "derisk_levels": derisk_records,
         "grinds": grinds,
-        "policy": _adjustment_literal_policy(method, side=side, grind_levels=grind_levels),
+        "policy": _adjustment_literal_policy(
+            method, side=side, grind_levels=grind_levels, system_prefix=system_prefix
+        ),
     }
 
 
@@ -144,10 +169,7 @@ def _method_derisk_levels(method: ast.FunctionDef) -> list[int]:
             and len(node.value.elts) == 2
             and isinstance(node.value.elts[1], ast.Constant)
             and isinstance(node.value.elts[1].value, str)
-            and (
-                match := re.fullmatch(r"derisk_level_(\d+)", node.value.elts[1].value)
-            )
-            is not None
+            and (match := re.fullmatch(r"derisk_level_(\d+)", node.value.elts[1].value)) is not None
         }
     )
     if not levels or levels != list(range(1, levels[-1] + 1)):
@@ -167,6 +189,7 @@ def _adjustment_literal_policy(
     *,
     side: str = "long",
     grind_levels: list[int] | None = None,
+    system_prefix: str = "system_v3",
 ) -> dict[str, Any]:
     """Extract non-constant entry gates from the reviewed stateful callback.
 
@@ -216,7 +239,9 @@ def _adjustment_literal_policy(
                 and isinstance(node.value, ast.Name)
                 and node.value.id == "self"
                 and (
-                    match := re.fullmatch(r"system_v3_grind_(\d+)_enable", node.attr)
+                    match := re.fullmatch(
+                        rf"{re.escape(system_prefix)}_grind_(\d+)_enable", node.attr
+                    )
                 )
                 is not None
             }
@@ -224,7 +249,8 @@ def _adjustment_literal_policy(
     if not grind_levels:
         raise StrategyAnalysisError("NFI adjustment has no source-defined Grind levels")
     fallback_records = [
-        _grind_entry_fallbacks(method, level=level, side=side) for level in grind_levels
+        _grind_entry_fallbacks(method, level=level, side=side, system_prefix=system_prefix)
+        for level in grind_levels
     ]
     return {
         "entry_retry_ms": retry_ms,
@@ -240,8 +266,9 @@ def _is_grind_enable_reference(
     node: ast.AST,
     *,
     level: int,
+    system_prefix: str = "system_v3",
 ) -> bool:
-    name = f"system_v3_grind_{level}_enable"
+    name = f"{system_prefix}_grind_{level}_enable"
     assignments = [
         statement
         for statement in method.body
@@ -374,6 +401,7 @@ def _grind_entry_fallbacks(
     *,
     level: int,
     side: str,
+    system_prefix: str = "system_v3",
 ) -> dict[str, Any]:
     tag = f"grind_{level}_entry"
     candidates = [
@@ -382,7 +410,7 @@ def _grind_entry_fallbacks(
         if isinstance(node, ast.If)
         and any(isinstance(value, ast.Constant) and value.value == tag for value in ast.walk(node))
         and any(
-            _is_grind_enable_reference(method, value, level=level)
+            _is_grind_enable_reference(method, value, level=level, system_prefix=system_prefix)
             for value in ast.walk(node.test)
         )
     ]
@@ -478,9 +506,7 @@ def _adjustment_boolean_expression(node: ast.AST, *, level: int) -> dict[str, An
             _unsupported_fallback(level)
         return {
             "op": operation,
-            "values": [
-                _adjustment_boolean_expression(value, level=level) for value in node.values
-            ],
+            "values": [_adjustment_boolean_expression(value, level=level) for value in node.values],
         }
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
         return {
@@ -703,11 +729,15 @@ def _ast_number(node: ast.AST) -> float | None:
     return None
 
 
-def _build_rebuy_adjustment_constants(constants: dict[str, Any]) -> dict[str, Any]:
+def _build_rebuy_adjustment_constants(
+    constants: dict[str, Any],
+    *,
+    system_prefix: str = "system_v3",
+) -> dict[str, Any]:
     """Freeze the separate system-v3 rebuy ladder used by tags 61-65."""
     lists: dict[str, list[int | float]] = {}
     for name in _REBUY_ADJUSTMENT_LIST_CONSTANTS:
-        value = constants.get(name)
+        value = constants.get(name.replace("system_v3_", f"{system_prefix}_", 1))
         if (
             not isinstance(value, list)
             or not value
@@ -724,7 +754,7 @@ def _build_rebuy_adjustment_constants(constants: dict[str, Any]) -> dict[str, An
             raise StrategyAnalysisError(f"NFI rebuy stake/threshold lengths differ for {mode}")
     numbers: dict[str, int | float] = {}
     for name in _REBUY_ADJUSTMENT_NUMBER_CONSTANTS:
-        value = constants.get(name)
+        value = constants.get(name.replace("system_v3_", f"{system_prefix}_", 1))
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise StrategyAnalysisError(f"NFI rebuy adjustment constant {name} must be numeric")
         numbers[name] = value

@@ -116,8 +116,7 @@ MANAGED_LONG_ROUTE_SPECS = (
     _route("long_scalp", "long", "scalp", "long_exit_scalp", MANAGED_LONG_PROGRAM_ORDER),
 )
 
-# Upstream has no explicit short top-coins dispatch block. Those tags execute
-# the normal fallback, so the contract names the callback that actually runs.
+# Sources without an explicit short top-coins dispatch use the normal fallback.
 MANAGED_SHORT_ROUTE_SPECS = (
     _route("short_normal", "short", "normal", "short_exit_normal", MANAGED_SHORT_PROGRAM_ORDER),
     _route("short_pump", "short", "pump", "short_exit_pump", MANAGED_SHORT_PROGRAM_ORDER),
@@ -141,4 +140,8 @@ MANAGED_SHORT_ROUTE_SPECS = (
         mode="short_normal_mode_name",
         tags="short_top_coins_mode_tags",
     ),
+)
+
+MANAGED_SHORT_TOP_COINS_ROUTE_SPEC = _route(
+    "short_top_coins", "short", "top-coins", "short_exit_top_coins", MANAGED_SHORT_PROGRAM_ORDER,
 )

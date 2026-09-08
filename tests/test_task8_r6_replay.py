@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import shutil
 from pathlib import Path
+from typing import Literal
 
+import pytest
 from nfi_backtest_engine.changed_signal_replay import replay_changed_signal
 
 
@@ -15,17 +17,19 @@ def _recursive_manifest(root: Path) -> tuple[tuple[str, str], ...]:
     )
 
 
+@pytest.mark.parametrize("mode", ["spot", "futures"])
 def test_complete_published_replay_root_is_byte_deterministic(
     tmp_path: Path,
+    mode: Literal["spot", "futures"],
 ) -> None:
     # Given: one complete Native replay root from a clean sequential execution.
-    first = replay_changed_signal("spot", "native")
+    first = replay_changed_signal(mode, "native")
     first_root = Path(str(first["output"]))
     snapshot = tmp_path / "first-published-root"
     shutil.copytree(first_root, snapshot)
 
     # When: the same lane is independently replayed from the sealed inputs.
-    second = replay_changed_signal("spot", "native")
+    second = replay_changed_signal(mode, "native")
     second_root = Path(str(second["output"]))
 
     # Then: every published path and byte is identical and no transient member leaks.
@@ -37,4 +41,4 @@ def test_complete_published_replay_root_is_byte_deterministic(
         "simulation-result.json",
         "state-projection.nfitrace",
     }
-    assert not list(Path("/tmp").glob("task8-r6-private-spot-native-*"))
+    assert not list(Path("/tmp").glob(f"task8-r6-private-{mode}-native-*"))

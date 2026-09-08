@@ -23,6 +23,10 @@ use super::position::{
     freqtrade_total_entry_value, is_unleveraged_spot, replay_leveraged_profit, replay_spot_profit,
 };
 use super::state_machine::evaluate_state_machine_exit;
+use super::strategy_settings::{
+    source_current_profit_ratio, source_roi_exit_rate, source_trailing_exit_rate,
+    update_source_trailing_stop,
+};
 
 pub(crate) fn rule_adjustment(
     trade: &OpenTrade,
@@ -237,19 +241,39 @@ pub(crate) fn exit_decisions(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Result<Vec<ExitDecision>, SimError> {
+    if config.strategy_exit_policy.is_some() {
+        update_source_trailing_stop(trade, candle, config)?;
+    }
     // This order mirrors Freqtrade 2026.5.1 `IStrategy.should_exit`.
     // Strategy exits precede liquidation and stop-loss candidates, so a
     // same-candle collision keeps the strategy reason and candle-open rate.
+    let entered = entry_signal_present(trade, candle);
+    if config
+        .strategy_exit_policy
+        .as_ref()
+        .is_some_and(|policy| !policy.use_exit_signal)
+    {
+        return ordered_risk_candidates(trade, candle, config, None);
+    }
     let signal = match trade.side {
         TradeSide::Long => &candle.exit_long,
         TradeSide::Short => &candle.exit_short,
     };
-    if let Some(signal) = signal {
+    if let Some(signal) = signal
+        .as_ref()
+        .filter(|_| config.strategy_exit_policy.is_none() || !entered)
+    {
+        let permitted = match config.strategy_exit_policy.as_ref() {
+            Some(policy) if policy.exit_profit_only => {
+                source_current_profit_ratio(trade, candle.open, config)? > policy.exit_profit_offset
+            }
+            _ => true,
+        };
         return ordered_risk_candidates(
             trade,
             candle,
             config,
-            Some(ExitDecision {
+            permitted.then(|| ExitDecision {
                 rate: strategy_exit_rate(trade, candle, config),
                 reason: signal.reason.clone(),
                 requires_confirmation: true,
@@ -396,7 +420,11 @@ pub(crate) fn ordered_risk_candidates(
     config: &PortfolioConfig,
     strategy: Option<ExitDecision>,
 ) -> Result<Vec<ExitDecision>, SimError> {
-    update_trailing_stop(trade, candle, config);
+    if config.strategy_exit_policy.is_some() {
+        update_source_trailing_stop(trade, candle, config)?;
+    } else {
+        update_trailing_stop(trade, candle, config);
+    }
     let mut candidates = strategy.into_iter().collect::<Vec<_>>();
     // Freqtrade calculates stop-loss and liquidation collisions inside
     // `IStrategy.ft_stoploss_reached()`. A regular stop-loss wins that
@@ -408,10 +436,7 @@ pub(crate) fn ordered_risk_candidates(
         TradeSide::Short => candle.high >= trade.stop_loss,
     };
     if stopped {
-        let trailing = match trade.side {
-            TradeSide::Long => trade.stop_loss > trade.initial_stop_loss,
-            TradeSide::Short => trade.stop_loss < trade.initial_stop_loss,
-        };
+        let trailing = is_trailing_stop(trade, config);
         if !trailing {
             candidates.push(ExitDecision {
                 rate: stop_or_liquidation_exit_rate(trade, candle, trade.stop_loss),
@@ -444,19 +469,30 @@ pub(crate) fn ordered_risk_candidates(
             requires_confirmation: true,
         });
     }
-    let trailing = stopped
-        && match trade.side {
-            TradeSide::Long => trade.stop_loss > trade.initial_stop_loss,
-            TradeSide::Short => trade.stop_loss < trade.initial_stop_loss,
-        };
+    let trailing = stopped && is_trailing_stop(trade, config);
     if trailing {
         candidates.push(ExitDecision {
-            rate: stop_or_liquidation_exit_rate(trade, candle, trade.stop_loss),
+            rate: if config.strategy_exit_policy.is_some() {
+                source_trailing_exit_rate(trade, candle, config)
+            } else {
+                stop_or_liquidation_exit_rate(trade, candle, trade.stop_loss)
+            },
             reason: "trailing_stop_loss".to_owned(),
             requires_confirmation: true,
         });
     }
     Ok(candidates)
+}
+
+fn is_trailing_stop(trade: &OpenTrade, config: &PortfolioConfig) -> bool {
+    if config.strategy_exit_policy.is_some() {
+        trade.is_stop_loss_trailing
+    } else {
+        match trade.side {
+            TradeSide::Long => trade.stop_loss > trade.initial_stop_loss,
+            TradeSide::Short => trade.stop_loss < trade.initial_stop_loss,
+        }
+    }
 }
 
 pub(crate) fn liquidation_reached(trade: &OpenTrade, candle: &Candle) -> bool {
@@ -509,6 +545,11 @@ fn roi_candidate(
     candle: &Candle,
     config: &PortfolioConfig,
 ) -> Result<Option<ExitDecision>, SimError> {
+    if config.strategy_exit_policy.as_ref().is_some_and(|policy| {
+        policy.ignore_roi_if_entry_signal && entry_signal_present(trade, candle)
+    }) {
+        return Ok(None);
+    }
     let elapsed_minutes = u64::try_from(
         (candle.timestamp_ms - trade.open_timestamp_ms).max(0) / 60_000,
     )
@@ -518,6 +559,21 @@ fn roi_candidate(
     let Some((roi_entry, ratio)) = config.minimal_roi.range(..=elapsed_minutes).next_back() else {
         return Ok(None);
     };
+    if config.strategy_exit_policy.is_some() {
+        return Ok(source_roi_exit_rate(
+            trade,
+            candle,
+            config,
+            elapsed_minutes,
+            *roi_entry,
+            *ratio,
+        )?
+        .map(|rate| ExitDecision {
+            rate,
+            reason: "roi".to_owned(),
+            requires_confirmation: true,
+        }));
+    }
     let rate = if ratio.total_cmp(&-1.0).is_eq() {
         candle.open
     } else {
@@ -578,6 +634,13 @@ fn roi_candidate(
             requires_confirmation: true,
         }
     }))
+}
+
+fn entry_signal_present(trade: &OpenTrade, candle: &Candle) -> bool {
+    match trade.side {
+        TradeSide::Long => candle.enter_long.is_some(),
+        TradeSide::Short => candle.enter_short.is_some(),
+    }
 }
 
 #[cfg(test)]

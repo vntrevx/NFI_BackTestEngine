@@ -23,6 +23,26 @@ pub(super) fn entry_leverage(
         })
         .or(config.leverage)
         .unwrap_or(1.0);
+    let maximum = maximum_entry_leverage(config, pair, candle, proposed_stake)?;
+    let leverage = maximum
+        .map_or(proposed, |value| proposed.min(value))
+        .max(1.0);
+    if leverage.is_finite() && leverage > 0.0 {
+        Ok(leverage)
+    } else {
+        Err(SimError::InvalidLeverage {
+            pair: pair.pair.clone(),
+            timestamp_ms: candle.timestamp_ms,
+        })
+    }
+}
+
+pub(crate) fn maximum_entry_leverage(
+    config: &PortfolioConfig,
+    pair: &PairSeries,
+    candle: &Candle,
+    proposed_stake: f64,
+) -> Result<Option<f64>, SimError> {
     let tier_limits = config
         .liquidation_model
         .as_ref()
@@ -39,17 +59,7 @@ pub(super) fn entry_leverage(
     } else {
         config.maximum_leverage_by_pair.get(&pair.pair).copied()
     };
-    let leverage = maximum
-        .map_or(proposed, |value| proposed.min(value))
-        .max(1.0);
-    if leverage.is_finite() && leverage > 0.0 {
-        Ok(leverage)
-    } else {
-        Err(SimError::InvalidLeverage {
-            pair: pair.pair.clone(),
-            timestamp_ms: candle.timestamp_ms,
-        })
-    }
+    Ok(maximum)
 }
 
 fn maximum_leverage_for_stake(tiers: &[LeverageTier], stake_amount: f64) -> Option<f64> {

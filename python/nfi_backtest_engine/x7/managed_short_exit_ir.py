@@ -1,4 +1,4 @@
-"""Compile X7's independently authored managed-short exit router.
+"""Compile source-authored managed-short exit routers.
 
 Short callbacks have their own condition direction, state ordering, compound
 tag rules, and final normal fallback.  This module intentionally consumes the
@@ -30,6 +30,28 @@ from .managed_exit_ir import (
     _validate_dispatch_branch,
     _validate_literal_terminal_exits,
 )
+from .route_contracts import (
+    MANAGED_SHORT_ROUTE_SPECS,
+    MANAGED_SHORT_TOP_COINS_ROUTE_SPEC,
+    ManagedRouteSpec,
+)
+
+
+def managed_short_route_specs(
+    methods: Mapping[str, ast.FunctionDef],
+) -> tuple[ManagedRouteSpec, ...]:
+    """Select the explicit top-coins layout only when the source dispatches it."""
+    custom_exit = methods.get("custom_exit")
+    if custom_exit is None:
+        return MANAGED_SHORT_ROUTE_SPECS
+    calls = _assigned_exit_callbacks(custom_exit, _self_aliases(custom_exit))
+    if MANAGED_SHORT_TOP_COINS_ROUTE_SPEC.method not in calls:
+        return MANAGED_SHORT_ROUTE_SPECS
+    return (
+        *MANAGED_SHORT_ROUTE_SPECS[:-2],
+        MANAGED_SHORT_TOP_COINS_ROUTE_SPEC,
+        MANAGED_SHORT_ROUTE_SPECS[-2],
+    )
 
 
 @dataclass(frozen=True)
@@ -71,6 +93,21 @@ def compile_managed_short_exit_ir(
             occurrence = occurrences[method_name]
             occurrences[method_name] += 1
             if candidates is None or occurrence >= len(candidates):
+                # An explicit top-coins layout can leave a final normal
+                # fallback that cannot match any admitted short entry. Prove
+                # that exclusion from the source predicate before omitting it.
+                if (
+                    method_name == "short_exit_normal"
+                    and occurrence == 1
+                    and any(spec.key == "short_top_coins" for spec in route_specs)
+                    and len(discovered) == len(route_specs)
+                ):
+                    matcher = _compile_short_matcher(
+                        statement.test, aliases, constants, short_side_names,
+                    )
+                    _validate_dispatch_branch(statement, method_name, aliases)
+                    if _excludes_short_entry_scope(matcher, constants):
+                        continue
                 unknown.add(method_name)
                 continue
             spec = candidates[occurrence]
@@ -145,6 +182,33 @@ def compile_managed_short_exit_ir(
     )
 
 
+def _excludes_short_entry_scope(
+    matcher: dict[str, Any] | None, constants: Mapping[str, Any],
+) -> bool:
+    """Prove `is_short and not any(known)` is false for every admitted short tag."""
+    if matcher is None or matcher.get("operator") != "all-of":
+        return False
+    operands = matcher.get("operands", [])
+    if len(operands) != 2 or operands[0] != {"operator": "is-short"}:
+        return False
+    negation = operands[1]
+    if negation.get("operator") != "not" or len(negation.get("operands", [])) != 1:
+        return False
+    excluded = negation["operands"][0]
+    if excluded.get("operator") != "any":
+        return False
+    scope = set()
+    tag_constants = [spec.tags_constant for spec in MANAGED_SHORT_ROUTE_SPECS]
+    if "short_grind_mode_tags" in constants:
+        tag_constants.append("short_grind_mode_tags")
+    for name in tag_constants:
+        tags = constants.get(name)
+        if not isinstance(tags, list) or not tags or not all(isinstance(tag, str) for tag in tags):
+            return False
+        scope.update(tags)
+    return scope.issubset(excluded.get("entry_tags", []))
+
+
 def _compile_short_matcher(
     node: ast.AST,
     aliases: Mapping[str, str],
@@ -172,6 +236,20 @@ def _compile_short_matcher(
         return None if operand is None else {"operator": "not", "operands": [operand]}
     if isinstance(node, ast.Name) and node.id in short_side_names:
         return {"operator": "is-short"}
+    # A bare local name must be bound by custom_exit itself. Class constants
+    # are not Python globals; treating an unbound local as self.<name> would
+    # compile a predicate whose official callback raises NameError.
+    if (
+        isinstance(node, ast.Call)
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.GeneratorExp)
+        and isinstance(node.args[0].elt, ast.Compare)
+        and any(
+            isinstance(value, ast.Name) and value.id not in aliases
+            for value in node.args[0].elt.comparators
+        )
+    ):
+        return None
     return _compile_tag_matcher(node, aliases, constants)
 
 

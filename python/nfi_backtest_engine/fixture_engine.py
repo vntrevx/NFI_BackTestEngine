@@ -50,7 +50,9 @@ def _uses_legacy_reference_state(root: Path, manifest: dict[str, Any]) -> bool:
     state = first_event.get("state")
     return isinstance(state, dict) and "schema_version" not in state
 
+
 VerificationLevel = Literal["quick", "full"]
+NativeBoundary = Literal["consumed-candle", "historical-next-slot"]
 
 
 def run_fixture_engine(
@@ -60,9 +62,16 @@ def run_fixture_engine(
     profile_path: str | Path | None = None,
     timeout_seconds: int | None = None,
     verification_level: VerificationLevel = "quick",
+    native_boundary: NativeBoundary = "consumed-candle",
 ) -> dict[str, Any]:
-    """Adapt one retained contract fixture, run Rust, and verify exact parity."""
+    """Adapt a retained fixture and verify parity.
+
+    Historical producer replay can explicitly retain its next-slot stop bound;
+    ordinary qualification ends at the last officially consumed candle.
+    """
     require_supported_execution_platform()
+    if native_boundary not in {"consumed-candle", "historical-next-slot"}:
+        raise BenchmarkError(f"unsupported Native fixture boundary: {native_boundary!r}")
     manifest_file = Path(manifest_path).absolute()
     manifest = validate_fixture(
         manifest_file,
@@ -76,6 +85,7 @@ def run_fixture_engine(
             profile_path=profile_path,
             timeout_seconds=timeout_seconds,
             verification_level=verification_level,
+            native_boundary=native_boundary,
         )
 
 
@@ -87,6 +97,7 @@ def _run_fixture_engine_materialized(
     profile_path: str | Path | None,
     timeout_seconds: int | None,
     verification_level: VerificationLevel,
+    native_boundary: NativeBoundary,
 ) -> dict[str, Any]:
     if verification_level not in {"quick", "full"}:
         raise BenchmarkError(
@@ -95,8 +106,7 @@ def _run_fixture_engine_materialized(
     native_vector_input = _native_vector_input(manifest_file, manifest)
     if native_vector_input is None and (
         manifest["schema_version"] == "3.0.0"
-        or manifest["freqtrade"]["strategy"]
-        not in {"ContractStopsOnly", "ContractNormalRouting"}
+        or manifest["freqtrade"]["strategy"] not in {"ContractStopsOnly", "ContractNormalRouting"}
     ):
         return _run_research_fixture_engine(
             manifest_file,
@@ -105,6 +115,7 @@ def _run_fixture_engine_materialized(
             profile_path=profile_path,
             timeout_seconds=timeout_seconds,
             verification_level=verification_level,
+            native_boundary=native_boundary,
         )
     strategy_analysis = analyze_strategy(
         manifest_file.parent / _one_input(manifest, "strategy")["path"],
@@ -263,6 +274,7 @@ def _run_research_fixture_engine(
     profile_path: str | Path | None,
     timeout_seconds: int | None,
     verification_level: VerificationLevel,
+    native_boundary: NativeBoundary,
 ) -> dict[str, Any]:
     """Execute a compiled fixture through the real research pipeline."""
     from .research_runner import run_research_backtest
@@ -277,7 +289,9 @@ def _run_research_fixture_engine(
     market_input = _one_input(manifest, "market_metadata")
     config = read_json(root / config_input["path"])
     pairs = config["exchange"]["pair_whitelist"]
-    interval_identity = official_consumed_interval(manifest_file, manifest)
+    interval_identity = official_consumed_interval(
+        manifest_file, manifest, native_boundary=native_boundary
+    )
     research_output = output / "research"
     selected_profile = (
         Path(profile_path).resolve()
@@ -300,13 +314,9 @@ def _run_research_fixture_engine(
             "fixture_id": manifest["fixture_id"],
             "fixture_manifest_sha256": hashlib.sha256(manifest_payload).hexdigest(),
             "scheduler_contract_sha256": interval_identity["scheduler_contract_sha256"],
-            "scheduler_contract_fingerprint": interval_identity[
-                "scheduler_contract_fingerprint"
-            ],
+            "scheduler_contract_fingerprint": interval_identity["scheduler_contract_fingerprint"],
             "portfolio_contract_sha256": interval_identity["portfolio_contract_sha256"],
-            "portfolio_contract_fingerprint": interval_identity[
-                "portfolio_contract_fingerprint"
-            ],
+            "portfolio_contract_fingerprint": interval_identity["portfolio_contract_fingerprint"],
             "source_sha256": strategy_input["sha256"],
             "config_sha256": config_input["sha256"],
             "data_sha256": interval_identity["data_sha256"],
@@ -415,11 +425,7 @@ def _run_research_fixture_engine(
     }
     portfolio_verification_path: Path | None = None
     portfolio_events_path = research_output / "portfolio-events.json"
-    if (
-        research["complete"]
-        and portfolio_events_path.is_file()
-        and official_trace_inputs
-    ):
+    if research["complete"] and portfolio_events_path.is_file() and official_trace_inputs:
         from .portfolio_trace import verify_portfolio_trace
 
         if len(official_trace_inputs) != 1:
@@ -483,18 +489,12 @@ def _run_research_fixture_engine(
         "branch_coverage": coverage,
         "research_report": _artifact_record(research_output / "run.json"),
         "artifacts": {
-            "trade_surface": (
-                _artifact_record(surface_path) if surface_path.is_file() else None
-            ),
+            "trade_surface": (_artifact_record(surface_path) if surface_path.is_file() else None),
             "engine_state_projection": (
-                _artifact_record(actual_trace_path)
-                if actual_trace_path is not None
-                else None
+                _artifact_record(actual_trace_path) if actual_trace_path is not None else None
             ),
             "portfolio_events": (
-                _artifact_record(portfolio_events_path)
-                if portfolio_events_path.is_file()
-                else None
+                _artifact_record(portfolio_events_path) if portfolio_events_path.is_file() else None
             ),
             "portfolio_verification": (
                 _artifact_record(portfolio_verification_path)
@@ -691,9 +691,7 @@ def engine_result_to_surface(
             "total_trades": len(trades),
             "starting_balance": _decimal(result["starting_balance"]),
             "final_balance": _decimal(
-                result["final_balance"]
-                if vector_result
-                else round(result["final_balance"], 8)
+                result["final_balance"] if vector_result else round(result["final_balance"], 8)
             ),
             "profit_total_abs": _decimal(
                 result["profit_total_abs"]
@@ -739,9 +737,7 @@ def _surface_trade(
             round(trade["stake_amount"], 8) if vector_result else trade["stake_amount"]
         ),
         "max_stake_amount": _decimal(
-            round(trade["max_stake_amount"], 8)
-            if vector_result
-            else trade["max_stake_amount"]
+            round(trade["max_stake_amount"], 8) if vector_result else trade["max_stake_amount"]
         ),
         "leverage": _decimal(trade.get("leverage", 1)) if vector_result else "1",
         "entry_tag": trade["entry_tag"],
@@ -866,8 +862,12 @@ def _candle_input_for_pair(manifest: dict[str, Any], pair: str) -> dict[str, Any
 def official_consumed_interval(
     manifest_file: str | Path,
     manifest: dict[str, Any],
+    *,
+    native_boundary: NativeBoundary = "consumed-candle",
 ) -> dict[str, Any]:
-    """Authenticate the exact Oracle-consumed slots before narrowing a fixture run."""
+    """Authenticate the consumed slots and select the declared producer boundary."""
+    if native_boundary not in {"consumed-candle", "historical-next-slot"}:
+        raise BenchmarkError(f"unsupported Native fixture boundary: {native_boundary!r}")
     root = Path(manifest_file).resolve().parent
     configured = read_json(root / _one_input(manifest, "config")["path"])["exchange"][
         "pair_whitelist"
@@ -913,9 +913,7 @@ def official_consumed_interval(
                 raise BenchmarkError("official-consumed trace has an invalid timestamp")
             event_timestamps.add(timestamp)
         official_trace_sha256 = trace_input["sha256"]
-        scheduler_contract_fingerprint = authentication[
-            "scheduler_contract_fingerprint"
-        ]
+        scheduler_contract_fingerprint = authentication["scheduler_contract_fingerprint"]
         portfolio_contract_sha256 = authentication["portfolio_contract"]["sha256"]
         require_exact_candle_slots = True
     elif not traces and not authentications:
@@ -928,9 +926,7 @@ def official_consumed_interval(
         portfolio_contract_sha256 = sha256_file(portfolio_contract_path)
         require_exact_candle_slots = False
     else:
-        raise BenchmarkError(
-            "fixture requires matched official-consumed trace and authentication"
-        )
+        raise BenchmarkError("fixture requires matched official-consumed trace and authentication")
 
     if not event_timestamps:
         raise BenchmarkError("official-consumed trace has no configured-pair events")
@@ -952,9 +948,7 @@ def official_consumed_interval(
                 f"official-consumed interval for {pair} has missing slot {missing[0]}"
             )
         if require_exact_candle_slots and timestamps != expected:
-            raise BenchmarkError(
-                f"official-consumed interval for {pair} has unbound slots"
-            )
+            raise BenchmarkError(f"official-consumed interval for {pair} has unbound slots")
         candle_identities.append(
             {
                 "pair": pair,
@@ -968,7 +962,14 @@ def official_consumed_interval(
     ).hexdigest()
     return {
         "schema_version": "official-consumed-interval-v1",
-        "native_timerange": f"{interval_start}-{interval_end}",
+        # Native preparation uses a closed stop bound. The slot-validation
+        # interval above is half-open; passing its upper bound would execute
+        # an extra candle whenever the retained file extends past the capture.
+        "native_timerange": (
+            f"{interval_start}-{event_end}"
+            if native_boundary == "consumed-candle"
+            else f"{interval_start}-{interval_end}"
+        ),
         "official_event_start_timestamp_ms": event_start,
         "official_event_end_timestamp_ms": event_end,
         "timeframe_ms": step,
@@ -1006,23 +1007,40 @@ def _legacy_official_trace_identity(
         if summary[field] != expected:
             raise BenchmarkError(f"legacy state trace {field} identity differs")
 
+    timestamps = _legacy_candle_timestamps(
+        iter_validated_trace_events(trace_path), configured_pairs
+    )
+    return timestamps, trace["sha256"]
+
+
+def _legacy_candle_timestamps(events: Any, configured_pairs: list[str]) -> set[int]:
+    """Authenticate complete batches in Freqtrade's open-trades-first order."""
     ordered_pairs: dict[int, list[str]] = {}
+    expected_orders: dict[int, list[str]] = {}
+    previous_trades: list[dict[str, Any]] = []
     configured = set(configured_pairs)
-    for event in iter_validated_trace_events(trace_path):
+    for event in events:
         if event["phase"] != "candle.after":
             continue
         pair = event["pair"]
         if pair not in configured:
             raise BenchmarkError("legacy state trace contains an unconfigured candle pair")
-        ordered_pairs.setdefault(event["timestamp_ms"], []).append(pair)
+        timestamp = event["timestamp_ms"]
+        if timestamp not in ordered_pairs:
+            open_pairs = list(
+                dict.fromkeys(trade["pair"] for trade in previous_trades if trade.get("is_open"))
+            )
+            expected_orders[timestamp] = open_pairs + [
+                item for item in configured_pairs if item not in open_pairs
+            ]
+        ordered_pairs.setdefault(timestamp, []).append(pair)
+        previous_trades = event["state"]["trades"]
     if not ordered_pairs:
         raise BenchmarkError("legacy state trace has no candle events")
     for timestamp, pairs in ordered_pairs.items():
-        if pairs != configured_pairs:
-            raise BenchmarkError(
-                f"legacy state trace configured pair order differs at {timestamp}"
-            )
-    return set(ordered_pairs), trace["sha256"]
+        if pairs != expected_orders[timestamp]:
+            raise BenchmarkError(f"legacy state trace configured pair order differs at {timestamp}")
+    return set(ordered_pairs)
 
 
 def _fixture_data_directory(root: Path, manifest: dict[str, Any]) -> Path:
@@ -1042,9 +1060,7 @@ def _fixture_data_directory(root: Path, manifest: dict[str, Any]) -> Path:
         parent = Path(item["path"]).parent
         data_roots.add(parent.parent if parent.name == "futures" else parent)
     if len(data_roots) != 1:
-        raise BenchmarkError(
-            "fixture candle inputs must resolve to one shared data directory"
-        )
+        raise BenchmarkError("fixture candle inputs must resolve to one shared data directory")
 
     fixture_root = root.resolve()
     data_directory = (fixture_root / data_roots.pop()).resolve()
@@ -1053,9 +1069,7 @@ def _fixture_data_directory(root: Path, manifest: dict[str, Any]) -> Path:
     except ValueError as exc:
         raise BenchmarkError("fixture candle data directory escapes the fixture") from exc
     if not data_directory.is_dir():
-        raise BenchmarkError(
-            f"fixture candle data directory is missing: {data_directory}"
-        )
+        raise BenchmarkError(f"fixture candle data directory is missing: {data_directory}")
     return data_directory
 
 
@@ -1089,10 +1103,7 @@ def validate_native_manager_binding(
     if not isinstance(manager, dict):
         raise BenchmarkError("Native vector manifest requires a compiled NFI trade manager")
     expected_source = manifest.get("strategy_provenance", {}).get("base_source_sha256")
-    if (
-        not isinstance(expected_source, str)
-        or manager.get("source_sha256") != expected_source
-    ):
+    if not isinstance(expected_source, str) or manager.get("source_sha256") != expected_source:
         raise BenchmarkError("Native trade manager source differs from fixture provenance")
 
 

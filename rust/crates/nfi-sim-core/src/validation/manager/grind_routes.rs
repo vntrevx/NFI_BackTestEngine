@@ -92,7 +92,7 @@ fn valid_short_grind(
                 .all(|tag| !managed_tags.contains(*tag) && !short_tags.contains(*tag))
             && route.adjustment_scope == "grind-backtest-v2"
             && route.grind_mode
-            && route.decision_program == "short_grind_entry_v3"
+            && valid_short_entry_program(manager, route)
             && route
                 .futures_fallback_loss_threshold
                 .is_some_and(|threshold| threshold.is_finite() && threshold > 0.0)
@@ -106,6 +106,24 @@ fn valid_short_grind(
             && valid_versioned_legacy_grind_program(&manager.schema_version, route)
             && valid_nfi_legacy_grind_constants(&route.constants)
     })
+}
+
+fn valid_short_entry_program(manager: &NfiX7TradeManager, route: &NfiLongGrindRoute) -> bool {
+    if manager.virtual_fees.is_none() {
+        return route.decision_program == "short_grind_entry_v3";
+    }
+    manager
+        .programs
+        .get(&route.decision_program)
+        .is_some_and(|program| {
+            program.parameters
+                == [
+                    "last_candle",
+                    "previous_candle",
+                    "slice_profit",
+                    "is_derisk",
+                ]
+        })
 }
 
 fn valid_long_btc(manager: &NfiX7TradeManager, managed_tags: &BTreeSet<&String>) -> bool {

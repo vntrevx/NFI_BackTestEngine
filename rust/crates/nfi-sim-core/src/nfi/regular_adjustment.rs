@@ -5,13 +5,12 @@
 //! grind clusters from filled orders on every candle. This module preserves
 //! that newest-to-oldest order walk and the callback's early-return order.
 
+use super::fees::{fee_close, fee_open};
 use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::calculations::{
-    checked_finite, checked_float_product, checked_float_sum, fee_close, fee_open,
-};
+use crate::calculations::{checked_finite, checked_float_product, checked_float_sum};
 use crate::callbacks::insert_projected_feature_window;
 use crate::domain::{
     AdjustmentSignal, Candle, CompiledOrderSequence, CompiledOrderSide,
@@ -24,7 +23,7 @@ use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{evaluate_scalar_program_bundle, number_value, scalar_truthy};
 
 use super::dispatch::nfi_long_grind_supports_trade;
-use super::state::nfi_profit_snapshot;
+use super::state::decision_profit_snapshot;
 
 /// The regular helper either returns from the outer callback or deliberately
 /// transfers a de-risked trade to the source-compiled Grind continuation below it.
@@ -305,13 +304,7 @@ fn evaluate_regular_adjustment_with_contract(
         return Some(RegularAdjustmentOutcome::ContinueGrind);
     }
 
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     let slice_profit = price_distance(candle.open, state.latest_order_price)?;
     let slice_profit_entry = price_distance(candle.open, state.latest_entry_price)?;
     let num_open_grinds = state

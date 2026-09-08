@@ -89,6 +89,9 @@ def _run_native(run: ReplayRun) -> bool:
         run.private_root,
         timeout_seconds=600,
         verification_level="full",
+        # Preserve the published producer's request when reproducing raw bytes.
+        # New qualification uses the fixture runner's consumed-candle default.
+        native_boundary="historical-next-slot",
     )
     tracked_root = run.fixture.parent
     produced = (

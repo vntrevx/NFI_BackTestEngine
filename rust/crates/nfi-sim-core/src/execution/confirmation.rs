@@ -4,13 +4,15 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::calculations::{fee_close, fee_open};
+use crate::calculations::fee_close;
 use crate::domain::{ConfirmProgram, OrderType, PortfolioConfig};
-use crate::nfi::nfi_profit_snapshot;
+use crate::nfi::decision_profit_snapshot;
 use crate::portfolio::{OpenTrade, TradeSide};
-use crate::scalar_vm::{integer_value, number_value};
+use crate::scalar_vm::{
+    integer_value, number_value, scalar_equal, scalar_number, scalar_number_value,
+};
 
-use super::exit::current_profit_ratio;
+use super::strategy_settings::callback_profit_ratio;
 
 #[derive(Clone, Copy)]
 pub(crate) struct ConfirmInputs<'a> {
@@ -23,6 +25,7 @@ pub(crate) struct ConfirmInputs<'a> {
     pub(crate) previous_close: Option<f64>,
     pub(crate) open_trades: &'a [OpenTrade],
     pub(crate) max_open_trades: usize,
+    pub(crate) source_max_open_trades: Option<i64>,
     pub(crate) is_futures: bool,
     pub(crate) order_type: OrderType,
 }
@@ -97,7 +100,12 @@ pub(crate) fn evaluate_confirm_program(
         ("analyzed_frame".to_owned(), analyzed_frame),
         (
             "config.max_open_trades".to_owned(),
-            Value::Number(u64::try_from(inputs.max_open_trades).ok()?.into()),
+            match inputs.source_max_open_trades {
+                Some(-1) => scalar_number_value(f64::INFINITY)?,
+                Some(0) => Value::Number(0.into()),
+                None => Value::Number(u64::try_from(inputs.max_open_trades).ok()?.into()),
+                _ => return None,
+            },
         ),
         (
             "config.is_futures".to_owned(),
@@ -124,13 +132,7 @@ pub(crate) fn evaluate_exit_confirm_program(
         .liquidation_price
         .and_then(number_value)
         .unwrap_or(Value::Null);
-    let profit_snapshot = nfi_profit_snapshot(
-        trade,
-        rate,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    );
+    let profit_snapshot = decision_profit_snapshot(trade, rate, config);
     let snapshot_value = |value: Option<f64>| value.and_then(number_value).unwrap_or(Value::Null);
     let trade_value = Value::Object(serde_json::Map::from_iter([
         (
@@ -182,7 +184,7 @@ pub(crate) fn evaluate_exit_confirm_program(
         ),
         (
             "trade_profit_ratio".to_owned(),
-            number_value(current_profit_ratio(trade, rate, fee_close(config)))?,
+            number_value(callback_profit_ratio(trade, rate, config).ok()?)?,
         ),
         ("clear_profit_target".to_owned(), Value::Bool(false)),
         (
@@ -311,22 +313,30 @@ pub(crate) fn evaluate_confirm_expression(
                 value.as_object()?.get(index.as_str()?).cloned()
             }
         }
-        "negative" => number_value(
-            -evaluate_confirm_expression(object.get("value")?, variables, program, depth + 1)?
-                .as_f64()?,
-        ),
+        "negative" => scalar_number_value(-scalar_number(&evaluate_confirm_expression(
+            object.get("value")?,
+            variables,
+            program,
+            depth + 1,
+        )?)?),
         "not" => Some(Value::Bool(
             !evaluate_confirm_expression(object.get("value")?, variables, program, depth + 1)?
                 .as_bool()?,
         )),
         "add" | "subtract" | "multiply" | "divide" => {
-            let left =
-                evaluate_confirm_expression(object.get("left")?, variables, program, depth + 1)?
-                    .as_f64()?;
-            let right =
-                evaluate_confirm_expression(object.get("right")?, variables, program, depth + 1)?
-                    .as_f64()?;
-            number_value(match op {
+            let left = scalar_number(&evaluate_confirm_expression(
+                object.get("left")?,
+                variables,
+                program,
+                depth + 1,
+            )?)?;
+            let right = scalar_number(&evaluate_confirm_expression(
+                object.get("right")?,
+                variables,
+                program,
+                depth + 1,
+            )?)?;
+            scalar_number_value(match op {
                 "add" => left + right,
                 "subtract" => left - right,
                 "multiply" => left * right,
@@ -362,18 +372,24 @@ pub(crate) fn evaluate_confirm_expression(
             let right =
                 evaluate_confirm_expression(object.get("right")?, variables, program, depth + 1)?;
             Some(Value::Bool(if op == "equal" {
-                left == right
+                scalar_equal(&left, &right)
             } else {
-                left != right
+                !scalar_equal(&left, &right)
             }))
         }
         "greater" | "greater_equal" | "less" | "less_equal" => {
-            let left =
-                evaluate_confirm_expression(object.get("left")?, variables, program, depth + 1)?
-                    .as_f64()?;
-            let right =
-                evaluate_confirm_expression(object.get("right")?, variables, program, depth + 1)?
-                    .as_f64()?;
+            let left = scalar_number(&evaluate_confirm_expression(
+                object.get("left")?,
+                variables,
+                program,
+                depth + 1,
+            )?)?;
+            let right = scalar_number(&evaluate_confirm_expression(
+                object.get("right")?,
+                variables,
+                program,
+                depth + 1,
+            )?)?;
             Some(Value::Bool(match op {
                 "greater" => left > right,
                 "greater_equal" => left >= right,

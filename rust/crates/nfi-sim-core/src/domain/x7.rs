@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::ScalarDecisionProgram;
+use super::{ScalarDecisionProgram, ScalarProgramBundle};
 
 pub(crate) type FeatureProjection = BTreeMap<String, BTreeSet<String>>;
 
@@ -60,6 +60,16 @@ pub struct NfiX7TradeManager {
     /// entry predicate and direction-sensitive wrapper policy are different.
     #[serde(default)]
     pub short_position_adjustment: Option<NfiX7PositionAdjustment>,
+    #[serde(default)]
+    pub adjustment_dispatch: Option<ManagedAdjustmentDispatch>,
+    #[serde(default)]
+    pub system_exit_programs: Option<ManagedSystemExitPrograms>,
+    #[serde(default)]
+    pub custom_exit_prefix: Option<ManagedCustomExitPrefix>,
+    /// Source profit snapshot: entries precede exits, with optional decision fees.
+    /// Exchange fills and wallet accounting retain their own rates.
+    #[serde(default)]
+    pub virtual_fees: Option<NfiVirtualFees>,
     pub constants: NfiManagedLongConstants,
     pub programs: BTreeMap<String, ScalarDecisionProgram>,
     /// Lazily derived from the source-bound scalar arenas.
@@ -85,6 +95,57 @@ pub struct NfiX7TradeManager {
     /// evidence replay and prevents an input from redirecting behavior.
     #[serde(skip)]
     pub(crate) dispatch_plan: OnceLock<Option<NfiDispatchPlan>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NfiVirtualFees {
+    pub open_rate: Option<f64>,
+    pub close_rate: Option<f64>,
+    #[serde(default)]
+    pub legacy_short_close_fee_additive: bool,
+}
+
+/// A specialized source router; target names identify engine operations, not strategies.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedAdjustmentDispatch {
+    pub schema_version: String,
+    pub system_version: String,
+    pub predicates: BTreeMap<String, ManagedExitTagMatcher>,
+    pub program: ScalarDecisionProgram,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedSystemExitPrograms {
+    pub system_version: String,
+    pub long_stop: ScalarDecisionProgram,
+    pub short_stop: ScalarDecisionProgram,
+    pub profit_target: ManagedProfitTargetProgram,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedProfitTargetProgram {
+    pub program: ScalarDecisionProgram,
+    pub predicates: BTreeMap<String, ManagedExitTagMatcher>,
+    pub derisk: ManagedTargetDeriskPolicy,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedTargetDeriskPolicy {
+    pub order_tags: Vec<String>,
+    pub amount_ratio: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedCustomExitPrefix {
+    pub bundle: ScalarProgramBundle,
+    pub optional_columns: Vec<String>,
 }
 
 pub(crate) type NfiTagId = usize;
@@ -794,6 +855,8 @@ pub enum CompiledSystemAdjustmentActionKind {
     GrindEntry,
     GrindExit,
     GrindDerisk,
+    AuxiliaryEntry,
+    AuxiliaryExit,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -826,6 +889,12 @@ pub enum CompiledSystemAdjustmentInputKind {
     MaximumStake,
     MinimumStake,
     OpenGrindCount,
+    AuxiliaryEntryCount,
+    AuxiliaryEntrySignal,
+    AuxiliaryGroupOpenRate,
+    AuxiliaryGroupExitDistance,
+    AuxiliaryGroupTotalAmount,
+    AuxiliaryGroupProfitStake,
     PreviousCandle,
     ProfitRatio,
     ProfitStake,
@@ -864,10 +933,30 @@ pub struct CompiledSystemOrderScan {
     pub entry_order_side: CompiledOrderSide,
     pub exit_order_side: CompiledOrderSide,
     pub exclude_first_entry: bool,
+    /// Source expressions apply any short-side negation themselves.
+    /// Archived programs retain the previous directional binding when absent.
+    #[serde(default)]
+    pub raw_cluster_distance: bool,
+    #[serde(default)]
+    pub counted_entry_groups: Vec<CompiledCountedEntryGroup>,
     pub global_exit_tag: String,
     pub derisk_tags: Vec<CompiledSystemDeriskTag>,
     pub grind_levels: Vec<CompiledSystemGrindTags>,
     pub partial_fill_policy: CompiledPartialFillPolicy,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompiledCountedEntryGroup {
+    #[serde(default)]
+    pub fallback_exit_tag: Option<String>,
+    #[serde(default)]
+    pub exit_action_tag: Option<String>,
+    pub count_variable: String,
+    pub entry_tag: String,
+    pub exit_tags: Vec<String>,
+    #[serde(default)]
+    pub entry_program: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1007,6 +1096,8 @@ pub struct CompiledAdjustmentDelegate {
     pub target: CompiledAdjustmentTarget,
     pub source_target: String,
     pub target_entry_retry_ms: i64,
+    #[serde(default)]
+    pub preserve_corrected_minimum: bool,
     pub location: ManagedExitSourceLocation,
 }
 

@@ -170,7 +170,13 @@ fn wallet_value(
         "min_stake" => {
             adjustment_minimum_pair_stake(pair, candle.open, config.amount_reserve_percent)
         }
-        "max_stake" => available_balance,
+        "max_stake" => super::order_stake::adjustment_maximum_stake(
+            pair,
+            candle.open,
+            available_balance,
+            config,
+        )
+        .ok()?,
         _ => return None,
     };
     serde_json::Number::from_f64(value).map(Value::Number)

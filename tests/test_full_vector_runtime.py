@@ -89,7 +89,10 @@ def test_builder_hardlinks_raw_frames_and_runs_the_sealed_manifest(tmp_path: Pat
     trades = read_json(result)["trades"]
     assert len(trades) == 1
     assert trades[0]["entry_tag"] == "test  "
-    assert trades[0]["exit_reason"] == "force_exit"
+    # The entry candle reaches the inherited 20% stop at its low of 8.0.
+    assert trades[0]["exit_reason"] == "stop_loss"
+    assert trades[0]["close_timestamp_ms"] == START_MS + 600_000
+    assert trades[0]["close_rate"] == 8.0
     input_profile = read_json(profile)["input"]
     assert input_profile["manifest_sha256"] is not None
     assert input_profile["raw_frame_count"] == 1
@@ -204,8 +207,8 @@ def _market_snapshot() -> dict:
                 "taker": 0.001,
                 "precision": {"amount": 0.001, "price": 0.01},
                 "limits": {
-                    "amount": {"min": 0.001},
-                    "cost": {"min": 5.0},
+                    "amount": {"min": 0.001, "max": None},
+                    "cost": {"min": 5.0, "max": None},
                     "leverage": {},
                 },
             }

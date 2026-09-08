@@ -17,6 +17,7 @@ import pandas as pd
 from .canonical import read_json, write_json
 from .errors import StrategyAnalysisError
 from .fixture import sha256_file
+from .indicator_columns import indicator_output_columns
 from .indicator_program import compile_indicator_program
 from .market_precision import historic_price_steps
 from .signal_program import compile_signal_program
@@ -39,6 +40,7 @@ from .x7.contracts import (
 )
 from .x7.serialization import (
     _nfi_trade_manager_config,
+    _optional_trade_features,
     _required_trade_features,
     _x7_portfolio_config,
 )
@@ -169,7 +171,9 @@ def build_full_native_vector_manifest(
         funding_fee_interval_ms=funding_fee_interval_ms,
         market_snapshot=market_snapshot,
     )
-    retained_features = _retained_trade_features(hot_ir)
+    available_columns = (indicator_output_columns(programs["indicator"])
+                         if _optional_trade_features(hot_ir) else set())
+    retained_features = _retained_trade_features(hot_ir, available_columns=available_columns)
     retained_fingerprint = _retained_feature_fingerprint(retained_features)
 
     staging = Path(
@@ -287,11 +291,14 @@ def _validate_program_identity(
             raise StrategyAnalysisError(f"compiled {name} context differs from the run")
 
 
-def _retained_trade_features(hot_ir: dict[str, Any]) -> list[str]:
+def _retained_trade_features(
+    hot_ir: dict[str, Any], *, available_columns: set[str] | None = None,
+) -> list[str]:
     """Keep callback columns not already represented by the candle contract."""
-    return [
-        name for name in _required_trade_features(hot_ir) if name not in _SIMULATOR_COLUMNS
-    ]
+    columns = [name for name in _required_trade_features(hot_ir)
+               if name not in _SIMULATOR_COLUMNS]
+    optional = _optional_trade_features(hot_ir) & (available_columns or set())
+    return columns + sorted(optional - set(columns) - set(_SIMULATOR_COLUMNS))
 
 
 def _portfolio_contract(
@@ -362,6 +369,7 @@ def _portfolio_contract(
         raise StrategyAnalysisError("full native execution requires one exact fee")
     nfi_manager = _nfi_trade_manager_config(hot_ir)
     portfolio_config = _x7_portfolio_config(
+        market_snapshot=market_snapshot,
         analysis=analysis,
         hot_ir=hot_ir,
         config=config,

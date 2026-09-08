@@ -52,6 +52,7 @@ from .market_snapshot import MARKET_SNAPSHOT_VERSION, capture_market_snapshot
 from .reference_runtime import load_reference_leverage_tiers
 from .result_report import write_result_presentation
 from .run_registry import RunRegistry
+from .source_configuration import configured_analysis
 from .specs import validate_trade_surface
 from .state_machine_ir import (
     STATE_MACHINE_PROGRAM_V3_VERSION,
@@ -150,6 +151,7 @@ def run_research_backtest(
         class_name=class_name,
         cache_directory=cache_directory,
     )
+    analysis = configured_analysis(analysis, run_config)
     if not analysis["static_safe"]:
         first = next(item for item in analysis["diagnostics"] if item["severity"] == "error")
         location = first["location"]

@@ -6,23 +6,28 @@
 //! values are still recomputed every candle, so the cache changes no callback
 //! input or source-order decision.
 
+use super::fees::{fee_close, fee_open};
+use super::source_auxiliary_adjustment::{counted_entries, group_state};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::calculations::{checked_float_product, checked_float_sum, fee_close, fee_open};
+use crate::calculations::{
+    checked_float_product, checked_float_sum, fee_close as exchange_fee_close,
+};
 use crate::callbacks::{
     feature_bool_at, feature_number_at, insert_projected_feature_window,
     scalar_program_feature_projection, scalar_trade_value,
 };
 use crate::domain::{
     AdjustmentSignal, Candle, CompiledOrderSide, CompiledSystemAdjustmentAction,
-    CompiledSystemAdjustmentExecutionMode, CompiledSystemAdjustmentInputKind,
-    CompiledSystemAdjustmentProgram, CompiledSystemAdjustmentSide, CompiledSystemGrindTags,
-    CompiledSystemStakeScale, NfiX7AdjustmentComparison, NfiX7AdjustmentCondition,
-    NfiX7AdjustmentExpression, NfiX7AdjustmentOperand, NfiX7AdjustmentPredicate, NfiX7GrindLevel,
-    NfiX7PositionAdjustment, NfiX7TradeManager, OrderSide, PairSeries, PortfolioConfig,
+    CompiledSystemAdjustmentActionKind, CompiledSystemAdjustmentExecutionMode,
+    CompiledSystemAdjustmentInputKind, CompiledSystemAdjustmentProgram,
+    CompiledSystemAdjustmentSide, CompiledSystemGrindTags, CompiledSystemStakeScale,
+    NfiX7AdjustmentComparison, NfiX7AdjustmentCondition, NfiX7AdjustmentExpression,
+    NfiX7AdjustmentOperand, NfiX7AdjustmentPredicate, NfiX7GrindLevel, NfiX7PositionAdjustment,
+    NfiX7TradeManager, OrderSide, PairSeries, PortfolioConfig,
 };
 use crate::execution::adjustment_minimum_pair_stake;
 use crate::order_aggregates::FilledOrderSelector;
@@ -31,7 +36,7 @@ use crate::scalar_vm::{
     evaluate_scalar_decision_program, evaluate_scalar_program_bundle, number_value, scalar_truthy,
 };
 
-use super::state::{nfi_profit_snapshot, NfiProfitSnapshot, PositionAdjustmentRequest};
+use super::state::{decision_profit_snapshot, NfiProfitSnapshot, PositionAdjustmentRequest};
 
 #[derive(Debug, Clone, Default)]
 struct GrindCluster {
@@ -61,8 +66,12 @@ impl GrindCluster {
     }
 
     fn directional_distance(&self, rate: f64, side: TradeSide) -> f64 {
+        directional_rate(self.raw_distance(rate), side)
+    }
+
+    fn raw_distance(&self, rate: f64) -> f64 {
         self.latest_entry_price
-            .map_or(0.0, |price| directional_rate((rate - price) / price, side))
+            .map_or(0.0, |price| (rate - price) / price)
     }
 }
 
@@ -73,6 +82,7 @@ pub(crate) struct AdjustmentState {
     /// `None` identifies the independently reconstructed legacy shadow.
     program_fingerprint: Option<String>,
     clusters: Vec<GrindCluster>,
+    counted_entries: Vec<usize>,
     derisk_found: Vec<bool>,
     first_entry_amount: f64,
     first_entry_cost: f64,
@@ -100,6 +110,7 @@ struct AdjustmentContext<'a> {
     rebuy_mode: bool,
     is_grind_entry: bool,
     extra_entry_checks: bool,
+    auxiliary_entry_signals: Vec<bool>,
 }
 
 /// Source-order result for one grind level.
@@ -284,17 +295,12 @@ fn evaluate_compiled_system_adjustment(
     let state = compiled_adjustment_state(trade, program)?;
     let exchange_minimum_stake =
         adjustment_minimum_stake(request.pair, request.candle, trade, request.config)?;
+    let divide_minimum = divide_rebuy_minimum(manager, trade.side, rebuy_mode);
     let minimum_stake =
-        grind_callback_minimum_stake(exchange_minimum_stake, trade.leverage, rebuy_mode);
+        grind_callback_minimum_stake(exchange_minimum_stake, trade.leverage, divide_minimum);
     let available_balance =
         grind_callback_maximum_stake(request.available_balance, trade.leverage, rebuy_mode);
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        request.candle.open,
-        fee_open(request.config),
-        fee_close(request.config),
-        request.config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, request.candle.open, request.config)?;
     let slice_amount = state.first_entry_cost / initial_stake_multiplier;
     let slice_profit = price_distance(request.candle.open, state.latest_order_price)?;
     let slice_profit_entry = price_distance(request.candle.open, state.latest_entry_price)?;
@@ -306,6 +312,7 @@ fn evaluate_compiled_system_adjustment(
         .clusters
         .iter()
         .map(|cluster| cluster.count)
+        .chain(state.counted_entries.iter().copied())
         .sum::<usize>();
     let grind_entry_signal = evaluate_grind_entry_program(
         manager,
@@ -319,6 +326,27 @@ fn evaluate_compiled_system_adjustment(
         slice_profit_entry,
         slice_profit_exit,
     )?;
+    let auxiliary_entry_signals = program
+        .order_scan
+        .counted_entry_groups
+        .iter()
+        .map(|group| {
+            group.entry_program.as_deref().map_or(Some(false), |name| {
+                evaluate_grind_entry_program(
+                    manager,
+                    name,
+                    trade,
+                    request.pair,
+                    request.candle_index,
+                    request.candle,
+                    open_grind_count,
+                    slice_profit,
+                    slice_profit_entry,
+                    slice_profit_exit,
+                )
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
     let policy = adjustment.constants.policy.as_ref()?;
     if program.retry_policy.entry_retry_ms != policy.entry_retry_ms
         || program.retry_policy.stale_order_ms != policy.stale_order_ms
@@ -352,7 +380,7 @@ fn evaluate_compiled_system_adjustment(
         &state.clusters,
         &program.order_scan.grind_levels,
         request.candle.open,
-        fee_close(request.config),
+        exchange_fee_close(request.config),
         trade.side,
     )?;
     let context = AdjustmentContext {
@@ -372,6 +400,7 @@ fn evaluate_compiled_system_adjustment(
         rebuy_mode,
         is_grind_entry: grind_entry_signal,
         extra_entry_checks,
+        auxiliary_entry_signals,
     };
     for action in &program.source_order {
         match evaluate_compiled_system_action(
@@ -450,8 +479,19 @@ fn evaluate_compiled_system_action(
     }
     let mut tag = tag.to_owned();
     if action.append_entry_ids {
-        let index = compiled_grind_index(program, action.level)?;
-        for id in &state.clusters.get(index)?.entry_ids {
+        let auxiliary;
+        let ids = if action.kind == CompiledSystemAdjustmentActionKind::AuxiliaryExit {
+            let group = program
+                .order_scan
+                .counted_entry_groups
+                .get(action.level.checked_sub(1)?)?;
+            auxiliary = group_state(&trade.orders, group)?;
+            &auxiliary.entry_ids
+        } else {
+            let index = compiled_grind_index(program, action.level)?;
+            &state.clusters.get(index)?.entry_ids
+        };
+        for id in ids {
             tag.push(' ');
             tag.push_str(&id.to_string());
         }
@@ -521,6 +561,46 @@ fn compiled_binding_value(
         CompiledSystemAdjustmentInputKind::OpenGrindCount => {
             Some(Value::Number(u64::try_from(open_grind_count).ok()?.into()))
         }
+        CompiledSystemAdjustmentInputKind::AuxiliaryEntryCount => Some(Value::Number(
+            u64::try_from(*state.counted_entries.get(level?.checked_sub(1)?)?)
+                .ok()?
+                .into(),
+        )),
+        CompiledSystemAdjustmentInputKind::AuxiliaryEntrySignal => Some(Value::Bool(
+            *context
+                .auxiliary_entry_signals
+                .get(level?.checked_sub(1)?)?,
+        )),
+        CompiledSystemAdjustmentInputKind::AuxiliaryGroupOpenRate
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupExitDistance
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupTotalAmount
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupProfitStake => {
+            let group = program
+                .order_scan
+                .counted_entry_groups
+                .get(level?.checked_sub(1)?)?;
+            let value = group_state(&trade.orders, group)?;
+            match kind {
+                CompiledSystemAdjustmentInputKind::AuxiliaryGroupOpenRate => {
+                    number(value.open_rate)
+                }
+                CompiledSystemAdjustmentInputKind::AuxiliaryGroupExitDistance => {
+                    number(value.exit_price.map_or(Some(0.0), |price| {
+                        price_distance(context.candle.open, price)
+                    })?)
+                }
+                CompiledSystemAdjustmentInputKind::AuxiliaryGroupTotalAmount => {
+                    number(value.total_amount)
+                }
+                CompiledSystemAdjustmentInputKind::AuxiliaryGroupProfitStake => number(
+                    value.total_amount
+                        * context.candle.open
+                        * (1.0 - exchange_fee_close(context.config))
+                        - value.total_cost,
+                ),
+                _ => None,
+            }
+        }
         CompiledSystemAdjustmentInputKind::ProfitRatio => number(context.snapshot.ratio),
         CompiledSystemAdjustmentInputKind::ProfitStake => number(context.snapshot.stake),
         CompiledSystemAdjustmentInputKind::SliceAmount => number(context.slice_amount),
@@ -586,7 +666,11 @@ fn compiled_binding_value(
         }
         CompiledSystemAdjustmentInputKind::ClusterDistance => {
             let (_, cluster, _) = cluster_value(level)?;
-            number(cluster.directional_distance(context.candle.open, trade.side))
+            number(if program.order_scan.raw_cluster_distance {
+                cluster.raw_distance(context.candle.open)
+            } else {
+                cluster.directional_distance(context.candle.open, trade.side)
+            })
         }
         CompiledSystemAdjustmentInputKind::ClusterThresholds => {
             let (_, _, constants) = cluster_value(level)?;
@@ -620,7 +704,11 @@ fn compiled_binding_value(
         }
         CompiledSystemAdjustmentInputKind::ClusterProfitStake => {
             let (_, cluster, _) = cluster_value(level)?;
-            number(cluster.profit_stake(context.candle.open, fee_close(context.config), trade.side))
+            number(cluster.profit_stake(
+                context.candle.open,
+                exchange_fee_close(context.config),
+                trade.side,
+            ))
         }
         CompiledSystemAdjustmentInputKind::ClusterProfitThreshold => {
             let (_, _, constants) = cluster_value(level)?;
@@ -725,26 +813,18 @@ fn evaluate_nfi_position_adjustment_with_state(
     let candle = request.candle;
     let config = request.config;
     let exchange_minimum_stake = adjustment_minimum_stake(pair, candle, trade, config)?;
-    // The rebuy wrapper divides Freqtrade's callback minimum by leverage
-    // before it delegates to the shared grind callback. Ordinary grind routes
-    // enter that callback directly and retain the unleveraged exchange value.
-    // Keeping this wrapper boundary prevents an exact cluster exit from being
-    // mistaken for a reserve-violating near-full exit.
+    // Preserve the source-proven wrapper boundary. Archived programs without
+    // the explicit transfer policy retain their existing leverage conversion.
+    let divide_minimum = divide_rebuy_minimum(manager, trade.side, rebuy_mode);
     let minimum_stake =
-        grind_callback_minimum_stake(exchange_minimum_stake, trade.leverage, rebuy_mode);
+        grind_callback_minimum_stake(exchange_minimum_stake, trade.leverage, divide_minimum);
     // The rebuy wrapper applies the same leverage conversion to Freqtrade's
     // callback maximum before transferring into this shared grind callback.
     // This boundary matters when a large grind level is affordable from the
     // raw wallet but not from the wrapper-adjusted maximum.
     let available_balance =
         grind_callback_maximum_stake(request.available_balance, trade.leverage, rebuy_mode);
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     if !initial_stake_multiplier.is_finite() || initial_stake_multiplier <= 0.0 {
         return None;
     }
@@ -805,8 +885,12 @@ fn evaluate_nfi_position_adjustment_with_state(
     // maxima before evaluating exits. `long_grind_exit_v3` currently has its
     // trailing branch disabled, but preserving the write order protects the
     // order_filled reset contract and future proof fixtures.
-    let previous_maxima =
-        read_and_update_cluster_maxima(trade, &state.clusters, candle.open, fee_close(config));
+    let previous_maxima = read_and_update_cluster_maxima(
+        trade,
+        &state.clusters,
+        candle.open,
+        exchange_fee_close(config),
+    );
     let context = AdjustmentContext {
         adjustment,
         pair,
@@ -824,6 +908,7 @@ fn evaluate_nfi_position_adjustment_with_state(
         rebuy_mode,
         is_grind_entry,
         extra_entry_checks,
+        auxiliary_entry_signals: Vec::new(),
     };
 
     if let Some(adjustment) = evaluate_derisk_levels(&context, trade, state)? {
@@ -978,6 +1063,7 @@ fn rebuild_adjustment_state(
     Some(AdjustmentState {
         order_count: trade.orders.len(),
         program_fingerprint: None,
+        counted_entries: Vec::new(),
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
@@ -1085,6 +1171,7 @@ fn rebuild_compiled_adjustment_state(
     Some(AdjustmentState {
         order_count: trade.orders.len(),
         program_fingerprint: Some(program.fingerprint.clone()),
+        counted_entries: counted_entries(&trade.orders, &program.order_scan.counted_entry_groups),
         clusters,
         derisk_found,
         first_entry_amount: first.amount,
@@ -1874,6 +1961,14 @@ fn partial_exit_stake(
     (exit_amount > context.minimum_stake && ft_stake > context.minimum_stake).then_some(ft_stake)
 }
 
+fn divide_rebuy_minimum(manager: &NfiX7TradeManager, side: TradeSide, rebuy_mode: bool) -> bool {
+    let program = match side {
+        TradeSide::Long => manager.rebuy_adjustment.program.as_ref(),
+        TradeSide::Short => manager.short_rebuy_adjustment.program.as_ref(),
+    };
+    rebuy_mode && !program.is_some_and(|program| program.delegate.preserve_corrected_minimum)
+}
+
 fn grind_callback_minimum_stake(
     exchange_minimum_stake: f64,
     leverage: f64,
@@ -1930,6 +2025,44 @@ mod tests {
 
     fn compiled_action_program(result: &serde_json::Value) -> CompiledSystemAdjustmentProgram {
         compiled_directional_action_program(result, "long", "buy", "sell")
+    }
+
+    #[test]
+    fn counted_entry_groups_exclude_initial_fill_and_reset_independently() {
+        let seed = test_trade().orders[0].clone();
+        let groups: Vec<crate::domain::CompiledCountedEntryGroup> = serde_json::from_value(json!([
+            {"count_variable": "count_a", "entry_tag": "a_entry", "exit_tags": ["a_exit", "global_exit"]},
+            {"count_variable": "count_b", "entry_tag": "b_entry", "exit_tags": ["b_exit", "global_exit"]}
+        ])).unwrap();
+        let mut orders = Vec::new();
+        for (index, (entry, tag)) in [
+            (true, "a_entry"),
+            (true, "a_entry"),
+            (true, "b_entry"),
+            (false, "a_exit 2"),
+            (true, "a_entry"),
+            (true, "b_entry"),
+            (false, "global_exit"),
+            (true, "b_entry"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut order = seed.clone();
+            order.sequence = index;
+            order.is_entry = entry;
+            order.side = if entry {
+                OrderSide::Buy
+            } else {
+                OrderSide::Sell
+            };
+            order.tag = Some(tag.to_owned());
+            orders.push(order);
+        }
+        let count = super::super::source_auxiliary_adjustment::counted_entries;
+        assert_eq!(count(&orders[..1], &groups), [0, 0]);
+        assert_eq!(count(&orders[..6], &groups), [1, 2]);
+        assert_eq!(count(&orders, &groups), [0, 1]);
     }
 
     fn no_op_scalar_program() -> serde_json::Value {
@@ -2053,6 +2186,7 @@ mod tests {
             liquidation_price_is_explicit: false,
             initial_stop_loss: 1.0,
             stop_loss: 1.0,
+            is_stop_loss_trailing: false,
             custom_stop_loss_ratio: None,
             minimum_rate: 90.0,
             maximum_rate: 100.0,
@@ -2200,6 +2334,7 @@ mod tests {
         AdjustmentState {
             order_count: 1,
             program_fingerprint: None,
+            counted_entries: Vec::new(),
             clusters: Vec::new(),
             derisk_found: vec![false; 3],
             first_entry_amount: 1.0,
@@ -2450,6 +2585,7 @@ mod tests {
         let state = AdjustmentState {
             order_count: 1,
             program_fingerprint: None,
+            counted_entries: Vec::new(),
             clusters: vec![GrindCluster {
                 count: 2,
                 total_amount: 0.5,
@@ -2489,6 +2625,7 @@ mod tests {
             rebuy_mode: false,
             is_grind_entry: false,
             extra_entry_checks: false,
+            auxiliary_entry_signals: Vec::new(),
         };
         let outcome = evaluate_compiled_system_action(
             &program.source_order[0],
@@ -2509,6 +2646,98 @@ mod tests {
     }
 
     #[test]
+    fn source_short_entry_applies_its_price_distance_negation_once() {
+        let scalar_program = json!({
+            "schema_version": "1.2.0", "opcode": "scalar-decision-program-v1",
+            "parameters": ["min_stake", "tag"],
+            "expressions": [["variable", "min_stake"], ["negative", 0],
+                ["literal", -0.04], ["compare", 1, [["less", 2]]],
+                ["literal", 10.0], ["variable", "tag"], ["tuple", [4, 5]],
+                ["literal", "continue"]],
+            "statements": [["if", 3, [["return", 6]], []], ["return", 7]]
+        });
+        let mut program = compiled_action_program(&scalar_program);
+        program.source_order[0].bindings[0].kind =
+            crate::CompiledSystemAdjustmentInputKind::ClusterDistance;
+        program.source_order[0].bindings[0].level = Some(12);
+        let mut adjustment = test_adjustment();
+        adjustment.constants.grinds[0].level = 12;
+        let mut trade = test_trade();
+        trade.side = TradeSide::Short;
+        let (pair, config) = pair_and_config();
+        let mut candle = pair.candles.get(0).expect("one candle").into_owned();
+        candle.open = 90.0;
+        let state = AdjustmentState {
+            order_count: 1,
+            program_fingerprint: None,
+            counted_entries: Vec::new(),
+            clusters: vec![GrindCluster {
+                count: 2,
+                total_amount: 0.5,
+                total_cost: 50.0,
+                entry_ids: vec![7, 9],
+                latest_entry_price: Some(100.0),
+                exit_price: None,
+            }],
+            derisk_found: Vec::new(),
+            first_entry_amount: 1.0,
+            first_entry_cost: 100.0,
+            latest_entry_price: 100.0,
+            latest_entry_timestamp_ms: 0,
+            latest_exit_price: None,
+            latest_order_price: 100.0,
+            latest_order_timestamp_ms: 0,
+        };
+        let context = AdjustmentContext {
+            adjustment: &adjustment,
+            pair: &pair,
+            candle_index: 0,
+            candle: &candle,
+            config: &config,
+            available_balance: 1_000.0,
+            minimum_stake: 5.0,
+            snapshot: NfiProfitSnapshot {
+                stake: 0.0,
+                ratio: 0.0,
+                current_stake_ratio: 0.0,
+                initial_stake_ratio: 0.0,
+            },
+            slice_amount: 100.0,
+            slice_profit: -0.1,
+            slice_profit_entry: -0.1,
+            slice_profit_exit: 0.0,
+            current_stake_amount: 90.0,
+            rebuy_mode: false,
+            is_grind_entry: false,
+            extra_entry_checks: false,
+            auxiliary_entry_signals: Vec::new(),
+        };
+        let old = evaluate_compiled_system_action(
+            &program.source_order[0],
+            &program,
+            &context,
+            &trade,
+            &state,
+            &[Some((0.0, 0.0))],
+            2,
+        )
+        .unwrap();
+        assert!(matches!(old, CompiledActionOutcome::Signal(_)));
+        program.order_scan.raw_cluster_distance = true;
+        let corrected = evaluate_compiled_system_action(
+            &program.source_order[0],
+            &program,
+            &context,
+            &trade,
+            &state,
+            &[Some((0.0, 0.0))],
+            2,
+        )
+        .unwrap();
+        assert!(matches!(corrected, CompiledActionOutcome::Continue));
+    }
+
+    #[test]
     fn compiled_action_preserves_explicit_source_return_none() {
         let scalar_program = json!({
             "schema_version": "1.2.0",
@@ -2525,6 +2754,7 @@ mod tests {
         let state = AdjustmentState {
             order_count: 1,
             program_fingerprint: None,
+            counted_entries: Vec::new(),
             clusters: vec![GrindCluster::default()],
             derisk_found: Vec::new(),
             first_entry_amount: 1.0,
@@ -2557,6 +2787,7 @@ mod tests {
             rebuy_mode: false,
             is_grind_entry: false,
             extra_entry_checks: false,
+            auxiliary_entry_signals: Vec::new(),
         };
 
         assert!(matches!(
@@ -2634,6 +2865,7 @@ mod tests {
             rebuy_mode: false,
             is_grind_entry: false,
             extra_entry_checks: false,
+            auxiliary_entry_signals: Vec::new(),
         };
         let outcome = evaluate_compiled_system_action(
             &program.source_order[0],

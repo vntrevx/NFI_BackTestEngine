@@ -20,6 +20,7 @@ def compile_rebuy_transition_ir(
     constants: Mapping[str, Any],
     *,
     delegate_retry_ms: int,
+    corrected_minimum_method: ast.FunctionDef | None = None,
 ) -> dict[str, Any]:
     """Lower one long/short rebuy callback without method-identity gates."""
 
@@ -27,6 +28,10 @@ def compile_rebuy_transition_ir(
         raise StrategyAnalysisError("rebuy delegate retry window must be positive")
     order_scan = _compile_order_scan(method)
     delegate = _compile_delegate(method, retry_ms=delegate_retry_ms)
+    if corrected_minimum_method is not None:
+        _prove_minimum_correction(corrected_minimum_method)
+        _prove_stake_transfer(method, delegate["source_target"])
+        delegate["preserve_corrected_minimum"] = True
     fragment = _decision_fragment(method)
     decision_program = compile_scalar_ast_program(fragment, constants=dict(constants))
     input_contract = _input_contract(fragment)
@@ -511,3 +516,80 @@ def _location(node: ast.AST) -> dict[str, int]:
         "end_line": int(getattr(node, "end_lineno", getattr(node, "lineno", 0))),
         "end_column": int(getattr(node, "end_col_offset", getattr(node, "col_offset", 0))),
     }
+
+
+def _prove_stake_transfer(method: ast.FunctionDef, target: str) -> None:
+    expected = ast.parse(
+        "min_stake = self.correct_min_stake(min_stake, trade_leverage)\nmax_stake /= trade_leverage"
+    ).body
+    writes = [
+        statement
+        for statement in method.body
+        if any(
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Store)
+            and node.id in {"min_stake", "max_stake"}
+            for node in ast.walk(statement)
+        )
+    ]
+    if [ast.dump(node) for node in writes] != [ast.dump(node) for node in expected]:
+        raise StrategyAnalysisError("rebuy delegate stake transfer changed")
+    delegate = next(
+        node
+        for node in method.body
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(child, ast.Return)
+            and isinstance(child.value, ast.Call)
+            and isinstance(child.value.func, ast.Attribute)
+            and child.value.func.attr == target
+            for child in ast.walk(node)
+        )
+    )
+    returns = [node for node in ast.walk(delegate) if isinstance(node, ast.Return)]
+    expected_expression = ast.parse(
+        "callback(trade, enter_tags, current_time, current_rate, current_profit, "
+        "min_stake, max_stake, current_entry_rate, current_exit_rate, "
+        "current_entry_profit, current_exit_profit)"
+    ).body[0]
+    assert isinstance(expected_expression, ast.Expr)
+    expected_arguments = expected_expression.value
+    assert isinstance(expected_arguments, ast.Call)
+    if len(returns) != 1 or not isinstance(returns[0].value, ast.Call):
+        raise StrategyAnalysisError("rebuy delegate arguments changed")
+    call = returns[0].value
+    if (
+        call.keywords
+        or [ast.dump(arg) for arg in call.args]
+        != [ast.dump(arg) for arg in expected_arguments.args]
+        or method.body.index(writes[-1]) > method.body.index(delegate)
+    ):
+        raise StrategyAnalysisError("rebuy delegate arguments changed")
+
+
+def _prove_minimum_correction(method: ast.FunctionDef) -> None:
+    arguments = method.args
+    if (
+        method.decorator_list
+        or arguments.posonlyargs
+        or arguments.kwonlyargs
+        or arguments.vararg is not None
+        or arguments.kwarg is not None
+        or [argument.arg for argument in arguments.args] != ["self", "min_stake", "trade_leverage"]
+        or len(arguments.defaults) != 1
+        or not isinstance(arguments.defaults[0], ast.Constant)
+        or arguments.defaults[0].value is not None
+    ):
+        raise StrategyAnalysisError("rebuy minimum correction signature changed")
+    expected = ast.parse("""if self.is_futures_mode and self.config["exchange"]["name"] in (
+    "binance", "bybit", "krakenfutures"
+):
+    min_futures_stake = 5.0 / (
+        trade_leverage if trade_leverage is not None else self.futures_mode_leverage
+    )
+    if (min_stake is None) or (min_stake < min_futures_stake):
+        min_stake = min_futures_stake
+return min_stake
+""")
+    if ast.dump(ast.Module(body=method.body, type_ignores=[])) != ast.dump(expected):
+        raise StrategyAnalysisError("rebuy minimum correction changed")

@@ -5,7 +5,6 @@ use std::fmt;
 
 use serde_json::Value;
 
-use crate::calculations::{fee_close, fee_open};
 use crate::callbacks::{
     feature_number_at, insert_projected_feature_window, scalar_program_feature_projection,
     scalar_trade_value,
@@ -25,7 +24,7 @@ use crate::validation::{nfi_managed_route_supports_tags, nfi_managed_short_route
 use super::dispatch::nfi_long_grind_supports_trade;
 use super::dispatch_plan::interned_matcher_matches;
 use super::state::{
-    nfi_profit_bucket, nfi_profit_snapshot, nfi_trade_is_derisked, set_profit_target,
+    decision_profit_snapshot, nfi_profit_bucket, nfi_trade_is_derisked, set_profit_target,
     NfiProfitSnapshot, ProfitTarget,
 };
 
@@ -37,6 +36,7 @@ pub(crate) enum CustomExitDecision {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum NfiExitDiagnostic {
+    PrefixEvaluation,
     DispatchUnavailable,
     RouteUnavailable {
         side: &'static str,
@@ -60,6 +60,7 @@ pub(crate) enum NfiExitDiagnostic {
 impl fmt::Display for NfiExitDiagnostic {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PrefixEvaluation => formatter.write_str("source custom-exit prefix failed"),
             Self::DispatchUnavailable => formatter.write_str("runtime dispatch is unavailable"),
             Self::RouteUnavailable { side, index } => {
                 write!(formatter, "{side} route index {index} is unavailable")
@@ -123,6 +124,9 @@ pub(crate) fn evaluate_nfi_exit(
     config: &PortfolioConfig,
     profit_targets: &mut BTreeMap<String, ProfitTarget>,
 ) -> Result<CustomExitDecision, NfiExitDiagnostic> {
+    if let Some(decision) = early_exit(manager, trade, pair, candle_index, candle, config)? {
+        return Ok(decision);
+    }
     let dispatch = manager
         .runtime_dispatch()
         .ok_or(NfiExitDiagnostic::DispatchUnavailable)?;
@@ -189,16 +193,12 @@ pub(crate) fn evaluate_nfi_exit(
             NfiLongDispatchStep::Managed(_) => None,
         };
         if let Some(route) = legacy.filter(|route| nfi_long_grind_supports_trade(route, trade)) {
-            let snapshot = nfi_profit_snapshot(
-                trade,
-                candle.open,
-                fee_open(config),
-                fee_close(config),
-                config.is_futures,
-            )
-            .ok_or_else(|| NfiExitDiagnostic::LegacyGrindSnapshot {
-                route: route.mode_name.clone(),
-            })?;
+            let snapshot =
+                decision_profit_snapshot(trade, candle.open, config).ok_or_else(|| {
+                    NfiExitDiagnostic::LegacyGrindSnapshot {
+                        route: route.mode_name.clone(),
+                    }
+                })?;
             if snapshot.initial_stake_ratio > route.exit_profit_threshold {
                 let entry_tag = trade.entry_tag.as_deref().unwrap_or("empty");
                 let reason = format!("exit_{}_g", route.mode_name);
@@ -226,6 +226,26 @@ pub(crate) fn evaluate_nfi_exit(
     // A compound of individually compiled words may intentionally match no
     // all-tags route. The source callback returns None in that case.
     Ok(CustomExitDecision::NoExit)
+}
+
+fn early_exit(
+    manager: &NfiX7TradeManager,
+    trade: &OpenTrade,
+    pair: &PairSeries,
+    candle_index: usize,
+    candle: &Candle,
+    config: &PortfolioConfig,
+) -> Result<Option<CustomExitDecision>, NfiExitDiagnostic> {
+    if manager.custom_exit_prefix.is_none() {
+        return Ok(None);
+    }
+    if candle_index == 0 {
+        return Ok(Some(CustomExitDecision::NoExit));
+    }
+    let decision =
+        super::source_exit_prefix::evaluate(manager, trade, pair, candle_index, candle, config)
+            .ok_or(NfiExitDiagnostic::PrefixEvaluation)?;
+    Ok(matches!(decision, CustomExitDecision::Exit(_)).then_some(decision))
 }
 
 /// Execute the bounded short-rebuy branch in source order.
@@ -461,13 +481,7 @@ fn evaluate_legacy_managed_exit_signal_shadow(
         .split_whitespace()
         .map(ToString::to_string)
         .collect::<Vec<_>>();
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     let legacy_signals = nfi_managed_long_signals(
         manager,
         route,
@@ -519,13 +533,7 @@ fn evaluate_nfi_managed_long_exit_legacy(
         .split_whitespace()
         .map(ToString::to_string)
         .collect::<Vec<_>>();
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     let (mut sell, mut signal_name) = nfi_managed_long_signals(
         manager,
         route,
@@ -565,6 +573,8 @@ fn evaluate_nfi_managed_long_exit_legacy(
 
     let previous_target = profit_targets.get(&trade.pair).cloned();
     if let NfiExistingTargetOutcome::Exit(reason) = evaluate_existing_nfi_target(
+        manager,
+        config.is_futures,
         route,
         trade,
         pair,
@@ -633,13 +643,7 @@ fn evaluate_generic_managed_long_exit(
         .split_whitespace()
         .map(ToString::to_string)
         .collect::<Vec<_>>();
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     let (mut sell, mut signal_name) = generic_managed_exit_signals(
         manager,
         route,
@@ -674,6 +678,8 @@ fn evaluate_generic_managed_long_exit(
             ManagedExitStateOperation::ExistingTarget => {
                 previous_target = profit_targets.get(&trade.pair).cloned();
                 if let NfiExistingTargetOutcome::Exit(reason) = evaluate_existing_generic_target(
+                    manager,
+                    config.is_futures,
                     route,
                     trade,
                     pair,
@@ -796,7 +802,7 @@ fn generic_managed_exit_signals(
     Some(result)
 }
 
-fn managed_exit_matcher_matches<T: AsRef<str>>(
+pub(super) fn managed_exit_matcher_matches<T: AsRef<str>>(
     matcher: &ManagedExitTagMatcher,
     enter_tags: &[T],
     side: TradeSide,
@@ -1042,6 +1048,18 @@ fn generic_managed_exit_stop(
                 "long_exit_stoploss" | "short_exit_stoploss"
             ) =>
         {
+            if let Some(system) = manager.system_exit_programs.as_ref() {
+                return super::source_system_exit::stop(
+                    system,
+                    helper,
+                    &route.mode_name,
+                    trade,
+                    pair,
+                    candle_index,
+                    snapshot,
+                    is_futures,
+                );
+            }
             // X7's shared enter-tag column can select a route from the
             // opposite entry side. The source callback still invokes that
             // route's named helper with the actual trade; the helper itself
@@ -1162,6 +1180,8 @@ fn nfi_common_long_stoploss(
 
 #[allow(clippy::too_many_arguments)]
 fn evaluate_existing_generic_target(
+    manager: &NfiX7TradeManager,
+    is_futures: bool,
     route: &ManagedExitRoute,
     trade: &OpenTrade,
     pair: &PairSeries,
@@ -1189,6 +1209,8 @@ fn evaluate_existing_generic_target(
                 )
         });
     let decision = nfi_managed_profit_target_exit(
+        manager,
+        is_futures,
         &route.mode_name,
         pure_scalp,
         trade,
@@ -1297,6 +1319,8 @@ fn generic_ignored_signal(
 
 #[allow(clippy::too_many_arguments)]
 fn evaluate_existing_nfi_target(
+    manager: &NfiX7TradeManager,
+    is_futures: bool,
     route: &NfiManagedLongRoute,
     trade: &OpenTrade,
     pair: &PairSeries,
@@ -1318,6 +1342,8 @@ fn evaluate_existing_nfi_target(
                     .all(|word| route.entry_tags.iter().any(|tag| tag == word))
         });
     let decision = nfi_managed_profit_target_exit(
+        manager,
+        is_futures,
         &route.mode_name,
         pure_scalp,
         trade,
@@ -1462,9 +1488,9 @@ enum NfiExistingTargetOutcome {
 }
 
 #[derive(Debug, Default)]
-struct NfiTargetDecision {
-    exit_reason: Option<String>,
-    remove: bool,
+pub(super) struct NfiTargetDecision {
+    pub(super) exit_reason: Option<String>,
+    pub(super) remove: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1524,6 +1550,8 @@ fn nfi_profit_target_trailing_suffix(
 /// are mirrored inside upstream's `trade.is_short` branch.
 #[allow(clippy::too_many_arguments)]
 fn nfi_managed_profit_target_exit(
+    manager: &NfiX7TradeManager,
+    is_futures: bool,
     mode: &str,
     pure_scalp_tags: bool,
     trade: &OpenTrade,
@@ -1532,6 +1560,18 @@ fn nfi_managed_profit_target_exit(
     snapshot: NfiProfitSnapshot,
     previous: &ProfitTarget,
 ) -> Option<NfiTargetDecision> {
+    if let Some(system) = manager.system_exit_programs.as_ref() {
+        return super::source_system_exit::target(
+            system,
+            mode,
+            trade,
+            pair,
+            candle_index,
+            snapshot,
+            previous,
+            is_futures,
+        );
+    }
     let doom = format!("exit_{mode}_stoploss_doom");
     let ordinary_stop = format!("exit_{mode}_stoploss");
     let u_e = format!("exit_{mode}_stoploss_u_e");

@@ -5,7 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from ..errors import StrategyAnalysisError
+from ..order_stake_settings import order_stake_policy
+from ..slot_settings import simulator_trade_slots
+from ..strategy_compat import timeframe_minutes
 from ..strategy_overrides import effective_stoploss_ratio
+from ..strategy_resolver_settings import resolver_overrides
+from ..wallet_settings import starting_wallet_balance, wallet_policy
 from .contracts import _x7_leverage_contract, _x7_protection_contract
 
 
@@ -22,6 +27,7 @@ def _x7_portfolio_config(
     maximum_leverage_by_pair: dict[str, float],
     funding_fee_interval_ms: int | None,
     liquidation_model: dict[str, Any] | None,
+    market_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Serialize callbacks once for both JSON and Feather transports."""
     callbacks = {item["name"]: item for item in hot_ir["callbacks"]}
@@ -64,17 +70,52 @@ def _x7_portfolio_config(
         callbacks,
         trading_mode=config.get("trading_mode", "spot"),
     )
-    constants = analysis["strategies"][0]["constants"]
-    max_open_trades = int(config["max_open_trades"])
-    if max_open_trades <= 0:
-        max_open_trades = pair_count
+    constants = dict(analysis["strategies"][0]["constants"])
+    constants.update(hot_ir.get("source_configuration", {}).get("overrides", {}))
+    constants.update(resolver_overrides(constants, config))
+    max_open_trades = simulator_trade_slots(config, pair_count)
     raw_stake = config["stake_amount"]
     unlimited = raw_stake == "unlimited"
-    starting_balance = float(config["dry_run_wallet"])
+    starting_balance = starting_wallet_balance(config)
     return {
+        **(
+            {"order_stake_policy": order_stake_policy(config, market_snapshot)}
+            if market_snapshot is not None
+            else {}
+        ),
         "starting_balance": starting_balance,
         "max_open_trades": max_open_trades,
         "stake_amount": starting_balance if unlimited else float(raw_stake),
+        "entry_order_type": config.get("order_types", constants.get("order_types", {})).get(
+            "entry",
+            "limit",
+        ),
+        "exit_order_type": config.get("order_types", constants.get("order_types", {})).get(
+            "exit",
+            "limit",
+        ),
+        "minimal_roi": {
+            str(int(minute)): float(ratio)
+            for minute, ratio in (constants.get("minimal_roi") or {}).items()
+        },
+        "trailing_stop": constants.get("trailing_stop") is True,
+        "trailing_stop_positive": constants.get("trailing_stop_positive"),
+        "trailing_stop_positive_offset": constants.get("trailing_stop_positive_offset"),
+        "trailing_only_offset_is_reached": (
+            constants.get("trailing_stop") is True
+            and constants.get("trailing_only_offset_is_reached") is True
+        ),
+        "strategy_exit_policy": {
+            "evaluate_exit_on_entry": True,
+            "timeframe_minutes": timeframe_minutes(str(constants.get("timeframe", "5m"))),
+            "use_exit_signal": constants.get("use_exit_signal", True),
+            "exit_profit_only": constants.get("exit_profit_only", False),
+            "exit_profit_offset": constants.get("exit_profit_offset", 0.0),
+            "ignore_roi_if_entry_signal": constants.get("ignore_roi_if_entry_signal", False),
+            "inherited_custom_stoploss": (
+                constants.get("use_custom_stoploss") is True and "custom_stoploss" not in callbacks
+            ),
+        },
         "fee_rate": fee_rate,
         "fee_open_rate": fee_rate,
         "fee_close_rate": fee_rate,
@@ -91,6 +132,15 @@ def _x7_portfolio_config(
         "callback_program": (
             {
                 "order_filled": {
+                    **(
+                        {
+                            "initial_entry_requires_no_exits": order_operation[
+                                "initial_entry_requires_no_exits"
+                            ]
+                        }
+                        if "initial_entry_requires_no_exits" in order_operation
+                        else {}
+                    ),
                     "initial_successful_entry_writes": order_operation[
                         "initial_successful_entry_writes"
                     ],
@@ -106,6 +156,7 @@ def _x7_portfolio_config(
         "amount_reserve_percent": float(config.get("amount_reserve_percent", 0.05)),
         "unlimited_stake": unlimited,
         "tradable_balance_ratio": float(config.get("tradable_balance_ratio", 0.99)),
+        "strategy_wallet_policy": wallet_policy(config),
         "entry_confirmation_program": (
             {
                 "statements": entry_confirmation["statements"],
@@ -458,6 +509,22 @@ def _nfi_trade_manager_config(hot_ir: dict[str, Any]) -> dict[str, Any] | None:
     return {
         "schema_version": operation["schema_version"],
         "source_sha256": source_sha256,
+        **({"virtual_fees": operation["virtual_fees"]} if "virtual_fees" in operation else {}),
+        **(
+            {"adjustment_dispatch": operation["adjustment_dispatch"]}
+            if "adjustment_dispatch" in operation
+            else {}
+        ),
+        **(
+            {"system_exit_programs": operation["system_exit_programs"]}
+            if "system_exit_programs" in operation
+            else {}
+        ),
+        **(
+            {"custom_exit_prefix": operation["custom_exit_prefix"]}
+            if "custom_exit_prefix" in operation
+            else {}
+        ),
         "route_order": route_order,
         "managed_long_routes": managed_routes,
         "managed_exit_program": (
@@ -510,6 +577,13 @@ def _required_trade_features(hot_ir: dict[str, Any]) -> list[str]:
         if isinstance(routes, dict):
             _collect_indexed_features(columns, routes.values())
         if isinstance(operation, dict):
+            system_exits = operation.get("system_exit_programs")
+            if isinstance(system_exits, dict):
+                _collect_scalar_features(columns, system_exits.get("long_stop"))
+                _collect_scalar_features(columns, system_exits.get("short_stop"))
+                target = system_exits.get("profit_target")
+                if isinstance(target, dict):
+                    _collect_scalar_features(columns, target.get("program"))
             adjustment = operation.get("position_adjustment")
             if isinstance(adjustment, dict):
                 _collect_indexed_features(columns, [adjustment])
@@ -520,6 +594,33 @@ def _required_trade_features(hot_ir: dict[str, Any]) -> list[str]:
             if isinstance(short_rebuy_adjustment, dict):
                 _collect_indexed_features(columns, [short_rebuy_adjustment])
     return sorted(columns)
+
+
+def _optional_trade_features(hot_ir: dict[str, Any]) -> set[str]:
+    """Candle mapping reads preserve source defaults when a column is absent."""
+    manager = hot_ir.get("nfi_trade_manager")
+    operation = manager.get("operation") if isinstance(manager, dict) else None
+    prefix = operation.get("custom_exit_prefix") if isinstance(operation, dict) else None
+    return set(prefix.get("optional_columns", [])) if isinstance(prefix, dict) else set()
+
+
+def _collect_scalar_features(columns: set[str], program: Any) -> None:
+    if not isinstance(program, dict):
+        return
+    expressions = program.get("expressions", [])
+    for expression in expressions:
+        if not isinstance(expression, list) or len(expression) != 3 or expression[0] != "index":
+            continue
+        base, key = expressions[expression[1]], expressions[expression[2]]
+        if (
+            len(base) == 2
+            and base[0] == "variable"
+            and base[1] in {"last_candle", "previous_candle", "previous_candle_1"}
+            and len(key) == 2
+            and key[0] == "literal"
+            and isinstance(key[1], str)
+        ):
+            columns.add(key[1])
 
 
 def _collect_indexed_features(

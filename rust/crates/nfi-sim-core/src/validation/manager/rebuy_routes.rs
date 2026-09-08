@@ -35,10 +35,10 @@ fn valid_long(manager: &NfiX7TradeManager) -> bool {
     route.is_some_and(|route| {
         let adjustment_tags = adjustment.entry_tags.iter().collect::<BTreeSet<_>>();
         let route_tags = route.entry_tags.iter().collect::<BTreeSet<_>>();
-        adjustment.enabled
+        (adjustment.enabled || super::finalization::source_disables_adjustments(manager))
             && adjustment_tags == route_tags
             && adjustment_tags.len() == adjustment.entry_tags.len()
-            && adjustment.system_version == manager.constants.system_v3_2_name
+            && adjustment.system_version == manager.constants.system_name_use
             && adjustment.stateful_input_contract.is_object()
             && valid_nfi_rebuy_constants(&adjustment.constants)
             && valid_versioned_rebuy_program(
@@ -72,10 +72,10 @@ fn valid_short(manager: &NfiX7TradeManager) -> bool {
             adjustment.execution_scope == "pre-derisk-only-v1"
                 && adjustment.post_derisk_action == "fail-simulation"
         };
-        adjustment.enabled
+        (adjustment.enabled || super::finalization::source_disables_adjustments(manager))
             && adjustment_tags == route_tags
             && adjustment_tags.len() == adjustment.entry_tags.len()
-            && adjustment.system_version == manager.constants.system_v3_2_name
+            && adjustment.system_version == manager.constants.system_name_use
             && valid_scope
             && adjustment.stateful_input_contract.is_object()
             && valid_nfi_rebuy_constants(&adjustment.constants)

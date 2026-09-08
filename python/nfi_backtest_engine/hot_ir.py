@@ -9,6 +9,7 @@ from typing import Any
 from .callback_lowering import CALLBACK_LOWERING_VERSION, lower_strategy_callbacks
 from .errors import StrategyAnalysisError
 from .nfi_trade_manager import build_nfi_trade_manager_ir
+from .source_configuration import configured_analysis
 from .strategy.inventory import (
     CALLBACK_KINDS as _CALLBACK_KIND,
 )
@@ -32,6 +33,7 @@ def build_hot_callback_ir(
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create a deterministic typed inventory without pretending to compile Python."""
+    analysis = configured_analysis(analysis, config)
     strategies = analysis.get("strategies")
     if not isinstance(strategies, list) or len(strategies) != 1:
         raise StrategyAnalysisError("typed callback IR requires exactly one selected strategy")
@@ -118,6 +120,8 @@ def build_hot_callback_ir(
         "trade_dependency_ir": trade_dependency_ir,
         "nfi_trade_manager": nfi_trade_manager,
     }
+    if "source_configuration" in analysis:
+        identity["source_configuration"] = analysis["source_configuration"]
     fingerprint = hashlib.sha256(
         json.dumps(
             identity,

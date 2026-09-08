@@ -27,6 +27,7 @@ pub(crate) fn begin(
     feature_index: Option<usize>,
     wallet_available: f64,
     trade: Option<&OpenTrade>,
+    leverage_before_stake: bool,
 ) -> Result<(), SimError> {
     let order_count = trade.map_or(0, |value| value.orders.len());
     let custom_state = trade.map_or_else(BTreeMap::new, |value| value.custom_data.clone());
@@ -38,7 +39,8 @@ pub(crate) fn begin(
     };
     with_session(|slot| {
         *slot = Some(TraceSession {
-            runtime: CallbackRuntime::new(candle_index, visibility),
+            runtime: CallbackRuntime::new(candle_index, visibility)
+                .with_leverage_before_stake(leverage_before_stake),
             custom_state,
         });
         Ok(())

@@ -5,8 +5,9 @@ use std::collections::BTreeMap;
 use serde_json::Value;
 
 use crate::calculations::{
-    available_stake_amount, ceil_step, checked_float_sum, entry_order_side, entry_sizing, fee_open,
-    floor_step, round_step,
+    ceil_step, checked_float_sum, configured_available_stake_amount, configured_entry_stake,
+    entry_order_side, entry_sizing, fee_open, floor_step, round_step, source_trade_slot_limit,
+    unlimited_entry_stake,
 };
 use crate::domain::{
     CallbackInvocation, CallbackOutcome, CallbackPhase, CallbackReturnClass, CallbackTransaction,
@@ -15,7 +16,8 @@ use crate::domain::{
     StateMachineReadSource,
 };
 use crate::futures::{
-    entry_leverage, reapply_inclusive_funding_after_entry_fill, update_isolated_liquidation_price,
+    entry_leverage, maximum_entry_leverage, reapply_inclusive_funding_after_entry_fill,
+    update_isolated_liquidation_price,
 };
 use crate::portfolio::{wallet_free, OpenTrade, TradeSide};
 use crate::protections::ProtectionState;
@@ -30,6 +32,7 @@ use super::callback_trace::{
     record_current as trace_callback, record_trade as trace_trade_callback, ExecutableCallbacks,
 };
 use super::confirmation::{evaluate_confirm_program, ConfirmInputs};
+use super::order_stake::maximum_pair_stake;
 use super::stake::{evaluate_stake_program, EntryRequest, EntryStake, StakeInputs};
 use super::state_machine::{order_value as state_machine_order_value, trade_value};
 
@@ -62,19 +65,18 @@ impl EntryExecution<'_, '_> {
         if self.reject_at_gate(pair_index, pair, candle, side, state_before.clone())? {
             return Ok(false);
         }
-        if self
-            .config
-            .nfi_x7_trade_manager
-            .as_ref()
-            .is_some_and(|manager| !nfi_entry_signal_is_supported(manager, side, signal))
-        {
-            return Err(SimError::UnsupportedNfiEntryTag {
-                pair: pair.pair.clone(),
-                entry_tag: signal.tag.clone().unwrap_or_else(|| "<none>".to_owned()),
-            });
-        }
+        self.validate_entry_signal(pair, side, signal)?;
 
         let (proposed_stake, stake_available, compounding_base) = self.entry_stake()?;
+        let Some(proposed_stake) = proposed_stake else {
+            return self.reject_wallet_entry(
+                pair_index,
+                pair,
+                candle,
+                state_before,
+                compounding_base,
+            );
+        };
         let request = EntryRequest {
             pair_index,
             pair,
@@ -162,6 +164,50 @@ impl EntryExecution<'_, '_> {
         Ok(true)
     }
 
+    fn reject_wallet_entry(
+        &mut self,
+        pair_index: usize,
+        pair: &PairSeries,
+        candle: &Candle,
+        state_before: crate::PortfolioBoundaryState,
+        compounding_base: f64,
+    ) -> Result<bool, SimError> {
+        self.record_entry(
+            pair_index,
+            pair,
+            candle,
+            PortfolioBoundary::EntryRejected,
+            state_before,
+            entry_detail(
+                Some(EntryRejectionReason::MinimumStake),
+                None,
+                None,
+                Some(compounding_base),
+            ),
+        )?;
+        Ok(false)
+    }
+
+    fn validate_entry_signal(
+        &self,
+        pair: &PairSeries,
+        side: TradeSide,
+        signal: &EntrySignal,
+    ) -> Result<(), SimError> {
+        if self
+            .config
+            .nfi_x7_trade_manager
+            .as_ref()
+            .is_some_and(|manager| !nfi_entry_signal_is_supported(manager, side, signal))
+        {
+            return Err(SimError::UnsupportedNfiEntryTag {
+                pair: pair.pair.clone(),
+                entry_tag: signal.tag.clone().unwrap_or_else(|| "<none>".to_owned()),
+            });
+        }
+        Ok(())
+    }
+
     fn reject_at_gate(
         &mut self,
         pair_index: usize,
@@ -194,7 +240,7 @@ impl EntryExecution<'_, '_> {
         Ok(reason.is_some())
     }
 
-    fn entry_stake(&self) -> Result<(f64, f64, f64), SimError> {
+    fn entry_stake(&self) -> Result<(Option<f64>, f64, f64), SimError> {
         let tied_up_stake = checked_float_sum(
             &self
                 .open_trades
@@ -207,21 +253,26 @@ impl EntryExecution<'_, '_> {
             &[*self.available_balance, tied_up_stake],
             "entry-compounding-base",
         )?;
-        let available = available_stake_amount(
+        let available = configured_available_stake_amount(
             *self.available_balance,
             tied_up_stake,
-            self.config.tradable_balance_ratio,
+            self.closed_trades,
+            self.config,
         )?;
         let proposed = if self.config.unlimited_stake {
-            let divisor = f64::from(
-                u32::try_from(self.config.max_open_trades)
-                    .expect("validated max_open_trades fits u32"),
-            );
-            ((available + tied_up_stake) / divisor).min(available)
+            unlimited_entry_stake(
+                available,
+                tied_up_stake,
+                source_trade_slot_limit(self.config),
+            )
         } else {
-            self.config.stake_amount.min(available)
+            self.config.stake_amount
         };
-        Ok((proposed, available, compounding_base))
+        Ok((
+            configured_entry_stake(proposed, available, self.config),
+            available,
+            compounding_base,
+        ))
     }
 
     fn boundary_state(&self) -> Result<crate::PortfolioBoundaryState, SimError> {
@@ -320,15 +371,13 @@ fn attempt_entry_with_callbacks(
     } else {
         entry_callback_values(request, config, rate)?
     };
-    let minimum = minimum_pair_stake(
-        request.pair,
-        rate,
-        config.stoploss_ratio,
-        leverage,
-        config.amount_reserve_percent,
-    );
-    let Some(validated_stake) = validate_stake_amount(requested, minimum, request.stake.maximum)
-    else {
+    let minimum = initial_minimum_pair_stake(request.pair, rate, leverage, config);
+    let maximum =
+        request
+            .stake
+            .maximum
+            .min(maximum_pair_stake(request.pair, rate, leverage, config)?);
+    let Some(validated_stake) = validate_stake_amount(requested, minimum, maximum) else {
         return Ok(rejected_entry_attempt(
             EntryRejectionReason::MinimumStake,
             false,
@@ -468,6 +517,7 @@ fn build_entry_trade(
         liquidation_price_is_explicit: request.signal.liquidation_price.is_some(),
         initial_stop_loss: stop_loss,
         stop_loss,
+        is_stop_loss_trailing: false,
         custom_stop_loss_ratio: None,
         minimum_rate: request.candle.low,
         maximum_rate: request.candle.high,
@@ -483,6 +533,7 @@ fn build_entry_trade(
     )?;
     apply_order_filled(&mut trade, request.signal.tag.as_deref(), config)?;
     update_isolated_liquidation_price(&mut trade, config, request.candle.timestamp_ms)?;
+    super::strategy_settings::refresh_inherited_stop_after_fill(&mut trade, rate, config)?;
     Ok(trade)
 }
 
@@ -502,18 +553,36 @@ pub(crate) struct ExecutableEntrySelection {
     pub(crate) leverage: f64,
 }
 
+fn executable_maximum_leverage(
+    request: &EntryRequest<'_>,
+    config: &PortfolioConfig,
+    proposed_leverage: f64,
+) -> Result<f64, SimError> {
+    Ok(if config.order_stake_policy.is_some() {
+        maximum_entry_leverage(config, request.pair, request.candle, request.stake.proposed)?
+            .unwrap_or(1.0)
+    } else {
+        config
+            .maximum_leverage_by_pair
+            .get(&request.pair.pair)
+            .copied()
+            .unwrap_or(proposed_leverage.max(1.0))
+    })
+}
+
 pub(crate) fn executable_entry_selection(
     callbacks: &mut ExecutableCallbacks<'_, '_, '_>,
     request: &EntryRequest<'_>,
     config: &PortfolioConfig,
     rate: f64,
-) -> Result<ExecutableEntrySelection, ExecutableCallbackError> {
+) -> Result<ExecutableEntrySelection, SimError> {
     let proposed_leverage = request.signal.leverage.or(config.leverage).unwrap_or(1.0);
-    let maximum_leverage = config
-        .maximum_leverage_by_pair
-        .get(&request.pair.pair)
-        .copied()
-        .unwrap_or(proposed_leverage.max(1.0));
+    let maximum_leverage = executable_maximum_leverage(request, config, proposed_leverage)?;
+    let leverage_rate = if config.order_stake_policy.is_some() {
+        request.candle.open
+    } else {
+        rate
+    };
     let side = match request.side {
         TradeSide::Long => "long",
         TradeSide::Short => "short",
@@ -526,7 +595,7 @@ pub(crate) fn executable_entry_selection(
                 "current_time".to_owned(),
                 Value::from(request.candle.timestamp_ms),
             ),
-            ("current_rate".to_owned(), Value::from(rate)),
+            ("current_rate".to_owned(), Value::from(leverage_rate)),
             (
                 "proposed_leverage".to_owned(),
                 Value::from(proposed_leverage),
@@ -553,13 +622,12 @@ pub(crate) fn executable_entry_selection(
     } else {
         1.0
     };
-    let minimum = minimum_pair_stake(
-        request.pair,
-        rate,
-        config.stoploss_ratio,
-        leverage,
-        config.amount_reserve_percent,
-    );
+    let minimum = initial_minimum_pair_stake(request.pair, rate, leverage, config);
+    let maximum =
+        request
+            .stake
+            .maximum
+            .min(maximum_pair_stake(request.pair, rate, leverage, config)?);
     let inputs = BTreeMap::from([
         ("pair".to_owned(), Value::String(request.pair.pair.clone())),
         (
@@ -572,7 +640,7 @@ pub(crate) fn executable_entry_selection(
             Value::from(request.stake.proposed),
         ),
         ("min_stake".to_owned(), Value::from(minimum)),
-        ("max_stake".to_owned(), Value::from(request.stake.maximum)),
+        ("max_stake".to_owned(), Value::from(maximum)),
         ("leverage".to_owned(), Value::from(leverage)),
         ("side".to_owned(), Value::String(side.to_owned())),
         (
@@ -649,6 +717,19 @@ fn entry_callback_values(
     config: &PortfolioConfig,
     rate: f64,
 ) -> Result<(f64, f64), SimError> {
+    if config.order_stake_policy.is_some() {
+        let leverage = entry_leverage(
+            request.signal,
+            config,
+            request.pair,
+            request.candle,
+            request.stake.proposed,
+        )?;
+        trace_callback(CallbackPhase::Leverage, CallbackOutcome::Value)?;
+        let requested = requested_entry_stake(request, config, leverage, rate)?;
+        trace_callback(CallbackPhase::StakeSizing, CallbackOutcome::Value)?;
+        return Ok((requested, leverage));
+    }
     let stake_leverage = request.signal.leverage.or(config.leverage).unwrap_or(1.0);
     let requested = requested_entry_stake(request, config, stake_leverage, rate)?;
     trace_callback(CallbackPhase::StakeSizing, CallbackOutcome::Value)?;
@@ -672,18 +753,17 @@ pub(crate) fn requested_entry_stake(
     let Some(program) = &config.stake_program else {
         return Ok(request.stake.proposed);
     };
+    let maximum =
+        request
+            .stake
+            .maximum
+            .min(maximum_pair_stake(request.pair, rate, leverage, config)?);
     evaluate_stake_program(
         program,
         &StakeInputs {
             proposed_stake: request.stake.proposed,
-            minimum_stake: minimum_pair_stake(
-                request.pair,
-                rate,
-                config.stoploss_ratio,
-                leverage,
-                config.amount_reserve_percent,
-            ),
-            maximum_stake: request.stake.maximum,
+            minimum_stake: initial_minimum_pair_stake(request.pair, rate, leverage, config),
+            maximum_stake: maximum,
             current_rate: rate,
             leverage,
             entry_tag: request.signal.tag.as_deref(),
@@ -694,7 +774,7 @@ pub(crate) fn requested_entry_stake(
         pair: request.pair.pair.clone(),
         timestamp_ms: request.candle.timestamp_ms,
     })
-    .map(|stake| stake.min(request.stake.maximum))
+    .map(|stake| stake.min(maximum))
 }
 
 pub(crate) fn initial_stop_loss(
@@ -761,6 +841,10 @@ pub(crate) fn entry_is_confirmed(
             previous_close: request.candle.previous_close,
             open_trades: request.open_trades,
             max_open_trades: config.max_open_trades,
+            source_max_open_trades: config
+                .strategy_wallet_policy
+                .as_ref()
+                .and_then(|policy| policy.source_max_open_trades),
             is_futures: config.is_futures,
             order_type: config.entry_order_type,
         },
@@ -769,6 +853,21 @@ pub(crate) fn entry_is_confirmed(
         pair: request.pair.pair.clone(),
         timestamp_ms: request.candle.timestamp_ms,
     })
+}
+
+/// Minimum passed to initial stake callbacks and initial-order validation.
+fn initial_minimum_pair_stake(
+    pair: &PairSeries,
+    rate: f64,
+    leverage: f64,
+    config: &PortfolioConfig,
+) -> f64 {
+    let reserve = config
+        .strategy_wallet_policy
+        .as_ref()
+        .and_then(|policy| policy.entry_minimum_stoploss_ratio)
+        .unwrap_or(config.stoploss_ratio);
+    minimum_pair_stake(pair, rate, reserve, leverage, config.amount_reserve_percent)
 }
 
 pub(crate) fn minimum_pair_stake(
@@ -986,7 +1085,10 @@ pub(crate) fn apply_order_filled(
         return Ok(());
     };
     let successful_entries = trade.orders.iter().filter(|order| order.is_entry).count();
-    if successful_entries == 1 {
+    if successful_entries == 1
+        && (!program.initial_entry_requires_no_exits
+            || !trade.orders.iter().any(|order| !order.is_entry))
+    {
         apply_custom_writes(
             &mut trade.custom_data,
             &program.initial_successful_entry_writes,

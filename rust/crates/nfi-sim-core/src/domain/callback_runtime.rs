@@ -47,6 +47,7 @@ pub fn same_candle_exit_winner(
 
 pub struct Runtime {
     candle_index: usize,
+    leverage_before_stake: bool,
     phase: CallbackPhase,
     outcome: Option<CallbackOutcome>,
     visibility: CallbackVisibility,
@@ -58,11 +59,17 @@ impl Runtime {
     pub fn new(candle_index: usize, visibility: CallbackVisibility) -> Self {
         Self {
             candle_index,
+            leverage_before_stake: false,
             phase: CallbackPhase::CandleStart,
             outcome: None,
             visibility,
             events: Vec::new(),
         }
+    }
+
+    pub(crate) fn with_leverage_before_stake(mut self, enabled: bool) -> Self {
+        self.leverage_before_stake = enabled;
+        self
     }
 
     #[must_use]
@@ -170,20 +177,37 @@ impl Runtime {
     }
 
     fn validate_transition(&self, to: CallbackPhase) -> Result<(), CallbackRuntimeError> {
+        let entry_first = if self.leverage_before_stake {
+            CallbackPhase::Leverage
+        } else {
+            CallbackPhase::StakeSizing
+        };
+        let entry_second = if self.leverage_before_stake {
+            CallbackPhase::StakeSizing
+        } else {
+            CallbackPhase::Leverage
+        };
         let valid = match self.phase {
-            CallbackPhase::CandleStart => matches!(
-                to,
-                CallbackPhase::StakeSizing
-                    | CallbackPhase::OrderFilled
-                    | CallbackPhase::PositionAdjustment
-                    | CallbackPhase::CustomStoploss
-                    | CallbackPhase::CandleAfter
-            ),
-            CallbackPhase::StakeSizing => to == CallbackPhase::Leverage,
-            CallbackPhase::Leverage => matches!(
-                to,
-                CallbackPhase::EntryConfirmation | CallbackPhase::CandleAfter
-            ),
+            CallbackPhase::CandleStart => {
+                to == entry_first
+                    || matches!(
+                        to,
+                        CallbackPhase::OrderFilled
+                            | CallbackPhase::PositionAdjustment
+                            | CallbackPhase::CustomStoploss
+                            | CallbackPhase::CandleAfter
+                    )
+            }
+            CallbackPhase::StakeSizing | CallbackPhase::Leverage => {
+                if self.phase == entry_first {
+                    to == entry_second
+                } else {
+                    matches!(
+                        to,
+                        CallbackPhase::EntryConfirmation | CallbackPhase::CandleAfter
+                    )
+                }
+            }
             CallbackPhase::EntryConfirmation => match self.outcome {
                 Some(CallbackOutcome::Accepted) => to == CallbackPhase::OrderFilled,
                 Some(CallbackOutcome::Rejected | CallbackOutcome::Exception) => {
@@ -220,12 +244,13 @@ impl Runtime {
                 ),
                 Some(CallbackOutcome::Accepted | CallbackOutcome::Rejected) | None => false,
             },
-            CallbackPhase::ExitConfirmation => matches!(
-                to,
-                CallbackPhase::ExitConfirmation
-                    | CallbackPhase::StakeSizing
-                    | CallbackPhase::CandleAfter
-            ),
+            CallbackPhase::ExitConfirmation => {
+                to == entry_first
+                    || matches!(
+                        to,
+                        CallbackPhase::ExitConfirmation | CallbackPhase::CandleAfter
+                    )
+            }
             CallbackPhase::CandleAfter => false,
         };
         if valid {

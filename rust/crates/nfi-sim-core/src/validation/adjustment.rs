@@ -166,8 +166,12 @@ pub(crate) fn valid_nfi_adjustment_constants(constants: &NfiX7AdjustmentConstant
         ]
         .iter()
         .all(|value| value.is_finite())
-            && level.stake_futures > 0.0
-            && level.stake_spot > 0.0
+            && ((level.stake_futures > 0.0 && level.stake_spot > 0.0)
+                || (!level.enabled
+                    && level.stake_futures == 0.0
+                    && level.stake_spot == 0.0
+                    && level.threshold_futures == 0.0
+                    && level.threshold_spot == 0.0))
     });
     let grind_numbers_are_valid = constants.grinds.iter().all(|grind| {
         let scalars = [

@@ -73,7 +73,13 @@ def test_official_consumed_interval_is_slot_complete_and_not_candle_minmax(
 
     identity = fixture_engine.official_consumed_interval(manifest_path, manifest)
 
-    assert identity["native_timerange"] == "1735689600000-1735693200000"
+    assert identity["native_timerange"] == "1735689600000-1735692900000"
+    historical = fixture_engine.official_consumed_interval(
+        manifest_path, manifest, native_boundary="historical-next-slot"
+    )
+    assert historical["native_timerange"] == "1735689600000-1735693200000"
+    assert historical["data_sha256"] == identity["data_sha256"]
+    assert historical["official_trace_sha256"] == identity["official_trace_sha256"]
     assert identity["official_event_start_timestamp_ms"] == 1735689900000
     assert identity["official_event_end_timestamp_ms"] == 1735692900000
     candle = next(item for item in manifest["inputs"] if item["role"] == "candles")
@@ -92,7 +98,7 @@ def test_legacy_release_fixture_authenticates_from_its_sealed_full_trace() -> No
 
     identity = fixture_engine.official_consumed_interval(RELEASE_SPOT, manifest)
 
-    assert identity["native_timerange"] == "1672531200000-1672617900000"
+    assert identity["native_timerange"] == "1672531200000-1672617600000"
     assert identity["configured_pairs"] == ["BTC/USDT"]
     assert identity["official_trace_sha256"] == manifest["artifacts"]["state_trace"]["sha256"]
 
@@ -228,3 +234,29 @@ def test_native_manager_binding_fails_closed(mutation: str) -> None:
             manifest,
             {"config": {"nfi_x7_trade_manager": manager}},
         )
+
+
+def test_legacy_state_trace_authenticates_open_trade_priority():
+    from nfi_backtest_engine.fixture_engine import _legacy_candle_timestamps
+
+    def event(timestamp, pair, trades):
+        return {
+            "phase": "candle.after",
+            "timestamp_ms": timestamp,
+            "pair": pair,
+            "state": {"trades": trades},
+        }
+
+    opened = [{"pair": "BBB/USDT", "is_open": True}]
+    events = [
+        event(1, "AAA/USDT", []),
+        event(1, "BBB/USDT", opened),
+        event(2, "BBB/USDT", opened),
+        event(2, "AAA/USDT", opened),
+    ]
+    pairs = ["AAA/USDT", "BBB/USDT"]
+    assert _legacy_candle_timestamps(events, pairs) == {1, 2}
+    with pytest.raises(BenchmarkError, match="pair order differs"):
+        _legacy_candle_timestamps(events[:2] + list(reversed(events[2:])), pairs)
+    with pytest.raises(BenchmarkError, match="pair order differs"):
+        _legacy_candle_timestamps(events[:-1], pairs)

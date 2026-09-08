@@ -24,12 +24,27 @@ pub(crate) fn validate_input(input: &SimulationInput) -> Result<ValidationSummar
     }
     validate_simulator_preflight(&input.config)?;
     let config = &input.config;
+    if config
+        .strategy_wallet_policy
+        .as_ref()
+        .is_some_and(|policy| policy.source_max_open_trades.is_some())
+        && config.max_open_trades < input.pairs.len()
+    {
+        return Err(SimError::InvalidPositiveConfig("source_slot_pair_capacity"));
+    }
     // Timestamp batches are a logical profile counter, not scheduler work.
     // Collect the distinct execution-visible timestamps while validation is
     // already reading every row. This avoids a second full scan of multi-year
     // file-backed vectors solely to preserve the profiling contract.
     let mut logical_timestamps = BTreeSet::new();
     for (pair_index, pair) in input.pairs.iter().enumerate() {
+        if config
+            .order_stake_policy
+            .as_ref()
+            .is_some_and(|policy| !policy.pair_limits.contains_key(&pair.pair))
+        {
+            return Err(SimError::InvalidPositiveConfig("order_stake_pair_limits"));
+        }
         validate_pair_series(
             pair_index,
             pair,
@@ -55,6 +70,20 @@ pub(crate) fn validate_input(input: &SimulationInput) -> Result<ValidationSummar
 /// error that [`validate_input`] would return before inspecting pairs.
 #[allow(clippy::too_many_lines)] // Preserve the existing fail-closed audit and error order.
 pub fn validate_simulator_preflight(config: &PortfolioConfig) -> Result<(), SimError> {
+    if let Some(policy) = &config.order_stake_policy {
+        if policy.pair_limits.is_empty()
+            || (config.is_futures && config.liquidation_model.is_none())
+            || policy.pair_limits.iter().any(|(pair, limits)| {
+                pair.is_empty()
+                    || [limits.maximum_amount, limits.maximum_cost]
+                        .into_iter()
+                        .flatten()
+                        .any(|value| !value.is_finite() || value < 0.0)
+            })
+        {
+            return Err(SimError::InvalidPositiveConfig("order_stake_policy"));
+        }
+    }
     validate_executable_callback_config(config)?;
     for (name, value) in [
         ("starting_balance", config.starting_balance),
@@ -107,6 +136,11 @@ pub fn validate_simulator_preflight(config: &PortfolioConfig) -> Result<(), SimE
     {
         return Err(SimError::InvalidPositiveConfig("minimal_roi"));
     }
+    if config.strategy_exit_policy.as_ref().is_some_and(|policy| {
+        !policy.exit_profit_offset.is_finite() || policy.timeframe_minutes == 0
+    }) {
+        return Err(SimError::InvalidPositiveConfig("exit_profit_offset"));
+    }
     if config
         .trailing_stop_positive
         .is_some_and(|ratio| !ratio.is_finite() || !(0.0..1.0).contains(&ratio))
@@ -119,6 +153,41 @@ pub fn validate_simulator_preflight(config: &PortfolioConfig) -> Result<(), SimE
                 || config.trailing_stop_positive_offset.is_none())
     {
         return Err(SimError::InvalidPositiveConfig("trailing_stop"));
+    }
+    if config.strategy_exit_policy.is_some() && config.trailing_stop {
+        let positive = config.trailing_stop_positive;
+        let offset = config.trailing_stop_positive_offset;
+        if positive.is_some_and(|value| value == 0.0)
+            || offset.is_none()
+            || positive.zip(offset).is_some_and(|(positive, offset)| {
+                positive > 0.0 && offset > 0.0 && offset <= positive
+            })
+        {
+            return Err(SimError::InvalidPositiveConfig("trailing_stop"));
+        }
+    }
+    if let Some(policy) = &config.strategy_wallet_policy {
+        if !matches!(policy.source_max_open_trades, None | Some(-1 | 0))
+            || policy
+                .entry_minimum_stoploss_ratio
+                .is_some_and(|value| !value.is_finite() || !(-1.0..=0.0).contains(&value))
+            || (policy.source_max_open_trades == Some(-1) && config.unlimited_stake)
+            || !policy.last_stake_amount_min_ratio.is_finite()
+            || !(0.0..=1.0).contains(&policy.last_stake_amount_min_ratio)
+            || policy
+                .available_capital
+                .is_some_and(|value| !value.is_finite() || value < 0.0)
+            || policy
+                .initial_asset_balances
+                .iter()
+                .any(|(currency, amount)| {
+                    currency.is_empty()
+                        || !currency.bytes().all(|byte| byte.is_ascii_alphanumeric())
+                        || !amount.is_finite()
+                })
+        {
+            return Err(SimError::InvalidPositiveConfig("strategy_wallet_policy"));
+        }
     }
     validate_leverage_contract(config)?;
     validate_liquidation_contract(config)?;

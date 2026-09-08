@@ -25,12 +25,14 @@ use super::callback_trace::ExecutableCallbacks;
 use super::entry::{
     adjustment_minimum_pair_stake, apply_order_filled, minimum_pair_stake, validate_stake_amount,
 };
+use super::strategy_settings::{adjust_source_stop, refresh_inherited_stop_after_fill};
 
 pub(crate) fn update_extrema(trade: &mut OpenTrade, candle: &Candle) {
     trade.minimum_rate = trade.minimum_rate.min(candle.low);
     trade.maximum_rate = trade.maximum_rate.max(candle.high);
 }
 
+#[allow(clippy::too_many_arguments)] // Callback bounds and wallet allocation are distinct.
 pub(crate) fn executable_position_adjustment(
     callbacks: &mut ExecutableCallbacks<'_, '_, '_>,
     trade: &mut OpenTrade,
@@ -38,6 +40,7 @@ pub(crate) fn executable_position_adjustment(
     candle: &Candle,
     minimum_stake: f64,
     maximum_stake: f64,
+    available_balance: f64,
     current_profit: f64,
 ) -> Result<Option<AdjustmentSignal>, ExecutableCallbackError> {
     let invocation = position_adjustment_invocation(
@@ -46,6 +49,7 @@ pub(crate) fn executable_position_adjustment(
         candle,
         minimum_stake,
         maximum_stake,
+        available_balance,
         current_profit,
     );
     let event = callbacks.invoke(&invocation, &mut trade.custom_data)?;
@@ -61,6 +65,7 @@ fn position_adjustment_invocation(
     candle: &Candle,
     minimum_stake: f64,
     maximum_stake: f64,
+    available_balance: f64,
     current_profit: f64,
 ) -> CallbackInvocation {
     let inputs = BTreeMap::from([
@@ -80,7 +85,7 @@ fn position_adjustment_invocation(
         ("low".to_owned(), Value::from(candle.low)),
         ("close".to_owned(), Value::from(candle.close)),
     ]);
-    invocation.wallet = BTreeMap::from([("available".to_owned(), Value::from(maximum_stake))]);
+    invocation.wallet = BTreeMap::from([("available".to_owned(), Value::from(available_balance))]);
     invocation
 }
 
@@ -162,9 +167,15 @@ pub(crate) fn apply_adjustment(
         trade.leverage,
         config.amount_reserve_percent,
     );
-    let Some(requested) =
-        validate_stake_amount(adjustment.stake_amount, minimum, available_balance)
-    else {
+    let maximum = super::order_stake::additional_entry_maximum_stake(
+        pair,
+        candle.open,
+        trade.leverage,
+        available_balance,
+        trade.stake_amount,
+        config,
+    )?;
+    let Some(requested) = validate_stake_amount(adjustment.stake_amount, minimum, maximum) else {
         return Ok(());
     };
     let Some((amount, _, _, order_cost)) = entry_sizing(
@@ -200,6 +211,7 @@ pub(crate) fn apply_adjustment(
     trade.adjustment_count += 1;
     apply_order_filled(trade, Some(&adjustment.tag), config)?;
     update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
+    refresh_inherited_stop_after_fill(trade, candle.open, config)?;
     Ok(())
 }
 
@@ -263,6 +275,7 @@ pub(crate) fn apply_partial_exit(
     // partial exit into LocalTrade. The resulting one-adjustment lag is
     // observable when a second derisk changes the Binance maintenance tier.
     update_isolated_liquidation_price(trade, config, candle.timestamp_ms)?;
+    refresh_inherited_stop_after_fill(trade, exit_rate, config)?;
     recalculate_open_trade_from_orders(trade, config)?;
     preserve_partial_exit_funding_refresh(trade, candle, amount_before_fill)?;
     trade.realized_partial_profit = if is_unleveraged_spot(trade, config) {
@@ -328,21 +341,32 @@ pub(crate) fn recalculate_open_trade_from_orders(
         finite(&(&current_stake / &current_amount)).ok_or_else(failure)?,
         trade.price_step,
     )?;
-    let leveraged_stoploss = config.stoploss_ratio / trade.leverage;
-    let adjusted_stop = match trade.side {
-        TradeSide::Long => ceil_step(
-            trade.open_rate * (1.0 + leveraged_stoploss),
-            trade.price_step,
-        )?,
-        TradeSide::Short => floor_step(
-            trade.open_rate * (1.0 - leveraged_stoploss),
-            trade.price_step,
-        )?,
-    };
-    trade.stop_loss = match trade.side {
-        TradeSide::Long => trade.stop_loss.max(adjusted_stop),
-        TradeSide::Short => trade.stop_loss.min(adjusted_stop),
-    };
+    if config.strategy_exit_policy.is_some() {
+        adjust_source_stop(
+            trade,
+            trade.open_rate,
+            trade
+                .custom_stop_loss_ratio
+                .unwrap_or(config.stoploss_ratio),
+            false,
+        )?;
+    } else {
+        let leveraged_stoploss = config.stoploss_ratio / trade.leverage;
+        let adjusted_stop = match trade.side {
+            TradeSide::Long => ceil_step(
+                trade.open_rate * (1.0 + leveraged_stoploss),
+                trade.price_step,
+            )?,
+            TradeSide::Short => floor_step(
+                trade.open_rate * (1.0 - leveraged_stoploss),
+                trade.price_step,
+            )?,
+        };
+        trade.stop_loss = match trade.side {
+            TradeSide::Long => trade.stop_loss.max(adjusted_stop),
+            TradeSide::Short => trade.stop_loss.min(adjusted_stop),
+        };
+    }
 
     let notional = precise_product(&[trade.amount, trade.open_rate])?;
     trade.entry_cost_with_fees = if (trade.leverage - 1.0).abs() < f64::EPSILON {

@@ -24,6 +24,7 @@ pub(super) fn candle(timestamp_ms: i64, open: f64, low: f64) -> Candle {
 
 pub(super) fn config(max_open_trades: usize) -> PortfolioConfig {
     PortfolioConfig {
+        order_stake_policy: None,
         starting_balance: 1_000.0,
         max_open_trades,
         stake_amount: 100.0,
@@ -43,6 +44,7 @@ pub(super) fn config(max_open_trades: usize) -> PortfolioConfig {
         amount_step: 0.00001,
         price_step: 0.01,
         minimal_roi: BTreeMap::new(),
+        strategy_exit_policy: None,
         trailing_stop: false,
         trailing_stop_positive: None,
         trailing_stop_positive_offset: None,
@@ -56,6 +58,7 @@ pub(super) fn config(max_open_trades: usize) -> PortfolioConfig {
         amount_reserve_percent: 0.05,
         unlimited_stake: false,
         tradable_balance_ratio: 1.0,
+        strategy_wallet_policy: None,
         entry_confirmation_program: None,
         exit_confirmation_program: None,
         custom_exit_program: None,
@@ -686,6 +689,10 @@ pub(super) fn nfi_top_coins_manager(first: ScalarDecisionProgram) -> NfiX7TradeM
         derisk_spot: -0.48,
     };
     NfiX7TradeManager {
+        virtual_fees: None,
+        adjustment_dispatch: None,
+        system_exit_programs: None,
+        custom_exit_prefix: None,
         schema_version: "0.13.0".to_owned(),
         source_sha256: "a".repeat(64),
         route_order: [
@@ -1320,6 +1327,7 @@ pub(super) fn enable_nfi_manager(config: &mut PortfolioConfig, manager: NfiX7Tra
     config.stoploss_ratio = -0.99;
     config.callback_program = Some(CallbackProgram {
         order_filled: Some(OrderFilledProgram {
+            initial_entry_requires_no_exits: false,
             initial_successful_entry_writes: vec![CustomDataWrite {
                 key: "system_version".to_owned(),
                 value: Value::String("system_v3_2".to_owned()),

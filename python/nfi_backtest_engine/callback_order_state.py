@@ -10,7 +10,7 @@ from .callback_ast import _is_none_expression, _qualified_name
 from .callback_contract import CALLBACK_LOWERING_VERSION, JsonObject
 from .callback_order_state_values import (
     _extract_order_tag_actions,
-    _is_first_successful_entry_test,
+    _first_successful_entry_policy,
     _is_set_custom_data_call,
     _literal_write_block,
     _record_static_alias,
@@ -84,7 +84,8 @@ def _lower_x7_order_filled(
     final_return = body[2]
     if not isinstance(first_entry, ast.If) or not isinstance(system_branch, ast.If):
         return None
-    if not _is_first_successful_entry_test(first_entry.test):
+    initial_entry_policy = _first_successful_entry_policy(first_entry.test)
+    if initial_entry_policy is None:
         return None
     if not isinstance(final_return, ast.Return) or not _is_none_expression(final_return.value):
         return None
@@ -136,6 +137,7 @@ def _lower_x7_order_filled(
         "executable_in_rust": True,
         "operation": {
             "opcode": "order-filled-state-v1",
+            **initial_entry_policy,
             "initial_successful_entry_writes": initial_writes,
             "order_tag_actions": tag_actions,
         },
@@ -147,6 +149,7 @@ def _lower_x7_order_filled(
             "program_sha256": hashlib.sha256(
                 json.dumps(
                     {
+                        **initial_entry_policy,
                         "initial": initial_writes,
                         "actions": tag_actions,
                     },

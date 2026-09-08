@@ -741,8 +741,9 @@ def test_indicator_program_unrolls_tuple_of_source_ordered_dynamic_mappings(
     validate_indicator_program(program)
 
 
+@pytest.mark.parametrize("literal_mapping", [False, True])
 def test_indicator_program_expands_dynamic_mapping_into_column_bundle(
-    tmp_path: Path,
+    tmp_path: Path, literal_mapping: bool,
 ) -> None:
     source = tmp_path / "ExpandedColumnBundle.py"
     source.write_text(
@@ -751,8 +752,13 @@ def test_indicator_program_expands_dynamic_mapping_into_column_bundle(
         "from freqtrade.strategy import IStrategy\n"
         "class ExpandedColumnBundle(IStrategy):\n"
         "    def populate_indicators(self, dataframe, metadata):\n"
-        "        extra = {}\n"
-        "        extra['slow'] = ta.SMA(dataframe['close'], timeperiod=20)\n"
+        + (
+            "        extra = {'slow': ta.SMA(dataframe['close'], timeperiod=20)}\n"
+            if literal_mapping else
+            "        extra = {}\n"
+            "        extra['slow'] = ta.SMA(dataframe['close'], timeperiod=20)\n"
+        )
+        +
         "        columns = pd.DataFrame(\n"
         "            {\n"
         "                'fast': ta.SMA(dataframe['close'], timeperiod=5),\n"

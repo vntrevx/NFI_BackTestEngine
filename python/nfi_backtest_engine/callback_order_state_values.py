@@ -46,6 +46,24 @@ def _record_static_alias(
 
 
 def _is_first_successful_entry_test(node: ast.AST) -> bool:
+    return _trade_count_equals(node, "nr_of_successful_entries", 1)
+
+
+def _first_successful_entry_policy(node: ast.AST) -> JsonObject | None:
+    if _is_first_successful_entry_test(node):
+        return {}
+    if (
+        isinstance(node, ast.BoolOp)
+        and isinstance(node.op, ast.And)
+        and len(node.values) == 2
+        and _is_first_successful_entry_test(node.values[0])
+        and _trade_count_equals(node.values[1], "nr_of_successful_exits", 0)
+    ):
+        return {"initial_entry_requires_no_exits": True}
+    return None
+
+
+def _trade_count_equals(node: ast.AST, field: str, count: int) -> bool:
     return (
         isinstance(node, ast.Compare)
         and len(node.ops) == 1
@@ -54,9 +72,10 @@ def _is_first_successful_entry_test(node: ast.AST) -> bool:
         and isinstance(node.left, ast.Attribute)
         and isinstance(node.left.value, ast.Name)
         and node.left.value.id == "trade"
-        and node.left.attr == "nr_of_successful_entries"
+        and node.left.attr == field
         and isinstance(node.comparators[0], ast.Constant)
-        and node.comparators[0].value == 1
+        and type(node.comparators[0].value) is int
+        and node.comparators[0].value == count
     )
 
 
@@ -74,6 +93,16 @@ def _select_static_if(
 
 
 def _static_bool(node: ast.AST, environment: JsonObject) -> bool | None:
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And | ast.Or):
+        for expression in node.values:
+            value = _static_bool(expression, environment)
+            if value is None:
+                return None
+            if isinstance(node.op, ast.And) and not value:
+                return False
+            if isinstance(node.op, ast.Or) and value:
+                return True
+        return isinstance(node.op, ast.And)
     if (
         isinstance(node, ast.Compare)
         and len(node.ops) == 1

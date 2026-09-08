@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::calculations::fee_close;
 use crate::domain::{AdjustmentSignal, Candle, PairSeries, PortfolioConfig, ScalarProgramBundle};
-use crate::execution::{adjustment_minimum_pair_stake, current_profit_ratio};
+use crate::execution::adjustment_minimum_pair_stake;
+use crate::execution::strategy_settings::callback_profit_ratio;
 use crate::nfi::CustomExitDecision;
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{
@@ -50,7 +50,7 @@ pub(crate) fn evaluate_custom_exit_bundle(
         ("current_rate".to_owned(), number_value(candle.open)?),
         (
             "current_profit".to_owned(),
-            number_value(current_profit_ratio(trade, candle.open, fee_close(config)))?,
+            number_value(callback_profit_ratio(trade, candle.open, config).ok()?)?,
         ),
         ("kwargs".to_owned(), Value::Object(serde_json::Map::new())),
     ]);
@@ -140,7 +140,8 @@ pub(crate) fn evaluate_adjustment_bundle(
         Value::Null
     };
     let current_profit =
-        number_value(current_profit_ratio(trade, candle.open, fee_close(config))).ok_or(())?;
+        number_value(callback_profit_ratio(trade, candle.open, config).map_err(|_| ())?)
+            .ok_or(())?;
     let mut variables = BTreeMap::from([
         ("trade".to_owned(), scalar_trade_value(trade).ok_or(())?),
         (
@@ -155,7 +156,16 @@ pub(crate) fn evaluate_adjustment_bundle(
         ("min_stake".to_owned(), minimum_stake),
         (
             "max_stake".to_owned(),
-            number_value(available_balance).ok_or(())?,
+            number_value(
+                crate::execution::order_stake::adjustment_maximum_stake(
+                    pair,
+                    candle.open,
+                    available_balance,
+                    config,
+                )
+                .map_err(|_| ())?,
+            )
+            .ok_or(())?,
         ),
         (
             "current_entry_rate".to_owned(),
@@ -188,11 +198,11 @@ pub(crate) fn evaluate_adjustment_bundle(
     if !stake_amount.is_finite() || stake_amount == 0.0 {
         return Ok(None);
     }
-    if stake_amount > 0.0 && config.max_entry_position_adjustment >= 0 {
-        let entry_count = trade.orders.iter().filter(|order| order.is_entry).count();
-        if i64::try_from(entry_count).map_err(|_| ())? > config.max_entry_position_adjustment {
-            return Ok(None);
-        }
+    let entry_count = trade.orders.iter().filter(|order| order.is_entry).count();
+    if stake_amount > 0.0
+        && !permits_additional_entry(entry_count, config.max_entry_position_adjustment)
+    {
+        return Ok(None);
     }
     Ok(Some(AdjustmentSignal { stake_amount, tag }))
 }
@@ -208,5 +218,24 @@ fn scalar_adjustment_number(value: &Value) -> Option<f64> {
     match value {
         Value::Bool(value) => Some(f64::from(u8::from(*value))),
         value => scalar_number(value),
+    }
+}
+
+pub(crate) fn permits_additional_entry(entry_count: usize, maximum_adjustments: i64) -> bool {
+    maximum_adjustments < 0
+        || usize::try_from(maximum_adjustments).map_or(true, |maximum| entry_count <= maximum)
+}
+
+#[cfg(test)]
+mod adjustment_limit_tests {
+    use super::permits_additional_entry;
+
+    #[test]
+    fn adjustment_limit_counts_the_initial_filled_entry_separately() {
+        assert!(permits_additional_entry(1, -1));
+        assert!(!permits_additional_entry(1, 0));
+        assert!(permits_additional_entry(1, 1));
+        assert!(!permits_additional_entry(2, 1));
+        assert!(permits_additional_entry(2, 2));
     }
 }

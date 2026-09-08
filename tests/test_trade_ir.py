@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from nfi_backtest_engine.strategy_ir import analyze_strategy
 from nfi_backtest_engine.trade_ir import (
     build_trade_dependency_ir,
@@ -197,8 +198,15 @@ def test_scalar_optimizer_preserves_dynamic_branch_column_liveness(tmp_path: Pat
     assert compiled["input_contract"]["indexed_fields"] == {"last_candle": ["LIVE_COLUMN"]}
 
 
+@pytest.mark.parametrize(
+    "sink",
+    [
+        "log.info(f'{self._grind_entry_tag}')",
+        "send_msg(notification_msg('grind', tag=self._grind_entry_tag))",
+    ],
+)
 def test_observability_only_grind_tag_write_is_lowered_as_ephemeral(
-    tmp_path: Path,
+    tmp_path: Path, sink: str,
 ) -> None:
     source = tmp_path / "Ephemeral.py"
     source.write_text(
@@ -217,7 +225,7 @@ def test_observability_only_grind_tag_write_is_lowered_as_ephemeral(
         "        self._grind_entry_tag = ''\n"
         "        return False\n"
         "    def report(self):\n"
-        "        log.info(f'{self._grind_entry_tag}')\n",
+        f"        {sink}\n",
         encoding="utf-8",
     )
 
@@ -249,6 +257,75 @@ def test_grind_tag_write_is_not_elided_when_read_semantically(tmp_path: Path) ->
 
     assert "long_grind_entry_v3" not in report["compiled_scalar_methods"]
     assert report["stateful_methods"]["long_grind_entry_v3"]["node"] == "Assign"
+
+
+@pytest.mark.parametrize("helper", ["long_grind_entry_v4", "short_grind_entry_v4", "decide"])
+def test_diagnostic_tag_writers_are_discovered_across_all_methods(
+    tmp_path: Path, helper: str,
+) -> None:
+    source = tmp_path / "Diagnostic.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Diagnostic(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def long_grind_entry_v3(self, active):\n"
+        "        if active:\n"
+        "            self._grind_entry_tag = 'g0'\n"
+        "            return True\n"
+        "        self._grind_entry_tag = ''\n"
+        "        return False\n"
+        f"    def {helper}(self, active):\n"
+        "        self._grind_entry_tag = 'g1'\n"
+        "        return active\n"
+        "    def report(self):\n"
+        "        log.info(f'{self._grind_entry_tag}')\n",
+        encoding="utf-8",
+    )
+    analysis = analyze_strategy(source)
+
+    # A writer outside the selected closure must not block the pure predicate.
+    report = build_trade_dependency_ir(analysis, roots=("long_grind_entry_v3",))
+    assert set(report["compiled_scalar_methods"]) == {"long_grind_entry_v3"}
+    assert report["stateful_methods"] == {}
+
+    # The same proof applies when that helper itself is selected.
+    report = build_trade_dependency_ir(analysis, roots=(helper,))
+    compiled = report["compiled_scalar_methods"][helper]
+    assert compiled["elided_observability_writes"] == ["_grind_entry_tag"]
+    assert compiled["program"]["statements"][0][0] == "ephemeral-set"
+
+
+@pytest.mark.parametrize(
+    "use",
+    [
+        "return self._grind_entry_tag == 'g0'",
+        "self._grind_entry_tag += 'g1'",
+        "del self._grind_entry_tag",
+        "return log.info(self._grind_entry_tag)",
+        "self.info(self._grind_entry_tag)",
+        "log.info(self._grind_entry_tag == 'g0' and self.trade_action())",
+    ],
+)
+def test_diagnostic_tag_semantic_use_outside_closure_fails_closed(
+    tmp_path: Path, use: str,
+) -> None:
+    source = tmp_path / "Semantic.py"
+    source.write_text(
+        "from freqtrade.strategy import IStrategy\n"
+        "class Semantic(IStrategy):\n"
+        "    timeframe = '5m'\n"
+        "    def decide(self):\n"
+        "        self._grind_entry_tag = 'g0'\n"
+        "        return True\n"
+        "    def unrelated_helper(self):\n"
+        f"        {use}\n",
+        encoding="utf-8",
+    )
+
+    report = build_trade_dependency_ir(analyze_strategy(source), roots=("decide",))
+
+    assert report["compiled_scalar_methods"] == {}
+    assert report["stateful_methods"]["decide"]["node"] == "Assign"
 
 
 def test_scalar_method_aliases_compile_as_a_transitive_program_bundle(
