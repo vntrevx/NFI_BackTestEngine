@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "classification": "ir-compatible",
+  "status": "ready",
+  "targets": [
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "value": "562",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31177,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31181,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 29669,
+            "column": 0,
+            "end_line": 29670,
+            "end_column": 116
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29847,
+            "column": 0,
+            "end_line": 29848,
+            "end_column": 74
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31177,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31181,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 29669,
+            "column": 0,
+            "end_line": 29670,
+            "end_column": 116
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29847,
+            "column": 0,
+            "end_line": 29848,
+            "end_column": 74
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/manifest.json",
+      "target_ids": [
+        "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+        "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185"
+      ]
+    }
+  ],
+  "missing_targets": [],
+  "executable": true
+}

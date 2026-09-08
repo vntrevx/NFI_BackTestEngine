@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "strategy_sha256": "aa52b2ba445938688d830392d27b90dcf786acc8a45decf7f3d520c365b1ef7d",
+  "classification": "ir-compatible",
+  "verification_state": "latest_checked",
+  "changed_branch_reached": false,
+  "trade_surface_exact": false,
+  "full_state_exact": false,
+  "blockers": [
+    {
+      "code": "COMPLETE_REQUIRED",
+      "message": "branch proof requires complete=true"
+    },
+    {
+      "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+      "message": "branch proof requires changed_branch_reached=true"
+    },
+    {
+      "code": "TRADE_SURFACE_EXACT_REQUIRED",
+      "message": "branch proof requires trade_surface_exact=true"
+    },
+    {
+      "code": "FULL_STATE_EXACT_REQUIRED",
+      "message": "branch proof requires full_state_exact=true"
+    }
+  ]
+}

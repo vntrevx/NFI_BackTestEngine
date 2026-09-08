@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "3c09a1ddf6b8459bdbaf6e9ac3ba539e49df2864",
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "aa52b2ba445938688d830392d27b90dcf786acc8a45decf7f3d520c365b1ef7d"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "bounded_discovery",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": false,
+    "full_state_exact": false,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+      "message": "branch proof requires changed_branch_reached=true"
+    },
+    {
+      "code": "COMPLETE_REQUIRED",
+      "message": "branch proof requires complete=true"
+    },
+    {
+      "code": "FULL_STATE_EXACT_REQUIRED",
+      "message": "branch proof requires full_state_exact=true"
+    },
+    {
+      "code": "TARGETED_BRANCH_NOT_REACHED",
+      "message": "native probe did not reach trade-visible required coverage: entry_tags:562, sides:short"
+    },
+    {
+      "code": "TRADE_SURFACE_EXACT_REQUIRED",
+      "message": "branch proof requires trade_surface_exact=true"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": true,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "dd41ddc9d1351a747cb44dd549468cea55e5647133d7dae21bab52374e458295",
+  "decision_fingerprint": "50c02b822aedc73dce3d823ca0daa2db81893a99e5ba012ab7e1fc22a1b0487c",
+  "message": "Exact branch evidence is missing; continue bounded discovery."
+}

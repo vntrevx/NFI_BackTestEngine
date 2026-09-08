@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "upstream_commit": "3c09a1ddf6b8459bdbaf6e9ac3ba539e49df2864",
+  "source_sha256": "aa52b2ba445938688d830392d27b90dcf786acc8a45decf7f3d520c365b1ef7d",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 1,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "target_ids": [
+        "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+        "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185"
+      ],
+      "capture": null,
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-v17.4.435-futures-lifecycle-btc-short/capture-work/engine/run.json",
+      "coverage": {
+        "complete": false,
+        "changed_branch_reached": false,
+        "reached_target_ids": [],
+        "missing_target_ids": [
+          "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+          "2c763d57afc84e9a5b0f61349d9c8b9136160544ac4e31952b1ad5d9e076a185"
+        ]
+      },
+      "trade_surface_exact": false,
+      "full_state_exact": false
+    }
+  ],
+  "proof": {
+    "complete": false,
+    "changed_branch_reached": false,
+    "trade_surface_exact": false,
+    "full_state_exact": false
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "trading_mode": "futures",
+    "strategy_sha256": "aa52b2ba445938688d830392d27b90dcf786acc8a45decf7f3d520c365b1ef7d",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": false,
+    "full_state_exact": false,
+    "blockers": [
+      {
+        "code": "COMPLETE_REQUIRED",
+        "message": "branch proof requires complete=true"
+      },
+      {
+        "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+        "message": "branch proof requires changed_branch_reached=true"
+      },
+      {
+        "code": "TRADE_SURFACE_EXACT_REQUIRED",
+        "message": "branch proof requires trade_surface_exact=true"
+      },
+      {
+        "code": "FULL_STATE_EXACT_REQUIRED",
+        "message": "branch proof requires full_state_exact=true"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+      "message": "branch proof requires changed_branch_reached=true"
+    },
+    {
+      "code": "COMPLETE_REQUIRED",
+      "message": "branch proof requires complete=true"
+    },
+    {
+      "code": "FULL_STATE_EXACT_REQUIRED",
+      "message": "branch proof requires full_state_exact=true"
+    },
+    {
+      "code": "TRADE_SURFACE_EXACT_REQUIRED",
+      "message": "branch proof requires trade_surface_exact=true"
+    },
+    {
+      "code": "TARGETED_BRANCH_NOT_REACHED",
+      "message": "native probe did not reach trade-visible required coverage: entry_tags:562, sides:short"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
