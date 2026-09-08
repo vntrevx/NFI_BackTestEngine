@@ -22,7 +22,8 @@ def test_repository_product_support_contract_is_valid() -> None:
     contract = load_product_support_contract(CONTRACT)
 
     assert [item["family"] for item in contract["strategies"]["native_supported"]] == [
-        "NostalgiaForInfinityX7"
+        "NostalgiaForInfinityX7",
+        "NostalgiaForInfinityX8",
     ]
     assert contract["platforms"] == {
         "supported": [
@@ -50,19 +51,15 @@ def test_repository_product_support_contract_is_valid() -> None:
     }
     assert contract["release_train"] == [
         {
-            "version": "v1.15.0",
+            "version": "v1.16.0",
             "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
             "combined_full_x7_certified": False,
-        }
+        },
     ]
 
 
 def test_packaged_contract_is_byte_identical_to_planning_authority() -> None:
-    packaged = (
-        ROOT
-        / "python/nfi_backtest_engine/contracts"
-        / PRODUCT_SUPPORT_CONTRACT_RESOURCE
-    )
+    packaged = ROOT / "python/nfi_backtest_engine/contracts" / PRODUCT_SUPPORT_CONTRACT_RESOURCE
 
     assert packaged.read_bytes() == CONTRACT.read_bytes()
     assert load_product_support_contract() == load_product_support_contract(CONTRACT)
@@ -70,7 +67,8 @@ def test_packaged_contract_is_byte_identical_to_planning_authority() -> None:
 
 @pytest.mark.parametrize("claim", ["release_train", "combined_status"])
 def test_unassigned_certification_target_rejects_combined_claims(
-    tmp_path: Path, claim: str,
+    tmp_path: Path,
+    claim: str,
 ) -> None:
     contract = deepcopy(load_product_support_contract(CONTRACT))
     if claim == "release_train":
@@ -86,7 +84,7 @@ def test_unassigned_certification_target_rejects_combined_claims(
 
 def test_historical_gated_certification_target_remains_readable(tmp_path: Path) -> None:
     contract = deepcopy(load_product_support_contract(CONTRACT))
-    contract["certification"]["target_release"] = "v1.15.0"
+    contract["certification"]["target_release"] = "v1.16.0"
     contract["release_train"][0]["combined_full_x7_certified"] = True
     path = tmp_path / "contract.json"
     write_json(path, contract)
@@ -102,7 +100,7 @@ def test_current_release_policy_does_not_exceed_product_contract() -> None:
 
     assert report == {
         "schema_version": "1.0.0",
-        "package_version": "1.15.0",
+        "package_version": "1.16.0",
         "combined_full_x7_certified": False,
         "supported_platform_slugs": [
             "linux-aarch64",
@@ -162,7 +160,7 @@ def test_product_contract_rejects_native_legacy_scope(tmp_path: Path) -> None:
     path = tmp_path / "contract.json"
     write_json(path, contract)
 
-    with pytest.raises(SpecValidationError, match="X7 only"):
+    with pytest.raises(SpecValidationError, match="X7 and X8 only"):
         load_product_support_contract(path)
 
 

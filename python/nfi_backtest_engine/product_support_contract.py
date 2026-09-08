@@ -100,8 +100,8 @@ def validate_product_release_alignment(
 
 def _validate_product_policy(document: dict[str, Any]) -> None:
     native = document["strategies"]["native_supported"]
-    if [item["family"] for item in native] != ["NostalgiaForInfinityX7"]:
-        raise SpecValidationError("product Native strategy scope must contain X7 only")
+    if [item["family"] for item in native] != ["NostalgiaForInfinityX7", "NostalgiaForInfinityX8"]:
+        raise SpecValidationError("product Native strategy scope must contain X7 and X8 only")
 
     legacy = document["strategies"]["official_only_legacy"]
     if [(item["family"], item["generation"]) for item in legacy] != [
@@ -148,7 +148,7 @@ def _validate_product_policy(document: dict[str, Any]) -> None:
         )
 
     releases = document["release_train"]
-    if [item["version"] for item in releases] != ["v1.15.0"]:
+    if [item["version"] for item in releases] != ["v1.16.0"]:
         raise SpecValidationError("product release train differs")
     if releases[0]["milestones"] != ["M25", "M26", "M27", "M28", "M29", "M30"]:
         raise SpecValidationError("product release milestones differ")
