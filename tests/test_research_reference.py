@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from nfi_backtest_engine import research_reference
+from nfi_backtest_engine.docker_runtime import validate_managed_run_prefix
 from nfi_backtest_engine.errors import BenchmarkError
 from nfi_backtest_engine.fixture import sha256_file
 from nfi_backtest_engine.legacy_reference import load_legacy_runtime_registry
@@ -302,3 +303,16 @@ def test_sealed_input_survives_the_original_source_path(tmp_path: Path) -> None:
     )
 
     assert resolved == sealed
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", "nan", "inf"])
+def test_managed_prefix_rejects_invalid_cpu_quota(value):
+    with pytest.raises(BenchmarkError, match="CPU limit"):
+        validate_managed_run_prefix([*_managed_prefix(), "--cpus", value])
+
+
+def test_managed_prefix_accepts_one_cpu_cap_and_rejects_duplicates():
+    prefix = [*_managed_prefix(), "--cpus", "2"]
+    validate_managed_run_prefix(prefix)
+    with pytest.raises(BenchmarkError, match="singleton"):
+        validate_managed_run_prefix([*prefix, "--cpus", "3"])

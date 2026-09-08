@@ -149,11 +149,14 @@ def test_system_tune_forwards_explicit_spool_directory(monkeypatch, tmp_path: Pa
             str(tmp_path / "profile.json"),
             "--spool-directory",
             str(tmp_path),
+            "--cpu-process-limit",
+            "2",
         ]
     )
 
     assert result == 0
     assert captured["spool_directory"] == tmp_path
+    assert captured["cpu_process_limit"] == 2
 
 
 def test_probe_capture_parser_keeps_fixture_and_work_outputs_separate() -> None:

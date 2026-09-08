@@ -30,6 +30,7 @@ from .normalize import normalize_file
 from .parity import first_difference
 from .reference import execution as reference_execution
 from .reference_assets import reference_package_root, reference_tracer_root
+from .reference_resources import reference_resource_limits
 from .reference_runtime import (
     REFERENCE_CCXT_VERSION,
     REFERENCE_IMAGE,
@@ -155,6 +156,7 @@ def run_research_reference(
     if purpose not in REFERENCE_PURPOSES:
         raise BenchmarkError("official research purpose must be 'verification' or 'fallback'")
     root, run, inputs = _load_research_run(run_directory, purpose=purpose)
+    resource_limits = reference_resource_limits(root)
     output = Path(output_directory).resolve()
     _initialize_output(output)
     input_directory = output / "inputs"
@@ -241,6 +243,8 @@ def run_research_reference(
             with dependency_guard, runtime_guard as runtime_volume, managed_docker_run(
                 docker_config=docker_config,
                 role="reference",
+                memory_cap_bytes=resource_limits.get("memory_cap_bytes"),
+                cpu_limit=resource_limits.get("cpu_limit"),
                 swap_mode=(
                     "daemon" if reference_memory_mode == "certification-swap" else "disabled"
                 ),

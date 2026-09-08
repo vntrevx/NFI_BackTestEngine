@@ -288,9 +288,11 @@ def test_bind_owner_wrapper_has_no_pinned_home_traversal_dependency() -> None:
     assert "nfi_image_home" not in BIND_OWNER_EXECUTABLE_FUNCTION
 
 
+@pytest.mark.parametrize("cpu_limit", [None, 2])
 def test_managed_prefix_labels_limits_and_reclaims_the_exact_container(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    cpu_limit: int | None,
 ) -> None:
     removed: list[Path] = []
     monkeypatch.setattr(docker_runtime, "_LOCK_PATH", tmp_path / "runtime.lock")
@@ -319,8 +321,14 @@ def test_managed_prefix_labels_limits_and_reclaims_the_exact_container(
     with managed_docker_run(
         docker_config=tmp_path / "docker-config",
         role="reference",
+        cpu_limit=cpu_limit,
     ) as lease:
         prefix = lease["command_prefix"]
+        if cpu_limit is None:
+            assert "--cpus" not in prefix
+        else:
+            assert prefix[prefix.index("--cpus") + 1] == str(cpu_limit)
+            assert lease["policy"]["container_cpu_limit"] == cpu_limit
         assert "--cidfile" in prefix
         assert "io.nfi-backtest-engine.managed=true" in prefix
         assert "--read-only" in prefix
@@ -476,3 +484,15 @@ def test_cleanup_removes_only_stopped_owned_container_ids(
             "stopped-1",
         ]
     ]
+
+
+def test_explicit_cpu_limit_is_clamped_to_daemon_capacity():
+    assert derive_docker_policy(_daemon(), cpu_limit=2)["container_cpu_limit"] == 2
+    assert derive_docker_policy(_daemon(), cpu_limit=20)["container_cpu_limit"] == 10
+    assert "container_cpu_limit" not in derive_docker_policy(_daemon())
+
+
+@pytest.mark.parametrize("limit", [True, 0, -1, 1.5, "2"])
+def test_invalid_cpu_caps_are_rejected(limit):
+    with pytest.raises(BenchmarkError, match="CPU limit"):
+        derive_docker_policy(_daemon(), cpu_limit=limit)

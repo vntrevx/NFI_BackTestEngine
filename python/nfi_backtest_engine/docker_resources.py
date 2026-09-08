@@ -156,6 +156,7 @@ def derive_docker_policy(
     daemon: dict[str, Any],
     *,
     memory_cap_bytes: int | None = None,
+    cpu_limit: int | None = None,
     swap_mode: str = "disabled",
     daemon_swap_bytes: int | None = None,
     swap_cap_bytes: int | None = None,
@@ -189,6 +190,12 @@ def derive_docker_policy(
     if automatic_budget < GIB:
         raise SpecValidationError(
             "less than 1 GiB remains after Docker daemon reserve and active containers"
+        )
+    selected_cpu_limit = None
+    if cpu_limit is not None:
+        selected_cpu_limit = min(
+            _positive_int(cpu_limit, "Docker CPU limit"),
+            _positive_int(daemon.get("cpu_count"), "Docker CPU count"),
         )
     working_memory = min(automatic_budget, memory_cap_bytes or automatic_budget)
     swap_supported = bool(
@@ -224,6 +231,7 @@ def derive_docker_policy(
         "daemon_reserve_bytes": reserve,
         "active_container_memory_bytes": active_memory,
         "container_memory_limit_bytes": working_memory,
+        **({"container_cpu_limit": selected_cpu_limit} if selected_cpu_limit is not None else {}),
         "swap_mode": swap_mode,
         "daemon_swap_bytes": detected_swap,
         "container_swap_limit_bytes": permitted_swap,

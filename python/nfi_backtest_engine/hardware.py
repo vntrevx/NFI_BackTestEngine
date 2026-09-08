@@ -120,6 +120,7 @@ def create_execution_profile(
     *,
     workspace: str | Path | None = None,
     memory_cap_bytes: int | None = None,
+    cpu_process_limit: int | None = None,
     observed_indicator_worker_peak_bytes: int | None = None,
     observed_engine_peak_bytes: int | None = None,
     observed_reference_peak_bytes: int | None = None,
@@ -134,6 +135,14 @@ def create_execution_profile(
         observed_engine_peak_bytes=observed_engine_peak_bytes,
         observed_reference_peak_bytes=observed_reference_peak_bytes,
     )
+    if cpu_process_limit is not None:
+        if (
+            isinstance(cpu_process_limit, bool)
+            or not isinstance(cpu_process_limit, int)
+            or cpu_process_limit <= 0
+        ):
+            raise SpecValidationError("CPU process limit must be a positive integer")
+        limits["cpu_process_limit"] = min(limits["cpu_process_limit"], cpu_process_limit)
     environment = tuning_environment({"nested_numeric_threads": 1})
     if spool_directory is not None:
         spool = Path(spool_directory).resolve()
@@ -169,15 +178,24 @@ def ensure_execution_profile(
 ) -> dict[str, Any]:
     """Reuse a hardware-bound profile or safely recalibrate it when the host changed."""
     path = Path(destination).resolve()
+    retained_cpu_limit = None
     if path.is_file():
+        # Validate the stored contract separately from the current host. A corrupt
+        # profile must not silently erase explicitly selected resource limits.
+        retained = load_execution_profile(path, require_current_hardware=False)
         try:
             return load_execution_profile(path)
         except SpecValidationError:
-            pass
+            if memory_cap_bytes is None:
+                memory_cap_bytes = retained["limits"]["memory_cap_bytes"]
+            retained_cpu_limit = retained["limits"]["cpu_process_limit"]
+            if spool_directory is None:
+                spool_directory = retained["environment"].get(SPOOL_DIRECTORY_ENVIRONMENT)
     return create_execution_profile(
         path,
         workspace=workspace,
         memory_cap_bytes=memory_cap_bytes,
+        cpu_process_limit=retained_cpu_limit,
         observed_indicator_worker_peak_bytes=observed_indicator_worker_peak_bytes,
         observed_engine_peak_bytes=observed_engine_peak_bytes,
         observed_reference_peak_bytes=observed_reference_peak_bytes,

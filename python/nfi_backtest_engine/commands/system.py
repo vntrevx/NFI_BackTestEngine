@@ -133,6 +133,7 @@ def execute(
             memory_cap_bytes=(
                 int(args.memory_cap_gib * GIB) if args.memory_cap_gib is not None else None
             ),
+            cpu_process_limit=args.cpu_process_limit,
             spool_directory=args.spool_directory,
         )
         limits = profile["limits"]
