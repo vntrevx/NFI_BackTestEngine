@@ -35,21 +35,23 @@ Mevcut kurulumu güncelleyin:
 nfi-bte update
 ```
 
-### X8 sürüm adayı: v1.16.0-rc.1
+### Kararlı v1.16.0 sürümünde X8
 
-2026-09-08 itibarıyla **en son kararlı sürüm v1.15.0**. Varsayılan kurulum komutu ve
-`nfi-bte update`, kararlı sürümleri seçer; X8 RC sürümünü kurmaz.
-RC sürümünü kurmak veya mevcut kurulumu RC ile değiştirmek için etiketi açıkça belirtin:
+2026-09-08 itibarıyla **en son kararlı sürüm v1.16.0** ve X7 yanında Native X8
+desteği sunar. Yukarıdaki varsayılan kurulum komutu bu sürümü kurar.
+Eski bir kurulumu güncellemek için:
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte update --check
+nfi-bte update
 nfi-bte --version
 ```
 
-Paket sürümü `1.16.0`, yayın etiketi ise `v1.16.0-rc.1` olarak görünür.
-v1.16.0 kararlı olarak yayımlandığında eski sürümler normal güncelleme komutuyla yükseltilebilir.
+Paket sürümü `1.16.0` olarak görünür. Kararlı dağıtım dosyaları, doğrulanan
+`v1.16.0-rc.1` dosyalarıyla bayt düzeyinde aynıdır; mevcut RC kurulumlarının
+yeniden kurulması gerekmez.
 
-RC, X7 yanında X8 için Native desteği ekler. Doğrulanan kapsam;
+Bu sürüm, X7 yanında X8 için Native desteği ekler. Doğrulanan kapsam;
 `short_exit_top_coins`, grind/rebuy, buyback, v3/v3.2/v4 sistemleri, sanal komisyonlar,
 stake/leverage, stop/ROI/trailing ve açık işlem sınırı ayarlarını içerir.
 Uyumluluk, sağlanan kaynak koda ve yapılandırmaya bağlıdır. Desteklenmeyen etkin bir
@@ -77,7 +79,7 @@ cd NostalgiaForInfinity
 Etkileşimli kurulumu ve backtest'i başlatın:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py
+nfi-bte run NostalgiaForInfinityX8.py
 ```
 
 Önerilen Spot modu, Binance borsası, BTC hızlı testi, motor tarafından yönetilen mum dizini ve son yedi tam günü kabul etmek için her soruda Enter'a basın.
@@ -93,7 +95,7 @@ Piyasa sayısı sorusu şu değerleri kabul eder:
 
 Sayısal seçimler sabitlenmiş Freqtrade imajıyla bir kez hesaplanır. Sıralı semboller `.nfi/project.json` dosyasına kaydedilir; böylece borsa hacimleri daha sonra değişse bile kayıtlı proje yeniden üretilebilir kalır.
 
-### RC kurulumundan sonra ilk X8 çalıştırması
+### İlk X8 çalıştırması
 
 Kayıtlı motor projesi olmayan yeni bir NFI kopyasında küçük bir Spot çalışmasıyla başlayın:
 
@@ -105,9 +107,9 @@ nfi-bte run NostalgiaForInfinityX8.py \
 
 İzole Futures için ayrı bir projede `--trading-mode futures --pair ETH/USDT:USDT`
 kullanın. Yeni NFI revizyonlarının uyumluluğu yeniden kontrol edilir; dosya adı tek
-başına uyumluluk garantisi değildir. Diğer örnekler kararlı X7 sürümünü kullanır.
-RC üzerinde dosya adını `NostalgiaForInfinityX8.py` olarak değiştirip yeni çalışmalar
-için ayrı çıktı dizinleri belirleyebilirsiniz. Mevcut proje için 5. bölümdeki açık
+başına uyumluluk garantisi değildir. Diğer örnekler de X8 kullanır.
+X7 için `NostalgiaForInfinityX7.py` dosyasını seçin. Yeni çalışmalar için ayrı çıktı
+dizinleri belirleyin. Mevcut proje için 5. bölümdeki açık
 yeniden yapılandırma adımlarını izleyin.
 
 İşlem kapasitesi, bilgisayarın CPU ve kullanılabilir belleğine göre hesaplanır.
@@ -128,23 +130,23 @@ ekleyin. [Çalıştırma profillerine](x8-support.md#bounded-execution-profiles)
 Önerilen yedi günlük dönemi kullanan yeni ve etkileşimsiz bir Spot projesi için:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
   --yes
 ```
 
-80 piyasalı beş yıllık bir iş yükü yaklaşık 39 GiB bellek gerektirebilir. Uzun bir zaman aralığı seçmeden önce yedi günlük çalıştırmayı doğrulayın.
+Geçmişte 80 piyasalı beş yıllık bir X7 çalışması yaklaşık 39 GiB bellek kullandı; bu, X8 için bir bellek tahmini değildir. Uzun bir zaman aralığı seçmeden önce yedi günlük çalıştırmayı doğrulayın.
 
 ### Mevcut kayıtlı projeyi değiştirme
 
 `.nfi/project.json` zaten varsa projeyi açıkça yeniden yapılandırın. Yeni bir çıktı dizini, eski tek piyasalı sonuçların devam ettirilmesini önler:
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py \
+nfi-bte init --force NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
-  --output-dir .nfi/runs/x7-80-pairs \
+  --output-dir .nfi/runs/x8-80-pairs \
   --yes
 
 nfi-bte run
@@ -157,24 +159,24 @@ Mum verileri `.nfi/data/binance` altında ortak kullanılmaya devam eder. Hash'i
 Her Spot piyasası için `--pair` seçeneğini tekrarlayın:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair BTC/USDT \
   --pair ETH/USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-btc-eth \
+  --output-dir .nfi/runs/x8-btc-eth \
   --yes
 ```
 
 İzole Futures için Futures modunu ve uzlaşma para birimi son ekine sahip standart sembolleri kullanın:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode futures \
   --pair BTC/USDT:USDT \
   --pair ETH/USDT:USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-futures-btc-eth \
+  --output-dir .nfi/runs/x8-futures-btc-eth \
   --yes
 ```
 
@@ -185,7 +187,7 @@ Otomatik Futures seçimi için açık `--pair` seçeneklerini `--pair-count 10`,
 `YYYYMMDD-YYYYMMDD` biçimini kullanın. Bitiş tarihi dahil değildir:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --timerange 20260101-20260201 \
   --yes
@@ -240,7 +242,7 @@ Motor yalnızca hash'i geçerli tamamlanmış aşamalara devam eder. Piyasaları
 Backtest'i çalıştırmadan piyasaları sıralamak, gerekli herkese açık mumları indirmek ve girdileri hazırlamak için:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --prepare-only \
   --yes
@@ -266,7 +268,7 @@ nfi-bte run
 veya kurulumu bilerek değiştirin:
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py
+nfi-bte init --force NostalgiaForInfinityX8.py
 ```
 
 Docker veya Binance geçici olarak kullanılamıyorsa aynı komutu yeniden çalıştırın. Piyasa sıralama hatalarının teknik ayrıntıları `.nfi/pair-selection-error.log` dosyasında saklanır. Mum indirme denemeleri tükendiğinde tam `download-error.log` yolu yazdırılır. Kısmen tamamlanmış geçerli mum indirmeleri yeniden kullanılabilir.

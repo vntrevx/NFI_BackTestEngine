@@ -35,22 +35,23 @@ nfi-bte doctor
 nfi-bte update
 ```
 
-### Υποψήφια έκδοση X8: v1.16.0-rc.1
+### X8 στη σταθερή έκδοση v1.16.0
 
-Στις 2026-09-08, η **τελευταία σταθερή έκδοση είναι η v1.15.0**. Η προεπιλεγμένη
-εγκατάσταση και το `nfi-bte update` επιλέγουν σταθερές εκδόσεις, όχι την RC του X8.
-Για εγκατάσταση ή αντικατάσταση της υπάρχουσας εγκατάστασης με την RC, ορίστε την ετικέτα:
+Στις 2026-09-08, η **τελευταία σταθερή έκδοση είναι η v1.16.0** και υποστηρίζει
+Native X8 μαζί με το X7. Η παραπάνω προεπιλεγμένη εντολή εγκαθιστά αυτήν την έκδοση.
+Για αναβάθμιση παλαιότερης εγκατάστασης:
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte update --check
+nfi-bte update
 nfi-bte --version
 ```
 
-Το πακέτο εμφανίζει `1.16.0`, ενώ η ετικέτα έκδοσης είναι `v1.16.0-rc.1`.
-Μετά τη δημοσίευση της v1.16.0 ως σταθερής, οι παλαιότερες εκδόσεις θα μπορούν να
-αναβαθμιστούν με την κανονική εντολή ενημέρωσης.
+Το πακέτο εμφανίζει `1.16.0`. Τα αρχεία της σταθερής έκδοσης είναι πανομοιότυπα,
+byte προς byte, με τα ελεγμένα αρχεία της `v1.16.0-rc.1`.
+Οι υπάρχουσες εγκαταστάσεις RC δεν χρειάζονται επανεγκατάσταση.
 
-Η RC προσθέτει υποστήριξη Native για X8 μαζί με το X7. Το ελεγμένο πεδίο περιλαμβάνει
+Η έκδοση προσθέτει υποστήριξη Native για X8 μαζί με το X7. Το ελεγμένο πεδίο περιλαμβάνει
 `short_exit_top_coins`, grind/rebuy, buyback, συστήματα v3/v3.2/v4, εικονικές προμήθειες
 και ρυθμίσεις stake/leverage, stop/ROI/trailing και ορίων ανοικτών συναλλαγών.
 Η αποδοχή εξαρτάται από τον παρεχόμενο κώδικα και τη διαμόρφωση. Μη υποστηριζόμενη
@@ -78,7 +79,7 @@ cd NostalgiaForInfinity
 Ξεκινήστε τη διαδραστική ρύθμιση και το backtest:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py
+nfi-bte run NostalgiaForInfinityX8.py
 ```
 
 Πατήστε Enter για να αποδεχτείτε τις προτεινόμενες τιμές: λειτουργία Spot, ανταλλακτήριο Binance, γρήγορη δοκιμή BTC, διαχειριζόμενο κατάλογο candles και τις επτά πιο πρόσφατες πλήρεις ημέρες.
@@ -94,7 +95,7 @@ nfi-bte run NostalgiaForInfinityX7.py
 
 Οι αριθμητικές επιλογές υπολογίζονται μία φορά μέσω της σταθερά καθορισμένης εικόνας Freqtrade. Τα ταξινομημένα σύμβολα αποθηκεύονται στο `.nfi/project.json`, ώστε το έργο να παραμένει αναπαραγώγιμο ακόμη και αν αλλάξει αργότερα ο όγκος συναλλαγών.
 
-### Πρώτη εκτέλεση X8 μετά την εγκατάσταση της RC
+### Πρώτη εκτέλεση X8
 
 Σε νέο αντίγραφο του NFI χωρίς αποθηκευμένο έργο της μηχανής, ξεκινήστε με μικρή εκτέλεση Spot:
 
@@ -106,9 +107,8 @@ nfi-bte run NostalgiaForInfinityX8.py \
 
 Για isolated Futures, χρησιμοποιήστε `--trading-mode futures --pair ETH/USDT:USDT`
 σε ξεχωριστό έργο. Κάθε νέα αναθεώρηση του NFI ελέγχεται ξανά· το όνομα αρχείου δεν
-εγγυάται συμβατότητα. Τα υπόλοιπα παραδείγματα χρησιμοποιούν το σταθερό X7. Στην RC
-μπορείτε να το αντικαταστήσετε με `NostalgiaForInfinityX8.py` και να ορίσετε ξεχωριστούς
-καταλόγους εξόδου. Για υπάρχον έργο, ακολουθήστε την αναδιαμόρφωση της ενότητας 5.
+εγγυάται συμβατότητα. Τα υπόλοιπα παραδείγματα χρησιμοποιούν επίσης X8. Για X7, επιλέξτε
+`NostalgiaForInfinityX7.py`. Ορίστε ξεχωριστούς καταλόγους εξόδου για νέες εκτελέσεις. Για υπάρχον έργο, ακολουθήστε την αναδιαμόρφωση της ενότητας 5.
 
 Η δυναμικότητα υπολογίζεται από τη CPU και τη διαθέσιμη μνήμη του υπολογιστή.
 Το `--workers 2` περιορίζει μόνο τις παράλληλες διεργασίες αυτής της εκτέλεσης.
@@ -128,23 +128,23 @@ nfi-bte run NostalgiaForInfinityX8.py \
 Για νέο μη διαδραστικό έργο Spot με την προτεινόμενη περίοδο επτά ημερών:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
   --yes
 ```
 
-Ένα φορτίο 80 αγορών για πέντε χρόνια μπορεί να χρειαστεί περίπου 39 GiB μνήμης. Επιβεβαιώστε πρώτα την εκτέλεση επτά ημερών πριν επιλέξετε μεγάλη χρονική περίοδο.
+Μια παλαιότερη εκτέλεση X7 με 80 αγορές για πέντε χρόνια χρησιμοποίησε περίπου 39 GiB μνήμης· αυτό δεν αποτελεί εκτίμηση μνήμης για το X8. Επιβεβαιώστε πρώτα την εκτέλεση επτά ημερών πριν επιλέξετε μεγάλη χρονική περίοδο.
 
 ### Αντικατάσταση αποθηκευμένου έργου
 
 Αν υπάρχει ήδη το `.nfi/project.json`, αναδιαμορφώστε το ρητά. Ένας νέος κατάλογος εξόδου αποτρέπει την επανεκκίνηση παλιών αποτελεσμάτων μίας αγοράς:
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py \
+nfi-bte init --force NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
-  --output-dir .nfi/runs/x7-80-pairs \
+  --output-dir .nfi/runs/x8-80-pairs \
   --yes
 
 nfi-bte run
@@ -157,24 +157,24 @@ nfi-bte run
 Επαναλάβετε το `--pair` για κάθε αγορά Spot:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair BTC/USDT \
   --pair ETH/USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-btc-eth \
+  --output-dir .nfi/runs/x8-btc-eth \
   --yes
 ```
 
 Για isolated Futures, χρησιμοποιήστε τη λειτουργία Futures και τα κανονικά σύμβολα με το επίθημα του νομίσματος διακανονισμού:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode futures \
   --pair BTC/USDT:USDT \
   --pair ETH/USDT:USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-futures-btc-eth \
+  --output-dir .nfi/runs/x8-futures-btc-eth \
   --yes
 ```
 
@@ -185,7 +185,7 @@ nfi-bte run NostalgiaForInfinityX7.py \
 Χρησιμοποιήστε τη μορφή `YYYYMMDD-YYYYMMDD`. Η ημερομηνία λήξης δεν περιλαμβάνεται:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --timerange 20260101-20260201 \
   --yes
@@ -242,7 +242,7 @@ nfi-bte report .nfi/runs/<strategy-and-timerange>
 Για κατάταξη αγορών, λήψη των απαιτούμενων δημόσιων candles και προετοιμασία εισόδων χωρίς εκτέλεση του backtest:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --prepare-only \
   --yes
@@ -268,7 +268,7 @@ nfi-bte run
 ή αντικαταστήστε σκόπιμα τη ρύθμισή του:
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py
+nfi-bte init --force NostalgiaForInfinityX8.py
 ```
 
 Αν το Docker ή το Binance δεν είναι προσωρινά διαθέσιμο, επαναλάβετε την ίδια εντολή. Οι τεχνικές λεπτομέρειες αποτυχίας κατάταξης αποθηκεύονται στο `.nfi/pair-selection-error.log`. Μετά την εξάντληση των προσπαθειών λήψης candles, εμφανίζεται η ακριβής διαδρομή του `download-error.log`. Οι έγκυρες μερικές λήψεις candles μπορούν να επαναχρησιμοποιηθούν.

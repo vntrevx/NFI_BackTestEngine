@@ -1,3 +1,11 @@
+<div align="center">
+  <img src="https://img.shields.io/badge/Discord-DM%20me-5865F2?style=for-the-badge&amp;logo=discord&amp;logoColor=white" alt="Contact me on Discord">
+  <p><strong>Found an issue, have an idea, or want to get in touch?</strong><br>
+  Send me a Discord DM: <code>vntrevx</code></p>
+</div>
+
+---
+
 **How to use:** [English](docs/usage.md) | [한국어](docs/usage-ko.md) | [Ελληνικά](docs/usage-el.md) | [Türkçe](docs/usage-tr.md)
 
 # NFI Backtest Engine
@@ -17,7 +25,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated. P
 parses and compiles the supplied strategy; the supported Native runtime does not
 import or execute that strategy Python.
 
-v1.16.0-rc.1 adds Native X8 support alongside X7 through the same capability pipeline. See
+v1.16.0 adds Native X8 support alongside X7 through the same capability pipeline. See
 [X8 recognition and compatibility](docs/x8-support.md) for the supplied v18.0.2
 source's Native implementation, captured parity scope, and inspection commands.
 
@@ -29,11 +37,11 @@ The current and target boundaries are also available in the
 
 | Scope | Status |
 | --- | --- |
-| Latest stable release | [v1.15.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest) |
-| X8 release candidate | [v1.16.0-rc.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.16.0-rc.1); [scope and release notes](docs/releases/v1.16.0.md) |
+| Latest stable release | [v1.16.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest) |
+| X8 Native support | [v1.16.0 scope and release notes](docs/releases/v1.16.0.md) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
-| v1.15.0 product boundary | [Release notes](docs/releases/v1.15.0.md); no new combined certification claim |
+| v1.16.0 product boundary | [Release notes](docs/releases/v1.16.0.md); no new combined certification claim |
 
 The Spot and Futures certificates remain valid for their own sealed strategy,
 configuration, data, wheel, and host. They are not a same-candidate Spot-versus-Futures
@@ -200,22 +208,18 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-As of 2026-09-08, the default installer returns `nfi-bte 1.15.0`.
+As of 2026-09-08, the default installer returns `nfi-bte 1.16.0`.
 
-### Install the X8 release candidate
+### X8 is available in the stable release
 
-To install or replace an existing installation with **v1.16.0-rc.1**, explicitly
-select the RC tag (Linux, macOS Apple Silicon, or a Windows WSL2 Linux shell):
+The default installer includes Native X8 support in **v1.16.0**. Its wheels and
+source distribution are byte-for-byte identical to the validated `v1.16.0-rc.1`
+assets. Existing RC installations already report `1.16.0` and need no reinstall.
 
-```bash
-curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
-nfi-bte --version
-```
-
-The RC package reports `1.16.0`; its GitHub release tag is `v1.16.0-rc.1`.
-RC wheels passed installed X8 Spot/Futures trade and full-state parity checks on
-Linux x86_64/ARM64, macOS ARM64, and Windows WSL2 x86_64. This is bounded qualification,
-not a five-year X8 certificate or a claim that every configuration is supported.
+Release wheels passed installed X8 Spot/Futures trade and full-state parity checks
+on Linux x86_64/ARM64, macOS ARM64, and Windows WSL2 x86_64. This is bounded
+qualification, not a five-year X8 certificate or a claim that every configuration
+is supported. See the [release notes](docs/releases/v1.16.0.md).
 
 ### Keep the CLI updated
 
@@ -225,15 +229,14 @@ Update an installed CLI to the latest stable release with one command:
 nfi-bte update
 ```
 
-`nfi-bte update` does not select prereleases. It currently targets v1.15.0; use the
-explicit installer command above for the X8 RC. Once v1.16.0 is published as stable,
-ordinary updates from older versions can select it.
+`nfi-bte update` now selects stable **v1.16.0** for older installations. Use
+`nfi-bte update --check` to check availability without changing your installation.
 
 Successful commands check GitHub Releases at most once every 24 hours. When a newer release is
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.14.0 -> 1.15.0. Run `nfi-bte update`.
+Update available: 1.15.0 -> 1.16.0. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -242,9 +245,9 @@ Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
 
 ## Quick start
 
-The examples below use X7 on the stable release. After installing the X8 RC, use
-`NostalgiaForInfinityX8.py` in place of `NostalgiaForInfinityX7.py`. For a small X8
-Spot check, run this from the NFI checkout in a fresh project directory:
+The examples below use X8 on stable v1.16.0. X7 remains supported through the same
+capability checks. For a small X8 Spot check, run this from the NFI checkout in a
+fresh project directory:
 
 ```bash
 nfi-bte run NostalgiaForInfinityX8.py \
@@ -257,14 +260,14 @@ separate project. Supplied source and configuration are checked before Native
 execution; unsupported active behavior stops with a diagnostic. See the
 [four-language usage guides](docs/usage.md) for setup and resource controls.
 
-For the stable X7 walkthrough, start from an empty working directory:
+For the guided X8 walkthrough, start from an empty working directory:
 
 ```bash
 mkdir -p ~/nfi-backtest
 cd ~/nfi-backtest
 git clone --depth 1 https://github.com/iterativv/NostalgiaForInfinity.git
 cd NostalgiaForInfinity
-nfi-bte run NostalgiaForInfinityX7.py
+nfi-bte run NostalgiaForInfinityX8.py
 ```
 
 The first-run wizard explains that Enter accepts each recommended value. It creates a
@@ -283,7 +286,7 @@ CPU use. Non-interactive jobs require `--yes`, which explicitly bypasses the pro
 For a non-interactive 80-market Spot setup with an explicit bounded period:
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
   --timerange 20260101-20260108 \
@@ -305,12 +308,12 @@ when unattended automation needs fresh output with the same saved settings.
 Use explicit inputs when discovery is not appropriate:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py \
-  --class NostalgiaForInfinityX7 \
+nfi-bte run path/to/NostalgiaForInfinityX8.py \
+  --class NostalgiaForInfinityX8 \
   --config user_data/config.json \
   --datadir user_data/data/binance \
   --timerange 20210101-20260101 \
-  --output-dir artifacts/x7-research \
+  --output-dir artifacts/x8-research \
   --yes
 ```
 
@@ -325,13 +328,13 @@ strategy-version allowlist. Before spending time on a long run, check Spot and F
 separately because their active callbacks and state routes differ:
 
 ```bash
-nfi-bte strategy check path/to/NostalgiaForInfinityX7.py \
-  --class NostalgiaForInfinityX7 \
+nfi-bte strategy check path/to/NostalgiaForInfinityX8.py \
+  --class NostalgiaForInfinityX8 \
   --trading-mode spot \
   --output compatibility-spot.json
 
-nfi-bte strategy check path/to/NostalgiaForInfinityX7.py \
-  --class NostalgiaForInfinityX7 \
+nfi-bte strategy check path/to/NostalgiaForInfinityX8.py \
+  --class NostalgiaForInfinityX8 \
   --trading-mode futures \
   --output compatibility-futures.json
 ```
@@ -347,7 +350,7 @@ Native workload, not an Official parity certificate. Exit code 1 with
 Use `--fallback disabled` when an unattended job must either remain Native or stop:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py \
+nfi-bte run path/to/NostalgiaForInfinityX8.py \
   --fallback disabled \
   --yes
 ```
@@ -356,7 +359,7 @@ For a material result, request the pinned Official Freqtrade comparison after Na
 completion:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py --verify
+nfi-bte run path/to/NostalgiaForInfinityX8.py --verify
 ```
 
 The release status above names the newest source with preserved zero-tolerance
@@ -368,7 +371,7 @@ For a newer NFI revision whose active callbacks are not yet supported by Native,
 the exact sealed workload through official Freqtrade:
 
 ```bash
-nfi-bte run path/to/NostalgiaForInfinityX7.py --fallback official
+nfi-bte run path/to/NostalgiaForInfinityX8.py --fallback official
 ```
 
 The default `--fallback ask` requests consent only in an interactive terminal;
@@ -402,18 +405,18 @@ available for sealed evidence replay. See
 Run the pinned official reference from a completed native result:
 
 ```bash
-nfi-bte reference research artifacts/x7-research \
-  --output-dir artifacts/x7-research-official
+nfi-bte reference research artifacts/x8-research \
+  --output-dir artifacts/x8-research-official
 ```
 
 Or compare an existing Freqtrade export:
 
 ```bash
 nfi-bte confirm \
-  artifacts/x7-research \
+  artifacts/x8-research \
   path/to/backtest-result.zip \
-  --strategy NostalgiaForInfinityX7 \
-  --output-dir artifacts/x7-confirmation
+  --strategy NostalgiaForInfinityX8 \
+  --output-dir artifacts/x8-confirmation
 ```
 
 The comparison has no floating-point tolerance. It never concatenates independent
@@ -456,8 +459,8 @@ Every run is an ordinary hash-linked directory:
 Regenerate presentation files without rerunning the simulation:
 
 ```bash
-nfi-bte report artifacts/x7-research
-nfi-bte report artifacts/x7-research --full-report
+nfi-bte report artifacts/x8-research
+nfi-bte report artifacts/x8-research --full-report
 ```
 
 ## Storage

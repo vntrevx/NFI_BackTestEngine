@@ -35,21 +35,21 @@ nfi-bte doctor
 nfi-bte update
 ```
 
-### X8 릴리즈 후보: v1.16.0-rc.1
+### 안정판 v1.16.0의 X8 지원
 
-2026-09-08 기준 **최신 안정판은 v1.15.0**입니다. 기본 설치 명령과
-`nfi-bte update`는 안정판을 선택하므로 X8 RC를 설치하지 않습니다.
-RC를 새로 설치하거나 기존 설치를 RC로 교체하려면 태그를 직접 지정합니다.
+2026-09-08 기준 **최신 안정판은 v1.16.0**이며 X7과 함께 X8 Native 실행을
+지원합니다. 위의 기본 설치 명령으로 설치할 수 있습니다. 이전 버전에서 업데이트하려면:
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte update --check
+nfi-bte update
 nfi-bte --version
 ```
 
-패키지 버전은 `1.16.0`, 공개 릴리즈 태그는 `v1.16.0-rc.1`입니다.
-v1.16.0이 정식 안정판으로 공개되면 이전 버전에서 일반 업데이트로 받을 수 있습니다.
+패키지 버전은 `1.16.0`입니다. 안정판 배포 파일은 검증된 `v1.16.0-rc.1`과
+바이트 단위로 같으므로 기존 RC 사용자는 다시 설치할 필요가 없습니다.
 
-RC는 X7과 함께 X8 Native 실행을 지원합니다. 검증 범위에는
+이 릴리즈는 X7과 함께 X8 Native 실행을 지원합니다. 검증 범위에는
 `short_exit_top_coins`, grind/rebuy, buyback, v3/v3.2/v4 시스템, 가상 수수료,
 stake/leverage, stop/ROI/trailing, 거래 슬롯 설정이 포함됩니다. 실제 지원 여부는
 입력 소스와 설정으로 판정하며, 지원하지 않는 활성 동작은 원인을 표시하고 중단합니다.
@@ -90,7 +90,7 @@ nfi-bte strategy list --show-unsupported
 대화형 설정과 백테스트를 시작합니다.
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py
+nfi-bte run NostalgiaForInfinityX8.py
 ```
 
 권장값인 Spot 모드, Binance 거래소, BTC 빠른 테스트, 엔진 관리 캔들 폴더, 최근 7일을 사용하려면 각 질문에서 Enter를 누릅니다.
@@ -106,7 +106,7 @@ nfi-bte run NostalgiaForInfinityX7.py
 
 숫자 선택은 고정된 Freqtrade 이미지에서 한 번만 계산됩니다. 정렬된 심볼은 `.nfi/project.json`에 저장되므로 이후 거래량 순위가 달라져도 저장된 프로젝트는 재현 가능합니다.
 
-### RC 설치 후 X8 첫 실행
+### X8 첫 실행
 
 저장된 엔진 프로젝트가 없는 새 NFI 체크아웃에서 작은 Spot 작업으로 시작합니다.
 
@@ -118,8 +118,8 @@ nfi-bte run NostalgiaForInfinityX8.py \
 
 격리 Futures는 별도 프로젝트에서 `--trading-mode futures --pair ETH/USDT:USDT`를
 사용합니다. 새 NFI 소스는 다시 호환성을 검사하며 파일명만으로 지원을 보장하지 않습니다.
-아래 나머지 예시는 안정판 X7 기준입니다. RC에서는 `NostalgiaForInfinityX8.py`로 바꾸고
-새 실행마다 별도 출력 폴더를 지정할 수 있습니다. 기존 프로젝트는 5절의 명시적 재설정
+아래 나머지 예시도 X8 기준입니다. X7은 `NostalgiaForInfinityX7.py`로 바꾸면 됩니다.
+새 실행마다 별도 출력 폴더를 지정하십시오. 기존 프로젝트는 5절의 명시적 재설정
 절차를 사용하십시오.
 
 작업 용량은 해당 컴퓨터의 CPU와 가용 메모리에서 계산합니다. `--workers 2`는 이번
@@ -138,23 +138,23 @@ Native 메모리 제한은 실행 계획에 적용되며 운영체제의 RSS 강
 새 Spot 프로젝트를 최근 7일 권장 범위로 비대화형 실행합니다.
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
   --yes
 ```
 
-80마켓 5년 작업은 약 39 GiB의 메모리가 필요할 수 있습니다. 긴 기간을 선택하기 전에 먼저 7일 실행을 확인하십시오.
+과거 X7의 80마켓 5년 작업에서는 약 39 GiB의 메모리를 사용했습니다. 이는 X8 메모리 예측값이 아닙니다. 긴 기간을 선택하기 전에 먼저 7일 실행을 확인하십시오.
 
 ### 기존 저장 프로젝트 교체
 
 `.nfi/project.json`이 이미 있으면 명시적으로 다시 설정합니다. 새 출력 폴더를 사용하면 과거 1페어 결과가 재개되는 일을 막을 수 있습니다.
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py \
+nfi-bte init --force NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair-count 80 \
-  --output-dir .nfi/runs/x7-80-pairs \
+  --output-dir .nfi/runs/x8-80-pairs \
   --yes
 
 nfi-bte run
@@ -167,24 +167,24 @@ nfi-bte run
 Spot 마켓마다 `--pair`를 반복합니다.
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode spot \
   --pair BTC/USDT \
   --pair ETH/USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-btc-eth \
+  --output-dir .nfi/runs/x8-btc-eth \
   --yes
 ```
 
 격리 Futures에서는 Futures 모드와 결제 통화 접미사가 붙은 정규 심볼을 사용합니다.
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --trading-mode futures \
   --pair BTC/USDT:USDT \
   --pair ETH/USDT:USDT \
   --timerange 20260101-20260108 \
-  --output-dir .nfi/runs/x7-futures-btc-eth \
+  --output-dir .nfi/runs/x8-futures-btc-eth \
   --yes
 ```
 
@@ -195,7 +195,7 @@ Futures 마켓을 자동 선택하려면 직접 지정한 `--pair` 대신 `--pai
 `YYYYMMDD-YYYYMMDD` 형식을 사용합니다. 종료일은 포함되지 않습니다.
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --timerange 20260101-20260201 \
   --yes
@@ -265,7 +265,7 @@ nfi-bte report .nfi/runs/<strategy-and-timerange>
 페어 순위 계산, 공개 캔들 다운로드, 입력 준비까지만 수행합니다.
 
 ```bash
-nfi-bte run NostalgiaForInfinityX7.py \
+nfi-bte run NostalgiaForInfinityX8.py \
   --pair-count 20 \
   --prepare-only \
   --yes
@@ -291,7 +291,7 @@ nfi-bte run
 설정을 의도적으로 교체하려면 다음 명령을 사용합니다.
 
 ```bash
-nfi-bte init --force NostalgiaForInfinityX7.py
+nfi-bte init --force NostalgiaForInfinityX8.py
 ```
 
 Docker 또는 Binance가 일시적으로 응답하지 않으면 같은 명령을 다시 실행하십시오. 페어 순위 계산 실패의 기술 정보는 `.nfi/pair-selection-error.log`에 저장됩니다. 캔들 다운로드 재시도를 모두 소진하면 정확한 `download-error.log` 경로가 출력됩니다. 부분적으로 완료된 유효한 캔들 다운로드는 재사용됩니다.
