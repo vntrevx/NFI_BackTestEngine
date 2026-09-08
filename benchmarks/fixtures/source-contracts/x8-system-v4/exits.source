@@ -1,0 +1,1277 @@
+from __future__ import annotations
+from freqtrade.strategy import IStrategy
+class ExitSourceContract(IStrategy):
+  bad_trade_controller_stale_exit_enable = True
+  bad_trade_controller_stale_max_daily_range_pct = 7.0
+  bad_trade_controller_stale_min_adverse_move_pct = 10.0
+  bad_trade_controller_stale_min_age_days = 14.0
+  bad_trade_controller_structure_break_ema_gap_pct = 35.0
+  bad_trade_controller_structure_break_exit_enable = True
+  bad_trade_controller_structure_break_min_adverse_move_pct = 25.0
+  derisk_enable = True
+  doom_stops_enable = True
+  is_futures_mode = False
+  legacy_system_bad_trade_exit_enable = False
+  long_btc_mode_tags = ['121']
+  long_grind_mode_tags = ['120']
+  long_high_profit_mode_tags = ['81', '82']
+  long_known_mode_tags = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '21', '22', '23', '24', '25', '26', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52', '53', '61', '62', '63', '64', '65', '68', '81', '82', '101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '120', '121', '141', '142', '143', '144', '145', '161', '162', '163', '164', '165', '166', '167', '168', '169', '170', '171', '172', '173']
+  long_normal_mode_tags = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13']
+  long_pump_mode_tags = ['21', '22', '23', '24', '25', '26']
+  long_quick_mode_tags = ['41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52', '53']
+  long_rapid_mode_tags = ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110']
+  long_rapid_rebuy_grind_scalp_mode_tags = ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '61', '62', '63', '64', '65', '68', '120', '161', '162', '163', '164', '165', '166', '167', '168', '169', '170', '171', '172', '173']
+  long_rebuy_grind_mode_tags = ['61', '62', '63', '64', '65', '68', '120']
+  long_rebuy_mode_tags = ['61', '62', '63', '64', '65', '68']
+  long_scalp_mode_tags = ['161', '162', '163', '164', '165', '166', '167', '168', '169', '170', '171', '172', '173']
+  long_scalp_rebuy_grind_mode_tags = ['161', '162', '163', '164', '165', '166', '167', '168', '169', '170', '171', '172', '173', '61', '62', '63', '64', '65', '68', '120']
+  long_top_coins_mode_tags = ['141', '142', '143', '144', '145']
+  short_exit_known_mode_tags = ['501', '502', '505', '506', '521', '522', '523', '524', '525', '526', '541', '542', '543', '544', '545', '546', '547', '548', '549', '550', '561', '562', '563', '581', '582', '601', '602', '603', '604', '605', '606', '607', '608', '609', '610', '620', '641', '642', '661', '662', '663', '664', '665', '666', '667', '670', '669', '671']
+  short_high_profit_mode_tags = ['581', '582']
+  short_normal_mode_tags = ['501', '502', '505', '506']
+  short_pump_mode_tags = ['521', '522', '523', '524', '525', '526']
+  short_quick_mode_tags = ['541', '542', '543', '544', '545', '546', '547', '548', '549', '550']
+  short_rapid_mode_tags = ['601', '602', '603', '604', '605', '606', '607', '608', '609', '610']
+  short_rebuy_mode_tags = ['561', '562', '563']
+  short_scalp_mode_tags = ['661', '662', '663', '664', '665', '666', '667', '670', '669', '671']
+  short_scalp_rebuy_grind_mode_tags = ['661', '662', '663', '664', '665', '666', '667', '670', '669', '671', '561', '562', '563', '620']
+  short_top_coins_mode_tags = ['641', '642']
+  stop_threshold_doom_futures = 0.2
+  stop_threshold_doom_spot = 0.2
+  stop_threshold_futures = 0.1
+  stop_threshold_futures_rebuy = 1.0
+  stop_threshold_rapid_futures = 0.2
+  stop_threshold_rapid_spot = 0.2
+  stop_threshold_scalp_futures = 0.2
+  stop_threshold_scalp_spot = 0.2
+  stop_threshold_spot = 0.1
+  stop_threshold_spot_rebuy = 1.0
+  stops_enable = True
+  system_v3_1_stop_threshold_doom_futures = 0.7
+  system_v3_1_stop_threshold_doom_spot = 0.24
+  system_v3_2_stop_threshold_doom_futures = 0.35
+  system_v3_2_stop_threshold_doom_spot = 0.12
+  system_v3_2_stops_enable = False
+  system_v3_stop_threshold_doom_futures = 0.35
+  system_v3_stop_threshold_doom_spot = 0.14
+  system_v4_bad_trade_exit_enable = True
+  system_v4_name = 'system_v4'
+  system_v4_stop_threshold_doom_futures = 0.35
+  system_v4_stop_threshold_doom_spot = 0.14
+  system_v4_stops_enable = False
+  timeframe = '5m'
+  u_e_stops_enable = False
+
+  def long_exit_stoploss(
+    self,
+    mode_name: str,
+    current_rate: float,
+    profit_stake: float,
+    profit_ratio: float,
+    profit_current_stake_ratio: float,
+    profit_init_ratio: float,
+    max_profit: float,
+    max_loss: float,
+    filled_orders,
+    filled_entries,
+    filled_exits,
+    last_candle,
+    previous_candle_1,
+    trade: "Trade",
+    current_time: "datetime",
+    buy_tag,
+  ) -> tuple:
+    is_futures_mode = self.is_futures_mode
+    doom_stops_enable = self.doom_stops_enable
+    trade_leverage = trade.leverage
+    stoploss_doom = f"exit_{mode_name}_stoploss_doom"
+    stoploss_u_e = f"exit_{mode_name}_stoploss_u_e"
+
+    is_backtest = self.is_backtest_mode()
+    trade_open_date = None if is_backtest else trade.open_date_utc.replace(tzinfo=None)
+    is_system_v3, is_system_v3_1, is_system_v3_2 = self.get_system_version_flags(trade)
+    is_system_v4 = self.is_system_v4(trade)
+    if not self.stops_enable:
+      return False, None
+
+    entry_cost = filled_entries[0].safe_filled * filled_entries[0].safe_price
+    if is_system_v4:
+      # Stoploss doom
+      if self.system_v4_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v4_stop_threshold_doom_futures if is_futures_mode else self.system_v4_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    elif is_system_v3_2:
+      # Stoploss doom
+      if self.system_v3_2_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v3_2_stop_threshold_doom_futures
+            if is_futures_mode
+            else self.system_v3_2_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    elif is_system_v3_1:
+      # Stoploss doom
+      if doom_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v3_1_stop_threshold_doom_futures
+            if is_futures_mode
+            else self.system_v3_1_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    elif is_system_v3:
+      # Stoploss doom
+      if doom_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v3_stop_threshold_doom_futures if is_futures_mode else self.system_v3_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    else:
+      # Stoploss doom
+      if (
+        doom_stops_enable
+        and (
+          profit_stake
+          < -(entry_cost * (self.stop_threshold_doom_futures if is_futures_mode else self.stop_threshold_doom_spot))
+        )
+        and (
+          self.has_valid_entry_conditions(trade, current_rate, last_candle, previous_candle_1, filled_orders) == False
+        )
+        # temporary
+        and (is_backtest or trade_open_date >= datetime(2024, 9, 13))
+      ):
+        return True, stoploss_doom
+
+    last_close = last_candle["close"]
+    last_ema_200 = last_candle["EMA_200"]
+    last_rsi_14 = last_candle["RSI_14"]
+    last_cmf_20 = last_candle["CMF_20"]
+    last_rsi_14_1h = last_candle["RSI_14_1h"]
+    previous_rsi_14 = previous_candle_1["RSI_14"]
+
+    # Stoploss u_e
+    if (
+      self.u_e_stops_enable
+      and (
+        profit_stake
+        < -(
+          entry_cost * (self.stop_threshold_futures if is_futures_mode else self.stop_threshold_spot)
+          # / trade.leverage
+        )
+      )
+      and (last_close < last_ema_200)
+      and (last_cmf_20 < -0.0)
+      and (((last_ema_200 - last_close) / last_close) < 0.010)
+      and (last_rsi_14 > previous_rsi_14)
+      and (last_rsi_14 > (last_rsi_14_1h + 24.0))
+      # and (current_time - timedelta(minutes=720) > trade.open_date_utc)
+      # temporary
+      and (is_backtest or trade_open_date >= datetime(2025, 4, 3))
+    ):
+      return True, stoploss_u_e
+
+    #  Here ends exit signal conditions for long_exit_stoploss
+
+    return False, None
+
+  def short_exit_stoploss(
+    self,
+    mode_name: str,
+    current_rate: float,
+    profit_stake: float,
+    profit_ratio: float,
+    profit_current_stake_ratio: float,
+    profit_init_ratio: float,
+    max_profit: float,
+    max_loss: float,
+    filled_orders,
+    filled_entries,
+    filled_exits,
+    last_candle,
+    previous_candle_1,
+    trade: "Trade",
+    current_time: "datetime",
+    buy_tag,
+  ) -> tuple:
+    is_futures_mode = self.is_futures_mode
+    doom_stops_enable = self.doom_stops_enable
+    trade_leverage = trade.leverage
+    stoploss_doom = f"exit_{mode_name}_stoploss_doom"
+    stoploss_u_e = f"exit_{mode_name}_stoploss_u_e"
+
+    is_backtest = self.is_backtest_mode()
+    trade_open_date = None if is_backtest else trade.open_date_utc.replace(tzinfo=None)
+    is_system_v3, is_system_v3_1, is_system_v3_2 = self.get_system_version_flags(trade)
+    is_system_v4 = self.is_system_v4(trade)
+    if not self.stops_enable:
+      return False, None
+
+    entry_cost = filled_entries[0].safe_filled * filled_entries[0].safe_price
+    if is_system_v4:
+      # Stoploss doom
+      if self.system_v4_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v4_stop_threshold_doom_futures if is_futures_mode else self.system_v4_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    elif is_system_v3_2:
+      # Stoploss doom
+      if self.system_v3_2_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v3_2_stop_threshold_doom_futures
+            if is_futures_mode
+            else self.system_v3_2_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    elif is_system_v3_1:
+      # Stoploss doom
+      if doom_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v3_1_stop_threshold_doom_futures
+            if is_futures_mode
+            else self.system_v3_1_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    elif is_system_v3:
+      # Stoploss doom
+      if doom_stops_enable and (
+        profit_stake
+        < -(
+          entry_cost
+          * (
+            self.system_v3_stop_threshold_doom_futures if is_futures_mode else self.system_v3_stop_threshold_doom_spot
+          )
+          / trade_leverage
+        )
+      ):
+        return True, stoploss_doom
+    else:
+      # Stoploss doom
+      if (
+        doom_stops_enable
+        and (
+          profit_stake
+          < -(entry_cost * (self.stop_threshold_doom_futures if is_futures_mode else self.stop_threshold_doom_spot))
+        )
+        and (
+          self.has_valid_entry_conditions(trade, current_rate, last_candle, previous_candle_1, filled_orders) == False
+        )
+        # temporary
+        and (is_backtest or trade_open_date >= datetime(2024, 9, 13))
+      ):
+        return True, stoploss_doom
+
+    last_close = last_candle["close"]
+    last_ema_200 = last_candle["EMA_200"]
+    last_rsi_14 = last_candle["RSI_14"]
+    last_cmf_20 = last_candle["CMF_20"]
+    last_rsi_14_1h = last_candle["RSI_14_1h"]
+    previous_rsi_14 = previous_candle_1["RSI_14"]
+
+    # Stoploss u_e
+    if (
+      self.u_e_stops_enable
+      and (
+        profit_stake
+        < -(
+          entry_cost * (self.stop_threshold_futures if is_futures_mode else self.stop_threshold_spot)
+          # / trade.leverage
+        )
+      )
+      and (last_close > last_ema_200)
+      and (last_cmf_20 > 0.0)
+      and (((last_close - last_ema_200) / last_ema_200) < 0.010)
+      and (last_rsi_14 < previous_rsi_14)
+      and (last_rsi_14 < (last_rsi_14_1h - 24.0))
+      # and (current_time - timedelta(minutes=720) > trade.open_date_utc)
+      # temporary
+      and (is_backtest or trade_open_date >= datetime(2025, 4, 3))
+    ):
+      return True, stoploss_u_e
+
+    #  Here ends exit signal conditions for short_exit_stoploss
+
+    return False, None
+
+  def exit_profit_target(
+    self,
+    mode_name: str,
+    pair: str,
+    trade: Trade,
+    current_time: datetime,
+    current_rate: float,
+    profit_stake: float,
+    profit_ratio: float,
+    profit_current_stake_ratio: float,
+    profit_init_ratio: float,
+    last_candle,
+    previous_candle_1,
+    previous_rate,
+    previous_profit,
+    previous_sell_reason,
+    previous_time_profit_reached,
+    enter_tags,
+  ) -> tuple:
+    remove_profit_target = self._remove_profit_target
+    derisk_enable = self.derisk_enable
+    is_futures_mode = self.is_futures_mode
+    long_rapid_mode_tags = self.long_rapid_mode_tags
+    long_rebuy_mode_tags = self.long_rebuy_mode_tags
+    long_rebuy_grind_mode_tags = self.long_rebuy_grind_mode_tags
+    long_scalp_mode_tags = self.long_scalp_mode_tags
+    long_scalp_rebuy_grind_mode_tags = self.long_scalp_rebuy_grind_mode_tags
+    trade_leverage = trade.leverage
+    select_filled_orders = trade.select_filled_orders
+
+    is_backtest = self.is_backtest_mode()
+    is_system_v3, is_system_v3_1, is_system_v3_2 = self.get_system_version_flags(trade)
+    is_system_v4 = self.is_system_v4(trade)
+    is_derisk = False
+    if previous_sell_reason in [
+      f"exit_{mode_name}_stoploss_doom",
+      f"exit_{mode_name}_stoploss",
+      f"exit_{mode_name}_stoploss_u_e",
+    ]:
+      filled_entries = select_filled_orders(trade.entry_side)
+      filled_exits = select_filled_orders(trade.exit_side)
+      first_filled_entry = filled_entries[0]
+      has_order_tags = hasattr(first_filled_entry, "ft_order_tag")
+      for order in filled_exits:
+        order_tag = ""
+        if has_order_tags:
+          if order.ft_order_tag is not None:
+            order_tag = order.ft_order_tag.partition(" ")[0]
+        if order_tag in ["d", "d1", "derisk_level_1", "derisk_level_2", "derisk_level_3"]:
+          is_derisk = True
+          break
+      if not is_derisk:
+        is_derisk = trade.amount < (first_filled_entry.safe_filled * 0.95)
+    if previous_sell_reason in [f"exit_{mode_name}_stoploss_doom", f"exit_{mode_name}_stoploss"]:
+      # return right away for system v3
+      if is_system_v3 or is_system_v3_1 or is_system_v3_2 or is_system_v4:
+        return True, previous_sell_reason
+
+      is_rapid_mode = all(c in long_rapid_mode_tags for c in enter_tags)
+      is_rebuy_mode = all(c in long_rebuy_mode_tags for c in enter_tags) or (
+        any(c in long_rebuy_mode_tags for c in enter_tags) and all(c in long_rebuy_grind_mode_tags for c in enter_tags)
+      )
+      is_scalp_mode = all(c in long_scalp_mode_tags for c in enter_tags) or (
+        any(c in long_scalp_mode_tags for c in enter_tags)
+        and all(c in long_scalp_rebuy_grind_mode_tags for c in enter_tags)
+      )
+      if profit_init_ratio > 0.0:
+        # profit is over the threshold, don't exit
+        remove_profit_target(pair)
+        return False, None
+      elif is_derisk:
+        remove_profit_target(pair)
+        return False, None
+      elif derisk_enable and (current_time - timedelta(minutes=60) > previous_time_profit_reached):
+        if profit_ratio < previous_profit:
+          return True, previous_sell_reason
+        elif profit_ratio > previous_profit:
+          remove_profit_target(pair)
+          return False, None
+      elif (
+        not derisk_enable
+        and not is_rapid_mode
+        and not is_rebuy_mode
+        and not is_scalp_mode
+        and (
+          profit_init_ratio
+          <= -(self.stop_threshold_doom_futures if is_futures_mode else self.stop_threshold_doom_spot)
+        )
+      ):
+        return True, previous_sell_reason
+      elif (
+        not derisk_enable
+        and is_rapid_mode
+        and (
+          profit_init_ratio
+          <= -(self.stop_threshold_rapid_futures if is_futures_mode else self.stop_threshold_rapid_spot)
+        )
+      ):
+        return True, previous_sell_reason
+      elif (
+        not derisk_enable
+        and is_rebuy_mode
+        and (
+          profit_init_ratio
+          <= -(self.stop_threshold_futures_rebuy if is_futures_mode else self.stop_threshold_spot_rebuy)
+        )
+      ):
+        return True, previous_sell_reason
+      elif (
+        not derisk_enable
+        and is_scalp_mode
+        and (
+          profit_init_ratio
+          <= -(self.stop_threshold_scalp_futures if is_futures_mode else self.stop_threshold_scalp_spot)
+        )
+      ):
+        return True, previous_sell_reason
+    elif previous_sell_reason == f"exit_{mode_name}_stoploss_u_e":
+      if profit_init_ratio > 0.0:
+        # profit is over the threshold, don't exit
+        remove_profit_target(pair)
+        return False, None
+      elif is_derisk:
+        remove_profit_target(pair)
+        return False, None
+      elif profit_ratio < (previous_profit - (0.04 / trade_leverage)):
+        return True, previous_sell_reason
+    elif previous_sell_reason == f"exit_profit_{mode_name}_max":
+      if profit_init_ratio < -0.08:
+        # profit is under the threshold, cancel it
+        remove_profit_target(pair)
+        return False, None
+
+      last_rsi_14 = last_candle["RSI_14"]
+      previous_rsi_14 = previous_candle_1["RSI_14"]
+      last_cmf_20 = last_candle["CMF_20"]
+      last_cmf_20_1h = last_candle["CMF_20_1h"]
+      last_cmf_20_4h = last_candle["CMF_20_4h"]
+      last_roc_9_4h = last_candle["ROC_9_4h"]
+      last_cmf_20_gt_0 = last_cmf_20 > 0.0
+      last_cmf_20_1h_gt_0 = last_cmf_20_1h > 0.0
+      last_cmf_20_4h_gt_0 = last_cmf_20_4h > 0.0
+      last_rsi_14_gt_50 = last_rsi_14 > 50.0
+      last_rsi_14_lt_50 = last_rsi_14 < 50.0
+      last_roc_9_4h_gt_40 = last_roc_9_4h > 40.0
+      last_roc_9_4h_lt_neg_40 = last_roc_9_4h < -40.0
+      if trade.is_short:
+        is_scalp_mode = all(c in self.short_scalp_mode_tags for c in enter_tags)
+        if is_scalp_mode:
+          if 0.001 <= profit_init_ratio < 0.01:
+            if profit_init_ratio < (previous_profit - 0.008):
+              return True, f"exit_profit_{mode_name}_t_0_1"
+          elif 0.01 <= profit_init_ratio < 0.02:
+            if profit_init_ratio < (previous_profit - 0.01):
+              return True, f"exit_profit_{mode_name}_t_1_1"
+          elif 0.02 <= profit_init_ratio < 0.03:
+            if profit_init_ratio < (previous_profit - 0.01):
+              return True, f"exit_profit_{mode_name}_t_2_1"
+          elif 0.03 <= profit_init_ratio < 0.04:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_3_1"
+          elif 0.04 <= profit_init_ratio < 0.05:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_4_1"
+          elif 0.05 <= profit_init_ratio < 0.06:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_5_1"
+          elif 0.06 <= profit_init_ratio < 0.07:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_6_1"
+          elif 0.07 <= profit_init_ratio < 0.08:
+            if profit_init_ratio < (previous_profit - 0.02):
+              return True, f"exit_profit_{mode_name}_t_7_1"
+          elif 0.08 <= profit_init_ratio < 0.09:
+            if profit_init_ratio < (previous_profit - 0.02):
+              return True, f"exit_profit_{mode_name}_t_8_1"
+          elif 0.09 <= profit_init_ratio < 0.10:
+            if profit_init_ratio < (previous_profit - 0.02):
+              return True, f"exit_profit_{mode_name}_t_9_1"
+          elif 0.10 <= profit_init_ratio < 0.11:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_10_1"
+          elif 0.11 <= profit_init_ratio < 0.12:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_11_1"
+          elif 0.12 <= profit_init_ratio:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_12_1"
+        else:
+          if 0.001 <= profit_init_ratio < 0.01:
+            if profit_init_ratio < (previous_profit - 0.020):
+              return True, f"exit_profit_{mode_name}_t_0_1"
+          elif 0.01 <= profit_init_ratio < 0.02:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_1_1"
+          elif 0.02 <= profit_init_ratio < 0.03:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_2_1"
+          elif 0.03 <= profit_init_ratio < 0.04:
+            if profit_init_ratio < (previous_profit - 0.030):
+              return True, f"exit_profit_{mode_name}_t_3_1"
+          elif 0.04 <= profit_init_ratio < 0.05:
+            if profit_init_ratio < (previous_profit - 0.035):
+              return True, f"exit_profit_{mode_name}_t_4_1"
+          elif 0.05 <= profit_init_ratio < 0.06:
+            if profit_init_ratio < (previous_profit - 0.040):
+              return True, f"exit_profit_{mode_name}_t_5_1"
+          elif 0.06 <= profit_init_ratio < 0.07:
+            if profit_init_ratio < (previous_profit - 0.045):
+              return True, f"exit_profit_{mode_name}_t_6_1"
+          elif 0.07 <= profit_init_ratio < 0.08:
+            if profit_init_ratio < (previous_profit - 0.050):
+              return True, f"exit_profit_{mode_name}_t_7_1"
+          elif 0.08 <= profit_init_ratio < 0.09:
+            if profit_init_ratio < (previous_profit - 0.055):
+              return True, f"exit_profit_{mode_name}_t_8_1"
+          elif 0.09 <= profit_init_ratio < 0.10:
+            if profit_init_ratio < (previous_profit - 0.060):
+              return True, f"exit_profit_{mode_name}_t_9_1"
+          elif 0.10 <= profit_init_ratio < 0.11:
+            if profit_init_ratio < (previous_profit - 0.065):
+              return True, f"exit_profit_{mode_name}_t_10_1"
+          elif 0.11 <= profit_init_ratio < 0.12:
+            if profit_init_ratio < (previous_profit - 0.070):
+              return True, f"exit_profit_{mode_name}_t_11_1"
+          elif 0.12 <= profit_init_ratio:
+            if profit_init_ratio < (previous_profit - 0.075):
+              return True, f"exit_profit_{mode_name}_t_12_1"
+      else:
+        is_scalp_mode = all(c in long_scalp_mode_tags for c in enter_tags)
+        if is_scalp_mode:
+          if 0.001 <= profit_init_ratio < 0.01:
+            if profit_init_ratio < (previous_profit - 0.008):
+              return True, f"exit_profit_{mode_name}_t_0_1"
+          elif 0.01 <= profit_init_ratio < 0.02:
+            if profit_init_ratio < (previous_profit - 0.01):
+              return True, f"exit_profit_{mode_name}_t_1_1"
+          elif 0.02 <= profit_init_ratio < 0.03:
+            if profit_init_ratio < (previous_profit - 0.01):
+              return True, f"exit_profit_{mode_name}_t_2_1"
+          elif 0.03 <= profit_init_ratio < 0.04:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_3_1"
+          elif 0.04 <= profit_init_ratio < 0.05:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_4_1"
+          elif 0.05 <= profit_init_ratio < 0.06:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_5_1"
+          elif 0.06 <= profit_init_ratio < 0.07:
+            if profit_init_ratio < (previous_profit - 0.015):
+              return True, f"exit_profit_{mode_name}_t_6_1"
+          elif 0.07 <= profit_init_ratio < 0.08:
+            if profit_init_ratio < (previous_profit - 0.02):
+              return True, f"exit_profit_{mode_name}_t_7_1"
+          elif 0.08 <= profit_init_ratio < 0.09:
+            if profit_init_ratio < (previous_profit - 0.02):
+              return True, f"exit_profit_{mode_name}_t_8_1"
+          elif 0.09 <= profit_init_ratio < 0.10:
+            if profit_init_ratio < (previous_profit - 0.02):
+              return True, f"exit_profit_{mode_name}_t_9_1"
+          elif 0.10 <= profit_init_ratio < 0.11:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_10_1"
+          elif 0.11 <= profit_init_ratio < 0.12:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_11_1"
+          elif 0.12 <= profit_init_ratio:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_12_1"
+        else:
+          if 0.001 <= profit_init_ratio < 0.01:
+            if profit_init_ratio < (previous_profit - 0.020):
+              return True, f"exit_profit_{mode_name}_t_0_1"
+          elif 0.01 <= profit_init_ratio < 0.02:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_1_1"
+          elif 0.02 <= profit_init_ratio < 0.03:
+            if profit_init_ratio < (previous_profit - 0.025):
+              return True, f"exit_profit_{mode_name}_t_2_1"
+          elif 0.03 <= profit_init_ratio < 0.04:
+            if profit_init_ratio < (previous_profit - 0.030):
+              return True, f"exit_profit_{mode_name}_t_3_1"
+          elif 0.04 <= profit_init_ratio < 0.05:
+            if profit_init_ratio < (previous_profit - 0.035):
+              return True, f"exit_profit_{mode_name}_t_4_1"
+          elif 0.05 <= profit_init_ratio < 0.06:
+            if profit_init_ratio < (previous_profit - 0.040):
+              return True, f"exit_profit_{mode_name}_t_5_1"
+          elif 0.06 <= profit_init_ratio < 0.07:
+            if profit_init_ratio < (previous_profit - 0.045):
+              return True, f"exit_profit_{mode_name}_t_6_1"
+          elif 0.07 <= profit_init_ratio < 0.08:
+            if profit_init_ratio < (previous_profit - 0.050):
+              return True, f"exit_profit_{mode_name}_t_7_1"
+          elif 0.08 <= profit_init_ratio < 0.09:
+            if profit_init_ratio < (previous_profit - 0.055):
+              return True, f"exit_profit_{mode_name}_t_8_1"
+          elif 0.09 <= profit_init_ratio < 0.10:
+            if profit_init_ratio < (previous_profit - 0.060):
+              return True, f"exit_profit_{mode_name}_t_9_1"
+          elif 0.10 <= profit_init_ratio < 0.11:
+            if profit_init_ratio < (previous_profit - 0.065):
+              return True, f"exit_profit_{mode_name}_t_10_1"
+          elif 0.11 <= profit_init_ratio < 0.12:
+            if profit_init_ratio < (previous_profit - 0.070):
+              return True, f"exit_profit_{mode_name}_t_11_1"
+          elif 0.12 <= profit_init_ratio:
+            if profit_init_ratio < (previous_profit - 0.075):
+              return True, f"exit_profit_{mode_name}_t_12_1"
+    else:
+      return False, None
+
+    return False, None
+
+  def custom_exit(
+    self, pair: str, trade: "Trade", current_time: "datetime", current_rate: float, current_profit: float, **kwargs
+  ):
+    trade_is_short = trade.is_short
+
+    long_normal_mode_tags = self.long_normal_mode_tags
+    long_pump_mode_tags = self.long_pump_mode_tags
+    long_quick_mode_tags = self.long_quick_mode_tags
+    long_rebuy_mode_tags = self.long_rebuy_mode_tags
+    long_rebuy_grind_mode_tags = self.long_rebuy_grind_mode_tags
+    long_high_profit_mode_tags = self.long_high_profit_mode_tags
+    long_rapid_mode_tags = self.long_rapid_mode_tags
+    long_rapid_rebuy_grind_scalp_mode_tags = self.long_rapid_rebuy_grind_scalp_mode_tags
+    long_grind_mode_tags = self.long_grind_mode_tags
+    long_btc_mode_tags = self.long_btc_mode_tags
+    long_top_coins_mode_tags = self.long_top_coins_mode_tags
+    long_scalp_mode_tags = self.long_scalp_mode_tags
+    long_scalp_rebuy_grind_mode_tags = self.long_scalp_rebuy_grind_mode_tags
+    long_known_mode_tags = self.long_known_mode_tags
+    short_normal_mode_tags = self.short_normal_mode_tags
+    short_pump_mode_tags = self.short_pump_mode_tags
+    short_quick_mode_tags = self.short_quick_mode_tags
+    short_rebuy_mode_tags = self.short_rebuy_mode_tags
+    short_high_profit_mode_tags = self.short_high_profit_mode_tags
+    short_rapid_mode_tags = self.short_rapid_mode_tags
+    short_top_coins_mode_tags = self.short_top_coins_mode_tags
+    short_scalp_mode_tags = self.short_scalp_mode_tags
+    short_scalp_rebuy_grind_mode_tags = self.short_scalp_rebuy_grind_mode_tags
+    short_exit_known_mode_tags = self.short_exit_known_mode_tags
+
+    calc_total_profit = self.calc_total_profit
+    cache_backtest_profit_snapshot = self.cache_backtest_profit_snapshot
+    filled_order_snapshot = self.filled_order_snapshot
+    long_exit_normal = self.long_exit_normal
+    long_exit_pump = self.long_exit_pump
+    long_exit_quick = self.long_exit_quick
+    short_exit_normal = self.short_exit_normal
+
+    df, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+    if len(df) < 2:
+      return None
+    last_candle = df.iloc[-1]
+    previous_candle_1 = df.iloc[-2]
+
+    enter_tag = "empty"
+    if hasattr(trade, "enter_tag"):
+      trade_enter_tag = trade.enter_tag
+      if trade_enter_tag is not None:
+        enter_tag = trade_enter_tag
+    enter_tags = enter_tag.split()
+
+    filled_orders, filled_entries, filled_exits = filled_order_snapshot(trade)
+
+    profit_stake = 0.0
+    profit_ratio = 0.0
+    profit_current_stake_ratio = 0.0
+    profit_init_ratio = 0.0
+    profit_values = calc_total_profit(trade, filled_entries, filled_exits, current_rate)
+    profit_stake, profit_ratio, profit_current_stake_ratio, profit_init_ratio = profit_values
+    cache_backtest_profit_snapshot(
+      trade, current_time, current_rate, filled_orders, filled_entries, filled_exits, profit_values
+    )
+
+    system_version = trade.get_custom_data(key="system_version")
+    bad_trade_exit_enable = (
+      self.system_v4_bad_trade_exit_enable
+      if system_version == self.system_v4_name
+      else self.legacy_system_bad_trade_exit_enable
+    )
+    if bad_trade_exit_enable and current_profit < 0.0:
+      bad_trade_exit_reason = self._bad_trade_controller_exit_reason(
+        trade, current_time, current_rate, last_candle, filled_entries
+      )
+      if bad_trade_exit_reason is not None:
+        return f"{bad_trade_exit_reason} ( {enter_tag})"
+
+    # Signal 192 (Quad pullback long) tight doom stop: every 192 loss bottoms at a
+    # 11.8-14% price drop (the shared 0.35 doom threshold) while winners' max adverse
+    # excursion sits below 9.63% price. Scoping 192's doom to -0.30 margin (~10% price
+    # at 3x, ~30% at 1x) flips the tag net-positive. NOTE: this fires on ANY trade
+    # carrying 192 as one of several tags, and it returns before long_exit_normal, so
+    # for 192 it pre-empts the de-risk ladder (measured on a gms0 replica with derisk
+    # off; production runs derisk on, where the ladder exists for exactly this zone).
+    # On spot the -0.30 is looser than the existing doom thresholds (0.12 spot / 0.35
+    # futures) and effectively never binds.
+    if "192" in enter_tags and current_profit <= -0.30:
+      return f"exit_long_normal_stoploss_doom ( {enter_tag})"
+
+    max_profit = 0.0
+    max_loss = 0.0
+
+    # Long Normal mode
+    if any(c in long_normal_mode_tags for c in enter_tags):
+      sell, signal_name = long_exit_normal(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long Pump mode
+    if any(c in long_pump_mode_tags for c in enter_tags):
+      sell, signal_name = long_exit_pump(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long Quick mode
+    if any(c in long_quick_mode_tags for c in enter_tags):
+      sell, signal_name = long_exit_quick(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long Rebuy mode
+    if all(c in long_rebuy_mode_tags for c in enter_tags) or (
+      any(c in long_rebuy_mode_tags for c in enter_tags) and all(c in long_rebuy_grind_mode_tags for c in enter_tags)
+    ):
+      sell, signal_name = self.long_exit_rebuy(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long high profit mode
+    if any(c in long_high_profit_mode_tags for c in enter_tags):
+      sell, signal_name = self.long_exit_high_profit(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long rapid mode
+    if all(c in long_rapid_mode_tags for c in enter_tags) or (
+      any(c in long_rapid_mode_tags for c in enter_tags)
+      and all(c in long_rapid_rebuy_grind_scalp_mode_tags for c in enter_tags)
+    ):
+      sell, signal_name = self.long_exit_rapid(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long grind mode
+    if all(c in long_grind_mode_tags for c in enter_tags):
+      sell, signal_name = self.long_exit_grind(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long btc mode
+    if all(c in long_btc_mode_tags for c in enter_tags):
+      sell, signal_name = self.long_exit_btc(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long Top Coins mode
+    if any(c in long_top_coins_mode_tags for c in enter_tags):
+      sell, signal_name = self.long_exit_top_coins(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Long scalp mode
+    if all(c in long_scalp_mode_tags for c in enter_tags) or (
+      any(c in long_scalp_mode_tags for c in enter_tags)
+      and all(c in long_scalp_rebuy_grind_mode_tags for c in enter_tags)
+    ):
+      sell, signal_name = self.long_exit_scalp(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short normal mode
+    if any(c in short_normal_mode_tags for c in enter_tags):
+      sell, signal_name = short_exit_normal(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short Pump mode
+    if any(c in short_pump_mode_tags for c in enter_tags):
+      sell, signal_name = self.short_exit_pump(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short Quick mode
+    if any(c in short_quick_mode_tags for c in enter_tags):
+      sell, signal_name = self.short_exit_quick(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short Rebuy mode
+    if all(c in short_rebuy_mode_tags for c in enter_tags):
+      sell, signal_name = self.short_exit_rebuy(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short high profit mode
+    if any(c in short_high_profit_mode_tags for c in enter_tags):
+      sell, signal_name = self.short_exit_high_profit(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short rapid mode
+    if any(c in short_rapid_mode_tags for c in enter_tags):
+      sell, signal_name = self.short_exit_rapid(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short Top Coins mode
+    if any(c in short_top_coins_mode_tags for c in enter_tags):
+      sell, signal_name = self.short_exit_top_coins(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Short scalp mode
+    if all(c in short_scalp_mode_tags for c in enter_tags) or (
+      any(c in short_scalp_mode_tags for c in enter_tags)
+      and all(c in short_scalp_rebuy_grind_mode_tags for c in enter_tags)
+    ):
+      sell, signal_name = self.short_exit_scalp(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Trades not opened by X8
+    if not trade_is_short and (not any(c in long_known_mode_tags for c in enter_tags)):
+      # use normal mode for such trades
+      sell, signal_name = long_exit_normal(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    # Trades not opened by X8
+    if trade_is_short and (not any(c in short_exit_known_mode_tags for c in enter_tags)):
+      # use normal mode for such trades
+      sell, signal_name = short_exit_normal(
+        pair,
+        current_rate,
+        profit_stake,
+        profit_ratio,
+        profit_current_stake_ratio,
+        profit_init_ratio,
+        max_profit,
+        max_loss,
+        filled_orders,
+        filled_entries,
+        filled_exits,
+        last_candle,
+        previous_candle_1,
+        trade,
+        current_time,
+        enter_tags,
+      )
+      if sell and (signal_name is not None):
+        return f"{signal_name} ( {enter_tag})"
+
+    return None
+
+  @staticmethod
+  def _bad_trade_controller_ema_gap_and_adverse_move(
+    trade: "Trade", current_rate: float, last_candle, filled_entries: "Orders"
+  ) -> tuple:
+    """Return position-signed daily EMA gap and adverse move from the first filled entry."""
+    ema_50_1d = last_candle.get("EMA_50_1d")
+    ema_200_1d = last_candle.get("EMA_200_1d")
+    if (
+      ema_50_1d is None
+      or ema_200_1d is None
+      or not np.isfinite(ema_50_1d)
+      or not np.isfinite(ema_200_1d)
+      or ema_200_1d <= 0.0
+    ):
+      daily_ema_gap_pct = None
+    else:
+      daily_ema_gap_pct = (ema_50_1d / ema_200_1d - 1.0) * 100.0
+      if trade.is_short:
+        daily_ema_gap_pct = -daily_ema_gap_pct
+
+    if not filled_entries:
+      return daily_ema_gap_pct, None
+    first_entry_rate = filled_entries[0].safe_price
+    if first_entry_rate is None or not np.isfinite(first_entry_rate) or first_entry_rate <= 0.0:
+      return daily_ema_gap_pct, None
+    first_entry_adverse_move_pct = (
+      ((current_rate - first_entry_rate) if trade.is_short else (first_entry_rate - current_rate))
+      / first_entry_rate
+      * 100.0
+    )
+    return daily_ema_gap_pct, first_entry_adverse_move_pct
+
+  def _bad_trade_controller_exit_reason(
+    self,
+    trade: "Trade",
+    current_time: "datetime",
+    current_rate: float,
+    last_candle,
+    filled_entries: "Orders",
+  ) -> Optional[str]:
+    """Return a structure-break or stale-position exit reason."""
+    daily_ema_gap_pct, first_entry_adverse_move_pct = self._bad_trade_controller_ema_gap_and_adverse_move(
+      trade, current_rate, last_candle, filled_entries
+    )
+    if first_entry_adverse_move_pct is None or not np.isfinite(first_entry_adverse_move_pct):
+      return None
+    if (
+      self.bad_trade_controller_structure_break_exit_enable
+      and daily_ema_gap_pct is not None
+      and daily_ema_gap_pct <= -self.bad_trade_controller_structure_break_ema_gap_pct
+      and first_entry_adverse_move_pct >= self.bad_trade_controller_structure_break_min_adverse_move_pct
+    ):
+      return f"exit_bad_trade_broken_{first_entry_adverse_move_pct:.0f}pct"
+
+    daily_range_pct_14_1d = last_candle.get("RANGE_PCT_14_1d")
+    trade_age_days = (current_time - trade.open_date_utc).total_seconds() / 86400.0
+    if (
+      self.bad_trade_controller_stale_exit_enable
+      and daily_range_pct_14_1d is not None
+      and np.isfinite(daily_range_pct_14_1d)
+      and daily_range_pct_14_1d < self.bad_trade_controller_stale_max_daily_range_pct
+      and first_entry_adverse_move_pct >= self.bad_trade_controller_stale_min_adverse_move_pct
+      and trade_age_days >= self.bad_trade_controller_stale_min_age_days
+    ):
+      return f"exit_bad_trade_abandon_{trade_age_days:.0f}d"
+    return None

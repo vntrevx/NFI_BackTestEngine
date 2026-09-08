@@ -253,6 +253,7 @@ pub(super) fn long_futures_trade() -> OpenTrade {
         liquidation_price_is_explicit: true,
         initial_stop_loss: 1.0,
         stop_loss: 1.0,
+        is_stop_loss_trailing: false,
         custom_stop_loss_ratio: None,
         minimum_rate: 85.0,
         maximum_rate: 100.0,

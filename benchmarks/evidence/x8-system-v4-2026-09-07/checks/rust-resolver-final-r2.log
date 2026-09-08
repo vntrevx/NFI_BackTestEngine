@@ -1,0 +1,503 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling nfi-sim-core v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-sim-core)
+   Compiling nfi-py v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-py)
+   Compiling nfi-vector-io v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-vector-io)
+   Compiling nfi-sim-cli v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-sim-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 35.59s
+     Running unittests src/lib.rs (target/debug/deps/nfi_artifact_publish-387dc0cb639ef3f7)
+
+running 10 tests
+test tests::dangling_configured_destinations_are_conflicts_before_staging ... ok
+test tests::preexisting_destinations_are_preserved ... ok
+test tests::destination_inserted_at_commit_is_preserved ... ok
+test tests::symlink_backed_payload_is_rejected_without_export ... ok
+test tests::manifest_binds_identity_sizes_and_hashes ... ok
+test tests::concurrent_writers_commit_one_valid_bundle ... ok
+test tests::observer_sees_only_synced_aggregate_at_commit ... ok
+test tests::unmarked_and_wrong_owner_prefix_matches_are_preserved ... ok
+test tests::event_trace_is_manifest_bound ... ok
+test tests::invalid_bundles_never_recover_or_export ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+     Running unittests src/lib.rs (target/debug/deps/_rust-388a64ec12b833de)
+
+running 3 tests
+
+running 1 test
+test tests::exact_failure_never_opens_or_truncates_an_unowned_event_destination ... ok
+test tests::profiled_publication_uses_committed_bundle ... ok
+test tests::abrupt_termination_after_first_event_sync_leaves_no_staging_orphan ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+
+     Running unittests src/main.rs (target/debug/deps/nfi_sim-6eb71ad5c6d8985a)
+
+running 6 tests
+test tests::cli_event_conflict_preserves_every_destination ... ok
+test tests::cli_publication_preserves_preexisting_result_and_profile ... ok
+test tests::cli_profiled_publication_commits_one_bundle ... ok
+test tests::cli_concurrent_writers_use_a_bounded_start_barrier ... ok
+test tests::cli_profiled_events_are_manifest_members ... ok
+test tests::portfolio_envelope_streams_the_production_observer_in_order ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.99s
+
+     Running unittests src/lib.rs (target/debug/deps/nfi_sim_core-e6c3c550fe8f94ab)
+
+running 252 tests
+test execution::stake::tests::optional_minimum_identity_is_evaluated_exactly ... ok
+test nfi::adjustment::tests::compiled_state_cache_reuses_only_matching_order_and_program_identity ... ok
+test nfi::adjustment::tests::nfi_preflight_propagates_aggregate_overflow_before_option_dispatch ... ok
+test nfi::adjustment::tests::compiled_cluster_maxima_allow_complete_absence_without_state_writes ... ok
+test nfi::adjustment::tests::rebuy_transfer_keeps_the_wrappers_leverage_adjusted_maximum ... ok
+test nfi::adjustment::tests::exit_profit_expression_uses_boolean_feature_and_derisk_state ... ok
+test execution::callback_trace::tests::authenticated_v2_accepts_futures_leverage_then_stake ... ok
+test callbacks::evaluation::adjustment_limit_tests::adjustment_limit_counts_the_initial_filled_entry_separately ... ok
+test execution_contract::tests::embedded_execution_contract_is_valid_json ... ok
+test nfi::adjustment::tests::rebuy_transfer_keeps_the_wrappers_leverage_adjusted_minimum ... ok
+test nfi::adjustment::tests::compiled_action_uses_payload_stake_tag_and_dynamic_entry_ids ... ok
+test nfi::adjustment::tests::compiled_cluster_maxima_reject_partial_key_pairs ... ok
+test nfi::adjustment::tests::compiled_action_preserves_explicit_source_return_none ... ok
+test nfi::adjustment::tests::structured_grind_tags_have_no_fixed_level_ceiling ... ok
+test nfi::rebuy::tests::compiled_rebuy_delegate_tag_is_program_data ... ok
+test futures_contract::tests::embedded_futures_contract_is_valid_json ... ok
+test order_aggregates::tests::generic_aggregates_match_a_source_order_walk ... ok
+test execution::executable_callback::value::operations::tests::exact_numeric_equality_rejects_nearby_values_and_accepts_signed_zero ... ok
+test order_aggregates::tests::incremental_append_matches_a_complete_rebuild ... ok
+test order_aggregates::tests::non_finite_running_totals_are_typed_exact_arithmetic_errors ... ok
+test nfi::rebuy::tests::compiled_rebuy_stake_and_tag_are_program_data ... ok
+test nfi::rebuy::tests::futures_rebuy_keeps_unleveraged_adjustment_minimum ... ok
+test nfi::adjustment::tests::compiled_short_order_scan_and_partial_exit_use_directional_program_data ... ok
+test nfi::adjustment::tests::liquidation_proximity_expression_matches_short_futures ... ok
+test nfi::adjustment::tests::liquidation_proximity_expression_matches_long_futures ... ok
+test scheduler::tests::open_pairs_precede_remaining_configured_pairs_once ... ok
+test simulation::event::tests::futures_quote_balance_removes_sub_nano_float_noise ... ok
+test nfi::rebuy::tests::compiled_short_futures_uses_its_directional_program ... ok
+test state_machine_vm::tests::numeric_equality_matches_python_across_integer_and_float_storage ... ok
+test state_machine_vm::tests::v1_and_v2_program_contracts_remain_executable ... ok
+test nfi::adjustment::tests::compiled_v1_cluster_maxima_deserialize_and_replay_existing_keys ... ok
+test portfolio::tests::spot_wallet_free_preserves_python_subtraction_boundary ... ok
+test portfolio::tests::wallet_free_preserves_freqtrade_profit_grouping_boundary ... ok
+test portfolio::tests::wallet_free_preserves_no_profit_decimal_boundary ... ok
+test scheduler::tests::callback_visibility_uses_the_previous_analyzed_row ... ok
+test state_machine_vm::tests::failed_program_rolls_back_custom_state_writes ... ok
+test simulation::event::tests::spot_quote_balance_preserves_exact_float_representation ... ok
+test state_machine_vm::tests::bounded_loop_rejects_runtime_bound_above_compiled_limit ... ok
+test portfolio::tests::wallet_free_preserves_fully_closed_decimal_boundary ... ok
+test state_machine_vm::tests::dynamic_grind_action_and_typed_state_execute_in_source_order ... ok
+test tests::callbacks::bounded_stake_vm_applies_tag_rule_and_exchange_minimum ... ok
+test scheduler::tests::embedded_scheduler_contract_is_valid_json ... ok
+test tests::callbacks::order_filled_program_updates_custom_state_and_projects_liquidation_price ... ok
+test tests::callbacks::entry_confirmation_vm_accepts_a_computed_negative_dataframe_index ... ok
+test tests::callbacks::scalar_decision_vm_evaluates_chained_comparison_and_formatted_reason ... ok
+test tests::callbacks::scalar_decision_vm_preserves_first_match_for_flat_elif_chains ... ok
+test tests::callbacks::order_filled_no_exits_guard_preserves_initial_state_and_runs_tag_writes ... ok
+test tests::callbacks::exit_confirmation_vm_rejects_spot_stop_and_emits_clear_effect ... ok
+test tests::callbacks::scalar_program_overlays_do_not_leak_writes_between_callbacks ... ok
+test tests::callbacks::generic_order_filled_state_machine_updates_typed_custom_state ... ok
+test tests::callbacks::scalar_decision_vm_resolves_transitive_program_calls_fail_closed ... ok
+test nfi::source_adjustment_dispatch::tests::source_router_preserves_compound_and_legacy_routes ... ok
+test state_machine_vm::tests::v3_iterates_typed_orders_in_trade_sequence_and_accumulates_locals ... ok
+test tests::contracts::entry_confirmation_receives_post_precision_amount ... ok
+test tests::callbacks::entry_confirmation_vm_evaluates_tag_and_slippage_gates ... ok
+test tests::contracts::nfi_profit_snapshot_uses_filled_order_cashflows_and_first_entry_basis ... ok
+test nfi::source_exit_prefix::tests::source_prefix_preserves_priority_direction_missing_data_and_rounding ... ok
+test tests::futures::futures_profit_rounding_matches_python_format_boundary ... ok
+test state_machine_vm::tests::v3_order_limit_failure_rolls_back_and_reports_source ... ok
+test tests::futures::initial_entry_on_funding_timestamp_includes_the_official_funding_row ... ok
+test tests::futures::futures_partial_exit_keeps_freqtrade_initial_stake_float_boundary ... ok
+test tests::contracts::rejected_entry_confirmation_consumes_order_id_but_not_rejected_signal_count ... ok
+test tests::futures::finite_negative_isolated_liquidation_clamps_to_inactive_zero ... ok
+test tests::futures::leveraged_short_uses_side_specific_orders_and_funding ... ok
+test tests::futures::dynamic_leverage_cap_uses_proposed_stake_tier ... ok
+test tests::futures::nfi_entry_leverage_preserves_rule_order_and_exchange_cap ... ok
+test tests::futures::computed_isolated_liquidation_matches_binance_long_and_short_formula ... ok
+test tests::futures::zero_liquidation_is_inactive_for_both_trade_sides ... ok
+test tests::io::callback_feature_index_selects_the_last_closed_analyzed_row ... ok
+test tests::futures::trailing_stop_uses_candle_open_after_a_gap_beyond_the_retained_stop ... ok
+test tests::futures::non_finite_buffered_liquidation_is_rejected_before_clamping ... ok
+test tests::futures::futures_entry_sizing_preserves_oracle_quote_free_boundaries ... ok
+test tests::io::columnar_features_reconstruct_the_exact_selected_and_previous_rows ... ok
+test tests::futures::liquidation_is_processed_on_the_entry_candle_for_both_sides ... ok
+test tests::futures::ape_short_funding_and_profit_match_freqtrade_2026_5_1 ... ok
+test tests::futures::non_liquidating_entry_candle_keeps_the_legacy_exit_boundary ... ok
+test tests::futures::rejected_stop_loss_collision_does_not_fall_through_to_liquidation ... ok
+test tests::futures::variable_leverage_trade_keeps_eight_decimal_profit_boundary ... ok
+test tests::io::file_backed_entry_index_reuses_validated_signal_positions ... ok
+test tests::futures::isolated_liquidation_recalculates_after_position_adjustment ... ok
+test tests::io::exact_arithmetic_rejects_finite_derived_overflow ... ok
+test tests::io::exact_exit_arithmetic_rejects_extreme_finite_derived_overflow ... ok
+test tests::io::post_validation_truncation_invalidates_a_previously_readable_window ... ok
+test tests::io::injected_spool_faults_preserve_stable_operation_and_kind_context ... ok
+test tests::io::pair_price_step_selects_the_latest_historical_change ... ok
+test tests::io::simulation_preserves_the_underlying_spool_fault_over_generic_validation_errors ... ok
+test tests::io::valid_exact_decimal_calculations_preserve_freqtrade_values ... ok
+test tests::io::truncated_file_backing_returns_a_typed_read_error_without_panicking ... ok
+test tests::io::serializer_rejects_non_finite_results_instead_of_emitting_null ... ok
+test tests::futures::partial_exit_liquidation_refresh_precedes_trade_replay ... ok
+test tests::futures::funding_product_overflow_is_typed_before_storage ... ok
+test tests::io::close_trade_propagates_total_entry_value_overflow ... ok
+test tests::io::file_backed_rows_keep_callback_lookback_in_the_current_window ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_shadow_rejects_a_policy_disagreement ... ok
+test tests::nfi_adjustment::compiled_regular_adjustment_shadow_rejects_a_tag_disagreement ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_executes_the_source_defined_first_entry_stop ... ok
+test tests::nfi_adjustment::nfi_long_btc_adjustment_runs_on_the_entry_fill_candle ... ok
+test tests::io::spot_replay_rejects_overflowing_exact_totals ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_emits_the_source_defined_cluster_stop_tag ... ok
+test tests::io::file_backed_rows_preserve_forward_and_backward_window_access ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_enters_a_post_derisk_cluster_before_ordinary_levels ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_reconstructs_gd1_before_reaching_gd2 ... ok
+test tests::nfi_adjustment::nfi_long_grind_dual_mode_scope_accepts_a_futures_trade ... ok
+test tests::nfi_adjustment::nfi_long_btc_uses_its_source_ordered_profit_exit ... ok
+test tests::nfi_adjustment::nfi_long_btc_futures_selects_the_futures_regular_branch ... ok
+test tests::nfi_adjustment::nfi_long_btc_futures_uses_the_source_compiled_drawdown_fallback ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_executes_one_bounded_derisk_buyback_cycle_atomically ... ok
+test tests::nfi_adjustment::nfi_long_grind_recovers_the_first_entry_once_with_gm0 ... ok
+test tests::nfi_adjustment::nfi_long_grind_wallet_rejection_stops_before_smaller_later_clusters ... ok
+test tests::nfi_adjustment::nfi_long_btc_futures_funding_precedes_regular_adjustment ... ok
+test tests::nfi_routing::explicit_short_top_coins_matches_compound_tags_independently_of_normal ... ok
+test tests::nfi_adjustment::nfi_rebuy_adds_the_first_source_ladder_entry ... ok
+test tests::nfi_routing::explicit_short_top_coins_rejects_a_legacy_shadow_execution_program ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_fails_closed_on_a_decision_difference ... ok
+test tests::nfi_adjustment::nfi_long_grind_uses_the_source_bound_futures_drawdown_fallback ... ok
+test tests::nfi_adjustment::nfi_long_btc_regular_mode_opens_and_closes_g1_in_source_order ... ok
+test tests::nfi_adjustment::nfi_long_btc_derisk_transfers_to_the_legacy_continuation ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_fails_closed_on_target_state_difference ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_short_fails_closed_on_target_state_difference ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_executes_a_recursive_source_matcher ... ok
+test tests::nfi_adjustment::nfi_long_grind_opens_and_closes_a_gd1_cluster_in_source_order ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_fails_closed_on_inline_program_difference ... ok
+test tests::nfi_routing::nfi_dispatch_plan_derives_tag_ids_route_indexes_and_program_handles ... ok
+test tests::nfi_routing::generic_short_route_runs_its_source_helper_for_a_long_cross_side_tag ... ok
+test tests::nfi_routing::nfi_high_profit_returns_a_doom_stop_without_waiting_for_target_replay ... ok
+test tests::nfi_adjustment::nfi_short_rebuy_transfer_accepts_the_source_rebuy_tag ... ok
+test tests::nfi_adjustment::nfi_rebuy_derisk_leaves_the_exchange_minimum_reserve ... ok
+test tests::nfi_adjustment::compiled_legacy_grind_has_no_fixed_ordinary_level_count ... ok
+test tests::nfi_routing::nfi_short_quick_inline_exit_uses_mirrored_thresholds ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_short_preserves_compound_scalp_routing ... ok
+test tests::nfi_routing::nfi_short_route_matching_preserves_each_upstream_tag_predicate ... ok
+test tests::nfi_routing::nfi_manager_preflight_accepts_source_shaped_liquidation_fallback ... ok
+test tests::nfi_routing::nfi_cross_side_compound_keeps_source_callback_order ... ok
+test tests::nfi_routing::nfi_normal_skips_profit_programs_while_initial_stake_is_negative ... ok
+test tests::io::public_simulation_rejects_finite_inputs_that_overflow_final_wallet ... ok
+test tests::nfi_routing::nfi_trade_manager_accepts_a_compiled_cross_side_compound_noop ... ok
+test tests::nfi_adjustment::nfi_rebuy_transfer_restores_the_source_slice_before_grind_sizing ... ok
+test tests::nfi_routing::nfi_top_coins_doom_stop_is_reserved_then_exits_with_m_suffix ... ok
+test tests::nfi_routing::nfi_top_coins_pure_decision_exits_with_the_original_entry_tag ... ok
+test tests::nfi_routing::nfi_trade_manager_requires_a_tag_for_the_opened_side ... ok
+test tests::nfi_routing::nfi_top_coins_profit_target_trails_on_the_next_candle ... ok
+test tests::nfi_routing::nfi_trade_manager_rejects_a_mixed_unknown_tag ... ok
+test tests::nfi_routing::nfi_trade_manager_rejects_unsupported_entry_tags_before_simulation ... ok
+test tests::nfi_routing::nfi_rebuy_terminal_exit_uses_source_compiled_policy ... ok
+test tests::nfi_routing::nfi_short_rebuy_runs_the_short_program_order_with_leverage ... ok
+test tests::nfi_routing::primary_managed_exit_dispatch_does_not_register_legacy_program_handles ... ok
+test tests::nfi_routing::nfi_quick_runs_inline_exit_after_the_common_stop_check ... ok
+test tests::nfi_routing::nfi_validation_keeps_general_candle_errors_ahead_of_short_tag_errors ... ok
+test tests::nfi_routing::retired_execution_modes_still_deserialize_for_evidence_replay ... ok
+test tests::position::compiled_custom_exit_bundle_runs_inside_the_native_trade_loop ... ok
+test tests::nfi_routing::nfi_validation_rejects_an_unsupported_short_tag_in_the_main_pass ... ok
+test tests::nfi_routing::generic_managed_exit_shadow_matches_all_eight_legacy_routes ... ok
+test tests::position::explicit_exit_is_filled_at_candle_open ... ok
+test tests::position::entry_adjustment_stop_and_fees_are_accounted_in_order ... ok
+test tests::position::futures_partial_exit_rebases_inclusive_funding_on_the_next_tick ... ok
+test tests::position::generic_state_machine_emits_dynamic_grind_adjustment_and_exit ... ok
+test tests::protections::cooldown_pair_lock_uses_strict_candle_rounding_and_expiry ... ok
+test tests::position::strategy_exit_precedes_stoploss_on_the_same_freqtrade_candle ... ok
+test tests::position::compiled_position_adjustment_bundle_adds_a_tagged_entry ... ok
+test tests::protections::global_stoploss_guard_emits_pair_and_global_locks_for_same_pair_losses ... ok
+test tests::protections::low_profit_pairs_and_max_drawdown_create_local_and_global_locks ... ok
+test tests::protections::protection_reasons_preserve_integer_and_float_threshold_display ... ok
+test tests::position::futures_initial_entry_seeds_funding_at_the_fill_timestamp ... ok
+test tests::protections::low_profit_accumulation_overflow_is_typed ... ok
+test tests::protections::protection_threshold_display_rejects_noncanonical_or_mismatched_values ... ok
+test tests::position::futures_entry_adjustment_replays_funding_at_the_fill_timestamp ... ok
+test tests::protections::stoploss_guard_global_lock_respects_trade_side ... ok
+test tests::simulation::checked_ieee_families_preserve_left_to_right_bits_and_reject_overflow ... ok
+test tests::simulation::adjustment_minimum_stake_uses_unleveraged_freqtrade_boundary ... ok
+test tests::simulation::execution_start_index_must_point_to_a_candle ... ok
+test tests::position::position_adjustment_receives_tradable_balance_limited_max_stake ... ok
+test tests::position::negative_adjustment_realizes_a_partial_exit ... ok
+test tests::protections::same_candle_global_lock_blocks_a_later_pair_entry ... ok
+test tests::simulation::futures_ignores_simultaneous_long_and_short_entries ... ok
+test tests::protections::simulator_skips_locked_entry_without_counting_a_rejection ... ok
+test tests::simulation::ft_precise_partial_exit_division_preserves_integer_contract ... ok
+test tests::simulation::callback_context_rows_are_visible_but_never_executed ... ok
+test tests::simulation::pairwise_profit_sum_matches_x7_annual_pandas_token ... ok
+test tests::simulation::pairwise_profit_sum_matches_numpy_reduction_order ... ok
+test tests::position::overlapping_trades_are_exported_in_freqtrade_closure_order ... ok
+test tests::position::futures_partial_exit_rebases_on_a_refresh_without_a_new_funding_event ... ok
+test tests::position::generic_state_machine_adjusts_on_the_entry_candle ... ok
+test tests::simulation::timerange_stop_boundary_does_not_open_a_new_trade ... ok
+test tests::simulation::same_side_exit_signal_suppresses_entry ... ok
+test tests::simulation::sparse_profile_counts_distinct_visible_timestamps_during_validation ... ok
+test tests::simulation::global_slot_competition_uses_pair_order ... ok
+test tests::position::futures_profit_uses_python_eight_decimal_ties_to_even ... ok
+test tests::simulation::total_volume_uses_cpython_compensated_sum ... ok
+test tests::simulation::final_force_exits_export_newest_open_trade_first ... ok
+test tests::simulation::nfi_grind_wallet_rejection_stops_source_order_evaluation ... ok
+test tests::position::same_candle_adjustment_is_applied_before_stop_exit ... ok
+test tests::task10_short_grind::tag_620_dispatches_to_the_legacy_short_route ... ok
+test tests::simulation::open_trade_pairs_run_before_configured_pair_order ... ok
+test tests::simulation::profiled_simulation_preserves_result_and_counts_only_visible_rows ... ok
+test tests::simulation::futures_reopens_the_opposite_side_after_a_same_candle_exit ... ok
+test tests::task10_short_grind::current_short_grind_liquidation_rescue_is_one_shot ... ok
+test tests::task10_short_grind::short_rescue_strict_boundaries_and_wallet_order_are_exact ... ok
+test tests::task14_callback_runtime::callback_exception_rolls_back_wallet_order_and_custom_state ... ok
+test tests::task14_callback_runtime::custom_state_commit_is_visible_at_the_official_next_callback_point ... ok
+test tests::task14_callback_runtime::entry_callbacks_follow_stake_leverage_confirmation_and_fill_order ... ok
+test tests::task14_callback_runtime::invalid_order_is_rejected_without_an_event_or_state_change ... ok
+test tests::task14_callback_runtime::real_simulator_observer_emits_native_callback_semantics ... ok
+test tests::task14_callback_runtime::same_candle_runtime_records_first_candidate_rejection_before_iteration ... ok
+test tests::task14_callback_runtime::semantic_trace_is_versioned_and_deterministic ... ok
+test tests::task14_callback_runtime::startup_and_open_trade_visibility_use_only_the_last_closed_row ... ok
+test tests::task10_short_grind::schema_030_short_route_accepts_optional_source_defined_rescue ... ok
+test tests::task14_production_callbacks::legacy_v1_rejects_executable_futures_entry_order ... ok
+test tests::task14_callback_program::runtime_tests::all_ten_entrypoints_execute_with_typed_returns ... ok
+test tests::task14_production_callbacks::legacy_v1_futures_entry_order_remains_byte_compatible ... ok
+test tests::task14_callback_program::schema_tests::complete_spot_program_preflights_and_leverage_is_inactive ... ok
+test tests::task14_production_callbacks::production_callback_exception_rolls_back_real_trade_and_falls_through ... ok
+test tests::task14_callback_program::schema_tests::strict_schema_rejects_missing_and_unknown_fields ... ok
+test tests::task14_callback_program::schema_tests::preflight_rejects_coexistence_and_legacy_absence_is_unchanged ... ok
+test tests::task14_callback_program::runtime_tests::trade_local_shadow_is_observed_then_discarded_on_fallback ... ok
+test tests::task14_production_callbacks::production_rejected_custom_exit_continues_to_rejected_stop_candidate ... ok
+test tests::task15_scheduler::open_trade_insertion_prefix_precedes_remaining_configured_pairs_once ... ok
+test tests::task14_callback_program::runtime_tests::runtime_step_limit_and_inactive_transition_are_typed ... ok
+test tests::task16_execution::amount_precision_rejection_reserves_order_id_before_later_fill ... ok
+test tests::task15_scheduler::both_two_pair_configured_permutations_are_exact ... ok
+test tests::task14_callback_program::schema_tests::fingerprint_is_canonical_and_detects_stale_identity ... ok
+test tests::task15_scheduler::wallet::rejected_zero_stake_consumes_reserved_order_id_then_continues_to_later_pair ... ok
+test tests::task15_scheduler::multiple_open_trades_keep_insertion_order_before_configured_remainder ... ok
+test tests::task16_execution::entry_gate_events_distinguish_minimum_stake_from_later_rejections ... ok
+test tests::task16_execution::explicit_market_configuration_is_reported_without_changing_open_fill ... ok
+test tests::task16_execution::execution_observer_reports_actual_open_fill_and_frozen_exit_rounding ... ok
+test tests::task16_execution::rejected_higher_priority_exit_falls_through_and_all_rejected_do_not_fill ... ok
+test tests::task16_execution::minimum_stake_validation_precedes_order_allocation_and_amount_floor ... ok
+test tests::task14_callback_program::runtime_tests::source_raise_uses_fallback_and_preserves_executed_shared_writes ... ok
+test tests::task14_callback_program::runtime_tests::runtime_rejects_bad_return_register_type_missing_input_and_observation ... ok
+test tests::task16_execution::configured_limit_rates_preserve_raw_confirmation_and_frozen_precision ... ok
+test tests::task9_long_grind::current_long_grind_liquidation_rescue_is_one_shot ... ok
+test tests::task9_long_grind::system_adjustment_validator_accepts_level_bound_derisk_inputs ... ok
+test validation::adjustment::tests::adjustment_expression_rejects_excessive_depth_and_arity ... ok
+test validation::adjustment::tests::adjustment_expression_rejects_invalid_names_and_shapes ... ok
+test tests::task9_long_grind::liquidation_rescue_loss_threshold_mutation_is_detected ... ok
+test tests::task9_long_grind::liquidation_rescue_wallet_rejection_consumes_the_one_shot ... ok
+test validation::adjustment::tests::legacy_adjustment_predicate_deserializes_without_expression ... ok
+test validation::manager::finalization::tests::disabled_dispatch_requires_an_unconditional_null_return ... ok
+test tests::task16_execution::rejected_stop_and_roi_fall_through_to_same_candle_trailing_stop ... ok
+test tests::task14_callback_program::runtime_tests::vm_is_deterministic_and_commits_typed_register_custom_state_and_observation ... ok
+test validation::manager::finalization::tests::optional_columns_cannot_hide_a_source_candle_read ... ok
+test tests::task16_execution::adjustment_events_bind_direct_fees_ids_precision_and_wallet_states ... ok
+test validation::manager::system_adjustment::tests::maximum_keys_remain_required_for_v1_and_optional_as_pairs_for_v2 ... ok
+test tests::task16_execution::scheduler_event_materializes_complete_trade_order_and_execution_state ... ok
+test tests::task15_scheduler::wallet::partial_exit_releases_wallet_retains_slot_and_force_exits_reverse_insertion ... ok
+test tests::task15_scheduler::all_six_three_pair_configured_permutations_are_exact ... ok
+test tests::task16_execution::roi_is_confirmed_on_the_entry_candle_with_ftprecise_rate ... ok
+test tests::task16_execution::generated_precision_extremes_preserve_quantizer_invariants_and_fail_closed ... ok
+test tests::io::generated_finite_exponent_boundaries_round_trip_or_reject_derived_overflow ... ok
+test tests::io::open_trade_force_close_propagates_real_post_validation_truncation ... ok
+test nfi::source_exit_tests::donor_exit_callbacks_match_pinned_official_boundary_vectors ... ok
+test tests::io::open_trade_force_close_propagates_event_synchronized_spool_faults ... ok
+
+test result: ok. 252 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+
+     Running unittests src/lib.rs (target/debug/deps/nfi_vector_core-10414f7bacdbfa40)
+
+running 122 tests
+test alignment::catalog::tests::empty_source_is_preserved_or_source_located_on_demand ... ok
+test alignment::catalog::tests::exact_lookup_never_substitutes_pair_or_timeframe ... ok
+test alignment::catalog::tests::rejects_invalid_frame_shape_before_storage ... ok
+test alignment::tests::empty_base_informative_chunk_is_retained_for_the_next_exact_chunk ... ok
+test alignment::tests::ffill_leading_repair_uses_one_latest_historical_row_for_the_whole_prefix ... ok
+test alignment::tests::collisions_and_cross_pair_identity_fail_at_the_declared_source ... ok
+test alignment::fill::tests::batch_preserves_leading_missing_and_fills_every_column_in_source_order ... ok
+test alignment::tests::ffill_stream_rejects_a_leading_base_chunk_without_informative_events ... ok
+test alignment::fill::tests::arbitrary_chunks_are_bit_exact_to_batch_and_retention_is_bounded ... ok
+test alignment::tests::ffill_stream_rejects_current_historical_rows_without_an_exact_match ... ok
+test alignment::tests::merge_uses_freqtrade_floor_minutes_not_resample_milliseconds ... ok
+test alignment::tests::stream_is_exact_at_the_five_minute_hour_boundary ... ok
+test alignment::tests::stream_rejects_numeric_schema_drift_across_calls ... ok
+test alignment::tests::stream_rejects_unresolved_leading_history_and_timestamp_regression ... ok
+test column::tests::integer_and_text_outputs_preserve_null_empty_and_whitespace ... ok
+test alignment::catalog::tests::rejects_duplicate_and_key_frame_identity_drift ... ok
+test alignment::tests::non_ffill_stream_rejects_informative_only_chunks_without_losing_exact_rows ... ok
+test alignment::tests::timeframe_supports_ccxt_seconds_years_and_rejects_i64_overflow ... ok
+test engine::array::tests::numpy_unary_fill_zero_and_absolute_difference_cover_latest_surface ... ok
+test engine::array::tests::numpy_extremes_preserve_null_nan_and_right_signed_zero ... ok
+test engine::array::tests::numpy_nan_to_num_and_divide_keep_null_separate ... ok
+test engine::array::tests::numpy_maximum_accumulate_streams_across_batches_and_propagates_nan ... ok
+test engine::array::tests::stateful_native_calls_cross_batch_boundaries ... ok
+test engine::array::tests::native_set_index_changes_only_the_first_global_batch_row ... ok
+test engine::frame::tests::metadata_and_empty_frame_errors_keep_strategy_location ... ok
+test engine::frame::tests::literal_and_metadata_sources_resolve_exact_identity_without_copy ... ok
+test column::tests::timestamp_requires_millisecond_arrow_type ... ok
+test engine::frame::tests::exact_non_ffill_merge_uses_each_frames_own_row_count_and_keeps_dates_typed ... ok
+test engine::array::tests::unsupported_contract_reports_source_location ... ok
+test engine::frame::tests::merge_rejects_visible_bool_overlay_but_accepts_it_after_drop ... ok
+test engine::array::tests::inside_bar_dispatch_selects_each_native_projection ... ok
+test alignment::fill::tests::malformed_shape_and_stream_schema_drift_fail_closed_at_source ... ok
+test alignment::tests::future_informative_mutation_does_not_change_pre_visibility_rows ... ok
+test engine::frame::tests::typed_column_overlays_are_cheap_visible_and_shape_checked ... ok
+test engine::frame::tests::projection_and_drop_are_frame_local_visibility_overlays ... ok
+test batch::tests::missing_duplicate_and_wrong_type_requests_fail_closed ... ok
+test batch::tests::projection_borrows_only_requested_columns ... ok
+test engine::full::tests::float_cast_accepts_the_compiler_shape_and_rejects_dynamic_arguments ... ok
+test column::tests::f64_outputs_canonicalize_nan_without_losing_null_or_signed_zero ... ok
+test engine::runtime::tests::present_f64_slice_preserves_bits_and_rejects_arrow_nulls ... ok
+test float::tests::comparisons_use_explicit_ieee_nan_rules ... ok
+test float::tests::every_nan_payload_becomes_one_quiet_nan ... ok
+test engine::full::tests::series_cast_accepts_the_compiler_shape_and_rejects_options ... ok
+test kernels::directional::tests::canonical_nan_warmups_follow_talib_lookbacks ... ok
+test kernels::directional::tests::aroon_and_willr_preserve_talib_tie_rules ... ok
+test kernels::directional::tests::directional_outputs_match_pinned_talib_bits ... ok
+test alignment::catalog::tests::repeated_lookup_keeps_caller_overlays_outside_the_catalog ... ok
+test float::tests::division_preserves_ieee_infinity_and_zero_sign ... ok
+test float::tests::null_nan_signed_zero_and_infinity_remain_distinct ... ok
+test kernels::directional::tests::invalid_input_shapes_and_periods_fail_closed ... ok
+test kernels::directional::tests::streams_are_chunk_exact_for_every_directional_operation ... ok
+test alignment::tests::pinned_freqtrade_oracle_is_exact ... ok
+test alignment::tests::stream_retention_is_constant_across_a_long_informative_only_run ... ok
+test kernels::directional::tests::zero_range_and_period_one_directional_index_follow_talib ... ok
+test kernels::moving::tests::extrema_and_roc_preserve_talib_comparisons_and_zero_rule ... ok
+test kernels::moving::tests::invalid_periods_fail_closed ... ok
+test kernels::moving::tests::leading_nan_warmup_matches_talib_and_streaming_chunks ... ok
+test kernels::moving::tests::moving_averages_and_sum_match_talib_order ... ok
+test kernels::moving::tests::stddev_and_sma_bbands_match_talib_variance_path ... ok
+test kernels::moving::tests::streaming_rejects_wrong_input_arity_and_unsupported_bbands_matype ... ok
+test kernels::moving::tests::streams_match_batch_kernels_across_arbitrary_boundaries ... ok
+test kernels::native::tests::chaikin_money_flow_matches_numpy_prefix_subtract_order ... ok
+test kernels::native::tests::chaikin_nan_to_num_matches_numpy_saturation ... ok
+test kernels::native::tests::chaikin_stream_is_chunk_exact_and_period_bounded ... ok
+test kernels::native::tests::hourly_inside_bar_projects_only_contiguous_completed_hours ... ok
+test kernels::native::tests::legacy_chaikin_keeps_talib_volume_sum_nan_warmup ... ok
+test kernels::native::tests::native_kernels_fail_closed_without_mutating_order_state ... ok
+test kernels::native::tests::scalar_native_streams_are_chunk_exact_and_bounded ... ok
+test kernels::native::tests::utc_opening_range_is_chunk_exact_across_days ... ok
+test engine::tests::pandas_rolling_state_is_exact_across_engine_batches ... ok
+test kernels::directional::tests::streams_retain_only_period_scale_state ... ok
+test kernels::oscillator::tests::exact_bits_match_pinned_python_talib_for_supported_oscillators ... ok
+test kernels::oscillator::tests::rejects_invalid_periods_and_mismatched_inputs ... ok
+test engine::tests::shift_state_crosses_batch_boundaries_and_memory_stays_bounded ... ok
+test mutation::engine::evaluator::tests::nullable_logic_matches_pandas_kleene_truth_tables ... ok
+test kernels::oscillator::tests::streams_retain_only_period_scale_state ... ok
+test kernels::rolling::tests::center_and_unknown_reducer_fail_closed ... ok
+test mutation::engine::value::tests::nullable_string_cast_matches_pandas_for_text_numeric_boolean_and_null ... ok
+test kernels::oscillator::tests::streams_match_batch_bits_across_arbitrary_chunks ... ok
+test mutation::engine::value::tests::python_boolean_values_are_numeric_zero_and_one ... ok
+test mutation::tests::external_signal_tag_decision_projection_is_exact ... ignored, explicit external compiler-artifact diagnostic
+test kernels::rolling::tests::fixed_reducers_match_pandas_warmup_and_values ... ok
+test kernels::rolling::tests::rolling_state_is_exact_across_arbitrary_chunks_and_bounded ... ok
+test kernels::oscillator::tests::ties_and_zero_ranges_follow_talib_branches ... ok
+test mutation::tests::execution_enablement_is_exact_numeric_one_after_the_source_shift ... ok
+test engine::full::tests::nested_dynamic_helpers_keep_state_and_row_counts_isolated_by_call_path ... ok
+test mutation::engine::value::tests::direct_numeric_access_preserves_arrow_null_nan_and_signed_zero ... ok
+test engine::tests::talib_indicator_state_is_exact_across_engine_batches ... ok
+test engine::tests::unsupported_indicator_family_fails_closed_with_source_location ... ok
+test engine::full::tests::requested_typed_output_keeps_arrow_null_distinct_from_nan ... ok
+test mutation::tests::mutation_metadata_reads_are_explicit_and_fail_closed_when_missing ... ok
+test mutation::tests::numpy_isnan_returns_a_nullable_boolean_column ... ok
+test mutation::tests::numpy_divide_where_preserves_out_and_ieee_null_semantics ... ok
+test engine::full::tests::missing_informative_frame_fails_at_the_compiled_source_location ... ok
+test mutation::tests::numpy_full_accepts_compiler_object_dtype_for_string_columns ... ok
+test mutation::tests::numpy_full_object_dtype_contract_fails_closed ... ok
+test mutation::tests::rust_indicator_lane_is_bit_exact_to_the_independent_python_oracle ... ok
+test mutation::tests::committed_shadow_bundle_and_program_identities_are_sealed ... ok
+test program::tests::rejects_forward_input ... ok
+test program::tests::parses_a_valid_generic_program ... ok
+test sink::tests::discard_sink_retains_no_batch_buffers ... ok
+test sink::tests::output_batch_rejects_mixed_row_counts ... ok
+test state::rolling::tests::readiness_uses_non_null_min_periods ... ok
+test state::rolling::tests::rolling_window_evicts_oldest_values_in_order ... ok
+test program::tests::rejects_content_mutation_with_a_stale_fingerprint ... ok
+test state::rolling::tests::shift_continues_across_batch_boundaries ... ok
+test state::rolling::tests::long_stream_never_exceeds_configured_memory_bound ... ok
+test mutation::tests::generic_string_mutations_match_python_order_index_and_null_semantics ... ok
+test state::rolling::tests::state_preserves_null_nan_and_negative_zero ... ok
+test state::rolling::tests::zero_bounds_and_invalid_min_periods_are_rejected ... ok
+test program::tests::plans_only_nodes_reachable_from_requested_outputs_and_skips_unused_opcode ... ok
+test program::tests::rejects_invalid_ownership_source_map_and_noncausal_lookback ... ok
+test mutation::tests::rust_execution_shift_and_numeric_one_indexes_are_exact ... ok
+test mutation::tests::malformed_mutation_identity_and_mask_fail_closed ... ok
+test mutation::tests::malformed_numpy_array_contracts_fail_closed ... ok
+test mutation::tests::tag_decision_projection_is_exact_and_rejects_semantic_drift ... ok
+test mutation::tests::string_mutations_reject_bad_contracts_and_out_of_range_indexes ... ok
+test mutation::tests::rust_signal_and_tag_lanes_are_exact_without_sharing_python_outputs ... ok
+test engine::tests::long_discarded_execution_is_bounded_by_batch_and_shift_state ... ok
+test kernels::tests::every_latest_nfi_pandas_rolling_case_is_column_exact ... ok
+test kernels::tests::finite_signal_boundaries_never_use_a_tolerance ... ok
+test kernels::tests::every_latest_nfi_talib_case_is_column_exact ... ok
+
+test result: ok. 121 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.29s
+
+     Running unittests src/lib.rs (target/debug/deps/nfi_vector_io-1d93c5ea289ac9bf)
+
+running 41 tests
+test freqtrade_funding::tests::spot_has_missing_compatibility_columns_and_rejects_futures_sources ... ok
+test freqtrade_funding::tests::futures_requires_exactly_one_pair_descriptor ... ok
+test freqtrade_funding::tests::owned_columns_preserve_in_memory_optional_number_contract ... ok
+test freqtrade_funding::tests::exact_timestamp_mapping_never_forward_fills ... ok
+test freqtrade_funding::tests::rejects_identity_drift_and_allows_distinct_role_timeframes ... ok
+test freqtrade_funding::tests::matches_python_attach_funding_events_duplicate_and_sparse_oracle ... ok
+test freqtrade_funding::tests::interval_is_manifest_derived_instead_of_assuming_one_hour ... ok
+test freqtrade_funding::tests::validates_only_paired_events_and_requires_finite_rate_positive_mark ... ok
+test freqtrade_ohlcv::tests::missing_startup_consumes_in_range_rows_and_can_leave_no_execution ... ok
+test freqtrade_funding::tests::funding_timestamp_jitter_is_floored_to_seconds_before_mark_join ... ok
+test freqtrade_ohlcv::tests::matches_python_duplicate_and_gap_oracle ... ok
+test freqtrade_ohlcv::tests::fails_closed_on_unsupported_timeframe_range_shape_and_arrow_null ... ok
+test freqtrade_ohlcv::tests::bounds_startup_independently_for_each_timeframe ... ok
+test freqtrade_ohlcv::tests::matches_python_fixed_anchor_oracles_for_every_native_timeframe ... ok
+test full_manifest::tests::config_identity_matches_python_without_json_float_formatting ... ok
+test in_memory::tests::large_pair_transport_profile_is_reported_without_a_speed_assertion ... ignored, explicit release-mode transport diagnostic
+test freqtrade_ohlcv::tests::present_nan_uses_pandas_missing_value_aggregation ... ok
+test freqtrade_ohlcv::tests::execution_positions_are_inclusive_and_context_is_never_executable ... ok
+test freqtrade_ohlcv::tests::timerange_calendar_seconds_and_milliseconds_are_the_same_closed_range ... ok
+test in_memory::tests::explicit_pair_worker_pool_is_bounded_and_preserves_order ... ok
+test raw_ohlcv::tests::builds_the_explicit_five_timeframe_catalog_without_substitution ... ok
+test spool_admission::tests::bound_covers_gap_fill_instead_of_using_raw_row_counts ... ok
+test spool_admission::tests::equality_is_admitted_and_one_byte_short_fails_closed ... ok
+test loader::tests::feature_names_must_be_unique_and_non_empty ... ok
+test spool_admission::tests::target_selection_distinguishes_default_and_explicit_directories ... ok
+test spool_admission::tests::overflow_and_capacity_probe_errors_are_structured ... ok
+test loader::tests::sha_validation_accepts_only_lowercase_canonical_tokens ... ok
+test raw_ohlcv::tests::stable_sorts_but_preserves_duplicates_nulls_and_nans ... ok
+test values::tests::freqtrade_signal_enablement_requires_exact_numeric_one ... ok
+test raw_ohlcv::tests::null_date_and_schema_errors_are_source_located ... ok
+test raw_ohlcv::tests::catalog_rejects_identity_mismatch_and_duplicate_declarations ... ok
+test in_memory::tests::invalid_type_duplicate_pair_and_numeric_truthiness_fail_closed ... ok
+test in_memory::tests::pair_parallel_preparation_preserves_input_order_and_reports_memory ... ok
+test in_memory::tests::direct_transport_is_full_state_exact_to_sealed_feather_replay ... ok
+test in_memory::tests::generic_rust_vector_dag_feeds_the_simulator_without_feather ... ok
+test full_manifest::tests::loads_optional_futures_funding_and_mark_descriptors ... ok
+test full_pipeline::tests::futures_pipeline_fails_closed_without_funding_and_mark_data ... ok
+test full_manifest::tests::rejects_context_and_feature_drift_before_raw_decode ... ok
+test full_manifest::tests::loads_strict_spot_contract_and_dynamic_runtime_fields ... ok
+test full_pipeline::tests::complete_spot_pipeline_is_exact_to_the_existing_in_memory_transport ... ok
+test full_manifest::tests::rejects_unknown_fields_paths_digests_and_duplicates ... ok
+
+test result: ok. 40 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+   Doc-tests nfi_artifact_publish
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests nfi_sim_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests nfi_vector_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests nfi_vector_io
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

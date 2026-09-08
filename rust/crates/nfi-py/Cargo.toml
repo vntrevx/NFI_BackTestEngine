@@ -20,7 +20,7 @@ nfi-vector-core = { path = "../nfi-vector-core" }
 nfi-vector-io = { path = "../nfi-vector-io" }
 pyo3 = { version = "0.29", features = ["abi3-py312"] }
 serde = "1"
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 tempfile = "3"
 
 [build-dependencies]

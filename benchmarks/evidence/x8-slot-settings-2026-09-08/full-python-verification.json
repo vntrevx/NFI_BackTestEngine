@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "verified_at_utc": "2026-09-07T22:28:10.790776+00:00",
+  "scope": "Full Python suite after integer-slot and initial-entry-minimum changes, before buyback integration. Staged buyback drafts were outside the active package and tests.",
+  "command": "uv run --no-sync pytest -q",
+  "passed": 2489,
+  "skipped": 55,
+  "failed": 0,
+  "elapsed_seconds": 1518.54,
+  "platform": "Linux x86_64",
+  "log": {
+    "path": "benchmarks/evidence/x8-slot-settings-2026-09-08/checks/python-full.log",
+    "sha256": "1c3b706c01451ba326a2f06c87a79881e3d4a909907c37d38a9340afa4082014",
+    "bytes": 4627
+  },
+  "source_files": {
+    "path": "benchmarks/evidence/x8-slot-settings-2026-09-08/full-python-source-files.json",
+    "sha256": "df2e69972e6b3825f354476e730607415eea36ec0ccde46b9d355c8de2ec2d1d",
+    "bytes": 131285
+  },
+  "native_build": {
+    "schema_version": "1.0.0",
+    "built_at": null,
+    "source_fingerprint": "4757c15283562d16110e500a07532f4c3fd10fdb92bcfb923973f9d38ab77612",
+    "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+    "binary_sha256": "5b7213874776c68d0f996f519794a33588ffdada740cde623759c5eabe14ae88",
+    "binary_bytes": 15380120,
+    "target": "linux-x86_64",
+    "build_seconds": 0.0,
+    "kind": "pyo3-extension"
+  },
+  "preceding_bounded_qualification": {
+    "path": "benchmarks/evidence/x8-slot-settings-2026-09-08/verification.json",
+    "sha256": "075c20cdf6c79706e829ddfaf4d5df056dfe3356bc5fb3542529b15a582db4d7",
+    "bytes": 34355
+  },
+  "cross_platform_ci_run": false
+}

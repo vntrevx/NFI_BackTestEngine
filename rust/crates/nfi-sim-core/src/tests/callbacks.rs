@@ -2,11 +2,11 @@
 
 use super::*;
 
-#[test]
-fn order_filled_program_updates_custom_state_and_projects_liquidation_price() {
+pub(super) fn order_filled_fixture() -> (PortfolioConfig, crate::portfolio::OpenTrade) {
     let mut config = config(1);
     config.callback_program = Some(CallbackProgram {
         order_filled: Some(OrderFilledProgram {
+            initial_entry_requires_no_exits: false,
             initial_successful_entry_writes: vec![CustomDataWrite {
                 key: "system_version".to_owned(),
                 value: Value::String("system_v3_2".to_owned()),
@@ -45,7 +45,7 @@ fn order_filled_program_updates_custom_state_and_projects_liquidation_price() {
     };
     let entry_candle = pair.candles.get(0).expect("fixture candle");
 
-    let mut trade = enter_trade(
+    let trade = enter_trade(
         EntryRequest {
             pair_index: 0,
             pair: &pair,
@@ -65,6 +65,12 @@ fn order_filled_program_updates_custom_state_and_projects_liquidation_price() {
     .expect("valid entry")
     .expect("sized entry");
 
+    (config, trade)
+}
+
+#[test]
+fn order_filled_program_updates_custom_state_and_projects_liquidation_price() {
+    let (_, mut trade) = order_filled_fixture();
     assert_eq!(
         trade.custom_data.get("system_version"),
         Some(&Value::String("system_v3_2".to_owned()))
@@ -79,6 +85,44 @@ fn order_filled_program_updates_custom_state_and_projects_liquidation_price() {
             .and_then(|value| value.get("liquidation_price").cloned()),
         Some(serde_json::json!(80.0))
     );
+}
+
+#[test]
+fn order_filled_no_exits_guard_preserves_initial_state_and_runs_tag_writes() {
+    let (mut config, mut trade) = order_filled_fixture();
+    let mut partial_exit = trade.orders[0].clone();
+    partial_exit.is_entry = false;
+    partial_exit.side = OrderSide::Sell;
+    trade.orders.push(partial_exit);
+    for require_no_exits in [true, false] {
+        config
+            .callback_program
+            .as_mut()
+            .and_then(|program| program.order_filled.as_mut())
+            .expect("order callback")
+            .initial_entry_requires_no_exits = require_no_exits;
+        trade
+            .custom_data
+            .insert("system_version".to_owned(), serde_json::json!("preserved"));
+        trade.custom_data.insert(
+            "grind_1_cluster_max_profit_stake".to_owned(),
+            serde_json::json!(10.0),
+        );
+        crate::execution::apply_order_filled(&mut trade, Some("grind_1_exit detail"), &config)
+            .expect("partial-exit callback");
+        assert_eq!(
+            trade.custom_data["system_version"],
+            serde_json::json!(if require_no_exits {
+                "preserved"
+            } else {
+                "system_v3_2"
+            }),
+        );
+        assert_eq!(
+            trade.custom_data["grind_1_cluster_max_profit_stake"],
+            serde_json::json!(0.0)
+        );
+    }
 }
 
 #[test]
@@ -269,6 +313,7 @@ fn entry_confirmation_vm_evaluates_tag_and_slippage_gates() {
         previous_close: Some(100.0),
         open_trades: &open_trades,
         max_open_trades: 6,
+        source_max_open_trades: None,
         is_futures: false,
         order_type: OrderType::Limit,
     };
@@ -344,6 +389,7 @@ fn entry_confirmation_vm_accepts_a_computed_negative_dataframe_index() {
         previous_close: Some(100.0),
         open_trades: &open_trades,
         max_open_trades: 6,
+        source_max_open_trades: None,
         is_futures: false,
         order_type: OrderType::Limit,
     };

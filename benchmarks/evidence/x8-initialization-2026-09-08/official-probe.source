@@ -1,0 +1,32 @@
+"""Capture constructor outcomes for initialization-managed X8 overrides."""
+import copy
+import hashlib
+import importlib.util
+import json
+import logging
+import sys
+import tempfile
+from pathlib import Path
+import freqtrade
+from freqtrade.enums import RunMode
+logging.disable(logging.CRITICAL)
+source=Path('benchmarks/fixtures/captured/x8-original-futures-20220401-20220420-r1/inputs/strategy.py')
+spec=importlib.util.spec_from_file_location('initialization_donor',source)
+module=importlib.util.module_from_spec(spec)
+sys.modules[spec.name]=module
+spec.loader.exec_module(module)
+strategy=module.NostalgiaForInfinityX8
+rows=[]
+with tempfile.TemporaryDirectory() as temporary:
+ for mode in ('spot','futures'):
+  for name,values in [('is_futures_mode',[False,True]),('can_short',[False,True]),('target_profit_cache',[None]),('hold_trades_cache',[None])]:
+   for value in values:
+    cls=type('IsolatedInitializationProbe',(strategy,),{key:copy.deepcopy(getattr(strategy,key)) for key in ('long_entry_signal_params','short_entry_signal_params')})
+    config={'exchange':{'name':'binance'},'stake_currency':'USDT','user_data_dir':Path(temporary),
+            'runmode':RunMode.BACKTEST,'timeframe':'5m','trading_mode':mode,'nfi_advanced_mode':True,'nfi_parameters':{name:value}}
+    instance=cls(config)
+    actual=getattr(instance,name)
+    rows.append({'trading_mode':mode,'parameter':name,'configured':value,
+                 'effective':{'type':type(actual).__name__} if name=='target_profit_cache' else actual,
+                 'source_is_futures_mode':instance.is_futures_mode,'source_can_short':instance.can_short})
+print(json.dumps({'freqtrade_version':freqtrade.__version__,'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'cases':rows},indent=2))

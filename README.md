@@ -17,6 +17,10 @@ semantics stop with a clear fail-closed verdict instead of being approximated. P
 parses and compiles the supplied strategy; the supported Native runtime does not
 import or execute that strategy Python.
 
+X8 sources are discovered and checked through the same capability pipeline. See
+[X8 recognition and compatibility](docs/x8-support.md) for the supplied v18.0.2
+source's Native implementation, captured parity scope, and inspection commands.
+
 ## Release status
 
 The current and target boundaries are also available in the

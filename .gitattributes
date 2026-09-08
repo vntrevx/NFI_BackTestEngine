@@ -18,3 +18,9 @@
 *.zip binary
 *.feather binary
 *.parquet binary
+
+# Preserve immutable X8 qualification transcripts, including diagnostic whitespace.
+/benchmarks/evidence/x8-*/** -text
+/benchmarks/evidence/x8-*/** whitespace=-trailing-space,-blank-at-eof
+*.nfitrace binary
+*.gz binary

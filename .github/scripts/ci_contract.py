@@ -1020,9 +1020,12 @@ def _parser() -> argparse.ArgumentParser:
     classify.add_argument("--head", default="")
     classify.add_argument("--path", action="append", default=[])
     classify.add_argument("--github-output", type=Path)
+    classify.add_argument("--plan-output", type=Path)
     verify = commands.add_parser("verify-results")
     verify.add_argument("--classification", required=True)
-    verify.add_argument("--validation-plan-json", required=True)
+    plan_input = verify.add_mutually_exclusive_group(required=True)
+    plan_input.add_argument("--validation-plan-json")
+    plan_input.add_argument("--validation-plan-file", type=Path)
     verify.add_argument("--changes-result", required=True)
     verify.add_argument("--documentation-result", required=True)
     verify.add_argument("--job-result", action="append", default=[])
@@ -1043,7 +1046,9 @@ def _parser() -> argparse.ArgumentParser:
     summarize.add_argument("--output", type=Path, required=True)
     validate_text = commands.add_parser("validate-text")
     validate_text.add_argument("--root", type=Path, default=Path("."))
-    validate_text.add_argument("--paths-json", required=True)
+    text_input = validate_text.add_mutually_exclusive_group(required=True)
+    text_input.add_argument("--paths-json")
+    text_input.add_argument("--validation-plan-file", type=Path)
     return parser
 
 
@@ -1087,6 +1092,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 separators=(",", ":"),
             ),
         }
+        if args.plan_output is not None:
+            _write_json(args.plan_output, plan)
+            result = {key: value for key, value in result.items()
+                      if key not in {"changed_paths_json", "validation_plan_json"}}
         if args.github_output is not None:
             _write_github_output(args.github_output, result)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
@@ -1094,7 +1103,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "verify-results":
         passed = required_results_pass(
             args.classification,
-            validation_plan=json.loads(args.validation_plan_json),
+            validation_plan=json.loads(
+                args.validation_plan_file.read_text(encoding="utf-8")
+                if args.validation_plan_file is not None else args.validation_plan_json
+            ),
             changes_result=args.changes_result,
             documentation_result=args.documentation_result,
             job_results=_parse_job_results(args.job_result),
@@ -1103,7 +1115,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("Required CI passed" if passed else "Required CI failed")
         return 0 if passed else 1
     if args.command == "validate-text":
-        paths = json.loads(args.paths_json)
+        paths = (
+            json.loads(args.validation_plan_file.read_text(encoding="utf-8"))["changed_paths"]
+            if args.validation_plan_file is not None else json.loads(args.paths_json)
+        )
         if not isinstance(paths, list) or any(not isinstance(path, str) for path in paths):
             raise ValueError("--paths-json must be a JSON array of strings")
         validated = validate_text_paths(args.root, paths)

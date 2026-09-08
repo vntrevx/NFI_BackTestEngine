@@ -75,13 +75,14 @@ def test_pure_position_adjustment_lowers_to_a_rust_bundle(tmp_path: Path) -> Non
     assert callback["lowering"]["operation"]["opcode"] == "adjust-trade-position-scalar-bundle-v1"
 
 
-def test_incomplete_x7_router_fails_closed_instead_of_widening_scope(
-    tmp_path: Path,
+@pytest.mark.parametrize("class_name", ["NostalgiaForInfinityX7Tiny", "NostalgiaForInfinityX8"])
+def test_incomplete_managed_router_fails_closed_instead_of_widening_scope(
+    tmp_path: Path, class_name: str,
 ) -> None:
-    source = tmp_path / "NostalgiaForInfinityX7Tiny.py"
+    source = tmp_path / f"{class_name}.py"
     source.write_text(
         "from freqtrade.strategy import IStrategy\n"
-        "class NostalgiaForInfinityX7Tiny(IStrategy):\n"
+        f"class {class_name}(IStrategy):\n"
         "    timeframe = '5m'\n"
         "    long_top_coins_mode_name = 'long_tc'\n"
         "    long_top_coins_mode_tags = ['141', '142']\n"
@@ -143,7 +144,7 @@ def test_incomplete_x7_router_fails_closed_instead_of_widening_scope(
         match="managed-long state machine is missing",
     ):
         build_hot_callback_ir(
-            analyze_strategy(source, class_name="NostalgiaForInfinityX7Tiny"),
+            analyze_strategy(source, class_name=class_name),
             run_mode="backtest",
         )
 

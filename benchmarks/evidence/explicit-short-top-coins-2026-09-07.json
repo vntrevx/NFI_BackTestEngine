@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "Explicit short top-coins callback route; not full X8 qualification",
+  "fixture": {
+    "path": "benchmarks/fixtures/captured/explicit-short-top-coins-futures-r1/manifest.json",
+    "sha256": "b1b9cb3bb5dbaee23dd4742307b4888c5893a049d2e5b70f5e1ee1845f309c4f"
+  },
+  "recipe": {
+    "base_source": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+    "base_source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+    "donor_source": "NostalgiaForInfinityX8.py",
+    "donor_source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+    "effective_source_sha256": "371825eee693507554b5bb2e0abc919c5e6f71f4a8b74109a3045bb124fba2f7",
+    "description": "Focused synthetic probe: archived managed strategy plus donor explicit short top-coins dispatch, its local tag alias, and wrapper, updated fallback tag exclusion, renamed probe class, and volume-positive short entries tagged 641. Other callbacks remain archived behavior; this is not full X8 qualification."
+  },
+  "reference": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "ShortTopCoinsProbe",
+    "timerange": "20220401-20220402",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "ShortTopCoinsProbe",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20220401-20220402",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "parity": {
+    "trade_surface_equal": true,
+    "full_state_equal": true,
+    "tolerance": 0,
+    "trade_count": 3,
+    "exit_reasons": {
+      "exit_short_tc_d_1_130 ( 641 )": 1,
+      "exit_short_tc_w_0_1 ( 641 )": 1,
+      "force_exit": 1
+    },
+    "state_event_count": 288,
+    "expected_state_stream_hash": "150d717fa24c6708194237e94c4627d0d601f10390c6e2d1b5e1607ae07afabc",
+    "actual_state_stream_hash": "150d717fa24c6708194237e94c4627d0d601f10390c6e2d1b5e1607ae07afabc"
+  },
+  "source_support": {
+    "full_x8_native_compatible": false,
+    "next_blocker": "NFI top-coins decision long_grind_entry_v3 is not scalar-pure"
+  },
+  "validation": {
+    "python_regression_tests_passed": 58,
+    "python_short_top_coins_tests_passed": 9,
+    "rust_workspace_tests_passed": 425,
+    "rust_workspace_tests_ignored": 2,
+    "legacy_full_parity_fixtures": [
+      "normal-routing-spot-2025-01-01_04",
+      "stops-only-spot-2025-01-01_04"
+    ]
+  },
+  "fixture_replay": {
+    "command": "nfi-bte engine fixture benchmarks/fixtures/captured/explicit-short-top-coins-futures-r1/manifest.json --output-dir artifacts/short-top-coins-parity --level full",
+    "complete": true,
+    "trade_surface_equal": true,
+    "full_state_equal": true,
+    "expected_state_event_count": 288,
+    "actual_state_event_count": 288,
+    "run_report_sha256": "f28b30b9826011ec5773715159157a06a35412337993195d4060179ed4fb9448"
+  }
+}

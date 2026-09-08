@@ -1,0 +1,15 @@
+{
+  "description": "Static compiler test contract: exact donor methods with literal class constants selected from AST analysis. This is not a runnable or official parity fixture.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "contract_sha256": "1d46a866854671fecd235fdf164640bec6afa1ab2e4a30280154e67238d82c60",
+  "methods": {
+    "order_filled": "cd6672309c70dbc8f48ed4c35fe08b8e077afb82cba422a028c5a3825f2b28c6",
+    "is_system_v4": "5117f1a4f3db220a6e3a75358bf5ddc6b31aa5f12138de8b41efc9249b32655a",
+    "long_grind_adjust_trade_position_v4": "e72ecd36442801bbbdaf8b076e95ea785e445bec23229a9db28a56bc1890ab2f",
+    "long_grind_exit_v4": "e3b40ae2d53fa036b7d7b763b6fd3613e12bc9f4e578c19011a306e90a252583",
+    "long_rebuy_adjust_trade_position_v4": "d7918c2dec308bb8d7c78b1889b68e5d8e2e6c48f86777db4098de1f05741681",
+    "short_grind_adjust_trade_position_v4": "65e6ff1216634c00dbcffad4b39c8f77a928ce989826763a09999b8ff44e249f",
+    "short_grind_exit_v4": "794007dec69dd0f4a2832a6f63adeba178e9083bc7cd1484767c5f1c4b65489e",
+    "short_rebuy_adjust_trade_position_v4": "8b73e1a163f37d122206854fa47295ced246d5aae24b5e9e27b89dd1fdeda9ea"
+  }
+}

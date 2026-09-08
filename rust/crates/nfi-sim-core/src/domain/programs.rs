@@ -15,6 +15,8 @@ pub struct CallbackProgram {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OrderFilledProgram {
+    #[serde(default)]
+    pub initial_entry_requires_no_exits: bool,
     pub initial_successful_entry_writes: Vec<CustomDataWrite>,
     pub order_tag_actions: BTreeMap<String, Vec<CustomDataWrite>>,
 }

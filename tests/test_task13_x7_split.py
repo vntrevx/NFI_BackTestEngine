@@ -28,8 +28,8 @@ _REVIEWED_MANAGER_SHA256 = frozenset(
 )
 
 
-def _compile() -> dict[str, object]:
-    analysis = analyze_strategy(_SOURCE, class_name="NostalgiaForInfinityX7")
+def _compile(source: Path = _SOURCE) -> dict[str, object]:
+    analysis = analyze_strategy(source)
     manager = trade_manager.build_nfi_trade_manager_ir(
         analysis,
         build_trade_dependency_ir(analysis),
@@ -123,7 +123,27 @@ def test_current_manager_program_is_canonical_and_repeatable() -> None:
     ]
 
 
-def test_non_x7_and_invalid_x7_selection_remain_fail_closed() -> None:
+@pytest.mark.parametrize("class_name", ["NostalgiaForInfinityX8", "ManagedStrategy"])
+def test_manager_selection_uses_capabilities_instead_of_class_name(
+    tmp_path: Path, class_name: str,
+) -> None:
+    source = tmp_path / f"{class_name}.py"
+    source.write_text(
+        _SOURCE.read_text(encoding="utf-8").replace(
+            "class NostalgiaForInfinityX7(IStrategy):", f"class {class_name}(IStrategy):"
+        ),
+        encoding="utf-8",
+    )
+
+    original = _compile()
+    renamed = _compile(source)
+    original_operation = dict(original["operation"])
+    renamed_operation = dict(renamed["operation"])
+    assert original_operation.pop("source_sha256") != renamed_operation.pop("source_sha256")
+    assert renamed_operation == original_operation
+
+
+def test_unmanaged_and_invalid_selection_remain_fail_closed() -> None:
     assert (
         trade_manager.build_nfi_trade_manager_ir(
             {"strategies": [{"name": "OtherStrategy"}], "source": {}},

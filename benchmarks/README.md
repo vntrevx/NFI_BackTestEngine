@@ -133,3 +133,15 @@ The official tracer aggregates exactly four categories:
 
 The benchmark is incomplete if any category is missing. Profiling output is aggregated
 at the end of the run; it does not perform per-callback file I/O.
+
+Large X8 capture blobs are retained as deterministic gzip files to fit repository
+hosting limits. Restore their original, checksum-pinned bytes before validating or
+replaying the complete captured inventory:
+
+```bash
+python .github/scripts/restore_fixture_blobs.py
+```
+
+Restoration verifies compressed and expanded identities and refuses to replace an
+existing file with different contents. Original manifests and qualification hashes
+remain unchanged. The short `x8-bounded-original-*` release checks need no restoration.

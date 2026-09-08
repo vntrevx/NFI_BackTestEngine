@@ -1,0 +1,47 @@
+{
+  "scope": "Full donor callbacks and class constants; inherited disclosed signal and indicator transformations. Configuration drives exchange maximum order limits and wallet-proposal leverage tier selection; frozen market metadata is unchanged.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "changed_method": "populate_entry_trend",
+  "direction": "long",
+  "entry_tag": "1",
+  "predicate": "volume > 0 and RSI_14 > 60.0",
+  "stake_amount": 1000000.0,
+  "constant_overrides": {},
+  "indicator_overrides": {
+    "purpose": "Force source rebuy entry guards for lifecycle branch coverage",
+    "protections_long_global": true,
+    "RSI_3": 50,
+    "RSI_3_15m": 50,
+    "AROONU_14": 0,
+    "AROONU_14_15m": 0,
+    "EMA_26": "close * 1.02"
+  },
+  "virtual_fee_configuration": {},
+  "exchange_fee_policy": "Actual exchange fee unchanged",
+  "settings_case": "execution-remaining-cap-large-spot",
+  "advanced_parameters": {
+    "system_name_use": "system_v3_1",
+    "system_v3_1_rebuy_thresholds_spot": [
+      -0.002,
+      -0.004,
+      -0.006,
+      -0.008
+    ],
+    "system_v3_1_rebuy_stakes_spot": [
+      2.0,
+      2.0,
+      2.0,
+      2.0
+    ],
+    "system_v3_grind_1_enable": false,
+    "system_v3_grind_2_enable": false,
+    "system_v3_grind_3_enable": false,
+    "system_v3_grind_4_enable": false,
+    "system_v3_grind_5_enable": false,
+    "system_v3_1_stake_multiplier": 0.1
+  },
+  "resolver_settings": {},
+  "strategy_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+  "dry_run_wallet": 1000000000.0,
+  "purpose": "Additional stake multipliers apply to the original filled stake: 2.0 requests about 200000 against the approximately 500000 position capacity."
+}

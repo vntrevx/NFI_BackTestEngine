@@ -15,6 +15,12 @@ pub(crate) fn valid_system_adjustment_binding_level(
     grind_levels: &[usize],
 ) -> bool {
     match kind {
+        CompiledSystemAdjustmentInputKind::AuxiliaryEntryCount
+        | CompiledSystemAdjustmentInputKind::AuxiliaryEntrySignal
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupOpenRate
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupExitDistance
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupTotalAmount
+        | CompiledSystemAdjustmentInputKind::AuxiliaryGroupProfitStake => false,
         CompiledSystemAdjustmentInputKind::DeriskFound
         | CompiledSystemAdjustmentInputKind::DeriskEnabled
         | CompiledSystemAdjustmentInputKind::DeriskStake
@@ -135,6 +141,7 @@ pub(super) fn valid_versioned_system_adjustment_program(
             }
         }
         && program.order_scan.exclude_first_entry
+        && valid_counted_groups(program)
         && !program.order_scan.global_exit_tag.is_empty()
         && grind_levels == constant_grind_levels
         && derisk_levels == constant_derisk_levels
@@ -158,11 +165,55 @@ pub(super) fn valid_versioned_system_adjustment_program(
             .all(|action| valid_action(program, action, &derisk_levels, &grind_levels))
 }
 
-fn valid_action(
+fn valid_counted_groups(program: &CompiledSystemAdjustmentProgram) -> bool {
+    let groups = &program.order_scan.counted_entry_groups;
+    if groups.is_empty() {
+        return true;
+    }
+    let mut names = BTreeSet::new();
+    let mut entry_tags = program
+        .order_scan
+        .grind_levels
+        .iter()
+        .map(|group| group.entry_tag.as_str())
+        .collect::<BTreeSet<_>>();
+    program.order_scan.raw_cluster_distance
+        && groups.len() <= 32
+        && groups.iter().all(|group| {
+            group.fallback_exit_tag.as_ref().is_none_or(|tag| {
+                group.entry_program.is_some()
+                    && program
+                        .order_scan
+                        .derisk_tags
+                        .iter()
+                        .any(|record| &record.tag == tag)
+            }) && group.exit_action_tag.as_ref().is_none_or(|tag| {
+                group.fallback_exit_tag.is_some()
+                    && group.exit_tags.contains(tag)
+                    && tag != &program.order_scan.global_exit_tag
+            }) && !group.count_variable.is_empty()
+                && names.insert(group.count_variable.as_str())
+                && !group.entry_tag.is_empty()
+                && entry_tags.insert(group.entry_tag.as_str())
+                && !group.exit_tags.is_empty()
+                && group
+                    .exit_tags
+                    .iter()
+                    .all(|tag| !tag.is_empty() && tag != &group.entry_tag)
+                && group.exit_tags.iter().collect::<BTreeSet<_>>().len() == group.exit_tags.len()
+                && group
+                    .exit_tags
+                    .contains(&program.order_scan.global_exit_tag)
+                && group
+                    .entry_program
+                    .as_ref()
+                    .is_none_or(|name| !name.is_empty())
+        })
+}
+
+fn valid_action_kind(
     program: &CompiledSystemAdjustmentProgram,
     action: &CompiledSystemAdjustmentAction,
-    derisk_levels: &[usize],
-    grind_levels: &[usize],
 ) -> bool {
     let grind = program
         .order_scan
@@ -174,7 +225,11 @@ fn valid_action(
         .derisk_tags
         .iter()
         .find(|record| record.level == action.level);
-    let action_contract = match action.kind {
+    let auxiliary = action
+        .level
+        .checked_sub(1)
+        .and_then(|index| program.order_scan.counted_entry_groups.get(index));
+    match action.kind {
         CompiledSystemAdjustmentActionKind::Derisk => {
             !action.append_entry_ids && derisk.is_some_and(|record| record.tag == action.tag)
         }
@@ -187,7 +242,32 @@ fn valid_action(
         CompiledSystemAdjustmentActionKind::GrindDerisk => {
             action.append_entry_ids && grind.is_some_and(|record| record.derisk_tag == action.tag)
         }
-    };
+        CompiledSystemAdjustmentActionKind::AuxiliaryExit => {
+            action.append_entry_ids
+                && auxiliary.is_some_and(|group| {
+                    group.exit_action_tag.as_deref() == Some(action.tag.as_str())
+                })
+        }
+        CompiledSystemAdjustmentActionKind::AuxiliaryEntry => {
+            !action.append_entry_ids
+                && auxiliary.is_some_and(|group| {
+                    group.entry_tag == action.tag && group.entry_program.is_some()
+                })
+        }
+    }
+}
+
+fn valid_action(
+    program: &CompiledSystemAdjustmentProgram,
+    action: &CompiledSystemAdjustmentAction,
+    derisk_levels: &[usize],
+    grind_levels: &[usize],
+) -> bool {
+    let auxiliary = action
+        .level
+        .checked_sub(1)
+        .and_then(|index| program.order_scan.counted_entry_groups.get(index));
+    let action_contract = valid_action_kind(program, action);
     let binding_names = action
         .bindings
         .iter()
@@ -213,12 +293,36 @@ fn valid_action(
         };
         !binding.name.is_empty()
             && maximum_binding_valid
-            && valid_system_adjustment_binding_level(
-                binding.kind,
-                binding.level,
-                derisk_levels,
-                grind_levels,
-            )
+            && match binding.kind {
+                CompiledSystemAdjustmentInputKind::AuxiliaryEntryCount
+                | CompiledSystemAdjustmentInputKind::AuxiliaryEntrySignal => {
+                    binding.level == Some(action.level)
+                        && matches!(
+                            action.kind,
+                            CompiledSystemAdjustmentActionKind::AuxiliaryEntry
+                                | CompiledSystemAdjustmentActionKind::AuxiliaryExit
+                        )
+                        && auxiliary.is_some_and(|group| group.entry_program.is_some())
+                }
+                CompiledSystemAdjustmentInputKind::AuxiliaryGroupOpenRate
+                | CompiledSystemAdjustmentInputKind::AuxiliaryGroupExitDistance
+                | CompiledSystemAdjustmentInputKind::AuxiliaryGroupTotalAmount
+                | CompiledSystemAdjustmentInputKind::AuxiliaryGroupProfitStake => {
+                    binding.level == Some(action.level)
+                        && matches!(
+                            action.kind,
+                            CompiledSystemAdjustmentActionKind::AuxiliaryEntry
+                                | CompiledSystemAdjustmentActionKind::AuxiliaryExit
+                        )
+                        && auxiliary.is_some_and(|group| group.fallback_exit_tag.is_some())
+                }
+                _ => valid_system_adjustment_binding_level(
+                    binding.kind,
+                    binding.level,
+                    derisk_levels,
+                    grind_levels,
+                ),
+            }
     });
     action_contract
         && !action.tag.is_empty()

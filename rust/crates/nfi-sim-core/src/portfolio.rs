@@ -65,6 +65,7 @@ pub(crate) struct OpenTrade {
     pub(crate) liquidation_price_is_explicit: bool,
     pub(crate) initial_stop_loss: f64,
     pub(crate) stop_loss: f64,
+    pub(crate) is_stop_loss_trailing: bool,
     pub(crate) custom_stop_loss_ratio: Option<f64>,
     pub(crate) minimum_rate: f64,
     pub(crate) maximum_rate: f64,

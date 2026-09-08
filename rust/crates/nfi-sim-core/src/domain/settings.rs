@@ -56,6 +56,10 @@ pub struct SimulationInput {
 #[serde(deny_unknown_fields)]
 #[allow(clippy::struct_excessive_bools)] // Flat fields preserve Freqtrade's sealed config wire shape.
 pub struct PortfolioConfig {
+    /// Reviewed exchange stake bounds and leverage-before-stake callback order.
+    /// Absence retains archived simulator input semantics.
+    #[serde(default)]
+    pub order_stake_policy: Option<OrderStakePolicy>,
     pub starting_balance: f64,
     pub max_open_trades: usize,
     pub stake_amount: f64,
@@ -84,6 +88,9 @@ pub struct PortfolioConfig {
     pub protection_program: Option<ProtectionProgram>,
     #[serde(default)]
     pub minimal_roi: BTreeMap<u64, f64>,
+    /// Source/resolver exit controls. Absence retains the historical input contract.
+    #[serde(default)]
+    pub strategy_exit_policy: Option<StrategyExitPolicy>,
     #[serde(default)]
     pub trailing_stop: bool,
     #[serde(default)]
@@ -114,6 +121,9 @@ pub struct PortfolioConfig {
     pub unlimited_stake: bool,
     #[serde(default = "default_tradable_balance_ratio")]
     pub tradable_balance_ratio: f64,
+    /// Source wallet controls. Absence preserves archived simulation inputs.
+    #[serde(default)]
+    pub strategy_wallet_policy: Option<StrategyWalletPolicy>,
     #[serde(default)]
     pub entry_confirmation_program: Option<ConfirmProgram>,
     #[serde(default)]
@@ -135,6 +145,54 @@ pub struct PortfolioConfig {
     /// profile recalculates the inclusive segment every hour.
     #[serde(default)]
     pub funding_fee_interval_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StrategyWalletPolicy {
+    /// Initial-order reserve, independent of the strategy stoploss. Missing
+    /// values retain the behavior of archived simulator inputs.
+    #[serde(default)]
+    pub entry_minimum_stoploss_ratio: Option<f64>,
+    /// Nonpositive source slot setting; finite pair capacity remains in `PortfolioConfig`.
+    #[serde(default)]
+    pub source_max_open_trades: Option<i64>,
+    pub amend_last_stake_amount: bool,
+    pub last_stake_amount_min_ratio: f64,
+    pub available_capital: Option<f64>,
+    #[serde(default)]
+    pub initial_asset_balances: BTreeMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OrderStakePolicy {
+    pub pair_limits: BTreeMap<String, PairStakeLimits>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PairStakeLimits {
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub maximum_amount: Option<f64>,
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub maximum_cost: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(clippy::struct_excessive_bools)] // Independent switches in the upstream strategy contract.
+pub struct StrategyExitPolicy {
+    /// Run strategy exits after an entry fill, including on its opening candle.
+    #[serde(default)]
+    pub evaluate_exit_on_entry: bool,
+    pub timeframe_minutes: u64,
+    pub use_exit_signal: bool,
+    pub exit_profit_only: bool,
+    pub exit_profit_offset: f64,
+    pub ignore_roi_if_entry_signal: bool,
+    #[serde(default)]
+    pub inherited_custom_stoploss: bool,
 }
 
 /// Source-ordered X7 leverage callback.

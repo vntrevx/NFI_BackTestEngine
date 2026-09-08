@@ -60,6 +60,18 @@ jobs:
             benchmarks/fixtures/captured/normal-routing-spot-2025-01-01_04/manifest.json \
             --output-dir .wheel-check \
             --level full
+      - name: Verify original X8 Spot and Futures using installed wheel
+        run: .wheel-venv/bin/python .github/scripts/check_x8_candidate.py --output .x8-check
+      - name: Upload X8 installed-wheel evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: x8-candidate-${{ matrix.target }}
+          path: |
+            .x8-check/verification.json
+            .x8-check/*/run.json
+          include-hidden-files: true
+          if-no-files-found: error
       - name: Measure exact Spot and Futures fixtures on Unix target
         if: matrix.portable_evidence
         shell: bash
@@ -294,6 +306,16 @@ jobs:
         run: |
           & wsl.exe --distribution Ubuntu-24.04 --user root --cd "$env:GITHUB_WORKSPACE" --exec bash .github/scripts/run_wsl2_platform.sh
           if ($LASTEXITCODE -ne 0) { throw "WSL2 platform evidence failed" }
+      - name: Upload X8 WSL2 installed-wheel evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: x8-candidate-windows-wsl2-x86_64
+          path: |
+            .x8-check/verification.json
+            .x8-check/*/run.json
+          include-hidden-files: true
+          if-no-files-found: error
       - name: Upload WSL2 platform reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

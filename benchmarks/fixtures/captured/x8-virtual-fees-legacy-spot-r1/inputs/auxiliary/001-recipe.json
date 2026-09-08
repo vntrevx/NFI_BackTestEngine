@@ -1,0 +1,7 @@
+{
+  "scope": "Unchanged supplied X8 source; virtual close fee override only.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "virtual_fee_configuration": {
+    "custom_fee_close_rate": 0
+  }
+}

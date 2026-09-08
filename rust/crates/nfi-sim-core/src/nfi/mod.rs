@@ -4,6 +4,9 @@ mod adjustment;
 mod dispatch;
 mod dispatch_plan;
 mod exit;
+mod fees;
+#[cfg(test)]
+pub(crate) use fees::{fee_close as nfi_fee_close, fee_open as nfi_fee_open};
 mod legacy_grind;
 mod rebuy;
 mod regular_adjustment;
@@ -13,6 +16,12 @@ pub(crate) use adjustment::{
     evaluate_nfi_position_adjustment as evaluate_nfi_system_v3_adjustment, AdjustmentState,
 };
 pub(crate) use dispatch::evaluate_nfi_position_adjustment;
+mod source_adjustment_dispatch;
+pub(crate) mod source_auxiliary_adjustment;
+mod source_exit_prefix;
+#[cfg(test)]
+mod source_exit_tests;
+mod source_system_exit;
 #[cfg(test)]
 pub(crate) use exit::nfi_inline_profile_exit;
 pub(crate) use exit::{
@@ -24,8 +33,9 @@ pub(crate) use rebuy::{
     compiled_rebuy_delegates, evaluate_nfi_rebuy_adjustment, evaluate_nfi_short_rebuy_adjustment,
 };
 pub(crate) use regular_adjustment::{evaluate_nfi_regular_adjustment, RegularAdjustmentOutcome};
-#[cfg(test)]
-pub(crate) use state::NfiProfitSnapshot;
 pub(crate) use state::{
-    nfi_profit_snapshot, nfi_profit_snapshot_checked, PositionAdjustmentRequest, ProfitTarget,
+    decision_profit_snapshot, decision_profit_snapshot_checked, PositionAdjustmentRequest,
+    ProfitTarget,
 };
+#[cfg(test)]
+pub(crate) use state::{nfi_profit_snapshot, NfiProfitSnapshot};

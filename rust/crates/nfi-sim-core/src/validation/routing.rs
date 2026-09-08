@@ -81,7 +81,8 @@ pub(crate) fn nfi_managed_short_route_supports_tags<T: AsRef<str>>(
     }
     match route.key.as_str() {
         // Upstream uses `any(...)` for these explicit custom-exit blocks.
-        "short_normal" | "short_pump" | "short_quick" | "short_high_profit" | "short_rapid" => true,
+        "short_normal" | "short_pump" | "short_quick" | "short_high_profit" | "short_rapid"
+        | "short_top_coins" => true,
         // Rebuy is the one strict all-tags route.
         "short_rebuy" => words.iter().all(|word| {
             route

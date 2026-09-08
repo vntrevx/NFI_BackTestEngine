@@ -1,0 +1,328 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX8",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20251104-20251107"
+  },
+  "summary": {
+    "total_trades": 5,
+    "starting_balance": "10000",
+    "final_balance": "9994.30422792",
+    "profit_total_abs": "-5.69577208",
+    "total_volume": "995.8669520799999",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "ADA/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1762216800000,
+      "close_timestamp_ms": 1762219200000,
+      "open_rate": "0.5566",
+      "close_rate": "0.5577",
+      "amount": "179.6",
+      "stake_amount": "99.96536",
+      "max_stake_amount": "99.96536",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "roi",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-0.00256828",
+        "ratio": "-0.000025666033571171912"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0056",
+      "stop_loss": "0.0056",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1762216800000,
+          "amount": "179.6",
+          "price": "0.5566",
+          "cost": "100.06532535999997",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1762219200000,
+          "amount": "179.6",
+          "price": "0.5577",
+          "cost": "100.26308291999997",
+          "tag": "roi"
+        }
+      ],
+      "duration_minutes": 40,
+      "is_open": false,
+      "minimum_rate": "0.5529",
+      "maximum_rate": "0.5589",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    },
+    {
+      "sequence": 1,
+      "pair": "ADA/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1762219500000,
+      "close_timestamp_ms": 1762222800000,
+      "open_rate": "0.5581",
+      "close_rate": "0.5592",
+      "amount": "179.1",
+      "stake_amount": "99.95571",
+      "max_stake_amount": "99.95571",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "roi",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-0.00309843",
+        "ratio": "-0.000030967061965090994"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0056",
+      "stop_loss": "0.0056",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1762219500000,
+          "amount": "179.1",
+          "price": "0.5581",
+          "cost": "100.05566571",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1762222800000,
+          "amount": "179.1",
+          "price": "0.5592",
+          "cost": "100.25287271999998",
+          "tag": "roi"
+        }
+      ],
+      "duration_minutes": 55,
+      "is_open": false,
+      "minimum_rate": "0.5558",
+      "maximum_rate": "0.5607",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    },
+    {
+      "sequence": 2,
+      "pair": "ADA/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1762224000000,
+      "close_timestamp_ms": 1762225800000,
+      "open_rate": "0.5597",
+      "close_rate": "0.5608",
+      "amount": "178.6",
+      "stake_amount": "99.96242",
+      "max_stake_amount": "99.96242",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "roi",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-0.0036613",
+        "ratio": "-0.00003659017416387436"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0056",
+      "stop_loss": "0.0056",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1762224000000,
+          "amount": "178.6",
+          "price": "0.5597",
+          "cost": "100.06238241999998",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1762225800000,
+          "amount": "178.6",
+          "price": "0.5608",
+          "cost": "100.25903887999999",
+          "tag": "roi"
+        }
+      ],
+      "duration_minutes": 30,
+      "is_open": false,
+      "minimum_rate": "0.5558",
+      "maximum_rate": "0.5616",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    },
+    {
+      "sequence": 3,
+      "pair": "ADA/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1762226100000,
+      "close_timestamp_ms": 1762228500000,
+      "open_rate": "0.5612",
+      "close_rate": "0.5623",
+      "amount": "178.1",
+      "stake_amount": "99.94972",
+      "max_stake_amount": "99.94972",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "roi",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-0.00418535",
+        "ratio": "-0.00004183272180421147"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0057",
+      "stop_loss": "0.0057",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1762226100000,
+          "amount": "178.1",
+          "price": "0.5612",
+          "cost": "100.04966971999998",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1762228500000,
+          "amount": "178.1",
+          "price": "0.5623",
+          "cost": "100.24577562999998",
+          "tag": "roi"
+        }
+      ],
+      "duration_minutes": 40,
+      "is_open": false,
+      "minimum_rate": "0.5594",
+      "maximum_rate": "0.5628",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    },
+    {
+      "sequence": 4,
+      "pair": "ADA/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1762229100000,
+      "close_timestamp_ms": 1762473600000,
+      "open_rate": "0.5628",
+      "close_rate": "0.5319",
+      "amount": "177.6",
+      "stake_amount": "99.95328",
+      "max_stake_amount": "99.95328",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-5.68225872",
+        "ratio": "-0.056792354766768416"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "0.0057",
+      "stop_loss": "0.0057",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1762229100000,
+          "amount": "177.6",
+          "price": "0.5628",
+          "cost": "100.05323327999999",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1762473600000,
+          "amount": "177.6",
+          "price": "0.5319",
+          "cost": "94.55990544",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 4075,
+      "is_open": false,
+      "minimum_rate": "0.4898",
+      "maximum_rate": "0.5633",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    }
+  ]
+}

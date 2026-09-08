@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::domain::{OrderSide, PairSeries, PortfolioConfig, SimError};
+use crate::domain::{ClosedTrade, OrderSide, PairSeries, PortfolioConfig, SimError};
 use crate::portfolio::TradeSide;
 use num_bigint::BigInt;
 use num_rational::BigRational;
@@ -53,6 +53,76 @@ pub(super) fn available_stake_amount(
         "available-stake-free",
     )?;
     Ok(available.min(free).max(0.0))
+}
+
+pub(super) fn configured_available_stake_amount(
+    free: f64,
+    tied_up_stake: f64,
+    closed_trades: &[ClosedTrade],
+    config: &PortfolioConfig,
+) -> Result<f64, SimError> {
+    let Some(policy) = &config.strategy_wallet_policy else {
+        return available_stake_amount(free, tied_up_stake, config.tradable_balance_ratio);
+    };
+    let total = if let Some(capital) = policy.available_capital {
+        // Trade.get_total_closed_profit uses Python sum, not bt_total_profit's
+        // incremental accumulator. Open partial profit is not in this budget.
+        let closed_profit = checked_python_float_sum(
+            closed_trades.iter().map(|trade| trade.profit_abs),
+            "available-capital-closed-profit",
+        )?;
+        capital + closed_profit
+    } else {
+        (tied_up_stake + free) * config.tradable_balance_ratio
+    };
+    let available = (total - tied_up_stake).min(free);
+    if !available.is_finite() {
+        return Err(SimError::InvalidPositiveConfig("available_capital"));
+    }
+    Ok(available)
+}
+
+/// Freqtrade may reject before calling `custom_stake_amount`. A zero amended
+/// proposal, however, still reaches that callback and is represented by Some(0).
+pub(super) fn configured_entry_stake(
+    proposed: f64,
+    available: f64,
+    config: &PortfolioConfig,
+) -> Option<f64> {
+    let Some(policy) = &config.strategy_wallet_policy else {
+        return Some(proposed.min(available));
+    };
+    let mut stake = proposed;
+    if policy.amend_last_stake_amount {
+        stake = if available > stake * policy.last_stake_amount_min_ratio {
+            stake.min(available)
+        } else {
+            0.0
+        };
+    }
+    (available >= stake).then_some(stake.max(0.0))
+}
+
+pub(super) fn source_trade_slot_limit(config: &PortfolioConfig) -> f64 {
+    match config
+        .strategy_wallet_policy
+        .as_ref()
+        .and_then(|policy| policy.source_max_open_trades)
+    {
+        Some(-1) => f64::INFINITY,
+        Some(0) => 0.0,
+        _ => f64::from(
+            u32::try_from(config.max_open_trades).expect("validated max_open_trades fits u32"),
+        ),
+    }
+}
+
+pub(super) fn unlimited_entry_stake(available: f64, tied: f64, slot_limit: f64) -> f64 {
+    if slot_limit == 0.0 {
+        0.0
+    } else {
+        ((available + tied) / slot_limit).min(available)
+    }
 }
 
 pub(super) fn entry_sizing(
@@ -226,6 +296,24 @@ pub(super) fn precise_sum(values: &[f64]) -> Result<f64, SimError> {
     finite_rational_to_f64(&sum).ok_or(SimError::ExactArithmetic {
         operation: "precise-sum",
     })
+}
+
+pub(super) fn precise_trade_value(
+    amount: f64,
+    rate: f64,
+    fee: f64,
+    add_fee: bool,
+) -> Result<f64, SimError> {
+    let failure = || SimError::ExactArithmetic {
+        operation: "precise-trade-value",
+    };
+    let amount = exact_rational(amount).ok_or_else(failure)?;
+    let rate = exact_rational(rate).ok_or_else(failure)?;
+    let fee = exact_rational(fee).ok_or_else(failure)?;
+    let base = amount * rate;
+    let fees = &base * fee;
+    let value = if add_fee { base + fees } else { base - fees };
+    finite_rational_to_f64(&value).ok_or_else(failure)
 }
 
 pub(super) fn precise_product_quotient(

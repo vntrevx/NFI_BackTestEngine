@@ -1,0 +1,41 @@
+{
+  "scope": "Full donor callbacks; prior disclosed signal/indicator transformations retained. Strategy constants restored to donor defaults; overrides supplied through configuration.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "changed_method": "populate_entry_trend",
+  "direction": "short",
+  "entry_tag": "561",
+  "predicate": "volume > 0 and RSI_14 < 40.0",
+  "stake_amount": 1000,
+  "constant_overrides": {},
+  "indicator_overrides": {
+    "purpose": "Force source rebuy entry guards for lifecycle branch coverage",
+    "protections_short_global": true,
+    "RSI_3": 50,
+    "RSI_3_15m": 50,
+    "AROOND_14": 0,
+    "AROOND_14_15m": 0,
+    "EMA_26": "close * 1.02"
+  },
+  "virtual_fee_configuration": {
+    "custom_fee_open_rate": 0,
+    "custom_fee_close_rate": 0.002
+  },
+  "exchange_fee_policy": "Actual exchange fee unchanged",
+  "settings_case": "profit-only-short",
+  "advanced_parameters": {
+    "custom_fee_open_rate": 0,
+    "custom_fee_close_rate": 0.002,
+    "system_v4_rebuy_mode_thresholds_futures": [
+      -0.002,
+      -0.004,
+      -0.006,
+      -0.008
+    ],
+    "system_v4_rebuy_mode_derisk_futures": -0.04
+  },
+  "resolver_settings": {
+    "exit_profit_only": true,
+    "exit_profit_offset": 0.002
+  },
+  "strategy_sha256": "127b3159b2a4b6559c9375e57d0050115d4a184ffbabb5c9d1d1e617cbb56a82"
+}

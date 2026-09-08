@@ -1,0 +1,98 @@
+"""Pinned Freqtrade profit ratios, trailing stops, and opening-candle exit prices."""
+
+from __future__ import annotations
+
+import importlib.util
+import itertools
+import json
+import logging
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+import ccxt
+import freqtrade
+from freqtrade.enums import ExitType, TradingMode
+from freqtrade.optimize.backtesting import HIGH_IDX, LOW_IDX, OPEN_IDX, Backtesting
+from freqtrade.persistence import Trade
+
+logging.disable(logging.CRITICAL)
+source = Path(
+    "benchmarks/fixtures/captured/x8-original-futures-20220401-20220420-r1/inputs/strategy.py"
+)
+spec = importlib.util.spec_from_file_location("exit_settings_donor", source)
+assert spec is not None and spec.loader is not None
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+owner = module.NostalgiaForInfinityX8.__new__(module.NostalgiaForInfinityX8)
+owner.config = {"dry_run": True}
+owner.use_custom_stoploss = False
+owner.trailing_stop = True
+owner.stoploss = -0.20
+backtest = Backtesting.__new__(Backtesting)
+backtest.strategy = owner
+results = []
+for short, leverage, only_offset, positive, funding, elapsed in itertools.product(
+    (False, True),
+    (1.0, 3.0),
+    (False, True),
+    (None, 0.0, 0.01),
+    (0.0, -0.173),
+    (0, 5),
+):
+    owner.trailing_only_offset_is_reached = only_offset
+    owner.trailing_stop_positive = positive
+    owner.trailing_stop_positive_offset = 0.03
+    trade = Trade(
+        pair="BTC/USDT",
+        amount=0.123,
+        open_rate=100.0,
+        stake_amount=12.3 / leverage,
+        fee_open=0.0004,
+        fee_close=0.0005,
+        is_short=short,
+        leverage=leverage,
+        trading_mode=TradingMode.FUTURES if leverage > 1 else TradingMode.SPOT,
+        funding_fees=funding,
+        price_precision=0.01,
+        precision_mode_price=ccxt.TICK_SIZE,
+    )
+    trade.open_trade_value = trade._calc_open_trade_value(trade.amount, trade.open_rate)
+    trade.adjust_stop_loss(trade.open_rate, owner.stoploss, initial=True)
+    high, low = (101.0, 96.0) if short else (104.0, 99.0)
+    bound = low if short else high
+    ratio = trade.calc_profit_ratio(bound)
+    exit_check = owner.ft_stoploss_reached(
+        current_rate=100.0,
+        trade=trade,
+        current_time=datetime(2026, 1, 1, tzinfo=UTC),
+        current_profit=trade.calc_profit_ratio(100.0),
+        force_stoploss=0,
+        low=low,
+        high=high,
+    )
+    row = [0.0] * (max(OPEN_IDX, HIGH_IDX, LOW_IDX) + 1)
+    row[OPEN_IDX], row[HIGH_IDX], row[LOW_IDX] = 100.0, high, low
+    exit_rate = (
+        backtest._get_close_rate_for_stoploss(tuple(row), trade, exit_check, elapsed)
+        if (exit_check.exit_type == ExitType.TRAILING_STOP_LOSS)
+        else None
+    )
+    results.append(
+        {
+            "short": short,
+            "leverage": leverage,
+            "only_offset": only_offset,
+            "positive": positive,
+            "funding": funding,
+            "elapsed_minutes": elapsed,
+            "high": high,
+            "low": low,
+            "profit_ratio": ratio,
+            "stop_loss": trade.stop_loss,
+            "stop_loss_ratio": trade.stop_loss_pct,
+            "exit_rate": exit_rate,
+        }
+    )
+print(json.dumps({"freqtrade_version": freqtrade.__version__, "cases": results}, indent=2))

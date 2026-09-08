@@ -6,7 +6,6 @@
 //! separate module makes that order model explicit and prevents accidental
 //! reuse of the more complex grind-cluster reconstruction.
 
-use crate::calculations::{fee_close, fee_open};
 use std::collections::BTreeMap;
 
 use serde_json::Value;
@@ -23,7 +22,7 @@ use crate::execution::adjustment_minimum_pair_stake;
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::scalar_vm::{evaluate_scalar_decision_program, number_value};
 
-use super::state::nfi_profit_snapshot;
+use super::state::decision_profit_snapshot;
 /// Evaluate `long_rebuy_adjust_trade_position_v3()` for one visible candle.
 ///
 /// The outer `Option` is the exactness boundary: `None` rejects malformed or
@@ -151,13 +150,7 @@ fn evaluate_compiled_rebuy_program(
         .as_ref()
         .and_then(|latest| trade.orders.get(latest.sequence))?;
     let sub_grind_count = compiled_cluster_count(program, trade, first.id)?;
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     let raw_slice_profit_entry = price_distance(candle.open, latest_entry.price)?;
     let mut variables = BTreeMap::from([
         ("partial_sell".to_owned(), Value::Bool(false)),
@@ -300,13 +293,7 @@ fn evaluate_rebuy_ladder_legacy(
     if !constants.derisk_enable {
         return Some(None);
     }
-    let snapshot = nfi_profit_snapshot(
-        trade,
-        candle.open,
-        fee_open(config),
-        fee_close(config),
-        config.is_futures,
-    )?;
+    let snapshot = decision_profit_snapshot(trade, candle.open, config)?;
     let derisk_threshold = if config.is_futures {
         constants.derisk_futures
     } else {
@@ -491,6 +478,7 @@ mod tests {
             liquidation_price_is_explicit: false,
             initial_stop_loss: 1.0,
             stop_loss: 1.0,
+            is_stop_loss_trailing: false,
             custom_stop_loss_ratio: None,
             minimum_rate: 90.0,
             maximum_rate: 100.0,

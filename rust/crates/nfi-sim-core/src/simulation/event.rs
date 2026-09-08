@@ -1,5 +1,7 @@
 //! Observer-facing state projection for one chronological pair event.
 
+use std::collections::BTreeMap;
+
 use crate::calculations::{checked_finite, checked_float_sum};
 use crate::portfolio::{OpenTrade, TradeSide};
 use crate::protections::PairLockState;
@@ -16,6 +18,7 @@ pub(super) struct EventProjection<'a> {
     pub(super) pair: &'a str,
     pub(super) quote_free: f64,
     pub(super) is_futures: bool,
+    pub(super) initial_asset_balances: Option<&'a BTreeMap<String, f64>>,
     pub(super) configured_pair_index: usize,
     pub(super) processing_order_index: usize,
     pub(super) candle_index: usize,
@@ -35,6 +38,7 @@ pub(super) fn simulation_event(input: EventProjection<'_>) -> Result<SimulationE
         pair,
         quote_free,
         is_futures,
+        initial_asset_balances,
         open_trades,
         configured_pair_index,
         processing_order_index,
@@ -47,7 +51,7 @@ pub(super) fn simulation_event(input: EventProjection<'_>) -> Result<SimulationE
         order_id_counter,
         locks,
     } = input;
-    let base_balances = event_base_balances(open_trades)?;
+    let base_balances = event_base_balances(open_trades, initial_asset_balances)?;
     let quote_free = event_quote_free(quote_free, is_futures)?;
     let realized_profit = checked_float_sum(
         &closed_trades
@@ -129,7 +133,10 @@ fn event_quote_free(quote_free: f64, is_futures: bool) -> Result<f64, SimError> 
     )
 }
 
-fn event_base_balances(open_trades: &[OpenTrade]) -> Result<Vec<AssetBalance>, SimError> {
+fn event_base_balances(
+    open_trades: &[OpenTrade],
+    initial: Option<&BTreeMap<String, f64>>,
+) -> Result<Vec<AssetBalance>, SimError> {
     let mut balances = open_trades
         .iter()
         .map(|trade| {
@@ -149,6 +156,23 @@ fn event_base_balances(open_trades: &[OpenTrade]) -> Result<Vec<AssetBalance>, S
             })
         })
         .collect::<Result<Vec<_>, SimError>>()?;
+    if let Some(initial) = initial.filter(|balances| !balances.is_empty()) {
+        let mut wallet = initial.clone();
+        for balance in balances {
+            let free = checked_float_sum(
+                &[
+                    initial.get(&balance.currency).copied().unwrap_or(0.0),
+                    balance.free,
+                ],
+                "event-initial-base-balance",
+            )?;
+            wallet.insert(balance.currency, free);
+        }
+        return Ok(wallet
+            .into_iter()
+            .map(|(currency, free)| AssetBalance { currency, free })
+            .collect());
+    }
     balances.sort_by(|left, right| left.currency.cmp(&right.currency));
     Ok(balances)
 }

@@ -1,0 +1,10 @@
+Starting x8-original-spot-ada-20251104-20251107-r1
+PASS x8-original-spot-ada-20251104-20251107-r1 864
+Starting x8-controller-disabled-futures-r1
+PASS x8-controller-disabled-futures-r1 5472
+Starting x8-adjustments-disabled-futures-r1
+PASS x8-adjustments-disabled-futures-r1 1152
+Starting x8-virtual-fees-rebuy-long-r1
+PASS x8-virtual-fees-rebuy-long-r1 2016
+Starting x8-virtual-fees-legacy-spot-r1
+PASS x8-virtual-fees-legacy-spot-r1 864

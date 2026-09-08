@@ -1,0 +1,311 @@
+{
+  "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "cases": [
+    {
+      "config": {
+        "exchange": {
+          "name": "binance"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 77
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "binance"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "okx"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 480
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "okx"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "okex"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 480
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "okex"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "kraken"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 710
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "kraken"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "bybit"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 199
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "bybit"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "bitget"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 499
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "bitget"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "bingx"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        }
+      },
+      "expected": {
+        "startup_candle_count": 499
+      }
+    },
+    {
+      "config": {
+        "exchange": {
+          "name": "bingx"
+        },
+        "nfi_advanced_mode": true,
+        "nfi_parameters": {
+          "startup_candle_count": 77
+        },
+        "startup_candle_count": 123
+      },
+      "expected": {
+        "startup_candle_count": 123
+      }
+    },
+    {
+      "config": {
+        "sell_profit_only": true,
+        "nfi_advanced_mode": true
+      },
+      "expected_error": "sell_profit_only"
+    },
+    {
+      "config": {
+        "sell_profit_only": true,
+        "nfi_parameters": {
+          "exit_profit_only": false
+        },
+        "nfi_advanced_mode": true
+      },
+      "expected_error": "sell_profit_only"
+    },
+    {
+      "config": {
+        "sell_profit_only": true,
+        "exit_profit_only": false,
+        "nfi_parameters": {
+          "exit_profit_only": true
+        },
+        "nfi_advanced_mode": true
+      },
+      "expected_error": "sell_profit_only"
+    },
+    {
+      "config": {
+        "exit_profit_only": true,
+        "nfi_parameters": {
+          "exit_profit_only": false
+        },
+        "nfi_advanced_mode": true
+      },
+      "expected": {
+        "exit_profit_only": true
+      }
+    },
+    {
+      "config": {
+        "nfi_parameters": {
+          "minimal_roi": {
+            "0": 0.04,
+            "5": 0.01
+          },
+          "max_entry_position_adjustment": 3
+        },
+        "nfi_advanced_mode": true
+      },
+      "expected": {
+        "minimal_roi": {
+          "0": 0.04,
+          "5": 0.01
+        },
+        "max_entry_position_adjustment": 3
+      }
+    },
+    {
+      "config": {
+        "nfi_parameters": {
+          "minimal_roi": {
+            "0": 0.04
+          },
+          "max_entry_position_adjustment": 3
+        },
+        "minimal_roi": {
+          "0": 0.02
+        },
+        "max_entry_position_adjustment": 1,
+        "nfi_advanced_mode": true
+      },
+      "expected": {
+        "minimal_roi": {
+          "0": 0.02
+        },
+        "max_entry_position_adjustment": 1
+      }
+    },
+    {
+      "config": {
+        "nfi_parameters": {
+          "stable_stake_currencies": [
+            "USDT"
+          ],
+          "informative_ohlcv_columns": [
+            "close",
+            "volume"
+          ]
+        },
+        "nfi_advanced_mode": true
+      },
+      "expected": {
+        "stable_stake_currencies": [
+          "USDT"
+        ],
+        "informative_ohlcv_columns": [
+          "close",
+          "volume"
+        ]
+      }
+    }
+  ]
+}

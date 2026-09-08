@@ -1,0 +1,56 @@
+........................................................................ [  2%]
+...................sssssssssssssssssss.................................. [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+...............................................ssss..................... [ 33%]
+............................................................ss...sssssss [ 36%]
+ssssssssssssssssss...................................................... [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+................................ss...............s...................... [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+.......s................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+............................................................s........... [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+........................                                                 [100%]
+=========================== short test summary info ============================
+SKIPPED [3] tests/test_benchmark_snapshot.py:28: requires sealed memfd execution
+SKIPPED [1] tests/test_benchmark_snapshot.py:66: requires sealed memfd execution
+SKIPPED [1] tests/test_benchmark_snapshot.py:86: requires sealed memfd execution
+SKIPPED [2] tests/test_benchmark_snapshot.py:104: requires sealed memfd execution
+SKIPPED [4] tests/test_benchmark_snapshot.py:132: requires sealed memfd execution
+SKIPPED [1] tests/test_benchmark_snapshot.py:169: requires sealed memfd execution
+SKIPPED [3] tests/test_benchmark_snapshot.py:183: requires sealed memfd execution
+SKIPPED [1] tests/test_benchmark_snapshot.py:205: requires sealed memfd execution
+SKIPPED [3] tests/test_benchmark_snapshot.py:223: requires sealed memfd execution
+SKIPPED [1] tests/test_input_boundaries.py:307: requires sealed memfd descriptor execution
+SKIPPED [3] tests/test_input_boundaries.py:361: requires sealed memfd immutable snapshot
+SKIPPED [1] tests/test_input_boundaries.py:982: requires Windows reparse-point APIs
+SKIPPED [1] tests/test_input_boundaries.py:1004: requires Windows reparse-point APIs
+SKIPPED [25] tests/test_input_boundaries.py:1163: requires Windows process Job APIs
+SKIPPED [2] tests/test_semantic_registry_distribution.py:122: built distribution paths are supplied by the distribution lane
+SKIPPED [1] tests/test_signal_fixture.py:50: pinned Freqtrade source checkout is required for regeneration
+SKIPPED [1] tests/test_tag_fixture.py:56: pinned Freqtrade source checkout is required for regeneration
+SKIPPED [1] tests/test_task16_oracle_contract.py:80: local generated NFI checkout is not the contract-pinned source
+2489 passed, 55 skipped in 1518.54s (0:25:18)

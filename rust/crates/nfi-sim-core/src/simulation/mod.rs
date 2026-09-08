@@ -8,10 +8,13 @@ use event::{simulation_event, EventProjection};
 use output::{finalize_simulation, FinalizationInput};
 
 use crate::calculations::{
-    available_stake_amount, ceil_step, checked_float_sum, duration_ns, floor_step,
+    ceil_step, checked_float_sum, configured_available_stake_amount, duration_ns, floor_step,
     logical_pair_event_count, scheduled_cursor,
 };
 use crate::callbacks::evaluate_adjustment_bundle;
+use crate::execution::strategy_settings::{
+    source_current_profit_ratio, source_custom_exit_allowed, update_source_trailing_stop,
+};
 use crate::execution::{
     adjustment_minimum_pair_stake, apply_adjustment, begin_callback_trace, close_trade,
     current_profit_ratio, evaluate_exit_confirm_program, evaluate_state_machine_adjustment,
@@ -239,6 +242,10 @@ fn simulate_internal_impl(
                             pair: &pair.pair,
                             quote_free: available_balance,
                             is_futures: config.is_futures,
+                            initial_asset_balances: config
+                                .strategy_wallet_policy
+                                .as_ref()
+                                .map(|policy| &policy.initial_asset_balances),
                             configured_pair_index: pair_index,
                             processing_order_index,
                             candle_index: cursor,
@@ -281,6 +288,7 @@ fn simulate_internal_impl(
                 callback_feature_index(cursor),
                 available_balance,
                 existing_trade_index.map(|index| &open_trades[index]),
+                config.order_stake_policy.is_some(),
             )?;
 
             // Freqtrade includes the timerange stop-boundary row so callbacks
@@ -492,10 +500,11 @@ fn simulate_internal_impl(
                                 .collect::<Vec<_>>(),
                             "adjustment-tied-up-stake",
                         )?;
-                        let adjustment_available = available_stake_amount(
+                        let adjustment_available = configured_available_stake_amount(
                             available_balance,
                             tied_up_stake,
-                            config.tradable_balance_ratio,
+                            &closed_trades,
+                            config,
                         )?;
                         let feature_index = callback_feature_index(cursor)
                             .ok_or(SimError::InvalidStateMachineProgram)?;
@@ -610,10 +619,11 @@ fn simulate_internal_impl(
                             .collect::<Vec<_>>(),
                         "adjustment-tied-up-stake",
                     )?;
-                    let adjustment_available = available_stake_amount(
+                    let adjustment_available = configured_available_stake_amount(
                         available_balance,
                         tied_up_stake,
-                        config.tradable_balance_ratio,
+                        &closed_trades,
+                        config,
                     )?;
                     let adjustment = evaluate_nfi_position_adjustment(
                         manager,
@@ -710,11 +720,14 @@ fn simulate_internal_impl(
                     .iter()
                     .find(|trade| trade.pair_index == pair_index)
                     .is_some_and(|trade| liquidation_reached(trade, candle));
-            // Official Backtesting evaluates ROI and futures liquidation after
-            // a successful entry on the same candle. Legacy callback routes
-            // retain their prior first-candle boundary for all other exits
-            // until they carry an ROI table.
+            // New source exit contracts include strategy exits immediately after
+            // entry. Archived inputs retain their previous first-candle boundary.
+            let evaluate_entry_exit = config
+                .strategy_exit_policy
+                .as_ref()
+                .is_some_and(|policy| policy.evaluate_exit_on_entry);
             if !opened_now
+                || evaluate_entry_exit
                 || config.executable_callback_program.is_some()
                 || !config.minimal_roi.is_empty()
                 || same_candle_liquidation
@@ -732,11 +745,9 @@ fn simulate_internal_impl(
                             config.funding_fee_interval_ms,
                         )?;
                     }
-                    // Freqtrade exposes `wallets.get_available_stake_amount()`
-                    // as the callback's max_stake. This is smaller than raw
-                    // free balance when tradable_balance_ratio keeps a wallet
-                    // reserve, and NFI intentionally rejects an adjustment
-                    // that exceeds this boundary instead of clamping it.
+                    // Keep wallet allocation distinct from the exchange maximum.
+                    // Callback evaluators cap max_stake by both; actual additional
+                    // orders also reserve capacity occupied by the current trade.
                     let tied_up_stake = checked_float_sum(
                         &open_trades
                             .iter()
@@ -744,10 +755,11 @@ fn simulate_internal_impl(
                             .collect::<Vec<_>>(),
                         "adjustment-tied-up-stake",
                     )?;
-                    let adjustment_available = available_stake_amount(
+                    let adjustment_available = configured_available_stake_amount(
                         available_balance,
                         tied_up_stake,
-                        config.tradable_balance_ratio,
+                        &closed_trades,
+                        config,
                     )?;
                     let adjustment_already_processed =
                         opened_now && config.executable_callback_program.is_none();
@@ -775,6 +787,12 @@ fn simulate_internal_impl(
                             pair,
                             candle,
                             minimum_stake,
+                            crate::execution::order_stake::adjustment_maximum_stake(
+                                pair,
+                                candle.open,
+                                adjustment_available,
+                                config,
+                            )?,
                             adjustment_available,
                             current_profit,
                         )?
@@ -1024,15 +1042,31 @@ fn simulate_internal_impl(
                             None,
                         )?;
                     }
+                    if config.strategy_exit_policy.is_some() {
+                        update_source_trailing_stop(&mut open_trades[trade_index], candle, config)?;
+                    }
+                    let allow_executable_exit =
+                        source_custom_exit_allowed(&open_trades[trade_index], candle, config);
                     let executable_exit = if let (Some(program), Some(runtime)) = (
-                        config.executable_callback_program.as_ref(),
+                        config
+                            .executable_callback_program
+                            .as_ref()
+                            .filter(|_| allow_executable_exit),
                         executable_runtime.as_mut(),
                     ) {
-                        let current_profit = current_profit_ratio(
-                            &open_trades[trade_index],
-                            candle.open,
-                            config.fee_close_rate.unwrap_or(config.fee_rate),
-                        );
+                        let current_profit = if config.strategy_exit_policy.is_some() {
+                            source_current_profit_ratio(
+                                &open_trades[trade_index],
+                                candle.open,
+                                config,
+                            )?
+                        } else {
+                            current_profit_ratio(
+                                &open_trades[trade_index],
+                                candle.open,
+                                config.fee_close_rate.unwrap_or(config.fee_rate),
+                            )
+                        };
                         let mut callbacks =
                             ExecutableCallbacks::new(program, runtime, &mut executable_events);
                         executable_custom_exit(
@@ -1049,39 +1083,41 @@ fn simulate_internal_impl(
                     } else {
                         None
                     };
-                    let exit_candidates =
-                        if opened_now && config.executable_callback_program.is_none() {
-                            trace_trade_callback(
-                                crate::CallbackPhase::CustomExit,
-                                crate::CallbackOutcome::None,
-                                crate::CallbackTransaction::Committed,
-                                available_balance,
-                                &open_trades[trade_index],
-                                None,
-                            )?;
-                            ordered_risk_candidates(
-                                &mut open_trades[trade_index],
-                                candle,
-                                config,
-                                None,
-                            )?
-                        } else if let Some(exit) = executable_exit {
-                            ordered_risk_candidates(
-                                &mut open_trades[trade_index],
-                                candle,
-                                config,
-                                Some(exit),
-                            )?
-                        } else {
-                            exit_decisions(
-                                &mut open_trades[trade_index],
-                                pair,
-                                cursor,
-                                candle,
-                                config,
-                                &mut profit_targets,
-                            )?
-                        };
+                    let exit_candidates = if opened_now
+                        && !evaluate_entry_exit
+                        && config.executable_callback_program.is_none()
+                    {
+                        trace_trade_callback(
+                            crate::CallbackPhase::CustomExit,
+                            crate::CallbackOutcome::None,
+                            crate::CallbackTransaction::Committed,
+                            available_balance,
+                            &open_trades[trade_index],
+                            None,
+                        )?;
+                        ordered_risk_candidates(
+                            &mut open_trades[trade_index],
+                            candle,
+                            config,
+                            None,
+                        )?
+                    } else if let Some(exit) = executable_exit {
+                        ordered_risk_candidates(
+                            &mut open_trades[trade_index],
+                            candle,
+                            config,
+                            Some(exit),
+                        )?
+                    } else {
+                        exit_decisions(
+                            &mut open_trades[trade_index],
+                            pair,
+                            cursor,
+                            candle,
+                            config,
+                            &mut profit_targets,
+                        )?
+                    };
                     if (execution_observer.is_some() || observer.is_some())
                         && !exit_candidates.is_empty()
                     {
@@ -1388,6 +1424,10 @@ fn simulate_internal_impl(
                         pair: &pair.pair,
                         quote_free: available_balance,
                         is_futures: config.is_futures,
+                        initial_asset_balances: config
+                            .strategy_wallet_policy
+                            .as_ref()
+                            .map(|policy| &policy.initial_asset_balances),
                         configured_pair_index: pair_index,
                         processing_order_index,
                         candle_index: cursor,

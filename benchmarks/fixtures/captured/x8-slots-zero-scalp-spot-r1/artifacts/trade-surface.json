@@ -1,0 +1,27 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX8",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20251104-20251107"
+  },
+  "summary": {
+    "total_trades": 0,
+    "starting_balance": "10000",
+    "final_balance": "10000",
+    "profit_total_abs": "0",
+    "total_volume": "0",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 0
+  },
+  "locks": [],
+  "trades": []
+}

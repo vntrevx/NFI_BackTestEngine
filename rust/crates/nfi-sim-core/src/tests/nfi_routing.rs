@@ -463,6 +463,76 @@ fn nfi_short_route_matching_preserves_each_upstream_tag_predicate() {
 }
 
 #[test]
+fn explicit_short_top_coins_matches_compound_tags_independently_of_normal() {
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_full_short_manager(&mut manager);
+    manager
+        .managed_short_routes
+        .retain(|route| route.key != "short_top_coins_fallback");
+    let top_coins = nfi_managed_route(
+        "short_top_coins",
+        NfiManagedLongProfile::TopCoins,
+        "short_tc",
+        &["641", "642"],
+    );
+    manager.managed_short_routes.push(top_coins.clone());
+
+    for tags in [
+        vec!["641"],
+        vec!["642", "501"],
+        vec!["641", "661"],
+        vec!["1", "641"],
+    ] {
+        assert!(nfi_managed_short_route_supports_tags(
+            &manager, &top_coins, &tags
+        ));
+    }
+    for tags in [vec![], vec!["501"], vec!["661"], vec!["unknown"]] {
+        assert!(!nfi_managed_short_route_supports_tags(
+            &manager, &top_coins, &tags
+        ));
+    }
+}
+
+#[test]
+fn explicit_short_top_coins_rejects_a_legacy_shadow_execution_program() {
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    enable_test_full_short_manager(&mut manager);
+    manager
+        .managed_short_routes
+        .retain(|route| route.key != "short_top_coins_fallback");
+    manager.managed_short_routes.insert(
+        6,
+        nfi_managed_route(
+            "short_top_coins",
+            NfiManagedLongProfile::TopCoins,
+            "short_tc",
+            &["641"],
+        ),
+    );
+    manager.short_route_order = manager
+        .managed_short_routes
+        .iter()
+        .map(|route| route.key.clone())
+        .collect();
+    enable_test_short_exit_shadow(&mut manager);
+    let mut manager_config = config(1);
+    manager_config.is_futures = true;
+    manager_config.leverage = Some(3.0);
+    enable_nfi_manager(&mut manager_config, manager);
+    let input = SimulationInput {
+        schema_version: SIMULATOR_SCHEMA_VERSION.to_owned(),
+        config: manager_config,
+        pairs: vec![nfi_pair(vec![candle(1, 100.0, 100.0)], BTreeMap::new())],
+    };
+
+    assert!(matches!(
+        simulate(&input),
+        Err(SimError::InvalidNfiTradeManager)
+    ));
+}
+
+#[test]
 fn nfi_short_quick_inline_exit_uses_mirrored_thresholds() {
     let route = nfi_managed_route(
         "short_quick",
@@ -1268,4 +1338,30 @@ fn nfi_validation_keeps_general_candle_errors_ahead_of_short_tag_errors() {
         simulate(&input),
         Err(SimError::CandleOrder { index: 1, .. })
     ));
+}
+
+#[test]
+fn unassigned_derisk_values_require_a_disabled_source_slot() {
+    let mut manager = nfi_top_coins_manager(nfi_false_program());
+    let constants = &mut manager.position_adjustment.as_mut().unwrap().constants;
+    let level = &mut constants.derisk_levels[0];
+    level.enabled = false;
+    level.stake_futures = 0.0;
+    level.stake_spot = 0.0;
+    level.threshold_futures = 0.0;
+    level.threshold_spot = 0.0;
+    let mut settings = config(1);
+    enable_nfi_manager(&mut settings, manager);
+    assert_eq!(validate_simulator_preflight(&settings), Ok(()));
+    settings
+        .nfi_x7_trade_manager
+        .as_mut()
+        .unwrap()
+        .position_adjustment
+        .as_mut()
+        .unwrap()
+        .constants
+        .derisk_levels[0]
+        .enabled = true;
+    assert!(validate_simulator_preflight(&settings).is_err());
 }

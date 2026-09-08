@@ -1,0 +1,8 @@
+{
+  "base_source": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+  "base_source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+  "donor_source": "NostalgiaForInfinityX8.py",
+  "donor_source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "effective_source_sha256": "371825eee693507554b5bb2e0abc919c5e6f71f4a8b74109a3045bb124fba2f7",
+  "description": "Focused synthetic probe: archived managed strategy plus donor explicit short top-coins dispatch, its local tag alias, and wrapper, updated fallback tag exclusion, renamed probe class, and volume-positive short entries tagged 641. Other callbacks remain archived behavior; this is not full X8 qualification."
+}

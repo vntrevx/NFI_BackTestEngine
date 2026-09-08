@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.1.0",
+  "fixture_id": "x8-execution-initial-cap-spot-r1",
+  "verification_level": "full",
+  "execution": {
+    "schema_version": "1.0.0",
+    "input_kind": "full-vector",
+    "input_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/simulation-input.manifest.json",
+    "input_sha256": "a5dcda147c4ec09014e534c757bca570c114a9bf0379e4facda714c954dedd28",
+    "output_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/simulation-result.json",
+    "output_sha256": "7c8eea80f2cc69d5e5c8474ad03a992312c34e9d302db295a9a00ec748966f3a",
+    "publication_bundle": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/simulation-result.json.nfi-bundle",
+    "wall_time_seconds": 0.251630998,
+    "peak_rss_bytes": 388567040,
+    "cpu_time_seconds": 0.15405531800000105,
+    "build": {
+      "schema_version": "1.0.0",
+      "built_at": null,
+      "source_fingerprint": "777722b4045f1a0a01984f03539f6bc7ef97c880cacce8dced54628a44e6f00a",
+      "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+      "binary_sha256": "8f878ade654ce955e3e2e129d7d2464d1d80a4b79cce436f9562fdd10d124bc1",
+      "binary_bytes": 15469984,
+      "target": "linux-x86_64",
+      "build_seconds": 0.0,
+      "kind": "pyo3-extension"
+    },
+    "execution_profile_fingerprint": "5f38a888bc71e31db691675634a1c1c4492c4d0e9d168d70787e76e543f8dcc0",
+    "pair_worker_limit": 1,
+    "trade_count": 1,
+    "events": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/engine-events.jsonl",
+      "bytes": 2945090,
+      "sha256": "a717944393f0d9918b7107b59a903bc5e0e967bb0fa9dc7ed36267acd0558180"
+    },
+    "execution_events": null,
+    "profile": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/engine-profile.json",
+      "bytes": 1861,
+      "sha256": "98b9837d6adf9a9c51b4d64373a561edc259b167f7f9635f31179668608c536e",
+      "phases": {
+        "input": {
+          "base_timeframe": "5m",
+          "compiler_source_fingerprint": "addd576d9facfab10e7e05d83ad8e14d57fab65a430930f5548ccb8a64f86aa8",
+          "config_sha256": "f4bef0e815e344208fedd2066e935c55bad3f6cdf1998ccf3095f8b2ad184e02",
+          "frame_loading_mode": "pair-local-streaming",
+          "futures_frame_set_count": 0,
+          "manifest_declared_raw_rows": 10500,
+          "manifest_sha256": "a5dcda147c4ec09014e534c757bca570c114a9bf0379e4facda714c954dedd28",
+          "pair_identities": [
+            "ADA/USDT|5m"
+          ],
+          "populate_methods_executed": false,
+          "program_fingerprints": {
+            "indicator": "4009d5279f9fd7fd870294fc88addf31f574f35fe4e794b01dbe0c6b84d191bc",
+            "signal": "4a771bff1501384998777bd47cb9da133644eaf4be5ea215993918d81fa2cbcc",
+            "tag": "8f0ca9e365bb2e6e7caa3bd78a1a6f33513a0995acf37cecd2117a16c87e2bcf"
+          },
+          "raw_frame_count": 10,
+          "raw_frame_resident_limit": 6,
+          "retained_feature_fingerprint": "1801a6cd23ecb37e40d815cc98a2e2a30cc136f85436e2f14005fb4ee9516aeb",
+          "runtime_mode": "rust-full-native",
+          "schema_version": "1.2.0",
+          "selected_class": "NostalgiaForInfinityX8",
+          "source_row_shift": 1,
+          "spool_available_bytes_at_admission": 354771058688,
+          "spool_cleanup_mode": "unlink-on-open",
+          "spool_required_upper_bound_bytes": 1307025,
+          "spool_target_source": "os-temp",
+          "strategy_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+          "strategy_source_mode": "python-ast-compile-only",
+          "trading_mode": "spot",
+          "transport": {
+            "estimated_simulation_owned_bytes": 1072,
+            "estimated_source_column_bytes": 1235190,
+            "feature_column_count": 88,
+            "file_backed_bytes": 1307025,
+            "pair_count": 1,
+            "pair_prepare_fused": true,
+            "pair_prepare_ns": 0,
+            "pair_prepare_worker_limit": 1,
+            "row_count": 1665,
+            "schema_version": "1.2.0",
+            "source_pair_retention_limit": 1,
+            "vector_execute_ns": 74528171
+          }
+        },
+        "schema_version": "1.0.0",
+        "serialization_ns": 18227,
+        "simulation": {
+          "event_loop_ns": 32968818,
+          "finalization_ns": 76518,
+          "pair_events": 864,
+          "schema_version": "1.0.0",
+          "timestamp_batches": 864,
+          "validation_ns": 600798
+        }
+      }
+    }
+  },
+  "strategy": {
+    "class_name": "NostalgiaForInfinityX8",
+    "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+    "static_safe": true,
+    "diagnostic_count": 0
+  },
+  "parity": {
+    "equal": true,
+    "trade_surface": {
+      "equal": true,
+      "difference": null
+    },
+    "state_trace": {
+      "checked": true,
+      "equal": true,
+      "difference": null,
+      "expected": {
+        "path": "/tmp/nfi-fixture-snapshot-tju0hl5b/artifacts/state-projection.nfitrace",
+        "schema_version": "1.0.0",
+        "source": "freqtrade-projection",
+        "run_id": "x8-execution-initial-cap-spot-r1",
+        "input_sha256": "769f729f3b7939a30b7b84a1fc406b4cd030fb64a4f951c7846269a5f7eb86a0",
+        "strategy_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+        "profile_sha256": "8f352defae63588b8997e7f830fa3f47dc8349249e3fd8f4dc54f812007bac3f",
+        "trading_mode": "spot",
+        "include_state": true,
+        "event_count": 864,
+        "stream_hash": "3738a69ec8622c383cd9b4d66bec15723e3abe64fe121867fed426925eb974f1"
+      },
+      "actual": {
+        "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/engine-state-projected.trace",
+        "schema_version": "1.0.0",
+        "source": "engine-projection",
+        "run_id": "x8-execution-initial-cap-spot-r1",
+        "input_sha256": "769f729f3b7939a30b7b84a1fc406b4cd030fb64a4f951c7846269a5f7eb86a0",
+        "strategy_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+        "profile_sha256": "8f352defae63588b8997e7f830fa3f47dc8349249e3fd8f4dc54f812007bac3f",
+        "trading_mode": "spot",
+        "include_state": true,
+        "event_count": 864,
+        "stream_hash": "3738a69ec8622c383cd9b4d66bec15723e3abe64fe121867fed426925eb974f1"
+      }
+    },
+    "portfolio_trace": {
+      "checked": false,
+      "equal": null,
+      "event_count": null,
+      "difference": null,
+      "verification": null
+    }
+  },
+  "branch_coverage": null,
+  "research_report": {
+    "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/run.json",
+    "bytes": 18178,
+    "sha256": "1b6828c452730b1d481a22e0429a8ba0cd9e4078331c0c5576f2cd0d164f6955"
+  },
+  "artifacts": {
+    "trade_surface": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/research/trade-surface.json",
+      "bytes": 2284,
+      "sha256": "fbd7cb7873f2805efb8b55a024a25edab6d5f688ba5a7953669a878c6a8decd0"
+    },
+    "engine_state_projection": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-execution-settings/replays-final/x8-execution-initial-cap-spot-r1/engine-state-projected.trace",
+      "bytes": 439122,
+      "sha256": "2ec3c6a5608caee56acb53709075c852b4d52e375fed1f1d0b12d0f4056e1564"
+    },
+    "portfolio_events": null,
+    "portfolio_verification": null
+  },
+  "complete": true
+}

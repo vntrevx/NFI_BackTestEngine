@@ -1,0 +1,50 @@
+[
+  {
+    "record": "benchmarks/evidence/x8-virtual-fees-2026-09-07/verification.json",
+    "checked": 82,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-settings-2026-09-08/verification.json",
+    "checked": 74,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-system-v4-2026-09-07/verification.json",
+    "checked": 66,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-extra-actions-2026-09-08/verification.json",
+    "checked": 42,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-buyback-settings-2026-09-08/verification.json",
+    "checked": 37,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-initialization-2026-09-08/verification.json",
+    "checked": 22,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-order-state-2026-09-07/verification.json",
+    "checked": 5,
+    "unavailable_paths": [],
+    "mismatches": []
+  },
+  {
+    "record": "benchmarks/evidence/x8-slot-settings-2026-09-08/verification.json",
+    "checked": 46,
+    "unavailable_paths": [],
+    "mismatches": []
+  }
+]

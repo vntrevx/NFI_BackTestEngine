@@ -1,0 +1,10 @@
+Starting x8-original-futures-20220401-20220420-r1
+PASS x8-original-futures-20220401-20220420-r1 5472
+Starting x8-system-v4-long-futures-r1
+PASS x8-system-v4-long-futures-r1 5472
+Starting x8-system-v4-spot-ada-r1
+PASS x8-system-v4-spot-ada-r1 864
+Starting x8-entries-limited-futures-r1
+PASS x8-entries-limited-futures-r1 1152
+Starting x8-virtual-fees-rebuy-short-r1
+PASS x8-virtual-fees-rebuy-short-r1 2016

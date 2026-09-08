@@ -1,0 +1,10 @@
+{
+  "reference_image": "freqtradeorg/freqtrade@sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+  "reference_version": "2026.5.1",
+  "source_sha256": "086d079fe46ea7aa31c45e6ba398014c7e628d225d5ded7eebcbb88e14d7c516",
+  "method_names": [
+    "StrategyResolver._override_attribute_helper",
+    "StrategyResolver.load_strategy"
+  ],
+  "scope": "Official resolver configuration precedence and standard adjustment attributes; validated end to end by the adjustment-disabled and entry-limited captures."
+}

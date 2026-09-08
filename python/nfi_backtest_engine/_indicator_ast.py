@@ -346,6 +346,8 @@ def _normalized_static_value(value: Any) -> Any:
 
 def _effective_backtest_config(config: Mapping[str, Any]) -> dict[str, Any]:
     effective = dict(_normalized_static_value(config))
+    if effective.get("max_open_trades") == -1:
+        effective["max_open_trades"] = math.inf
     runmode = effective.get("runmode")
     if runmode is None:
         effective["runmode"] = {"value": "backtest"}

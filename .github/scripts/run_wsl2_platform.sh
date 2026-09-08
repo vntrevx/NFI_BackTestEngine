@@ -9,6 +9,8 @@ export_wsl_evidence() {
   mkdir -p "$host_workspace/.platform-evidence" || export_status=$?
   shopt -s nullglob
   local -a evidence_files=(
+    "$guest_workspace"/.x8-check/verification.json
+    "$guest_workspace"/.x8-check/*/run.json
     "$guest_workspace"/.platform-evidence/wsl-host/*
     "$guest_workspace"/.platform-evidence/*/platform-benchmark*.json
     "$guest_workspace"/.platform-evidence/*/warmup.stdout.log
@@ -68,6 +70,7 @@ run_wsl2_platform() {
     return 1
   fi
 
+  stage_path .github/scripts/check_x8_candidate.py
   stage_path .release-candidate-plan.json
   stage_path "${host_wheels[0]}"
   while IFS= read -r manifest; do
@@ -75,7 +78,12 @@ run_wsl2_platform() {
     while IFS= read -r fixture_member; do
       stage_path "$(dirname "$manifest")/$fixture_member"
     done < <(jq -er '.inputs[].path, .artifacts[].path' "$host_workspace/$manifest")
-  done < <(jq -er '.platform_evidence.modes[].manifest' .release-candidate-plan.json)
+  done < <(
+    jq -er '.platform_evidence.modes[].manifest' .release-candidate-plan.json
+    printf '%s\n' \
+      benchmarks/fixtures/captured/x8-bounded-original-spot-r1/manifest.json \
+      benchmarks/fixtures/captured/x8-bounded-original-futures-r1/manifest.json
+  )
   mkdir -p "$guest_workspace/.platform-evidence/wsl-host"
   cp -a -- "$host_identity_dir/." "$guest_workspace/.platform-evidence/wsl-host/"
 
@@ -136,6 +144,8 @@ PY
     and .distribution.id == "ubuntu"
     and .distribution.version_id == "24.04"
   ' "$identity_dir/guest-identity.json" >/dev/null
+
+  .wsl-venv/bin/python .github/scripts/check_x8_candidate.py --output .x8-check
 
   local runs timeout
   runs="$(jq -er .platform_evidence.runs .release-candidate-plan.json)"

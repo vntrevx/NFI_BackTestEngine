@@ -10,7 +10,9 @@ from typing import Any
 from ..canonical import read_json
 from ..data_seal import timeframe_milliseconds
 from ..errors import SpecValidationError, StrategyAnalysisError
+from ..order_stake_settings import order_stake_policy
 from ..strategy_overrides import effective_stoploss_ratio
+from ..wallet_settings import starting_wallet_balance, wallet_policy
 
 _PROTECTION_TIMING_KEYS = {
     "lookback_period",
@@ -140,6 +142,13 @@ def x7_adapter_blockers(
                                 "message": f"market snapshot lacks amount/cost limits for {pair}",
                             }
                         )
+                if not any(item["code"] == "MARKET_LIMITS_REQUIRED" for item in blockers):
+                    try:
+                        order_stake_policy(config, snapshot)
+                    except StrategyAnalysisError as exc:
+                        blockers.append(
+                            {"code": "X7_ORDER_STAKE_CONTRACT_INVALID", "message": str(exc)}
+                        )
                 if trading_mode == "futures" and not blockers:
                     try:
                         _x7_liquidation_contract(
@@ -154,7 +163,12 @@ def x7_adapter_blockers(
                                 "message": str(exc),
                             }
                         )
-    for field in ("dry_run_wallet", "max_open_trades"):
+    try:
+        starting_wallet_balance(config)
+        wallet_policy(config)
+    except StrategyAnalysisError as exc:
+        blockers.append({"code": "X7_WALLET_CONFIG_INVALID", "message": str(exc)})
+    for field in ("max_open_trades",):
         value = config.get(field)
         if isinstance(value, bool) or not isinstance(value, int | float):
             blockers.append(

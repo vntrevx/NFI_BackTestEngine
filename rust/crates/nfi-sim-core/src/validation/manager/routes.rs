@@ -14,6 +14,7 @@ pub(super) fn valid_nfi_managed_short_route(route: &NfiManagedLongRoute) -> bool
             | ("short_high_profit", NfiManagedLongProfile::HighProfit)
             | ("short_rapid", NfiManagedLongProfile::Rapid)
             | ("short_scalp", NfiManagedLongProfile::Scalp)
+            | ("short_top_coins", NfiManagedLongProfile::TopCoins)
     );
     let route_tags = route.entry_tags.iter().collect::<BTreeSet<_>>();
     let stop_thresholds_are_valid = match route.profile {

@@ -17,6 +17,7 @@ from ..signal_program.compiler import (
     _numeric_record_id,
     _SignalCompiler,
 )
+from ..source_configuration import resolve_source_parameter_overrides
 from ..strategy_ir import analyze_strategy
 from .validation import (
     OUTPUT_PHASES,
@@ -93,6 +94,7 @@ def compile_tag_program(
         class_node,
         constants if isinstance(constants, Mapping) else {},
     )
+    class_constants.update(resolve_source_parameter_overrides(class_node, class_constants, config))
     effective_config = dict(config or {})
     configured_mode = effective_config.get("trading_mode")
     if configured_mode is not None and configured_mode != trading_mode:

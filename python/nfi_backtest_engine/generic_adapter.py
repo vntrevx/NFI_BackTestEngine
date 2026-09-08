@@ -45,9 +45,7 @@ def generic_adapter_blockers(
         strategy.get("hot_callbacks", []),
     )
     if config.get("trading_mode", "spot") == "spot":
-        strategy_callbacks = [
-            name for name in strategy_callbacks if name != "leverage"
-        ]
+        strategy_callbacks = [name for name in strategy_callbacks if name != "leverage"]
     if state_machine_program is not None and executable_callback_program is not None:
         blockers.append(
             {
@@ -58,8 +56,7 @@ def generic_adapter_blockers(
     selected_program = executable_callback_program or state_machine_program
     compiled_callbacks = (
         set(selected_program.get("entrypoints", {}))
-        if selected_program is not None
-        and isinstance(selected_program.get("entrypoints"), dict)
+        if selected_program is not None and isinstance(selected_program.get("entrypoints"), dict)
         else set()
     )
     if executable_callback_program is not None:
@@ -156,10 +153,7 @@ def generic_adapter_blockers(
         blockers.append(
             {
                 "code": "STATIC_STOPLOSS_REQUIRED",
-                "message": (
-                    "effective strategy stoploss must be a finite ratio "
-                    "between -1 and 0"
-                ),
+                "message": ("effective strategy stoploss must be a finite ratio between -1 and 0"),
             }
         )
     numeric_config: dict[str, float] = {}
@@ -746,6 +740,14 @@ def _surface_max_open_trades(config: dict[str, Any], result: dict[str, Any]) -> 
     observed-value fallback.
     """
     configured = config.get("max_open_trades")
+    if isinstance(configured, int | float) and not isinstance(configured, bool):
+        if configured == 0:
+            return 0
+        if configured == -1:
+            exchange = config.get("exchange")
+            whitelist = exchange.get("pair_whitelist") if isinstance(exchange, dict) else None
+            if isinstance(whitelist, list) and whitelist:
+                return len(whitelist)
     if (
         isinstance(configured, int | float)
         and not isinstance(configured, bool)
@@ -829,8 +831,7 @@ def _signal_candles(
                 "exit_short": {"reason": exit_reason} if exit_short else None,
                 "funding_rate": (
                     float(funding_rate)
-                    if isinstance(funding_rate, numbers.Real)
-                    and math.isfinite(float(funding_rate))
+                    if isinstance(funding_rate, numbers.Real) and math.isfinite(float(funding_rate))
                     else None
                 ),
                 "funding_mark_price": (
@@ -910,9 +911,7 @@ def _surface_trade(
         "minimum_rate": _decimal(trade["minimum_rate"]),
         "maximum_rate": _decimal(trade["maximum_rate"]),
         "initial_stop_loss_ratio": _decimal(stoploss_ratio),
-        "stop_loss_ratio": _decimal(
-            trade.get("custom_stop_loss_ratio", stoploss_ratio)
-        ),
+        "stop_loss_ratio": _decimal(trade.get("custom_stop_loss_ratio", stoploss_ratio)),
         "weekday": weekday,
     }
 
@@ -925,11 +924,7 @@ def _optional_text(value: Any) -> str | None:
     if value is None or pd.isna(value):
         return None
     rendered = str(value)
-    return (
-        rendered
-        if rendered and rendered != EMPTY_TAG_TRANSPORT_SENTINEL
-        else None
-    )
+    return rendered if rendered and rendered != EMPTY_TAG_TRANSPORT_SENTINEL else None
 
 
 def _positive_float(value: Any, name: str) -> float:

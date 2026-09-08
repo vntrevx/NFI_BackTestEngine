@@ -1,0 +1,265 @@
+[
+  {
+    "case": "initial-cap-spot",
+    "trades": 1,
+    "orders": 2,
+    "entry_orders": 1,
+    "leverage": [
+      "1"
+    ],
+    "first_entry": {
+      "sequence": 0,
+      "side": "buy",
+      "is_entry": true,
+      "filled_timestamp_ms": 1762216800000,
+      "amount": "900000",
+      "price": "0.5566",
+      "cost": "501440.93999999994",
+      "tag": "1 "
+    }
+  },
+  {
+    "case": "initial-cost-cap-spot",
+    "trades": 1,
+    "orders": 2,
+    "entry_orders": 1,
+    "leverage": [
+      "1"
+    ],
+    "first_entry": {
+      "sequence": 0,
+      "side": "buy",
+      "is_entry": true,
+      "filled_timestamp_ms": 1672538400000,
+      "amount": "543.75834",
+      "price": "16551.47",
+      "cost": "9008999.85161156",
+      "tag": "1 "
+    },
+    "maximum_cost": "9000000",
+    "quantized_amount_from_cost": "543.75834"
+  },
+  {
+    "case": "remaining-cap-spot",
+    "trades": 1,
+    "orders": 6,
+    "entry_orders": 5,
+    "leverage": [
+      "1"
+    ],
+    "first_entry": {
+      "sequence": 0,
+      "side": "buy",
+      "is_entry": true,
+      "filled_timestamp_ms": 1762216800000,
+      "amount": "179662.2",
+      "price": "0.5566",
+      "cost": "100099.98050051999",
+      "tag": "1 "
+    },
+    "additional_entries": [
+      {
+        "sequence": 1,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762218300000,
+        "amount": "36120.6",
+        "price": "0.5537",
+        "cost": "20019.976196219995",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 2,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762233900000,
+        "amount": "36291",
+        "price": "0.5511",
+        "cost": "20019.9700701",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 3,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762234500000,
+        "amount": "36710.7",
+        "price": "0.5448",
+        "cost": "20019.989349359992",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 4,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762235400000,
+        "amount": "37167.8",
+        "price": "0.5381",
+        "cost": "20019.99317318",
+        "tag": "rebuy_entry"
+      }
+    ]
+  },
+  {
+    "case": "remaining-cap-large-spot",
+    "trades": 6,
+    "orders": 20,
+    "entry_orders": 14,
+    "leverage": [
+      "1"
+    ],
+    "first_entry": {
+      "sequence": 0,
+      "side": "buy",
+      "is_entry": true,
+      "filled_timestamp_ms": 1762216800000,
+      "amount": "179662.2",
+      "price": "0.5566",
+      "cost": "100099.98050051999",
+      "tag": "1 "
+    },
+    "additional_entries": [
+      {
+        "sequence": 1,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762218300000,
+        "amount": "361206.3",
+        "price": "0.5537",
+        "cost": "200199.92823830998",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 1,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762246200000,
+        "amount": "370438.8",
+        "price": "0.5399",
+        "cost": "200199.90802811997",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 1,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762271700000,
+        "amount": "368188.3",
+        "price": "0.5432",
+        "cost": "200199.88444455998",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 2,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762273500000,
+        "amount": "342690.2",
+        "price": "0.5383",
+        "cost": "184654.60479466",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 1,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762302900000,
+        "amount": "388349.3",
+        "price": "0.515",
+        "cost": "200199.88938949996",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 2,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762303500000,
+        "amount": "314062.7",
+        "price": "0.512",
+        "cost": "160960.9025024",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 1,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762397700000,
+        "amount": "368595.5",
+        "price": "0.5426",
+        "cost": "200199.91821829998",
+        "tag": "rebuy_entry"
+      },
+      {
+        "sequence": 2,
+        "side": "buy",
+        "is_entry": true,
+        "filled_timestamp_ms": 1762405800000,
+        "amount": "344444.6",
+        "price": "0.54",
+        "cost": "186186.08408399997",
+        "tag": "rebuy_entry"
+      }
+    ],
+    "remaining_capacity_clamps": [
+      {
+        "timestamp_ms": 1762273500000,
+        "requested": "199999.92528",
+        "remaining_capacity": "184470.15280",
+        "quantized_amount": "342690.2",
+        "official_amount": "342690.2"
+      },
+      {
+        "timestamp_ms": 1762303500000,
+        "requested": "199999.93104",
+        "remaining_capacity": "160800.14498",
+        "quantized_amount": "314062.7",
+        "official_amount": "314062.7"
+      },
+      {
+        "timestamp_ms": 1762405800000,
+        "requested": "199999.9680",
+        "remaining_capacity": "186000.09770",
+        "quantized_amount": "344444.6",
+        "official_amount": "344444.6"
+      }
+    ]
+  },
+  {
+    "case": "leverage-tier-futures",
+    "trades": 9,
+    "orders": 18,
+    "entry_orders": 9,
+    "leverage": [
+      "50"
+    ],
+    "first_entry": {
+      "sequence": 0,
+      "side": "buy",
+      "is_entry": true,
+      "filled_timestamp_ms": 1649042100000,
+      "amount": "27.109",
+      "price": "46109.7",
+      "cost": "1250612.85122865",
+      "tag": "1 "
+    }
+  },
+  {
+    "case": "initial-cap-futures",
+    "trades": 1,
+    "orders": 2,
+    "entry_orders": 1,
+    "leverage": [
+      "3"
+    ],
+    "first_entry": {
+      "sequence": 0,
+      "side": "buy",
+      "is_entry": true,
+      "filled_timestamp_ms": 1649042100000,
+      "amount": "1000",
+      "price": "46109.7",
+      "cost": "46132754.849999994",
+      "tag": "1 "
+    }
+  }
+]

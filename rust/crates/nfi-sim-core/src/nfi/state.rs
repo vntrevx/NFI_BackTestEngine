@@ -88,6 +88,7 @@ pub(crate) fn nfi_profit_bucket(profit: f64) -> Option<u8> {
     Some(bucket)
 }
 
+#[cfg(test)]
 pub(crate) fn nfi_profit_snapshot(
     trade: &OpenTrade,
     exit_rate: f64,
@@ -95,17 +96,72 @@ pub(crate) fn nfi_profit_snapshot(
     close_fee_rate: f64,
     is_futures: bool,
 ) -> Option<NfiProfitSnapshot> {
-    nfi_profit_snapshot_checked(trade, exit_rate, open_fee_rate, close_fee_rate, is_futures)
+    nfi_profit_snapshot_checked(
+        trade,
+        exit_rate,
+        open_fee_rate,
+        close_fee_rate,
+        is_futures,
+        false,
+    )
+    .ok()
+    .flatten()
+}
+
+pub(crate) fn decision_profit_snapshot(
+    trade: &OpenTrade,
+    exit_rate: f64,
+    config: &PortfolioConfig,
+) -> Option<NfiProfitSnapshot> {
+    decision_profit_snapshot_checked(trade, exit_rate, config)
         .ok()
         .flatten()
 }
 
-pub(crate) fn nfi_profit_snapshot_checked(
+pub(crate) fn decision_profit_snapshot_checked(
+    trade: &OpenTrade,
+    exit_rate: f64,
+    config: &PortfolioConfig,
+) -> Result<Option<NfiProfitSnapshot>, crate::domain::SimError> {
+    let source_order = config
+        .nfi_x7_trade_manager
+        .as_ref()
+        .is_some_and(|manager| manager.virtual_fees.is_some());
+    nfi_profit_snapshot_checked(
+        trade,
+        exit_rate,
+        super::fees::fee_open(config),
+        super::fees::fee_close(config),
+        config.is_futures,
+        source_order,
+    )
+}
+
+fn profit_order_sequence(
+    trade: &OpenTrade,
+    source_order: bool,
+) -> impl Iterator<Item = &crate::domain::FilledOrder> {
+    // The virtual-fee contract proves the source's separate entry/exit loops.
+    // Descriptors without that contract retain their historical arithmetic.
+    trade
+        .orders
+        .iter()
+        .filter(move |order| !source_order || order.is_entry)
+        .chain(
+            trade
+                .orders
+                .iter()
+                .filter(move |order| source_order && !order.is_entry),
+        )
+}
+
+fn nfi_profit_snapshot_checked(
     trade: &OpenTrade,
     exit_rate: f64,
     open_fee_rate: f64,
     close_fee_rate: f64,
     is_futures: bool,
+    source_order: bool,
 ) -> Result<Option<NfiProfitSnapshot>, crate::domain::SimError> {
     use crate::calculations::{checked_finite, checked_float_product, checked_float_sum};
 
@@ -125,7 +181,7 @@ pub(crate) fn nfi_profit_snapshot_checked(
         (1.0 + open_fee_rate, 1.0 - close_fee_rate)
     };
     let mut first_entry_cost = None;
-    for order in &trade.orders {
+    for order in profit_order_sequence(trade, source_order) {
         let stake = checked_float_product(&[order.amount, order.price], "nfi-profit-order-stake")?;
         if order.is_entry {
             first_entry_cost.get_or_insert(stake);

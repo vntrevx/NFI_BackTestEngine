@@ -1,0 +1,12 @@
+{
+  "description": "Exact donor dispatch and system helper methods with required literal constants; static compiler input, not an official fixture.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "contract_sha256": "08dac5560f69186ab9b9a9cab2413c7d55fb167fda1bb8f2b3a6b1fa05d2811f",
+  "methods": {
+    "adjust_trade_position": "3260a6083b6bc686ad1009b9df4776d8bb8c43c3cd93628eff248fe0128075ca",
+    "is_system_v4": "5117f1a4f3db220a6e3a75358bf5ddc6b31aa5f12138de8b41efc9249b32655a",
+    "is_backtest_mode": "71981602a6fb51d161e04fd7552444b7631d584a468b46257fd23de0a62b4d30",
+    "get_system_version_flags": "6457b20e1bad82d95635448a4fba07dfc41504a6633ba4b4cdd8792c533ba71f",
+    "order_filled": "cd6672309c70dbc8f48ed4c35fe08b8e077afb82cba422a028c5a3825f2b28c6"
+  }
+}

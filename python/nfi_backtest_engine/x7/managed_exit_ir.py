@@ -721,11 +721,21 @@ def _stop_policy(
             )
         return {"kind": "source-helper", "helper": helpers.pop()}
 
+    prefix = "system_v3_2"
+    if isinstance(constants.get("system_v4_name"), str):
+        from .adjustment_dispatch import active_system_flags
+        from .system_exit_ir import ActiveSystemLowerer
+
+        flags = active_system_flags(constants)
+        prefix = next(f"system_{version}" for version in ("v3", "v3_1", "v3_2", "v4")
+                      if flags[f"is_system_{version}"])
+        wrapper = copy.deepcopy(wrapper)
+        ActiveSystemLowerer(constants).visit(wrapper)
     threshold_names = {
         node.attr
         for node in ast.walk(wrapper)
         if isinstance(node, ast.Attribute)
-        and node.attr.startswith("system_v3_2_stop_threshold_")
+        and node.attr.startswith(f"{prefix}_stop_threshold_")
     }
     futures_names = sorted(name for name in threshold_names if "_futures" in name)
     spot_names = sorted(name for name in threshold_names if "_spot" in name)
@@ -733,7 +743,8 @@ def _stop_policy(
         raise StrategyAnalysisError(f"NFI {wrapper.name} stop policy cannot be represented")
     futures = constants.get(futures_names[0])
     spot = constants.get(spot_names[0])
-    enabled = constants.get("system_v3_2_stops_enable")
+    enabled = constants.get("stops_enable" if prefix in {"system_v3", "system_v3_1"}
+                            else f"{prefix}_stops_enable")
     if (
         isinstance(futures, bool)
         or not isinstance(futures, int | float)

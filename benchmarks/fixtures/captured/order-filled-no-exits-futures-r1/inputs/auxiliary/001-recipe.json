@@ -1,0 +1,6 @@
+{
+  "base_source": "benchmarks/fixtures/captured/explicit-short-top-coins-futures-r1/inputs/strategy.py",
+  "base_source_sha256": "371825eee693507554b5bb2e0abc919c5e6f71f4a8b74109a3045bb124fba2f7",
+  "effective_source_sha256": "79a843eae4024bcce03ad6b0d49175aa2d5dfb97345bb264e173273d5f63b63a",
+  "description": "Managed short top-coins fixture plus the initial-entry/no-exits guard and static system OR in order_filled. Initial writes set entry_marker=0; the entry order tag 641 sets it to 7. Exit fills must preserve 7. Legacy unguarded initialization would reset it to 0. This isolates the callback semantics and does not qualify full X8."
+}

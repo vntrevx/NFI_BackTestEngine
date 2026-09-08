@@ -5,9 +5,11 @@ mod confirmation;
 mod entry;
 pub(crate) mod executable_callback;
 mod exit;
+pub(crate) mod order_stake;
 mod position;
 mod stake;
 mod state_machine;
+pub(crate) mod strategy_settings;
 
 pub(crate) use callback_trace::record_trade as trace_trade_callback;
 pub(crate) use callback_trace::{
@@ -16,12 +18,12 @@ pub(crate) use callback_trace::{
 pub(crate) use confirmation::evaluate_exit_confirm_program;
 #[cfg(test)]
 pub(crate) use confirmation::{evaluate_confirm_program, ConfirmInputs};
-#[cfg(test)]
-pub(crate) use entry::enter_trade;
 pub(crate) use entry::{
     adjustment_minimum_pair_stake, executable_order_filled, minimum_pair_stake, pair_price_step,
     EntryExecution,
 };
+#[cfg(test)]
+pub(crate) use entry::{apply_order_filled, enter_trade, validate_stake_amount};
 #[cfg(test)]
 pub(crate) use exit::exit_decision;
 pub(crate) use exit::{

@@ -12,6 +12,11 @@
         "family": "NostalgiaForInfinityX7",
         "selection": "capability-derived",
         "exactness_required": true
+      },
+      {
+        "family": "NostalgiaForInfinityX8",
+        "selection": "capability-derived",
+        "exactness_required": true
       }
     ],
     "official_only_legacy": [
@@ -83,7 +88,13 @@
     "timerange": "20210101-20260101",
     "minimum_days": 1825,
     "history_policy": "listing-aware-continuous-portfolio",
-    "timeframes": ["5m", "15m", "1h", "4h", "1d"],
+    "timeframes": [
+      "5m",
+      "15m",
+      "1h",
+      "4h",
+      "1d"
+    ],
     "minimum_native_repetitions": 3,
     "maximum_native_repetitions": 5,
     "adaptive_spread_threshold": 0.05,
@@ -99,8 +110,15 @@
   },
   "release_train": [
     {
-      "version": "v1.15.0",
-      "milestones": ["M25", "M26", "M27", "M28", "M29", "M30"],
+      "version": "v1.16.0",
+      "milestones": [
+        "M25",
+        "M26",
+        "M27",
+        "M28",
+        "M29",
+        "M30"
+      ],
       "combined_full_x7_certified": false
     }
   ]

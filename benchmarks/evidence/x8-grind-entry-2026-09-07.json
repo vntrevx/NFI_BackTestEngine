@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "Class-wide diagnostic-write proof and X8 long grind-entry predicate; not full X8 or system-v4 routing qualification",
+  "fixture": {
+    "path": "benchmarks/fixtures/captured/x8-grind-entry-futures-r1/manifest.json",
+    "sha256": "ba249ece3b4258e0f16c0a98a0174e562a98e99c5626877e282b5d8aa4784e26"
+  },
+  "recipe": {
+    "description": "Focused synthetic long-grind decision probe; not full X8 or system-v4 qualification.",
+    "base_source": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+    "base_source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+    "donor_source": "NostalgiaForInfinityX8.py",
+    "donor_source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+    "effective_source_sha256": "e1f212dc2871ba804d5089ddde9e628a2c2be336fd7b5e95f61ca11eb23a0574",
+    "exact_donor_methods": [
+      "long_grind_entry_v3",
+      "short_grind_entry_v3",
+      "long_grind_entry_v4",
+      "short_grind_entry_v4"
+    ],
+    "transformations": [
+      "Replace v3 long/short grind-entry predicates with exact donor methods.",
+      "Add exact dormant v4 long/short grind-entry predicates to exercise class-wide diagnostic-write proof.",
+      "Rename strategy class to GrindEntryProbe.",
+      "Replace entry signals with volume-positive RSI_14 > 60 longs tagged 1; retain archived indicators and other callbacks. Dips evaluate deeper grind predicates when enter_long is false."
+    ]
+  },
+  "unchanged_donor_method_sha256": {
+    "long_grind_entry_v3": "d9b309b54058b4bfd660eaa54bf69a5d9333d05e1597a7df1cd523e075fcb041",
+    "long_grind_entry_v4": "0fcdfe8d6a06c5f39df334ca3e9149682183972ae3f484a45734c9964699637b",
+    "short_grind_entry_v3": "9752d273c496fb8c71908cf5fb1494921995dd385b02cb35b57e10679705be16",
+    "short_grind_entry_v4": "c1bb3628c5446849218803de05cf4ef4a6e86fe41355784f0e3dbeae64ba83ac"
+  },
+  "reference": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "GrindEntryProbe",
+    "timerange": "20220404-20220412",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "GrindEntryProbe",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20220404-20220412",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "parity": {
+    "trade_surface_equal": true,
+    "full_state_equal": true,
+    "tolerance": 0,
+    "trade_count": 2,
+    "order_count": 6,
+    "state_event_count": 2304,
+    "expected_state_stream_hash": "506ee78c257bf566ec64aea137f43389a55dce3fe4e1fbf08e709474943673a2",
+    "actual_state_stream_hash": "506ee78c257bf566ec64aea137f43389a55dce3fe4e1fbf08e709474943673a2"
+  },
+  "official_grind_entries": [
+    {
+      "timestamp": "2022-04-04T19:10:00Z",
+      "order_tag": "grind_1_entry",
+      "diagnostic_tag": "g0"
+    },
+    {
+      "timestamp": "2022-04-05T06:25:00Z",
+      "order_tag": "grind_1_entry",
+      "diagnostic_tag": "g24"
+    }
+  ],
+  "official_log_sha256": "b7ee62ea77c040161e4072a6847bd0cad1bb74cc50e526bc6b5f181a3d0c8496",
+  "source_support": {
+    "full_x8_native_compatible": false,
+    "spot_and_futures_blocker": "NFI top-coins lowering currently requires frozen system_v3_2 routing",
+    "compiled_predicates": [
+      "long_grind_entry_v3",
+      "long_grind_entry_v4",
+      "short_grind_entry_v3",
+      "short_grind_entry_v4"
+    ]
+  },
+  "validation": {
+    "python_scalar_and_captured_predicate_tests_passed": 22,
+    "python_existing_manager_tests_passed": 5,
+    "ruff": "passed: python tests",
+    "basedpyright": "passed: python/nfi_backtest_engine/trade_ir.py",
+    "existing_x7_manager_goldens": "unchanged"
+  },
+  "fixture_replay": {
+    "command": "nfi-bte engine fixture benchmarks/fixtures/captured/x8-grind-entry-futures-r1/manifest.json --output-dir artifacts/x8-grind-entry/parity-full --level full",
+    "complete": true,
+    "trade_surface_equal": true,
+    "full_state_equal": true,
+    "run_report_sha256": "992ac505ab3d8aa9c8cf80645c88b3670851af63b9c5a5b47dcfd05fe58abde9"
+  }
+}

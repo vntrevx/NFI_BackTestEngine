@@ -6,10 +6,11 @@ import ast
 import copy
 import hashlib
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from ..errors import StrategyAnalysisError
+from .route_contracts import ManagedRouteSpec
 from .trade_manager import (
     _MANAGED_LONG_ROUTE_SPECS,
     _MANAGED_LONG_STATEFUL_FEATURES,
@@ -242,17 +243,20 @@ def _require_managed_short_methods(methods: Mapping[str, ast.FunctionDef]) -> No
         )
 
 
-def _build_managed_short_routes(constants: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _build_managed_short_routes(
+    constants: dict[str, Any],
+    route_specs: Sequence[ManagedRouteSpec] = _MANAGED_SHORT_ROUTE_SPECS,
+) -> dict[str, dict[str, Any]]:
     """Freeze every reviewed short exit route in upstream source order.
 
     The profiles reuse the typed exit/target policy shape, but they remain
     separate descriptors with disjoint source tags. In particular,
-    ``short_top_coins_fallback`` deliberately names ``short_normal`` because
-    that is the fallback callback upstream actually executes.
+    ``short_top_coins_fallback`` names ``short_normal`` for sources without an
+    explicit top-coins dispatch. Explicit sources supply their selected specs.
     """
     routes: dict[str, dict[str, Any]] = {}
     claimed_tags: set[str] = set()
-    for spec in _MANAGED_SHORT_ROUTE_SPECS:
+    for spec in route_specs:
         mode_name = constants.get(spec.mode_constant)
         entry_tags = constants.get(spec.tags_constant)
         if not isinstance(mode_name, str) or not mode_name:
@@ -296,6 +300,10 @@ def _build_managed_short_routes(constants: dict[str, Any]) -> dict[str, dict[str
         stop_constants = _ROUTE_STOP_CONSTANTS.get(spec.profile)
         if stop_constants is not None:
             futures_name, spot_name = stop_constants
+            if (isinstance(constants.get("system_v4_name"), str)
+                    and constants.get("system_name_use") == constants["system_v4_name"]):
+                futures_name = futures_name.replace("system_v3_2_", "system_v4_", 1)
+                spot_name = spot_name.replace("system_v3_2_", "system_v4_", 1)
             futures = constants.get(futures_name)
             spot = constants.get(spot_name)
             if any(
@@ -376,6 +384,10 @@ def _build_managed_long_routes(constants: dict[str, Any]) -> dict[str, dict[str,
         stop_constants = _ROUTE_STOP_CONSTANTS.get(spec.profile)
         if stop_constants is not None:
             futures_name, spot_name = stop_constants
+            if (isinstance(constants.get("system_v4_name"), str)
+                    and constants.get("system_name_use") == constants["system_v4_name"]):
+                futures_name = futures_name.replace("system_v3_2_", "system_v4_", 1)
+                spot_name = spot_name.replace("system_v3_2_", "system_v4_", 1)
             futures = constants.get(futures_name)
             spot = constants.get(spot_name)
             if any(

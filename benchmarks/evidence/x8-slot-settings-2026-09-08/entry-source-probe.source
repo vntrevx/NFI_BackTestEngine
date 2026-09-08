@@ -1,0 +1,6 @@
+import inspect,json
+from freqtrade.optimize.backtesting import Backtesting
+from freqtrade.exchange import Exchange
+print(json.dumps({'entry':inspect.getsource(Backtesting.get_valid_entry_price_and_stake),
+                  'minimum':inspect.getsource(Exchange.get_min_pair_stake_amount),
+                  'limit':inspect.getsource(Exchange._get_stake_amount_limit)},indent=2))

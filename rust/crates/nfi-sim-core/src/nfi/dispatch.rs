@@ -1,7 +1,7 @@
 //! NFI position-adjustment route dispatch.
 #![allow(clippy::option_option)] // Outer None rejects invalid state; inner None is a valid no-op.
 
-use crate::calculations::{checked_float_product, checked_float_sum, fee_close, fee_open};
+use crate::calculations::{checked_float_product, checked_float_sum};
 use crate::domain::{
     AdjustmentSignal, CallbackOutcome, CallbackPhase, CallbackTransaction, Candle,
     NfiLongGrindRoute, NfiX7TradeManager, PairSeries, PortfolioConfig, SimError,
@@ -12,10 +12,10 @@ use crate::validation::{nfi_managed_route_supports_tags, nfi_managed_short_route
 
 use super::dispatch_plan::{all_in_scope, any_in_scope};
 use super::{
-    compiled_rebuy_delegates, evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
+    compiled_rebuy_delegates, decision_profit_snapshot_checked,
+    evaluate_nfi_legacy_grind_adjustment, evaluate_nfi_rebuy_adjustment,
     evaluate_nfi_regular_adjustment, evaluate_nfi_short_rebuy_adjustment,
-    evaluate_nfi_system_v3_adjustment, nfi_profit_snapshot_checked, PositionAdjustmentRequest,
-    RegularAdjustmentOutcome,
+    evaluate_nfi_system_v3_adjustment, PositionAdjustmentRequest, RegularAdjustmentOutcome,
 };
 
 pub(crate) fn evaluate_nfi_position_adjustment(
@@ -24,15 +24,18 @@ pub(crate) fn evaluate_nfi_position_adjustment(
     request: &PositionAdjustmentRequest<'_>,
 ) -> Result<Option<Option<AdjustmentSignal>>, SimError> {
     validate_nfi_order_arithmetic(trade)?;
-    nfi_profit_snapshot_checked(
-        trade,
-        request.candle.open,
-        fee_open(request.config),
-        fee_close(request.config),
-        request.config.is_futures,
-    )?;
+    decision_profit_snapshot_checked(trade, request.candle.open, request.config)?;
     let before = trade.clone();
-    let result = evaluate_nfi_position_adjustment_inner(manager, trade, request);
+    let bounded_request = PositionAdjustmentRequest {
+        available_balance: crate::execution::order_stake::adjustment_maximum_stake(
+            request.pair,
+            request.candle.open,
+            request.available_balance,
+            request.config,
+        )?,
+        ..*request
+    };
+    let result = evaluate_nfi_position_adjustment_inner(manager, trade, &bounded_request);
     if let Some(signal) = &result {
         trace_trade_callback(
             CallbackPhase::PositionAdjustment,
@@ -57,7 +60,18 @@ pub(crate) fn evaluate_nfi_position_adjustment(
             Some("NFI callback dispatch rejected runtime state".to_owned()),
         )?;
     }
-    Ok(result)
+    // Freqtrade applies the entry count cap after the callback, preserving
+    // its custom-data writes and allowing negative (exit) adjustments.
+    let entry_count = trade.orders.iter().filter(|order| order.is_entry).count();
+    Ok(result.map(|signal| {
+        signal.filter(|signal| {
+            signal.stake_amount <= 0.0
+                || crate::callbacks::permits_additional_entry(
+                    entry_count,
+                    request.config.max_entry_position_adjustment,
+                )
+        })
+    }))
 }
 
 pub(super) fn validate_nfi_order_arithmetic(trade: &OpenTrade) -> Result<(), SimError> {
@@ -78,6 +92,9 @@ fn evaluate_nfi_position_adjustment_inner(
     trade: &mut OpenTrade,
     request: &PositionAdjustmentRequest<'_>,
 ) -> Option<Option<AdjustmentSignal>> {
+    if manager.adjustment_dispatch.is_some() {
+        return super::source_adjustment_dispatch::evaluate(manager, trade, request);
+    }
     let dispatch = manager.runtime_dispatch()?;
     let tags = dispatch.intern_trade_tags(trade);
     if trade.side == TradeSide::Short {

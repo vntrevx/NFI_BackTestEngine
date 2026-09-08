@@ -34,7 +34,10 @@ and every unknown path fail closed to the full four-entry Python matrix, Python 
 Rust quality jobs, and native parity. Mixed changes take the union of capabilities.
 `Required CI` authenticates the emitted plan by recomputing it from the changed paths,
 then requires every selected job to succeed and every unselected conditional job to
-be skipped. Timing validation uses the exact report identities selected by that same
+be skipped. The complete plan travels as a same-run workflow artifact so large
+fixture changes do not exceed operating-system argument or environment limits.
+Classification and matrix outputs remain small; documentation, timing, and the
+aggregate gate read the plan file and retain the existing validation checks. Timing validation uses the exact report identities selected by that same
 plan rather than requiring evidence from jobs that intentionally did not run.
 
 Operational discovery configuration, release contracts, non-CI workflows, runtime

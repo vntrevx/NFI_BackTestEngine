@@ -29,10 +29,8 @@ jobs:
       automation_changes: ${{ steps.paths.outputs.automation_changes }}
       policy_changes: ${{ steps.paths.outputs.policy_changes }}
       code_changes: ${{ steps.paths.outputs.code_changes }}
-      changed_paths_json: ${{ steps.paths.outputs.changed_paths_json }}
       selected_jobs_json: ${{ steps.paths.outputs.selected_jobs_json }}
       python_matrix_json: ${{ steps.paths.outputs.python_matrix_json }}
-      validation_plan_json: ${{ steps.paths.outputs.validation_plan_json }}
     steps:
       - name: Check out source and comparison history
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -52,7 +50,16 @@ jobs:
             --event-name "$EVENT_NAME" \
             --base "$BASE_SHA" \
             --head "$HEAD_SHA" \
-            --github-output "$GITHUB_OUTPUT"
+            --github-output "$GITHUB_OUTPUT" \
+            --plan-output .ci/validation-plan.json
+      - name: Upload validation plan
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: validation-plan
+          path: .ci/validation-plan.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
 
   documentation:
     name: Documentation path
@@ -65,11 +72,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Download validation plan
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: validation-plan
+          path: .ci/plan
       - name: Validate text changes
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CHANGED_PATHS_JSON: ${{ needs.changes.outputs.changed_paths_json }}
         shell: bash
         run: |
           set -euo pipefail
@@ -80,7 +91,7 @@ jobs:
             git show --check --format= "$GITHUB_SHA"
           fi
           python .github/scripts/ci_contract.py validate-text \
-            --paths-json "$CHANGED_PATHS_JSON"
+            --validation-plan-file .ci/plan/validation-plan.json
 
   policy:
     name: CI policy checks
@@ -187,6 +198,9 @@ jobs:
       - name: Show Rust compiler cache statistics
         if: always() && matrix.suite == 'full'
         run: sccache --show-stats
+      - name: Restore checksum-pinned large fixture blobs
+        if: matrix.suite == 'full'
+        run: python .github/scripts/restore_fixture_blobs.py
       - name: Run Python tests
         if: matrix.suite == 'full'
         run: >-
@@ -451,9 +465,12 @@ jobs:
           pattern: ci-timing-*
           path: .ci/timing-reports
           merge-multiple: true
+      - name: Download validation plan
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: validation-plan
+          path: .ci/plan
       - name: Validate complete timing coverage and identity
-        env:
-          VALIDATION_PLAN_JSON: ${{ needs.changes.outputs.validation_plan_json }}
         run: |
           set -euo pipefail
           cache_lock_sha256="$(sha256sum uv.lock | cut -d ' ' -f 1)"
@@ -469,7 +486,7 @@ jobs:
             --expected-candidate-commit "${{ github.sha }}" \
             --cache-file uv.lock \
             --expected-cache-sha256 "$cache_lock_sha256" \
-            --validation-plan-json "$VALIDATION_PLAN_JSON" \
+            --validation-plan-file .ci/plan/validation-plan.json \
             --output .ci/ci-timing-report.json
       - name: Upload aggregate timing report
         if: success()
@@ -491,10 +508,14 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      - name: Download validation plan
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: validation-plan
+          path: .ci/plan
       - name: Require the selected job matrix
         env:
           CLASSIFICATION: ${{ needs.changes.outputs.classification }}
-          VALIDATION_PLAN_JSON: ${{ needs.changes.outputs.validation_plan_json }}
           CHANGES_RESULT: ${{ needs.changes.result }}
           DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           POLICY_RESULT: ${{ needs.policy.result }}
@@ -508,7 +529,7 @@ jobs:
           set -euo pipefail
           python .github/scripts/ci_contract.py verify-results \
             --classification "$CLASSIFICATION" \
-            --validation-plan-json "$VALIDATION_PLAN_JSON" \
+            --validation-plan-file .ci/plan/validation-plan.json \
             --changes-result "$CHANGES_RESULT" \
             --documentation-result "$DOCUMENTATION_RESULT" \
             --job-result "policy=$POLICY_RESULT" \

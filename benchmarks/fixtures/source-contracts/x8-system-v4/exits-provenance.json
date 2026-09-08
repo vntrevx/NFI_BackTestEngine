@@ -1,0 +1,13 @@
+{
+  "description": "Exact supplied X8 exit helper and router methods, including the staticmethod decorator; static test contract, not an official fixture.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "contract_sha256": "84eb38e700818234fe831657ed319ac9796c4288a98f2928505ba2f101206bcd",
+  "methods": {
+    "long_exit_stoploss": "a1ed6935a0ddf548bec6086e114e080176e616acc297fc9f4f1f3548ea652af5",
+    "short_exit_stoploss": "f3d3b1f19df68d90b3e8130f26135639abd5575c731e321b66c9f70448112bf0",
+    "exit_profit_target": "bf43e7e23877c718fd78cd35d8369afe527f487b89bb0cb02bbf83ed39b9f89b",
+    "custom_exit": "4a50278a52f0e985e886dbef266024212b652389aa638f55b5d7623164d56b26",
+    "_bad_trade_controller_ema_gap_and_adverse_move": "404051268616cca836304c0aedb785d9192d41ceacbd0cddc1c2fef0f9740589",
+    "_bad_trade_controller_exit_reason": "c8bcea05876093bc87077774352f00d389b0f4d3b2ad607b4866006f1f5a0579"
+  }
+}

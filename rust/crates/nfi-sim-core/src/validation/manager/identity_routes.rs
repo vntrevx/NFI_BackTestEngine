@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::domain::NfiX7TradeManager;
+use crate::domain::{ManagedExitExecutionMode, NfiX7TradeManager};
 
 use super::{
     uses_full_futures_manager_contract, valid_nfi_managed_long_route, valid_nfi_managed_short_route,
@@ -144,16 +144,33 @@ fn valid_short_routes(
     short_tags: &BTreeSet<&String>,
 ) -> bool {
     let expected_order = if uses_full_futures_manager_contract(&manager.schema_version) {
-        vec![
+        let mut order = vec![
             "short_normal",
             "short_pump",
             "short_quick",
             "short_rebuy",
             "short_high_profit",
             "short_rapid",
-            "short_scalp",
-            "short_top_coins_fallback",
-        ]
+        ];
+        if manager
+            .managed_short_routes
+            .iter()
+            .any(|route| route.key == "short_top_coins")
+        {
+            // The explicit wrapper is executed from its source program. It
+            // must never enter the older profile-based shadow evaluator.
+            if !manager
+                .managed_short_exit_program
+                .as_ref()
+                .is_some_and(|program| program.execution_mode == ManagedExitExecutionMode::Primary)
+            {
+                return false;
+            }
+            order.extend(["short_top_coins", "short_scalp"]);
+        } else {
+            order.extend(["short_scalp", "short_top_coins_fallback"]);
+        }
+        order
     } else {
         vec!["short_rebuy"]
     };

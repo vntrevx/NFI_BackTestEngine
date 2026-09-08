@@ -1,0 +1,357 @@
+{
+  "schema_version": "1.0.0",
+  "verified_at_utc": "2026-09-08T05:54:45.918783+00:00",
+  "scope": "Unchanged original X8, ETH only, 20250405-20250408, Spot and isolated Futures; bounded sequential execution.",
+  "tolerance": 0,
+  "source": {
+    "path": "NostalgiaForInfinityX8.py",
+    "sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+    "bytes": 2477185
+  },
+  "cases": [
+    {
+      "mode": "spot",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-bounded-original-spot-r1/manifest.json",
+        "sha256": "70c77a9a6e8f53084d16b85916b9929a27e34836b2c32364d362cc03fa1132f0",
+        "bytes": 5187
+      },
+      "source_identical": true,
+      "source_execution": {
+        "strategy_source_mode": "python-ast-compile-only",
+        "populate_methods_executed": false,
+        "runtime_mode": "rust-full-native"
+      },
+      "trades": 2,
+      "orders": 4,
+      "portfolio_states": 864,
+      "custom_snapshots": 75,
+      "state_stream_sha256": "4ce284c61e15c4e93b7ec6f826ffb56a720aebdd3bf28a192346a0a0432eafff",
+      "native_receipt": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/native-run.json",
+        "sha256": "793a39ab9ad5c991e5bd9dccd00a6af97bf9473cd257ff3e32a1faa51885af34",
+        "bytes": 7629
+      },
+      "official_receipt": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/official-run.json",
+        "sha256": "86b2efc5a3c37ff0d6bb4c559ff21a1ec701657a152007272f2129c7a7fa8f4b",
+        "bytes": 25131
+      },
+      "custom_comparison": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/custom-state/comparison.json",
+        "sha256": "6ec4ebd273b13bb2d7ceacd3cf88ae835d1731f7056ef1e1870f1e2174eeaa86",
+        "bytes": 1414
+      },
+      "official_callback_audit": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/custom-state/official-callback-audit.json.gz",
+        "sha256": "637e4095c2b67989d978e4785c34c1e73acae7328f024748cd28ca44a75abed6",
+        "bytes": 5010
+      },
+      "resources": [
+        {
+          "phase": "run",
+          "measurement": {
+            "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/spot/run.py",
+            "cpu_affinity": [
+              0,
+              1
+            ],
+            "rss_cap_bytes": 4294967296,
+            "peak_process_tree_rss_bytes": 529268736,
+            "elapsed_seconds": 76.37865244201384,
+            "timeout_seconds": 600,
+            "terminated_reason": null,
+            "exit_code": 0,
+            "docker_memory_in_process_tree": false
+          },
+          "receipt": {
+            "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/run-resources.json",
+            "sha256": "7cdcfd8aeacbb51aeddb2b619546464c8080ccf6bdcc5edfc7a670f641207091",
+            "bytes": 377
+          }
+        },
+        {
+          "phase": "capture",
+          "measurement": {
+            "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/spot/capture.py",
+            "cpu_affinity": [
+              0,
+              1
+            ],
+            "rss_cap_bytes": 4294967296,
+            "peak_process_tree_rss_bytes": 385110016,
+            "elapsed_seconds": 34.78680586197879,
+            "timeout_seconds": 600,
+            "terminated_reason": null,
+            "exit_code": 0,
+            "docker_memory_in_process_tree": false
+          },
+          "receipt": {
+            "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/capture-resources.json",
+            "sha256": "fdc3f8e4a2208bc0003924654db4945bc2ac591d8197b1533b2435500c4ca388",
+            "bytes": 381
+          }
+        },
+        {
+          "phase": "replay",
+          "measurement": {
+            "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/spot/replay.py",
+            "cpu_affinity": [
+              0,
+              1
+            ],
+            "rss_cap_bytes": 4294967296,
+            "peak_process_tree_rss_bytes": 544423936,
+            "elapsed_seconds": 67.07587927090935,
+            "timeout_seconds": 600,
+            "terminated_reason": null,
+            "exit_code": 0,
+            "docker_memory_in_process_tree": false
+          },
+          "receipt": {
+            "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/spot/replay-resources.json",
+            "sha256": "efdc713767e8b692db2332fdcbd329dca2b2c498586af81049e230df56d19d3c",
+            "bytes": 380
+          }
+        }
+      ],
+      "official_memory": {
+        "verdict": "within_limit",
+        "limit_bytes": 4294967296,
+        "peak_bytes": 350982144,
+        "peak_ratio": 0.08171939849853516,
+        "oom_kill_count": 0,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        }
+      },
+      "official_swap": {
+        "mode": "normal",
+        "current_bytes_at_exit": 0,
+        "peak_bytes": 0,
+        "events": {
+          "high": 0,
+          "max": 0,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "mode": "futures",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-bounded-original-futures-r1/manifest.json",
+        "sha256": "46e33e7bb2dd67e2b789b0ae0d926f3d8fdf492ef0e6e1d7870928e004f95fcb",
+        "bytes": 6299
+      },
+      "source_identical": true,
+      "source_execution": {
+        "strategy_source_mode": "python-ast-compile-only",
+        "populate_methods_executed": false,
+        "runtime_mode": "rust-full-native"
+      },
+      "trades": 2,
+      "orders": 4,
+      "portfolio_states": 864,
+      "custom_snapshots": 72,
+      "state_stream_sha256": "93522c1e4b1d3c1b430e2b241e344eb9b910f7a8b2d4daa32cd5a8db590b9373",
+      "native_receipt": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/native-run.json",
+        "sha256": "ce016c70711e6c3b97f1e4340f4ee37af723595b6f7801d10a54f3800d5dcb8e",
+        "bytes": 7680
+      },
+      "official_receipt": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/official-run.json",
+        "sha256": "98fccd3f2f5bc792dfe2de39909943459b4e57d51546203c02dc7e409c68db54",
+        "bytes": 25169
+      },
+      "custom_comparison": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/custom-state/comparison.json",
+        "sha256": "df4cb20d558ceaee042a3e6604834ae853a477b768e7c100d3e12c316bbcdad1",
+        "bytes": 1414
+      },
+      "official_callback_audit": {
+        "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/custom-state/official-callback-audit.json.gz",
+        "sha256": "220742364414a230859649a99627b6f57d3f5d551ed69b1628068e4acbe56504",
+        "bytes": 4969
+      },
+      "resources": [
+        {
+          "phase": "run",
+          "measurement": {
+            "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/futures/run.py",
+            "cpu_affinity": [
+              0,
+              1
+            ],
+            "rss_cap_bytes": 4294967296,
+            "peak_process_tree_rss_bytes": 518664192,
+            "elapsed_seconds": 69.07251284399536,
+            "timeout_seconds": 600,
+            "terminated_reason": null,
+            "exit_code": 0,
+            "docker_memory_in_process_tree": false
+          },
+          "receipt": {
+            "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/run-resources.json",
+            "sha256": "b50041438063340d98ee61a09c643b57e4f8829fb3db622734d36cf4fef418ca",
+            "bytes": 380
+          }
+        },
+        {
+          "phase": "capture",
+          "measurement": {
+            "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/futures/capture.py",
+            "cpu_affinity": [
+              0,
+              1
+            ],
+            "rss_cap_bytes": 4294967296,
+            "peak_process_tree_rss_bytes": 384921600,
+            "elapsed_seconds": 30.672002519015223,
+            "timeout_seconds": 600,
+            "terminated_reason": null,
+            "exit_code": 0,
+            "docker_memory_in_process_tree": false
+          },
+          "receipt": {
+            "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/capture-resources.json",
+            "sha256": "743c49305ce115cdeef81a1d5a0fa4196be454611952984284ecc94f7ad928bc",
+            "bytes": 385
+          }
+        },
+        {
+          "phase": "replay",
+          "measurement": {
+            "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/futures/replay.py",
+            "cpu_affinity": [
+              0,
+              1
+            ],
+            "rss_cap_bytes": 4294967296,
+            "peak_process_tree_rss_bytes": 550297600,
+            "elapsed_seconds": 61.37520045309793,
+            "timeout_seconds": 600,
+            "terminated_reason": null,
+            "exit_code": 0,
+            "docker_memory_in_process_tree": false
+          },
+          "receipt": {
+            "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/futures/replay-resources.json",
+            "sha256": "f6338dd0bdfdab0d7395b58ff783501af7758793d11317a3cac7ef4871be0030",
+            "bytes": 383
+          }
+        }
+      ],
+      "official_memory": {
+        "verdict": "within_limit",
+        "limit_bytes": 4294967296,
+        "peak_bytes": 353452032,
+        "peak_ratio": 0.08229446411132812,
+        "oom_kill_count": 0,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        }
+      },
+      "official_swap": {
+        "mode": "normal",
+        "current_bytes_at_exit": 0,
+        "peak_bytes": 0,
+        "events": {
+          "high": 0,
+          "max": 0,
+          "fail": 0
+        }
+      }
+    }
+  ],
+  "totals": {
+    "trades": 4,
+    "orders": 8,
+    "portfolio_states": 1728,
+    "custom_snapshots": 147
+  },
+  "checks": [
+    {
+      "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/checks/python-focused-r3.log",
+      "sha256": "15984d7d13c64a169c702bd4b52be8fd7f8ad51520487b46e69e2bc3d9df906b",
+      "bytes": 180
+    },
+    {
+      "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/checks/ruff-r2.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/checks/basedpyright-r3.log",
+      "sha256": "56882e01cb80173ef053c4096e4ee43e3123a15f5c0a06715f96988d48fbd91c",
+      "bytes": 30
+    }
+  ],
+  "verifier": {
+    "path": "benchmarks/evidence/x8-bounded-readiness-2026-09-08/verify.py",
+    "sha256": "37c3f326ff44b95ea279644781156cf7c10d1cb97343ff5b9b75cb8cec1a4e7c",
+    "bytes": 1519
+  },
+  "runtime_source_files": [
+    {
+      "path": "python/nfi_backtest_engine/hardware.py",
+      "sha256": "5187fe00bd6a88ee58c4a33f254b32d1c078ba18098e470f7179e36d0be8712c",
+      "bytes": 16131
+    },
+    {
+      "path": "python/nfi_backtest_engine/cli.py",
+      "sha256": "3df71554fd3075a08fa69e2805c8ce82126e7840dd64cb9d1e513ab9e155e97e",
+      "bytes": 74265
+    },
+    {
+      "path": "python/nfi_backtest_engine/commands/system.py",
+      "sha256": "106418aeb764ca1c16cf2bbef0d412509ab1282a6289a352ba56d9f12ef5c147",
+      "bytes": 5413
+    },
+    {
+      "path": "python/nfi_backtest_engine/docker_resources.py",
+      "sha256": "58b5f7ab8f8475f9bbe3713a48b008c8735f5a14f4eaff5c6539918d69d83e03",
+      "bytes": 11975
+    },
+    {
+      "path": "python/nfi_backtest_engine/docker_runtime.py",
+      "sha256": "c8fefc402e998422d867985a6f710d7202453991399325d5c44829dd32c1e33f",
+      "bytes": 20096
+    },
+    {
+      "path": "python/nfi_backtest_engine/research_reference.py",
+      "sha256": "8f1f714e08b8dd7821d0b30c0c5ad4dd4df36025545b616d141e564968ccb913",
+      "bytes": 43079
+    },
+    {
+      "path": "python/nfi_backtest_engine/reference_resources.py",
+      "sha256": "603f2002159285a267724077e9bcee888c486d3578ac949be290933bc9dc1b28",
+      "bytes": 1265
+    }
+  ],
+  "previous_qualification": {
+    "path": "benchmarks/evidence/x8-execution-settings-2026-09-08/verification.json",
+    "sha256": "ff01a3837fbc10e403b3419fd3681d1f51787de36aa5b46907c85d19a637068e",
+    "bytes": 155040
+  },
+  "limitations": [
+    "Three days and one tradable pair per mode; both cases produce long trades only. This does not add natural short-signal coverage or certify broad market/production behavior.",
+    "Native process-tree memory was sampled every 250 ms by a work-local watchdog, not a persistent operating-system memory cgroup.",
+    "Native CPU affinity was work-local; reusable profile CPU settings bound worker scheduling and official Docker quota.",
+    "Docker limits and cgroup memory measurements cover the official backtest container; helper containers and unrelated host jobs are outside these measurements.",
+    "Full suites and cross-platform CI were not repeated for resource orchestration changes; focused regression tests and two full parity captures were used."
+  ],
+  "preliminary_interruption": "Initial Spot Native run exposed loss of memory cap on hardware-affinity recalibration. Its official capture was interrupted. Preliminary files remain under artifacts/x8-bounded-readiness/spot/preliminary and are excluded from successful totals."
+}

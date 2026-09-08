@@ -7,8 +7,9 @@
 
 use super::adjustment::evaluate_grind_entry_program;
 use super::dispatch::nfi_long_grind_supports_trade;
+use super::fees::{fee_close, fee_open};
 use crate::calculations::{
-    checked_finite, checked_float_product, checked_float_sum, fee_close, fee_open,
+    checked_finite, checked_float_product, checked_float_sum, fee_close as exchange_fee_close,
 };
 use crate::domain::{
     AdjustmentSignal, Candle, CompiledLegacyComparison, CompiledLegacyGrindExecutionMode,
@@ -52,7 +53,13 @@ impl LegacyCluster {
         Some(())
     }
 
-    fn finish(&mut self, rate: f64, close_fee: f64, side: CompiledLegacyGrindSide) -> Option<()> {
+    fn finish(
+        &mut self,
+        rate: f64,
+        close_fee: f64,
+        side: CompiledLegacyGrindSide,
+        additive_close_fee: bool,
+    ) -> Option<()> {
         if self.count == 0 {
             return Some(());
         }
@@ -61,8 +68,13 @@ impl LegacyCluster {
             "nfi-legacy-grind-open-rate",
         )
         .ok()?;
+        let close_multiplier = if additive_close_fee && side == CompiledLegacyGrindSide::Short {
+            1.0 + close_fee
+        } else {
+            1.0 - close_fee
+        };
         let current_stake = checked_float_product(
-            &[self.total_amount, rate, 1.0 - close_fee],
+            &[self.total_amount, rate, close_multiplier],
             "nfi-legacy-grind-current-stake",
         )
         .ok()?;
@@ -313,7 +325,7 @@ fn evaluate_nfi_legacy_grind_shadow(
     let mode = legacy_mode_for_route(route, config)?;
 
     let minimum_stake = legacy_adjustment_minimum_stake(pair, candle, trade, config)?;
-    let state = rebuild_legacy_state(trade, candle.open, fee_close(config), route)?;
+    let state = rebuild_legacy_state(trade, candle.open, exchange_fee_close(config), route)?;
     let stake_multipliers = if config.is_futures {
         &route.constants.stake_multipliers_futures
     } else {
@@ -430,7 +442,17 @@ fn evaluate_compiled_grind(
     }
     let mode = legacy_mode_for_route(route, config)?;
     let minimum_stake = legacy_adjustment_minimum_stake(pair, candle, trade, config)?;
-    let state = rebuild_compiled_grind_state(trade, candle.open, fee_close(config), program)?;
+    let additive_close_fee = manager
+        .virtual_fees
+        .as_ref()
+        .is_some_and(|fees| fees.legacy_short_close_fee_additive);
+    let state = rebuild_compiled_grind_state(
+        trade,
+        candle.open,
+        exchange_fee_close(config),
+        program,
+        additive_close_fee,
+    )?;
     let stake_multipliers = if config.is_futures {
         &route.constants.stake_multipliers_futures
     } else {
@@ -936,6 +958,7 @@ fn rebuild_compiled_grind_state(
     rate: f64,
     close_fee: f64,
     program: &CompiledLegacyGrindProgram,
+    additive_close_fee: bool,
 ) -> Option<LegacyState> {
     let first_entry = trade.orders.iter().find(|order| order.is_entry)?;
     let latest_entry = trade.orders.iter().rev().find(|order| order.is_entry)?;
@@ -1013,7 +1036,7 @@ fn rebuild_compiled_grind_state(
         }
     }
     for cluster in &mut clusters {
-        cluster.finish(rate, close_fee, program.side)?;
+        cluster.finish(rate, close_fee, program.side, additive_close_fee)?;
     }
     Some(LegacyState {
         clusters,
@@ -1152,7 +1175,7 @@ fn rebuild_legacy_state(
         }
     }
     for cluster in &mut clusters {
-        cluster.finish(rate, close_fee, CompiledLegacyGrindSide::Long)?;
+        cluster.finish(rate, close_fee, CompiledLegacyGrindSide::Long, false)?;
     }
     Some(LegacyState {
         clusters,
@@ -1553,5 +1576,40 @@ fn legacy_comparison_matches(
     match comparison {
         CompiledLegacyComparison::LessThan => value < threshold,
         CompiledLegacyComparison::GreaterThan => value > threshold,
+    }
+}
+
+#[cfg(test)]
+mod fee_tests {
+    use super::{CompiledLegacyGrindSide, LegacyCluster};
+
+    #[test]
+    fn source_short_legacy_cluster_adds_actual_close_fee() {
+        for (side, source_policy, expected) in [
+            (
+                CompiledLegacyGrindSide::Short,
+                true,
+                200.0 - 2.0 * 95.0 * (1.0 + 0.001),
+            ),
+            (
+                CompiledLegacyGrindSide::Short,
+                false,
+                200.0 - 2.0 * 95.0 * (1.0 - 0.001),
+            ),
+            (
+                CompiledLegacyGrindSide::Long,
+                true,
+                2.0 * 95.0 * (1.0 - 0.001) - 200.0,
+            ),
+        ] {
+            let mut cluster = LegacyCluster {
+                count: 1,
+                total_amount: 2.0,
+                total_cost: 200.0,
+                ..LegacyCluster::default()
+            };
+            cluster.finish(95.0, 0.001, side, source_policy).unwrap();
+            assert_eq!(cluster.profit_stake.to_bits(), f64::to_bits(expected));
+        }
     }
 }

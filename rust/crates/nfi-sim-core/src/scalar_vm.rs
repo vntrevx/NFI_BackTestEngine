@@ -324,6 +324,24 @@ fn evaluate_scalar_expression(
             let index = scalar_operand(fields, 2, variables, program, programs, depth)?;
             scalar_index(&value, &index)
         }
+        "mapping-get" if fields.len() == 4 => {
+            let value = scalar_operand(fields, 1, variables, program, programs, depth)?;
+            let key = scalar_operand(fields, 2, variables, program, programs, depth)?;
+            let default = scalar_operand(fields, 3, variables, program, programs, depth)?;
+            Some(
+                value
+                    .as_object()?
+                    .get(key.as_str()?)
+                    .cloned()
+                    .unwrap_or(default),
+            )
+        }
+        "is-finite" if fields.len() == 2 => {
+            let value = scalar_operand(fields, 1, variables, program, programs, depth)?;
+            Some(Value::Bool(
+                value.is_boolean() || scalar_number(&value)?.is_finite(),
+            ))
+        }
         "not" if fields.len() == 2 => Some(Value::Bool(!scalar_truthy(&scalar_operand(
             fields, 1, variables, program, programs, depth,
         )?))),
@@ -447,6 +465,27 @@ fn evaluate_scalar_expression(
                             depth + 1,
                         )?;
                         result.push_str(&scalar_string(&value));
+                    }
+                    "fixed-zero" if part.len() == 2 => {
+                        let value = evaluate_scalar_expression(
+                            value_index(part.get(1)?)?,
+                            variables,
+                            program,
+                            programs,
+                            depth + 1,
+                        )?;
+                        let number = scalar_number(&value)?;
+                        if number.is_nan() {
+                            result.push_str("nan");
+                        } else if number.is_infinite() {
+                            result.push_str(if number.is_sign_negative() {
+                                "-inf"
+                            } else {
+                                "inf"
+                            });
+                        } else {
+                            result.push_str(&format!("{number:.0}"));
+                        }
                     }
                     _ => return None,
                 }
@@ -631,7 +670,7 @@ fn scalar_compare(opcode: &str, left: &Value, right: &Value) -> Option<bool> {
 }
 
 #[allow(clippy::float_cmp)]
-fn scalar_equal(left: &Value, right: &Value) -> bool {
+pub(crate) fn scalar_equal(left: &Value, right: &Value) -> bool {
     match (scalar_number(left), scalar_number(right)) {
         (Some(left), Some(right)) => left == right,
         (Some(left), None) if right.is_boolean() => {

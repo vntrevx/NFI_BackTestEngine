@@ -35,6 +35,7 @@ from .indicator_compiler_signal_patterns import SignalPatternsMixin
 from .indicator_compiler_statements import StatementsMixin
 from .indicator_compiler_static_values import StaticCallsMixin, StaticValuesMixin
 from .indicator_compiler_windows import WindowsLoweringMixin
+from .source_configuration import resolve_source_parameter_overrides
 from .specs import INDICATOR_PROGRAM_SCHEMA, validate_schema
 from .strategy_ir import analyze_strategy
 
@@ -85,6 +86,7 @@ def compile_indicator_program(
         class_node,
         constants if isinstance(constants, Mapping) else {},
     )
+    class_constants.update(resolve_source_parameter_overrides(class_node, class_constants, config))
     instance_constants: dict[str, Any] = {
         "dp": {"runmode": {"value": "backtest"}},
     }

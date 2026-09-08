@@ -1,0 +1,2812 @@
+{
+  "schema_version": "1.3.0",
+  "created_at": "2026-07-19T23:19:06.725143Z",
+  "ccxt_version": "4.5.55",
+  "exchange": "binance",
+  "precision_mode": 4,
+  "pairs": [
+    "BTC/USDT",
+    "ETH/USDT",
+    "SOL/USDT",
+    "ZEC/USDT",
+    "TON/USDT",
+    "DOGE/USDT",
+    "XRP/USDT",
+    "ONDO/USDT",
+    "STRK/USDT",
+    "FIL/USDT",
+    "PEPE/USDT",
+    "LINK/USDT",
+    "ICP/USDT",
+    "TRX/USDT",
+    "GALA/USDT",
+    "NEAR/USDT",
+    "SUI/USDT",
+    "NOT/USDT",
+    "TAO/USDT",
+    "ENA/USDT",
+    "AVAX/USDT",
+    "ADA/USDT",
+    "OP/USDT",
+    "DASH/USDT",
+    "PAXG/USDT",
+    "PENGU/USDT",
+    "JTO/USDT",
+    "LUNC/USDT",
+    "UNI/USDT",
+    "LTC/USDT",
+    "APT/USDT",
+    "DYDX/USDT",
+    "ARB/USDT",
+    "WLD/USDT",
+    "AAVE/USDT",
+    "FET/USDT",
+    "TIA/USDT",
+    "SAHARA/USDT",
+    "BIO/USDT",
+    "PENDLE/USDT",
+    "MOVR/USDT",
+    "BONK/USDT",
+    "ASTER/USDT",
+    "IO/USDT",
+    "XPL/USDT",
+    "DOT/USDT",
+    "PUMP/USDT",
+    "SEI/USDT",
+    "VIRTUAL/USDT",
+    "XLM/USDT",
+    "GIGGLE/USDT",
+    "D/USDT",
+    "ETC/USDT",
+    "INJ/USDT",
+    "HBAR/USDT",
+    "RUNE/USDT",
+    "SHIB/USDT",
+    "USUAL/USDT",
+    "EIGEN/USDT",
+    "ALGO/USDT",
+    "SPK/USDT",
+    "BCH/USDT",
+    "RENDER/USDT",
+    "ZK/USDT",
+    "VANA/USDT",
+    "FLOKI/USDT",
+    "ETHFI/USDT",
+    "ZEN/USDT",
+    "HMSTR/USDT",
+    "ORCA/USDT",
+    "ZRO/USDT",
+    "POL/USDT",
+    "WBTC/USDT",
+    "LINEA/USDT",
+    "COMP/USDT",
+    "ACH/USDT",
+    "ZBT/USDT",
+    "STORJ/USDT",
+    "APE/USDT",
+    "S/USDT"
+  ],
+  "leverage_tier_source": null,
+  "markets": {
+    "BTC/USDT": {
+      "symbol": "BTC/USDT",
+      "base": "BTC",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1e-05,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 1e-05,
+          "max": 9000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ETH/USDT": {
+      "symbol": "ETH/USDT",
+      "base": "ETH",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.0001,
+          "max": 9000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "SOL/USDT": {
+      "symbol": "SOL/USDT",
+      "base": "SOL",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ZEC/USDT": {
+      "symbol": "ZEC/USDT",
+      "base": "ZEC",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "TON/USDT": {
+      "symbol": "TON/USDT",
+      "base": "TON",
+      "quote": "USDT",
+      "settle": null,
+      "active": false,
+      "spot": true,
+      "margin": false,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "DOGE/USDT": {
+      "symbol": "DOGE/USDT",
+      "base": "DOGE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "XRP/USDT": {
+      "symbol": "XRP/USDT",
+      "base": "XRP",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 9222449.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ONDO/USDT": {
+      "symbol": "ONDO/USDT",
+      "base": "ONDO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "STRK/USDT": {
+      "symbol": "STRK/USDT",
+      "base": "STRK",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "FIL/USDT": {
+      "symbol": "FIL/USDT",
+      "base": "FIL",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 9222449.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "PEPE/USDT": {
+      "symbol": "PEPE/USDT",
+      "base": "PEPE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-08
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 92233720368.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "LINK/USDT": {
+      "symbol": "LINK/USDT",
+      "base": "LINK",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ICP/USDT": {
+      "symbol": "ICP/USDT",
+      "base": "ICP",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 922327.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "TRX/USDT": {
+      "symbol": "TRX/USDT",
+      "base": "TRX",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 9000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "GALA/USDT": {
+      "symbol": "GALA/USDT",
+      "base": "GALA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "NEAR/USDT": {
+      "symbol": "NEAR/USDT",
+      "base": "NEAR",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 900000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "SUI/USDT": {
+      "symbol": "SUI/USDT",
+      "base": "SUI",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "NOT/USDT": {
+      "symbol": "NOT/USDT",
+      "base": "NOT",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 8000000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "TAO/USDT": {
+      "symbol": "TAO/USDT",
+      "base": "TAO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.1
+      },
+      "limits": {
+        "amount": {
+          "min": 0.0001,
+          "max": 922327.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ENA/USDT": {
+      "symbol": "ENA/USDT",
+      "base": "ENA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "AVAX/USDT": {
+      "symbol": "AVAX/USDT",
+      "base": "AVAX",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ADA/USDT": {
+      "symbol": "ADA/USDT",
+      "base": "ADA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 900000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "OP/USDT": {
+      "symbol": "OP/USDT",
+      "base": "OP",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "DASH/USDT": {
+      "symbol": "DASH/USDT",
+      "base": "DASH",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "PAXG/USDT": {
+      "symbol": "PAXG/USDT",
+      "base": "PAXG",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.0001,
+          "max": 9000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "PENGU/USDT": {
+      "symbol": "PENGU/USDT",
+      "base": "PENGU",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "JTO/USDT": {
+      "symbol": "JTO/USDT",
+      "base": "JTO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "LUNC/USDT": {
+      "symbol": "LUNC/USDT",
+      "base": "LUNC",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 1e-08
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 8384883677.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "UNI/USDT": {
+      "symbol": "UNI/USDT",
+      "base": "UNI",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "LTC/USDT": {
+      "symbol": "LTC/USDT",
+      "base": "LTC",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "APT/USDT": {
+      "symbol": "APT/USDT",
+      "base": "APT",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "DYDX/USDT": {
+      "symbol": "DYDX/USDT",
+      "base": "DYDX",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 9222449.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ARB/USDT": {
+      "symbol": "ARB/USDT",
+      "base": "ARB",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "WLD/USDT": {
+      "symbol": "WLD/USDT",
+      "base": "WLD",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "AAVE/USDT": {
+      "symbol": "AAVE/USDT",
+      "base": "AAVE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 900000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "FET/USDT": {
+      "symbol": "FET/USDT",
+      "base": "FET",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 9000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "TIA/USDT": {
+      "symbol": "TIA/USDT",
+      "base": "TIA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "SAHARA/USDT": {
+      "symbol": "SAHARA/USDT",
+      "base": "SAHARA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "BIO/USDT": {
+      "symbol": "BIO/USDT",
+      "base": "BIO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "PENDLE/USDT": {
+      "symbol": "PENDLE/USDT",
+      "base": "PENDLE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "MOVR/USDT": {
+      "symbol": "MOVR/USDT",
+      "base": "MOVR",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 922327.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "BONK/USDT": {
+      "symbol": "BONK/USDT",
+      "base": "BONK",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-08
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 36348600000.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ASTER/USDT": {
+      "symbol": "ASTER/USDT",
+      "base": "ASTER",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "IO/USDT": {
+      "symbol": "IO/USDT",
+      "base": "IO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 9222449.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "XPL/USDT": {
+      "symbol": "XPL/USDT",
+      "base": "XPL",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "DOT/USDT": {
+      "symbol": "DOT/USDT",
+      "base": "DOT",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "PUMP/USDT": {
+      "symbol": "PUMP/USDT",
+      "base": "PUMP",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "SEI/USDT": {
+      "symbol": "SEI/USDT",
+      "base": "SEI",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "VIRTUAL/USDT": {
+      "symbol": "VIRTUAL/USDT",
+      "base": "VIRTUAL",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "XLM/USDT": {
+      "symbol": "XLM/USDT",
+      "base": "XLM",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "GIGGLE/USDT": {
+      "symbol": "GIGGLE/USDT",
+      "base": "GIGGLE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 9222449.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "D/USDT": {
+      "symbol": "D/USDT",
+      "base": "D",
+      "quote": "USDT",
+      "settle": null,
+      "active": false,
+      "spot": true,
+      "margin": false,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ETC/USDT": {
+      "symbol": "ETC/USDT",
+      "base": "ETC",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "INJ/USDT": {
+      "symbol": "INJ/USDT",
+      "base": "INJ",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "HBAR/USDT": {
+      "symbol": "HBAR/USDT",
+      "base": "HBAR",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "RUNE/USDT": {
+      "symbol": "RUNE/USDT",
+      "base": "RUNE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "SHIB/USDT": {
+      "symbol": "SHIB/USDT",
+      "base": "SHIB",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-08
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 46116860414.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "USUAL/USDT": {
+      "symbol": "USUAL/USDT",
+      "base": "USUAL",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "EIGEN/USDT": {
+      "symbol": "EIGEN/USDT",
+      "base": "EIGEN",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ALGO/USDT": {
+      "symbol": "ALGO/USDT",
+      "base": "ALGO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 922327.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "SPK/USDT": {
+      "symbol": "SPK/USDT",
+      "base": "SPK",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "BCH/USDT": {
+      "symbol": "BCH/USDT",
+      "base": "BCH",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.1
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "RENDER/USDT": {
+      "symbol": "RENDER/USDT",
+      "base": "RENDER",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ZK/USDT": {
+      "symbol": "ZK/USDT",
+      "base": "ZK",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "VANA/USDT": {
+      "symbol": "VANA/USDT",
+      "base": "VANA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 9222449.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "FLOKI/USDT": {
+      "symbol": "FLOKI/USDT",
+      "base": "FLOKI",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-08
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 92233720368.0
+        },
+        "cost": {
+          "min": 1.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ETHFI/USDT": {
+      "symbol": "ETHFI/USDT",
+      "base": "ETHFI",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ZEN/USDT": {
+      "symbol": "ZEN/USDT",
+      "base": "ZEN",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 900000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "HMSTR/USDT": {
+      "symbol": "HMSTR/USDT",
+      "base": "HMSTR",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-07
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 36348600000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ORCA/USDT": {
+      "symbol": "ORCA/USDT",
+      "base": "ORCA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ZRO/USDT": {
+      "symbol": "ZRO/USDT",
+      "base": "ZRO",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "POL/USDT": {
+      "symbol": "POL/USDT",
+      "base": "POL",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "WBTC/USDT": {
+      "symbol": "WBTC/USDT",
+      "base": "WBTC",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1e-05,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 1e-05,
+          "max": 9000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "LINEA/USDT": {
+      "symbol": "LINEA/USDT",
+      "base": "LINEA",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-06
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "COMP/USDT": {
+      "symbol": "COMP/USDT",
+      "base": "COMP",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.01
+      },
+      "limits": {
+        "amount": {
+          "min": 0.001,
+          "max": 90000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ACH/USDT": {
+      "symbol": "ACH/USDT",
+      "base": "ACH",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "ZBT/USDT": {
+      "symbol": "ZBT/USDT",
+      "base": "ZBT",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "STORJ/USDT": {
+      "symbol": "STORJ/USDT",
+      "base": "STORJ",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 1.0,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 1.0,
+          "max": 900000.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "APE/USDT": {
+      "symbol": "APE/USDT",
+      "base": "APE",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "amount": {
+          "min": 0.01,
+          "max": 92141578.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    },
+    "S/USDT": {
+      "symbol": "S/USDT",
+      "base": "S",
+      "quote": "USDT",
+      "settle": null,
+      "active": true,
+      "spot": true,
+      "margin": true,
+      "swap": false,
+      "future": false,
+      "contract": false,
+      "linear": null,
+      "inverse": null,
+      "contractSize": null,
+      "precision": {
+        "amount": 0.1,
+        "price": 1e-05
+      },
+      "limits": {
+        "amount": {
+          "min": 0.1,
+          "max": 913205152.0
+        },
+        "cost": {
+          "min": 5.0,
+          "max": 9000000.0
+        },
+        "leverage": {
+          "min": null,
+          "max": null
+        }
+      },
+      "taker": 0.001
+    }
+  }
+}

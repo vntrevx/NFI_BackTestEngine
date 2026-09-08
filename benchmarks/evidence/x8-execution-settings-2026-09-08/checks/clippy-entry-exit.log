@@ -1,0 +1,5 @@
+    Checking nfi-sim-core v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-sim-core)
+   Compiling nfi-py v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-py)
+    Checking nfi-vector-io v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-vector-io)
+    Checking nfi-sim-cli v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-sim-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 29.96s

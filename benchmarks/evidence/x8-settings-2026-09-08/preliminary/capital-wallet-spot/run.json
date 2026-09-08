@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.1.0",
+  "fixture_id": "x8-settings-capital-wallet-spot-r1",
+  "verification_level": "full",
+  "execution": {
+    "schema_version": "1.0.0",
+    "input_kind": "full-vector",
+    "input_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/simulation-input.manifest.json",
+    "input_sha256": "fe8b3242b9b287d25d9a54d96190c897d1245f751b96210d1da7975508637690",
+    "output_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/simulation-result.json",
+    "output_sha256": "e4d5122f870fa52172f9c119ce5b1bb0905659ef0b8cc3a80a1a5e2068a95f7d",
+    "publication_bundle": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/simulation-result.json.nfi-bundle",
+    "wall_time_seconds": 1.367173076,
+    "peak_rss_bytes": 406851584,
+    "cpu_time_seconds": 1.2672853539999949,
+    "build": {
+      "schema_version": "1.0.0",
+      "built_at": null,
+      "source_fingerprint": "c4ee1d111d4786c46fdb90aaf19ee827ce5cd1e1836bd4abffb65000345b4838",
+      "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+      "binary_sha256": "9e9115bae71d4e3ce9cd2d1e0e496882d49636944b321803090ab7e14c9b1495",
+      "binary_bytes": 15249120,
+      "target": "linux-x86_64",
+      "build_seconds": 0.0,
+      "kind": "pyo3-extension"
+    },
+    "execution_profile_fingerprint": "5f38a888bc71e31db691675634a1c1c4492c4d0e9d168d70787e76e543f8dcc0",
+    "pair_worker_limit": 1,
+    "trade_count": 2,
+    "events": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/engine-events.jsonl",
+      "bytes": 7632124,
+      "sha256": "cac8aa12af08aa3cd97b2a2fff99eef2207e3522e1467f0072ecf90356509601"
+    },
+    "execution_events": null,
+    "profile": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/engine-profile.json",
+      "bytes": 1881,
+      "sha256": "32bb90129e501fd4b8b8dc5f65f70474120b7e59349cc136d89581eafc53f6b6",
+      "phases": {
+        "input": {
+          "base_timeframe": "5m",
+          "compiler_source_fingerprint": "1f59944bb7b7d2154b96cb0a856a7f2cce1ea92a78fd8463508d2297e4184ab7",
+          "config_sha256": "5cbce8520bf2d1b7bf9223782ee96059c824b3db57bf01699cfdf922fc6da34b",
+          "frame_loading_mode": "pair-local-streaming",
+          "futures_frame_set_count": 0,
+          "manifest_declared_raw_rows": 10500,
+          "manifest_sha256": "fe8b3242b9b287d25d9a54d96190c897d1245f751b96210d1da7975508637690",
+          "pair_identities": [
+            "BTC/USDT|5m",
+            "ETH/USDT|5m"
+          ],
+          "populate_methods_executed": false,
+          "program_fingerprints": {
+            "indicator": "26250be071a785e65a1845c1f9305a4d92a7753da6c41608615055de4d3081bf",
+            "signal": "3c206de69af43a8ba64363fceddb5d05eeedb9bc5a2b1eafb63049fb1dba7bae",
+            "tag": "160616dc6018a5bc3e6900fc8e822724e2693d00b1609453a29c9641b432f958"
+          },
+          "raw_frame_count": 10,
+          "raw_frame_resident_limit": 6,
+          "retained_feature_fingerprint": "1801a6cd23ecb37e40d815cc98a2e2a30cc136f85436e2f14005fb4ee9516aeb",
+          "runtime_mode": "rust-full-native",
+          "schema_version": "1.2.0",
+          "selected_class": "NostalgiaForInfinityX8",
+          "source_row_shift": 1,
+          "spool_available_bytes_at_admission": 359943901184,
+          "spool_cleanup_mode": "unlink-on-open",
+          "spool_required_upper_bound_bytes": 2614050,
+          "spool_target_source": "os-temp",
+          "strategy_sha256": "7b0de160e4d4fc72b2062e38f6b260c841aebb66641d44a599c6c79b27a5282e",
+          "strategy_source_mode": "python-ast-compile-only",
+          "trading_mode": "spot",
+          "transport": {
+            "estimated_simulation_owned_bytes": 2144,
+            "estimated_source_column_bytes": 2470516,
+            "feature_column_count": 176,
+            "file_backed_bytes": 2614050,
+            "pair_count": 2,
+            "pair_prepare_fused": true,
+            "pair_prepare_ns": 0,
+            "pair_prepare_worker_limit": 1,
+            "row_count": 3330,
+            "schema_version": "1.2.0",
+            "source_pair_retention_limit": 1,
+            "vector_execute_ns": 774153470
+          }
+        },
+        "schema_version": "1.0.0",
+        "serialization_ns": 59645,
+        "simulation": {
+          "event_loop_ns": 288821000,
+          "finalization_ns": 403428,
+          "pair_events": 1728,
+          "schema_version": "1.0.0",
+          "timestamp_batches": 864,
+          "validation_ns": 3229367
+        }
+      }
+    }
+  },
+  "strategy": {
+    "class_name": "NostalgiaForInfinityX8",
+    "source_sha256": "7b0de160e4d4fc72b2062e38f6b260c841aebb66641d44a599c6c79b27a5282e",
+    "static_safe": true,
+    "diagnostic_count": 0
+  },
+  "parity": {
+    "equal": false,
+    "trade_surface": {
+      "equal": true,
+      "difference": null
+    },
+    "state_trace": {
+      "checked": true,
+      "equal": false,
+      "difference": {
+        "sequence": 0,
+        "path": "$.state.base_balances.length",
+        "expected": 1,
+        "actual": 0,
+        "reason": "array length differs",
+        "event_key": {
+          "sequence": 0,
+          "timestamp_ms": 1743811500000,
+          "phase": "portfolio.after_candle",
+          "pair": "BTC/USDT",
+          "callback": null
+        }
+      },
+      "expected": {
+        "path": "/tmp/nfi-fixture-snapshot-r16agws_/artifacts/state-projection.nfitrace",
+        "schema_version": "1.0.0",
+        "source": "freqtrade-projection",
+        "run_id": "x8-settings-capital-wallet-spot-r1",
+        "input_sha256": "df11a7435e0e0e48e3b56ef1bbc6b71ac61ba6e7c68b1ee9a5756ee33880b87c",
+        "strategy_sha256": "7b0de160e4d4fc72b2062e38f6b260c841aebb66641d44a599c6c79b27a5282e",
+        "profile_sha256": "3d7069d298ac06f65f414442db3d7d430cdad1c8f93dc1f4bfaaa706542f839b",
+        "trading_mode": "spot",
+        "include_state": true,
+        "event_count": 1728,
+        "stream_hash": "130b8c3043bfb05456eb4fc3dd20fbee599cc3462f9f9a931f354cb848752a5e"
+      },
+      "actual": {
+        "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/engine-state-projected.trace",
+        "schema_version": "1.0.0",
+        "source": "engine-projection",
+        "run_id": "x8-settings-capital-wallet-spot-r1",
+        "input_sha256": "df11a7435e0e0e48e3b56ef1bbc6b71ac61ba6e7c68b1ee9a5756ee33880b87c",
+        "strategy_sha256": "7b0de160e4d4fc72b2062e38f6b260c841aebb66641d44a599c6c79b27a5282e",
+        "profile_sha256": "3d7069d298ac06f65f414442db3d7d430cdad1c8f93dc1f4bfaaa706542f839b",
+        "trading_mode": "spot",
+        "include_state": true,
+        "event_count": 1728,
+        "stream_hash": "cd5ee01c35cc9805d7af1c596cf84f4f1d706b50869dbeb14392b09ee9434a70"
+      }
+    },
+    "portfolio_trace": {
+      "checked": false,
+      "equal": null,
+      "event_count": null,
+      "difference": null,
+      "verification": null
+    }
+  },
+  "branch_coverage": null,
+  "research_report": {
+    "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/run.json",
+    "bytes": 18169,
+    "sha256": "ec4a0c4018760d497aa80007a08cf88c04976ebf86b442a312c53d74f1bba8a3"
+  },
+  "artifacts": {
+    "trade_surface": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/research/trade-surface.json",
+      "bytes": 3946,
+      "sha256": "64fe054ca3b3fefc894c6e2050a2aa59004e05a9669b85573b8380b2dfb40d1c"
+    },
+    "engine_state_projection": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/final-replays/x8-settings-capital-wallet-spot-r1/engine-state-projected.trace",
+      "bytes": 944401,
+      "sha256": "d3b2ecf386e12a880ab0a1f19500f4b4dd7b17cf464cd6f8b64f4f97bf3e8b9e"
+    },
+    "portfolio_events": null,
+    "portfolio_verification": null
+  },
+  "complete": false
+}

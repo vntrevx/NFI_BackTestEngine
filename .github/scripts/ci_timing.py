@@ -1416,7 +1416,9 @@ def _parser() -> argparse.ArgumentParser:
     validate.add_argument("--expected-candidate-commit", required=True)
     validate.add_argument("--cache-file", type=Path, required=True)
     validate.add_argument("--expected-cache-sha256", required=True)
-    validate.add_argument("--validation-plan-json")
+    plan_input = validate.add_mutually_exclusive_group()
+    plan_input.add_argument("--validation-plan-json")
+    plan_input.add_argument("--validation-plan-file", type=Path)
     validate.add_argument("--output", type=Path, required=True)
 
     compare = commands.add_parser("compare-three")
@@ -1477,10 +1479,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             lock_sha = _sha256(args.cache_file)
             if lock_sha != args.expected_cache_sha256:
                 raise ValueError("trusted cache file identity mismatch")
+            validation_plan_json = (
+                args.validation_plan_file.read_text(encoding="utf-8")
+                if args.validation_plan_file is not None else args.validation_plan_json
+            )
             expected_report_ids = (
-                None
-                if args.validation_plan_json is None
-                else _validation_plan_report_ids(args.validation_plan_json, contract)
+                None if validation_plan_json is None
+                else _validation_plan_report_ids(validation_plan_json, contract)
             )
             trusted_candidate_identity(
                 contract,

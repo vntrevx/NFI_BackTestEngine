@@ -66,11 +66,13 @@ class _ScalarCompiler:
         constants: dict[str, Any],
         available_methods: set[str],
         ephemeral_writes: set[str] | None = None,
+        extensions: frozenset[str] = frozenset(),
     ) -> None:
         self.node = node
         self.constants = constants
         self.available_methods = available_methods
         self.ephemeral_writes = ephemeral_writes or set()
+        self.extensions = extensions
         self.method_aliases = _method_aliases(node, available_methods)
         self.called_methods: dict[str, ast.Call] = {}
         self.arena = _ExpressionArena.empty()
@@ -348,6 +350,15 @@ class _ScalarCompiler:
                     and value.format_spec is None
                 ):
                     parts.append(["value", self._expression(value.value)])
+                elif (
+                    isinstance(value, ast.FormattedValue) and value.conversion == -1
+                    and "fixed-zero" in self.extensions
+                    and isinstance(value.format_spec, ast.JoinedStr)
+                    and len(value.format_spec.values) == 1
+                    and isinstance(value.format_spec.values[0], ast.Constant)
+                    and value.format_spec.values[0].value == ".0f"
+                ):
+                    parts.append(["fixed-zero", self._expression(value.value)])
                 else:
                     raise _UnsupportedTradeIr(node, "formatted string spec is not supported")
             return self.arena.add(["format", parts])
@@ -461,6 +472,18 @@ class _ScalarCompiler:
             )
         if node.keywords:
             raise _UnsupportedTradeIr(node, "keyword call arguments are not scalar-pure")
+        if ("is-finite" in self.extensions
+                and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"np", "math"} and node.func.attr == "isfinite"
+                and len(node.args) == 1):
+            return self.arena.add(["is-finite", self._expression(node.args[0])])
+        if ("mapping-get" in self.extensions
+                and isinstance(node.func, ast.Attribute) and node.func.attr == "get"
+                and len(node.args) in {1, 2}):
+            return self.arena.add([
+                "mapping-get", self._expression(node.func.value), self._expression(node.args[0]),
+                self._expression(node.args[1] if len(node.args) == 2 else None),
+            ])
         if isinstance(node.func, ast.Name) and node.func.id == "isinstance":
             if len(node.args) != 2:
                 raise _UnsupportedTradeIr(node, "isinstance arity differs")
@@ -563,6 +586,8 @@ def compile_scalar_ast_program(
     node: ast.FunctionDef,
     *,
     constants: dict[str, Any] | None = None,
+    available_methods: set[str] | None = None,
+    extensions: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """Compile a synthetic, scalar-pure callback fragment into the shared VM IR.
 
@@ -576,7 +601,8 @@ def compile_scalar_ast_program(
         return _ScalarCompiler(
             node,
             constants=constants or {},
-            available_methods=set(),
+            available_methods=available_methods or set(),
+            extensions=extensions,
         ).compile()
     except _UnsupportedTradeIr as exc:
         line = getattr(exc.node, "lineno", node.lineno)
@@ -635,13 +661,8 @@ def build_trade_dependency_ir(
     failures: dict[str, Any] = {}
     ephemeral_writes = {
         field
-        for field, writers in {
-            "_grind_entry_tag": {
-                "long_grind_entry_v3",
-                "short_grind_entry_v3",
-            }
-        }.items()
-        if _observability_only_field(strategy, field, writers)
+        for field in ("_grind_entry_tag",)
+        if _observability_only_field(strategy, field)
     }
     for root in roots:
         if root not in methods:
@@ -658,9 +679,13 @@ def build_trade_dependency_ir(
             node = methods[name]
             try:
                 method_ephemeral_writes = {
-                    field
-                    for field in ephemeral_writes
-                    if name in {"long_grind_entry_v3", "short_grind_entry_v3"}
+                    item.attr
+                    for item in ast.walk(node)
+                    if isinstance(item, ast.Attribute)
+                    and isinstance(item.value, ast.Name)
+                    and item.value.id == "self"
+                    and isinstance(item.ctx, ast.Store)
+                    and item.attr in ephemeral_writes
                 }
                 program = _ScalarCompiler(
                     node,
@@ -805,19 +830,16 @@ def _method_closure(
 def _observability_only_field(
     strategy: ast.ClassDef,
     field: str,
-    writers: set[str],
 ) -> bool:
+    """Prove diagnostic writes are unobservable by trading decisions.
+
+    Inspect all methods, including helpers outside the requested dependency
+    closure. Writer names and strategy generations do not establish purity.
+    """
     parents = {
         child: parent for parent in ast.walk(strategy) for child in ast.iter_child_nodes(parent)
     }
     found_write = False
-    current_method: str | None = None
-    method_by_node: dict[ast.AST, str] = {}
-    for method in strategy.body:
-        if not isinstance(method, ast.FunctionDef):
-            continue
-        for item in ast.walk(method):
-            method_by_node[item] = method.name
     for item in ast.walk(strategy):
         if not (
             isinstance(item, ast.Attribute)
@@ -826,38 +848,56 @@ def _observability_only_field(
             and item.attr == field
         ):
             continue
-        current_method = method_by_node.get(item)
         if isinstance(item.ctx, ast.Store):
-            if current_method not in writers:
-                parent = parents.get(item)
-                if not (
-                    current_method == "__init__"
-                    and isinstance(parent, ast.Assign)
-                    and len(parent.targets) == 1
-                    and parent.targets[0] is item
-                    and isinstance(parent.value, ast.Constant)
-                ):
-                    return False
-            else:
-                found_write = True
+            parent = parents.get(item)
+            if not (
+                isinstance(parent, ast.Assign)
+                and len(parent.targets) == 1
+                and parent.targets[0] is item
+            ) and not (
+                isinstance(parent, ast.AnnAssign)
+                and parent.target is item
+                and parent.value is not None
+            ):
+                return False
+            found_write = True
             continue
         if not isinstance(item.ctx, ast.Load):
             return False
-        parent = parents.get(item)
-        while parent is not None and not isinstance(parent, ast.Call | ast.stmt):
-            parent = parents.get(parent)
-        if not isinstance(parent, ast.Call):
-            return False
-        call_name = _call_name(parent.func)
-        if call_name not in {
-            "debug",
-            "info",
-            "notification_msg",
-            "send_msg",
-            "warning",
-        }:
+        if not _diagnostic_read(item, parents):
             return False
     return found_write
+
+
+def _diagnostic_read(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> bool:
+    found_sink = False
+    while True:
+        parent = parents.get(node)
+        while parent is not None and not isinstance(parent, ast.Call | ast.stmt):
+            # Permit message interpolation, but never a predicate that can
+            # select a side effect while evaluating a logger's arguments.
+            if not isinstance(parent, ast.FormattedValue | ast.JoinedStr | ast.keyword):
+                return False
+            parent = parents.get(parent)
+        if isinstance(parent, ast.Expr):
+            return found_sink and parent.value is node
+        if not isinstance(parent, ast.Call):
+            return False
+        # A similarly named strategy method, or the return value of a logger
+        # used by control flow, is not an observability sink.
+        function = parent.func
+        if not (
+            isinstance(function, ast.Attribute)
+            and isinstance(function.value, ast.Name)
+            and function.value.id == "log"
+            and function.attr in {"debug", "info", "warning"}
+        ) and not (
+            isinstance(function, ast.Name)
+            and function.id in {"notification_msg", "send_msg"}
+        ):
+            return False
+        found_sink = True
+        node = parent
 
 
 def _method_calls(

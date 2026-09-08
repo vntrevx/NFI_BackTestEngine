@@ -737,6 +737,11 @@ def build_parser(*, show_advanced: bool = False) -> argparse.ArgumentParser:
         help="optional hard cap; default resolves available host memory before each run",
     )
     system_tune.add_argument(
+        "--cpu-process-limit",
+        type=int,
+        help="maximum Native worker processes and official comparison CPU quota",
+    )
+    system_tune.add_argument(
         "--spool-directory",
         type=Path,
         help="optional disk-backed directory for bounded-memory engine rows",

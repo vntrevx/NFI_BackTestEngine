@@ -134,3 +134,49 @@ def test_hardware_inspection_allows_platforms_without_cpu_frequency(
         "minimum": None,
         "maximum": None,
     }
+
+
+@pytest.mark.parametrize("requested, expected", [(1, 1), (2, 2), (999, 6)])
+def test_profile_bounds_cpu_processes_by_user_and_hardware(
+    monkeypatch, tmp_path, requested, expected
+):
+    monkeypatch.setattr(hardware, "inspect_hardware", lambda _workspace=None: _hardware())
+    profile = hardware.create_execution_profile(
+        tmp_path / "profile.json",
+        cpu_process_limit=requested,
+    )
+    assert profile["limits"]["cpu_process_limit"] == expected
+
+
+@pytest.mark.parametrize("invalid", [0, -1, True, 1.5, "2"])
+def test_profile_rejects_invalid_cpu_limit(monkeypatch, tmp_path, invalid):
+    monkeypatch.setattr(hardware, "inspect_hardware", lambda _workspace=None: _hardware())
+    with pytest.raises(SpecValidationError, match="CPU process limit"):
+        hardware.create_execution_profile(tmp_path / "profile.json", cpu_process_limit=invalid)
+    assert not (tmp_path / "profile.json").exists()
+
+
+def test_host_recalibration_preserves_user_caps_and_spool(monkeypatch, tmp_path):
+    current = _hardware()
+    monkeypatch.setattr(hardware, "inspect_hardware", lambda _workspace=None: current)
+    path = tmp_path / "profile.json"
+    hardware.create_execution_profile(
+        path,
+        cpu_process_limit=2,
+        memory_cap_bytes=4 * GIB,
+        spool_directory=tmp_path,
+    )
+    current = {**current, "affinity_cpu_count": 1, "affinity_cpu_ids": [0]}
+    updated = hardware.ensure_execution_profile(path)
+    assert updated["limits"] == {"memory_cap_bytes": 4 * GIB, "cpu_process_limit": 1}
+    assert updated["environment"][hardware.SPOOL_DIRECTORY_ENVIRONMENT] == str(tmp_path)
+
+
+def test_corrupt_profile_is_rejected_without_erasing_limits(monkeypatch, tmp_path):
+    monkeypatch.setattr(hardware, "inspect_hardware", lambda _workspace=None: _hardware())
+    path = tmp_path / "profile.json"
+    path.write_text('{"schema_version": "invalid"}')
+    before = path.read_bytes()
+    with pytest.raises(SpecValidationError):
+        hardware.ensure_execution_profile(path)
+    assert path.read_bytes() == before

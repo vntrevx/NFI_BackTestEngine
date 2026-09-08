@@ -1,0 +1,136 @@
+{
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "scenarios": [
+    {
+      "fixture_id": "x8-execution-initial-cap-futures-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_1",
+        "system_v3_1_rebuy_thresholds_futures": [
+          -0.002,
+          -0.004
+        ],
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "futures_mode_leverage": 3.0
+      }
+    },
+    {
+      "fixture_id": "x8-execution-initial-cap-spot-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_1",
+        "system_v3_1_rebuy_thresholds_spot": [
+          -0.002,
+          -0.004,
+          -0.006,
+          -0.008
+        ],
+        "system_v3_1_rebuy_stakes_spot": [
+          0.1,
+          0.2
+        ],
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false
+      }
+    },
+    {
+      "fixture_id": "x8-execution-leverage-tier-futures-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_1",
+        "system_v3_1_rebuy_thresholds_futures": [
+          -0.002,
+          -0.004
+        ],
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "futures_mode_leverage": 100.0
+      }
+    },
+    {
+      "fixture_id": "x8-execution-remaining-cap-large-spot-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_1",
+        "system_v3_1_rebuy_thresholds_spot": [
+          -0.002,
+          -0.004,
+          -0.006,
+          -0.008
+        ],
+        "system_v3_1_rebuy_stakes_spot": [
+          2.0,
+          2.0,
+          2.0,
+          2.0
+        ],
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "system_v3_1_stake_multiplier": 0.1
+      }
+    },
+    {
+      "fixture_id": "x8-execution-remaining-cap-spot-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_1",
+        "system_v3_1_rebuy_thresholds_spot": [
+          -0.002,
+          -0.004,
+          -0.006,
+          -0.008
+        ],
+        "system_v3_1_rebuy_stakes_spot": [
+          0.2,
+          0.2,
+          0.2,
+          0.2
+        ],
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "system_v3_1_stake_multiplier": 0.1
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from nfi_backtest_engine import cli
 from nfi_backtest_engine.strategy_catalog import discover_strategy_catalog
 
@@ -69,8 +70,11 @@ def test_catalog_hides_legacy_and_incompatible_sources_by_default(
     assert all(item["fallback_status"] == "unavailable" for item in legacy_candidates)
 
 
-def test_strategy_list_json_has_a_versioned_machine_contract(tmp_path: Path, capsys) -> None:
-    _write_strategy(tmp_path / "NostalgiaForInfinityX7.py", "NostalgiaForInfinityX7")
+@pytest.mark.parametrize("class_name", ["NostalgiaForInfinityX7", "NostalgiaForInfinityX8"])
+def test_strategy_list_json_has_a_versioned_machine_contract(
+    tmp_path: Path, capsys, class_name: str,
+) -> None:
+    _write_strategy(tmp_path / f"{class_name}.py", class_name)
 
     assert cli.main(
         ["strategy", "list", "--workspace", str(tmp_path), "--json"]
@@ -81,3 +85,4 @@ def test_strategy_list_json_has_a_versioned_machine_contract(tmp_path: Path, cap
     payload = json.loads(capsys.readouterr().out)
     assert payload["schema_version"] == "1.0.0"
     assert payload["candidates"][0]["status"] == "supported"
+    assert payload["candidates"][0]["classes"] == [class_name]

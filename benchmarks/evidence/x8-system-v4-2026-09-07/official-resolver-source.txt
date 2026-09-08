@@ -1,0 +1,92 @@
+    @staticmethod
+    def _override_attribute_helper(strategy, config: Config, attribute: str, default: Any):
+        """
+        Override attributes in the strategy.
+        Prevalence:
+        - Configuration
+        - Strategy
+        - default (if not None)
+        """
+        if attribute in config and not isinstance(
+            getattr(type(strategy), attribute, None), property
+        ):
+            # Ensure Properties are not overwritten
+            setattr(strategy, attribute, config[attribute])
+            logger.info(
+                f"Override strategy '{attribute}' with value from the configuration: "
+                f"{config[attribute]}.",
+            )
+        elif hasattr(strategy, attribute):
+            val = getattr(strategy, attribute)
+            # None's cannot exist in the config, so do not copy them
+            if val is not None:
+                # max_open_trades set to -1 in the strategy will be copied as infinity in the config
+                if attribute == "max_open_trades" and val == -1:
+                    config[attribute] = float("inf")
+                else:
+                    config[attribute] = val
+        # Explicitly check for None here as other "falsy" values are possible
+        elif default is not None:
+            setattr(strategy, attribute, default)
+            config[attribute] = default
+
+    @staticmethod
+    def load_strategy(config: Config | None = None) -> IStrategy:
+        """
+        Load the custom class from config parameter
+        :param config: configuration dictionary or None
+        """
+        config = config or {}
+
+        if not config.get("strategy"):
+            raise OperationalException(
+                "No strategy set. Please use `--strategy` to specify the strategy class to use."
+            )
+
+        strategy_name = config["strategy"]
+        strategy: IStrategy = StrategyResolver._load_strategy(
+            strategy_name, config=config, extra_dir=config.get("strategy_path")
+        )
+        strategy.ft_set_special_params_from_file()
+        # Set attributes
+        # Check if we need to override configuration
+        # (Attribute name, default, subkey)
+        attributes = [
+            ("minimal_roi", {"0": 10.0}),
+            ("timeframe", None),
+            ("stoploss", None),
+            ("trailing_stop", None),
+            ("trailing_stop_positive", None),
+            ("trailing_stop_positive_offset", 0.0),
+            ("trailing_only_offset_is_reached", None),
+            ("use_custom_stoploss", None),
+            ("process_only_new_candles", None),
+            ("order_types", None),
+            ("order_time_in_force", None),
+            ("stake_currency", None),
+            ("stake_amount", None),
+            ("startup_candle_count", None),
+            ("unfilledtimeout", None),
+            ("use_exit_signal", True),
+            ("exit_profit_only", False),
+            ("ignore_roi_if_entry_signal", False),
+            ("exit_profit_offset", 0.0),
+            ("disable_dataframe_checks", False),
+            ("ignore_buying_expired_candle_after", 0),
+            ("position_adjustment_enable", False),
+            ("max_entry_position_adjustment", -1),
+            ("max_open_trades", float("inf")),
+        ]
+        for attribute, default in attributes:
+            StrategyResolver._override_attribute_helper(strategy, config, attribute, default)
+
+        # Loop this list again to have output combined
+        for attribute, _ in attributes:
+            if attribute in config:
+                logger.info(f"Strategy using {attribute}: {config[attribute]}")
+
+        StrategyResolver._normalize_attributes(strategy)
+
+        StrategyResolver._strategy_sanity_validations(strategy)
+        return strategy
+

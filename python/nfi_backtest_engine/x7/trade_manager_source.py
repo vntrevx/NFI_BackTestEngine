@@ -1,4 +1,4 @@
-"""Source identity validation for X7 trade-manager assembly."""
+"""Capability selection and source identity validation for NFI trade-manager assembly."""
 
 from __future__ import annotations
 
@@ -9,6 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from ..errors import StrategyAnalysisError
+from .route_contracts import (
+    MANAGED_LONG_ROUTE_SPECS,
+    MANAGED_SHORT_ROUTE_SPECS,
+    MANAGED_SHORT_TOP_COINS_ROUTE_SPEC,
+)
 
 
 @dataclass(frozen=True)
@@ -33,7 +38,22 @@ def load_trade_manager_source(analysis: dict[str, Any]) -> TradeManagerSource | 
     strategy_name = strategy.get("name")
     if not isinstance(strategy_name, str):
         raise StrategyAnalysisError("NFI trade manager strategy name is invalid")
-    if not strategy_name.startswith("NostalgiaForInfinityX7"):
+    method_records = {
+        method["name"]: method
+        for method in strategy.get("methods", [])
+        if isinstance(method, dict) and isinstance(method.get("name"), str)
+    }
+    route_methods = {
+        spec.method
+        for spec in (
+            *MANAGED_LONG_ROUTE_SPECS, *MANAGED_SHORT_ROUTE_SPECS,
+            MANAGED_SHORT_TOP_COINS_ROUTE_SPEC,
+        )
+    }
+    # Names and generations do not establish executable semantics. A managed
+    # exit router selects this compiler; its full structural checks below and
+    # during compilation still reject incomplete or changed implementations.
+    if "custom_exit" not in method_records or not route_methods.intersection(method_records):
         return None
     if not isinstance(source, dict):
         raise StrategyAnalysisError("NFI trade manager requires hash-bound source")
@@ -63,11 +83,6 @@ def load_trade_manager_source(analysis: dict[str, Any]) -> TradeManagerSource | 
         raise StrategyAnalysisError("NFI trade manager strategy class disappeared")
     methods = {
         item.name: item for item in class_node.body if isinstance(item, ast.FunctionDef)
-    }
-    method_records = {
-        method["name"]: method
-        for method in strategy.get("methods", [])
-        if isinstance(method, dict) and isinstance(method.get("name"), str)
     }
     constants = strategy.get("constants")
     if not isinstance(constants, dict):

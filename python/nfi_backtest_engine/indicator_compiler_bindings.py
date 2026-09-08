@@ -97,11 +97,32 @@ class BindingsLoweringMixin:
             return _SequenceBinding([])
         return None
 
-    @staticmethod
-    def mapping_reference(node: ast.expr) -> _MappingBinding | None:
-        if isinstance(node, ast.Dict) and not node.keys:
+    def mapping_reference(self: CompilerProtocol, node: ast.expr) -> _MappingBinding | None:
+        if not isinstance(node, ast.Dict):
+            return None
+        if not node.keys:
             return _MappingBinding({})
-        return None
+        # Preserve the established static-container representation. A dynamic
+        # literal map instead holds already-compiled column references, including
+        # maps assembled under a statically selected configuration branch.
+        if self.try_static_value(node)[0]:
+            return None
+        items: dict[Any, Any] = {}
+        for key_node, value_node in zip(node.keys, node.values, strict=True):
+            if key_node is None:
+                binding = (
+                    self.bindings.get(value_node.id) if isinstance(value_node, ast.Name) else None
+                )
+                if not isinstance(binding, _MappingBinding):
+                    self.unsupported(value_node, "expanded indicator mapping")
+                items.update(binding.items)
+                continue
+            found, key = self.try_static_value(key_node)
+            if not found or not isinstance(key, bool | int | float | str):
+                self.unsupported(key_node, "dynamic indicator mapping key")
+            found, value = self.try_static_value(value_node)
+            items[key] = _StaticBinding(value) if found else self.expression(value_node)
+        return _MappingBinding(items)
 
     def mapping_write(self: CompilerProtocol, target: ast.Subscript, value_node: ast.expr) -> bool:
         if not isinstance(target.value, ast.Name):

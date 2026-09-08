@@ -1,0 +1,36 @@
+{
+  "scope": "Full donor callbacks; prior disclosed signal/indicator transformations retained. Strategy constants restored to donor defaults; overrides supplied through configuration.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "changed_method": "populate_entry_trend",
+  "direction": "short",
+  "entry_tag": "501",
+  "predicate": "volume > 0 and RSI_14 < 40.0",
+  "stake_amount": 1000,
+  "constant_overrides": {},
+  "indicator_overrides": {
+    "purpose": "Force source rebuy entry guards for lifecycle branch coverage",
+    "protections_short_global": true,
+    "RSI_3": 50,
+    "RSI_3_15m": 50,
+    "AROOND_14": 0,
+    "AROOND_14_15m": 0,
+    "EMA_26": "close * 1.02"
+  },
+  "virtual_fee_configuration": {},
+  "exchange_fee_policy": "Actual exchange fee unchanged",
+  "settings_case": "extra-rebuy-short",
+  "advanced_parameters": {
+    "system_name_use": "system_v3_1",
+    "system_v3_1_rebuy_thresholds_futures": [
+      -0.002,
+      -0.004
+    ],
+    "system_v3_grind_1_enable": false,
+    "system_v3_grind_2_enable": false,
+    "system_v3_grind_3_enable": false,
+    "system_v3_grind_4_enable": false,
+    "system_v3_grind_5_enable": false
+  },
+  "resolver_settings": {},
+  "strategy_sha256": "6dabcc6d8e62476bd06ec36083141cb0166f523157a3d8589b6a5370e6f9be09"
+}

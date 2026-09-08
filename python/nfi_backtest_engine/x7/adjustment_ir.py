@@ -1,4 +1,4 @@
-"""Compile X7 system-v3 adjustment actions into strategy-neutral programs."""
+"""Compile managed adjustment actions into strategy-neutral programs."""
 
 from __future__ import annotations
 
@@ -13,6 +13,13 @@ from typing import Any
 
 from ..errors import StrategyAnalysisError
 from ..trade_ir import compile_scalar_ast_program
+from .auxiliary_adjustment import prove_counted_entry_groups
+from .auxiliary_entry import (
+    AuxiliaryOperandLowerer,
+    prove_auxiliary_entry_inputs,
+    prove_buyback_entry_helper,
+)
+from .auxiliary_prices import prove_group_exit_ids, prove_group_prices
 
 SYSTEM_ADJUSTMENT_PROGRAM_VERSION = "system-adjustment-program-v2"
 
@@ -40,6 +47,7 @@ _COMMON_BINDINGS = {
     "is_short_extra_checks_entry": "extra-entry-checks",
     "is_short_grind_entry": "grind-entry-signal",
     "is_not_trade_max_stake_v3": "below-maximum-stake",
+    "is_not_trade_max_stake_v4": "below-maximum-stake",
     "is_rebuy_mode": "is-rebuy-mode",
     "is_system_v3": "is-system-v3",
     "is_system_v3_1": "is-system-v31",
@@ -95,8 +103,15 @@ def compile_system_adjustment_ir(
     *,
     side: str,
     retry_policy: Mapping[str, Any],
+    static_inputs: Mapping[str, bool] | None = None,
+    constant_prefix: str = "system_v3_",
 ) -> dict[str, Any]:
-    """Lower one source callback into source-ordered generic action programs."""
+    """Lower one source callback into source-ordered generic action programs.
+
+    The caller must prove any static inputs from the selected dispatch context.
+    Supplying them compiles a specialized function; it does not validate routing.
+    The default constant family preserves existing system-v3 programs.
+    """
 
     if side not in {"long", "short"}:
         raise StrategyAnalysisError(f"system adjustment side is unsupported: {side}")
@@ -106,9 +121,112 @@ def compile_system_adjustment_ir(
         raise StrategyAnalysisError("system adjustment has no Grind levels")
     _validate_action_coverage(actions, levels)
     order_scan = _compile_order_scan(method, actions, levels, side=side)
+    auxiliary_aliases: dict[str, ast.expr] = {}
+    auxiliary_bindings: dict[str, dict[str, Any]] = {}
+    if static_inputs is not None:
+        _prove_raw_cluster_distances(method, levels)
+        order_scan["raw_cluster_distance"] = True
+        order_scan["counted_entry_groups"] = prove_counted_entry_groups(method, levels, side)
+        if side == "long" and constants.get(f"{constant_prefix}buyback_1_enable") is True:
+            groups = order_scan["counted_entry_groups"]
+            index = next(
+                (
+                    i
+                    for i, group in enumerate(groups)
+                    if group["count_variable"] == "buyback_1_sub_grind_count"
+                ),
+                None,
+            )
+            if index is None:
+                raise StrategyAnalysisError("buyback action has no source order group")
+            group = groups[index]
+            group["entry_program"] = prove_buyback_entry_helper(method, constant_prefix)
+            group["fallback_exit_tag"] = prove_group_prices(method, "buyback_1")
+            statements = [
+                node
+                for node in method.body
+                if isinstance(node, ast.If)
+                and _returned_or_assigned_tag(node) == group["entry_tag"]
+            ]
+            if len(statements) != 1 or method.body.index(statements[0]) <= method.body.index(
+                actions[-1].statement
+            ):
+                raise StrategyAnalysisError("buyback action source order changed")
+            level = index + 1
+            actions.append(
+                _SourceAction("auxiliary-entry", level, group["entry_tag"], statements[0], False)
+            )
+            group["exit_action_tag"] = "buyback_1_derisk"
+            closing = [
+                node
+                for node in method.body
+                if isinstance(node, ast.If)
+                and _returned_or_assigned_tag(node) == group["exit_action_tag"]
+            ]
+            if len(closing) != 1 or method.body.index(closing[0]) <= method.body.index(
+                statements[0]
+            ):
+                raise StrategyAnalysisError("buyback exit source order changed")
+            prove_group_exit_ids(method, "buyback_1", closing[0])
+            actions.append(
+                _SourceAction("auxiliary-exit", level, group["exit_action_tag"], closing[0], True)
+            )
+            auxiliary_bindings = {
+                "buyback_1_sub_grind_count": {"kind": "auxiliary-entry-count", "level": level},
+                "buyback_1_total_amount": {"kind": "auxiliary-group-total-amount", "level": level},
+                "buyback_1_current_grind_stake_profit": {
+                    "kind": "auxiliary-group-profit-stake",
+                    "level": level,
+                },
+                "is_long_buyback_entry": {"kind": "auxiliary-entry-signal", "level": level},
+                "buyback_1_current_open_rate": {
+                    "kind": "auxiliary-group-open-rate",
+                    "level": level,
+                },
+                "buyback_1_exit_distance_ratio": {
+                    "kind": "auxiliary-group-exit-distance",
+                    "level": level,
+                },
+            }
+        if static_inputs.get("is_system_v3_1") is True:
+            auxiliary_aliases, helper = prove_auxiliary_entry_inputs(method, side)
+            groups = order_scan["counted_entry_groups"]
+            group_index = next(
+                (
+                    i
+                    for i, group in enumerate(groups)
+                    if group["count_variable"] == "rebuy_sub_grind_count"
+                ),
+                None,
+            )
+            if group_index is None:
+                raise StrategyAnalysisError("auxiliary entry count has no source order group")
+            group = groups[group_index]
+            statements = [
+                node
+                for node in method.body
+                if isinstance(node, ast.If)
+                and _returned_or_assigned_tag(node) == group["entry_tag"]
+            ]
+            if len(statements) != 1 or method.body.index(statements[0]) <= method.body.index(
+                actions[-1].statement
+            ):
+                raise StrategyAnalysisError("auxiliary entry source order changed")
+            level = group_index + 1
+            actions.append(
+                _SourceAction("auxiliary-entry", level, group["entry_tag"], statements[0], False)
+            )
+            group["entry_program"] = helper
+            auxiliary_bindings.update(
+                {
+                    "rebuy_sub_grind_count": {"kind": "auxiliary-entry-count", "level": level},
+                    f"is_{side}_rebuy_entry": {"kind": "auxiliary-entry-signal", "level": level},
+                }
+            )
+        _prove_extra_actions_disabled(method, actions, constants, static_inputs, constant_prefix)
     feature_aliases = _method_feature_aliases(method)
     runtime_aliases = _runtime_aliases(method)
-    constant_aliases = _constant_aliases(method, constants)
+    constant_aliases = _constant_aliases(method, constants, prefix=constant_prefix)
     compiled_actions = []
     for action in actions:
         if action.kind == "grind-exit":
@@ -119,6 +237,7 @@ def compile_system_adjustment_ir(
                 constant_aliases=constant_aliases,
                 feature_aliases=feature_aliases,
                 runtime_aliases=runtime_aliases,
+                static_inputs=static_inputs or {},
             )
             bindings = compiled["bindings"]
             level_state = next(
@@ -153,6 +272,9 @@ def compile_system_adjustment_ir(
             constant_aliases=constant_aliases,
             feature_aliases=feature_aliases,
             runtime_aliases=runtime_aliases,
+            static_inputs=static_inputs or {},
+            auxiliary_aliases=auxiliary_aliases if action.kind.startswith("auxiliary-") else {},
+            auxiliary_bindings=auxiliary_bindings if action.kind.startswith("auxiliary-") else {},
         )
         compiled_actions.append(
             {
@@ -187,6 +309,36 @@ def compile_system_adjustment_ir(
     ).encode()
     program["fingerprint"] = hashlib.sha256(encoded).hexdigest()
     return program
+
+
+def _prove_extra_actions_disabled(
+    method: ast.FunctionDef,
+    actions: list[_SourceAction],
+    constants: Mapping[str, Any],
+    flags: Mapping[str, bool],
+    prefix: str,
+) -> None:
+    covered = {id(action.statement) for action in actions}
+    for statement in method.body:
+        if not isinstance(statement, ast.If) or id(statement) in covered:
+            continue
+        tag = _returned_or_assigned_tag(statement)
+        if tag is None:
+            continue
+        if tag.startswith("buyback_1_") and constants.get(f"{prefix}buyback_1_enable") is False:
+            continue
+        terms = (
+            statement.test.values
+            if isinstance(statement.test, ast.BoolOp)
+            and isinstance(
+                statement.test.op,
+                ast.And,
+            )
+            else [statement.test]
+        )
+        if any(isinstance(term, ast.Name) and flags.get(term.id) is False for term in terms):
+            continue
+        raise StrategyAnalysisError(f"source adjustment action {tag!r} is not lowered")
 
 
 def _method_alias_available(method: ast.FunctionDef, method_name: str) -> bool:
@@ -227,11 +379,7 @@ def _is_exit_call(node: ast.AST, method_name: str, *, alias_available: bool) -> 
         and isinstance(node.func.value, ast.Name)
         and node.func.value.id == "self"
         and node.func.attr == method_name
-    ) or (
-        alias_available
-        and isinstance(node.func, ast.Name)
-        and node.func.id == method_name
-    )
+    ) or (alias_available and isinstance(node.func, ast.Name) and node.func.id == method_name)
 
 
 def _source_actions(method: ast.FunctionDef, exit_method_name: str) -> list[_SourceAction]:
@@ -261,9 +409,7 @@ def _source_actions(method: ast.FunctionDef, exit_method_name: str) -> list[_Sou
             level = int(match.group(1))
             _validate_exit_call(exit_call, level)
             _validate_exit_wrapper(statement, exit_call)
-            actions.append(
-                _SourceAction("grind-exit", level, tag, statement, True, exit_call)
-            )
+            actions.append(_SourceAction("grind-exit", level, tag, statement, True, exit_call))
             continue
         tag = _returned_or_assigned_tag(statement)
         if tag is None:
@@ -380,6 +526,40 @@ def _compile_order_scan(
         ],
         "partial_fill_policy": "filled-orders-have-zero-remaining",
     }
+
+
+def _prove_raw_cluster_distances(method: ast.FunctionDef, levels: list[int]) -> None:
+    expected = ast.parse("(exit_rate - order.safe_price) / order.safe_price", mode="eval").body
+    for level in levels:
+        name = f"grind_{level}_distance_ratio"
+        assignments = [
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == name
+        ]
+        writes = [
+            node
+            for node in ast.walk(method)
+            if isinstance(node, ast.Name) and node.id == name and not isinstance(node.ctx, ast.Load)
+        ]
+        initial = [
+            node
+            for node in assignments
+            if node in method.body
+            and isinstance(node.value, ast.Constant)
+            and node.value.value == 0.0
+        ]
+        calculated = [
+            node
+            for node in assignments
+            if ast.dump(node.value, include_attributes=False)
+            == ast.dump(expected, include_attributes=False)
+        ]
+        if len(writes) != 2 or len(initial) != 1 or len(calculated) != 1:
+            raise StrategyAnalysisError(f"system adjustment cluster distance changed: {name}")
 
 
 def _maximum_keys(
@@ -588,6 +768,8 @@ def _stake_scales(method: ast.FunctionDef, levels: list[int]) -> dict[int, str]:
 def _constant_aliases(
     method: ast.FunctionDef,
     constants: Mapping[str, Any],
+    *,
+    prefix: str = "system_v3_",
 ) -> frozenset[str]:
     aliases = set()
     for statement in method.body:
@@ -596,7 +778,7 @@ def _constant_aliases(
             or len(statement.targets) != 1
             or not isinstance(statement.targets[0], ast.Name)
             or (name := statement.targets[0].id) not in constants
-            or not name.startswith("system_v3_")
+            or not name.startswith(prefix)
             or not isinstance(statement.value, ast.Attribute)
             or not isinstance(statement.value.value, ast.Name)
             or statement.value.value.id != "self"
@@ -620,9 +802,7 @@ class _ConstantAliasLowerer(ast.NodeTransformer):
         self.aliases = aliases
 
     def visit_Name(self, node: ast.Name) -> ast.expr:
-        if node.id not in self.aliases or not isinstance(
-            getattr(node, "ctx", None), ast.Load
-        ):
+        if node.id not in self.aliases or not isinstance(getattr(node, "ctx", None), ast.Load):
             return node
         return ast.copy_location(
             ast.Attribute(
@@ -641,8 +821,13 @@ def _compile_action_program(
     constant_aliases: frozenset[str],
     feature_aliases: Mapping[str, str],
     runtime_aliases: Mapping[str, tuple[str, str]],
+    static_inputs: Mapping[str, bool],
+    auxiliary_aliases: dict[str, ast.expr],
+    auxiliary_bindings: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     statement = copy.deepcopy(action.statement)
+    AuxiliaryOperandLowerer(auxiliary_aliases).visit(statement)
+    _StaticInputLowerer(static_inputs).visit(statement)
     _ConstantAliasLowerer(constant_aliases).visit(statement)
     _ExitFeatureAliasLowerer(feature_aliases).visit(statement)
     _RuntimeAliasLowerer(runtime_aliases).visit(statement)
@@ -654,13 +839,33 @@ def _compile_action_program(
         f"__system_adjustment_{action.kind}_{action.level}",
         [lowered, ast.Return(value=ast.Constant(value="continue"))],
     )
-    bindings = _bindings_for_fragment(fragment, action.level)
+    bindings = _bindings_for_fragment(fragment, action.level, auxiliary_bindings)
     program = compile_scalar_ast_program(fragment, constants=dict(constants))
     return {
         "decision_program": program,
         "bindings": bindings,
         "input_contract": _input_contract(fragment),
     }
+
+
+class _StaticInputLowerer(ast.NodeTransformer):
+    """Substitute caller-proven system predicates before compiling actions."""
+
+    def __init__(self, values: Mapping[str, bool]) -> None:
+        self.values = values
+
+    def visit_Name(self, node: ast.Name) -> ast.expr:
+        if node.id not in self.values:
+            return node
+        if not isinstance(node.ctx, ast.Load):
+            raise StrategyAnalysisError(f"static adjustment input is reassigned: {node.id}")
+        return ast.copy_location(ast.Constant(value=self.values[node.id]), node)
+
+    def visit_IfExp(self, node: ast.IfExp) -> ast.AST:
+        if isinstance(node.test, ast.Name) and node.test.id in self.values:
+            selected = node.body if self.values[node.test.id] else node.orelse
+            return self.visit(selected)
+        return self.generic_visit(node)
 
 
 def _method_feature_aliases(method: ast.FunctionDef) -> dict[str, str]:
@@ -781,6 +986,7 @@ def _compile_exit_action_program(
     constant_aliases: frozenset[str],
     feature_aliases: Mapping[str, str],
     runtime_aliases: Mapping[str, tuple[str, str]],
+    static_inputs: Mapping[str, bool],
 ) -> dict[str, Any]:
     call = action.exit_call
     if call is None:
@@ -811,9 +1017,7 @@ def _compile_exit_action_program(
         parameter.arg: argument for parameter, argument in zip(parameters, call.args, strict=True)
     }
     parameter_lowerer = _ExitParameterLowerer(arguments)
-    helper_body = [
-        parameter_lowerer.visit(statement) for statement in copy.deepcopy(method.body)
-    ]
+    helper_body = [parameter_lowerer.visit(statement) for statement in copy.deepcopy(method.body)]
     body: list[ast.stmt] = [
         ast.copy_location(
             ast.If(
@@ -826,6 +1030,7 @@ def _compile_exit_action_program(
     ]
     transformed: ast.AST = ast.Module(body=body, type_ignores=[])
     for lowerer in (
+        _StaticInputLowerer(static_inputs),
         _ConstantAliasLowerer(constant_aliases),
         _ExitFeatureAliasLowerer(feature_aliases),
         _RuntimeAliasLowerer(runtime_aliases),
@@ -1044,10 +1249,14 @@ def _free_names(fragment: ast.FunctionDef) -> list[str]:
 def _bindings_for_fragment(
     fragment: ast.FunctionDef,
     action_level: int | None,
+    auxiliary_bindings: Mapping[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     result = []
     for argument in fragment.args.args:
         name = argument.arg
+        if auxiliary_bindings and name in auxiliary_bindings:
+            result.append({"name": name, **auxiliary_bindings[name]})
+            continue
         common = _COMMON_BINDINGS.get(name)
         if common is not None:
             result.append({"name": name, "kind": common})
