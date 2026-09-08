@@ -17,7 +17,7 @@ semantics stop with a clear fail-closed verdict instead of being approximated. P
 parses and compiles the supplied strategy; the supported Native runtime does not
 import or execute that strategy Python.
 
-X8 sources are discovered and checked through the same capability pipeline. See
+v1.16.0-rc.1 adds Native X8 support alongside X7 through the same capability pipeline. See
 [X8 recognition and compatibility](docs/x8-support.md) for the supplied v18.0.2
 source's Native implementation, captured parity scope, and inspection commands.
 
@@ -29,7 +29,8 @@ The current and target boundaries are also available in the
 
 | Scope | Status |
 | --- | --- |
-| Latest public release | [GitHub Releases](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest) |
+| Latest stable release | [v1.15.0](https://github.com/vntrevx/NFI_BackTestEngine/releases/latest) |
+| X8 release candidate | [v1.16.0-rc.1](https://github.com/vntrevx/NFI_BackTestEngine/releases/tag/v1.16.0-rc.1); [scope and release notes](docs/releases/v1.16.0.md) |
 | Five-year Spot | Certified independently by v1.0.0 |
 | Five-year Futures | Certified independently by v1.1.0 |
 | v1.15.0 product boundary | [Release notes](docs/releases/v1.15.0.md); no new combined certification claim |
@@ -187,7 +188,7 @@ Linux x86_64/aarch64 (including WSL2) or macOS Apple Silicon:
 curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/main/install.sh | sh
 ```
 
-The installer downloads the matching supported wheel from the latest public GitHub
+The installer downloads the matching supported wheel from the latest stable GitHub
 release, checks its published SHA-256 digest, and installs `nfi-bte` in an isolated
 `uv` environment.
 
@@ -199,21 +200,40 @@ nfi-bte --version
 nfi-bte doctor
 ```
 
-The latest public installer currently returns `nfi-bte 1.10.6`.
+As of 2026-09-08, the default installer returns `nfi-bte 1.15.0`.
+
+### Install the X8 release candidate
+
+To install or replace an existing installation with **v1.16.0-rc.1**, explicitly
+select the RC tag (Linux, macOS Apple Silicon, or a Windows WSL2 Linux shell):
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte --version
+```
+
+The RC package reports `1.16.0`; its GitHub release tag is `v1.16.0-rc.1`.
+RC wheels passed installed X8 Spot/Futures trade and full-state parity checks on
+Linux x86_64/ARM64, macOS ARM64, and Windows WSL2 x86_64. This is bounded qualification,
+not a five-year X8 certificate or a claim that every configuration is supported.
 
 ### Keep the CLI updated
 
-Update an installed CLI to the latest public release with one command:
+Update an installed CLI to the latest stable release with one command:
 
 ```text
 nfi-bte update
 ```
 
+`nfi-bte update` does not select prereleases. It currently targets v1.15.0; use the
+explicit installer command above for the X8 RC. Once v1.16.0 is published as stable,
+ordinary updates from older versions can select it.
+
 Successful commands check GitHub Releases at most once every 24 hours. When a newer release is
 available, the CLI prints one line to stderr without changing the command result:
 
 ```text
-Update available: 1.10.5 -> 1.10.6. Run `nfi-bte update`.
+Update available: 1.14.0 -> 1.15.0. Run `nfi-bte update`.
 ```
 
 The updater reuses the active `uv tool`, `pipx`, or Python environment. Source
@@ -222,7 +242,22 @@ Set `NFI_BTE_DISABLE_UPDATE_CHECK=1` to disable the automatic version check.
 
 ## Quick start
 
-Start from an empty working directory:
+The examples below use X7 on the stable release. After installing the X8 RC, use
+`NostalgiaForInfinityX8.py` in place of `NostalgiaForInfinityX7.py`. For a small X8
+Spot check, run this from the NFI checkout in a fresh project directory:
+
+```bash
+nfi-bte run NostalgiaForInfinityX8.py \
+  --trading-mode spot --pair ETH/USDT \
+  --timerange 20250405-20250408 --workers 2
+```
+
+For isolated Futures, use `--trading-mode futures --pair ETH/USDT:USDT` in a
+separate project. Supplied source and configuration are checked before Native
+execution; unsupported active behavior stops with a diagnostic. See the
+[four-language usage guides](docs/usage.md) for setup and resource controls.
+
+For the stable X7 walkthrough, start from an empty working directory:
 
 ```bash
 mkdir -p ~/nfi-backtest
@@ -509,6 +544,7 @@ Architecture, contracts, and detailed workflows:
 
 - [Architecture](docs/architecture.md)
 - [X7 support boundary](docs/x7-support.md)
+- [X8 support boundary](docs/x8-support.md)
 - [Result report contract](docs/result-report.md)
 - [Release policy](docs/release.md)
 - [Contributing](CONTRIBUTING.md)

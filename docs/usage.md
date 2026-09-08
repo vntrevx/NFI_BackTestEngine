@@ -2,7 +2,7 @@
 
 [한국어](usage-ko.md) · [Ελληνικά](usage-el.md) · [Türkçe](usage-tr.md)
 
-This guide covers installation, the first NFI X7 backtest, exact market-count selection, saved-project reuse, and common recovery commands.
+This guide covers installation, the first NFI X7 / X8 backtest, exact market-count selection, saved-project reuse, and common recovery commands.
 
 ## 1. Requirements
 
@@ -34,6 +34,29 @@ Update an existing installation:
 ```bash
 nfi-bte update
 ```
+
+### X8 release candidate: v1.16.0-rc.1
+
+As of 2026-09-08, **v1.15.0 is the latest stable release**. The default installer
+and `nfi-bte update` select stable releases; they do not install the X8 RC.
+To install or replace an existing installation with the RC, explicitly select its tag:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte --version
+```
+
+The package reports `1.16.0`; the release tag is `v1.16.0-rc.1`. Ordinary updates
+from older versions can select v1.16.0 after it is published as stable.
+
+The RC adds Native X8 support alongside X7, including the qualified
+`short_exit_top_coins`, grind/rebuy, buyback, v3/v3.2/v4 systems, virtual fees,
+stake/leverage, stop/ROI/trailing and trade-slot settings. Admission depends on the
+supplied source and configuration. Unsupported active behavior stops with a diagnostic.
+Installed wheels passed bounded original-X8 Spot/Futures trade and full-state parity
+checks on all four supported platforms. This does not certify every configuration,
+every exchange, or a five-year X8 workload. See the [release notes](releases/v1.16.0.md)
+and [tested X8 scope](x8-support.md).
 
 ## 3. Download NFI
 
@@ -83,6 +106,33 @@ The market-count prompt accepts:
 | `custom` | A comma-separated list entered manually |
 
 Numeric selections are resolved once through the pinned Freqtrade image. Their ordered symbols are then stored in `.nfi/project.json`, so the saved project remains reproducible if exchange volumes later change.
+
+### First X8 run after installing the RC
+
+From a fresh NFI checkout without a saved engine project, use a small Spot run:
+
+```bash
+nfi-bte run NostalgiaForInfinityX8.py \
+  --trading-mode spot --pair ETH/USDT \
+  --timerange 20250405-20250408 --workers 2
+```
+
+For isolated Futures, use `--trading-mode futures --pair ETH/USDT:USDT` in a
+separate project. New NFI revisions are checked again; the filename alone does not
+guarantee compatibility. The remaining examples use stable X7; on the RC you can
+substitute `NostalgiaForInfinityX8.py` and give new runs distinct output directories.
+For an existing project, use the explicit reconfiguration steps in section 5.
+
+Worker capacity is derived from the host's CPU and available memory. `--workers 2`
+only limits this run's parallel workers. The qualification's 4 GiB / two-CPU limits
+are not global defaults. Explicit profiles can be created with
+`nfi-bte system tune --memory-cap-gib 4 --cpu-process-limit 2`; existing files require
+`--force` to replace them. Saved projects use their `runtime.profile_path`.
+Native memory caps control planning; they are not operating-system RSS limits.
+Official comparisons inherit the run's recorded CPU and memory caps. To re-detect
+host capacity without explicit caps, use `nfi-bte system tune --force` on the profile
+used by that project (use `--output PATH` for a non-default path).
+See [execution profiles](x8-support.md#bounded-execution-profiles).
 
 ## 5. Start an exact 80-market run
 

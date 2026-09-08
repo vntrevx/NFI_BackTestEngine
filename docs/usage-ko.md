@@ -2,7 +2,7 @@
 
 [English](usage.md) · [Ελληνικά](usage-el.md) · [Türkçe](usage-tr.md)
 
-이 문서는 설치, NFI X7 첫 백테스트, 정확한 마켓 수 선택, 저장된 프로젝트 재사용, 자주 필요한 복구 명령을 설명합니다.
+이 문서는 설치, NFI X7 / X8 첫 백테스트, 정확한 마켓 수 선택, 저장된 프로젝트 재사용, 자주 필요한 복구 명령을 설명합니다.
 
 ## 1. 실행 환경
 
@@ -34,6 +34,28 @@ nfi-bte doctor
 ```bash
 nfi-bte update
 ```
+
+### X8 릴리즈 후보: v1.16.0-rc.1
+
+2026-09-08 기준 **최신 안정판은 v1.15.0**입니다. 기본 설치 명령과
+`nfi-bte update`는 안정판을 선택하므로 X8 RC를 설치하지 않습니다.
+RC를 새로 설치하거나 기존 설치를 RC로 교체하려면 태그를 직접 지정합니다.
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/vntrevx/NFI_BackTestEngine/v1.16.0-rc.1/install.sh | NFI_BTE_VERSION=v1.16.0-rc.1 sh
+nfi-bte --version
+```
+
+패키지 버전은 `1.16.0`, 공개 릴리즈 태그는 `v1.16.0-rc.1`입니다.
+v1.16.0이 정식 안정판으로 공개되면 이전 버전에서 일반 업데이트로 받을 수 있습니다.
+
+RC는 X7과 함께 X8 Native 실행을 지원합니다. 검증 범위에는
+`short_exit_top_coins`, grind/rebuy, buyback, v3/v3.2/v4 시스템, 가상 수수료,
+stake/leverage, stop/ROI/trailing, 거래 슬롯 설정이 포함됩니다. 실제 지원 여부는
+입력 소스와 설정으로 판정하며, 지원하지 않는 활성 동작은 원인을 표시하고 중단합니다.
+네 가지 지원 플랫폼의 설치된 wheel에서 원본 X8의 짧은 Spot/Futures 구간에 대해
+거래와 전체 상태 일치를 확인했습니다. 모든 설정·거래소 또는 X8 5년 인증을 뜻하지는
+않습니다. [릴리즈 노트](releases/v1.16.0.md)와 [X8 검증 범위](x8-support.md)를 참고하십시오.
 
 ## 3. NFI 다운로드
 
@@ -83,6 +105,33 @@ nfi-bte run NostalgiaForInfinityX7.py
 | `custom` | 쉼표로 구분하여 직접 입력한 목록 |
 
 숫자 선택은 고정된 Freqtrade 이미지에서 한 번만 계산됩니다. 정렬된 심볼은 `.nfi/project.json`에 저장되므로 이후 거래량 순위가 달라져도 저장된 프로젝트는 재현 가능합니다.
+
+### RC 설치 후 X8 첫 실행
+
+저장된 엔진 프로젝트가 없는 새 NFI 체크아웃에서 작은 Spot 작업으로 시작합니다.
+
+```bash
+nfi-bte run NostalgiaForInfinityX8.py \
+  --trading-mode spot --pair ETH/USDT \
+  --timerange 20250405-20250408 --workers 2
+```
+
+격리 Futures는 별도 프로젝트에서 `--trading-mode futures --pair ETH/USDT:USDT`를
+사용합니다. 새 NFI 소스는 다시 호환성을 검사하며 파일명만으로 지원을 보장하지 않습니다.
+아래 나머지 예시는 안정판 X7 기준입니다. RC에서는 `NostalgiaForInfinityX8.py`로 바꾸고
+새 실행마다 별도 출력 폴더를 지정할 수 있습니다. 기존 프로젝트는 5절의 명시적 재설정
+절차를 사용하십시오.
+
+작업 용량은 해당 컴퓨터의 CPU와 가용 메모리에서 계산합니다. `--workers 2`는 이번
+실행의 병렬 worker만 제한합니다. 검증에 사용한 4 GiB·CPU 2개 제한은 전역 기본값이
+아닙니다. 명시적인 프로필 제한은
+`nfi-bte system tune --memory-cap-gib 4 --cpu-process-limit 2`로 만들며, 기존 파일을
+교체할 때는 `--force`가 필요합니다. 저장 프로젝트는 `runtime.profile_path`를 사용합니다.
+Native 메모리 제한은 실행 계획에 적용되며 운영체제의 RSS 강제 제한은 아닙니다.
+공식 비교는 원본 실행에 기록된 CPU·메모리 제한을 이어받습니다. 명시적 제한 없이
+하드웨어 용량을 다시 계산하려면 프로젝트가 쓰는 프로필에
+`nfi-bte system tune --force`를 실행합니다. 기본 경로가 아니면 `--output PATH`도 지정합니다.
+자세한 내용은 [실행 프로필](x8-support.md#bounded-execution-profiles)을 참고하십시오.
 
 ## 5. 정확히 80마켓으로 실행
 
