@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "fingerprint": "455714cc9cdb9a9eb2ed969b9498d8598674d48cccbf71e598a38423c7b3f319",
+  "next_shard": 0,
+  "shard_count": 20,
+  "complete": false,
+  "status": "external_data_deferred",
+  "deferred_external": {
+    "reason": "http_status",
+    "http_status": 451,
+    "retry": "identity-change-or-manual"
+  }
+}
