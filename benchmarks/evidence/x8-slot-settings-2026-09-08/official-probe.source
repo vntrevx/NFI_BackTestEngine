@@ -1,0 +1,38 @@
+"""Probe official slot scheduling, wallet divisors, and unchanged X8 scalp guards."""
+import hashlib,importlib.util,inspect,json,logging,sys
+from datetime import datetime,timezone
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+import freqtrade
+from freqtrade.optimize.backtesting import Backtesting
+from freqtrade.optimize.optimize_reports.optimize_reports import generate_strategy_stats
+from freqtrade.wallets import Wallets
+from freqtrade.config_schema import CONF_SCHEMA
+logging.disable(logging.CRITICAL)
+source=Path('benchmarks/fixtures/captured/x8-original-futures-20220401-20220420-r1/inputs/strategy.py')
+spec=importlib.util.spec_from_file_location('slot_donor',source);module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
+rows=[];wallets=[];scalps=[]
+for raw in (-1,0,1,2,6,-.5,.5,1.5):
+    effective=float('inf') if raw==-1 else raw
+    backtest=Backtesting.__new__(Backtesting);backtest.strategy=SimpleNamespace(max_open_trades=effective)
+    strategy=module.NostalgiaForInfinityX8.__new__(module.NostalgiaForInfinityX8);strategy.config={'max_open_trades':effective}
+    for opened in range(9):
+        backtest.rejected_trades=0
+        rows.append({'raw_slots':raw,'open_trades':opened,'allowed':backtest.trade_slot_available(opened),'rejections':backtest.rejected_trades})
+        for minimum in (0,1,2,6):
+            strategy.min_free_slots_scalp_mode=minimum
+            with patch.object(module.Trade,'get_open_trade_count',return_value=opened):
+                allowed=strategy._handle_scalp_mode('BTC/USDT',datetime(2022,4,4,tzinfo=timezone.utc))
+            scalps.append({'raw_slots':raw,'open_trades':opened,'minimum_free':minimum,'allowed':allowed})
+    wallet=Wallets.__new__(Wallets)
+    for available in (0.,1.,100.,10000.):
+        for tied in (0.,10.,9000.):
+            result=wallet._calculate_unlimited_stake_amount(available,tied,effective)
+            wallets.append({'raw_slots':raw,'available':available,'tied':tied,'proposed':result})
+text=inspect.getsource(generate_strategy_stats).splitlines()
+indices={i for index,line in enumerate(text) if 'max_open_trades' in line for i in range(max(0,index-3),min(len(text),index+4))}
+print(json.dumps({'freqtrade_version':freqtrade.__version__,'source_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
+    'slot_schema':CONF_SCHEMA['properties']['max_open_trades'],'scheduling':rows,'wallet':wallets,'scalp':scalps,
+    'report_source_excerpt':'\n'.join(text[i] for i in sorted(indices)),
+    'scheduler_source':inspect.getsource(Backtesting.trade_slot_available),'wallet_source':inspect.getsource(Wallets._calculate_unlimited_stake_amount)},indent=2,allow_nan=False))

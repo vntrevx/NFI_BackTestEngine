@@ -1,0 +1,278 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX8",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20220401-20220420"
+  },
+  "summary": {
+    "total_trades": 2,
+    "starting_balance": "10000",
+    "final_balance": "9635.93814635",
+    "profit_total_abs": "-364.06185365",
+    "total_volume": "16970.2456824",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1648795800000,
+      "close_timestamp_ms": 1648826100000,
+      "open_rate": "44799.6",
+      "close_rate": "46539.9",
+      "amount": "0.066",
+      "stake_amount": "985.5912",
+      "max_stake_amount": "985.5912",
+      "leverage": "3",
+      "entry_tag": "1 ",
+      "exit_reason": "exit_long_normal_1_1_1 ( 1 )",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "-0.22646099440800002"
+      },
+      "profit": {
+        "absolute": "111.61913551",
+        "ratio": "0.11319434856265304"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "30015.74",
+      "stop_loss": "30015.74",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1648795800000,
+          "amount": "0.066",
+          "price": "44799.6",
+          "cost": "2958.2519868",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1648826100000,
+          "amount": "0.066",
+          "price": "46539.9",
+          "cost": "3073.1692167",
+          "tag": "exit_long_normal_1_1_1 ( 1 )"
+        }
+      ],
+      "duration_minutes": 505,
+      "is_open": false,
+      "minimum_rate": "44680.9",
+      "maximum_rate": "46683.7",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 4
+    },
+    {
+      "sequence": 1,
+      "pair": "BTC/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1648826400000,
+      "close_timestamp_ms": 1650412800000,
+      "open_rate": "43212.2",
+      "close_rate": "41472.9",
+      "amount": "0.054",
+      "stake_amount": "777.81952961",
+      "max_stake_amount": "1898.99386667",
+      "leverage": "3",
+      "entry_tag": "1 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "-9.608910258804126"
+      },
+      "profit": {
+        "absolute": "-475.68098915999997",
+        "ratio": "-0.2503658784115979"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "31200.97",
+      "stop_loss": "31200.97",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1648826400000,
+          "amount": "0.064",
+          "price": "46568.6",
+          "cost": "2981.8805952",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1648848600000,
+          "amount": "0.012",
+          "price": "46404.1",
+          "cost": "557.1276246",
+          "tag": "grind_1_entry"
+        },
+        {
+          "sequence": 2,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649631000000,
+          "amount": "0.012",
+          "price": "41960.1",
+          "cost": "503.7729605999999",
+          "tag": "derisk_level_1"
+        },
+        {
+          "sequence": 3,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649652900000,
+          "amount": "0.014",
+          "price": "42249.9",
+          "cost": "591.7943493",
+          "tag": "grind_1_entry"
+        },
+        {
+          "sequence": 4,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649707800000,
+          "amount": "0.019",
+          "price": "39646.4",
+          "cost": "753.6582407999999",
+          "tag": "derisk_level_2"
+        },
+        {
+          "sequence": 5,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649729700000,
+          "amount": "0.006",
+          "price": "39504.1",
+          "cost": "237.14311229999998",
+          "tag": "grind_5_entry"
+        },
+        {
+          "sequence": 6,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649753100000,
+          "amount": "0.007",
+          "price": "40244.7",
+          "cost": "281.85375645",
+          "tag": "grind_2_entry"
+        },
+        {
+          "sequence": 7,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649798100000,
+          "amount": "0.007",
+          "price": "39704.8",
+          "cost": "278.0725668",
+          "tag": "grind_3_entry"
+        },
+        {
+          "sequence": 8,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649863500000,
+          "amount": "0.007",
+          "price": "41367.9",
+          "cost": "289.72008765000004",
+          "tag": "grind_3_exit 10"
+        },
+        {
+          "sequence": 9,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649889300000,
+          "amount": "0.007",
+          "price": "41323.1",
+          "cost": "289.40633085",
+          "tag": "grind_3_entry"
+        },
+        {
+          "sequence": 10,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1650255600000,
+          "amount": "0.032",
+          "price": "38877",
+          "cost": "1244.686032",
+          "tag": "derisk_level_3"
+        },
+        {
+          "sequence": 11,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1650278100000,
+          "amount": "0.006",
+          "price": "39017.3",
+          "cost": "234.2208519",
+          "tag": "grind_4_entry"
+        },
+        {
+          "sequence": 12,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1650376200000,
+          "amount": "0.005",
+          "price": "41279.5",
+          "cost": "206.50069875",
+          "tag": "grind_4_exit 14"
+        },
+        {
+          "sequence": 13,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1650376500000,
+          "amount": "0.006",
+          "price": "41367.8",
+          "cost": "248.3309034",
+          "tag": "grind_4_entry"
+        },
+        {
+          "sequence": 14,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1650412800000,
+          "amount": "0.054",
+          "price": "41472.9",
+          "cost": "2240.6563683",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 26440,
+      "is_open": false,
+      "minimum_rate": "38465.7",
+      "maximum_rate": "47448",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 2
+    }
+  ]
+}

@@ -1,0 +1,903 @@
+{
+  "schema_version": "1.0.0",
+  "verified_at_utc": "2026-09-07T21:08:55.496498+00:00",
+  "scope": "Source-selected system_v3_1 extra rebuy entries and regression qualification.",
+  "source": {
+    "path": "NostalgiaForInfinityX8.py",
+    "sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+    "bytes": 2477185
+  },
+  "tolerance": 0,
+  "fixtures": [
+    {
+      "fixture_id": "x8-extra-rebuy-long-r1",
+      "category": "replays",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-extra-rebuy-long-r1/manifest.json",
+        "sha256": "daa401a1a4b9d883af43efc304ab10e4655daf3495e9010b7c5903d39d1a4af2",
+        "bytes": 4783
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/replays/x8-extra-rebuy-long-r1/run.json",
+        "sha256": "74f493e1cbfd39d151d5b2105d3f981fb47837eae17db960eaa27a53fc147085",
+        "bytes": 7772
+      },
+      "trades": 2,
+      "orders": 8,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "ccf538db2099797f6a3e4f52d33ac66b250db285f54905654cb9cc297eb2e315",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false,
+      "rebuy_entry_orders": 4
+    },
+    {
+      "fixture_id": "x8-extra-rebuy-mixed-long-r1",
+      "category": "replays",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-extra-rebuy-mixed-long-r1/manifest.json",
+        "sha256": "bc1b421ac898813a4e753a0bbad0da0663c0529fed9a7f428cedf48008486922",
+        "bytes": 4789
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/replays/x8-extra-rebuy-mixed-long-r1/run.json",
+        "sha256": "f95ef209e21b97c90a735f139212830c5d5ef221e574c84215f2dae2e3999d92",
+        "bytes": 7845
+      },
+      "trades": 2,
+      "orders": 8,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "ccf538db2099797f6a3e4f52d33ac66b250db285f54905654cb9cc297eb2e315",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false,
+      "rebuy_entry_orders": 4
+    },
+    {
+      "fixture_id": "x8-extra-rebuy-short-r1",
+      "category": "replays",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-extra-rebuy-short-r1/manifest.json",
+        "sha256": "9d0d80e4ea03eedc0647bf44d0af680dd6d73ab968f7f3d5a7f14ba85be9c375",
+        "bytes": 4786
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/replays/x8-extra-rebuy-short-r1/run.json",
+        "sha256": "fb01eb5f4beffe33a5e5d0df80a405ef596e1695b2f9aa7da1bc2909ae736c1d",
+        "bytes": 7785
+      },
+      "trades": 5,
+      "orders": 20,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "1d0ca95fa8c9504fa24c80cd9d2b8a01de566aff8d8dece562f91e1d276f7105",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false,
+      "rebuy_entry_orders": 10
+    },
+    {
+      "fixture_id": "x8-extra-rebuy-spot-r1",
+      "category": "replays",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-extra-rebuy-spot-r1/manifest.json",
+        "sha256": "c1d73a3db90e47435822ad837634f00fdd19057219c0f57b8d1e377808b268a6",
+        "bytes": 5163
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/replays/x8-extra-rebuy-spot-r1/run.json",
+        "sha256": "82220ec9bb69ff77f17e91ca2c5937683c47c92db96f72a11af18c4742fb44f9",
+        "bytes": 7753
+      },
+      "trades": 1,
+      "orders": 4,
+      "portfolio_states": 864,
+      "state_stream_sha256": "902267b472099197232ce93eb935dfcf09da2c23f04d24372129876367de6aa5",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20251104-20251107",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "spot",
+        "margin_mode": "",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20251104-20251107",
+          "--pairs",
+          "ADA/USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false,
+      "rebuy_entry_orders": 2
+    },
+    {
+      "fixture_id": "x8-settings-advanced-long-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-advanced-long-r1/manifest.json",
+        "sha256": "7b7eb4cb5d61f8a5bb4e031cfdb49ad89eed9f7f839204520107169b380a44b9",
+        "bytes": 4789
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-advanced-long-r1/run.json",
+        "sha256": "821ffd66c20c74346399b960f204b52e2c6e32d32442e071fef35ab6027b6b1c",
+        "bytes": 7880
+      },
+      "trades": 1,
+      "orders": 13,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "e9092f5f66e3dd41c9f3eeb740a4c6fbca73cebfbe565ceda0e19ac70a68171d",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    },
+    {
+      "fixture_id": "x8-settings-advanced-short-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-advanced-short-r1/manifest.json",
+        "sha256": "269ed8a86c66ca986beac61fc533c39a1a0173b64c2912dedc0e0f5eb8d68ded",
+        "bytes": 4792
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-advanced-short-r1/run.json",
+        "sha256": "70a9ed65f4c4fb0d0bddbdfb74ee1263517b2a6a6a01fb1fc5c6342ef3cce8ba",
+        "bytes": 7893
+      },
+      "trades": 7,
+      "orders": 61,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "9754058b089caf5827414711c5bfec3aecdf2586d59117f057d555454166ee4c",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    },
+    {
+      "fixture_id": "x8-settings-capital-adjustments-long-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-capital-adjustments-long-r1/manifest.json",
+        "sha256": "102c713a19eb03f46697781b59dc37aff3b9421bb23979930519d55e0cda7958",
+        "bytes": 4800
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-capital-adjustments-long-r1/run.json",
+        "sha256": "cbd4e0dc8e1e11340b2762dea361d238d2fa0011647a841203e09dadc471042a",
+        "bytes": 8011
+      },
+      "trades": 1,
+      "orders": 10,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "2edfcc74be4b7398087fc1005992f3c3c6fb52ce36cff5f2aa73d4a1baffaa96",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    },
+    {
+      "fixture_id": "x8-settings-capital-wallet-spot-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-capital-wallet-spot-r1/manifest.json",
+        "sha256": "2142d3c29bc2dfa619a1a63ec04c30158b019b94a5bd274e790588d242d34685",
+        "bytes": 5190
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-capital-wallet-spot-r1/run.json",
+        "sha256": "560f056cc182caff35cdbfc8100574a4ed9dd7705dbc327e7325f4d9743c3eda",
+        "bytes": 7964
+      },
+      "trades": 2,
+      "orders": 4,
+      "portfolio_states": 1728,
+      "state_stream_sha256": "130b8c3043bfb05456eb4fc3dd20fbee599cc3462f9f9a931f354cb848752a5e",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20250405-20250408",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "spot",
+        "margin_mode": "",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20250405-20250408",
+          "--pairs",
+          "BTC/USDT",
+          "ETH/USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    },
+    {
+      "fixture_id": "x8-settings-system-v3-long-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-system-v3-long-r1/manifest.json",
+        "sha256": "b22773a1a67868e9a68d4afc621cc3a6d32d26b752f0293d12242062c7be9109",
+        "bytes": 4790
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-system-v3-long-r1/run.json",
+        "sha256": "7f5d7b541eda655a491937c6fa890043230fc309d936404504df8cb55de7db55",
+        "bytes": 7888
+      },
+      "trades": 1,
+      "orders": 3,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "65e7b10a20b84c176d53013afbc295782956059e88c5f07fd03d71f9820fb054",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    },
+    {
+      "fixture_id": "x8-settings-system-v3_2-short-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-system-v3_2-short-r1/manifest.json",
+        "sha256": "1bc2254f70891510070d8ae2832c77f39f6f76f862221f20705dd9530e56e59f",
+        "bytes": 4793
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-system-v3_2-short-r1/run.json",
+        "sha256": "c52d65dae80ef5f53e3ea89a01d12189542b6cf1ba17b0fb2812a2d09a39747c",
+        "bytes": 7927
+      },
+      "trades": 5,
+      "orders": 10,
+      "portfolio_states": 2016,
+      "state_stream_sha256": "b2f7dc7ce8d916a0c1f422e08dfca69035cf3576bed55ea6048a0be5d2458f28",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20220404-20220411",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "futures",
+        "margin_mode": "isolated",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20220404-20220411",
+          "--pairs",
+          "BTC/USDT:USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    },
+    {
+      "fixture_id": "x8-settings-unlimited-multi-spot-r1",
+      "category": "regressions",
+      "manifest": {
+        "path": "benchmarks/fixtures/captured/x8-settings-unlimited-multi-spot-r1/manifest.json",
+        "sha256": "e857dce0b5fad921c491af88a43d426690dc608e877a0084a91a1783a8106f8a",
+        "bytes": 5190
+      },
+      "receipt": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/regressions/x8-settings-unlimited-multi-spot-r1/run.json",
+        "sha256": "6d4d6ae9a215374c36c98dc0f06d1a2f9bb632afa02c2151c3b6e1aa8888f95e",
+        "bytes": 7976
+      },
+      "trades": 2,
+      "orders": 4,
+      "portfolio_states": 1728,
+      "state_stream_sha256": "f7224620b8cc697245948d1ba1b67479081a45efe20441482e0f364fbeba479f",
+      "native_build": {
+        "schema_version": "1.0.0",
+        "built_at": null,
+        "source_fingerprint": "9087145d4b02e292d860d5c4198985962798300fcc8ea06635da8e3738223924",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+        "binary_sha256": "db241bcb415587da333cdfd1ae55ed266e68da6c8d40ae5c810f4a36e18bd8b5",
+        "binary_bytes": 15374408,
+        "target": "linux-x86_64",
+        "build_seconds": 0.0,
+        "kind": "pyo3-extension"
+      },
+      "freqtrade": {
+        "version": "2026.5.1",
+        "image": "freqtradeorg/freqtrade",
+        "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+        "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+        "platform": "linux/amd64",
+        "tracer_version": "1.1.0",
+        "exchange": "binance",
+        "strategy": "NostalgiaForInfinityX8",
+        "timerange": "20250405-20250408",
+        "timeframe": "5m",
+        "timeframe_detail": null,
+        "trading_mode": "spot",
+        "margin_mode": "",
+        "command": [
+          "freqtrade",
+          "backtesting",
+          "--config",
+          "inputs/config.json",
+          "--strategy-path",
+          "inputs",
+          "--strategy",
+          "NostalgiaForInfinityX8",
+          "--datadir",
+          "inputs/data",
+          "--timerange",
+          "20250405-20250408",
+          "--pairs",
+          "BTC/USDT",
+          "ETH/USDT",
+          "--cache",
+          "none",
+          "--export",
+          "trades"
+        ]
+      },
+      "trade_surface_equal": true,
+      "full_state_equal": true,
+      "portfolio_event_trace_checked": false
+    }
+  ],
+  "totals": {
+    "fixtures": 11,
+    "trades": 29,
+    "orders": 145,
+    "portfolio_states": 20448
+  },
+  "source_scope": {
+    "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/source-scope-final.json",
+    "sha256": "7ffb0a3cadc1b9e22c46c05eae5d79031ce5454a593a87578feb7383174e82f4",
+    "bytes": 2698
+  },
+  "source_scope_verifier": {
+    "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/verify_source_scope.py",
+    "sha256": "ce617450555ed19d23817b2185927d978943c104f311fcb2558c24c147e79d87",
+    "bytes": 2293
+  },
+  "supplemental_callback_state": [
+    {
+      "case": "rebuy-long",
+      "comparison": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-long/comparison.json",
+        "sha256": "d4a1a54fb13368fb071bc2c63e0196c29736ad05eaa2cb1b20f9fc601134f6bb",
+        "bytes": 1266
+      },
+      "official_audit": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-long/official-callback-audit.json.gz",
+        "sha256": "170e310c489d87cf3e768f38dfa2ce95e5f47ba65c9b328f7c89e9bc41c57225",
+        "bytes": 90228
+      },
+      "snapshots": 1925
+    },
+    {
+      "case": "rebuy-short",
+      "comparison": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-short/comparison.json",
+        "sha256": "33b9f6b7f285b8bc893d1191181ac900e25ae6c30293e87bb7b72adbe8c2a1fb",
+        "bytes": 1266
+      },
+      "official_audit": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-short/official-callback-audit.json.gz",
+        "sha256": "9e0943832a5b974652bf449642397959d11f2bc6b2a483307e3800f31cf99cdc",
+        "bytes": 90612
+      },
+      "snapshots": 1864
+    },
+    {
+      "case": "rebuy-spot",
+      "comparison": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-spot/comparison.json",
+        "sha256": "85af8d2f04350939ff62061ae8fb9b932a63f58ce45a772d2ec771322e1c6784",
+        "bytes": 1265
+      },
+      "official_audit": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-spot/official-callback-audit.json.gz",
+        "sha256": "4d35b956bcfbe70445ef51d907edf9ccb1e6c1e2552ec43086b23ae9c386db5e",
+        "bytes": 35344
+      },
+      "snapshots": 857
+    },
+    {
+      "case": "rebuy-mixed-long",
+      "comparison": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-mixed-long/comparison.json",
+        "sha256": "d4a1a54fb13368fb071bc2c63e0196c29736ad05eaa2cb1b20f9fc601134f6bb",
+        "bytes": 1266
+      },
+      "official_audit": {
+        "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/custom-state/rebuy-mixed-long/official-callback-audit.json.gz",
+        "sha256": "170e310c489d87cf3e768f38dfa2ce95e5f47ba65c9b328f7c89e9bc41c57225",
+        "bytes": 90228
+      },
+      "snapshots": 1925
+    }
+  ],
+  "supplemental_snapshot_count": 6571,
+  "validation_logs": [
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/python-focused.log",
+      "sha256": "fe27998fe0fbd67c5f46532a54a1c3c7cd59fd074b6d32930c4fb8525d9da3cd",
+      "bytes": 272
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/python-proof-final.log",
+      "sha256": "96809eb75596781b256042b6c46198fa74348d70647d8a31feced492d45a239a",
+      "bytes": 99
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/rust-workspace-r2.log",
+      "sha256": "3d43bbaeadbdde7733005b9efc1652a9803d2480ce2d223c0d486ae9fecfc6fa",
+      "bytes": 43061
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/clippy-r3.log",
+      "sha256": "e4d61a9d502209c463ab23f2928f426989ecd9a74aac5c7d5fad3200ac7edcf5",
+      "bytes": 465
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/type-final.log",
+      "sha256": "56882e01cb80173ef053c4096e4ee43e3123a15f5c0a06715f96988d48fbd91c",
+      "bytes": 30
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/evidence/x8-extra-actions-2026-09-08/checks/native-build-r2.log",
+      "sha256": "4e5e7c33d2a14bf54a80b5eaae690d86bde71a1300ef2d15c0e586eec99dc0ef",
+      "bytes": 827
+    }
+  ],
+  "validation_summary": {
+    "python_focused_passed": 161,
+    "python_source_proof_passed": 20,
+    "rust_workspace_passed": 447,
+    "rust_workspace_ignored": 2,
+    "ruff_engine": true,
+    "basedpyright_errors": 0,
+    "clippy": true,
+    "rustfmt": true,
+    "full_python_suite_run": false,
+    "cross_platform_ci_run": false
+  },
+  "previous_baseline": {
+    "path": "benchmarks/evidence/x8-settings-2026-09-08/verification.json",
+    "sha256": "5024c1aa9c9bc30a49575fe3f09e88c0a50ed169c8917d094cf9ed611e4d2dc9",
+    "bytes": 51350
+  },
+  "notes": [
+    "Callbacks and class constants retain donor source; only entry and indicator transformations are disclosed in sealed recipes.",
+    "The auxiliary count excludes the initial fill and resets independently at source-described group exits and global derisk.",
+    "System-v3_1 helper calls retain is_derisk=True, source action order, maximum stake guard, minimum stake floor, and return-None suppression.",
+    "Full state is the established portfolio projection; custom data is compared separately.",
+    "No complete configuration or exchange matrix, full Python suite, or cross-platform CI claim is made."
+  ],
+  "limitations": [
+    "Enabled buyback actions and runtime-initialization overrides remain rejected.",
+    "Nonpositive or fractional trade slots remain rejected.",
+    "Custom order-policy and routing-list combinations require broader qualification.",
+    "Cross-margin multi-currency collateral remains unsupported."
+  ]
+}

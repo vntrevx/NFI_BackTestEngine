@@ -1,0 +1,150 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "order-filled-no-exits-futures-r1",
+  "description": "Synthetic order-filled first-entry/no-exits guard and static system union. Exit fills must preserve the marker established on the initial entry order. This focused callback fixture does not qualify the complete X8 strategy.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-09-07T10:34:26.621858Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "OrderStateProbe",
+    "timerange": "20220401-20220402",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "OrderStateProbe",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20220401-20220402",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "79a843eae4024bcce03ad6b0d49175aa2d5dfb97345bb264e173273d5f63b63a",
+      "bytes": 2363474
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "8330b30d8bdb2bc784443491fed0b52e5da6c039df3e76733832f6aea0dec988",
+      "bytes": 847
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-15m-futures.feather",
+      "sha256": "cffcc13372d695b2c80782f5064a59c5add4d0d6d38693b6df5acaf8f48e8c2c",
+      "bytes": 44591
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1d-futures.feather",
+      "sha256": "06778ceb24433d3f2a3e671da730a9a0672249ea948285df9ad8aff0519a3b8f",
+      "bytes": 39983
+    },
+    {
+      "role": "funding_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-funding_rate.feather",
+      "sha256": "4e3e4bb4d37c294b36bf7a3fb751a29f6c36af7f969f45d22f92b67a6cda5d30",
+      "bytes": 116783
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-futures.feather",
+      "sha256": "ad714464e20d88da6089049d31dc8f46ca82c7729c9f6686c1e38ca6b5da252b",
+      "bytes": 41135
+    },
+    {
+      "role": "mark_candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-1h-mark.feather",
+      "sha256": "ad8402df923ecb73e150d8a155599e43ed0fa47f874a26acefdcbcc9cf62c003",
+      "bytes": 924335
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-4h-futures.feather",
+      "sha256": "c8d8b49f40dc03a40ec284e6f4f1d38b1ebbb9b627c96959a643237502abdef6",
+      "bytes": 39983
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/futures/BTC_USDT_USDT-5m-futures.feather",
+      "sha256": "87ff95ee5d317b6fe9fe55a9323a1726cf03fc3df0688627facc0894a7f2b989",
+      "bytes": 53807
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/full-x7-futures-20210101-markets.json",
+      "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86",
+      "bytes": 171531
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/reference-markets.json",
+      "sha256": "b959dfd2fd3776718b5eadad6254ca238e65374560020f606db9b8af6cb485c6",
+      "bytes": 9239
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/001-recipe.json",
+      "sha256": "b2ef0cc31c1acd0a200b8fbfd3933a74ab0d25ae962f87a0e0f2faab9fc406a6",
+      "bytes": 645
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "1eb6d73af01d506c0ab8957052a975459ff33c5a75f396320c4082bc2b340f16",
+      "bytes": 218338
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "aa8527e054577fbd8772618250de91c373a160738afb24df7affc4bf9c4f2400",
+      "bytes": 5643
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "0d5c30637457366d9ff0359550ab2bbf71e5157f4b06bf3b8741f82ffa2163b1",
+      "bytes": 8875787
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "f1e27f24e729cb8a0e85b224f336e7876e4fcd6c7198d016afca677bec92007b",
+      "bytes": 141316
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

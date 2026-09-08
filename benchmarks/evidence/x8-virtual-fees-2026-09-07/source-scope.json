@@ -1,0 +1,74 @@
+{
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "scenarios": [
+    {
+      "scenario": "rebuy-long",
+      "source_sha256": "130bdd57307566bb1b2bf56a47856fd036edde3d42d89343ae49bd2149853827",
+      "changed_methods": [
+        "populate_indicators",
+        "populate_entry_trend"
+      ],
+      "changed_class_constants": [
+        "system_v4_rebuy_mode_derisk_futures",
+        "system_v4_rebuy_mode_thresholds_futures"
+      ],
+      "all_other_method_asts_equal_donor": true,
+      "configuration": {
+        "custom_fee_open_rate": 0.001,
+        "custom_fee_close_rate": 0.002
+      }
+    },
+    {
+      "scenario": "rebuy-short",
+      "source_sha256": "1ef3aee7468482b52517d927e2c2624eeec0beec14284ccfc7550b0f3d295465",
+      "changed_methods": [
+        "populate_indicators",
+        "populate_entry_trend"
+      ],
+      "changed_class_constants": [
+        "system_v4_rebuy_mode_derisk_futures",
+        "system_v4_rebuy_mode_thresholds_futures"
+      ],
+      "all_other_method_asts_equal_donor": true,
+      "configuration": {
+        "custom_fee_open_rate": 0,
+        "custom_fee_close_rate": 0.002
+      }
+    },
+    {
+      "scenario": "spot",
+      "source_sha256": "7b0de160e4d4fc72b2062e38f6b260c841aebb66641d44a599c6c79b27a5282e",
+      "changed_methods": [
+        "populate_entry_trend"
+      ],
+      "changed_class_constants": [],
+      "all_other_method_asts_equal_donor": true,
+      "configuration": {
+        "custom_fee_open_rate": 0.002
+      }
+    },
+    {
+      "scenario": "legacy-spot",
+      "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+      "changed_methods": [],
+      "changed_class_constants": [],
+      "all_other_method_asts_equal_donor": true,
+      "configuration": {
+        "custom_fee_close_rate": 0
+      }
+    },
+    {
+      "scenario": "legacy-short",
+      "source_sha256": "f0137176e4278702628eb635d162d13cf7b04585a300d63ba56ab3e42e528ce7",
+      "changed_methods": [
+        "populate_entry_trend"
+      ],
+      "changed_class_constants": [],
+      "all_other_method_asts_equal_donor": true,
+      "configuration": {
+        "custom_fee_open_rate": 0.001,
+        "custom_fee_close_rate": 0.002
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "mode": "spot",
+  "donor": "future-nfi-spot-a28f204e44845653",
+  "pairs": [
+    "ETH/USDT"
+  ],
+  "timerange": "20250405-20250408",
+  "source_transformations": [],
+  "source_identical_to": "NostalgiaForInfinityX8.py",
+  "configuration_changes": {
+    "stake_amount": 100
+  },
+  "resource_caps": {
+    "cpu": 2,
+    "memory_bytes": 4294967296,
+    "workers": 1
+  }
+}

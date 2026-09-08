@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "First-entry/no-exits callback policy and source-level v4 adjustment compilation; full X8 manager integration remains unsupported",
+  "fixture": {
+    "path": "benchmarks/fixtures/captured/order-filled-no-exits-futures-r1/manifest.json",
+    "sha256": "3d495b03efe2ff75f842449228c5defd69562669479af443db431dac28826d58"
+  },
+  "reference": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "OrderStateProbe",
+    "timerange": "20220401-20220402",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "OrderStateProbe",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20220401-20220402",
+      "--pairs",
+      "BTC/USDT:USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "recipe": {
+    "base_source": "benchmarks/fixtures/captured/explicit-short-top-coins-futures-r1/inputs/strategy.py",
+    "base_source_sha256": "371825eee693507554b5bb2e0abc919c5e6f71f4a8b74109a3045bb124fba2f7",
+    "effective_source_sha256": "79a843eae4024bcce03ad6b0d49175aa2d5dfb97345bb264e173273d5f63b63a",
+    "description": "Managed short top-coins fixture plus the initial-entry/no-exits guard and static system OR in order_filled. Initial writes set entry_marker=0; the entry order tag 641 sets it to 7. Exit fills must preserve 7. Legacy unguarded initialization would reset it to 0. This isolates the callback semantics and does not qualify full X8."
+  },
+  "parity": {
+    "trade_surface_equal": true,
+    "full_state_equal": true,
+    "state_scope": "Existing full-state portfolio projection; arbitrary custom_data is not included. See supplementary official callback probe.",
+    "tolerance": 0,
+    "trade_count": 3,
+    "order_count": 6,
+    "state_event_count": 288,
+    "expected_state_stream_hash": "150d717fa24c6708194237e94c4627d0d601f10390c6e2d1b5e1607ae07afabc",
+    "actual_state_stream_hash": "150d717fa24c6708194237e94c4627d0d601f10390c6e2d1b5e1607ae07afabc"
+  },
+  "official_callback_probe": {
+    "script": {
+      "path": "benchmarks/evidence/x8-order-state-2026-09-07/official_callback_probe.py",
+      "sha256": "0df3ba4626331edb0e07eb4371d65ad54c63fdade30efa938bd5b9ada26ae197"
+    },
+    "result": {
+      "path": "benchmarks/evidence/x8-order-state-2026-09-07/official-callback-probe.json",
+      "sha256": "ee7bd489d58a5e44421331d1fe380eb8a3ed9bcbd007fe1e91e29c13f0e5fc80"
+    },
+    "scope": "Exact donor method, official Trade/Order models, long/short and two partial exits each. Direct callback probe, not a backtest.",
+    "command": "docker run --rm --network none -v \"$PWD:/workspace:ro\" --workdir /workspace --entrypoint python freqtradeorg/freqtrade@sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b benchmarks/evidence/x8-order-state-2026-09-07/official_callback_probe.py"
+  },
+  "source_contract": {
+    "path": "benchmarks/fixtures/source-contracts/x8-system-v4/provenance.json",
+    "sha256": "68bc93a1b5d663fb78233fd5b8e238c9bdee37e03523a015e6fa5aa36817ffd1"
+  },
+  "source_support": {
+    "full_x8_native_compatible": false,
+    "blocker": "NFI top-coins lowering currently requires frozen system_v3_2 routing",
+    "individually_compiled_adjustment_methods": [
+      "long_grind_adjust_trade_position_v4",
+      "short_grind_adjust_trade_position_v4",
+      "long_rebuy_adjust_trade_position_v4",
+      "short_rebuy_adjust_trade_position_v4"
+    ],
+    "assumption": "Grind action compilation receives caller-proven is_system_v4=True; production dispatch proof and manager linkage are pending."
+  },
+  "validation": {
+    "python_regression_tests_passed": 64,
+    "rust_workspace_tests_passed": 426,
+    "rust_workspace_tests_ignored": 2,
+    "ruff": "passed: python tests and official callback probe",
+    "basedpyright": "passed: python/nfi_backtest_engine",
+    "cargo_fmt": "passed",
+    "cargo_clippy": "passed: workspace all targets -D warnings",
+    "existing_x7_manager_goldens": "unchanged"
+  },
+  "fixture_replay": {
+    "command": "nfi-bte engine fixture benchmarks/fixtures/captured/order-filled-no-exits-futures-r1/manifest.json --output-dir artifacts/x8-order-state-managed/parity-full --level full",
+    "complete": true,
+    "run_report": {
+      "path": "artifacts/x8-order-state-managed/parity-full/run.json",
+      "sha256": "fab25298b91941d14d2f89cbce1919ec79957e2f8ff633935ca3149634a2cb1a"
+    }
+  }
+}

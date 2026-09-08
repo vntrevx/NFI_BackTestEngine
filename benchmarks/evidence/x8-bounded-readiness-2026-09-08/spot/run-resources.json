@@ -1,0 +1,14 @@
+{
+  "command_script": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-bounded-readiness/spot/run.py",
+  "cpu_affinity": [
+    0,
+    1
+  ],
+  "rss_cap_bytes": 4294967296,
+  "peak_process_tree_rss_bytes": 529268736,
+  "elapsed_seconds": 76.37865244201384,
+  "timeout_seconds": 600,
+  "terminated_reason": null,
+  "exit_code": 0,
+  "docker_memory_in_process_tree": false
+}

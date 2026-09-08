@@ -1,0 +1,24 @@
+{
+  "equal": true,
+  "snapshots": 553,
+  "fields": [
+    "derisk_level_1",
+    "derisk_level_2",
+    "derisk_level_3",
+    "grind_1_cluster_max_profit_rate",
+    "grind_1_cluster_max_profit_stake",
+    "grind_2_cluster_max_profit_rate",
+    "grind_2_cluster_max_profit_stake",
+    "grind_3_cluster_max_profit_rate",
+    "grind_3_cluster_max_profit_stake",
+    "grind_4_cluster_max_profit_rate",
+    "grind_4_cluster_max_profit_stake",
+    "grind_5_cluster_max_profit_rate",
+    "grind_5_cluster_max_profit_stake",
+    "system_version"
+  ],
+  "stream_sha256": "f5e06e81fe6e7b2bf4f4b8fb228e448af66e77145d47cb74e807d5efb2621b27",
+  "native_input_sha256": "3a563dbdd2ecb6eb90821517f349b7bfcfa8b93a1a602866686b6b7857b9c7d2",
+  "official_input_sha256": "5b3d7b758c2a54df34bf4c17e73718dd823b757a145e7a8a77ea7378dcbe390b",
+  "scope": "Compare captured official callback custom data with Native scheduler state.\n\nThe official audit groups samples by callback outcome. At each timestamp and trade,\nselect samples matching the Native open position's filled-order count, then require\ntheir custom data to agree. Later terminal force-close samples are checked separately.\nDisabled callbacks may be absent; every open Native position still requires an\nactual official observation at its timestamp and filled-order count.\nClosed positions are outside this supplemental stream; their trade surface has separate parity.\n"
+}

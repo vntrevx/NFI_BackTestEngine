@@ -1,0 +1,11 @@
+   Compiling nfi-sim-core v1.15.0 (/home/turing/project/NFI_BacktestEngine/rust/crates/nfi-sim-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.92s
+     Running unittests src/lib.rs (target/debug/deps/nfi_sim_core-5c0c2e908cad1321)
+
+running 3 tests
+test tests::wallet_policy::initial_assets_survive_entry_and_close_without_funding_new_stake ... ok
+test tests::wallet_policy::insufficient_funds_skip_callback_but_zero_amendment_still_calls_it ... ok
+test tests::wallet_policy::allocation_matches_official_wallet_vectors ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out; finished in 0.61s
+

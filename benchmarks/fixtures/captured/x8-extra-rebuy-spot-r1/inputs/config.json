@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "dry_run": true,
+  "dry_run_wallet": 10000,
+  "trading_mode": "spot",
+  "margin_mode": "",
+  "grinding_enable": true,
+  "max_open_trades": 1,
+  "stake_currency": "USDT",
+  "stake_amount": 100,
+  "tradable_balance_ratio": 0.99,
+  "timeframe": "5m",
+  "dataformat_ohlcv": "feather",
+  "entry_pricing": {
+    "price_side": "other",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exit_pricing": {
+    "price_side": "other",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "pair_whitelist": [
+      "ADA/USDT"
+    ],
+    "pair_blacklist": []
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList",
+      "allow_inactive": true
+    }
+  ],
+  "strategy": "NostalgiaForInfinityX8",
+  "nfi_parameters": {
+    "system_name_use": "system_v3_1",
+    "system_v3_1_rebuy_thresholds_spot": [
+      -0.002,
+      -0.004,
+      -0.006,
+      -0.008
+    ],
+    "system_v3_1_rebuy_stakes_spot": [
+      0.1,
+      0.2
+    ],
+    "system_v3_grind_1_enable": false,
+    "system_v3_grind_2_enable": false,
+    "system_v3_grind_3_enable": false,
+    "system_v3_grind_4_enable": false,
+    "system_v3_grind_5_enable": false
+  },
+  "nfi_advanced_mode": true
+}

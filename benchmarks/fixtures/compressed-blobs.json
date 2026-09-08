@@ -1,0 +1,293 @@
+{
+  "schema_version": "1.0.0",
+  "files": [
+    {
+      "path": "benchmarks/fixtures/captured/x8-buyback-active-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "b385c9c4478aa2ac1fcbc626f8c6ba9400aae0479e32e85fa58922a019a880ae",
+      "bytes": 127550660,
+      "compressed_path": "benchmarks/fixtures/captured/x8-buyback-active-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "6581eebe2643a6d322706542ec8ed03c46284fd298f59c072ed95e6d67ed986b",
+      "compressed_bytes": 1740715
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-buyback-active-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "bfbd981b74a401a6e00fde3e450821f2084387bb9ab6d757e2a04b2838562f5d",
+      "bytes": 64976299,
+      "compressed_path": "benchmarks/fixtures/captured/x8-buyback-active-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "c579dd52357693bc87ad36b770732ea510ecff85fcbb8bb7f59d91cd2f59cdf2",
+      "compressed_bytes": 855490
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-buyback-enabled-v4-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "105b0d20c2efccfe4a332ec0d32a7afad4b940e83d66193e23b62c8df08ea3ab",
+      "bytes": 21860754,
+      "compressed_path": "benchmarks/fixtures/captured/x8-buyback-enabled-v4-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "5217278ecc69395e5805c7bfda92e0bba4927aefb2fcf7c3f9e4ec26c4519366",
+      "compressed_bytes": 522844
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-controller-disabled-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "7c169cf582d3528ee9a2ba3e4e29853b9b69a761ffcde6ca3cabc30789ff0afa",
+      "bytes": 168596925,
+      "compressed_path": "benchmarks/fixtures/captured/x8-controller-disabled-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "45c551065ae4fb26b2f8221a6889b112fb9f7cd543f25730341be1ffc2e43b86",
+      "compressed_bytes": 2555927
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-execution-leverage-tier-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "71281db4abb053e0be6fc50ab438549f6250cc0e2ef9dde7528685d5b1a346dc",
+      "bytes": 77549807,
+      "compressed_path": "benchmarks/fixtures/captured/x8-execution-leverage-tier-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "591afb55a04513ecbc166f43b1154671c9e75819a923bb60245223a703ed6ae5",
+      "compressed_bytes": 987382
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-execution-remaining-cap-large-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "81e33857e005d07c31bd95882ccbdda78ea6f9a8178e1695f00a9d86e770771d",
+      "bytes": 43701575,
+      "compressed_path": "benchmarks/fixtures/captured/x8-execution-remaining-cap-large-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "78bdaa2944052544e7b321ba0a05809e81d5ddc2d682ec6068dc49bc917950b1",
+      "compressed_bytes": 579945
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-extra-rebuy-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "1f4b644fab6b0fe43cee22dffad22f005612ca2d3ad66b24cb755896777c53c2",
+      "bytes": 51683458,
+      "compressed_path": "benchmarks/fixtures/captured/x8-extra-rebuy-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "8696a27b701734b4ce2d3ce205e27bc0fac50ca797880e1d272d54ee7822eab5",
+      "compressed_bytes": 760449
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-extra-rebuy-mixed-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "e671278841b878246859c7304500d4f1dfd81b03f770ed89ddfaccd0f14b8c3c",
+      "bytes": 51683464,
+      "compressed_path": "benchmarks/fixtures/captured/x8-extra-rebuy-mixed-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "5875ba6cf319885a391e9d9a3f03efc82db92cfbbf1f0a0efb09ba0bf9e8e485",
+      "compressed_bytes": 760459
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-extra-rebuy-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "5485162caf8d452fb9a756bd5a3de93d16039c7faefd588ba684db8d202c68d9",
+      "bytes": 101268916,
+      "compressed_path": "benchmarks/fixtures/captured/x8-extra-rebuy-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "69e6d077124d776ff18925fa6df33583e6154ccf0052c807c06e99d9138cf05b",
+      "compressed_bytes": 1382905
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-grind-entry-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "93a6cc6a9e70d691423f8fabd94a7cff3b42519ef046e56615b787713cab9039",
+      "bytes": 55522180,
+      "compressed_path": "benchmarks/fixtures/captured/x8-grind-entry-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "2762895bb27b335260a822f9452c96a9160e5b3c74486bd57c6351574e6d24f4",
+      "compressed_bytes": 858998
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-initialization-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "94430e838830af4f6148161fbe079a207e1e5cc8810828450700f50f8d6c6f57",
+      "bytes": 54601937,
+      "compressed_path": "benchmarks/fixtures/captured/x8-initialization-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "becf2aaa955c58a432df49ea485823069279e81f4df726df22f11e65612423e9",
+      "compressed_bytes": 840727
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-initialization-futures-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "567dbc3f8b85449822541c9a329a9189df5a8402cf280c4132ab816ce133b6ad",
+      "bytes": 184334411,
+      "compressed_path": "benchmarks/fixtures/captured/x8-initialization-futures-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "861da3459697106e4f8bb71853b7a47b6e4c141ceeb8a0e56747c785aeba7831",
+      "compressed_bytes": 11676666
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-advanced-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "1a668e0fffe1d26d45c7a77f086c470f6982e65fec68d730456806866a8df319",
+      "bytes": 54601937,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-advanced-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "315b0c3d238fffc58ddade33e04be34652f454f8100eb715dac7df27bd1b6de9",
+      "compressed_bytes": 840726
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-advanced-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "c4cc6ba0775733f2f4f4f7de4352896433bcf228c81c2d3e61cb95f77bf70efe",
+      "bytes": 184334406,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-advanced-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "4a45c1429c25eb97729d674a8f54201824981999ae62586d929e6213e353b566",
+      "compressed_bytes": 11676666
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-amended-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "95269877d0f19f3615de4a9729d61a6a0896136b76a07ae7998be9114a0fef60",
+      "bytes": 24703783,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-amended-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "faba5d41d7d8cf1bc2b52e2801a9681a57f0d3e5b617afa5fbf91092354d8223",
+      "compressed_bytes": 437235
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-capital-adjustments-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "a2d1d6aff11518e00bc34e988883b17b295321edc0a3cb32be6184687c642e03",
+      "bytes": 51574695,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-capital-adjustments-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "de3c0e2202ea4411fe897029a145e43b557886ff36ea19a01834fee5d6ffd6f7",
+      "compressed_bytes": 759343
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-capital-wallet-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "5ace6e5f128d1b8f23c37e00c46038911c9bda8b331da75f0b856300a9f52f82",
+      "bytes": 24725555,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-capital-wallet-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "e7c698eb23650cb9dc151c0366cf473a1433b8542a04bf9741c0ddde73dd35b4",
+      "compressed_bytes": 437726
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-inherited-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "388e5ae2539dee79896b7b8d45d93db8cd38e1f9680ce63490501302b65e5a77",
+      "bytes": 54625518,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-inherited-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "ea7b38e4cb685e6bc2727fb6f8d36561b69ffe6c8a91c1226997d1fac49e0a0c",
+      "compressed_bytes": 927564
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-profit-only-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "e2429e30342735bd45f725a8a36129b36807c7f0be15e8b40d923ee1bc8b2211",
+      "bytes": 130905466,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-profit-only-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "084bc7547b8a837034254c6e888737768a05b0df2478e209cd11e249af9583d0",
+      "compressed_bytes": 1744403
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-roi-held-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "c6393e429a891cf5c50f7478e40c2490838f3df636ef81c52f5f6b0e286e41fc",
+      "bytes": 33371388,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-roi-held-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "911839ed33e4e4603a51a197e8b69a058591873bc24551fe01f2861ff6fa3361",
+      "compressed_bytes": 452874
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-roi-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "b76f5c2f95cc26f3fec261140b7152a94ac7beeb6e39543d0204427bd42f6ae6",
+      "bytes": 33371383,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-roi-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "cd78e1492c42f65d5f6adaa7c6d1b02c6caa87756e408ae2f80de19b32dd2a9a",
+      "compressed_bytes": 452871
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-system-v3-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "9b21de83a2135577d19bf5cb5782bc963af13541104b44d62fbd382bb2a33504",
+      "bytes": 22967010,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-system-v3-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "4ab4c54ff247386e45013ebfe01869d68e231c3ac5d51b6fdcc5ae59c09edccc",
+      "compressed_bytes": 531471
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-system-v3_2-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "05586b4901928a1159b31e1a3e0ac4b1a7ad4f226ef2abae6c698ba44ef01f9e",
+      "bytes": 68673667,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-system-v3_2-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "f761571ad4cdb787739624285ee2ad7900872fe24b497c6854ea3ce6707b31db",
+      "compressed_bytes": 1033427
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-trailing-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "3430b7fc7cb3392c0364a1246e935c3794099b01263413b2a5ce55ef9597da91",
+      "bytes": 16799789,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-trailing-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "b7a734b8efca64e5860747df9c323ac70cb4b6b4a700450bf8d8d3816b4cab73",
+      "compressed_bytes": 506833
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-settings-unlimited-multi-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "fc9375ffaa2716cf4e51d0d88afed4ca611f32dd9165d16a0b992fa3c712b0e5",
+      "bytes": 24754942,
+      "compressed_path": "benchmarks/fixtures/captured/x8-settings-unlimited-multi-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "58d0677ffe6beeb95b1922102fb0535f6840f0e85ca423f42c93d1e0c5071c43",
+      "compressed_bytes": 437752
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-slots-unbounded-fixed-multi-r1/artifacts/state-trace.nfitrace",
+      "sha256": "4fd1528e6b60a4f7829c53b7738364351eff2b76cf4149528bec61fe58c94453",
+      "bytes": 24642635,
+      "compressed_path": "benchmarks/fixtures/captured/x8-slots-unbounded-fixed-multi-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "a67e1c3bffc958b72bd223be830853b343d163a700e08df50451aeb93b92856d",
+      "compressed_bytes": 436774
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-slots-unbounded-scalp-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "47d0ee5d46041864021d800a9f7b14d918542ff3d9c3c55c7a662a9b981bdc9e",
+      "bytes": 33421532,
+      "compressed_path": "benchmarks/fixtures/captured/x8-slots-unbounded-scalp-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "7b74046c3ee21071bbe7e16a7fa54fa6f0ff8ddb78617222031f8411c297749d",
+      "compressed_bytes": 453100
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-slots-zero-fixed-multi-r1/artifacts/state-trace.nfitrace",
+      "sha256": "c45d13266b73c633afefef483bf1bab1031c899bf1675df9ac68ffa1e58c9159",
+      "bytes": 24642630,
+      "compressed_path": "benchmarks/fixtures/captured/x8-slots-zero-fixed-multi-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "4878ac64ef6cd3d1219f928bdc6756391d450c8b7f249a4d63cd0405ed8d2709",
+      "compressed_bytes": 436770
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-slots-zero-unlimited-spot-r1/artifacts/state-trace.nfitrace",
+      "sha256": "235fe8f2ee963a6794fb9e1b2ce8140cee45b507304b6d3a05d9466ecce38eb6",
+      "bytes": 42986643,
+      "compressed_path": "benchmarks/fixtures/captured/x8-slots-zero-unlimited-spot-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "b6a74c4b7d2a28ace8eea0619d950bec5952b0610157553bb8b33a81a5d23f9a",
+      "compressed_bytes": 584029
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-system-v4-long-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "aaea3d09a93f006f2b9557a32016b611fa13c766df63eacb8b08b93ce85a5264",
+      "bytes": 182218045,
+      "compressed_path": "benchmarks/fixtures/captured/x8-system-v4-long-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "a79fe77e4ef0f93770ee457aa02adfd905f495f2bd827b9e332fc598dbf5f828",
+      "compressed_bytes": 2741876
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-system-v4-rebuy-long-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "1bb00fb80a8c47c4e8598b74983fab6fdb6224cfab8c894c3338c76d9fa0338e",
+      "bytes": 97874146,
+      "compressed_path": "benchmarks/fixtures/captured/x8-system-v4-rebuy-long-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "bd10508cbe574659da2986bf678be0a65d559b67a3f5c1bd90e88ed5926c2928",
+      "compressed_bytes": 1370691
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-system-v4-rebuy-short-futures-r1/artifacts/state-trace.nfitrace",
+      "sha256": "ae848831826efad9f4a86c64a7830c0dfd89eae7f7fda41b9af1a49143c4faa7",
+      "bytes": 179832210,
+      "compressed_path": "benchmarks/fixtures/captured/x8-system-v4-rebuy-short-futures-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "7ad1c6e9290d061f8c53d3a35b279e6aa0d12cc176d590cc8bd73dbca1bf8207",
+      "compressed_bytes": 11621064
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-system-v4-short-futures-r2/artifacts/state-trace.nfitrace",
+      "sha256": "a9f9bde381320706394e95e5f8d64d0f9eb6822cd637170855b9d17bddd1c833",
+      "bytes": 160298654,
+      "compressed_path": "benchmarks/fixtures/captured/x8-system-v4-short-futures-r2/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "d63316434d385efa5e482ca4bb2e80eb0cbe4f48992051f37d62564c995004ef",
+      "compressed_bytes": 2253941
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-virtual-fees-legacy-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "2e8fe40cd6439c4d8bf9bdb39c3f676c131339f7b62ca07943ce55b17bd7f9b3",
+      "bytes": 39157430,
+      "compressed_path": "benchmarks/fixtures/captured/x8-virtual-fees-legacy-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "4785cabd908b7b19a7d5426923a07c8b21ac1b337c6fe05a28ee660dcef9eace",
+      "compressed_bytes": 676460
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-virtual-fees-rebuy-long-r1/artifacts/state-trace.nfitrace",
+      "sha256": "684c7c2f654ac4ba65c37ab8f892c206652c02767ddf2585e639fdc33a333623",
+      "bytes": 54601938,
+      "compressed_path": "benchmarks/fixtures/captured/x8-virtual-fees-rebuy-long-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "d6714a43cc616dbea6d78ec5c9dc380a8d5f2d3e5dc7606b825fcf9bf88f32a0",
+      "compressed_bytes": 840728
+    },
+    {
+      "path": "benchmarks/fixtures/captured/x8-virtual-fees-rebuy-short-r1/artifacts/state-trace.nfitrace",
+      "sha256": "b6b3b4a66a4ac8ec692646be36c7314297cb0b0a399c8fab22f45b9796e3af61",
+      "bytes": 184334407,
+      "compressed_path": "benchmarks/fixtures/captured/x8-virtual-fees-rebuy-short-r1/artifacts/state-trace.nfitrace.gz",
+      "compressed_sha256": "68e0269c0887ba28c35cfe466721de39e6aa3c39802e7ba16cb271c6e4a02f1a",
+      "compressed_bytes": 11676667
+    }
+  ]
+}

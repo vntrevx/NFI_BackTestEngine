@@ -1,0 +1,2757 @@
+{
+  "freqtrade_version": "2026.5.1",
+  "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "slot_schema": {
+    "description": "Maximum number of open trades. -1 for unlimited.",
+    "type": [
+      "integer",
+      "number"
+    ],
+    "minimum": -1
+  },
+  "scheduling": [
+    {
+      "raw_slots": -1,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 1,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 2,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 3,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 4,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 5,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 6,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 7,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 8,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 1,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 2,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 3,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 4,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 5,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 6,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 7,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 8,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 1,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 2,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 3,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 4,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 5,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 6,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 7,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 8,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 1,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 2,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 3,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 4,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 5,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 6,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 7,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 8,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 1,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 2,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 3,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 4,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 5,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 6,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 7,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 8,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 1,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 2,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 3,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 4,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 5,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 6,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 7,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 8,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 1,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 2,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 3,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 4,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 5,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 6,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 7,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 8,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 0,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 1,
+      "allowed": true,
+      "rejections": 0
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 2,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 3,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 4,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 5,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 6,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 7,
+      "allowed": false,
+      "rejections": 1
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 8,
+      "allowed": false,
+      "rejections": 1
+    }
+  ],
+  "wallet": [
+    {
+      "raw_slots": -1,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": -1,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 0,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 0,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 0
+    },
+    {
+      "raw_slots": 1,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 10000.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 10000.0
+    },
+    {
+      "raw_slots": 1,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 10000.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 0.5
+    },
+    {
+      "raw_slots": 2,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 50.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 55.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 5000.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 5005.0
+    },
+    {
+      "raw_slots": 2,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 9500.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 0.16666666666666666
+    },
+    {
+      "raw_slots": 6,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 16.666666666666668
+    },
+    {
+      "raw_slots": 6,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 18.333333333333332
+    },
+    {
+      "raw_slots": 6,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 6,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 1666.6666666666667
+    },
+    {
+      "raw_slots": 6,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 1668.3333333333333
+    },
+    {
+      "raw_slots": 6,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 3166.6666666666665
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": -0.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": -20.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": -18000.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": -2.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": -22.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": -18002.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": -200.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": -220.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": -18200.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": -20000.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": -20020.0
+    },
+    {
+      "raw_slots": -0.5,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": -38000.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 10000.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 10000.0
+    },
+    {
+      "raw_slots": 0.5,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 10000.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 0.0,
+      "tied": 0.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 0.0,
+      "tied": 10.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 0.0,
+      "tied": 9000.0,
+      "proposed": 0.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 1.0,
+      "tied": 0.0,
+      "proposed": 0.6666666666666666
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 1.0,
+      "tied": 10.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 1.0,
+      "tied": 9000.0,
+      "proposed": 1.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 100.0,
+      "tied": 0.0,
+      "proposed": 66.66666666666667
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 100.0,
+      "tied": 10.0,
+      "proposed": 73.33333333333333
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 100.0,
+      "tied": 9000.0,
+      "proposed": 100.0
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 10000.0,
+      "tied": 0.0,
+      "proposed": 6666.666666666667
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 10000.0,
+      "tied": 10.0,
+      "proposed": 6673.333333333333
+    },
+    {
+      "raw_slots": 1.5,
+      "available": 10000.0,
+      "tied": 9000.0,
+      "proposed": 10000.0
+    }
+  ],
+  "scalp": [
+    {
+      "raw_slots": -1,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": -1,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 2,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 6,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": -0.5,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 0.5,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 0,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 0,
+      "minimum_free": 1,
+      "allowed": true
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 0,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 0,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 1,
+      "minimum_free": 0,
+      "allowed": true
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 1,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 1,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 1,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 2,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 2,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 2,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 2,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 3,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 3,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 3,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 3,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 4,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 4,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 4,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 4,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 5,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 5,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 5,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 5,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 6,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 6,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 6,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 6,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 7,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 7,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 7,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 7,
+      "minimum_free": 6,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 8,
+      "minimum_free": 0,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 8,
+      "minimum_free": 1,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 8,
+      "minimum_free": 2,
+      "allowed": false
+    },
+    {
+      "raw_slots": 1.5,
+      "open_trades": 8,
+      "minimum_free": 6,
+      "allowed": false
+    }
+  ],
+  "report_source_excerpt": "    if not isinstance(results, DataFrame):\n        return {}\n    config = content[\"config\"]\n    max_open_trades = min(config[\"max_open_trades\"], len(pairlist))\n    start_balance = get_dry_run_wallet(config)\n    stake_currency = config[\"stake_currency\"]\n\n        \"canceled_trade_entries\": content[\"canceled_trade_entries\"],\n        \"canceled_entry_orders\": content[\"canceled_entry_orders\"],\n        \"replaced_entry_orders\": content[\"replaced_entry_orders\"],\n        \"max_open_trades\": max_open_trades,\n        \"max_open_trades_setting\": (\n            config[\"max_open_trades\"] if config[\"max_open_trades\"] != float(\"inf\") else -1\n        ),\n        \"timeframe\": config[\"timeframe\"],\n        \"timeframe_detail\": config.get(\"timeframe_detail\", \"\"),",
+  "scheduler_source": "    def trade_slot_available(self, open_trade_count: int) -> bool:\n        # Always allow trades when max_open_trades is enabled.\n        max_open_trades: IntOrInf = self.strategy.max_open_trades\n        if max_open_trades <= 0 or open_trade_count < max_open_trades:\n            return True\n        # Rejected trade\n        self.rejected_trades += 1\n        return False\n",
+  "wallet_source": "    def _calculate_unlimited_stake_amount(\n        self, available_amount: float, val_tied_up: float, max_open_trades: IntOrInf\n    ) -> float:\n        \"\"\"\n        Calculate stake amount for \"unlimited\" stake amount\n        :return: 0 if max number of trades reached, else stake_amount to use.\n        \"\"\"\n        if max_open_trades == 0:\n            return 0\n\n        possible_stake = (available_amount + val_tied_up) / max_open_trades\n        # Theoretical amount can be above available amount - therefore limit to available amount!\n        return min(possible_stake, available_amount)\n"
+}

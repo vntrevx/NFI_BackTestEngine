@@ -1,0 +1,162 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "x8-original-spot-ada-20251104-20251107-r1",
+  "description": "Unmodified user-supplied X8 v18.0.2, Binance Spot ADA, November 2025. Original-source integration qualification for this captured lane only.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-09-07T11:52:00.277323Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX8",
+    "timerange": "20251104-20251107",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX8",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20251104-20251107",
+      "--pairs",
+      "ADA/USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+      "bytes": 2477185
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "61443671dd57c7f8a27ebdbf74b76de95005247d8934cc9926ab9abf76712266",
+      "bytes": 837
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ADA_USDT-15m.feather",
+      "sha256": "d432364bd9491fd7f959948d6d23fdd7ca9a409863dd4edd13ab40b4aa76c40a",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ADA_USDT-1d.feather",
+      "sha256": "20e01c13f9308d57116943906da192850280de057fea83ed186c3a29efbacc08",
+      "bytes": 39983
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ADA_USDT-1h.feather",
+      "sha256": "f707f92cd3c38aed90d88529ffc6752b5196383fab64b6412c51093005b5c670",
+      "bytes": 43439
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ADA_USDT-4h.feather",
+      "sha256": "b50d6d4aad224d760d37880d54b08a6359edda09631eb42b802b425935f34a67",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/ADA_USDT-5m.feather",
+      "sha256": "eef6a39b64279b2871509bfb67df3edcd202953cdf1a7078a3308a490cf2e9f1",
+      "bytes": 81455
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-15m.feather",
+      "sha256": "7453f5a1ab02f3115e92a563e20ec411001b2dc7741b1f6a617a95099f48e4dc",
+      "bytes": 53807
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1d.feather",
+      "sha256": "40a0517552523905d8fdeeb33dc8ec1321ab940293665c4bc3e14a38847b0f55",
+      "bytes": 39983
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1h.feather",
+      "sha256": "20b8078182ee2e7c48751afc86d4db78015b7a9acb6dabb8732f3be531202ffa",
+      "bytes": 43439
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-4h.feather",
+      "sha256": "6aae9104d86972483cabe5102e4c5ef0a2134ef53b200cec044e42f4237f8d9c",
+      "bytes": 40751
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "10ab399a651b683c7da0ac7dd46e1e6cfcba86c5c83121b414de5588dcf1bacf",
+      "bytes": 81455
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/candidate-market-1.json",
+      "sha256": "1a8e08fd37ee4f48589cacec8981adcae81d18fc3508a9e2141637ec6ca8bc2d",
+      "bytes": 1054
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/reference-markets.json",
+      "sha256": "53e5095ddd304e841273b10f69a5e250351102d16fd6db609445f33d8aec6c08",
+      "bytes": 16566
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "a09fea46d516e9c1165fbf930590cc1c9bafd1e182ccdb4886cf2f25fd4b80f9",
+      "bytes": 288071
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "932cf50b4ef6866b8d7fb61feef6e88ffd14a3f18bd0022d7ce437cc7bb58698",
+      "bytes": 2570
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "c9fbfc6eded9947b463899990ba1083d56bf988960188023229d90f2c7a9a7f8",
+      "bytes": 7577951
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "b5d76b2a417b339f75cfc812e2f79ed916ae54ed2f1aac1e5424363ebb065309",
+      "bytes": 428909
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX8",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250405-20250408"
+  },
+  "summary": {
+    "total_trades": 2,
+    "starting_balance": "10000",
+    "final_balance": "10001.12339244",
+    "profit_total_abs": "1.12339244",
+    "total_volume": "251.186499564",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "ETH/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1743972900000,
+      "close_timestamp_ms": 1743994800000,
+      "open_rate": "1573.76",
+      "close_rate": "1579.28",
+      "amount": "0.0158",
+      "stake_amount": "24.865408",
+      "max_stake_amount": "24.865408",
+      "leverage": "1",
+      "entry_tag": "62 ",
+      "exit_reason": "exit_profit_long_rebuy_t_0_1_m ( 62 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "0.03739797",
+        "ratio": "0.0015025134271116482"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "15.74",
+      "stop_loss": "15.74",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1743972900000,
+          "amount": "0.0158",
+          "price": "1573.76",
+          "cost": "24.890273408",
+          "tag": "62 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1743994800000,
+          "amount": "0.0158",
+          "price": "1579.28",
+          "cost": "24.977576624",
+          "tag": "exit_profit_long_rebuy_t_0_1_m ( 62 )"
+        }
+      ],
+      "duration_minutes": 365,
+      "is_open": false,
+      "minimum_rate": "1537.5",
+      "maximum_rate": "1614.2",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    },
+    {
+      "sequence": 1,
+      "pair": "ETH/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1744009200000,
+      "close_timestamp_ms": 1744009800000,
+      "open_rate": "1431.45",
+      "close_rate": "1449.89",
+      "amount": "0.0698",
+      "stake_amount": "99.91521",
+      "max_stake_amount": "99.91521",
+      "leverage": "1",
+      "entry_tag": "144 ",
+      "exit_reason": "exit_long_tc_u_1 ( 144 )",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "1.08599447",
+        "ratio": "0.010858302358965772"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "14.32",
+      "stop_loss": "14.32",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1744009200000,
+          "amount": "0.0698",
+          "price": "1431.45",
+          "cost": "100.01512521",
+          "tag": "144 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1744009800000,
+          "amount": "0.0698",
+          "price": "1449.89",
+          "cost": "101.303524322",
+          "tag": "exit_long_tc_u_1 ( 144 )"
+        }
+      ],
+      "duration_minutes": 10,
+      "is_open": false,
+      "minimum_rate": "1431.23",
+      "maximum_rate": "1456.89",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}

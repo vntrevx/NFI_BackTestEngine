@@ -1,0 +1,148 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX8",
+  "context": {
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20250405-20250408"
+  },
+  "summary": {
+    "total_trades": 2,
+    "starting_balance": "10000",
+    "final_balance": "9013.76272727",
+    "profit_total_abs": "-986.23727273",
+    "total_volume": "14040.656155926397",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 2
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1743816000000,
+      "close_timestamp_ms": 1744070400000,
+      "open_rate": "84057.47",
+      "close_rate": "79163.24",
+      "amount": "0.01784",
+      "stake_amount": "1499.5852648",
+      "max_stake_amount": "1499.5852648",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-90.22492067",
+        "ratio": "-0.06010647610366936"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "840.58",
+      "stop_loss": "840.58",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1743816000000,
+          "amount": "0.01784",
+          "price": "84057.47",
+          "cost": "1501.0848500648",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1744070400000,
+          "amount": "0.01784",
+          "price": "79163.24",
+          "cost": "1413.6844738016",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 4240,
+      "is_open": false,
+      "minimum_rate": "74508",
+      "maximum_rate": "84266",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    },
+    {
+      "sequence": 1,
+      "pair": "ETH/USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1743814500000,
+      "close_timestamp_ms": 1744070400000,
+      "open_rate": "1821.72",
+      "close_rate": "1553.04",
+      "amount": "3.2935",
+      "stake_amount": "5999.83482",
+      "max_stake_amount": "5999.83482",
+      "leverage": "1",
+      "entry_tag": "1 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.001",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.001",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "0"
+      },
+      "profit": {
+        "absolute": "-896.01235206",
+        "ratio": "-0.14919031301351307"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "18.22",
+      "stop_loss": "18.22",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1743814500000,
+          "amount": "3.2935",
+          "price": "1821.72",
+          "cost": "6005.83465482",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1744070400000,
+          "amount": "3.2935",
+          "price": "1553.04",
+          "cost": "5120.052177239999",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 4265,
+      "is_open": false,
+      "minimum_rate": "1411.01",
+      "maximum_rate": "1827.29",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 1
+    }
+  ]
+}

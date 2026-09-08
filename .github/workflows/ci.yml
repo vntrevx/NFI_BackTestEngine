@@ -187,6 +187,9 @@ jobs:
       - name: Show Rust compiler cache statistics
         if: always() && matrix.suite == 'full'
         run: sccache --show-stats
+      - name: Restore checksum-pinned large fixture blobs
+        if: matrix.suite == 'full'
+        run: python .github/scripts/restore_fixture_blobs.py
       - name: Run Python tests
         if: matrix.suite == 'full'
         run: >-

@@ -1,0 +1,190 @@
+# Exact donor constructor and signal updater, with literal class defaults.
+class SourceConfiguration:
+  bad_trade_controller_stale_exit_enable = True
+  bad_trade_controller_stale_max_daily_range_pct = 7.0
+  bad_trade_controller_stale_min_adverse_move_pct = 10.0
+  bad_trade_controller_stale_min_age_days = 14.0
+  bad_trade_controller_structure_break_ema_gap_pct = 35.0
+  bad_trade_controller_structure_break_exit_enable = True
+  bad_trade_controller_structure_break_min_adverse_move_pct = 25.0
+  custom_fee_close_rate = None
+  custom_fee_open_rate = None
+  derisk_enable = True
+  futures_max_open_trades_long = 0
+  futures_max_open_trades_short = 0
+  futures_mode_leverage = 3.0
+  futures_mode_leverage_grind_mode = 3.0
+  futures_mode_leverage_rebuy_mode = 3.0
+  grind_mode_coins = ['AAVE', 'ADA', 'ALGO', 'APE', 'APT', 'ARB', 'ATOM', 'AVAX', 'BCH', 'BNB', 'BTC', 'CAKE', 'CRV', 'DOGE', 'DYDX', 'ETC', 'ETH', 'FIL', 'GALA', 'HBAR', 'HYPE', 'ICP', 'INJ', 'IOTA', 'JUP', 'KAS', 'LDO', 'LINK', 'LTC', 'NEAR', 'NEO', 'OP', 'POL', 'RENDER', 'RUNE', 'SAND', 'SEI', 'SOL', 'SUI', 'THETA', 'TIA', 'TON', 'TRX', 'UNI', 'VET', 'XLM', 'XMR', 'XRP', 'XTZ', 'ZEC']
+  grind_mode_max_slots = 1
+  is_futures_mode = False
+  legacy_system_bad_trade_exit_enable = False
+  long_entry_signal_params = {'long_entry_condition_1_enable': True, 'long_entry_condition_2_enable': True, 'long_entry_condition_3_enable': True, 'long_entry_condition_4_enable': True, 'long_entry_condition_5_enable': True, 'long_entry_condition_6_enable': True, 'long_entry_condition_7_enable': False, 'long_entry_condition_8_enable': False, 'long_entry_condition_9_enable': False, 'long_entry_condition_10_enable': False, 'long_entry_condition_11_enable': False, 'long_entry_condition_21_enable': True, 'long_entry_condition_41_enable': True, 'long_entry_condition_42_enable': True, 'long_entry_condition_43_enable': True, 'long_entry_condition_44_enable': True, 'long_entry_condition_45_enable': True, 'long_entry_condition_46_enable': True, 'long_entry_condition_47_enable': True, 'long_entry_condition_61_enable': True, 'long_entry_condition_62_enable': True, 'long_entry_condition_63_enable': True, 'long_entry_condition_64_enable': True, 'long_entry_condition_65_enable': True, 'long_entry_condition_68_enable': False, 'long_entry_condition_101_enable': True, 'long_entry_condition_102_enable': True, 'long_entry_condition_103_enable': True, 'long_entry_condition_104_enable': True, 'long_entry_condition_105_enable': False, 'long_entry_condition_120_enable': True, 'long_entry_condition_121_enable': False, 'long_entry_condition_141_enable': True, 'long_entry_condition_142_enable': True, 'long_entry_condition_143_enable': True, 'long_entry_condition_144_enable': True, 'long_entry_condition_145_enable': True, 'long_entry_condition_161_enable': True, 'long_entry_condition_162_enable': True, 'long_entry_condition_163_enable': True, 'long_entry_condition_164_enable': False, 'long_entry_condition_165_enable': False, 'long_entry_condition_166_enable': False, 'long_entry_condition_167_enable': False, 'long_entry_condition_168_enable': False, 'long_entry_condition_169_enable': False, 'long_entry_condition_170_enable': False, 'long_entry_condition_171_enable': False, 'long_entry_condition_172_enable': False, 'long_entry_condition_173_enable': False, 'long_entry_condition_192_enable': False, 'long_entry_condition_193_enable': False}
+  max_slippage = 0.02
+  num_cores_indicators_calc = 0
+  regular_mode_derisk_1_futures = -0.6
+  regular_mode_derisk_1_spot = -0.24
+  regular_mode_derisk_futures = -0.6
+  regular_mode_derisk_spot = -0.24
+  short_entry_signal_params = {'short_entry_condition_501_enable': True, 'short_entry_condition_502_enable': True, 'short_entry_condition_505_enable': False, 'short_entry_condition_506_enable': False, 'short_entry_condition_542_enable': True, 'short_entry_condition_543_enable': False, 'short_entry_condition_544_enable': False, 'short_entry_condition_545_enable': False, 'short_entry_condition_546_enable': False, 'short_entry_condition_561_enable': False, 'short_entry_condition_562_enable': True, 'short_entry_condition_563_enable': False, 'short_entry_condition_592_enable': False, 'short_entry_condition_593_enable': False, 'short_entry_condition_605_enable': False, 'short_entry_condition_662_enable': False, 'short_entry_condition_663_enable': False, 'short_entry_condition_664_enable': False, 'short_entry_condition_665_enable': False, 'short_entry_condition_666_enable': False, 'short_entry_condition_667_enable': False, 'short_entry_condition_669_enable': False, 'short_entry_condition_670_enable': False, 'short_entry_condition_671_enable': False}
+  startup_candle_count = 800
+  stop_threshold_doom_futures = 0.2
+  stop_threshold_doom_spot = 0.2
+  stop_threshold_rapid_futures = 0.2
+  stop_threshold_rapid_spot = 0.2
+  stop_threshold_scalp_futures = 0.2
+  stop_threshold_scalp_spot = 0.2
+  stops_enable = True
+  system_v4_bad_trade_exit_enable = True
+  target_profit_cache = None
+
+  def __init__(self, config: dict) -> None:
+    # A list of parameters that can be changed through the config.
+    NFI_SAFE_PARAMETERS = [
+      "num_cores_indicators_calc",
+      "custom_fee_open_rate",
+      "custom_fee_close_rate",
+      "futures_mode_leverage",
+      "futures_mode_leverage_rebuy_mode",
+      "futures_mode_leverage_grind_mode",
+      "futures_max_open_trades_long",
+      "futures_max_open_trades_short",
+      "stop_threshold_doom_spot",
+      "stop_threshold_doom_futures",
+      "stop_threshold_rapid_spot",
+      "stop_threshold_rapid_futures",
+      "stop_threshold_scalp_spot",
+      "stop_threshold_scalp_futures",
+      "derisk_enable",
+      "stops_enable",
+      "regular_mode_derisk_1_spot",
+      "regular_mode_derisk_spot",
+      "regular_mode_derisk_1_futures",
+      "regular_mode_derisk_futures",
+      "grind_mode_max_slots",
+      "grind_mode_coins",
+      "max_slippage",
+      "system_v4_bad_trade_exit_enable",
+      "legacy_system_bad_trade_exit_enable",
+      "bad_trade_controller_structure_break_exit_enable",
+      "bad_trade_controller_structure_break_ema_gap_pct",
+      "bad_trade_controller_structure_break_min_adverse_move_pct",
+      "bad_trade_controller_stale_exit_enable",
+      "bad_trade_controller_stale_min_age_days",
+      "bad_trade_controller_stale_max_daily_range_pct",
+      "bad_trade_controller_stale_min_adverse_move_pct",
+    ]
+
+    exchange_config = config["exchange"]
+    if "ccxt_config" not in exchange_config:
+      exchange_config["ccxt_config"] = {}
+    if "ccxt_async_config" not in exchange_config:
+      exchange_config["ccxt_async_config"] = {}
+
+    options = {
+      "brokerId": None,
+      "broker": {"spot": None, "margin": None, "future": None, "delivery": None},
+      "partner": {
+        "spot": {"id": None, "key": None},
+        "future": {"id": None, "key": None},
+        "id": None,
+        "key": None,
+      },
+    }
+
+    exchange_config["ccxt_config"]["options"] = options
+    exchange_config["ccxt_async_config"]["options"] = options
+    super().__init__(config)
+
+    strategy_config = self.config
+    if ("exit_profit_only" in strategy_config and strategy_config["exit_profit_only"]) or (
+      "sell_profit_only" in strategy_config and strategy_config["sell_profit_only"]
+    ):
+      self.exit_profit_only = True
+
+    # Advanced configuration mode. Allows to change any parameter.
+    is_config_advanced_mode = "nfi_advanced_mode" in strategy_config and strategy_config["nfi_advanced_mode"] == True
+    if is_config_advanced_mode:
+      log.warning("The advanced configuration mode is enabled. I hope you know what you are doing.")
+
+    # Configuration from the nfi_parameters block. New config style.
+    nfi_parameters = strategy_config.get("nfi_parameters")
+    if type(nfi_parameters) is dict:
+      for nfi_param in nfi_parameters:
+        if nfi_param in ["long_entry_signal_params", "short_entry_signal_params"]:
+          continue
+        if (nfi_param in NFI_SAFE_PARAMETERS or is_config_advanced_mode) and hasattr(self, nfi_param):
+          log.info(
+            f'Parameter {nfi_param} changed from "{getattr(self, nfi_param)}" to "{nfi_parameters[nfi_param]}".'
+          )
+          setattr(self, nfi_param, nfi_parameters[nfi_param])
+        else:
+          log.warning(f"Invalid or unsafe parameter: {nfi_param}.")
+
+      self.update_signals_from_config(nfi_parameters)
+
+    # Parameter settings. Backward compatibility with the old configuration style.
+    for nfi_param in NFI_SAFE_PARAMETERS:
+      if (nfi_param in strategy_config) and hasattr(self, nfi_param):
+        setattr(self, nfi_param, strategy_config[nfi_param])
+
+    if self.target_profit_cache is None:
+      bot_name = ""
+      if "bot_name" in strategy_config:
+        bot_name = strategy_config["bot_name"] + "-"
+      exchange_name = strategy_config["exchange"]["name"]
+      runmode_value = strategy_config["runmode"].value
+      self.target_profit_cache = Cache(
+        strategy_config["user_data_dir"]
+        / (
+          "nfix8-profit_max-"
+          + bot_name
+          + exchange_name
+          + "-"
+          + strategy_config["stake_currency"]
+          + ("-(backtest)" if (runmode_value == "backtest") else "")
+          + ("-(hyperopt)" if (runmode_value == "hyperopt") else "")
+          + ".json"
+        )
+      )
+    else:
+      exchange_name = strategy_config["exchange"]["name"]
+
+    # OKX, Kraken provides a lower number of candle data per API call
+    if exchange_name in ["okx", "okex"]:
+      self.startup_candle_count = 480
+    elif exchange_name == "kraken":
+      self.startup_candle_count = 710
+    elif exchange_name == "bybit":
+      self.startup_candle_count = 199
+    elif exchange_name == "bitget":
+      self.startup_candle_count = 499
+    elif exchange_name == "bingx":
+      self.startup_candle_count = 499
+
+    if ("trading_mode" in strategy_config) and (strategy_config["trading_mode"] in ["futures", "margin"]):
+      self.is_futures_mode = True
+      self.can_short = True
+
+    # If the cached data hasn't changed, it's a no-op
+    self.target_profit_cache.save()
+
+    # Parameter settings. Backward compatibility with the old configuration style.
+    self.update_signals_from_config(strategy_config)
+
+  def update_signals_from_config(self, config):
+    # Update long entry signal parameters (if they exist in the config)
+    if hasattr(self, "long_entry_signal_params") and "long_entry_signal_params" in config:
+      long_entry_signal_params = self.long_entry_signal_params
+      config_long_entry_signal_params = config["long_entry_signal_params"]
+      for condition_key in long_entry_signal_params:
+        if condition_key in config_long_entry_signal_params:
+          long_entry_signal_params[condition_key] = config_long_entry_signal_params[condition_key]
+
+    # Update short entry signal parameters (if they exist in the config)
+    if hasattr(self, "short_entry_signal_params") and "short_entry_signal_params" in config:
+      short_entry_signal_params = self.short_entry_signal_params
+      config_short_entry_signal_params = config["short_entry_signal_params"]
+      for condition_key in short_entry_signal_params:
+        if condition_key in config_short_entry_signal_params:
+          short_entry_signal_params[condition_key] = config_short_entry_signal_params[condition_key]

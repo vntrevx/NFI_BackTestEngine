@@ -1,0 +1,132 @@
+{
+  "schema_version": "2.0.0",
+  "fixture_id": "x8-original-spot-20230101-20230116-r1",
+  "description": "Unmodified user-supplied X8 v18.0.2, Binance Spot BTC, January 2023. Original-source integration qualification for this captured lane only.",
+  "fixture_kind": "normal-routing",
+  "evidence_status": "captured",
+  "created_at": "2026-09-07T11:33:58.825864Z",
+  "freqtrade": {
+    "version": "2026.5.1",
+    "image": "freqtradeorg/freqtrade",
+    "image_index_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "image_platform_digest": "sha256:bc5b7276118a8539d09ea797cb32c198d029a805815a29c6d27d5f610a3e0b6b",
+    "platform": "linux/amd64",
+    "tracer_version": "1.1.0",
+    "exchange": "binance",
+    "strategy": "NostalgiaForInfinityX8",
+    "timerange": "20230101-20230116",
+    "timeframe": "5m",
+    "timeframe_detail": null,
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "command": [
+      "freqtrade",
+      "backtesting",
+      "--config",
+      "inputs/config.json",
+      "--strategy-path",
+      "inputs",
+      "--strategy",
+      "NostalgiaForInfinityX8",
+      "--datadir",
+      "inputs/data",
+      "--timerange",
+      "20230101-20230116",
+      "--pairs",
+      "BTC/USDT",
+      "--cache",
+      "none",
+      "--export",
+      "trades"
+    ]
+  },
+  "inputs": [
+    {
+      "role": "strategy",
+      "path": "inputs/strategy.py",
+      "sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+      "bytes": 2477185
+    },
+    {
+      "role": "config",
+      "path": "inputs/config.json",
+      "sha256": "e1548ad2fb38dae633499ba1c0a9745bdb9b5b027b669c59ce5347a32e87f950",
+      "bytes": 837
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-15m.feather",
+      "sha256": "46ffdc6db64bb6dd8be32245e828f9a8446d30f9c1980c64d5cfe97ba38eb044",
+      "bytes": 109103
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1d.feather",
+      "sha256": "68a264bea5e2e29c5289f5e2ae78705f6d695e0f9a92303f98dd774286593e76",
+      "bytes": 40367
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-1h.feather",
+      "sha256": "f752dc774ef54cd73093471997b40c81c3ab8f177200b9e39f62f82d1ee5b4b7",
+      "bytes": 57263
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-4h.feather",
+      "sha256": "b6ea0c3bf2123f00f0e9fb6f3fd54f9cf2dc15a588a80789ba5c0935b995a389",
+      "bytes": 44207
+    },
+    {
+      "role": "candles",
+      "path": "inputs/data/BTC_USDT-5m.feather",
+      "sha256": "cb8da083e12e26d7c4e7e16b9249af7506ff5db6802b42753da22daa4ec13f4e",
+      "bytes": 247343
+    },
+    {
+      "role": "market_metadata",
+      "path": "inputs/market_metadata/market-metadata.json",
+      "sha256": "3bc70199af12b0f068d46bb32f946e8e581ccdf7d1b3573f3ddcfec027177986",
+      "bytes": 56574
+    },
+    {
+      "role": "auxiliary",
+      "path": "inputs/auxiliary/reference-markets.json",
+      "sha256": "8d12683fdc1fbab29cc76f4b789be79510cfc6b2c2568c8ce81ffd6ce6e762a9",
+      "bytes": 484847
+    }
+  ],
+  "artifacts": {
+    "freqtrade_result": {
+      "path": "artifacts/freqtrade-result.zip",
+      "sha256": "51e6758d58837ccaaf79dc3aaa75aa4e30fc921d3c0cd2494fdb4b4848850c68",
+      "bytes": 341897
+    },
+    "trade_surface": {
+      "path": "artifacts/trade-surface.json",
+      "sha256": "77b6f524af56a48240183debfbfb638f0583bee242e6d024fa1f91f05effc573",
+      "bytes": 634
+    },
+    "state_trace": {
+      "path": "artifacts/state-trace.nfitrace",
+      "sha256": "e5c81adac578ccc8a41fb1d0db32b83d2913142e6e9c562d2b81b34e0ef32056",
+      "bytes": 2716729
+    },
+    "state_projection": {
+      "path": "artifacts/state-projection.nfitrace",
+      "sha256": "4958217d6f7cc50c1976adbb4d4d248adf068d1d5570ff44dcd832bdf2ca0ac2",
+      "bytes": 2034170
+    }
+  },
+  "measurement": {
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "poll_interval_ms": 100,
+    "required_profile_phases": [
+      "indicators",
+      "callbacks",
+      "trade_scans",
+      "event_simulation"
+    ]
+  }
+}

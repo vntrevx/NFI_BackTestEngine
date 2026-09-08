@@ -1,0 +1,528 @@
+{
+  "schema_version": "2.0.0",
+  "strategy": "NostalgiaForInfinityX8",
+  "context": {
+    "trading_mode": "futures",
+    "margin_mode": "isolated",
+    "timeframe": "5m",
+    "timeframe_detail": "",
+    "timerange": "20220404-20220411"
+  },
+  "summary": {
+    "total_trades": 1,
+    "starting_balance": "10000",
+    "final_balance": "9516.98517929",
+    "profit_total_abs": "-483.01482071",
+    "total_volume": "136887.3620763",
+    "rejected_signals": 0,
+    "timedout_entry_orders": 0,
+    "timedout_exit_orders": 0,
+    "canceled_trade_entries": 0,
+    "canceled_entry_orders": 0,
+    "replaced_entry_orders": 0,
+    "max_open_trades": 1
+  },
+  "locks": [],
+  "trades": [
+    {
+      "sequence": 0,
+      "pair": "BTC/USDT:USDT",
+      "direction": "long",
+      "open_timestamp_ms": 1649042100000,
+      "close_timestamp_ms": 1649635200000,
+      "open_rate": "42142.04",
+      "close_rate": "42140.3",
+      "amount": "0.107",
+      "stake_amount": "1503.06595999",
+      "max_stake_amount": "22870.91933333",
+      "leverage": "3",
+      "entry_tag": "1 ",
+      "exit_reason": "force_exit",
+      "fees": {
+        "open_rate": "0.0005",
+        "open_cost": null,
+        "open_currency": null,
+        "close_rate": "0.0005",
+        "close_cost": null,
+        "close_currency": null,
+        "funding": "-8.041944395856087"
+      },
+      "profit": {
+        "absolute": "-483.01482071",
+        "ratio": "-0.021108615135089166"
+      },
+      "liquidation_price": null,
+      "initial_stop_loss": "30893.5",
+      "stop_loss": "30893.5",
+      "orders": [
+        {
+          "sequence": 0,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649042100000,
+          "amount": "0.065",
+          "price": "46109.7",
+          "cost": "2998.6290652499997",
+          "tag": "1 "
+        },
+        {
+          "sequence": 1,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649042100000,
+          "amount": "0.032",
+          "price": "46109.7",
+          "cost": "1476.2481551999997",
+          "tag": "derisk_level_4"
+        },
+        {
+          "sequence": 2,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649044800000,
+          "amount": "0.065",
+          "price": "45990.3",
+          "cost": "2990.8641847500003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 3,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649045100000,
+          "amount": "0.065",
+          "price": "45862.8",
+          "cost": "2982.572541",
+          "tag": "buyback_1_derisk 3"
+        },
+        {
+          "sequence": 4,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649045700000,
+          "amount": "0.065",
+          "price": "45987.6",
+          "cost": "2990.688597",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 5,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649067000000,
+          "amount": "0.064",
+          "price": "45840.4",
+          "cost": "2935.2524928",
+          "tag": "buyback_1_derisk 5"
+        },
+        {
+          "sequence": 6,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649067600000,
+          "amount": "0.065",
+          "price": "45995.2",
+          "cost": "2991.182844",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 7,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649068500000,
+          "amount": "0.064",
+          "price": "45867.3",
+          "cost": "2936.9749536000004",
+          "tag": "buyback_1_derisk 7"
+        },
+        {
+          "sequence": 8,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649069400000,
+          "amount": "0.065",
+          "price": "45989.9",
+          "cost": "2990.83817175",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 9,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649084700000,
+          "amount": "0.065",
+          "price": "45820",
+          "cost": "2979.78915",
+          "tag": "buyback_1_derisk 9"
+        },
+        {
+          "sequence": 10,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649085000000,
+          "amount": "0.065",
+          "price": "45674.2",
+          "cost": "2970.3074114999995",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 11,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649094300000,
+          "amount": "0.064",
+          "price": "45310",
+          "cost": "2901.28992",
+          "tag": "buyback_1_derisk 11"
+        },
+        {
+          "sequence": 12,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649095800000,
+          "amount": "0.066",
+          "price": "45164.4",
+          "cost": "2982.3408252",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 13,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649204100000,
+          "amount": "0.066",
+          "price": "45035.5",
+          "cost": "2973.8291715",
+          "tag": "buyback_1_derisk 13"
+        },
+        {
+          "sequence": 14,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649204400000,
+          "amount": "0.066",
+          "price": "44750.1",
+          "cost": "2954.9833533",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 15,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649252700000,
+          "amount": "0.066",
+          "price": "44555.6",
+          "cost": "2942.1399348",
+          "tag": "buyback_1_derisk 15"
+        },
+        {
+          "sequence": 16,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649253000000,
+          "amount": "0.067",
+          "price": "44246",
+          "cost": "2965.9642409999997",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 17,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649253900000,
+          "amount": "0.067",
+          "price": "43914.9",
+          "cost": "2943.76944915",
+          "tag": "buyback_1_derisk 17"
+        },
+        {
+          "sequence": 18,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649254800000,
+          "amount": "0.068",
+          "price": "44061.1",
+          "cost": "2997.6528774000003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 19,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649258400000,
+          "amount": "0.068",
+          "price": "43853.1",
+          "cost": "2983.5018053999997",
+          "tag": "buyback_1_derisk 19"
+        },
+        {
+          "sequence": 20,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649258700000,
+          "amount": "0.068",
+          "price": "44040.7",
+          "cost": "2996.2649837999998",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 21,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649259000000,
+          "amount": "0.068",
+          "price": "43888.7",
+          "cost": "2985.9238158",
+          "tag": "buyback_1_derisk 21"
+        },
+        {
+          "sequence": 22,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649259300000,
+          "amount": "0.068",
+          "price": "43995.8",
+          "cost": "2993.2102572000003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 23,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649262300000,
+          "amount": "0.068",
+          "price": "43875",
+          "cost": "2984.9917499999997",
+          "tag": "buyback_1_derisk 23"
+        },
+        {
+          "sequence": 24,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649263200000,
+          "amount": "0.068",
+          "price": "43573.8",
+          "cost": "2964.4999092000003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 25,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649269500000,
+          "amount": "0.068",
+          "price": "43324",
+          "cost": "2947.505016",
+          "tag": "buyback_1_derisk 25"
+        },
+        {
+          "sequence": 26,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649269800000,
+          "amount": "0.069",
+          "price": "43417.6",
+          "cost": "2997.3123072",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 27,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649288400000,
+          "amount": "0.069",
+          "price": "43292.2",
+          "cost": "2988.6553808999997",
+          "tag": "buyback_1_derisk 27"
+        },
+        {
+          "sequence": 28,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649289300000,
+          "amount": "0.069",
+          "price": "43136.7",
+          "cost": "2977.92051615",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 29,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649292900000,
+          "amount": "0.069",
+          "price": "42797.8",
+          "cost": "2954.5247241000006",
+          "tag": "buyback_1_derisk 29"
+        },
+        {
+          "sequence": 30,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649293500000,
+          "amount": "0.069",
+          "price": "42994.8",
+          "cost": "2968.1245206000003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 31,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649424900000,
+          "amount": "0.069",
+          "price": "42862.8",
+          "cost": "2959.0119666",
+          "tag": "buyback_1_derisk 31"
+        },
+        {
+          "sequence": 32,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649426700000,
+          "amount": "0.069",
+          "price": "43158.4",
+          "cost": "2979.4185648000002",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 33,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649438400000,
+          "amount": "0.069",
+          "price": "42903.3",
+          "cost": "2961.80786385",
+          "tag": "buyback_1_derisk 33"
+        },
+        {
+          "sequence": 34,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649439300000,
+          "amount": "0.07",
+          "price": "42814.4",
+          "cost": "2998.506504",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 35,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649441700000,
+          "amount": "0.07",
+          "price": "42592.2",
+          "cost": "2982.944727",
+          "tag": "buyback_1_derisk 35"
+        },
+        {
+          "sequence": 36,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649442300000,
+          "amount": "0.07",
+          "price": "42718.9",
+          "cost": "2991.8181615000003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 37,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649454300000,
+          "amount": "0.07",
+          "price": "42574.2",
+          "cost": "2981.684097",
+          "tag": "buyback_1_derisk 37"
+        },
+        {
+          "sequence": 38,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649454600000,
+          "amount": "0.07",
+          "price": "42678.3",
+          "cost": "2988.9747405000007",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 39,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649454900000,
+          "amount": "0.07",
+          "price": "42554.3",
+          "cost": "2980.2904005",
+          "tag": "buyback_1_derisk 39"
+        },
+        {
+          "sequence": 40,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649456100000,
+          "amount": "0.07",
+          "price": "42465.1",
+          "cost": "2974.0432785000003",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 41,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649456400000,
+          "amount": "0.07",
+          "price": "42345.5",
+          "cost": "2965.6670925000003",
+          "tag": "buyback_1_derisk 41"
+        },
+        {
+          "sequence": 42,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649459400000,
+          "amount": "0.071",
+          "price": "42169.7",
+          "cost": "2995.545724349999",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 43,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649631000000,
+          "amount": "0.071",
+          "price": "41960.1",
+          "cost": "2980.6566835499993",
+          "tag": "buyback_1_derisk 43"
+        },
+        {
+          "sequence": 44,
+          "side": "buy",
+          "is_entry": true,
+          "filled_timestamp_ms": 1649631300000,
+          "amount": "0.071",
+          "price": "42063.1",
+          "cost": "2987.9733400499995",
+          "tag": "buyback_1_entry"
+        },
+        {
+          "sequence": 45,
+          "side": "sell",
+          "is_entry": false,
+          "filled_timestamp_ms": 1649635200000,
+          "amount": "0.107",
+          "price": "42140.3",
+          "cost": "4511.26660605",
+          "tag": "force_exit"
+        }
+      ],
+      "duration_minutes": 9885,
+      "is_open": false,
+      "minimum_rate": "41838",
+      "maximum_rate": "47188",
+      "initial_stop_loss_ratio": "-0.99",
+      "stop_loss_ratio": "-0.99",
+      "weekday": 0
+    }
+  ]
+}

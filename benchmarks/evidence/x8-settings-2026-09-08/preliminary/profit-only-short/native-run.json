@@ -1,0 +1,447 @@
+{
+  "schema_version": "1.6.0",
+  "run_id": "c1e11e791de07993c9a880b9ccb0ff3fba0fcd8645c27b81ca0fc0b3156f20bd",
+  "status": "complete",
+  "complete": true,
+  "prepared_only": false,
+  "pipeline_evidence": {
+    "cold": true,
+    "data_checkpoint_reused": false,
+    "vector_checkpoint_reused": false,
+    "manifest_checkpoint_reused": false,
+    "engine_checkpoint_reused": false,
+    "surface_checkpoint_reused": false,
+    "vector_cache_hits": 0,
+    "definition": "no resumed data/vector checkpoint and zero vector cache hits"
+  },
+  "resumed_stages": [],
+  "created_at": "2026-09-07T19:02:30.547505Z",
+  "timings": {
+    "started_at": "2026-09-07T19:00:21.709427Z",
+    "pipeline_wall_time_seconds": 128.838122208,
+    "stages": {
+      "input_preparation_seconds": 76.256774238,
+      "data_seconds": 0.046818813,
+      "vectors_seconds": 0.000871636,
+      "capability_seconds": 0.035476534,
+      "manifest_seconds": 0.729359431,
+      "engine_seconds": 51.569886774,
+      "surface_seconds": 0.145797641
+    }
+  },
+  "inputs": {
+    "schema_version": "1.6.0",
+    "pipeline": {
+      "package_version": "1.15.0",
+      "strategy_ir_version": "1.8.0",
+      "hot_ir_version": "1.10.0",
+      "data_seal_version": "1.3.0",
+      "vector_pipeline_version": "1.15.0",
+      "simulation_checkpoint_version": "1.0.0",
+      "market_snapshot_version": "1.3.0",
+      "generic_adapter_version": "1.4.0",
+      "x7_adapter_version": "0.31.0",
+      "stateful_execution_policy_version": "1.2.0",
+      "full_native_vector_runtime_version": "1.1.0"
+    },
+    "strategy": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/strategy.py",
+      "class_name": "NostalgiaForInfinityX8",
+      "file_sha256": "127b3159b2a4b6559c9375e57d0050115d4a184ffbabb5c9d1d1e617cbb56a82",
+      "analysis_sha256": "127b3159b2a4b6559c9375e57d0050115d4a184ffbabb5c9d1d1e617cbb56a82",
+      "capability_fingerprint": "93a9d602e82a98c3900634e64386d558e86d9deacf97edecfbd41f323bda3ac2",
+      "sealed": {
+        "path": "sealed-inputs/strategy.py",
+        "bytes": 1391526,
+        "sha256": "127b3159b2a4b6559c9375e57d0050115d4a184ffbabb5c9d1d1e617cbb56a82"
+      }
+    },
+    "config": {
+      "root_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/config.json",
+      "source_effective_sha256": "d27c9e3c5784b3be449739177c0be65277bc73e270164ad50fc59dde39151f87",
+      "run_effective_sha256": "d27c9e3c5784b3be449739177c0be65277bc73e270164ad50fc59dde39151f87",
+      "input_files": [
+        {
+          "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/config.json",
+          "bytes": 1197,
+          "sha256": "581325818bce19c73733d820ae9073ab2473013a0e20ac7a2525833293db33c0"
+        }
+      ],
+      "sealed": {
+        "path": "sealed-inputs/config.json",
+        "bytes": 1197,
+        "sha256": "581325818bce19c73733d820ae9073ab2473013a0e20ac7a2525833293db33c0"
+      }
+    },
+    "pairlist_sha256": "425974c7edc27f202777742934b9067001246074ff41f4707ac780fcf55de937",
+    "data_directory": "/home/turing/project/NFI_BacktestEngine/benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/data",
+    "timerange": "20220404-20220411",
+    "data_policy": {
+      "history_coverage_policy": "strict"
+    },
+    "output_options": {
+      "trace_engine_events": true
+    },
+    "native_execution": {
+      "schema_version": "1.2.0",
+      "adapter_lane": "x7-generic-stateful",
+      "transport": "full-native-vector-manifest",
+      "primary": "source-compiled-full-native-and-generic-stateful-programs",
+      "programs": [
+        {
+          "path": "nfi_x7_trade_manager.long_btc.program",
+          "schema_version": "grind-transition-program-v3",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.long_btc.regular_program",
+          "schema_version": "regular-transition-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.long_grind.program",
+          "schema_version": "grind-transition-program-v3",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.managed_exit_program",
+          "schema_version": "managed-exit-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.managed_short_exit_program",
+          "schema_version": "managed-exit-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.position_adjustment.program",
+          "schema_version": "system-adjustment-program-v2",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.rebuy_adjustment.program",
+          "schema_version": "adjustment-transition-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.short_grind.program",
+          "schema_version": "grind-transition-program-v3",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.short_position_adjustment.program",
+          "schema_version": "system-adjustment-program-v2",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.short_rebuy_adjustment.program",
+          "schema_version": "adjustment-transition-program-v1",
+          "execution_mode": "primary"
+        }
+      ],
+      "legacy_shadow": {
+        "enabled": false,
+        "program_count": 0,
+        "comparison": null,
+        "mismatch_action": null,
+        "removal_gate": null
+      },
+      "official_fallback": {
+        "available_on_native_blocker": true,
+        "activation": "ask-or-explicit",
+        "announcement": "required-before-execution",
+        "native_evidence_mutation": false
+      },
+      "blockers": [],
+      "native_ready": true,
+      "fingerprint": "c690cdd08065b08dbdc5732249c12df8bafcdeadc0959b686a4a8d475d8b38d6"
+    },
+    "market_metadata": {
+      "path": "/home/turing/project/NFI_BacktestEngine/benchmarks/fixtures/captured/x7-futures-lifecycle-short-v17.4.435-2022-04-01_04-20/inputs/market_metadata/full-x7-futures-20210101-markets.json",
+      "sha256": "7ec68fd38560fd0da589e2572fd2135c542b64d4c62056ecc919095180b31b86"
+    }
+  },
+  "execution": {
+    "hardware_fingerprint": "5f38a888bc71e31db691675634a1c1c4492c4d0e9d168d70787e76e543f8dcc0",
+    "indicator_workers": 0,
+    "cpu_process_limit": 12,
+    "working_memory_bytes": 25497026560,
+    "workload_calibration": {
+      "schema_version": "1.0.0",
+      "key": "49e27a6e77e5698662c5bfc19b27a919fac89febdb32d961e35922037e320441",
+      "path": "/home/turing/project/NFI_BacktestEngine/.nfi/calibrations/full-native/49e27a6e77e5698662c5bfc19b27a919fac89febdb32d961e35922037e320441.json",
+      "reused": false,
+      "probe_pair": "BTC/USDT:USDT",
+      "probe_peak_rss_bytes": 51970048,
+      "probe_wall_time_seconds": 1.728352199,
+      "worker_limit": 1,
+      "admission": {
+        "requested_cpu_processes": 1,
+        "memory_cap_bytes": null,
+        "admitted_memory_bytes": 27455852544,
+        "available_memory_bytes": 27455852544,
+        "coordinator_rss_bytes": 336863232,
+        "measured_reserve_bytes": 51970048,
+        "safe_processes": 1
+      }
+    },
+    "portfolio_simulator_threads": 1,
+    "python_per_candle": false
+  },
+  "data": {
+    "aggregate_sha256": "fc93950a198c08f6ca031fd6ccb0195bbe86eaa035906dba3413264bf422a994",
+    "file_count": 7,
+    "download_count": 0,
+    "history_coverage_policy": "strict",
+    "coverage_shortfall_count": 0
+  },
+  "vectors": {
+    "schema_version": "full-native-program-preflight-v1",
+    "pipeline_version": "1.1.0",
+    "strategy_sha256": "127b3159b2a4b6559c9375e57d0050115d4a184ffbabb5c9d1d1e617cbb56a82",
+    "source_execution": {
+      "strategy_source_mode": "python-ast-compile-only",
+      "populate_methods_executed": false,
+      "runtime_mode": "rust-full-native"
+    },
+    "worker_count": 0,
+    "pair_count": 1,
+    "cache_hits": 0,
+    "outputs": [],
+    "programs": {
+      "indicator": {
+        "schema_version": "indicator-program-v1",
+        "fingerprint": "1f7188d3ea65a23841d1241f78ac1093ce5948432e6c499b490678f63e7b9a58",
+        "node_count": 1620
+      },
+      "signal": {
+        "schema_version": "signal-program-v1",
+        "fingerprint": "21280792616d065b6f21f96beb672e018fc38f284781eb710173a8e8a6d4a70c",
+        "node_count": 22
+      },
+      "tag": {
+        "schema_version": "tag-program-v1",
+        "fingerprint": "89118703763163d9fed827055bf09d97c35fb2640e073aa6234fd1c6d42c19b2",
+        "node_count": 26
+      }
+    },
+    "blockers": []
+  },
+  "capability": {
+    "strategy_static_safe": true,
+    "hot_ir_fingerprint": "9570d7378715c9cd806e748f48a888d45295de64111932b9bbd9ce25dce2f87f",
+    "hot_loop_ready": true,
+    "adapter_lane": "x7-generic-stateful",
+    "native_execution": {
+      "schema_version": "1.2.0",
+      "adapter_lane": "x7-generic-stateful",
+      "transport": "full-native-vector-manifest",
+      "primary": "source-compiled-full-native-and-generic-stateful-programs",
+      "programs": [
+        {
+          "path": "nfi_x7_trade_manager.long_btc.program",
+          "schema_version": "grind-transition-program-v3",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.long_btc.regular_program",
+          "schema_version": "regular-transition-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.long_grind.program",
+          "schema_version": "grind-transition-program-v3",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.managed_exit_program",
+          "schema_version": "managed-exit-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.managed_short_exit_program",
+          "schema_version": "managed-exit-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.position_adjustment.program",
+          "schema_version": "system-adjustment-program-v2",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.rebuy_adjustment.program",
+          "schema_version": "adjustment-transition-program-v1",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.short_grind.program",
+          "schema_version": "grind-transition-program-v3",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.short_position_adjustment.program",
+          "schema_version": "system-adjustment-program-v2",
+          "execution_mode": "primary"
+        },
+        {
+          "path": "nfi_x7_trade_manager.short_rebuy_adjustment.program",
+          "schema_version": "adjustment-transition-program-v1",
+          "execution_mode": "primary"
+        }
+      ],
+      "legacy_shadow": {
+        "enabled": false,
+        "program_count": 0,
+        "comparison": null,
+        "mismatch_action": null,
+        "removal_gate": null
+      },
+      "official_fallback": {
+        "available_on_native_blocker": true,
+        "activation": "ask-or-explicit",
+        "announcement": "required-before-execution",
+        "native_evidence_mutation": false
+      },
+      "blockers": [],
+      "native_ready": true,
+      "fingerprint": "c690cdd08065b08dbdc5732249c12df8bafcdeadc0959b686a4a8d475d8b38d6"
+    },
+    "blockers": []
+  },
+  "result": {
+    "trade_count": 4,
+    "execution": {
+      "schema_version": "1.0.0",
+      "input_kind": "full-vector",
+      "input_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/simulation-input.manifest.json",
+      "input_sha256": "917e0223e09f5c59be7c608eff4a876f0adacd5864b07b603e35873b7de44a55",
+      "output_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/simulation-result.json",
+      "output_sha256": "3fbe9cc4662d83cbd199f10585b3d578f41524784745e3aaae8b8038f1bf2b79",
+      "publication_bundle": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/simulation-result.json.nfi-bundle",
+      "wall_time_seconds": 2.728561636,
+      "peak_rss_bytes": 52056064,
+      "cpu_time_seconds": 2.5500000000000003,
+      "build": {
+        "schema_version": "1.0.0",
+        "built_at": "2026-09-07T19:02:25.281644Z",
+        "source_fingerprint": "348635643c878027089d00c223e52ba9277f1c69fa133a4f3325ff87f532eae5",
+        "binary_path": "/home/turing/project/NFI_BacktestEngine/rust/target/release/nfi-sim",
+        "binary_sha256": "3c7cdcf75665d37cc87fd937e267f90b75e20834ff65f2c23d94d58042f2f3e7",
+        "binary_bytes": 13087664,
+        "target": "x86_64-unknown-linux-gnu",
+        "build_seconds": 46.404814747
+      },
+      "execution_profile_fingerprint": "5f38a888bc71e31db691675634a1c1c4492c4d0e9d168d70787e76e543f8dcc0",
+      "pair_worker_limit": 1,
+      "trade_count": 4,
+      "events": {
+        "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/engine-events.jsonl",
+        "bytes": 23336550,
+        "sha256": "e57bb5555886169d2c0cf456ac9082c26bec235a9da9810c4b36ac89ad2b5b27"
+      },
+      "execution_events": null,
+      "profile": {
+        "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/engine-profile.json",
+        "bytes": 1876,
+        "sha256": "b4e008fd09516afb61683bcea19fdb5c99ad7d72be856af063175fcf4c6705a2",
+        "phases": {
+          "input": {
+            "base_timeframe": "5m",
+            "compiler_source_fingerprint": "1f59944bb7b7d2154b96cb0a856a7f2cce1ea92a78fd8463508d2297e4184ab7",
+            "config_sha256": "de45ab89458282c2c79c44fa921d545c2fa47b88148b47c4544d97a8adc86d38",
+            "frame_loading_mode": "pair-local-streaming",
+            "futures_frame_set_count": 1,
+            "manifest_declared_raw_rows": 34005,
+            "manifest_sha256": "917e0223e09f5c59be7c608eff4a876f0adacd5864b07b603e35873b7de44a55",
+            "pair_identities": [
+              "BTC/USDT:USDT|5m"
+            ],
+            "populate_methods_executed": false,
+            "program_fingerprints": {
+              "indicator": "1f7188d3ea65a23841d1241f78ac1093ce5948432e6c499b490678f63e7b9a58",
+              "signal": "21280792616d065b6f21f96beb672e018fc38f284781eb710173a8e8a6d4a70c",
+              "tag": "89118703763163d9fed827055bf09d97c35fb2640e073aa6234fd1c6d42c19b2"
+            },
+            "raw_frame_count": 5,
+            "raw_frame_resident_limit": 5,
+            "retained_feature_fingerprint": "1801a6cd23ecb37e40d815cc98a2e2a30cc136f85436e2f14005fb4ee9516aeb",
+            "runtime_mode": "rust-full-native",
+            "schema_version": "1.2.0",
+            "selected_class": "NostalgiaForInfinityX8",
+            "source_row_shift": 1,
+            "spool_available_bytes_at_admission": 363183882240,
+            "spool_cleanup_mode": "unlink-on-open",
+            "spool_required_upper_bound_bytes": 2211345,
+            "spool_target_source": "os-temp",
+            "strategy_sha256": "127b3159b2a4b6559c9375e57d0050115d4a184ffbabb5c9d1d1e617cbb56a82",
+            "strategy_source_mode": "python-ast-compile-only",
+            "trading_mode": "futures",
+            "transport": {
+              "estimated_simulation_owned_bytes": 1079,
+              "estimated_source_column_bytes": 2136526,
+              "feature_column_count": 88,
+              "file_backed_bytes": 2211345,
+              "pair_count": 1,
+              "pair_prepare_fused": true,
+              "pair_prepare_ns": 0,
+              "pair_prepare_worker_limit": 1,
+              "row_count": 2817,
+              "schema_version": "1.2.0",
+              "source_pair_retention_limit": 1,
+              "vector_execute_ns": 492951984
+            }
+          },
+          "schema_version": "1.0.0",
+          "serialization_ns": 139229,
+          "simulation": {
+            "event_loop_ns": 1763838604,
+            "finalization_ns": 557969,
+            "pair_events": 2016,
+            "schema_version": "1.0.0",
+            "timestamp_batches": 2016,
+            "validation_ns": 2759082
+          }
+        }
+      },
+      "portfolio_events": null
+    },
+    "simulation_input": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/simulation-input.manifest.json",
+      "bytes": 1495438,
+      "sha256": "917e0223e09f5c59be7c608eff4a876f0adacd5864b07b603e35873b7de44a55"
+    },
+    "simulation_result": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/simulation-result.json",
+      "bytes": 9856,
+      "sha256": "3fbe9cc4662d83cbd199f10585b3d578f41524784745e3aaae8b8038f1bf2b79"
+    },
+    "trade_surface": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/trade-surface.json",
+      "bytes": 17859,
+      "sha256": "03ab30613bbbe1e1cb42292bf36332907230c7773455080f0e8f7cae7593b1a8"
+    },
+    "engine_events": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-all-settings/profit-only-short/engine/engine-events.jsonl",
+      "bytes": 23336550,
+      "sha256": "e57bb5555886169d2c0cf456ac9082c26bec235a9da9810c4b36ac89ad2b5b27"
+    },
+    "summary": {
+      "total_trades": 4,
+      "starting_balance": "10000",
+      "final_balance": "10127.31288147",
+      "profit_total_abs": "127.31288147",
+      "total_volume": "28144.7111229",
+      "rejected_signals": 0,
+      "timedout_entry_orders": 0,
+      "timedout_exit_orders": 0,
+      "canceled_trade_entries": 0,
+      "canceled_entry_orders": 0,
+      "replaced_entry_orders": 0,
+      "max_open_trades": 1
+    }
+  },
+  "official_confirmation": {
+    "required_for_finalist": true,
+    "status": "not_run"
+  }
+}

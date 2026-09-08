@@ -1,0 +1,106 @@
+{
+  "freqtrade_version": "2026.5.1",
+  "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "cases": [
+    {
+      "trading_mode": "spot",
+      "parameter": "is_futures_mode",
+      "configured": false,
+      "effective": false,
+      "source_is_futures_mode": false,
+      "source_can_short": false
+    },
+    {
+      "trading_mode": "spot",
+      "parameter": "is_futures_mode",
+      "configured": true,
+      "effective": true,
+      "source_is_futures_mode": true,
+      "source_can_short": false
+    },
+    {
+      "trading_mode": "spot",
+      "parameter": "can_short",
+      "configured": false,
+      "effective": false,
+      "source_is_futures_mode": false,
+      "source_can_short": false
+    },
+    {
+      "trading_mode": "spot",
+      "parameter": "can_short",
+      "configured": true,
+      "effective": true,
+      "source_is_futures_mode": false,
+      "source_can_short": true
+    },
+    {
+      "trading_mode": "spot",
+      "parameter": "target_profit_cache",
+      "configured": null,
+      "effective": {
+        "type": "Cache"
+      },
+      "source_is_futures_mode": false,
+      "source_can_short": false
+    },
+    {
+      "trading_mode": "spot",
+      "parameter": "hold_trades_cache",
+      "configured": null,
+      "effective": null,
+      "source_is_futures_mode": false,
+      "source_can_short": false
+    },
+    {
+      "trading_mode": "futures",
+      "parameter": "is_futures_mode",
+      "configured": false,
+      "effective": true,
+      "source_is_futures_mode": true,
+      "source_can_short": true
+    },
+    {
+      "trading_mode": "futures",
+      "parameter": "is_futures_mode",
+      "configured": true,
+      "effective": true,
+      "source_is_futures_mode": true,
+      "source_can_short": true
+    },
+    {
+      "trading_mode": "futures",
+      "parameter": "can_short",
+      "configured": false,
+      "effective": true,
+      "source_is_futures_mode": true,
+      "source_can_short": true
+    },
+    {
+      "trading_mode": "futures",
+      "parameter": "can_short",
+      "configured": true,
+      "effective": true,
+      "source_is_futures_mode": true,
+      "source_can_short": true
+    },
+    {
+      "trading_mode": "futures",
+      "parameter": "target_profit_cache",
+      "configured": null,
+      "effective": {
+        "type": "Cache"
+      },
+      "source_is_futures_mode": true,
+      "source_can_short": true
+    },
+    {
+      "trading_mode": "futures",
+      "parameter": "hold_trades_cache",
+      "configured": null,
+      "effective": null,
+      "source_is_futures_mode": true,
+      "source_can_short": true
+    }
+  ]
+}

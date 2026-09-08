@@ -1,0 +1,2778 @@
+{
+  "freqtrade_version": "2026.5.1",
+  "source_sha256": "a13b565ea247aa0942fcaad2385dc776c1ddc0e86621aa8386665b8d604b5fe5",
+  "cases": [
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        96.50565486000005,
+        0.02442898098900215,
+        0.02384643683685908,
+        0.024438752581397754
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        191.88881115999902,
+        0.03573635215413165,
+        0.045922103814505746,
+        0.048593247575811224
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        278.4851670700009,
+        0.03421340068586914,
+        0.04011395267736184,
+        0.07052260414673243
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        98.08520610000005,
+        0.02483875258139775,
+        0.02423674214000308,
+        0.02483875258139775
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        194.03577999999925,
+        0.03615064669499335,
+        0.04643590826908017,
+        0.04913693841296323
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        281.73972595000123,
+        0.03462708604614353,
+        0.0405827504315532,
+        0.07134677718970389
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        98.53014875999997,
+        0.024941451714859564,
+        0.024334513618440634,
+        0.024951428295545506
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        194.67093115999887,
+        0.03625447939382854,
+        0.04656461628495096,
+        0.049297781858598996
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        282.6963411200004,
+        0.034730766068903525,
+        0.040700184268978,
+        0.07158902705049325
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        100.10969999999998,
+        0.025351428295545507,
+        0.02472462376893306,
+        0.025351428295545507
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        196.8178999999991,
+        0.03666898118558611,
+        0.04707816383729811,
+        0.049841472695751
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        285.95090000000073,
+        0.03514465837533113,
+        0.04116874762429226,
+        0.0724132000934647
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        94.1363280000005,
+        0.023814937643754117,
+        0.023260978882143193,
+        0.02383875258139787
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        188.66835790000005,
+        0.03511553116382967,
+        0.045151397132644426,
+        0.04777771132008356
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        273.6033287500022,
+        0.03359349255359006,
+        0.039410756046075066,
+        0.06928634458227571
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        90.43217315999982,
+        0.022891568811429803,
+        0.02237927216276613,
+        0.022900725438954377
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        183.54245115999947,
+        0.034181970435040995,
+        0.04399070360274655,
+        0.0464796447274479
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        265.8516449200006,
+        0.03266130453676574,
+        0.038351733464086546,
+        0.06732333543544952
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        88.06284630000027,
+        0.02227844699196253,
+        0.021792934261224518,
+        0.02230072543895449
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        180.3219979000005,
+        0.03356208114207313,
+        0.043218838544108885,
+        0.045664108471720234
+      ]
+    },
+    {
+      "short": false,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        260.9698066000019,
+        0.032042326731848765,
+        0.03764747992403532,
+        0.0660870758709928
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        96.33265486000005,
+        0.024385188594481556,
+        0.023803688734908356,
+        0.02439494266991935
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        191.71581115999902,
+        0.035704133553759426,
+        0.045880702109466855,
+        0.04854943766433282
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        278.3121670700009,
+        0.034192146705339654,
+        0.04008903316769388,
+        0.07047879423525404
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        97.91220610000005,
+        0.02479494266991935,
+        0.024193994038052356,
+        0.02479494266991935
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        193.86277999999925,
+        0.036118415207180975,
+        0.04639450656404129,
+        0.049093128501484826
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        281.5667259500012,
+        0.03460582356402183,
+        0.04055783092188524,
+        0.0713029672782255
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        98.35714875999997,
+        0.02489765932033897,
+        0.024291786890540883,
+        0.024907618384067104
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        194.49793115999887,
+        0.036222260793456314,
+        0.046523235280764595,
+        0.0492539719471206
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        282.5233411200004,
+        0.03470951208837404,
+        0.04067527721906487,
+        0.07154521713901485
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        99.93669999999997,
+        0.025307618384067105,
+        0.02468189704103331,
+        0.025307618384067105
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        196.6448999999991,
+        0.036636749697773745,
+        0.04703678283311174,
+        0.049797662784272605
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        285.7779000000007,
+        0.03512339589320943,
+        0.041143840574379135,
+        0.0723693901819863
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        93.9633280000005,
+        0.023771171498421048,
+        0.02321823078019247,
+        0.023794942669919467
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        188.49535790000004,
+        0.03508333187530582,
+        0.045109995427605534,
+        0.04773390140860515
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        273.4303287500022,
+        0.033572251312709245,
+        0.03938583653640711,
+        0.06924253467079731
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        90.25917315999982,
+        0.02284777641690921,
+        0.02233645981016117,
+        0.022856915527475975
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        183.36945115999947,
+        0.03414975183466877,
+        0.04394923967069608,
+        0.046435834815969496
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        265.6786449200006,
+        0.03264005055623626,
+        0.03832677650024574,
+        0.06727952552397112
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        87.88984630000027,
+        0.02223468084662946,
+        0.02175012190861956,
+        0.02225691552747609
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        180.1489979000005,
+        0.033529881853549284,
+        0.043177374612058415,
+        0.04562029856024183
+      ]
+    },
+    {
+      "short": false,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        260.7968066000019,
+        0.03202108549096795,
+        0.03762252296019451,
+        0.0660432659595144
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -103.7137451399999,
+        -0.026274613855235354,
+        -0.025601932952948995,
+        -0.02626410400969326
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -201.74698883999963,
+        -0.037602356618826535,
+        -0.048233068377808934,
+        -0.0510896978156909
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -293.41663293000147,
+        -0.036076661369066516,
+        -0.042222488303409786,
+        -0.07430379604019721
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -102.1341938999999,
+        -0.02586410400969326,
+        -0.025212017760053017,
+        -0.02586410400969326
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -199.6000199999994,
+        -0.037187315676178966,
+        -0.047719777470915235,
+        -0.05054600697853889
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -290.16207405000114,
+        -0.03566223070451884,
+        -0.04175415911269088,
+        -0.07347962299722575
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -101.68925123999998,
+        -0.025761732988741,
+        -0.025114733919425487,
+        -0.025751428295545508
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -198.96486883999933,
+        -0.03708381471147074,
+        -0.047591711389645255,
+        -0.05038516353290301
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -289.20545888000106,
+        -0.035558881928102415,
+        -0.04163731097960652,
+        -0.07323737313643616
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -100.10969999999998,
+        -0.025351428295545507,
+        -0.02472462376893306,
+        -0.025351428295545507
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -196.8178999999991,
+        -0.03666898118558611,
+        -0.04707816383729811,
+        -0.049841472695751
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -285.95090000000073,
+        -0.03514465837533113,
+        -0.04116874762429226,
+        -0.0724132000934647
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -106.0830719999999,
+        -0.026890995004697958,
+        -0.026186805742292964,
+        -0.02686410400969326
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -204.96744209999952,
+        -0.03822554121739638,
+        -0.04900300473814937,
+        -0.051905234071418796
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -298.29847125000106,
+        -0.036698929634152985,
+        -0.04292498208948801,
+        -0.07554005560465415
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -109.78722684000013,
+        -0.027813256454718525,
+        -0.02706061269403745,
+        -0.027802131152136637
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -210.09334883999963,
+        -0.039157982340893745,
+        -0.05015329888129279,
+        -0.05320330066405434
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -306.0501550800009,
+        -0.03762999969195859,
+        -0.043974516218988166,
+        -0.07750306475147989
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -112.15655370000013,
+        -0.02843056171385049,
+        -0.027644609925313538,
+        -0.028402131152136637
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -213.31380209999952,
+        -0.03978210124920657,
+        -0.0509220826422914,
+        -0.05401883691978224
+      ]
+    },
+    {
+      "short": true,
+      "futures": false,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": null,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -310.93199340000047,
+        -0.03825320089297474,
+        -0.044675958367662076,
+        -0.07873932431593685
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -103.8867451399999,
+        -0.026318441297690738,
+        -0.025644638328161138,
+        -0.026307913921171662
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -201.91998883999963,
+        -0.037634601004393135,
+        -0.04827442870183329,
+        -0.051133507727169306
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -293.58963293000147,
+        -0.03609793235958442,
+        -0.042247382906021605,
+        -0.07434760595167561
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -102.3071938999999,
+        -0.02590791392117166,
+        -0.025254723135265156,
+        -0.02590791392117166
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -199.7730199999994,
+        -0.03721954716399133,
+        -0.047761137794939595,
+        -0.0505898168900173
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -290.33507405000114,
+        -0.03568349318664054,
+        -0.0417790537153027,
+        -0.07352343290870415
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -101.86225123999998,
+        -0.025805560431196386,
+        -0.025157460647325235,
+        -0.02579523820702391
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -199.13786883999933,
+        -0.03711605909703734,
+        -0.04763309239383162,
+        -0.050428973444381416
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -289.37845888000106,
+        -0.035580152918620316,
+        -0.041662218029519645,
+        -0.07328118304791456
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -100.28269999999998,
+        -0.02539523820702391,
+        -0.024767350496832808,
+        -0.02539523820702391
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -196.9908999999991,
+        -0.03670121267339849,
+        -0.04711954484148448,
+        -0.04988528260722941
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0,
+      "close_rate": 0,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -286.12390000000073,
+        -0.03516592085745282,
+        -0.04119365467420538,
+        -0.0724570100049431
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -106.2560719999999,
+        -0.026934848769941604,
+        -0.026229511117505107,
+        -0.026907913921171662
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -205.14044209999952,
+        -0.038257804968960314,
+        -0.049044365062173724,
+        -0.0519490439828972
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": null,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -298.47147125000106,
+        -0.03672021340004057,
+        -0.04294987669209983,
+        -0.07558386551613257
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -109.96022684000013,
+        -0.02785708389717391,
+        -0.027103254139047177,
+        -0.02784594106361504
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -210.26634883999964,
+        -0.039190226726460345,
+        -0.05019459728866442,
+        -0.05324711057553274
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": null,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -306.2231550800009,
+        -0.03765127068247649,
+        -0.0439993735542308,
+        -0.07754687466295829
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ]
+      ],
+      "expected": [
+        -112.32955370000013,
+        -0.028474415479094132,
+        -0.027687251370323268,
+        -0.02844594106361504
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ]
+      ],
+      "expected": [
+        -213.48680209999952,
+        -0.039814365000770506,
+        -0.050963381049663026,
+        -0.054062646831260636
+      ]
+    },
+    {
+      "short": true,
+      "futures": true,
+      "open_rate": 0.001,
+      "close_rate": 0.002,
+      "actual_open_rate": 0.0004,
+      "actual_close_rate": 0.0005,
+      "funding_fees": -0.173,
+      "exit_rate": 32918.6,
+      "orders": [
+        [
+          true,
+          0.123,
+          32104.7
+        ],
+        [
+          false,
+          0.041,
+          33745.8
+        ],
+        [
+          true,
+          0.045,
+          31523.2
+        ],
+        [
+          false,
+          0.003,
+          30981.9
+        ],
+        [
+          true,
+          0.087,
+          31827.3
+        ]
+      ],
+      "expected": [
+        -311.10499340000047,
+        -0.038274484658862316,
+        -0.04470081570290472,
+        -0.07878313422741524
+      ]
+    }
+  ]
+}

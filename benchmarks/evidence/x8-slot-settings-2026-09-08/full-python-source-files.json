@@ -1,0 +1,3847 @@
+[
+  {
+    "path": "pyproject.toml",
+    "sha256": "8d7002b9ada55676d202053cc8c19d978d593125941fed7e4a26fb4c02b805d9",
+    "bytes": 2285
+  },
+  {
+    "path": "python/nfi_backtest_engine/__init__.py",
+    "sha256": "6410b4cfccb0223697821cfb36d5fcb46fbf37b84b7740a0be515530a9be23be",
+    "bytes": 1394
+  },
+  {
+    "path": "python/nfi_backtest_engine/_indicator_ast.py",
+    "sha256": "e3ca9d8a83e072f4cb8ee40ee52cbc7ee0472638c25965ead3ee4fb0decc50ff",
+    "bytes": 20210
+  },
+  {
+    "path": "python/nfi_backtest_engine/_indicator_contract.py",
+    "sha256": "657ad51290a614c489e741f8ea784475d15caa96bc78c86db5e456fe8a6832b6",
+    "bytes": 5673
+  },
+  {
+    "path": "python/nfi_backtest_engine/archive_security.py",
+    "sha256": "8d9498a9d5df92fc45ea5f667390a3ccec18ea613c5eb7eabe4d3af779755dd3",
+    "bytes": 6175
+  },
+  {
+    "path": "python/nfi_backtest_engine/batch_runner.py",
+    "sha256": "4238691444368cf85147023bfb3ce30084cdd22466ebd3b9615220a97292641f",
+    "bytes": 8925
+  },
+  {
+    "path": "python/nfi_backtest_engine/benchmark.py",
+    "sha256": "0ca0f40905e6d4dff9ba4b1d453396b7631e3ee06bcdce17eb9bc2565626dcbc",
+    "bytes": 37278
+  },
+  {
+    "path": "python/nfi_backtest_engine/binance_archive.py",
+    "sha256": "05187323f59862460604c33f809718710ba210366606ac35f26f8d4c1e6442a7",
+    "bytes": 24316
+  },
+  {
+    "path": "python/nfi_backtest_engine/branch_coverage.py",
+    "sha256": "e763911884b9dc2734aec2fe60bf5142cd34eaa18abdeeb6e648d9d69d361bf9",
+    "bytes": 15532
+  },
+  {
+    "path": "python/nfi_backtest_engine/cache.py",
+    "sha256": "7a4d73c0117871e4cfaba93e2ba9e3c298cc25bec9bfa110dd3d839604004dd8",
+    "bytes": 10097
+  },
+  {
+    "path": "python/nfi_backtest_engine/cache_policy.py",
+    "sha256": "350b6d0637f5e83898c52d0b27ff8a0a03f5638c462a4e1d13eb275322072910",
+    "bytes": 2721
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_ast.py",
+    "sha256": "169108b365abd4b16c9ac5461b4e6bc9346c02a0f4d9d7a565a22c882d414119",
+    "bytes": 525
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_confirm.py",
+    "sha256": "f5ab8262e16cede859741c398609ad36e551d06f610c7bf28b77bfcec5141873",
+    "bytes": 5238
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_confirm_calls.py",
+    "sha256": "8e85b3daab8109f7fa81074ca23801413b49ac29debd10688467634da234ff35",
+    "bytes": 5327
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_confirm_expression.py",
+    "sha256": "f28b69f33e417bddd1a7b4c58aee75032a8ca5ecd6cf8090b2c13723a297b841",
+    "bytes": 5737
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_contract.py",
+    "sha256": "3f3b53cdcf6f9c67b092dbb5ce723ca5d02d9eb7a06fc37f38a9d6b115198477",
+    "bytes": 337
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_execution_contract.py",
+    "sha256": "bafcafe8d1b323b510fc3526ec32b1ebf324c9747b582419b3467264716e0daa",
+    "bytes": 9658
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_execution_dependencies.py",
+    "sha256": "41983b4202a905ec6d60ebd4582c569fe3bb5ca58eb71fb3a709537e562a07d6",
+    "bytes": 3267
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_execution_policy.py",
+    "sha256": "6742a6aea436280d2ee6f93cb44a5bff839579b2a7788e76793ed8217a8f857d",
+    "bytes": 5268
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_exit_confirm.py",
+    "sha256": "86e3b0a8c108506f92d96ee9bab9b4b9466ab96e7d1478c796527efbe0c05e3a",
+    "bytes": 5729
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_leverage.py",
+    "sha256": "64fc19a9ad86e1f75440c1eb4bb1bb5265afe680832a292719199c129a737f4b",
+    "bytes": 6856
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_lifecycle.py",
+    "sha256": "d06bf042cf3271118c76bbfb36c5cdc02ff99162c4ed69241a70bbb80c8bb127",
+    "bytes": 3118
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_lowering.py",
+    "sha256": "41be5e4beb27d2922694880291c138eb277846200768660c09f9dbf5f95d9675",
+    "bytes": 6606
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_order_state.py",
+    "sha256": "807bd74b8aa70fbfe1c76e1cb7526829a4a55598b5bc6be0d8c504b1fcb67a59",
+    "bytes": 5049
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_order_state_values.py",
+    "sha256": "9f795c5f64efb4b5470e5e292d2f354e07cb71bdefd577bb000f08da04a09ec2",
+    "bytes": 8530
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_scalar.py",
+    "sha256": "f7962506b8d188fa7e19acdf7a55447f668c00a02ddd3ab138ba588036743079",
+    "bytes": 2104
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_source_identity.py",
+    "sha256": "e1887bf80b7ee339bb56d56fd6420c138396729a9d00df5afb3eb6fada1e6bea",
+    "bytes": 1546
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_source_ir.py",
+    "sha256": "361e85acabc0fbfb644cd97e8d58408e5a6c3025dcd17c582c36463aa21aa982",
+    "bytes": 6902
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_source_reads.py",
+    "sha256": "0752d85cecbfc60cebab0f6ef11b551df1ceb34ac7b2d2b37092ed6b69e45108",
+    "bytes": 3917
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_source_routes.py",
+    "sha256": "d11e5afdfd9e944a4c74fa2203c247e129d7efaaea03be8f074e69ae352dde9e",
+    "bytes": 5010
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_source_tags.py",
+    "sha256": "19b4b62af58a95ad49d81fb420aee71f74b16299625cdb9ed4f7795741643b9c",
+    "bytes": 4318
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_stake.py",
+    "sha256": "2f7caa0940a31be9c0040718d78ae846dd459c0a43037c6509a95bc51f884c2e",
+    "bytes": 6111
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_stake_expression.py",
+    "sha256": "68be110f8c17a20681338e6834810f5a0c72f132103936cd3e35f296d8ad5856",
+    "bytes": 5811
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_timeout.py",
+    "sha256": "2ec6892ba39cdf01e5e6437fcf8a2adc0f910d7dd65dfe140e0d320565ccc23f",
+    "bytes": 7033
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_timeout_tags.py",
+    "sha256": "0238b2d3dbe9faddc729ad318a9bf2a24887b00620889c4cd926b16a8ea1f9fd",
+    "bytes": 2516
+  },
+  {
+    "path": "python/nfi_backtest_engine/callback_trace_projection.py",
+    "sha256": "437ff95b89244d8488ce2f41310a088d586f2d0498ed7c10d29a6a0777770d9b",
+    "bytes": 5422
+  },
+  {
+    "path": "python/nfi_backtest_engine/canonical.py",
+    "sha256": "9b328c59ed957978278db3e0fbbeac9a3144d1c7e4d1d6fc286527cd2bca3f1b",
+    "bytes": 7591
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification.py",
+    "sha256": "e9fa6e5471d65edf3d93724a3a5e2c8c4a5f170d9b9ae7b9d5f621614c85b77a",
+    "bytes": 6603
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_parts/__init__.py",
+    "sha256": "ccf755d98b79a286d7d7a1580ef5729eb78731e6327a8cd02027913c6c227d1a",
+    "bytes": 46
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_parts/gates.py",
+    "sha256": "aa7e0c1a7cec5c0719be95b67c35183312652f45f29b66dd9082b4062706b223",
+    "bytes": 907
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_parts/inputs.py",
+    "sha256": "3024c574765ca60d369e56134ed62e5f101162891bb5488e60af958a5949a86f",
+    "bytes": 12637
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_parts/measurements.py",
+    "sha256": "77bc1ad197c4c4bf1e3d36041d2d43aa22e67130e028968d818e6f23a1543dea",
+    "bytes": 17682
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_parts/packaging.py",
+    "sha256": "ee1c6eb7fbc90f83c8a109bd989e3fef3e4a17f20f5bbe4f1c20abea9bfeb8e1",
+    "bytes": 14590
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_parts/probes.py",
+    "sha256": "befd61ddc7148a6edf4b52258077fce7b92baaddb9e73fedd2e2e71f0f3a901b",
+    "bytes": 7207
+  },
+  {
+    "path": "python/nfi_backtest_engine/certification_policy.py",
+    "sha256": "b0354e707e02a9ccada78c4120fecb22e16dab67690abc9ddef6d04fd61d5b07",
+    "bytes": 1669
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_capture_validation.py",
+    "sha256": "15abccb620a89630e4f3826778f3b143aa5f88163b89129af7bdb53018d02377",
+    "bytes": 2334
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_execution_validation.py",
+    "sha256": "d9559d6afcfea43245313395f0c29a5a83119214ad0ce29091d3478a018caf2f",
+    "bytes": 2385
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_filesystem_trust.py",
+    "sha256": "e3f36831871206fa06a632b20f4161536faf8ee01f22ca1be88c2069b401eab9",
+    "bytes": 6690
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_git_config.py",
+    "sha256": "806f6c6521d0265828fa72fd81e18d690223fcb430d3ed1f95685f225037bba3",
+    "bytes": 3412
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_git_environment.py",
+    "sha256": "64f8b75357548d85f146e82f0bdebf8b4c85c77c9d154fd13b30560cf24ab4ad",
+    "bytes": 2006
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_git_trust.py",
+    "sha256": "52c1174ce69a69eafd5c44e08db0581d53cf2b775bbd9dd700fba5d57595e594",
+    "bytes": 7660
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_json.py",
+    "sha256": "c6187ee4424043eb537eda962afd45ca137bfb2ac9f5ee07982dff7e96a8ee97",
+    "bytes": 497
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_manifest_roles.py",
+    "sha256": "231dd2bf13228a362fefa5006037218d1fb24e2c8293fdcd4e4c3a8ae9868c0d",
+    "bytes": 5374
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_mutation.py",
+    "sha256": "9039f88fcec4fca9b50cfa22930797d80cfc6b940b7de18d1edde8a9eba1a125",
+    "bytes": 3714
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_mutation_validation.py",
+    "sha256": "539ff39363950e1dfceecea19b39a042fd83e5a69ef3b1e3e7b8d97967f6412b",
+    "bytes": 5294
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_native_capture.py",
+    "sha256": "fa92cef094d135a05d94ce7e8ce91fbf014f5779c55bde42a95ff781ffd0c81e",
+    "bytes": 2281
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_official_mutants.py",
+    "sha256": "2a06272c26128fdd63bdc669dad1d90436264f7d3d38cf23bc1d78eadee2543f",
+    "bytes": 4373
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_proof.py",
+    "sha256": "5c7fbbbb508c663d684a3d68b5f7cef3cd2f59430407910d83e29bf920af4b43",
+    "bytes": 6145
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_provenance.py",
+    "sha256": "03391b0fd4a04ebaba580a7509c305ad4d0b5aee1866a76f19eaa9814bb187b5",
+    "bytes": 8191
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_reconstruction.py",
+    "sha256": "74cf4e4936f540a0edc8618545cb46ca8a921b01b28c784c6683e3a5e33645ce",
+    "bytes": 6418
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_replay.py",
+    "sha256": "0ad98838049080ae21020fe45001d81daaaa73cc2ee3f5aa1b63103e194ea1e0",
+    "bytes": 8065
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_replay_publication.py",
+    "sha256": "b8161bddd225aece98c6073bd308be76eef4f65de3e54d7e7810c057684f97cf",
+    "bytes": 5953
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_replay_validation.py",
+    "sha256": "eaa33d0a78fc0c7eaf59fb6d6597b69d6f8feadd7cf2c572c59f3c7a2a103368",
+    "bytes": 3877
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_role_binding.py",
+    "sha256": "28114b22a9709a972a51805013277fe3d6f3add965d074fa6cf56f6e74553ee2",
+    "bytes": 4837
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_source.py",
+    "sha256": "f857b260b93727d35201406fe90ee1ceb15972e306be338c89c4fac973536be1",
+    "bytes": 4128
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_trust.py",
+    "sha256": "77e2442347a09b97c11ec9f93031bea2fedc39598e3f498663e0f5f631c03f46",
+    "bytes": 3943
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_signal_validation.py",
+    "sha256": "97b7d7780bbcae3695e1c897b09750e58e4fdb854e7957c27ad8b57e614ac0b1",
+    "bytes": 8566
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_target_identity.py",
+    "sha256": "bf26f492b3884ef14622b42910fcf761111abc7fcfd5d61d68f30d76264dbacd",
+    "bytes": 6803
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_target_ledger.py",
+    "sha256": "162b239cb3f7c85df2647249663b3169855d69d4efd48c797a383b532bc82026",
+    "bytes": 7126
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_target_models.py",
+    "sha256": "9b79b5f03c943f43b1ec87c2f710d5ff7be2fa04435a0976ee995b2b6a95f753",
+    "bytes": 856
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_target_ownership.py",
+    "sha256": "c1fa43beb9c386450f18e170e37f0bd56990a3b48e009f49b54ef4cd62a1e791",
+    "bytes": 5247
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_target_proofs.py",
+    "sha256": "c2bc0d2dc2ba5f3d76e91347c60c0f0d2948574831039f37c70aa013914896bc",
+    "bytes": 7461
+  },
+  {
+    "path": "python/nfi_backtest_engine/changed_target_workflow.py",
+    "sha256": "8637b1b3b6cc41af328db3eed151e10c833c6dfb258e7e992ffb965e5f5cf3d1",
+    "bytes": 3917
+  },
+  {
+    "path": "python/nfi_backtest_engine/clean.py",
+    "sha256": "6b8bf474b240d5e896a1d94f7d0a5063feba05a6348ed579c5a89cb50f114277",
+    "bytes": 33116
+  },
+  {
+    "path": "python/nfi_backtest_engine/clean_accounting.py",
+    "sha256": "f0764c74a181bb9e379f5c5762231a61621860eb339fd092ffd848075a68cb7e",
+    "bytes": 2375
+  },
+  {
+    "path": "python/nfi_backtest_engine/clean_apply.py",
+    "sha256": "fd5cf046d2aadb98cd62e2c8dbb088bec7547b12ff9ee811de425b7629c3f98c",
+    "bytes": 11750
+  },
+  {
+    "path": "python/nfi_backtest_engine/cleanroom_e2e.py",
+    "sha256": "9eecefacce09bc72cc9e03cc4308bb0eda91eddface5856bdc449db5fe030413",
+    "bytes": 8682
+  },
+  {
+    "path": "python/nfi_backtest_engine/cli.py",
+    "sha256": "276763a80c0749c1ff8572e4b282f60104c09eeccd04555a424048044901d47c",
+    "bytes": 74098
+  },
+  {
+    "path": "python/nfi_backtest_engine/combined_release.py",
+    "sha256": "fa297e94ea67092dd1403badf56464b246b30800a1c4c8d8e196c34a02c42e5d",
+    "bytes": 66369
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/__init__.py",
+    "sha256": "7c9e669dd3d939fabe14b5d868095bdf6d92c0f3053fa3e990736c0384149ec7",
+    "bytes": 83
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/certify.py",
+    "sha256": "d05ec7abfed2f586ddef37bb79ca022a3ff19e7139e061fe8f6e58aa58bbd396",
+    "bytes": 3239
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/clean.py",
+    "sha256": "fccde2eef4c5b453863b8187a643a1bc68c347f9a1e3181fd0718b7d26eb426f",
+    "bytes": 1224
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/fixture.py",
+    "sha256": "bee3580093066f0bff761136a9c0ca68c23b867a29eeb0dba5e9be46da8ae566",
+    "bytes": 9561
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/reference.py",
+    "sha256": "ffad42eff11b550b77cd9c3d85b0c39a6b1cc2c92c718175b1a507af77404d20",
+    "bytes": 9410
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/release.py",
+    "sha256": "0074e3330d211e06c40371aa45c349eda1a186f4bd423f4c4cae5df970f3f82b",
+    "bytes": 18956
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/report.py",
+    "sha256": "966e9ea365f2b6a98bd75e04ad961fad112303cfdb13eaccf375468d4997262e",
+    "bytes": 7812
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/run.py",
+    "sha256": "610e974c6476f31ffe73f9cf410b48a6013a7d71e0ccf7209431791804d4e32a",
+    "bytes": 36016
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/system.py",
+    "sha256": "4bf7756cd0374c1164bfbc9afcb8458bdd3444899970af9d7cd152bc749925fd",
+    "bytes": 5359
+  },
+  {
+    "path": "python/nfi_backtest_engine/commands/update.py",
+    "sha256": "5a5cd9c1ba487121e1a9ca41d922e2aa57d8625865994bd729b8bc7e934bef93",
+    "bytes": 4600
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_automation.py",
+    "sha256": "097501efb9ef1cdd79b65b471a46ac97abb8d2d69fef599762531f32538c819f",
+    "bytes": 482
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_automation_core.py",
+    "sha256": "e1db127b4fa94628507abd21f5d8990f664bbd5e8548f628bb872a25b65b931a",
+    "bytes": 7474
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_automation_validation.py",
+    "sha256": "c0386166bed349fb4b1a7c57546ff23e5be47eca2ba8c3743afa36e5d364f15b",
+    "bytes": 8444
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_candidate_plan.py",
+    "sha256": "af3b4f73c4f43e367d2d717ed6b03b2fb547ca0dcbbc8305e31ea5e595b4ee45",
+    "bytes": 5955
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_decision_proof.py",
+    "sha256": "73de21862b9ffb32f0a1bc89446c921cf8f48803020749f947b68991379a9e29",
+    "bytes": 2972
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_input_status.py",
+    "sha256": "3d7535007b80b705544e8c91a504bc35c425262cfcf911d67462d6fd0529d435",
+    "bytes": 2099
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_proof.py",
+    "sha256": "8121d4497861a2a67033a9d8201902d9196f4514095b4148794455edae26b5b0",
+    "bytes": 10043
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_qualification.py",
+    "sha256": "9b5678aef394212c990e6190ba3c8c1bcd1eff47a4177c02bea29adceed869b5",
+    "bytes": 3443
+  },
+  {
+    "path": "python/nfi_backtest_engine/compatibility_status.py",
+    "sha256": "eaf158c0750e0eb2bacb5c9c22945261506aebe03b8191e07125372765282dbc",
+    "bytes": 9295
+  },
+  {
+    "path": "python/nfi_backtest_engine/complete_semantic_trace.py",
+    "sha256": "5061875a7a2d40110b180d1cd09261d904bcbc324a540d1997060002f6f156e7",
+    "bytes": 14725
+  },
+  {
+    "path": "python/nfi_backtest_engine/config_loader.py",
+    "sha256": "7ff1d4a9bd4caae2e2565f7569377d6e58b4091c746d8bbc0152633a5578c95b",
+    "bytes": 14977
+  },
+  {
+    "path": "python/nfi_backtest_engine/confirmation.py",
+    "sha256": "d0a4d377905c43e05228cf4c4348005b0b867202759211c9dc273c5e9245cf84",
+    "bytes": 3096
+  },
+  {
+    "path": "python/nfi_backtest_engine/constructor_scalars.py",
+    "sha256": "2eaf9066214cf0007a3c654821bdfed30670f766ca6f13b1a501992da2efb50a",
+    "bytes": 3998
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/__init__.py",
+    "sha256": "b9e93ccfa231a7bf4a44b492663dea95c1a3d7e33df699cffe762c4284362263",
+    "bytes": 44
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-callback-order-contract-v1.json",
+    "sha256": "a2cd2bf7ea60b131885122a2b5a308ba64f610942ce3869fda08c6dc3a258576",
+    "bytes": 73959
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-execution-contract.json",
+    "sha256": "53faeb87230e7abcf103a0ada2f34bba5575c046dbdd8199d4cb419dcffc32ab",
+    "bytes": 3864
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-fill-competition-contract-v1.json",
+    "sha256": "9cfd04c8881c9c622604f9f3050187ed2ba115c1387856ea341d14df2669ae74",
+    "bytes": 108596
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-futures-contract.json",
+    "sha256": "696b4cc74ca0ed8a66689b45c1cbda2e92c9d6bbe3049794b28b3570e4fbf551",
+    "bytes": 4034
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-nfi-semantic-obligation-registry.manifest.json",
+    "sha256": "ea99bc8b7e30513f001be1734ef9310e9bd0c6c3b8a7ad5fa0b6fd4ff526c6e9",
+    "bytes": 922
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-portfolio-pressure-contract-v1.json",
+    "sha256": "8d83507e14f6fb5dbcd70133235e7e80360690055476e2bd82c8e67fc71ef0aa",
+    "bytes": 39183
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-scheduler-contract.json",
+    "sha256": "0a03b4cf158b8b355f547f1d331d3bebac90c511cab73d5f4b03b2db7704d7ba",
+    "bytes": 1186
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/freqtrade-semantic-profile.json",
+    "sha256": "c9bfe335fa317bdba337771d929cf01c39dbe2fccb86326a5a7271a320be234c",
+    "bytes": 5556
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/legacy-reference-runtimes-v1.json",
+    "sha256": "517087e091841c17d3e9403a56522e4640677dea1f1a8f00c5c5787ff9f4de9c",
+    "bytes": 1756
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/product-support-contract-v1.json",
+    "sha256": "c95fb4c23d36b59ee733361e4087bb82d0308c3f07e2a209fda14c00f5a22ed2",
+    "bytes": 2762
+  },
+  {
+    "path": "python/nfi_backtest_engine/contracts/regression-v1.1.0.json",
+    "sha256": "3f616e04cf14ade2fec95cda62ee19590a74533c0f74c829a8a1cd6d0bccd252",
+    "bytes": 30943
+  },
+  {
+    "path": "python/nfi_backtest_engine/current_head_predicate.py",
+    "sha256": "e101a549b7b29c9bb57751512165b6edb8698d2afc2877c4c488fe40d9e9d8a9",
+    "bytes": 7925
+  },
+  {
+    "path": "python/nfi_backtest_engine/current_head_qualification.py",
+    "sha256": "371eadd82128099ff999b3a11a8564dc0ef5e4ebe5d783593a79d0e30ed1f242",
+    "bytes": 12913
+  },
+  {
+    "path": "python/nfi_backtest_engine/current_x7_closure.py",
+    "sha256": "ff49323a071a83efbc3b38f1a73ec996381444cc7e4e95e1f7f7774d162eef15",
+    "bytes": 12516
+  },
+  {
+    "path": "python/nfi_backtest_engine/data_seal.py",
+    "sha256": "c164767fda4a1b90519ec2e32e183f81489f0c80ba599ba3ad9d9720592a6bd7",
+    "bytes": 44111
+  },
+  {
+    "path": "python/nfi_backtest_engine/discovery_publication.py",
+    "sha256": "0e34ca79e65d4b3a012036dd3ec3d35d161a24e51e55cca2a203893e3db98079",
+    "bytes": 16592
+  },
+  {
+    "path": "python/nfi_backtest_engine/docker_environment.py",
+    "sha256": "a4a8991ac24ff5ddd97b609db2eb8db02cb39d7393c955155c7edec7f16e226e",
+    "bytes": 898
+  },
+  {
+    "path": "python/nfi_backtest_engine/docker_resources.py",
+    "sha256": "bd5d45c8c5dcef1589a3ada885ac0c083b4d39d9c49bddd797fba56829c36888",
+    "bytes": 11608
+  },
+  {
+    "path": "python/nfi_backtest_engine/docker_runtime.py",
+    "sha256": "4c0018ade8cc0b313ef0d8e4f2830e057c79890d9215bb11077e3d41a1b9ef50",
+    "bytes": 19507
+  },
+  {
+    "path": "python/nfi_backtest_engine/doctor.py",
+    "sha256": "2416ec5248accc04ed9c58b51c83fbfef202d73514111630b49db0892fedb20a",
+    "bytes": 7127
+  },
+  {
+    "path": "python/nfi_backtest_engine/engine_runtime.py",
+    "sha256": "791810b2b24d1e6022d75e94415aee735f1b96604087bf5187431821ef46880d",
+    "bytes": 25404
+  },
+  {
+    "path": "python/nfi_backtest_engine/errors.py",
+    "sha256": "030be1e43d623daada02b7efa48b147726db329149c8bda0a9862c3fcc1dbdcd",
+    "bytes": 2555
+  },
+  {
+    "path": "python/nfi_backtest_engine/evidence_bundle.py",
+    "sha256": "b73cdf9a8650afb73d863ceef3cca5798738182092341ce6f95e7a820af0afa5",
+    "bytes": 16033
+  },
+  {
+    "path": "python/nfi_backtest_engine/executable_callback_compiler.py",
+    "sha256": "1f12cb57853ca18b901091aa73a2e87b1f979e522ae367854617272ab1ee3d2c",
+    "bytes": 15794
+  },
+  {
+    "path": "python/nfi_backtest_engine/executable_callback_expressions.py",
+    "sha256": "be84adb3198f0a9e132dbe43847056a5ab04291f0f160c0e3159c1f61535291d",
+    "bytes": 11395
+  },
+  {
+    "path": "python/nfi_backtest_engine/executable_callback_program.py",
+    "sha256": "b554f8490a304004919fa45eacb244554c30fb4eab737bcd0844a775787480e0",
+    "bytes": 7433
+  },
+  {
+    "path": "python/nfi_backtest_engine/executable_callback_validation.py",
+    "sha256": "ffca9ed4854be9342bca8609ba77b5af4c4f6cafe88aac6733f6a4f44fb0f710",
+    "bytes": 13793
+  },
+  {
+    "path": "python/nfi_backtest_engine/execution_boundary_trace.py",
+    "sha256": "4fd5efad3311bd8335ccab71b2ad495a1ec5cc55f9e973033d9040181b8e72ba",
+    "bytes": 4733
+  },
+  {
+    "path": "python/nfi_backtest_engine/execution_contract.py",
+    "sha256": "129b4e662a745aa1ff8828f5b3973edd6a9ecf7ffc7fc28a0f5137ca5324e8c3",
+    "bytes": 7694
+  },
+  {
+    "path": "python/nfi_backtest_engine/execution_event_adapter.py",
+    "sha256": "6a44581421f204f2e70554907677c61eb5473474a7ee7d03940ba13ef98e7929",
+    "bytes": 1453
+  },
+  {
+    "path": "python/nfi_backtest_engine/execution_platform.py",
+    "sha256": "7444a710179e796dcc50c4eb6d0c4591a204fee6cb273dcf77a10f64eec5555e",
+    "bytes": 1800
+  },
+  {
+    "path": "python/nfi_backtest_engine/execution_semantic_registry.py",
+    "sha256": "606ec9d6516abf9b01de85a67149a6ca25d35312d0bdd4664064962db0677008",
+    "bytes": 8265
+  },
+  {
+    "path": "python/nfi_backtest_engine/execution_trace.py",
+    "sha256": "99fb2804d3b8ad80e774c6a9284c3740f77d29fcb88cf2b877686f58514c592a",
+    "bytes": 10986
+  },
+  {
+    "path": "python/nfi_backtest_engine/fixture.py",
+    "sha256": "1b84322d72b4af34989910786a9ae938c29f43132595b2de07b182f58850855a",
+    "bytes": 17486
+  },
+  {
+    "path": "python/nfi_backtest_engine/fixture_capture.py",
+    "sha256": "bfa3648b9b96876618f222dc637e53d73911c404e007a5f4b1256ca00071cbfd",
+    "bytes": 11514
+  },
+  {
+    "path": "python/nfi_backtest_engine/fixture_engine.py",
+    "sha256": "fc893bcaf61fdb82002e2f27f85bd8b6a622a77e57d126eebe7bb7e65d81fd7b",
+    "bytes": 44851
+  },
+  {
+    "path": "python/nfi_backtest_engine/freqtrade_semantic_profile.py",
+    "sha256": "4557b65a57e40a639d44e86cdd24b6634becf7d28d7233c94d46dfe8909ef51a",
+    "bytes": 6962
+  },
+  {
+    "path": "python/nfi_backtest_engine/full_native_calibration.py",
+    "sha256": "d675ecfb3ddcf082160221f35911be7f39c00985a30497daf34350c4b60995b3",
+    "bytes": 9873
+  },
+  {
+    "path": "python/nfi_backtest_engine/full_vector_runtime.py",
+    "sha256": "df566c1078a4eab2b211ec2cb57cbde0dc6b74a8e8bac4c3bf1ce7ed7dffb564",
+    "bytes": 22244
+  },
+  {
+    "path": "python/nfi_backtest_engine/full_x7_certification.py",
+    "sha256": "648a635ce84c20ebe1c989ea33ca0a477e03924ca07824ef7c550ade0802bafb",
+    "bytes": 19895
+  },
+  {
+    "path": "python/nfi_backtest_engine/full_x7_resume.py",
+    "sha256": "3c85475d9df30c61ea5b0dd3c736892c983b41ef0cefa55c5834c81ce0203ee2",
+    "bytes": 28046
+  },
+  {
+    "path": "python/nfi_backtest_engine/futures_contract.py",
+    "sha256": "31ca379b8135c157866ce1e3dcb2b022c164429f067eeb5291b6ed70a2dde793",
+    "bytes": 8550
+  },
+  {
+    "path": "python/nfi_backtest_engine/futures_discovery.py",
+    "sha256": "cbb3ea8f3d700efc33cbab9dee08fc0f89e56f0f9b71973732f17cb03369ca8a",
+    "bytes": 34072
+  },
+  {
+    "path": "python/nfi_backtest_engine/futures_discovery_runtime.py",
+    "sha256": "fc4d026a2be8da1ed1dd05760382edd4bf1c8e7f2a4ad6add6464e9b900ef154",
+    "bytes": 44701
+  },
+  {
+    "path": "python/nfi_backtest_engine/generic_adapter.py",
+    "sha256": "2a4031a450e58c5659bbbba7a6974c7519b2ab3a7b1df2d4dcad8a15b8c7802e",
+    "bytes": 36434
+  },
+  {
+    "path": "python/nfi_backtest_engine/hardware.py",
+    "sha256": "5440d78561b47d2fdc2a4433e151c4f45428ea6fac9b8225bccc802f634258e1",
+    "bytes": 15091
+  },
+  {
+    "path": "python/nfi_backtest_engine/hash_index.py",
+    "sha256": "3a95eeb2d0c50e209b62bd308e0a5cffcd68fca2331b115411420a854c17eaea",
+    "bytes": 1860
+  },
+  {
+    "path": "python/nfi_backtest_engine/hot_ir.py",
+    "sha256": "e28b10c1bfd689944030453c2121da27ed3b546f594057ec0891808e88ada68d",
+    "bytes": 5993
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_columns.py",
+    "sha256": "77348047739143ffcf575e32cc0d20ab4259d5a38b2fb1bd94ebea2790b715f8",
+    "bytes": 3344
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_arguments.py",
+    "sha256": "1955ad7eefc36219840abd9b96e2b9f1e300cfb3bc398da29b41145503ad4e6b",
+    "bytes": 3788
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_arrays.py",
+    "sha256": "ae0a373c0de69da5c637801116910b3b4e5228359796589b00a1feb367764cb1",
+    "bytes": 10411
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_bindings.py",
+    "sha256": "f174b0ee9a48aa337b5459bd023cfb700543b28f9fbaa7bc284f7504360c1155",
+    "bytes": 9426
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_calls.py",
+    "sha256": "814458bf6d3c029a126ab572b01860715eda3df64970195040cff312486864f8",
+    "bytes": 9779
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_core.py",
+    "sha256": "58a7cd9098f7415f8cf8201caa510a98a9d155842ef4659cef9332ccba853629",
+    "bytes": 6823
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_dataframes.py",
+    "sha256": "a6d97fd83583d3101f8414f93444dba78bfad692000b31f7541f04f63f86172e",
+    "bytes": 10357
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_emission.py",
+    "sha256": "65c6688cdba5111ce5bee22ddec57f77f5b00597a891bbbb84ace6a587eeda85",
+    "bytes": 3289
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_expressions.py",
+    "sha256": "b99aeb2822f4af8bf7e686fbae611e7871e5fbfacf707ab3c140b7fdf6017654",
+    "bytes": 7333
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_indicators.py",
+    "sha256": "a4987db9e696fc38bbf48a56aa7105240c8064cd58f8c75a1ae0e2cace386083",
+    "bytes": 3863
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_informative.py",
+    "sha256": "697b55b776d68a040a8d2815435b53f1fb1186c20ab9054da47c08989cc45121",
+    "bytes": 8674
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_normalizers.py",
+    "sha256": "d00e5b5d0c30e7c111b39a1228d2c11ba1d8c8c2d4a6b4e85731df3a71af5838",
+    "bytes": 7989
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_operators.py",
+    "sha256": "5373278f7a55979288ef969e3c965bf5b8eb79c676876f79c10c6ba9214e2d9d",
+    "bytes": 5851
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_patterns.py",
+    "sha256": "50a4cae83061b818cd4d9f7c6f6fab34bf4157e73955b22ca9aaf339993dab55",
+    "bytes": 9825
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_protocol.py",
+    "sha256": "678e4e64ea5b835e7469a535431d9eb01aede950511967eb1d866d6df1ddf6a0",
+    "bytes": 6540
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_reducers.py",
+    "sha256": "055e1884b48244bb03818c0cff833f5903a66614a22b728cb5038bba3119ee5a",
+    "bytes": 3654
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_signal_patterns.py",
+    "sha256": "8a909fb9a1bc8c08f3a52a7520cd21323d9cc8ba9f0af512ae0c3ffc645a441f",
+    "bytes": 6460
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_statements.py",
+    "sha256": "759eed446d604306405e511efe5fa1122b346291c973118aae691e8e088b41f5",
+    "bytes": 5898
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_static_values.py",
+    "sha256": "671657fc4d0e1eed0c872c03552d86f2bd4451d703c869474f0e42fbec1cafea",
+    "bytes": 10956
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_compiler_windows.py",
+    "sha256": "f469c97e6372381b72d0ed9623b669d28140aaf67b51cdbf0d8312d6a390cdcc",
+    "bytes": 8147
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_inventory.py",
+    "sha256": "e9a78d396b8ea4ed205c65d8e2cb97c729bd6942718ddc5cef87cc34c92fb8e4",
+    "bytes": 35772
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_kernel_fixture.py",
+    "sha256": "85278fdc95a2fe3ceeafb92c3082476ff74110a7c58024c4cb5d3aa783ffdbdf",
+    "bytes": 11429
+  },
+  {
+    "path": "python/nfi_backtest_engine/indicator_program.py",
+    "sha256": "508bac460832bbb941b2ed45b64df539452b15c59980d11d8bac0260f7c0f6d4",
+    "bytes": 9764
+  },
+  {
+    "path": "python/nfi_backtest_engine/informative_fixture.py",
+    "sha256": "5174bd8959b346e91e37c9075f545fd25ebf44c62613d1f7ef53c77afa9b6ec8",
+    "bytes": 17859
+  },
+  {
+    "path": "python/nfi_backtest_engine/initialization_parameters.py",
+    "sha256": "58667a0bf8fff8f582eb18722af96447252b705530260de6a3735d2a459cd152",
+    "bytes": 6240
+  },
+  {
+    "path": "python/nfi_backtest_engine/latest_signal47_fixture.py",
+    "sha256": "5a8534b1559cf12d05fa96f4de2e73cdb446a0d9e2e18a7a1e064336b49b38d3",
+    "bytes": 12869
+  },
+  {
+    "path": "python/nfi_backtest_engine/legacy_reference.py",
+    "sha256": "a7fc4f2bbfcdc93124da75629f7084bd8c0b73ddc2226f891d76494ddbba5d85",
+    "bytes": 16022
+  },
+  {
+    "path": "python/nfi_backtest_engine/market_precision.py",
+    "sha256": "4ad0c10fe71013e2e334ff2c35ccc790a20cd6bf632698ab831404c04097fca6",
+    "bytes": 3846
+  },
+  {
+    "path": "python/nfi_backtest_engine/market_snapshot.py",
+    "sha256": "471b223df29502566f0c7a80070f57dea2e669dd04748d1347f242130942b1b9",
+    "bytes": 16305
+  },
+  {
+    "path": "python/nfi_backtest_engine/mismatch_replay.py",
+    "sha256": "3edef6d5f9c4f9b7fed80c326cd6b649fe73aed50c657299cb8a87ffd22d9140",
+    "bytes": 8466
+  },
+  {
+    "path": "python/nfi_backtest_engine/native_runtime_benchmark.py",
+    "sha256": "3a56f3d18e626c2c9c2d6d8f55abc8c58a4e2b5d145599848baa0630149af790",
+    "bytes": 19338
+  },
+  {
+    "path": "python/nfi_backtest_engine/native_score_certification_domains.py",
+    "sha256": "3beb73a7989d56764e280f9e44529eeab9e4d3f1da36c99317cf9fdf0ac9fee7",
+    "bytes": 21541
+  },
+  {
+    "path": "python/nfi_backtest_engine/native_score_domain_identity.py",
+    "sha256": "fe5e38113f2d4af6fd3afdd07faa9d62a42e24c4a49c1f3cc8b9a1796acb06cb",
+    "bytes": 5868
+  },
+  {
+    "path": "python/nfi_backtest_engine/native_score_domains.py",
+    "sha256": "b85d7783d2cbf57f8a6c54a1dddaf0da4388e6ceb531593c13e79b7ff735f2d6",
+    "bytes": 9630
+  },
+  {
+    "path": "python/nfi_backtest_engine/native_scorecard.py",
+    "sha256": "bfe517a07eb11de17344b2823e5aa4477f0245f7c8ebfad88eb9c758aa3602c9",
+    "bytes": 73999
+  },
+  {
+    "path": "python/nfi_backtest_engine/nfi_trade_manager.py",
+    "sha256": "53c56ffa9fde27fe862293cafc1e58b98b9bc6309d32010871ad1572b7bdba9e",
+    "bytes": 689
+  },
+  {
+    "path": "python/nfi_backtest_engine/normalize.py",
+    "sha256": "ba5b34d8e5db9600efae5623d6dc389a6b59251007b7812c117d92c5b74505b9",
+    "bytes": 17998
+  },
+  {
+    "path": "python/nfi_backtest_engine/object_storage.py",
+    "sha256": "91badb4b125fde84fc8877586d6cb0ab81bdd54656a5f03929f99bc93df87e4d",
+    "bytes": 5968
+  },
+  {
+    "path": "python/nfi_backtest_engine/pair_selection.py",
+    "sha256": "acd51961516b443c98913e604f9eaf78e282f0f201f6c200301b55c4f3c8228b",
+    "bytes": 7363
+  },
+  {
+    "path": "python/nfi_backtest_engine/parity.py",
+    "sha256": "26e64ccddd56468d451e45a9d9913d21b23ae06eca52a06afc188fcddbd8f675",
+    "bytes": 3374
+  },
+  {
+    "path": "python/nfi_backtest_engine/performance_gate.py",
+    "sha256": "c740ed51e250d6403f823a2f22492c721c47b7b568bebf43c7d324295edf0272",
+    "bytes": 19479
+  },
+  {
+    "path": "python/nfi_backtest_engine/platform_benchmark.py",
+    "sha256": "03e992d2c0216cdd639d393745147e2241ac879abaf7fdd988a7a7f3486fb811",
+    "bytes": 35970
+  },
+  {
+    "path": "python/nfi_backtest_engine/portable_paths.py",
+    "sha256": "bdaf1220cb7ea8c03752792a2043ef1723a179804cfefb6f3f58ba94eb4c1334",
+    "bytes": 5824
+  },
+  {
+    "path": "python/nfi_backtest_engine/portfolio_event_adapter.py",
+    "sha256": "d1a312805a4238449bbb9b3ecd176bd49e1aded91801fbe7e3c323035b78304e",
+    "bytes": 4109
+  },
+  {
+    "path": "python/nfi_backtest_engine/portfolio_official_projection.py",
+    "sha256": "adb23ed7847de7cba2fa9b7c6f3726214d9f33ca4a79d6c10a995165b67e72de",
+    "bytes": 20462
+  },
+  {
+    "path": "python/nfi_backtest_engine/portfolio_semantic_registry.py",
+    "sha256": "da821f9a040abc3aca62b228046fb5b1454934fe01c69ebf6b363badb6e7c772",
+    "bytes": 5775
+  },
+  {
+    "path": "python/nfi_backtest_engine/portfolio_trace.py",
+    "sha256": "59fa76bd1b14c159017cbe7106f32467e0681f2a62e82a73f3bc54cf50588a46",
+    "bytes": 17224
+  },
+  {
+    "path": "python/nfi_backtest_engine/probe_capture.py",
+    "sha256": "be05249c49f23db2b3afe7db99ea6cafb0717e89089d308cee47ae6f926d27da",
+    "bytes": 26716
+  },
+  {
+    "path": "python/nfi_backtest_engine/probe_strategy.py",
+    "sha256": "3719c0bdba663ed1166aa95a3ff613e5feaba9ec827bb6c992138c2b8bfc55f5",
+    "bytes": 15225
+  },
+  {
+    "path": "python/nfi_backtest_engine/probe_vector.py",
+    "sha256": "809e5722a889ea7091f0d2d80f4be4e2fd30b6daf05eb8a64f06e69059fbcacb",
+    "bytes": 3945
+  },
+  {
+    "path": "python/nfi_backtest_engine/product_contract.py",
+    "sha256": "e46a410ad9da58fcfcf65742391343e31b091115eeed2991438985c1573e3e3e",
+    "bytes": 1734
+  },
+  {
+    "path": "python/nfi_backtest_engine/product_support_contract.py",
+    "sha256": "8b0855f7fba9e47b01f090346fce7d6ec98392875dd14fc558b8c4e5d3f6d36a",
+    "bytes": 7111
+  },
+  {
+    "path": "python/nfi_backtest_engine/profiling.py",
+    "sha256": "2c9de22f6fe06718ca6fd31207c69c42532a368a0c51e477e983c64702a6f640",
+    "bytes": 5257
+  },
+  {
+    "path": "python/nfi_backtest_engine/project_config.py",
+    "sha256": "05ba374aab553f7b5cf0d726a33b643cbb40572e797fad8fb198209f7f6c5ed6",
+    "bytes": 11260
+  },
+  {
+    "path": "python/nfi_backtest_engine/project_setup.py",
+    "sha256": "0263f8bffdf7600198b51f29fcf728de02d9e76404181e7a5008d0de6a2ab1a5",
+    "bytes": 544
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference/__init__.py",
+    "sha256": "52ced6a71ffdcf7e33b7c62fe6def809b9913c02d5a4164d54f1413ffe78471b",
+    "bytes": 51
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference/contracts.py",
+    "sha256": "bcb0577f17f87e1f655874d7049c5f023f8920e00c2064c26227e83501e32bc1",
+    "bytes": 4454
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference/dependency_seal.py",
+    "sha256": "39a619676afbcab856370c5092373518d8868f23f2f9f26dba7086134289d4ad",
+    "bytes": 4979
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference/execution.py",
+    "sha256": "281f479d8368669fdc197456b202246b5bda24ff2bf61154d9996545552a1473",
+    "bytes": 27139
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference/storage.py",
+    "sha256": "d197812f3e7e5516afbf2d6a14db3003a2f16fc4441c694e49d1bda1acd1217e",
+    "bytes": 4148
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference/trace.py",
+    "sha256": "002cc318db8c4d1d646355deea09db59e884756474f5c76111f40fc044f57418",
+    "bytes": 905
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference_assets.py",
+    "sha256": "85601079149558451ff47b0b9770f070a55512283ccb88621947f991e12d5f95",
+    "bytes": 1159
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference_runtime.py",
+    "sha256": "6171c24b4b083d9eb896d0c22a6d27611da74c167071e9fd77ad0315460eb570",
+    "bytes": 18217
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference_tracer/__init__.py",
+    "sha256": "f57f562a2da4b99b54dc2636238b3b6b98cf97d83a861c447c460cf2637533e2",
+    "bytes": 75
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference_tracer/nfi_reference_storage.py",
+    "sha256": "94075eac61fd74ae46abe9e1ecd6b9ad06af64b5b3ec612b50581c441e826bd3",
+    "bytes": 25653
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference_tracer/nfi_reference_trace.py",
+    "sha256": "b2281ce34eda34848a7217fc4f850f4af9f852a82fe074229cddf2a1439e8afe",
+    "bytes": 46513
+  },
+  {
+    "path": "python/nfi_backtest_engine/reference_tracer/sitecustomize.py",
+    "sha256": "67f2a604a8c8aa848484280790ab72c02d1bbf508e199ff94d1ca49fb215e99f",
+    "bytes": 515
+  },
+  {
+    "path": "python/nfi_backtest_engine/regression_contract.py",
+    "sha256": "41d6ea2b497f3d299e1d4e24c5e29ed99ceab94364c226bf5503cea2dc44343e",
+    "bytes": 18904
+  },
+  {
+    "path": "python/nfi_backtest_engine/release_audit.py",
+    "sha256": "df11caad3a8f4566c14ed33a316074d0d2e5df6f24e9ec64b57736b181cfcea1",
+    "bytes": 11989
+  },
+  {
+    "path": "python/nfi_backtest_engine/release_contract.py",
+    "sha256": "42710352f860a318226b0535acec067bf162cc9cef622c84665c416bb6382f9a",
+    "bytes": 10923
+  },
+  {
+    "path": "python/nfi_backtest_engine/release_gate.py",
+    "sha256": "80ca9fb98bd50ebbd6e03fbe19500a0156bab1024588bf0d270e55a667f9d74f",
+    "bytes": 33504
+  },
+  {
+    "path": "python/nfi_backtest_engine/release_inputs.py",
+    "sha256": "3db92157d6eae6a741d41236432b45f5acfb43ee1d8238bd979836d8242b35b0",
+    "bytes": 44919
+  },
+  {
+    "path": "python/nfi_backtest_engine/release_provenance.py",
+    "sha256": "24b21a535d84d81aff18231891a24a4b8eddaa1e881dea39ff3d34194c0a3fe9",
+    "bytes": 51575
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/__init__.py",
+    "sha256": "09e4639724f8ef2617aab220748a17dd0f3ed4e8311ee17f5182745dcf0cce4b",
+    "bytes": 52
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/artifacts.py",
+    "sha256": "efe84790a03cce974cfd08ee3ba8e0cd272f4eb3589fd5291cd1aaf69f8e3f6a",
+    "bytes": 8933
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/contracts.py",
+    "sha256": "7973a927872353e52f31e6b5ab4cea6f33a3fcc4c221d1835a6089cea9231fc0",
+    "bytes": 2180
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/csv_export.py",
+    "sha256": "ae9851d0c77e5fb1da569a703d7d6bdbbea7933eef18db5fc4587e4476448fc6",
+    "bytes": 8518
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/markdown_render.py",
+    "sha256": "ef42c732a8b131ef0e1c3d79126ced03413a56e24cea7061e4b00456e0711e30",
+    "bytes": 21048
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/model.py",
+    "sha256": "eb9c245fa4af963bdf215c01ba1aacb954a7337ff4ef0f192190fcd58fc4b88b",
+    "bytes": 7353
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/tags.py",
+    "sha256": "34fdd6b25c0c009fe91ed5477284c5a11425a61d80c3179522603668418ea62f",
+    "bytes": 7250
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/terminal.py",
+    "sha256": "13b2c25a0c4b13b41c2e37f340c5d7cc4a920e640b889b249561dec80eebb3f7",
+    "bytes": 27841
+  },
+  {
+    "path": "python/nfi_backtest_engine/reporting/values.py",
+    "sha256": "ba9aeb7a958e5276649d5ba4f24a104b66f371fd5580074e78a2bf92aae53061",
+    "bytes": 7305
+  },
+  {
+    "path": "python/nfi_backtest_engine/research_reference.py",
+    "sha256": "3f6d95aa1837dc00b6618ad0f328c70962b769b0a591dc067192a5ade5723d84",
+    "bytes": 42832
+  },
+  {
+    "path": "python/nfi_backtest_engine/research_runner.py",
+    "sha256": "dbaec4bb3f1740173bc52f57b75f79eb4356b13ae62bac8114e7fa1944708fc4",
+    "bytes": 65162
+  },
+  {
+    "path": "python/nfi_backtest_engine/resource_usage.py",
+    "sha256": "4de4eefc625ebd3456dedffdd4aab12560266ae0862acbbf8399f456767aafea",
+    "bytes": 2432
+  },
+  {
+    "path": "python/nfi_backtest_engine/result_report.py",
+    "sha256": "b05a8d052226ddba3422a997f99bafbf27ccdb2eabcde568433e50515f334d9b",
+    "bytes": 6895
+  },
+  {
+    "path": "python/nfi_backtest_engine/result_summary.py",
+    "sha256": "8e6ba04c600989bf7881e371612e71fc37f8991ef9518df802b827f87bca2f90",
+    "bytes": 36744
+  },
+  {
+    "path": "python/nfi_backtest_engine/run_registry.py",
+    "sha256": "fa4209fc30df259f69eb97c1bb1288d32cdeb2a86fad0461ad0523928bb112bc",
+    "bytes": 8427
+  },
+  {
+    "path": "python/nfi_backtest_engine/runtime_versions.py",
+    "sha256": "7c842650ae3201506a5afaa9a99edac93cbf7d32d2970b6c49f0e580021e6b4e",
+    "bytes": 514
+  },
+  {
+    "path": "python/nfi_backtest_engine/scheduler_contract.py",
+    "sha256": "f11bf4fd5600988a08d7674ed3bea8fbdaa6ad1e3a6d52013f6ae0ae18ac9c2d",
+    "bytes": 4112
+  },
+  {
+    "path": "python/nfi_backtest_engine/scheduler_verification.py",
+    "sha256": "f3640fcd3f7f2014e56279249953d1eb127089d94dcf22270a86191adeebb056",
+    "bytes": 5886
+  },
+  {
+    "path": "python/nfi_backtest_engine/schemas/__init__.py",
+    "sha256": "06212648cf4047bbb860bfa84ed83188d724804ec9f793eb8659c9187f355417",
+    "bytes": 38
+  },
+  {
+    "path": "python/nfi_backtest_engine/selected_result.py",
+    "sha256": "5a4b0047cb56382339117b37643333e3abda18483d024e14a11ed09d259228a6",
+    "bytes": 14077
+  },
+  {
+    "path": "python/nfi_backtest_engine/semantic_inventory.py",
+    "sha256": "6e6c9b682534037b6ef67b4c580277b9119d98709dc603f28ce59abcb83c789a",
+    "bytes": 32222
+  },
+  {
+    "path": "python/nfi_backtest_engine/semantic_observer.py",
+    "sha256": "9fc193c39d5261b5a82bdd7173fde02c84e9a086e7fa5254ccc8bcb1f56ee970",
+    "bytes": 9387
+  },
+  {
+    "path": "python/nfi_backtest_engine/semantic_registry.py",
+    "sha256": "2ca18e27062e007bbfdd8d4e114da5c11fafe6b305a28f8a587a476063d7f94f",
+    "bytes": 152360
+  },
+  {
+    "path": "python/nfi_backtest_engine/semantic_registry_callback_contract.py",
+    "sha256": "724b024b051811de6c4e585c2cf6549758490b997030f29c2c696ad6c47e8fd8",
+    "bytes": 3891
+  },
+  {
+    "path": "python/nfi_backtest_engine/semantic_registry_callback_data.py",
+    "sha256": "9b05dcd97921e4771cf222b47428576ed33a958a4b553d1cae4471edff1bd86d",
+    "bytes": 8348
+  },
+  {
+    "path": "python/nfi_backtest_engine/semantic_registry_validation.py",
+    "sha256": "c4a24324f917696ff286ca4921f5f6f344ea5d781a0411d23f5d957292613e73",
+    "bytes": 3985
+  },
+  {
+    "path": "python/nfi_backtest_engine/setup_wizard.py",
+    "sha256": "89012d0a0c24141be6b98cfd8317f108f390ba2634aeb2ba524354f4d335da23",
+    "bytes": 27264
+  },
+  {
+    "path": "python/nfi_backtest_engine/signal_fixture.py",
+    "sha256": "231208349b8de7a529dc0d8fc66c485e13d9a783639fbac7d595ea4d6da6aefe",
+    "bytes": 8713
+  },
+  {
+    "path": "python/nfi_backtest_engine/signal_program/__init__.py",
+    "sha256": "0a364a898756f483038028fb907018a7da9fefd827d213a57cebb6db16eab3df",
+    "bytes": 508
+  },
+  {
+    "path": "python/nfi_backtest_engine/signal_program/compiler.py",
+    "sha256": "e7587688e47daadd4e26776e7943f9f11d85752d3de637e8c7221bec5880df78",
+    "bytes": 16335
+  },
+  {
+    "path": "python/nfi_backtest_engine/signal_program/runtime.py",
+    "sha256": "85565fed6ff5ffdcdae124f38a8803af90569bb00c66f677fa5ca8a1e92490a0",
+    "bytes": 14322
+  },
+  {
+    "path": "python/nfi_backtest_engine/signal_program/validation.py",
+    "sha256": "e97e47f8534f1805a2089a0ad63620ff45e7de256a11b11836972b6c8edb05ad",
+    "bytes": 9932
+  },
+  {
+    "path": "python/nfi_backtest_engine/slot_settings.py",
+    "sha256": "11c9230988abbcc1e68ed80cb6a246aa720e54daa9f32f82d4f6e9249ff8f023",
+    "bytes": 1071
+  },
+  {
+    "path": "python/nfi_backtest_engine/source_configuration.py",
+    "sha256": "989b85e4aebe3f42417d9fafd80b06fb622371bcc5de1377f47a9c7d798d8b66",
+    "bytes": 15485
+  },
+  {
+    "path": "python/nfi_backtest_engine/specs.py",
+    "sha256": "263a2830dac85a73c0862d60e91a4375e1dc452621ca762871cf3ab90708fd67",
+    "bytes": 16064
+  },
+  {
+    "path": "python/nfi_backtest_engine/sqlite_admission.py",
+    "sha256": "36480d25777d136b737fa43aaa3a56f81613bcaece6f9a925f1435708e6bff47",
+    "bytes": 8192
+  },
+  {
+    "path": "python/nfi_backtest_engine/sqlite_publication.py",
+    "sha256": "3a4423d2c5efbb09ead49b4c61bb1346fe9b0f4feb7a19c0e9ea16fb3e7d3c1e",
+    "bytes": 5868
+  },
+  {
+    "path": "python/nfi_backtest_engine/sqlite_wal.py",
+    "sha256": "d8bf557a5a320b889a0ceff851dd3e22cdb466f2f1bcbf9075162a65ac0f0d6d",
+    "bytes": 6472
+  },
+  {
+    "path": "python/nfi_backtest_engine/state_machine_ir.py",
+    "sha256": "5a3d1cc59340f3b1be0cbd90a17d22254e6f4234fba4587345bf6fa3a9bd86b3",
+    "bytes": 32092
+  },
+  {
+    "path": "python/nfi_backtest_engine/state_machine_shadow.py",
+    "sha256": "a50b6903a79bd6e68cac324b3daf39cec7dd1d56cb82cfd85cab15be92ef5d67",
+    "bytes": 8773
+  },
+  {
+    "path": "python/nfi_backtest_engine/state_trace.py",
+    "sha256": "399598b111dcfb82cc1cf42888043886fee9b2859a2443ef75dffb0fe631b7ce",
+    "bytes": 24696
+  },
+  {
+    "path": "python/nfi_backtest_engine/stateful_coverage.py",
+    "sha256": "ea112169d49fd8aa1df895ac2310c7dc8bd4d798ba0d456a7599db77a1765c8d",
+    "bytes": 9650
+  },
+  {
+    "path": "python/nfi_backtest_engine/stateful_coverage_contracts.py",
+    "sha256": "444f150aea446181d13f728097707727714ec37caad550d6665712a4287de095",
+    "bytes": 11969
+  },
+  {
+    "path": "python/nfi_backtest_engine/stateful_coverage_source.py",
+    "sha256": "ff94c9d754b1881ddf61ba676ac7f02012fb078ac0ea5ba279c6ff0f9809fb72",
+    "bytes": 15373
+  },
+  {
+    "path": "python/nfi_backtest_engine/stateful_execution_policy.py",
+    "sha256": "616155a2f7574ff3614492fb779759881ec71dcfcc7e82df69f1d0d5304be7b3",
+    "bytes": 9211
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/__init__.py",
+    "sha256": "60fc3c660bfdec3a8b95753f3552381c2a8fb10e0fbe5de662cc569349fbcce8",
+    "bytes": 580
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/diagnostics.py",
+    "sha256": "f8b017cbcc76d7d475ceb355280a4e82ecc693998076f2a3ff6aa2d7c28a0862",
+    "bytes": 5661
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/entries.py",
+    "sha256": "662bb012b35236184e4d15e2ecd259d2e50e27f5c8f8787e578191b6dee0fa07",
+    "bytes": 741
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/exits.py",
+    "sha256": "3c30dbc70011cc63dd90a8041a5ae7babf724a94e5e00450d1a2fc77172d7f29",
+    "bytes": 941
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/expressions.py",
+    "sha256": "693cfd757115846baf59f285bb27b3c163f89f7dbcfd0d4a01d259e06d37e99d",
+    "bytes": 5470
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/identity.py",
+    "sha256": "d6767b475c9e8bda0a96c8da77beed80e20f13d7b8055294a2253dca627752af",
+    "bytes": 3576
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/inventory.py",
+    "sha256": "1ee0194cb0371d47749f93ba7d931167d29c23913ae0204f8374d13f17d998cb",
+    "bytes": 9834
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/leverage.py",
+    "sha256": "783709bc7d2a7e5adb869b24945efbf3f26424236ce8ba3fb700fdae74d3a2d9",
+    "bytes": 387
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/position_adjustment.py",
+    "sha256": "2bb7758c0f86a8dfaeacf89280d2624b0c6b25e7b9d3d7649be0840b996ecea9",
+    "bytes": 1252
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy/protections.py",
+    "sha256": "908b77c706672958863a68631f8f11275787118261629b716a7b494ceda8fe90",
+    "bytes": 1332
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_catalog.py",
+    "sha256": "0769034570ceead720ea1dcc88891746569800941fd9eaf7dd23201e1d55b63a",
+    "bytes": 6964
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_compat.py",
+    "sha256": "778b1e7e2d42f5b3a4a4996a98cb59088713fea4f8d7503d3cf03a2b77abe7d7",
+    "bytes": 8222
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_compatibility.py",
+    "sha256": "d7ed626b8bb83b664825c2cf4e76ed9a2004f3f81d176e9edf219766bb83ad3b",
+    "bytes": 7482
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_diff.py",
+    "sha256": "093f83f4490435a3aa51621c7f05ed4694bb38fbee71066389f96be7eb1a7d33",
+    "bytes": 4114
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_diff_features.py",
+    "sha256": "86f58e3e00629377a30f3f5546eda6841d4165e1efc016cfc8cfd4e1b222502d",
+    "bytes": 7407
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_diff_inventory.py",
+    "sha256": "0cda90d13884944940fe3b768ee68ffa6dfd28ddb7c63309e941fc3350014a62",
+    "bytes": 6122
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_diff_reachability.py",
+    "sha256": "cf915ef3167bee405797b9cbf0ef12583f216d2d5dc2698dc21ac0b96457f31a",
+    "bytes": 2435
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_diff_targets.py",
+    "sha256": "43cb3468a920d950ce54fd57cf48e671fd3b7c9080ba2e7d266b7c462381f2fa",
+    "bytes": 7307
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_ir.py",
+    "sha256": "28236bc3168ee7e0b74e727621388ab8175b21cbd1c75251571c6ca780ae4f12",
+    "bytes": 7779
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_overrides.py",
+    "sha256": "4be3ab1fd0242ff9b658141d4382e7ad957c6b74c304a2defc9ae8034f0f4507",
+    "bytes": 1000
+  },
+  {
+    "path": "python/nfi_backtest_engine/strategy_resolver_settings.py",
+    "sha256": "24425d6e29ee340f53beeaa0fda8f220b0bbad4f9fc54cefb05f35ae3805a074",
+    "bytes": 3729
+  },
+  {
+    "path": "python/nfi_backtest_engine/tag_fixture.py",
+    "sha256": "d9ab6b64cfc2c99b7a41cf7ea7ebb811a0a214dda62b1067806235f2fcb7c136",
+    "bytes": 3305
+  },
+  {
+    "path": "python/nfi_backtest_engine/tag_program/__init__.py",
+    "sha256": "bde873e6a4f273925188160924a3a14e3ce4f8d4a7f67bbfff7194c85a36ae2b",
+    "bytes": 498
+  },
+  {
+    "path": "python/nfi_backtest_engine/tag_program/compiler.py",
+    "sha256": "67ad898b82a31ae980b7a3653a3dbd8a02787978eb924e6387745edd5c564fb0",
+    "bytes": 17032
+  },
+  {
+    "path": "python/nfi_backtest_engine/tag_program/runtime.py",
+    "sha256": "fb2bd6478eb6481777e01c62ff55fbd0a29ec0d2fca17ce100223575f137785b",
+    "bytes": 4663
+  },
+  {
+    "path": "python/nfi_backtest_engine/tag_program/validation.py",
+    "sha256": "4be934063f66b62dc36be5fb43c7a32089d3514d4cfc36135931419e446d0c7c",
+    "bytes": 11212
+  },
+  {
+    "path": "python/nfi_backtest_engine/targeted_verification.py",
+    "sha256": "acf95ba1d4573217773e32945355e445143de906f9beaf84234f52e3996e15c0",
+    "bytes": 37790
+  },
+  {
+    "path": "python/nfi_backtest_engine/timerange.py",
+    "sha256": "f9434d37c77422e3cfb3d31db546751a49f0dce43a4c041383af4e5e4ef44609",
+    "bytes": 1817
+  },
+  {
+    "path": "python/nfi_backtest_engine/trace_projection.py",
+    "sha256": "dc3c2c676f3fd4e701da39c1fd352f1f3b6aed40596b32fb97f8f38ef7d51e96",
+    "bytes": 9191
+  },
+  {
+    "path": "python/nfi_backtest_engine/trade_ir.py",
+    "sha256": "d935d84add14eee6a1f22e9af0420a95a5bf613bf8f6ffb23cdb5289e62b6ff6",
+    "bytes": 44569
+  },
+  {
+    "path": "python/nfi_backtest_engine/update_check.py",
+    "sha256": "8c301a5447b7823ab4bcef5099f3465af5a4e7ca19866787441fc35bd611a750",
+    "bytes": 7364
+  },
+  {
+    "path": "python/nfi_backtest_engine/user_flow.py",
+    "sha256": "bc38d148b03fce8fef1ba01479d04509e4fcfab1c9b00f5be820ca956d92bf0d",
+    "bytes": 48812
+  },
+  {
+    "path": "python/nfi_backtest_engine/vector_manifest.py",
+    "sha256": "c8c3dcafa29440e300eb63debd26282ed221c7ac894da4586e38737d7dcd00be",
+    "bytes": 3153
+  },
+  {
+    "path": "python/nfi_backtest_engine/vector_runtime.py",
+    "sha256": "6c6a794224d06046c9244488223558ef7eec4307ac5f4872f3463f3400393f7a",
+    "bytes": 29233
+  },
+  {
+    "path": "python/nfi_backtest_engine/vector_shadow_fixture.py",
+    "sha256": "da7f6ef6a0952b7c736ca5fef5352aafad71b78f7330b5f38737c381b2fd6e81",
+    "bytes": 15096
+  },
+  {
+    "path": "python/nfi_backtest_engine/vector_worker.py",
+    "sha256": "7f14aa2dd20f3ff7d91086c4b78e2abc86fc76dd8c79640e9e2fa93389238aa0",
+    "bytes": 24992
+  },
+  {
+    "path": "python/nfi_backtest_engine/verification_ledger.py",
+    "sha256": "c6cca38045db3b81fe74769ade5341af4ce579bc1eef513bcc3661b4d4e2c7f0",
+    "bytes": 24578
+  },
+  {
+    "path": "python/nfi_backtest_engine/wallet_settings.py",
+    "sha256": "7d5dc57a08e53304e5d6a4f1bab490ea1308a9759179ae352b964ba14b858709",
+    "bytes": 3325
+  },
+  {
+    "path": "python/nfi_backtest_engine/windows_job.py",
+    "sha256": "11d31c7753687aa509960b23af0172712e09b506e14032f99dd41d5e1f46723f",
+    "bytes": 22284
+  },
+  {
+    "path": "python/nfi_backtest_engine/windows_path_security.py",
+    "sha256": "1a3c2f8ea0910be248c7098fc402034f8eee256e1062bd028ed52a8c8aeb6304",
+    "bytes": 15170
+  },
+  {
+    "path": "python/nfi_backtest_engine/workload_calibration.py",
+    "sha256": "24ea17f6b8845a9b2d1d981340250e9406ffeb7a7d3aaf772d1f73e67b06d19d",
+    "bytes": 7084
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/__init__.py",
+    "sha256": "2c33c9bbb4499c46057d5d9460a241777ad3ab5743f1ee2c4adfef77af33b8c9",
+    "bytes": 509
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/adapter.py",
+    "sha256": "ad27cd4315f8fb72c6052e78df8b787197a3de3f939d0bb19486c147682dc262",
+    "bytes": 11798
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/adjustment_dispatch.py",
+    "sha256": "285fb61e55df3f8cba71d7366fc2991c69abf0f5bcc44d33a0ef2023c663e900",
+    "bytes": 16462
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/adjustment_ir.py",
+    "sha256": "5eb970a5c4086dd257def3f688a0b632cc996d71db2c458a2286d3b4f0a9f16b",
+    "bytes": 53655
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/adjustment_specialization.py",
+    "sha256": "aea7f49d57dd76892860bbcdb8695aa48b6ee24d68f1588215ee270b8ff90c8a",
+    "bytes": 1809
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/adjustments.py",
+    "sha256": "9aeb3ee01ae38d88c6dda6faae7959a62a3f6b4a1270245c1d9786400b2409a3",
+    "bytes": 28885
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/auxiliary_adjustment.py",
+    "sha256": "bce34c1dc5bdf70bf221f1616f17b75edbd32ecf0fc7e6eaae86fd9e998df5d4",
+    "bytes": 9450
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/auxiliary_entry.py",
+    "sha256": "1801307bc13d2ad5f323ea1fa7fd4eb61c736a567582b873bb33cc3a8dcce3b2",
+    "bytes": 3391
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/contracts.py",
+    "sha256": "be3aa837d933f89a62fa486d17a1cc502423756fa6691746bd66056ab6740325",
+    "bytes": 29406
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/custom_exit_prefix.py",
+    "sha256": "edf18d16bae407230c96b5be53564fe04a06edaeca1d6b69007a7a2fa411206d",
+    "bytes": 6497
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/legacy.py",
+    "sha256": "14f2997859ad7c1f1ccdb0c0d56447844ba214f133d8d8f414e5362683449b21",
+    "bytes": 22433
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/legacy_entry.py",
+    "sha256": "e2f9e65e1591377c94221f333988a55616c71a9a106e32ad7e273496b9c06b1d",
+    "bytes": 2031
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/legacy_grind_ir.py",
+    "sha256": "cc82c695243434fb82f9b617a9ee7df7be876c9598c703dd9d878fced17f2f58",
+    "bytes": 32111
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/liquidation_rescue.py",
+    "sha256": "511de9cc7c88594ac7745e1753a48e9d6cd923e68d8a572806bf446ebc49f9c9",
+    "bytes": 9372
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/managed_exit_ir.py",
+    "sha256": "109083beeeb1bf3349e746b5df8845a03177a2df2b2b1702c2c4b413e618c2ed",
+    "bytes": 55769
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/managed_short_exit_ir.py",
+    "sha256": "dc74ad4f9259628fdca973e9fcecd822f97196e4100496216284e329e685514b",
+    "bytes": 10307
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/rebuy_ir.py",
+    "sha256": "a861968daf6c481b5fc6f17b9d84ce90b4e9e244226bea994fcc3af5e68bc27e",
+    "bytes": 22777
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/regular_adjustment_ir.py",
+    "sha256": "571d188ffc07ac7bff0dbae1eaf7c2b3729cb1a33f92d0c2b188fbf6b830c6a0",
+    "bytes": 21637
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/route_contracts.py",
+    "sha256": "4cf00027bf83537f234f45844e9e3ef392720222cd9790181c2fd40920311705",
+    "bytes": 4350
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/routes.py",
+    "sha256": "444783e548b84391584b1af2d84f4da4b98b68f50426eb5e0d7d8c3b6063723c",
+    "bytes": 16752
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/serialization.py",
+    "sha256": "8f326726b6bfaffd2bff9160b5fa54162885bcf1144c5182bf8a1fe594218f59",
+    "bytes": 25361
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/system_exit_ir.py",
+    "sha256": "b5f9bc9b80e5ee6cbb59fb97c648343c15cb4402363ee38b70bd08fb6d49e658",
+    "bytes": 12022
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/trade_manager.py",
+    "sha256": "19e590efbff1e75640e20f691e01677259c1a8b27abb108d3f5501d85c3fdf39",
+    "bytes": 2951
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/trade_manager_compilation.py",
+    "sha256": "2309deb3d4c8189fb58842a3160c3527fecfdd1f43cca3b514049f0866b0889c",
+    "bytes": 12949
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/trade_manager_constants.py",
+    "sha256": "0d9de57bc5af732cc212e8737bb8c3acee6d7874835d9b42ae95cbd647d5107e",
+    "bytes": 2508
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/trade_manager_document.py",
+    "sha256": "e3e76aea457b07ed3ab3d69522b87353e2281c204eab9a87a35842e94fa98e54",
+    "bytes": 12010
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/trade_manager_source.py",
+    "sha256": "7969fbf35e8977dc9da57a4005e7bcf9aa6f8b83cbf73142c3a9dadeed6dbb44",
+    "bytes": 3715
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/vectors.py",
+    "sha256": "a93cd89fc08a742f81931a2a25fc9d3da23dd3b6892886f64ca5056464bbc0d8",
+    "bytes": 10110
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7/virtual_fees.py",
+    "sha256": "70950e2878cb58d8ada28c0f602c3ee273fd6d1c5791e0dc488436cd5a0f1cc5",
+    "bytes": 8327
+  },
+  {
+    "path": "python/nfi_backtest_engine/x7_adapter.py",
+    "sha256": "6ec6d76af1f5df119e727fe329d27a56a092f93b7c47751573df2df2ccfddcb5",
+    "bytes": 1122
+  },
+  {
+    "path": "rust/Cargo.lock",
+    "sha256": "9252fc26b18e8e3ffd63db3c9ad0d8cd3827ae48547a491ab82a21130a9ddbed",
+    "bytes": 24976
+  },
+  {
+    "path": "rust/Cargo.toml",
+    "sha256": "969a24fada86010e9e2348577c92cdbb27028d45b0f0805be1e34b2981570bde",
+    "bytes": 527
+  },
+  {
+    "path": "rust/crates/nfi-artifact-publish/Cargo.toml",
+    "sha256": "5d123a5d12d2c648b40ce5f9c49df3bf27435be2dc85467c753887d567d65edd",
+    "bytes": 602
+  },
+  {
+    "path": "rust/crates/nfi-artifact-publish/src/lib.rs",
+    "sha256": "739112719cf19ba150c87ce1ec465cc871d52f0db6e8d0fdeb6ea581f566fcaf",
+    "bytes": 48641
+  },
+  {
+    "path": "rust/crates/nfi-py/Cargo.toml",
+    "sha256": "e55f76bf04aef302acdb262dea10a77465794b792f3c5bce217fa901d08970fb",
+    "bytes": 835
+  },
+  {
+    "path": "rust/crates/nfi-py/build.rs",
+    "sha256": "6fc28864a547742eb74482f32428ad7aeb396cef355a2be0fd071fa1c88d7219",
+    "bytes": 2546
+  },
+  {
+    "path": "rust/crates/nfi-py/src/full_vector.rs",
+    "sha256": "aeeb7c9b53503099059643cfb74946cfd1037b9defe6505bc27f306fe5a6a1b4",
+    "bytes": 13437
+  },
+  {
+    "path": "rust/crates/nfi-py/src/lib.rs",
+    "sha256": "864c68449107b55325e06ed69310d0eb8db7563f9084be69aff45d6704ee761e",
+    "bytes": 21511
+  },
+  {
+    "path": "rust/crates/nfi-py/src/mutation_vector.rs",
+    "sha256": "74884a2ff56412016a50892e2072c0548961bb37f9cfa82fc6f4fecee27f6c6b",
+    "bytes": 6573
+  },
+  {
+    "path": "rust/crates/nfi-sim-cli/Cargo.toml",
+    "sha256": "9399f512917e267dfddd1faf050011a501ba864ccee012321a8c0b0f2279c912",
+    "bytes": 624
+  },
+  {
+    "path": "rust/crates/nfi-sim-cli/src/main.rs",
+    "sha256": "d6821aa8190917ea0b6955afad55b265e735f8cf908d9ab0ae9d7c71526a86a1",
+    "bytes": 32091
+  },
+  {
+    "path": "rust/crates/nfi-sim-cli/src/portfolio_envelope.rs",
+    "sha256": "c80bf14809b4ad15b6d1818e1b58c7534fa439c082504928cfe0ae23b3525771",
+    "bytes": 7400
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/Cargo.toml",
+    "sha256": "3bee1af5f40938def6212cfc2cea6406f529b26fe74f4b29af5d784ef21338c8",
+    "bytes": 607
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/calculations.rs",
+    "sha256": "902c88f9cef4a61056dcc0d2e864bf38134ba295e1fb404048ede0653a8d299b",
+    "bytes": 17847
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/callbacks/evaluation.rs",
+    "sha256": "30a68f202f7878e2e66b5dcdb6a134f99215dadf1b65140da29d1711c3c51b5f",
+    "bytes": 8614
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/callbacks/mod.rs",
+    "sha256": "b4f786411c08c092442faef8cef21df602ad761a23741de185f48a20fb20bc9b",
+    "bytes": 440
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/callbacks/projection.rs",
+    "sha256": "884a52924bfdb81ecc806c8c395adca369c23f01af738221a7880f471552744e",
+    "bytes": 11402
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/callback.rs",
+    "sha256": "54681d92a1c39fb0a3d609506c84ee6f88e3902d782a12cf96c85bc78475778a",
+    "bytes": 1621
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/callback_runtime.rs",
+    "sha256": "71ea571bccd4f14d865b8969b793a5b07c90c7c4674013dc37a344c31f0aff5c",
+    "bytes": 9477
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/fingerprint/api.rs",
+    "sha256": "e04751cd651230f0aa15ff9c954ed0c05c86996e21788b505b71e6b082bc2bd9",
+    "bytes": 2753
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/fingerprint/exports.rs",
+    "sha256": "e80c619c85c65291731ae83e564af0eab3eb5a3e42fe5389b77d4c622e5187ac",
+    "bytes": 168
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/fingerprint/sha256.rs",
+    "sha256": "baca6c4183c8114c071d3b02c3ad6b078705a9a359229588e81ba6ac37eacf0e",
+    "bytes": 4325
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/fingerprint.rs",
+    "sha256": "daf4f384cf00a0c3a0a5cb6f2cd2c6869d9b8ab1279c114e8ea2ccdd12ab3f38",
+    "bytes": 155
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/schema/error.rs",
+    "sha256": "255a4fa48f719d0c8548670a7ebf79483f62f086259174ae64d8b758e78c059e",
+    "bytes": 2487
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/schema/expression.rs",
+    "sha256": "4c54cd742cd4e06493d1b063ba2420e20df797e002daccd5f00b256d9d67c556",
+    "bytes": 3007
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/schema/program.rs",
+    "sha256": "2c9e7bb27596c489a5d355cd23736cfe987723a030d7170f9917c9c9fe037ec6",
+    "bytes": 6975
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/schema/statement.rs",
+    "sha256": "f9a8aaf37d04ac270aaa16ab771d5d241c094372f6e8c1ff11dc31c97c43ef11",
+    "bytes": 1675
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/schema.rs",
+    "sha256": "bd505fe2f01b624bdef4a2622bb3080374984ff3285cee60ffdf0acde216912f",
+    "bytes": 471
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/validation/entries.rs",
+    "sha256": "f38d5751085c2383a440fd167a5978c3fcfd295f0c3a9aee5f4df51ebf6341a9",
+    "bytes": 5799
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/validation/policies.rs",
+    "sha256": "d09c8501e4963b63dc281118392f10151074a8280137749fefb0cee55c32b589",
+    "bytes": 5044
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/validation.rs",
+    "sha256": "c398de94d53a4b3eea4c15fc2acda0ca40bcf6f9a84ac243c551722c2a9345d3",
+    "bytes": 7838
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/validation_tree/expression.rs",
+    "sha256": "1514350648d6b57b8d734d1493d3584ee1e30d08d33196c221262b66dd79ae5b",
+    "bytes": 6061
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback/validation_tree.rs",
+    "sha256": "baee4c4460acc162c9714c622a0379034e8c5556c24165cabc953370bc9d518a",
+    "bytes": 7328
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/executable_callback.rs",
+    "sha256": "303a7837416c3858610254c109b69a9305b43204fc65c4bb9538e0461dee96c3",
+    "bytes": 746
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/execution_event.rs",
+    "sha256": "764c1820ce38291c124f49a40dca9d03ceb58990f9c17a2c6458eccaee743568",
+    "bytes": 3622
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/failures.rs",
+    "sha256": "255562ef0127ace2cd505a2c86ca2ba4e68402f194e9d13ff961d25c562387e8",
+    "bytes": 3661
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/market.rs",
+    "sha256": "edd55b68d3eb0156ae217fee9c53ba9d8732c4e5eee3897f8431677ff3e6ade5",
+    "bytes": 3383
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/mod.rs",
+    "sha256": "02a66662695965cc286d4a153ed8e847c1bae1bafd33da8cfe9308a0a8dd1de3",
+    "bytes": 875
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/outcome.rs",
+    "sha256": "f1c1000bbf920b70927025b8d1c1e45e44a21ab248a94a0321bc2229db5a93f6",
+    "bytes": 8455
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/portfolio_event.rs",
+    "sha256": "c2eb6f283aa875a61fe8700136ef899ed94e72d22b2e921687f1b38f759e504c",
+    "bytes": 2359
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/programs.rs",
+    "sha256": "a5d2feb85c1b711a2b9194c86be92857c5c46814e32c0fdb5109b538499060b9",
+    "bytes": 3298
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/settings.rs",
+    "sha256": "2e57c9026bb7a396342ff5f429fec7e0af9de39b09d4aa8e1e6e51cf010b2c16",
+    "bytes": 7179
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/state_machine.rs",
+    "sha256": "7a8e87faefba1d33389c9ed769bc86846cabc1eca6f161317294b2eebbfaa4f9",
+    "bytes": 6803
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/domain/x7.rs",
+    "sha256": "334e9f7bc11add7b4078edec3322d67f322f0f87e8aeba6ed6b0771c0c16b47a",
+    "bytes": 39963
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/callback_trace.rs",
+    "sha256": "2b88a159987707d1c93a38018929b408016f1198aca0ff240c985253cf8b1cdf",
+    "bytes": 10368
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/confirmation.rs",
+    "sha256": "ad783fa45d2fb8f4d75817b3c34ad5b3f1ae77e6b179e23865536b0c775d17e6",
+    "bytes": 19415
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/entry.rs",
+    "sha256": "254cffeba3e759b755562d9dfc4cae2c6418bc5687c5984fe51bcb67a1e80199",
+    "bytes": 36727
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback/machine/interpreter.rs",
+    "sha256": "a1aad62feccbb80215eb9ffee82236b1c105c5f44f6dc0040c83cedc7237886a",
+    "bytes": 12085
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback/machine/support.rs",
+    "sha256": "2ff28b563d10b78287f80fa75f0a9c19970056df9bcfdda4e32dfba05c067809",
+    "bytes": 7078
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback/machine.rs",
+    "sha256": "1d1825b242e65441837549dc50c67eb90f025f9bd0575fe4611b34b79880ba3c",
+    "bytes": 8111
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback/types.rs",
+    "sha256": "e4fbba97c38584fa00dd36c5f5e1e7568399a948bf8ae3552ac43695cd762ea6",
+    "bytes": 2822
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback/value/operations.rs",
+    "sha256": "589c3964f88622775e6defb4ca010b7787f86fe49a1dfab860d73ce86052de7b",
+    "bytes": 6527
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback/value.rs",
+    "sha256": "fa17de32121585957fcba4cc7f9c9b81760fdeb14a6b458547a6101b25641fae",
+    "bytes": 5976
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/executable_callback.rs",
+    "sha256": "a690968b46297a366e91826380a29a3c31eb4494f22152dc60d67e1c5a35ca16",
+    "bytes": 277
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/exit.rs",
+    "sha256": "4e09e10b0abd03b37f5714ca686cab84acc0c4e061837e32f449e57e7866bbd7",
+    "bytes": 32386
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/mod.rs",
+    "sha256": "88dd84513f08943229ab12c6089f8854b74c2f1a62692bb72a44ff29b2312c5e",
+    "bytes": 1510
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/position.rs",
+    "sha256": "05e37517c1714bd435a04c4edb3c746cb5b80cb99dcd278821e7c094c3f027c2",
+    "bytes": 21115
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/stake.rs",
+    "sha256": "cd28bbc53f6463c16f2abc5db2847a057c70bd086bad5b5e67182ad6d763b5a7",
+    "bytes": 8945
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/state_machine.rs",
+    "sha256": "7d20ba667757be06f6a7123dc45f7c93ac0ca220e056a5df857a6d0173c8994c",
+    "bytes": 8846
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution/strategy_settings.rs",
+    "sha256": "4636fbed4ef87ff65000458e13b4106ea63ac126c150cb72008b7eb9588b7979",
+    "bytes": 8792
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution_contract.rs",
+    "sha256": "fd2917826200bf615e170fbbc34ddc0f484fdbcf4b12e29497d66757f4ffbbb3",
+    "bytes": 872
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/execution_observer.rs",
+    "sha256": "89e56325df2e4b783d86f5d318b14f22b57c068978491dafb6aa5067462d7ec2",
+    "bytes": 8372
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/futures.rs",
+    "sha256": "01e13bc51eb6dc59ae68efc6f98f8842f5352570d0c38127bab7b63ebf2b4a9f",
+    "bytes": 12698
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/futures_contract.rs",
+    "sha256": "a1ff2fc5605ac9c55249a27cedfa447ecdced7181d7073203340a8b01e5a5823",
+    "bytes": 763
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/io/backing.rs",
+    "sha256": "7e0ecdb9e53055bec7946cfd88ec1047ec05be6897da65ec61b69112291030bb",
+    "bytes": 13650
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/io/json.rs",
+    "sha256": "1fc79661c5319a3a0720bc69aae58572eaef2e68f45c3142b18be8460cac7a7f",
+    "bytes": 1202
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/io/mod.rs",
+    "sha256": "8f94c06892894487d53e166d18832734734333ce19df4cda23ba9c7f33ad0f98",
+    "bytes": 1430
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/io/storage.rs",
+    "sha256": "901967ee88faef0d9779fc5cfb8ae11144b68050befdafcc09d4dda9123b7cf4",
+    "bytes": 9403
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/lib.rs",
+    "sha256": "519c838e24b3d199a6a8c6983455ede69ef5f01a31fb54c8d523b3eb12daa8b3",
+    "bytes": 8427
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/adjustment.rs",
+    "sha256": "009726f10d45eef1b14bac65d32ac33d283a9f1565414f0e3fa7451240b58696",
+    "bytes": 103981
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/dispatch.rs",
+    "sha256": "4509a475bc69635c01ce2441f6788f7fe60b9507c8e1381bfd954f87e190ea1f",
+    "bytes": 12004
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/dispatch_plan.rs",
+    "sha256": "e6ebf0d6d6684df0e61904cb96175a810c453db97b36c3bf2ba2c3d67a2b418a",
+    "bytes": 12770
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/exit.rs",
+    "sha256": "2b1c34d683edcfcc406bcd182859558772221a3abdffe2fe8521d4f6938e6c21",
+    "bytes": 59635
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/fees.rs",
+    "sha256": "8a3fa638b7c711fb14cb44209596f76ecc50391fc64ac5135615fafb67c277f1",
+    "bytes": 682
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/legacy_grind.rs",
+    "sha256": "0ab2781d6296d0a078e4526886564110204fa9abff7626f166a1c4cd16e73d6a",
+    "bytes": 56680
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/mod.rs",
+    "sha256": "0b49cfb65fef3c9e095efc50f3d3005c6779da12fb1f3210dfbb362d1245bc8f",
+    "bytes": 1346
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/rebuy.rs",
+    "sha256": "b223a64201b4d4bd36085158b79fbd710431212a50cf48ff52e1cffc3a2e72ee",
+    "bytes": 22959
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/regular_adjustment.rs",
+    "sha256": "d982268675ba359271b37369b3509b61360ac04f813e3bb80191d2013f007f1b",
+    "bytes": 29678
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/source_adjustment_dispatch.rs",
+    "sha256": "04b5c95f32155b32377357861072f0289f8b272ee06f7c99e0b55c8923155d6c",
+    "bytes": 6712
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/source_auxiliary_adjustment.rs",
+    "sha256": "1ecfc84ce7312a5bbc6340f57aa47553031059c07117989cbe5ddae2ebbed16f",
+    "bytes": 958
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/source_exit_prefix.rs",
+    "sha256": "6372b0b579613d5afef3307f72edbb9409e2f246e94cd8e405948ccb85703268",
+    "bytes": 7427
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/source_exit_tests.rs",
+    "sha256": "9b380c294ff6a82b96205edafdbedcb2080a965de852a483649114d3baa6c371",
+    "bytes": 3550
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/source_system_exit.rs",
+    "sha256": "fddf4f7249eb548c5ddd1eb33d81b13f84016d22c5b0982ef7343048f8453ad4",
+    "bytes": 5287
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/nfi/state.rs",
+    "sha256": "5275020803be7169782a93fbb723ff6fa7ddb63833b6d788b46c2cf0a73d1d65",
+    "bytes": 7904
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/order_aggregates.rs",
+    "sha256": "9caa6258d41c0e0395bea5b79ddfb297e1cbd4de1530a6ba6f608fd3dd126422",
+    "bytes": 7869
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/portfolio.rs",
+    "sha256": "18dd47a66df2659fc06b76f7b0f4873cd5f050a23c13ff89447521200bcadcb2",
+    "bytes": 8089
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/profiling.rs",
+    "sha256": "07ece1e06086223bcbcb8f51fa82df1e40f0663e1a6e6a67690742d51e2e8b81",
+    "bytes": 547
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/protections/contract.rs",
+    "sha256": "f44f2af8641b65960a36fa6b63a69531288b1b1f8d83502dab53e73683332b72",
+    "bytes": 5252
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/protections/mod.rs",
+    "sha256": "2aa355a48183eabb42acbb4c5268c299b734a91cf508c0d612dcb8bb4718b9ee",
+    "bytes": 244
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/protections/state.rs",
+    "sha256": "9a1f2ee8a2b4d1150474e7124927d090fdb5915dc63bf0dbf54a609d6f66927c",
+    "bytes": 13834
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/scalar_vm.rs",
+    "sha256": "79cb624ff8b4d5a59ee8e364fa33880f15d5c98f5cbfe0a7e97f80ba4553341b",
+    "bytes": 27195
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/scheduler.rs",
+    "sha256": "d8ef07c37b03b9e120d5dba958a450520cbd63d8f75fd4fa45e69632606d35f1",
+    "bytes": 2513
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/scheduler_observer.rs",
+    "sha256": "ddfe3b6115245553ccf49e073ee3542ad67e6157cd644dccda307e44f9ddc176",
+    "bytes": 4852
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/simulation/event.rs",
+    "sha256": "a09a7e542c3be62b3e8196703afd08cfabefe35e45b51161ebd8f3a3c65fdfdd",
+    "bytes": 9395
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/simulation/mod.rs",
+    "sha256": "48bd96cbab11dafcccf0333d5df0684a75a864e24d33a2877263a476cebc39d6",
+    "bytes": 75312
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/simulation/output.rs",
+    "sha256": "a8acc5b419cfa47166122b42785fec191cf668e0eb9f84585c8128ce9ef94fa4",
+    "bytes": 8268
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/state_machine_vm/orders.rs",
+    "sha256": "85d81cc5d84a89debb03478dbce4f83ab8c852f486fbe12486df83c11dca3048",
+    "bytes": 3211
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/state_machine_vm.rs",
+    "sha256": "d9bf7cc1ecbf9e84a5d9ab9c3baae9a8b5db36aab74fbe8d2265e30246fdafb8",
+    "bytes": 44147
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/callbacks.rs",
+    "sha256": "f61a2889b93934141c38d124007b33b32118f02923b6c4be9b2418748ac3351b",
+    "bytes": 21837
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/contracts.rs",
+    "sha256": "6b7a116f139779c716efd5c377cc64ebc1610e3b03747e754b86f55c253454c0",
+    "bytes": 6571
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/exit_policy.rs",
+    "sha256": "06e2ea9d752ba956d8c43b5e844901d45638d6c9a8c1add13263638eb3dd8a7d",
+    "bytes": 12735
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/futures.rs",
+    "sha256": "ac71cf948829975976793f130df1787471ee752ecc9ab9e068a8086c7cb20ca5",
+    "bytes": 31989
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/io.rs",
+    "sha256": "bfb54189ee7f2499a6d4910a6683a0f52a527b971d9d990772bab0e299d1acc9",
+    "bytes": 19642
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/mod.rs",
+    "sha256": "f38b01ab873e22b92e8a01cda6a603a1c699b1fd1d29d8ba5147f9c9e6235adb",
+    "bytes": 673
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/nfi_adjustment.rs",
+    "sha256": "7ed9ba834292fe134fcd24ea41f04cfb505061f23cdf2590288f97c4fd7d3993",
+    "bytes": 53953
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/nfi_routing.rs",
+    "sha256": "6d1dea0b573fd43a391ce11f7f4ba3ddfc148a37f2a13650ba412663eea7beeb",
+    "bytes": 45717
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/position.rs",
+    "sha256": "2deeef42c61b3e0054488095570298e07f69d3e0d0a7dbe106bb75ba42d6b2c4",
+    "bytes": 32131
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/protections.rs",
+    "sha256": "0b21cacefc3062942e4ded610e019ea5f3dd1e0da4d6d18e1178e03265822396",
+    "bytes": 14080
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/simulation.rs",
+    "sha256": "9e781d0fb9f2c2078f4fe76690d92ed2ad0c6dbe84e3e88e90027073eb1e063f",
+    "bytes": 20843
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/slot_settings.rs",
+    "sha256": "d1f3dc1e550fbf5fbfc66431f7b6a42af5aea391122fed5eb62436d48879a8d5",
+    "bytes": 6562
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/support.rs",
+    "sha256": "d16cdbdbaa0e3dcefa2276d7ff8746d6cf9951332f7cc4236ad79e2e7c01f8da",
+    "bytes": 47544
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task10_short_grind.rs",
+    "sha256": "f144ca45e58aa0077fba514593a8bec68ff3d811b9d73b42165b650ec4045f87",
+    "bytes": 10215
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task14_callback_program/runtime_tests.rs",
+    "sha256": "6fee96ab67c6ef077c27184e3c6f2bd3bda1a54ab7936feb45ec1f70a276fb4b",
+    "bytes": 8521
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task14_callback_program/schema_tests.rs",
+    "sha256": "734e932e6a7f0a25bd929046c95d30df63e11ffcb01ea22472970ed3b3b60d51",
+    "bytes": 2612
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task14_callback_program.rs",
+    "sha256": "4798c84c7ce8d2a0fbd5fe5c64c11c0920b5b6ad3adce4935d40ce3e5dd78d56",
+    "bytes": 8105
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task14_callback_runtime.rs",
+    "sha256": "6734edca91299443cf45f23e11d4b1de6485285eaab67ab26f7ef87a7af4bd7c",
+    "bytes": 8212
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task14_production_callbacks.rs",
+    "sha256": "db5f6fce7391ca52bd9e8b3c328fa50792d756d4edc10e9c9d11f64262cab04f",
+    "bytes": 8152
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task15_scheduler/support.rs",
+    "sha256": "151cfe7e1a35802327b2e128e8760bfbf8aec7a454a087a11dac436fe9b0d6bb",
+    "bytes": 2479
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task15_scheduler/wallet.rs",
+    "sha256": "4a7731ba9ee3258f92982da995d21d98b427a53cf1bc8282a8b7fc96957e5849",
+    "bytes": 8858
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task15_scheduler.rs",
+    "sha256": "483cd2ca3f47d9848afb4092cedaaeebff4f231ead9fbb1ed7277f0750ad3e3a",
+    "bytes": 7868
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task16_execution/support.rs",
+    "sha256": "b66ff89189b1dfc80cc628618801c4c87935f39e1ce37eb6fec3651740d8aa63",
+    "bytes": 1668
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task16_execution.rs",
+    "sha256": "a7c0b47b5c46d75be1371989c9efcf1f57fbc2c0bd5a0d70f409d73c509af751",
+    "bytes": 23166
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/task9_long_grind.rs",
+    "sha256": "806d7f16a19108198ac21f28583d413f5af55e48344ea87a05a2b9a209516e11",
+    "bytes": 8902
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/virtual_fees.rs",
+    "sha256": "df97eb60fa1b94a3a4880e1902d34378b387c86b528f7af4c1ba68c13bf4009e",
+    "bytes": 4256
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/tests/wallet_policy.rs",
+    "sha256": "a2ee8159b3eb0f9cb43d4bbe32425900e3cdea2202b8c2930ae8768cd5e08850",
+    "bytes": 4895
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/adjustment.rs",
+    "sha256": "d30e40a17d5b9c403dad183b1e7a792263bdf4ca59eb416c684258806a3215c8",
+    "bytes": 15648
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/callback.rs",
+    "sha256": "40d09c907c4018e1181f7188640fedb17e02c0c233884a2b5cb97cddff72c875",
+    "bytes": 982
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/config.rs",
+    "sha256": "dca6caa84c076f3aaa9c06d4fb7840d141bf6e4e755904fc97f6c9b42aab49d6",
+    "bytes": 15379
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/adjustment_routes.rs",
+    "sha256": "dd1f4c18519e86d423ed44fc83f131581d61bda3abefdd0db0f7e55e1ebfda8e",
+    "bytes": 6314
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/finalization.rs",
+    "sha256": "e6bcf4393ce38adbad2a206e3473796b2396aa7bfdd3e2447e8a050fe79af90b",
+    "bytes": 9509
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/grind_routes.rs",
+    "sha256": "b7bceb4c965c8cb347cc89ed4208a92d57eb8e28de9c0f034e0ea842689ab709",
+    "bytes": 6693
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/identity_routes.rs",
+    "sha256": "41b0d9591765959eaa2dfdd901c28374cbc175f4266b8d2f1882f40af3c3c562",
+    "bytes": 6866
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/legacy_clusters.rs",
+    "sha256": "7df2ed7d3a63365d9862498e80b30ad9c30a92be94cdd5a3b88aac60c0d3ab81",
+    "bytes": 6423
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/legacy_grind.rs",
+    "sha256": "92c8afe75e8c1958cc5a532779587c16ce95c1c7add1ca55b04cb9529033a59a",
+    "bytes": 1571
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/legacy_policy.rs",
+    "sha256": "e402c8dfd36587a6b733303a2bd5d1465c79e1bd947831a46f48d686b60ff0bb",
+    "bytes": 10445
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/managed_exit_contract.rs",
+    "sha256": "3ac26fe1acca3dcf59cb78a43b5113f1dc5884d4d59eeb292f99dfe810ffb39f",
+    "bytes": 6700
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/managed_long_exit.rs",
+    "sha256": "0708a49d1c4e92ac04763afdc5c37f36db4f4c08b58ab80143262a2b24aca320",
+    "bytes": 5844
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/managed_short_exit.rs",
+    "sha256": "9fc3d679f5901dafdd9a27fb1b338e7ee14ae84d2626077dfed2a71c0e5ab4ba",
+    "bytes": 4097
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/program_inventory.rs",
+    "sha256": "f4d922993a49bd018059947fda8edd902f822c2e18e971142f95aee2239486b7",
+    "bytes": 1791
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/rebuy.rs",
+    "sha256": "2f153ca764685dbc4648852d2a3ff735adbe139495a46b6b704daf6603a87646",
+    "bytes": 2531
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/rebuy_routes.rs",
+    "sha256": "ef4c508a4e312eb55a604279b60f1f4652d30878dead8981ad6e82ba15a90df5",
+    "bytes": 3713
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/regular.rs",
+    "sha256": "ccaab35b5e3f05e6985c78d3023f1e30a50bd7ead61e30d408cee27a16ae77d2",
+    "bytes": 8024
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/routes.rs",
+    "sha256": "089b6f029156a06dde866acb5d242b08b6625905c3fea9deca4560af432d8c19",
+    "bytes": 3895
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/shared.rs",
+    "sha256": "f1b13d80a4756aadd51d4724d8c8288f5caf7b5621162124db9bafbb3e6bc428",
+    "bytes": 559
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager/system_adjustment.rs",
+    "sha256": "53ba26d31a3a891304fceb6a0d71f45607e8ea99bf2b8c42b5c7a4d81765bcf8",
+    "bytes": 12880
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/manager.rs",
+    "sha256": "128bfdd54f7eb826f73f0ef22c9656c4bdc0fe59dcc92d07adbba6beb1237ebb",
+    "bytes": 3611
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/mod.rs",
+    "sha256": "924d693786ba5c2e1587d98ac660b40ea239d63ef81b78fefd5e1be26b3ebeb6",
+    "bytes": 587
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/pair.rs",
+    "sha256": "b48f009081a23b384e0ec197a32f1f87eea6c3c02cae81738da2e3a646cfbe72",
+    "bytes": 6066
+  },
+  {
+    "path": "rust/crates/nfi-sim-core/src/validation/routing.rs",
+    "sha256": "5c1b50471397d260184f5534d44e0b15c037ca01fa994a67f5d7a4535de03033",
+    "bytes": 6798
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/Cargo.toml",
+    "sha256": "a7f80fbc41953c5decc611c4257bd4d704aa5df3e434cffe67eefd7c08313fe3",
+    "bytes": 509
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/examples/validate_indicator_program.rs",
+    "sha256": "c177405a088c92b570b358c825cfb9f3e3aac80161925a295e46a5506124ad36",
+    "bytes": 777
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/batch.rs",
+    "sha256": "1f01808a402370a0fba6cfb73fe4778f77335930c69ed37147645a20fb58d557",
+    "bytes": 3600
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/catalog.rs",
+    "sha256": "ba2e5fde3fdab8fe06a1d9bede247e8ae075c68d5b488719af0af548a8621f4b",
+    "bytes": 9624
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/fill.rs",
+    "sha256": "2ff5482a24a23437c9c9934a28595be4309cb524c556b23b3e88f1c1545ecaed",
+    "bytes": 16292
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/mod.rs",
+    "sha256": "63d069eb3957576a468a6d1b0b0625725d56745df56c0e1219c8b21c0343ec89",
+    "bytes": 754
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/model.rs",
+    "sha256": "339d0847cfb3a32eea667f3dbe99b12dabc61bd87b30026124a8a000e2d11f74",
+    "bytes": 10716
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/stream.rs",
+    "sha256": "d3e23c51963ad3400f89ca3907190dab8d1c73e144215e9b940d6613f1372c3a",
+    "bytes": 8418
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/support.rs",
+    "sha256": "29220496c1e7d79af28df7db32f0c278286f0f15c76362d0e06328451a23d608",
+    "bytes": 7541
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/alignment/tests.rs",
+    "sha256": "1bb248cc8b0981c44b1d169aaa7e71783010d3baa6efd7713a39092f081535e5",
+    "bytes": 25801
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/batch.rs",
+    "sha256": "4729f4bb7d68935442b2e7681d0291e2a52ac8fd83b3d3b5f0b60de414736af8",
+    "bytes": 6480
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/column.rs",
+    "sha256": "08762249ca3eaea1611b498b266d248120b2ae5921fcd9b4ff93bc739795ca58",
+    "bytes": 10290
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/array.rs",
+    "sha256": "b048c4a10dc37359c309d60bdc04d8a93d62dc078fbe32f68c1f93191fb996d1",
+    "bytes": 39409
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/frame.rs",
+    "sha256": "2ac19c14033d154436f6c4fc2fa3bd3a69a6647222bae7124eaf6a9fe852651d",
+    "bytes": 37431
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/full.rs",
+    "sha256": "d7da63636328cf87bd5d56c7e835a20f63d711442107f40d5d2db5377266e857",
+    "bytes": 63586
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/mod.rs",
+    "sha256": "07909a2090de311f647ac3347e14ef729f4324b021c40cd03dba95456d147e0f",
+    "bytes": 8253
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/operations.rs",
+    "sha256": "259ed7e3fabcdf46ff9e759e871abae8296485f6ec6b93c77f4f4d12ecd4c7b1",
+    "bytes": 15907
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/runtime.rs",
+    "sha256": "6e43381166da58ed0e0029f96633b019e53908609dbbee7df47780bbf6030f9a",
+    "bytes": 12872
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/engine/tests.rs",
+    "sha256": "76bbb970dde65b80f0c4c8ff3425dc796a513710d3060c2c87c63abdc8395b48",
+    "bytes": 9803
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/error.rs",
+    "sha256": "16eebb7764fc93234c027eb5a4e660b4114d82a40adad87ea45e224602da04ad",
+    "bytes": 1810
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/float.rs",
+    "sha256": "8d3ca678161dab7af0aa2eefeca168bc663bcdcde8b3f1ddfd183be353cbd8dd",
+    "bytes": 4255
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/directional.rs",
+    "sha256": "a5dc289f3b583e8dbd279f3e5455e601346dc11e3a2deea1d1c2624e7e5b2e54",
+    "bytes": 43133
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/mod.rs",
+    "sha256": "edb5831a758ed8ffc03e42f2b82cd73d670713d34522d06df6d30eb868f6da68",
+    "bytes": 13202
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/moving.rs",
+    "sha256": "8057da3a6ab00a99510c6520645e39b69ccbd0f3af61c5804acf6aa403f36618",
+    "bytes": 31872
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/native.rs",
+    "sha256": "e1a34f30f1d378a621e64beb687a4a4407fa775cba535b7f1c7d21c265a8109e",
+    "bytes": 32038
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/oscillator.rs",
+    "sha256": "26ac52e8a18dcc2234f2ce6ab0100a3696eab599ad969f3b3f8e6ff453a98b81",
+    "bytes": 58733
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/rolling.rs",
+    "sha256": "5172e6a6d3892630b92bfcf0ac8e9874bfc503e7773574bd9dcb715f486434c5",
+    "bytes": 12118
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/kernels/tests.rs",
+    "sha256": "f95530fd01c8423e590057265ca0f7a2e2e78cef7ad3671a362ea07ad8443682",
+    "bytes": 5576
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/lib.rs",
+    "sha256": "c78c1208bf842f23e3b386ba976ab2a922abb1869ce7a44d5a4b83805e2de485",
+    "bytes": 635
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/engine/evaluator.rs",
+    "sha256": "0041314833eeebf0c398199c9b4a9cc8cc5b2a828f4c91312b1377d9b4aca551",
+    "bytes": 38953
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/engine/execution.rs",
+    "sha256": "61571509f120f4067c4d1b0b6e3ebad73e3b2d05c89225aa33d3ed20fe6d9c4b",
+    "bytes": 4083
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/engine/frame.rs",
+    "sha256": "7e5364f3ad5a61be45324b38d8eb61f632f9baf752a29849bd4d5d4d89bdd7b9",
+    "bytes": 1813
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/engine/value.rs",
+    "sha256": "2735956952372755630e04a1482fdf92c82d98d7824150c7b2874018c04e375e",
+    "bytes": 22172
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/engine.rs",
+    "sha256": "f83f29ba499049a9bfa3a7c2de312c4ef07a44ed4e4298d65ec6b13749aa19bd",
+    "bytes": 360
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/equivalence.rs",
+    "sha256": "2b4d48780d8aa20732151405e7e76dbd024b0f7b771c1f7f21800a514c607db8",
+    "bytes": 8232
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/mod.rs",
+    "sha256": "dbe8a04264e7450b2943812f1164c4a578047bede27b772195f810c347f25c8c",
+    "bytes": 376
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/model.rs",
+    "sha256": "9ee72e8ad90e6c7e1e94df1d6b6023a81d5948db8299b502b565078d5c189bb8",
+    "bytes": 2503
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/tests.rs",
+    "sha256": "cda7de3d0a170e730d5128c165121c71c9c7be8b41609c2a32915476b136e686",
+    "bytes": 43970
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/mutation/validation.rs",
+    "sha256": "ab414cb64c2bf87cd34179598cb8baa6539610256717af5ff5be68bf9ee73f6a",
+    "bytes": 30437
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/program/mod.rs",
+    "sha256": "066f8ba5cecbdf776a2650a6283595dfcaf1bb7f652e15ad4b0973824be8474d",
+    "bytes": 672
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/program/model.rs",
+    "sha256": "a29894fd8eec22e81eaf514445d73d39b9e139dc95e30bf5a8339eb488b39b5d",
+    "bytes": 4080
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/program/plan.rs",
+    "sha256": "e061e44166de99329e9cc4b2536e177bbf08cb0b6b491f59581357cb1b1a8682",
+    "bytes": 5968
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/program/tests.rs",
+    "sha256": "c0ea7a9afa67cdcbb3f51578cf7f89e5ab71dbac85e26d57fa8a917b15e61a8b",
+    "bytes": 5468
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/program/validation.rs",
+    "sha256": "12f12347bdac1292c0b836d7db38f5333cdd0c8b8a5976da6c5e22e7c4f71d9d",
+    "bytes": 18159
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/sink.rs",
+    "sha256": "59dea0d8bde7ac892cf609987e054ae8f7ed436a8443d27b226f437d3b6933e9",
+    "bytes": 3795
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/state/mod.rs",
+    "sha256": "6297a1433391a28cb1ffe52d6e9e491183e0cb88b6bec7671678d8c0fdfc8a31",
+    "bytes": 143
+  },
+  {
+    "path": "rust/crates/nfi-vector-core/src/state/rolling.rs",
+    "sha256": "9d96172c1e5f8ee0a06545e78b53c61b864e8675bf7e5f1a9035c86e3c4c6c5d",
+    "bytes": 12356
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/Cargo.toml",
+    "sha256": "2b56488b9e64564440811ee7c6e15cc49a650146396b5f8b4ac442d1aac38f7a",
+    "bytes": 678
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/decode.rs",
+    "sha256": "7632730ee8d7299af994c43e9b6c584e8b13c5a92b45454428ea43dc0c71f248",
+    "bytes": 4271
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/failures.rs",
+    "sha256": "223766e5c295901c395ef4a429146a6a33500443d1f224932cdbcde35e1e6c48",
+    "bytes": 4298
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/freqtrade_funding.rs",
+    "sha256": "a585e4f4d95ee3489ed11a41e22b3320fd8d0d44333a047452c6de1174ffaf60",
+    "bytes": 17273
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/freqtrade_ohlcv.rs",
+    "sha256": "6dca2142f176af09b29b39554bdf28edc948b4730472837ad8c77c7d944352c4",
+    "bytes": 30174
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_manifest/load.rs",
+    "sha256": "f78a5dc665e2ea93491e4af9ace8ea718c2560fc38149eaf6edede84cc3df119",
+    "bytes": 11769
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_manifest/model.rs",
+    "sha256": "4597a6cd5434a60cf6557c1903b9b87d1a663900108785981a43a9ce4ffe0d96",
+    "bytes": 11786
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_manifest/tests.rs",
+    "sha256": "e7968a2c80ebe805f778828608a1c89c7b6c0bc25a234aa91ee0446ec675489b",
+    "bytes": 13324
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_manifest/validation.rs",
+    "sha256": "2caebe2da222955ce3da22c29ac4b74a717b1af46feae4ac9175a862ee97bcd9",
+    "bytes": 20861
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_manifest.rs",
+    "sha256": "f85f9c4e117bf021a9cac25b6c0421cc6d0dc41ff47f56250ff6e3102d71ca52",
+    "bytes": 1500
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_pipeline/stage.rs",
+    "sha256": "92bf74f12e7dae435a9897ccaf6d7e2ae9756d1602c80c6105d9c39f1e0210b2",
+    "bytes": 10909
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_pipeline/tests.rs",
+    "sha256": "7315f6e03fd1a116cab9f19e8207236fa7b63f16f05b52fb2c3eb0b24c90932d",
+    "bytes": 12685
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/full_pipeline.rs",
+    "sha256": "096b2e39c68bf5198b9ba3318da6391fd94396a1e161e05b2c663e58082ad860",
+    "bytes": 25981
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/in_memory.rs",
+    "sha256": "ba64c369e1910cc6b075f66cde056e05d5cc0e59714d14e660e3aceb9dd79e95",
+    "bytes": 59985
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/lib.rs",
+    "sha256": "2d27c4dabcafada871fe90201891247cf19627df525fe9bf6959ccbf2dcfdbd2",
+    "bytes": 2360
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/loader.rs",
+    "sha256": "31ad30e83e406e184a7b6e947648c389079e7ad4c39cf52fe53918918e6de140",
+    "bytes": 11180
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/raw_ohlcv.rs",
+    "sha256": "4f0c771d4b50e877ab04a3ea9e273bae0315b65a5984af30104a4eb6ee91f196",
+    "bytes": 15326
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/row.rs",
+    "sha256": "8431f9ae84fb1d9f6b309a606656bddbf4ad00aa81159362b32507201c5c4360",
+    "bytes": 9599
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/schema.rs",
+    "sha256": "507265f180c279ef8419fc2f8507fddc7befaf61f83579f6fcfa885a91e0c61f",
+    "bytes": 4473
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/spool_admission.rs",
+    "sha256": "d0590fedbb4e7e25fc2ecb95a358f8fe9206e98a47d670dff960ac782f195db9",
+    "bytes": 8510
+  },
+  {
+    "path": "rust/crates/nfi-vector-io/src/values.rs",
+    "sha256": "dc7ef0a8804c183b46e82f6fbc222b3cae8df140fd5db86a4eb2ba1b15dde255",
+    "bytes": 8231
+  },
+  {
+    "path": "tests/changed_target_ledger_support.py",
+    "sha256": "fa21d5ad577723e125976a1336e6480e6ff87ea878adb6a58b47c66ed435d900",
+    "bytes": 9058
+  },
+  {
+    "path": "tests/conftest.py",
+    "sha256": "c134723c76b80380740d4828e3b3f31c4b8200585e6153f480e6cd5c4ce80d97",
+    "bytes": 3091
+  },
+  {
+    "path": "tests/parity/test_exact_parity.py",
+    "sha256": "e64dc7009455626908c55a520750447b5f883feadc0447f857b3d9a47d15add7",
+    "bytes": 2040
+  },
+  {
+    "path": "tests/parity/test_normalize.py",
+    "sha256": "06b7ec0d2f923b40afd7454f8fc57224ddabb80877b42d5d629d8619eb12994e",
+    "bytes": 2791
+  },
+  {
+    "path": "tests/parity/test_normalize_v2.py",
+    "sha256": "692632d816ad9c7778971ec6c85e067cf4a61b7f11764c4b22786dd79212b850",
+    "bytes": 2534
+  },
+  {
+    "path": "tests/parity/test_state_trace.py",
+    "sha256": "613f1caaa407e6cf89b0c7bade3abe90748b77ad80b72c49b4ce6acb7fa46182",
+    "bytes": 4608
+  },
+  {
+    "path": "tests/parity/test_zero_liquidation.py",
+    "sha256": "b99b238ddd857e5a45ec99e719922d085ea1035f41810b4042fe123086068c78",
+    "bytes": 2444
+  },
+  {
+    "path": "tests/provenance_support.py",
+    "sha256": "b13559420486838b5d947aff3da91591ac09efb530dde7bc3adb0808fc92fb9f",
+    "bytes": 3101
+  },
+  {
+    "path": "tests/task8_trust_support.py",
+    "sha256": "c29bc14c31cd545bb5e14775de5593173fb765f2eefcf1c7947bef8220d51a51",
+    "bytes": 7477
+  },
+  {
+    "path": "tests/test_adjustment_dispatch.py",
+    "sha256": "5bd3a408ddbbed2568893247c982c9585687797aa13aa4f2db38553128db37e3",
+    "bytes": 4294
+  },
+  {
+    "path": "tests/test_adjustment_ir.py",
+    "sha256": "4a6e445227ce5a7b36d9541ecf487a400a02b3650c23d2c597e6a374b3d857ed",
+    "bytes": 25545
+  },
+  {
+    "path": "tests/test_advanced_source_configuration.py",
+    "sha256": "b3d392992b8b9979bbaa61dabf6856f8bad3257f4ad8fab5c982066fed79e61e",
+    "bytes": 3267
+  },
+  {
+    "path": "tests/test_archive_portable_boundaries.py",
+    "sha256": "68a3ddd6075bbc137c7f1c37daa7e92a88c70aaef0185be43e88cc86b3af5543",
+    "bytes": 5095
+  },
+  {
+    "path": "tests/test_auxiliary_adjustment_source.py",
+    "sha256": "a36cef212118a7e3c9d81e1f923a810f7b2ed62f1acf3344edb110e08759e494",
+    "bytes": 5331
+  },
+  {
+    "path": "tests/test_batch_runner.py",
+    "sha256": "4c65f1d8ddb21a6d3cd24146f4df38872ec91e2d78a161e3176de5371400e037",
+    "bytes": 4666
+  },
+  {
+    "path": "tests/test_benchmark_snapshot.py",
+    "sha256": "ee2f65d9ba0652af40cfc395a209c262894d97d351add4755a9537b3274766c0",
+    "bytes": 9222
+  },
+  {
+    "path": "tests/test_binance_archive.py",
+    "sha256": "f11feb9b10c8d9aedfdd7b4a902bbaa631ac384c5ae4f53b37863cb5c276880d",
+    "bytes": 8359
+  },
+  {
+    "path": "tests/test_cache.py",
+    "sha256": "37f0c012cdc3870b63eaf3c29ffcbe03a5e78cbd7f2841802e53a872936c162b",
+    "bytes": 4773
+  },
+  {
+    "path": "tests/test_callback_source_ir.py",
+    "sha256": "f5656010352c8d01fea4b7b37cdd9b5aeb11779a948472b7978dc28f6e5af15f",
+    "bytes": 5105
+  },
+  {
+    "path": "tests/test_certification.py",
+    "sha256": "eb0e54041ae3d6ec79c03f1a934a46a45ae46ad197c2de5035b8781c07ea490f",
+    "bytes": 8829
+  },
+  {
+    "path": "tests/test_certification_identity_v2.py",
+    "sha256": "2028feda399cc9066e3b06cdadde2acbedf1a8f387c704d8dc06304ba3245f99",
+    "bytes": 9288
+  },
+  {
+    "path": "tests/test_changed_signal_proof.py",
+    "sha256": "41217974a090d7d53ace114baeae83f420a0c98f1ed9fd0506e958e3b1d7358a",
+    "bytes": 4202
+  },
+  {
+    "path": "tests/test_changed_target_adversarial.py",
+    "sha256": "75e880dff435a4accffed4dbad2cdc88c33b201f56c69f988cdb735c915501ec",
+    "bytes": 7917
+  },
+  {
+    "path": "tests/test_changed_target_ledger.py",
+    "sha256": "920c544a3bedab1595799b91e406a0b4d34c6a4606d2a30a3e91c3f82d9940f9",
+    "bytes": 6502
+  },
+  {
+    "path": "tests/test_changed_target_proofs.py",
+    "sha256": "bf7c026ecf707d2ceca068d5c367a3c4cfac679f60b323a195f79181691ca404",
+    "bytes": 8574
+  },
+  {
+    "path": "tests/test_changed_target_r3.py",
+    "sha256": "94916957571006e2a02b44c8b7bd068bfb2b298099b53e0e3927ecd4c69f12d6",
+    "bytes": 5883
+  },
+  {
+    "path": "tests/test_ci_policy.py",
+    "sha256": "734b53d53c0b69c7af4cb29c272ea688f825aa062443b44f51502ce585ddb9c6",
+    "bytes": 10801
+  },
+  {
+    "path": "tests/test_clean.py",
+    "sha256": "237df8e18546bfa4455f2cbbed00adc7cae58396b0dd210d5fd94278baa975ad",
+    "bytes": 19907
+  },
+  {
+    "path": "tests/test_cleanroom_e2e.py",
+    "sha256": "111b339cca000c640b537afc80d55528ef2fb12cc247c6045f2149d6990eec72",
+    "bytes": 3423
+  },
+  {
+    "path": "tests/test_cli.py",
+    "sha256": "0e84aecead2c51d4354260bc0b2fdb2dab04dd32e7547aa12092d9aa7026e086",
+    "bytes": 15634
+  },
+  {
+    "path": "tests/test_combined_release.py",
+    "sha256": "0dba1704fb8c4bdd0df5a230c7adc0d6565ff589ffbe9c00cd30d3fbab8da077",
+    "bytes": 45292
+  },
+  {
+    "path": "tests/test_compact_candles.py",
+    "sha256": "1d9e57781a15780afdca8ade8104997d4ffa7931292649b2aef15a96b4001f51",
+    "bytes": 1948
+  },
+  {
+    "path": "tests/test_compatibility_automation.py",
+    "sha256": "b2ba8bd0ee6209a922b66af7bfbca826abfd669fb417e7b67bad35913506b8c9",
+    "bytes": 9888
+  },
+  {
+    "path": "tests/test_compatibility_automation_facade.py",
+    "sha256": "d5c18021800d063485b258e58e303e1e5be9dca42915059e7cef3ef41e7a7bf3",
+    "bytes": 677
+  },
+  {
+    "path": "tests/test_compatibility_canary.py",
+    "sha256": "0940fd38b462366386c95f1709f8df3bfbdbf7d83b45088af779ed25068b5d66",
+    "bytes": 8674
+  },
+  {
+    "path": "tests/test_compatibility_fixture_registry.py",
+    "sha256": "93300d63d89e6a81da2b22afcec54f174578c8800ea7b301549af3c1bd68e354",
+    "bytes": 5469
+  },
+  {
+    "path": "tests/test_compatibility_identity.py",
+    "sha256": "d88596f2b7e3c5e9b789f7dae24009570da641895d91593d2ddd7d21fe336121",
+    "bytes": 3412
+  },
+  {
+    "path": "tests/test_compatibility_issue.py",
+    "sha256": "8999eb7e0a3075f0803aa4992f22448d115a2fb1828db065055b3b76ef0528ee",
+    "bytes": 6129
+  },
+  {
+    "path": "tests/test_compatibility_proof.py",
+    "sha256": "4b8a147c1cd726f09ff5d304784db3f2331c08d1a1795dd5f50ad8645bdcb1df",
+    "bytes": 7478
+  },
+  {
+    "path": "tests/test_compatibility_qualification.py",
+    "sha256": "76d52b712dcf3faf35e372984b60ad9e89129b4b3c84473be780a74a23c804fd",
+    "bytes": 1528
+  },
+  {
+    "path": "tests/test_compatibility_status.py",
+    "sha256": "c60c74073a2c5e22909b8c407c6a10509aecdf6c09c8041d275da5c785a750d6",
+    "bytes": 8225
+  },
+  {
+    "path": "tests/test_compatibility_status_r2.py",
+    "sha256": "71837aa15614789c38cec41349b8905018a82254a8869430293243a7bfbd53cb",
+    "bytes": 7076
+  },
+  {
+    "path": "tests/test_compatibility_status_r3.py",
+    "sha256": "024a4ea7c010737b3af9200d80fc5d7643c23e88eb1f0a7c1820317adcfc448c",
+    "bytes": 2569
+  },
+  {
+    "path": "tests/test_complete_semantic_trace.py",
+    "sha256": "439c784da3cfc7e043192ffade7eb411892074fd39a0bbc103b9cfe17462c232",
+    "bytes": 8868
+  },
+  {
+    "path": "tests/test_config_loader.py",
+    "sha256": "9a4abc84685868e36092d886a75c61961e8f52893fece8f452d5f54d0627a4ce",
+    "bytes": 2590
+  },
+  {
+    "path": "tests/test_confirmation.py",
+    "sha256": "d1057bbe56eb7fcf951f1f9c2ae436b8419bd6dbc78dd9ad9c91ffabeebf8871",
+    "bytes": 1196
+  },
+  {
+    "path": "tests/test_current_changed_signal.py",
+    "sha256": "a3b9477a85ad52ee5b89d567267b339c72ca852b2a2de285d43a35910633ea54",
+    "bytes": 3561
+  },
+  {
+    "path": "tests/test_data_seal.py",
+    "sha256": "621479978672068fbea2184880534497f57eb983919750cb8f5f02f64cf46070",
+    "bytes": 16769
+  },
+  {
+    "path": "tests/test_discovery_publication.py",
+    "sha256": "e895ea8ce83a1fb44cea1a178294c3dc0c27ebc92de2a7b5aa23444c05954a5f",
+    "bytes": 8394
+  },
+  {
+    "path": "tests/test_docker_runtime.py",
+    "sha256": "fe44df80059c753bb06cd9247a3ca2aeee0172460a3ccc26f5de2f4c063ca22f",
+    "bytes": 15942
+  },
+  {
+    "path": "tests/test_dynamic_grind_levels.py",
+    "sha256": "f8d088f6dece79437599ff9b7dd77d761ff8cb823e836da0aaaec8843dec517d",
+    "bytes": 3281
+  },
+  {
+    "path": "tests/test_engine_runtime.py",
+    "sha256": "7db86325cfbf590f0b7201b103cb23fbb79dec99a8b5bb4a9eec02ef9317884b",
+    "bytes": 26380
+  },
+  {
+    "path": "tests/test_evidence.py",
+    "sha256": "64195baa413c2bfc87ac99c17dacc8548f34fcf4b6fb555203a077dda58ba765",
+    "bytes": 15453
+  },
+  {
+    "path": "tests/test_evidence_bundle.py",
+    "sha256": "54f9292a2c71aad88cd559034db1eca77e64be8824bff1ebb6712ee514c0fe43",
+    "bytes": 6892
+  },
+  {
+    "path": "tests/test_execution_boundary_trace.py",
+    "sha256": "ba453e00aad83c03dfb40f1b22125e6a98bd97e7faf34fbd6c827687b7da2ebc",
+    "bytes": 3903
+  },
+  {
+    "path": "tests/test_execution_contract.py",
+    "sha256": "ee4c7ea49f5d04993e3ca8718b30f69149db8c895ba6cfd71e51c3b614d11e54",
+    "bytes": 4117
+  },
+  {
+    "path": "tests/test_fill_competition_integration.py",
+    "sha256": "07ec77edbf201b41fca7deca41255d553a6879954d8ea690324da6ce2b52deb5",
+    "bytes": 13164
+  },
+  {
+    "path": "tests/test_fixture.py",
+    "sha256": "ed015205a71aeaa498b90fd76677bf0eb892c6f30c13e1b3c26c2c07db9b355a",
+    "bytes": 7517
+  },
+  {
+    "path": "tests/test_fixture_capture.py",
+    "sha256": "05a26420dd28932b75feb40af3b971ee7e1d0fb1483af9aba26c3a0f1731405f",
+    "bytes": 2540
+  },
+  {
+    "path": "tests/test_fixture_engine.py",
+    "sha256": "2fce85ff48d5142e03444a5dc1c68d0c846f8cfbb48bf018025601cbd2edeada",
+    "bytes": 9741
+  },
+  {
+    "path": "tests/test_fixture_v2.py",
+    "sha256": "3b53d1af0432f8f9347bf3d8a071a75a1fb111f354ee51783894d95f8b604499",
+    "bytes": 2264
+  },
+  {
+    "path": "tests/test_fixture_v3.py",
+    "sha256": "8e676f72953eec83b1223f51153667e0553671f503ced0d787ccc3719b512dac",
+    "bytes": 9339
+  },
+  {
+    "path": "tests/test_freqtrade_semantic_profile.py",
+    "sha256": "b610ad657b4b4899db65f55f0c9a9314b7e59b610d908a917c5fff3fe8c6217f",
+    "bytes": 5385
+  },
+  {
+    "path": "tests/test_full_native_calibration.py",
+    "sha256": "aa82c5f86b1dfb516ffe19a2298773f6afb9ab46e96737d5229eb84401024357",
+    "bytes": 3680
+  },
+  {
+    "path": "tests/test_full_native_performance_evidence.py",
+    "sha256": "e6a2bffde712e5dbe011f200261247ce8a90c047767fbe3e6ca54015559d08fd",
+    "bytes": 2520
+  },
+  {
+    "path": "tests/test_full_vector_runtime.py",
+    "sha256": "c2bb847228f00d7b522f71d2b9e4c544f4858a941349a48bb7fa6fbd6c5233d9",
+    "bytes": 7627
+  },
+  {
+    "path": "tests/test_full_x7_certification.py",
+    "sha256": "ffe392414a2b12b6f73ef3fa46f6519737b4243e025fcdb470d7ba6a971ae601",
+    "bytes": 56476
+  },
+  {
+    "path": "tests/test_futures_candidate_pr.py",
+    "sha256": "0b4ed875a55dba4e865d082ca9340bb0da7b1adef37a7ef51df3dfd2fa5d26bf",
+    "bytes": 12167
+  },
+  {
+    "path": "tests/test_futures_candidate_pr_r4.py",
+    "sha256": "d943341239c225a92cb6a8e1f884a582d6c6482b53fee78ad403b0403745336a",
+    "bytes": 2707
+  },
+  {
+    "path": "tests/test_futures_contract.py",
+    "sha256": "4141bdc968eeefbe20ecae1e5c87f221544308f51582ffa476e912ada67811a9",
+    "bytes": 5411
+  },
+  {
+    "path": "tests/test_futures_discovery.py",
+    "sha256": "52b2bf6e036d436fcc4a1c905065519ececbadcf41e9919ffef3dad0cd66bd7b",
+    "bytes": 48564
+  },
+  {
+    "path": "tests/test_futures_discovery_health_issue.py",
+    "sha256": "ad484a6b08bef3a9ce7772cb9909404944baddf05e9ab7e93d12024a146512fb",
+    "bytes": 2358
+  },
+  {
+    "path": "tests/test_futures_discovery_issue.py",
+    "sha256": "9d1175e81f1089eb1cd65117b0a044f8c7c00650071bec998a5f11a20cf9872f",
+    "bytes": 3757
+  },
+  {
+    "path": "tests/test_futures_discovery_workflow.py",
+    "sha256": "ee1d48222564328927aecd7fe602638ae12bcd9fd44b1b4d9abb5c9d099aa420",
+    "bytes": 13622
+  },
+  {
+    "path": "tests/test_generic_adapter.py",
+    "sha256": "be2dbf593a71ac6db4dcdbe50da9d67a8429d2099f62e6470599f5ee88d9640b",
+    "bytes": 20599
+  },
+  {
+    "path": "tests/test_hardware.py",
+    "sha256": "3361416aafa1443ca8d1a7d9b3ec77e1df834cf61c1fecb8e1097bac20924e4a",
+    "bytes": 4167
+  },
+  {
+    "path": "tests/test_hash_index.py",
+    "sha256": "94db5d40dcb871e12ef0ab3d25e35e254fac0c1b07578e7ec8240ad7e48b2e29",
+    "bytes": 534
+  },
+  {
+    "path": "tests/test_hot_ir.py",
+    "sha256": "3fd87ab5967d00a23942ce9085eb5922c8bacc41865345d21bcbcababdc57f37",
+    "bytes": 28668
+  },
+  {
+    "path": "tests/test_indicator_columns.py",
+    "sha256": "0f7cfe2c1980c9d1c34c65db89a594e6928a0bd4b469748afc613a4eedbd50ef",
+    "bytes": 1767
+  },
+  {
+    "path": "tests/test_indicator_inventory.py",
+    "sha256": "60914debd01440fd3c448fcc3b05c3142f2155238ceeb5a42ac8cc12e0710fda",
+    "bytes": 8395
+  },
+  {
+    "path": "tests/test_indicator_kernel_fixture.py",
+    "sha256": "dc4d4e99a208681a8885765e80f3ec387791b274099082cf7745b149b9332cd2",
+    "bytes": 2728
+  },
+  {
+    "path": "tests/test_indicator_program.py",
+    "sha256": "fdeaf1242afab8a397ea5408ce00a05e9173a260af3b1ddf119094f4e80c9c49",
+    "bytes": 37691
+  },
+  {
+    "path": "tests/test_informative_fixture.py",
+    "sha256": "5266b61c2731ece0c04b4180e700216f6ef75e1eed08c28bf30a79f9c2aeb43a",
+    "bytes": 5966
+  },
+  {
+    "path": "tests/test_initialization_parameters.py",
+    "sha256": "36d6f1ee22e0a44a9f56dca5d863759de7d1ea0bab5e1a387a5293d8e591b54e",
+    "bytes": 5075
+  },
+  {
+    "path": "tests/test_input_boundaries.py",
+    "sha256": "b1d2be6a1799219f3e5d0083c9d70eca13cb37d374fa0f717df29e4794179d16",
+    "bytes": 48373
+  },
+  {
+    "path": "tests/test_latest_full_native_qualification.py",
+    "sha256": "52e46646b4176842390cd2c69658846e230782363a6ca2bfcd435cd4b76b2628",
+    "bytes": 2523
+  },
+  {
+    "path": "tests/test_latest_signal47_fixture.py",
+    "sha256": "6398bb46388fe8dfdacf43b0d1a4bac0778a204eb6d7b7f001e36d55cfb8c2b2",
+    "bytes": 2729
+  },
+  {
+    "path": "tests/test_legacy_entry_source.py",
+    "sha256": "420e9324d00dd5dc4e254de35dc7e0cab266f44c367b9f4f3848a6887da8d85d",
+    "bytes": 2539
+  },
+  {
+    "path": "tests/test_legacy_grind_ir.py",
+    "sha256": "9117f4f532ea2435ecb4f971df0a6b21722cc7780b862f3246b68623c553e52a",
+    "bytes": 14610
+  },
+  {
+    "path": "tests/test_legacy_reference.py",
+    "sha256": "957d6fc341e190e0b9b07c911a94eb195de12dacec578e63dd63999418f75ee9",
+    "bytes": 6113
+  },
+  {
+    "path": "tests/test_managed_exit_ir.py",
+    "sha256": "ef080860fd371c93ca5c4d90918d9fa019ea9cb3c36ae25b07ba6ed128cba71a",
+    "bytes": 17492
+  },
+  {
+    "path": "tests/test_market_precision.py",
+    "sha256": "20bedfe273d95f206c37862f88c4c5cd0e569b7eda5e251a05416c5e1a190a7d",
+    "bytes": 2331
+  },
+  {
+    "path": "tests/test_market_snapshot.py",
+    "sha256": "5d0994945cc8a7de1605d0b9d1e22a5a9aafa66d340429527b48b2f7ddbec05f",
+    "bytes": 5677
+  },
+  {
+    "path": "tests/test_mismatch_replay.py",
+    "sha256": "d701b5aeafba86e1fdfa618cfaffa8d391029c256dde1cbf0fd20ce5f2eb1953",
+    "bytes": 2309
+  },
+  {
+    "path": "tests/test_native_full_vector_bridge.py",
+    "sha256": "dc38f4de73eb6c1d71d5804f7d4f9b1fe36e0dd090e16f0da05caa496da3e777",
+    "bytes": 6551
+  },
+  {
+    "path": "tests/test_native_full_vector_file_api.py",
+    "sha256": "b38a90ebcb03a2c9c9d2b923285c3649848e8ea5c623a043aebba61395f46ac9",
+    "bytes": 668
+  },
+  {
+    "path": "tests/test_native_runtime_benchmark.py",
+    "sha256": "4539e94b494217441ccdf80583dcee1a62b2bdd9e00343a2cf59424607658005",
+    "bytes": 3681
+  },
+  {
+    "path": "tests/test_native_score_performance_v2.py",
+    "sha256": "92ff66802aa3a793e9951cd28ac52e884abaaa2a13d0df8ac8306639a8aea73e",
+    "bytes": 21551
+  },
+  {
+    "path": "tests/test_native_scorecard.py",
+    "sha256": "8c14c93dc81c2e00efb0dab7e04b0f8b753ca3edde1ae67f34f8801629fee1f7",
+    "bytes": 73772
+  },
+  {
+    "path": "tests/test_nfi_compatibility_workflow.py",
+    "sha256": "171919d20d5cdb18f2e9c0aa504d46d1aa0bdf9f8d38fdadf4f0529106350590",
+    "bytes": 10853
+  },
+  {
+    "path": "tests/test_nfi_trade_manager.py",
+    "sha256": "629c167a34df3c6a3b190a0045227691e2f5822cff7dcdbf54ca8b845dd31fd8",
+    "bytes": 15107
+  },
+  {
+    "path": "tests/test_official_fallback.py",
+    "sha256": "4e5aa3a1dedea074dccc5a952cbd45effa8826356236c574b6c2f7a7daa16d27",
+    "bytes": 11995
+  },
+  {
+    "path": "tests/test_order_filled_policy.py",
+    "sha256": "e9e566d40a4152c79e3f569229d905f82d6f0629e8d2966b058202089443e2c0",
+    "bytes": 2418
+  },
+  {
+    "path": "tests/test_package_version.py",
+    "sha256": "d9c9b3e113cb4b967019ac1dfc7c7adcb75ffbe988b806e9ef23c03c7fc1aca1",
+    "bytes": 462
+  },
+  {
+    "path": "tests/test_pair_selection.py",
+    "sha256": "68a6bf3229b475f85ca837939539088075a13732ed94851c75c8484fb12e4608",
+    "bytes": 4901
+  },
+  {
+    "path": "tests/test_performance_gate.py",
+    "sha256": "5e99b0078bd376455de8ec3732df7fa6d9444b6b1932260ff2b90ea975ce083c",
+    "bytes": 3447
+  },
+  {
+    "path": "tests/test_platform_benchmark.py",
+    "sha256": "93c80af7166ec7195929ec787d6ebcd45c7f42208ccb306c43c139c59c0450f6",
+    "bytes": 12704
+  },
+  {
+    "path": "tests/test_portable_paths.py",
+    "sha256": "5bbb2fab4c30833219e2e60043b65be1a8cec9f21adc4b016cc36108672acaf4",
+    "bytes": 2306
+  },
+  {
+    "path": "tests/test_probe_capture.py",
+    "sha256": "a2d5ec79649347eb2c5a502119a82ee69ad4c08e69a9f86643023e5f1bb79c82",
+    "bytes": 7521
+  },
+  {
+    "path": "tests/test_probe_strategy.py",
+    "sha256": "72aba5c7bc60a40f04ca7fde5acd07f210baf061af3e23c2a0ed8c6884175f87",
+    "bytes": 4726
+  },
+  {
+    "path": "tests/test_probe_vector.py",
+    "sha256": "5348de5939cf6ab805de6754df84ce2ff1a33fd27157a00109d0cda3fda338b5",
+    "bytes": 4007
+  },
+  {
+    "path": "tests/test_product_contract.py",
+    "sha256": "c0fdc0b7c28df928647c307099981cf39b3ae3954e98115e11c3ed4f252b7b20",
+    "bytes": 918
+  },
+  {
+    "path": "tests/test_product_support_contract.py",
+    "sha256": "d2340d4a1d3dc96f798695277feb20a5dc3cfe60e928de51e757a2f0bc183969",
+    "bytes": 7266
+  },
+  {
+    "path": "tests/test_product_ux_schemas.py",
+    "sha256": "f84147cd4f6ef1e34fdc4a5ea912a3735d08c35958af1a0400677ac9af1a2df1",
+    "bytes": 1660
+  },
+  {
+    "path": "tests/test_profiling.py",
+    "sha256": "8337dde6c85db8207adf34c78be51dfe0deec75fe96448135423dc3d1d12e297",
+    "bytes": 1861
+  },
+  {
+    "path": "tests/test_project_setup.py",
+    "sha256": "a3dfa13acc967c550d8d9803e018907c6febc7a4bb42cfff655cc258e7363575",
+    "bytes": 43392
+  },
+  {
+    "path": "tests/test_rebuy_ir.py",
+    "sha256": "808bbb459f63e56cbc0fcb0251f717e62261207ec152ee56a473f1184099455d",
+    "bytes": 9042
+  },
+  {
+    "path": "tests/test_reference_assets.py",
+    "sha256": "7f4029f5049e78c08bc27c3513fad1953284f9c38cd41e948d6435f4a7e824f8",
+    "bytes": 791
+  },
+  {
+    "path": "tests/test_reference_runtime.py",
+    "sha256": "5757866b9bb9582b8ff0be0e0d4c7323e2c6eb5051a1cdcccec79bc5146ff3cc",
+    "bytes": 25580
+  },
+  {
+    "path": "tests/test_reference_tracer.py",
+    "sha256": "d4b70acd0dc3e4218f77331b9393e1ddba3ddb35b6af9dfd5e295ed5c6cd24c9",
+    "bytes": 11956
+  },
+  {
+    "path": "tests/test_regression_contract.py",
+    "sha256": "f501d962a2078dec11ea0044850f74f40742ba478d4b2b3dd88c3ccb9a858dde",
+    "bytes": 7475
+  },
+  {
+    "path": "tests/test_regular_adjustment_ir.py",
+    "sha256": "98880060b3be5bdf51fc916ac6c321b712caba983cef8a247b4d967c23e4bda4",
+    "bytes": 3875
+  },
+  {
+    "path": "tests/test_release_audit.py",
+    "sha256": "c9b4541420a9ec14908e4e97d14c3a77d7f0f501200d1ab1d9237ce2bbd2e532",
+    "bytes": 6331
+  },
+  {
+    "path": "tests/test_release_contract.py",
+    "sha256": "f03b9a4bc790868e47a680cfffe3353a581442fc2162bcfc985af4e8bd43405d",
+    "bytes": 81973
+  },
+  {
+    "path": "tests/test_release_gate.py",
+    "sha256": "729004d838af59ff12eb77a7eb093dc905a38581f3081b910ff93adb23f41ba9",
+    "bytes": 1225
+  },
+  {
+    "path": "tests/test_release_inputs.py",
+    "sha256": "b61b5db84603bbf6d4abab88cf2e0672d9f87fbf7f9cf85cfaab0cb17d41fd90",
+    "bytes": 12747
+  },
+  {
+    "path": "tests/test_release_provenance.py",
+    "sha256": "d816a0cd79a07a2cc32e4a4ae775222cc2153347790addda2ec4400e69db4404",
+    "bytes": 31030
+  },
+  {
+    "path": "tests/test_release_provenance_sqlite.py",
+    "sha256": "382c7660245d4bd8cd7bf3652d75760a6c2efdaa516fd65a103976393fd29016",
+    "bytes": 9539
+  },
+  {
+    "path": "tests/test_release_provenance_sqlite_publication.py",
+    "sha256": "30c973b92bb24bc0dae47127701189302230c74559fb700cfe2118e3ab46c757",
+    "bytes": 10410
+  },
+  {
+    "path": "tests/test_release_provenance_sqlite_races.py",
+    "sha256": "2b1f8274957411c53306ecd6b94270c1fd7006b794f41350189aaaf2e7022368",
+    "bytes": 8411
+  },
+  {
+    "path": "tests/test_release_supply_chain.py",
+    "sha256": "4d9f658c2c21f7aee6cf54ebe2cbd82f5f61abd4ae178c2300cbd177e4c06899",
+    "bytes": 2728
+  },
+  {
+    "path": "tests/test_research_reference.py",
+    "sha256": "3a3c714ee13999d747baea0371b7f18e233a72fb658deac7d9f3f6e24b4d058a",
+    "bytes": 10135
+  },
+  {
+    "path": "tests/test_research_runner.py",
+    "sha256": "b76eea3c100a229f0ed5cf00c18579b8d086498d5c266c142754637cd2038a88",
+    "bytes": 33960
+  },
+  {
+    "path": "tests/test_resolve_upstream_source.py",
+    "sha256": "ef3a3f333a2a080dc12728694b8daa24173d72914b5f507ff3653923603d3dc2",
+    "bytes": 1914
+  },
+  {
+    "path": "tests/test_resolver_source_configuration.py",
+    "sha256": "f54777b3659559780dbd15cebcd44ce454b735f806d8af92ee2df46c25e3b0ac",
+    "bytes": 3825
+  },
+  {
+    "path": "tests/test_result_artifacts_v2.py",
+    "sha256": "e24ef6615e7e4d1dd52bcdb6baee8101691f8a0cc595e56df18d39d0a0655f66",
+    "bytes": 13998
+  },
+  {
+    "path": "tests/test_result_report.py",
+    "sha256": "639f1cec6d1a12a749a7fe01c1b2fce2dcfaebf8505607c580c541dfdf74e66e",
+    "bytes": 10492
+  },
+  {
+    "path": "tests/test_result_summary.py",
+    "sha256": "49d7a7641ded2a75873e93a7242b4b5bc578a9c81563760fd1d682956f400e46",
+    "bytes": 7456
+  },
+  {
+    "path": "tests/test_run_registry.py",
+    "sha256": "531a4c4c6f85b839795fd529860209e9e2e8a87d8d4268e2eef8d2a5a49453cd",
+    "bytes": 2206
+  },
+  {
+    "path": "tests/test_scheduler_contract.py",
+    "sha256": "9ebf4d803f2d730919e463ff880e18e195ee8b8d21b2043bb7b75b7dcaba0abb",
+    "bytes": 6383
+  },
+  {
+    "path": "tests/test_select_discovery_cursor.py",
+    "sha256": "0a78a56b1abf4699c51ac69a47202c732302c23562985e383f81495b0a71ddf3",
+    "bytes": 818
+  },
+  {
+    "path": "tests/test_semantic_inventory.py",
+    "sha256": "c9c149ee0faaeb712c0dc92473c1f388c6a96887a62c889894410553ac98ef62",
+    "bytes": 11835
+  },
+  {
+    "path": "tests/test_semantic_registry.py",
+    "sha256": "75f7254ec54b56af7b8c3649437792ea472d30a2850be5d8177e50a20997cbd8",
+    "bytes": 19191
+  },
+  {
+    "path": "tests/test_semantic_registry_adversarial.py",
+    "sha256": "45813f0cb3d390c4682b09a9e56e3a1f158e5a7e7c7ca0d37db51156e9d3c57b",
+    "bytes": 42767
+  },
+  {
+    "path": "tests/test_semantic_registry_distribution.py",
+    "sha256": "b2c7eaa5b6f7d368c1b8b2c83c1a1719c29aa604b856f3b7118c4472501e6cae",
+    "bytes": 21010
+  },
+  {
+    "path": "tests/test_short_top_coins.py",
+    "sha256": "4450377854281a2e7142dc99da7064be096c9af5f98c97417940cb849ac269c6",
+    "bytes": 6017
+  },
+  {
+    "path": "tests/test_signal_fixture.py",
+    "sha256": "c1a5a2657d5f8ce2d87ad8f2f372986ee4e372467d79ede0d08c37c7a35d0893",
+    "bytes": 1968
+  },
+  {
+    "path": "tests/test_signal_program.py",
+    "sha256": "ff08c4e911aa69b146ef0771473758f30ed8617def199ffc33afff4333e6689e",
+    "bytes": 12031
+  },
+  {
+    "path": "tests/test_slot_settings.py",
+    "sha256": "d792bc489170ac53f8ade0eace4b2cad90fd8a13c9a64106bdd3e7e77a3c24b8",
+    "bytes": 5554
+  },
+  {
+    "path": "tests/test_source_configuration.py",
+    "sha256": "6597a40542213dae31543bfaad607e1de88eebe608da9484125afda495d41091",
+    "bytes": 7034
+  },
+  {
+    "path": "tests/test_sqlite_wal.py",
+    "sha256": "bdd5e425737de5d17a061d89986734d24ff30844c2e95eb21c31a75cc596c022",
+    "bytes": 9326
+  },
+  {
+    "path": "tests/test_sqlite_wal_reset.py",
+    "sha256": "194c426aae37bc89bc29f7bea1ff7774619cd1e5320088478fb4e0e66a1f8de7",
+    "bytes": 9785
+  },
+  {
+    "path": "tests/test_state_machine_ir.py",
+    "sha256": "3b7841201433c0e5eac87967476a1d349bd525886bc141bdbb87d079682de419",
+    "bytes": 13445
+  },
+  {
+    "path": "tests/test_state_machine_shadow.py",
+    "sha256": "b57d656510bcfb55ecef943a6fea03c66f38fec709e9bf32f74712cc2c203e4d",
+    "bytes": 4793
+  },
+  {
+    "path": "tests/test_stateful_coverage.py",
+    "sha256": "51610885a17a377772f86d56335f6cde55ed3ca2b2253f8e1ab5702395d091d2",
+    "bytes": 11027
+  },
+  {
+    "path": "tests/test_stateful_execution_policy.py",
+    "sha256": "1beb667529ea7e49fdb7f9e681973cf81fd84d2b21671d9e22a0002323ce36ea",
+    "bytes": 7396
+  },
+  {
+    "path": "tests/test_strategy_catalog.py",
+    "sha256": "3f865d0c394aa8f35a8a06932453ed88eff3e1dd2b05c103eb6beb5732e987a6",
+    "bytes": 3103
+  },
+  {
+    "path": "tests/test_strategy_compat.py",
+    "sha256": "c1412256ab96afdb52de4e18f3b513daa66e2d3bfedfa3e3f70c04d5b5ca4bb9",
+    "bytes": 3649
+  },
+  {
+    "path": "tests/test_strategy_compatibility.py",
+    "sha256": "1d22301b0415718c3e0ce39f4efac307a743bfdb57a871123e22a49996f5c69e",
+    "bytes": 3007
+  },
+  {
+    "path": "tests/test_strategy_diff.py",
+    "sha256": "b810c0532584547a7f3e11b73411a4e6fc7cca0d44fc8e375cf64391c59036cf",
+    "bytes": 11231
+  },
+  {
+    "path": "tests/test_strategy_ir.py",
+    "sha256": "30be26e7d9c588e8f49469a6689a0148f5ccc6dbc1ae221fbea4e98a4dc04f29",
+    "bytes": 9913
+  },
+  {
+    "path": "tests/test_strategy_overrides.py",
+    "sha256": "fd6dcd15f94c13d4ac8dc213791272c67813aa88f3fd498ea91927f2b4911985",
+    "bytes": 807
+  },
+  {
+    "path": "tests/test_system_exit_source.py",
+    "sha256": "ef1b5500fb98f120ec185e9b49e61c0de5622a891556392fbcaa1cc4bd9ce726",
+    "bytes": 5088
+  },
+  {
+    "path": "tests/test_tag_fixture.py",
+    "sha256": "1295ab8ef765925ddad8555fe6f749495958edeacba44899d8915c3a7d34b077",
+    "bytes": 2244
+  },
+  {
+    "path": "tests/test_tag_program.py",
+    "sha256": "7dd11b9ff09fc154318a0810cf27a7c440ec9c5fe767c1cc2c64c63fb8cfc090",
+    "bytes": 9790
+  },
+  {
+    "path": "tests/test_targeted_verification.py",
+    "sha256": "79a5259407f43191160c6bc4eaf37b7bfa1b43eef0548604b9f04845faf3fa46",
+    "bytes": 14952
+  },
+  {
+    "path": "tests/test_task10_official_native_surface.py",
+    "sha256": "956fca65ecd64cd7d37791beed600eb4984bbbaaac2e0155e857977dc8ff0be3",
+    "bytes": 6585
+  },
+  {
+    "path": "tests/test_task10_short_grind.py",
+    "sha256": "bc1d7907ef5db6266e0a470a771cdd20fadfaa495893ab8c86a75b7574c76a15",
+    "bytes": 7673
+  },
+  {
+    "path": "tests/test_task12_current_head.py",
+    "sha256": "405bf42077f81e9b3698ec43c3077db6cb4989b54e4e9285f2f3735af4e71e59",
+    "bytes": 24488
+  },
+  {
+    "path": "tests/test_task13_callback_split.py",
+    "sha256": "ec3b28ad13134b6d25ab47fb7c22fba3cd22db6d6d04bc46b5f6435a3aa70d45",
+    "bytes": 4629
+  },
+  {
+    "path": "tests/test_task13_indicator_split.py",
+    "sha256": "22626ff0b5d2c83c69672aabe5fa82cac21c7f8dfbd061fe3c1a059824c322df",
+    "bytes": 3231
+  },
+  {
+    "path": "tests/test_task13_x7_split.py",
+    "sha256": "f6e3b1129f169327436456ea2d9da710cd00bf17e32e244d9c4903fbc0c52563",
+    "bytes": 4857
+  },
+  {
+    "path": "tests/test_task14_callback_lowering.py",
+    "sha256": "ce5174d99bb74ee6c11766e1b925aa7175f8b83650fb4e33ad56de960258eb8e",
+    "bytes": 8508
+  },
+  {
+    "path": "tests/test_task14_callback_registry.py",
+    "sha256": "b5526518f8bb63d86dc828ad505af2186f0c953f8def34ec382104449289b556",
+    "bytes": 4975
+  },
+  {
+    "path": "tests/test_task14_executable_callback_program.py",
+    "sha256": "77647c7db21891c1f806bb9ee3e26858a9828f07ed8b02f01df61a76b2096543",
+    "bytes": 11601
+  },
+  {
+    "path": "tests/test_task14_oracle_contract.py",
+    "sha256": "dfc1d7ff61e5f9183bea7368a3c039005646f7241a6435da0d3b8c77501f1ee6",
+    "bytes": 7528
+  },
+  {
+    "path": "tests/test_task15_native_seams.py",
+    "sha256": "63958c5399697888bd59efc30c3aec20d9471895c41931ffc0e74427c06a1177",
+    "bytes": 3801
+  },
+  {
+    "path": "tests/test_task15_oracle_contract.py",
+    "sha256": "924fd8aef57739b9278683d3ea42dd0da7e303ec0b7ad2891bd8cddd58f7207d",
+    "bytes": 14817
+  },
+  {
+    "path": "tests/test_task15_portfolio_registry.py",
+    "sha256": "68ac0f67e96081c48622282b7d3790721d45cc6f98d7d724a9b457c6aa937a11",
+    "bytes": 4089
+  },
+  {
+    "path": "tests/test_task15_portfolio_trace.py",
+    "sha256": "219e49dc25436b1995fb0f483d8b3c3e45cc522e87df382670e6044f457762f3",
+    "bytes": 11320
+  },
+  {
+    "path": "tests/test_task16_execution_registry.py",
+    "sha256": "1471db0bddb14281be263cf67d6c468b8900383aa6e06dda6d1106860e6babe3",
+    "bytes": 3931
+  },
+  {
+    "path": "tests/test_task16_execution_trace.py",
+    "sha256": "068f2343f08547eccfc31cc0e4db5d05cb31a3f8e284d9626c776c4dbbfd030a",
+    "bytes": 12761
+  },
+  {
+    "path": "tests/test_task16_oracle_contract.py",
+    "sha256": "daeb42b9887c02d0c788499ff82aeb835314ffb17841381a7d0fe8414ad6c1ed",
+    "bytes": 9889
+  },
+  {
+    "path": "tests/test_task8_futures_adapter.py",
+    "sha256": "4acc56a860a2609e13e60131e8cbdb0dca278e7ae8c73e75f378743e0c05b614",
+    "bytes": 3940
+  },
+  {
+    "path": "tests/test_task8_r3.py",
+    "sha256": "46f702c98356a90cc184d170cb7d0cd98d9611b999d941fb18df82be6f887ef9",
+    "bytes": 8422
+  },
+  {
+    "path": "tests/test_task8_r4.py",
+    "sha256": "b0ef833604c2d04eb692f762022edf78a70dfd41e6735c25c280b903cfae74a4",
+    "bytes": 9847
+  },
+  {
+    "path": "tests/test_task8_r5.py",
+    "sha256": "81777213d14c46717a023a9f376941b58f3600b85dbfd81e437716650e52d965",
+    "bytes": 6582
+  },
+  {
+    "path": "tests/test_task8_r6.py",
+    "sha256": "e93c64372c8c731bbd30865e8545395ed36489bec4b9249bb5ee01636746f722",
+    "bytes": 7740
+  },
+  {
+    "path": "tests/test_task8_r6_replay.py",
+    "sha256": "3a948ce3479dd660c1981c0ae669595ab0388bf94e6ccb72fca588768226fd4e",
+    "bytes": 1558
+  },
+  {
+    "path": "tests/test_task8_r7.py",
+    "sha256": "5d2521a07d37bd7fc87f18eeea3e618275baa531430971a12425ff04e17dba59",
+    "bytes": 6350
+  },
+  {
+    "path": "tests/test_task8_r8.py",
+    "sha256": "364a129a49f18755a77d66cc625973f0654622d0463ccb1ab8e3de003bb60f37",
+    "bytes": 3150
+  },
+  {
+    "path": "tests/test_task8_r9.py",
+    "sha256": "c629606be1b4dc64e5ef3516feaf8f22b699c4034aba63eea548104f9a29ebc8",
+    "bytes": 6840
+  },
+  {
+    "path": "tests/test_task8_remediation.py",
+    "sha256": "d2f27d9b46679b69edc0a4a8b6d430f3848c19423b8929f1a2abc81083be6f22",
+    "bytes": 9549
+  },
+  {
+    "path": "tests/test_task9_long_grind.py",
+    "sha256": "5a34691e44d032869b83fe52c2c9014aaccc09488e1a5c5766dfb4307b8f13a9",
+    "bytes": 6119
+  },
+  {
+    "path": "tests/test_task9_official_native_surface.py",
+    "sha256": "eb787970350817baa7d897d02d8c7af5b411f1c30bfa157e1b35d52a4e19d2b2",
+    "bytes": 4322
+  },
+  {
+    "path": "tests/test_trace_projection.py",
+    "sha256": "ffe7b9ed7a8225138645c51a1d175eed7043559d725722e8dbcfebe24922a84d",
+    "bytes": 9797
+  },
+  {
+    "path": "tests/test_trade_ir.py",
+    "sha256": "ac03af3d3664d1131794d7c1884275f89b1009f655240c8fb27358adbab7aa5b",
+    "bytes": 15442
+  },
+  {
+    "path": "tests/test_update.py",
+    "sha256": "94267c6e2dafbef0e7f95d4287a440a99a7a810a35366acc0ca2d61e7892edf2",
+    "bytes": 7174
+  },
+  {
+    "path": "tests/test_v585_alias_fixtures.py",
+    "sha256": "7eb762f66c88251a0a67b1925ac7c11cd3e800feea2265ecfb6ba1763f4f0729",
+    "bytes": 2185
+  },
+  {
+    "path": "tests/test_vector_manifest.py",
+    "sha256": "84a2f67eb91c2630a546724820dca8a4bdb836d9e72d5d5dc2ff80925c1bd73d",
+    "bytes": 1353
+  },
+  {
+    "path": "tests/test_vector_runtime.py",
+    "sha256": "d3bb821518f4625ab3081ec0395f7ee40fe872f4840b9f5a1a312ea6ccfdf1fc",
+    "bytes": 2107
+  },
+  {
+    "path": "tests/test_vector_shadow_fixture.py",
+    "sha256": "0352566f56d88fbaddf97487fc53e822196a29ab88cf95503b6aeb510212ab0d",
+    "bytes": 3701
+  },
+  {
+    "path": "tests/test_vector_worker.py",
+    "sha256": "a95d87763ac2989ebd12fe0f489a06056c08af0958c7469d65e88351791f3b2b",
+    "bytes": 13038
+  },
+  {
+    "path": "tests/test_vector_worker_resample.py",
+    "sha256": "e05309c1bd75fd1e777597e063aa0f7ff3d1107fcde329b918117cfeab90794a",
+    "bytes": 2852
+  },
+  {
+    "path": "tests/test_verification_ledger.py",
+    "sha256": "f745d179f322dd2d0ac82663dbb1499f6b1f0d179975ea423c738d15299988fa",
+    "bytes": 11060
+  },
+  {
+    "path": "tests/test_virtual_fees.py",
+    "sha256": "28fec25494bc867abe8bd1bd382edd38d7c21de30ea2209d9cd1de1b3af12bf8",
+    "bytes": 5957
+  },
+  {
+    "path": "tests/test_wallet_settings.py",
+    "sha256": "960c03b5af9d3fff0fea0d6462fe3253ff80dd92d9e8e6c20f653d642b8ca01b",
+    "bytes": 1731
+  },
+  {
+    "path": "tests/test_workflow_health_issue.py",
+    "sha256": "8d9a39562758b8fa05d9687e4b68117ba1bd92c4dc1ffa642bd8f671aed6e062",
+    "bytes": 1768
+  },
+  {
+    "path": "tests/test_workload_calibration.py",
+    "sha256": "bf9f9841474e738698ec64d20b963f21bce76c271d926437ff63ca7006fd49af",
+    "bytes": 2741
+  },
+  {
+    "path": "tests/test_x7_adapter.py",
+    "sha256": "6ad3418cc66e86d175383fd32a6fdf68c971c2fd1d08a87f95ad337d06719241",
+    "bytes": 41300
+  },
+  {
+    "path": "tests/test_x8_adjustment_source.py",
+    "sha256": "2ae625fbc02567a163af390c12b79f39e763ff0a4ddbe1f6cf402e8e9b36b25d",
+    "bytes": 9315
+  },
+  {
+    "path": "tests/test_x8_grind_entry.py",
+    "sha256": "c5c165ca7a850e03c02f0401f0586f4cd926c3614e5db91a1687f972eec48442",
+    "bytes": 2266
+  }
+]

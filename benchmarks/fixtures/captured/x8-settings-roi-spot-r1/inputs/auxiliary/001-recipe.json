@@ -1,0 +1,28 @@
+{
+  "scope": "Full donor callbacks; prior disclosed signal/indicator transformations retained. Strategy constants restored to donor defaults; overrides supplied through configuration.",
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "changed_method": "populate_entry_trend",
+  "direction": "long",
+  "entry_tag": "1",
+  "predicate": "volume > 0 and RSI_14 > 60.0",
+  "stake_amount": 100,
+  "virtual_fee_configuration": {
+    "custom_fee_open_rate": 0.002
+  },
+  "exchange_fee_policy": "Actual exchange fee unchanged",
+  "settings_case": "roi-spot",
+  "advanced_parameters": {
+    "custom_fee_open_rate": 0.002
+  },
+  "resolver_settings": {
+    "position_adjustment_enable": false,
+    "use_exit_signal": false,
+    "minimal_roi": {
+      "0": 0.004,
+      "15": 0.002,
+      "30": 0.0
+    }
+  },
+  "constant_overrides": {},
+  "strategy_sha256": "7b0de160e4d4fc72b2062e38f6b260c841aebb66641d44a599c6c79b27a5282e"
+}

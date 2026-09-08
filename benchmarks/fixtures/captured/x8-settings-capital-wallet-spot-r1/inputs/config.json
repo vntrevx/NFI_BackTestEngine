@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "dry_run": true,
+  "dry_run_wallet": {
+    "USDT": 10000,
+    "BTC": 0.2
+  },
+  "trading_mode": "spot",
+  "margin_mode": "",
+  "grinding_enable": true,
+  "max_open_trades": 2,
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "tradable_balance_ratio": 0.75,
+  "timeframe": "5m",
+  "dataformat_ohlcv": "feather",
+  "entry_pricing": {
+    "price_side": "other",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exit_pricing": {
+    "price_side": "other",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "pair_whitelist": [
+      "BTC/USDT",
+      "ETH/USDT"
+    ],
+    "pair_blacklist": []
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList",
+      "allow_inactive": true
+    }
+  ],
+  "strategy": "NostalgiaForInfinityX8",
+  "nfi_parameters": {
+    "custom_fee_open_rate": 0.002,
+    "system_v4_stake_multiplier": 1.0
+  },
+  "position_adjustment_enable": false,
+  "nfi_advanced_mode": true,
+  "available_capital": 3000
+}

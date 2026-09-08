@@ -1,0 +1,4579 @@
+{
+  "freqtrade_version": "2026.5.1",
+  "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "cases_sha256": "8fc4c9a19e9e75080c79f7bb3789b2bf59afbafd709cfc3d5969ed30cebd5aec",
+  "scope": "Compare static overrides with the unchanged full donor and pinned IStrategy base.",
+  "cases": [
+    {
+      "key": "INTERFACE_VERSION",
+      "effective": 4,
+      "equal": true
+    },
+    {
+      "key": "stoploss",
+      "effective": -0.891,
+      "equal": true
+    },
+    {
+      "key": "trailing_stop",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "trailing_only_offset_is_reached",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "trailing_stop_positive",
+      "effective": 0.009000000000000001,
+      "equal": true
+    },
+    {
+      "key": "trailing_stop_positive_offset",
+      "effective": 0.027,
+      "equal": true
+    },
+    {
+      "key": "use_custom_stoploss",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "stoploss_on_exchange",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "timeframe",
+      "effective": "5m_configured",
+      "equal": true
+    },
+    {
+      "key": "info_timeframes",
+      "effective": [
+        "1d",
+        "4h",
+        "1h",
+        "15m"
+      ],
+      "equal": true
+    },
+    {
+      "key": "btc_info_timeframes",
+      "effective": [
+        "4h"
+      ],
+      "equal": true
+    },
+    {
+      "key": "has_bt_agefilter",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "bt_min_age_days",
+      "effective": 4,
+      "equal": true
+    },
+    {
+      "key": "has_downtime_protection",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "hold_support_enabled",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "process_only_new_candles",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "use_exit_signal",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "ignore_roi_if_entry_signal",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "num_cores_indicators_calc",
+      "effective": 1,
+      "equal": true
+    },
+    {
+      "key": "long_normal_mode_tags",
+      "effective": [
+        "13",
+        "12",
+        "11",
+        "10",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+        "1"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_pump_mode_tags",
+      "effective": [
+        "26",
+        "25",
+        "24",
+        "23",
+        "22",
+        "21"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_quick_mode_tags",
+      "effective": [
+        "53",
+        "52",
+        "51",
+        "50",
+        "49",
+        "48",
+        "47",
+        "46",
+        "45",
+        "44",
+        "43",
+        "42",
+        "41"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_rebuy_mode_tags",
+      "effective": [
+        "68",
+        "65",
+        "64",
+        "63",
+        "62",
+        "61"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_high_profit_mode_tags",
+      "effective": [
+        "82",
+        "81"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_rapid_mode_tags",
+      "effective": [
+        "110",
+        "109",
+        "108",
+        "107",
+        "106",
+        "105",
+        "104",
+        "103",
+        "102",
+        "101"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_grind_mode_tags",
+      "effective": [
+        "120"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_btc_mode_tags",
+      "effective": [
+        "121"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_top_coins_mode_tags",
+      "effective": [
+        "145",
+        "144",
+        "143",
+        "142",
+        "141"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_scalp_mode_tags",
+      "effective": [
+        "173",
+        "172",
+        "171",
+        "170",
+        "169",
+        "168",
+        "167",
+        "166",
+        "165",
+        "164",
+        "163",
+        "162",
+        "161"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_rebuy_grind_mode_tags",
+      "effective": [
+        "120",
+        "68",
+        "65",
+        "64",
+        "63",
+        "62",
+        "61"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_scalp_rebuy_grind_mode_tags",
+      "effective": [
+        "120",
+        "68",
+        "65",
+        "64",
+        "63",
+        "62",
+        "61",
+        "173",
+        "172",
+        "171",
+        "170",
+        "169",
+        "168",
+        "167",
+        "166",
+        "165",
+        "164",
+        "163",
+        "162",
+        "161"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_rapid_rebuy_grind_mode_tags",
+      "effective": [
+        "120",
+        "68",
+        "65",
+        "64",
+        "63",
+        "62",
+        "61",
+        "110",
+        "109",
+        "108",
+        "107",
+        "106",
+        "105",
+        "104",
+        "103",
+        "102",
+        "101"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_rapid_rebuy_grind_scalp_mode_tags",
+      "effective": [
+        "173",
+        "172",
+        "171",
+        "170",
+        "169",
+        "168",
+        "167",
+        "166",
+        "165",
+        "164",
+        "163",
+        "162",
+        "161",
+        "120",
+        "68",
+        "65",
+        "64",
+        "63",
+        "62",
+        "61",
+        "110",
+        "109",
+        "108",
+        "107",
+        "106",
+        "105",
+        "104",
+        "103",
+        "102",
+        "101"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_adjust_mode_tags",
+      "effective": [
+        "173",
+        "172",
+        "171",
+        "170",
+        "169",
+        "168",
+        "167",
+        "166",
+        "165",
+        "164",
+        "163",
+        "162",
+        "161",
+        "145",
+        "144",
+        "143",
+        "142",
+        "141",
+        "110",
+        "109",
+        "108",
+        "107",
+        "106",
+        "105",
+        "104",
+        "103",
+        "102",
+        "101",
+        "82",
+        "81",
+        "53",
+        "52",
+        "51",
+        "50",
+        "49",
+        "48",
+        "47",
+        "46",
+        "45",
+        "44",
+        "43",
+        "42",
+        "41",
+        "26",
+        "25",
+        "24",
+        "23",
+        "22",
+        "21",
+        "13",
+        "12",
+        "11",
+        "10",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+        "1"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_known_mode_tags",
+      "effective": [
+        "173",
+        "172",
+        "171",
+        "170",
+        "169",
+        "168",
+        "167",
+        "166",
+        "165",
+        "164",
+        "163",
+        "162",
+        "161",
+        "145",
+        "144",
+        "143",
+        "142",
+        "141",
+        "121",
+        "120",
+        "110",
+        "109",
+        "108",
+        "107",
+        "106",
+        "105",
+        "104",
+        "103",
+        "102",
+        "101",
+        "82",
+        "81",
+        "68",
+        "65",
+        "64",
+        "63",
+        "62",
+        "61",
+        "53",
+        "52",
+        "51",
+        "50",
+        "49",
+        "48",
+        "47",
+        "46",
+        "45",
+        "44",
+        "43",
+        "42",
+        "41",
+        "26",
+        "25",
+        "24",
+        "23",
+        "22",
+        "21",
+        "13",
+        "12",
+        "11",
+        "10",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+        "1"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_normal_mode_name",
+      "effective": "long_normal_configured",
+      "equal": true
+    },
+    {
+      "key": "long_pump_mode_name",
+      "effective": "long_pump_configured",
+      "equal": true
+    },
+    {
+      "key": "long_quick_mode_name",
+      "effective": "long_quick_configured",
+      "equal": true
+    },
+    {
+      "key": "long_rebuy_mode_name",
+      "effective": "long_rebuy_configured",
+      "equal": true
+    },
+    {
+      "key": "long_high_profit_mode_name",
+      "effective": "long_hp_configured",
+      "equal": true
+    },
+    {
+      "key": "long_rapid_mode_name",
+      "effective": "long_rapid_configured",
+      "equal": true
+    },
+    {
+      "key": "long_grind_mode_name",
+      "effective": "long_grind_configured",
+      "equal": true
+    },
+    {
+      "key": "long_btc_mode_name",
+      "effective": "long_btc_configured",
+      "equal": true
+    },
+    {
+      "key": "long_top_coins_mode_name",
+      "effective": "long_tc_configured",
+      "equal": true
+    },
+    {
+      "key": "long_scalp_mode_name",
+      "effective": "long_scalp_configured",
+      "equal": true
+    },
+    {
+      "key": "short_normal_mode_tags",
+      "effective": [
+        "506",
+        "505",
+        "502",
+        "501"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_pump_mode_tags",
+      "effective": [
+        "526",
+        "525",
+        "524",
+        "523",
+        "522",
+        "521"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_quick_mode_tags",
+      "effective": [
+        "550",
+        "549",
+        "548",
+        "547",
+        "546",
+        "545",
+        "544",
+        "543",
+        "542",
+        "541"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_rebuy_mode_tags",
+      "effective": [
+        "563",
+        "562",
+        "561"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_high_profit_mode_tags",
+      "effective": [
+        "582",
+        "581"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_rapid_mode_tags",
+      "effective": [
+        "610",
+        "609",
+        "608",
+        "607",
+        "606",
+        "605",
+        "604",
+        "603",
+        "602",
+        "601"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_grind_mode_tags",
+      "effective": [
+        "620"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_top_coins_mode_tags",
+      "effective": [
+        "642",
+        "641"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_scalp_mode_tags",
+      "effective": [
+        "671",
+        "669",
+        "670",
+        "667",
+        "666",
+        "665",
+        "664",
+        "663",
+        "662",
+        "661"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_rebuy_grind_mode_tags",
+      "effective": [
+        "620",
+        "563",
+        "562",
+        "561"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_scalp_rebuy_grind_mode_tags",
+      "effective": [
+        "620",
+        "563",
+        "562",
+        "561",
+        "671",
+        "669",
+        "670",
+        "667",
+        "666",
+        "665",
+        "664",
+        "663",
+        "662",
+        "661"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_rapid_rebuy_grind_mode_tags",
+      "effective": [
+        "620",
+        "563",
+        "562",
+        "561",
+        "610",
+        "609",
+        "608",
+        "607",
+        "606",
+        "605",
+        "604",
+        "603",
+        "602",
+        "601"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_adjust_mode_tags",
+      "effective": [
+        "671",
+        "669",
+        "670",
+        "667",
+        "666",
+        "665",
+        "664",
+        "663",
+        "662",
+        "661",
+        "642",
+        "641",
+        "610",
+        "609",
+        "608",
+        "607",
+        "606",
+        "605",
+        "604",
+        "603",
+        "602",
+        "601",
+        "582",
+        "581",
+        "550",
+        "549",
+        "548",
+        "547",
+        "546",
+        "545",
+        "544",
+        "543",
+        "542",
+        "541",
+        "526",
+        "525",
+        "524",
+        "523",
+        "522",
+        "521",
+        "506",
+        "505",
+        "502",
+        "501"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_known_mode_tags",
+      "effective": [
+        "671",
+        "669",
+        "670",
+        "667",
+        "666",
+        "665",
+        "664",
+        "663",
+        "662",
+        "661",
+        "642",
+        "641",
+        "620",
+        "610",
+        "609",
+        "608",
+        "607",
+        "606",
+        "605",
+        "604",
+        "603",
+        "602",
+        "601",
+        "582",
+        "581",
+        "563",
+        "562",
+        "561",
+        "550",
+        "549",
+        "548",
+        "547",
+        "546",
+        "545",
+        "544",
+        "543",
+        "542",
+        "541",
+        "526",
+        "525",
+        "524",
+        "523",
+        "522",
+        "521",
+        "506",
+        "505",
+        "502",
+        "501"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_exit_known_mode_tags",
+      "effective": [
+        "671",
+        "669",
+        "670",
+        "667",
+        "666",
+        "665",
+        "664",
+        "663",
+        "662",
+        "661",
+        "642",
+        "641",
+        "620",
+        "610",
+        "609",
+        "608",
+        "607",
+        "606",
+        "605",
+        "604",
+        "603",
+        "602",
+        "601",
+        "582",
+        "581",
+        "563",
+        "562",
+        "561",
+        "550",
+        "549",
+        "548",
+        "547",
+        "546",
+        "545",
+        "544",
+        "543",
+        "542",
+        "541",
+        "526",
+        "525",
+        "524",
+        "523",
+        "522",
+        "521",
+        "506",
+        "505",
+        "502",
+        "501"
+      ],
+      "equal": true
+    },
+    {
+      "key": "short_normal_mode_name",
+      "effective": "short_normal_configured",
+      "equal": true
+    },
+    {
+      "key": "short_pump_mode_name",
+      "effective": "short_pump_configured",
+      "equal": true
+    },
+    {
+      "key": "short_quick_mode_name",
+      "effective": "short_quick_configured",
+      "equal": true
+    },
+    {
+      "key": "short_rebuy_mode_name",
+      "effective": "short_rebuy_configured",
+      "equal": true
+    },
+    {
+      "key": "short_high_profit_mode_name",
+      "effective": "short_hp_configured",
+      "equal": true
+    },
+    {
+      "key": "short_rapid_mode_name",
+      "effective": "short_rapid_configured",
+      "equal": true
+    },
+    {
+      "key": "short_top_coins_mode_name",
+      "effective": "short_tc_configured",
+      "equal": true
+    },
+    {
+      "key": "short_scalp_mode_name",
+      "effective": "short_scalp_configured",
+      "equal": true
+    },
+    {
+      "key": "futures_mode_leverage",
+      "effective": 2.7,
+      "equal": true
+    },
+    {
+      "key": "futures_mode_leverage_rebuy_mode",
+      "effective": 2.7,
+      "equal": true
+    },
+    {
+      "key": "futures_mode_leverage_grind_mode",
+      "effective": 2.7,
+      "equal": true
+    },
+    {
+      "key": "futures_max_open_trades_long",
+      "effective": 1,
+      "equal": true
+    },
+    {
+      "key": "futures_max_open_trades_short",
+      "effective": 1,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_doom_spot",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_doom_futures",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_spot_rebuy",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_futures_rebuy",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_rapid_spot",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_rapid_futures",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_scalp_spot",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "stop_threshold_scalp_futures",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "custom_fee_open_rate",
+      "effective": null,
+      "equal": true
+    },
+    {
+      "key": "custom_fee_close_rate",
+      "effective": null,
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_min_free_slots",
+      "effective": 3,
+      "equal": true
+    },
+    {
+      "key": "position_adjustment_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "derisk_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "stops_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "doom_stops_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "u_e_stops_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "grinding_v1_max_stake",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "derisk_use_grind_stops",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grind_1_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_1_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_1_stakes_spot",
+      "effective": [
+        0.25200000000000006,
+        0.234,
+        0.216
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_1_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_1_stakes_futures",
+      "effective": [
+        0.25200000000000006,
+        0.234,
+        0.216
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_2_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_2_stakes_spot",
+      "effective": [
+        0.25200000000000006,
+        0.216,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_2_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_2_stakes_futures",
+      "effective": [
+        0.25200000000000006,
+        0.216,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_3_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_3_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_3_stakes_spot",
+      "effective": [
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_3_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_3_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_3_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_3_stakes_futures",
+      "effective": [
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_3_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_4_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_4_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_4_stakes_spot",
+      "effective": [
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_4_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_4_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_4_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_4_stakes_futures",
+      "effective": [
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_4_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_5_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_5_profit_threshold_spot",
+      "effective": 0.0432,
+      "equal": true
+    },
+    {
+      "key": "grind_5_stakes_spot",
+      "effective": [
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_5_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_5_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_5_profit_threshold_futures",
+      "effective": 0.0432,
+      "equal": true
+    },
+    {
+      "key": "grind_5_stakes_futures",
+      "effective": [
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_5_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_6_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_6_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_6_stakes_spot",
+      "effective": [
+        0.162,
+        0.15300000000000002,
+        0.14400000000000002,
+        0.135,
+        0.12600000000000003,
+        0.117,
+        0.108,
+        0.099,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_6_sub_thresholds_spot",
+      "effective": [
+        -0.198,
+        -0.18000000000000002,
+        -0.162,
+        -0.14400000000000002,
+        -0.12600000000000003,
+        -0.108,
+        -0.09000000000000001,
+        -0.07200000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_6_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_6_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_6_stakes_futures",
+      "effective": [
+        0.162,
+        0.15300000000000002,
+        0.14400000000000002,
+        0.135,
+        0.12600000000000003,
+        0.117,
+        0.108,
+        0.099,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_6_sub_thresholds_futures",
+      "effective": [
+        -0.198,
+        -0.18000000000000002,
+        -0.162,
+        -0.14400000000000002,
+        -0.12600000000000003,
+        -0.108,
+        -0.09000000000000001,
+        -0.07200000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_stakes_spot",
+      "effective": [
+        0.25200000000000006,
+        0.216,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_stakes_futures",
+      "effective": [
+        0.25200000000000006,
+        0.216,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_1_derisk_1_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_stop_grinds_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_stakes_spot",
+      "effective": [
+        0.25200000000000006,
+        0.216,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_sub_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_stop_grinds_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_stakes_futures",
+      "effective": [
+        0.25200000000000006,
+        0.216,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_2_derisk_1_sub_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinds_stop_spot",
+      "effective": -0.108,
+      "equal": true
+    },
+    {
+      "key": "grinds_stop_futures",
+      "effective": -0.108,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_stake_multiplier_spot",
+      "effective": [
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_stake_multiplier_futures",
+      "effective": [
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_use_grind_stops",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_rebuy_stakes_spot",
+      "effective": [
+        0.09000000000000001,
+        0.09000000000000001,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_rebuy_thresholds_spot",
+      "effective": [
+        -0.14400000000000002,
+        -0.12600000000000003,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_stakes_spot",
+      "effective": [
+        0.234,
+        0.216,
+        0.198
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_thresholds_spot",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_stop_grinds_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_stakes_spot",
+      "effective": [
+        0.234,
+        0.18000000000000002,
+        0.12600000000000003
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_thresholds_spot",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.036000000000000004
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_stop_grinds_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_stakes_spot",
+      "effective": [
+        0.198,
+        0.18000000000000002,
+        0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_thresholds_spot",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_stop_grinds_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_stakes_spot",
+      "effective": [
+        0.198,
+        0.18000000000000002,
+        0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_thresholds_spot",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_stop_grinds_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_stakes_spot",
+      "effective": [
+        0.198,
+        0.18000000000000002,
+        0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_thresholds_spot",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_stop_grinds_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_profit_threshold_spot",
+      "effective": 0.0432,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_stakes_spot",
+      "effective": [
+        0.1233,
+        0.1089,
+        0.0963,
+        0.0855,
+        0.0756,
+        0.06659999999999999,
+        0.0585,
+        0.051300000000000005,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_thresholds_spot",
+      "effective": [
+        -0.108,
+        -0.099,
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054,
+        -0.045000000000000005,
+        -0.022500000000000003
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_stop_grinds_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_spot",
+      "effective": -0.216,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_spot_old",
+      "effective": -0.7200000000000001,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_reentry_spot",
+      "effective": -0.07200000000000001,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_spot",
+      "effective": -0.216,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_spot_old",
+      "effective": -1.4400000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_scalp_mode_spot",
+      "effective": -0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_rebuy_stakes_futures",
+      "effective": [
+        0.09000000000000001,
+        0.09000000000000001,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_rebuy_thresholds_futures",
+      "effective": [
+        -0.14400000000000002,
+        -0.12600000000000003,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_stakes_futures",
+      "effective": [
+        0.234,
+        0.216,
+        0.198
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_thresholds_futures",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_stop_grinds_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_1_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_stakes_futures",
+      "effective": [
+        0.234,
+        0.18000000000000002,
+        0.12600000000000003
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_thresholds_futures",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.036000000000000004
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_stop_grinds_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_2_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_stakes_futures",
+      "effective": [
+        0.198,
+        0.18000000000000002,
+        0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_thresholds_futures",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_stop_grinds_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_3_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_stakes_futures",
+      "effective": [
+        0.198,
+        0.18000000000000002,
+        0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_thresholds_futures",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_stop_grinds_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_4_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_stakes_futures",
+      "effective": [
+        0.198,
+        0.18000000000000002,
+        0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_thresholds_futures",
+      "effective": [
+        -0.108,
+        -0.09000000000000001,
+        -0.027
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_stop_grinds_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_5_profit_threshold_futures",
+      "effective": 0.0432,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_stakes_futures",
+      "effective": [
+        0.1233,
+        0.1089,
+        0.0963,
+        0.0855,
+        0.0756,
+        0.06659999999999999,
+        0.0585,
+        0.051300000000000005,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_thresholds_futures",
+      "effective": [
+        -0.108,
+        -0.099,
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054,
+        -0.045000000000000005,
+        -0.022500000000000003
+      ],
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_stop_grinds_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_grind_6_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_futures",
+      "effective": -0.54,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_futures_old",
+      "effective": -0.7200000000000001,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_reentry_futures",
+      "effective": -0.07200000000000001,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_futures",
+      "effective": -0.54,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_futures_old",
+      "effective": -1.08,
+      "equal": true
+    },
+    {
+      "key": "regular_mode_derisk_1_scalp_mode_futures",
+      "effective": -0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_max_stake",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_max_grinds_and_buybacks",
+      "effective": 21,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_1_spot",
+      "effective": [
+        -0.135,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_1_futures",
+      "effective": [
+        -0.315,
+        -0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_2_spot",
+      "effective": [
+        -0.162,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_2_futures",
+      "effective": [
+        -0.48600000000000004,
+        -0.14400000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_3_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_3_futures",
+      "effective": [
+        -0.54,
+        -0.27
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_1_stake_spot",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_1_stake_futures",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_2_stake_spot",
+      "effective": 0.27,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_2_stake_futures",
+      "effective": 0.27,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_3_stake_spot",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_level_3_stake_futures",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_global_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_global_spot",
+      "effective": -0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_derisk_global_futures",
+      "effective": -0.27,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_stakes_spot",
+      "effective": [
+        0.25200000000000006,
+        0.234,
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_stakes_futures",
+      "effective": [
+        0.25200000000000006,
+        0.234,
+        0.216,
+        0.198,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_profit_threshold_spot",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_profit_threshold_futures",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_1_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_stakes_spot",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_stakes_futures",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_profit_threshold_spot",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_profit_threshold_futures",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_2_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_stakes_spot",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_stakes_futures",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_profit_threshold_spot",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_profit_threshold_futures",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_3_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_stakes_spot",
+      "effective": [
+        0.099,
+        0.09000000000000001,
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_thresholds_spot",
+      "effective": [
+        -0.24300000000000002,
+        -0.189,
+        -0.14400000000000002,
+        -0.108,
+        -0.081,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_stakes_futures",
+      "effective": [
+        0.099,
+        0.09000000000000001,
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_thresholds_futures",
+      "effective": [
+        -0.24300000000000002,
+        -0.189,
+        -0.14400000000000002,
+        -0.108,
+        -0.081,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_profit_threshold_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_profit_threshold_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_4_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_stakes_spot",
+      "effective": [
+        0.099,
+        0.09000000000000001,
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_thresholds_spot",
+      "effective": [
+        -0.24300000000000002,
+        -0.189,
+        -0.14400000000000002,
+        -0.108,
+        -0.081,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_stakes_futures",
+      "effective": [
+        0.099,
+        0.09000000000000001,
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_thresholds_futures",
+      "effective": [
+        -0.24300000000000002,
+        -0.189,
+        -0.14400000000000002,
+        -0.108,
+        -0.081,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_profit_threshold_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_profit_threshold_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_grind_5_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_stake_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_stake_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_distance_ratio_spot",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_distance_ratio_futures",
+      "effective": -0.054,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_profit_threshold_spot",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_profit_threshold_futures",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_1_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_stake_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_stake_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_distance_ratio_spot",
+      "effective": -0.108,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_distance_ratio_futures",
+      "effective": -0.108,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_profit_threshold_spot",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_profit_threshold_futures",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_2_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_stake_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_stake_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_distance_ratio_spot",
+      "effective": -0.14400000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_distance_ratio_futures",
+      "effective": -0.14400000000000002,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_profit_threshold_spot",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_profit_threshold_futures",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_derisk_spot",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "grinding_v2_buyback_3_derisk_futures",
+      "effective": -0.234,
+      "equal": true
+    },
+    {
+      "key": "system_v3_name",
+      "effective": "system_v3_configured",
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_name",
+      "effective": "system_v3_1_configured",
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_name",
+      "effective": "system_v3_2_configured",
+      "equal": true
+    },
+    {
+      "key": "system_name_use",
+      "effective": "system_v3_2",
+      "equal": true
+    },
+    {
+      "key": "system_v3_max_stake",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_max_stake",
+      "effective": 2.7,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_doom_spot",
+      "effective": 0.12600000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_doom_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_spot_rebuy",
+      "effective": 0.63,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_futures_rebuy",
+      "effective": 1.575,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_rapid_spot",
+      "effective": 0.12600000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_rapid_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_scalp_spot",
+      "effective": 0.12600000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v3_stop_threshold_scalp_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_doom_spot",
+      "effective": 0.216,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_doom_futures",
+      "effective": 0.63,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_spot_rebuy",
+      "effective": 0.423,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_futures_rebuy",
+      "effective": 1.26,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_rapid_spot",
+      "effective": 0.216,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_rapid_futures",
+      "effective": 0.63,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_scalp_spot",
+      "effective": 0.216,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stop_threshold_scalp_futures",
+      "effective": 0.63,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stops_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_doom_spot",
+      "effective": 0.108,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_doom_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_spot_rebuy",
+      "effective": 0.432,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_futures_rebuy",
+      "effective": 1.26,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_rapid_spot",
+      "effective": 0.108,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_rapid_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_scalp_spot",
+      "effective": 0.108,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stop_threshold_scalp_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_stake_multiplier",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_rebuy_stakes_spot",
+      "effective": [
+        0.45,
+        0.45
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_rebuy_stakes_futures",
+      "effective": [
+        0.45,
+        0.45
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_rebuy_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.14400000000000002,
+        -0.225
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_1_rebuy_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.14400000000000002,
+        -0.225
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_1_spot",
+      "effective": [
+        -0.054,
+        -0.036000000000000004
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_1_futures",
+      "effective": [
+        -0.162,
+        -0.108
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_1_stake_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_1_stake_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_2_spot",
+      "effective": [
+        -0.07200000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_2_futures",
+      "effective": [
+        -0.216,
+        -0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_2_stake_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_2_stake_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_3_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_3_futures",
+      "effective": [
+        -0.27,
+        -0.216
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_3_stake_spot",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_derisk_level_3_stake_futures",
+      "effective": 0.09000000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_stake_multiplier",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_1_spot",
+      "effective": [
+        -0.108,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_1_futures",
+      "effective": [
+        -0.315,
+        -0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_1_stake_spot",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_1_stake_futures",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_2_spot",
+      "effective": [
+        -0.162,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_2_futures",
+      "effective": [
+        -0.48600000000000004,
+        -0.216
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_2_stake_spot",
+      "effective": 0.27,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_2_stake_futures",
+      "effective": 0.27,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_3_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_3_futures",
+      "effective": [
+        -0.54,
+        -0.27
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_3_stake_spot",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_3_stake_futures",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_4_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_4_spot",
+      "effective": [
+        -0.07200000000000001,
+        -0.018000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_4_futures",
+      "effective": [
+        -0.216,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_4_stake_spot",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v3_2_derisk_level_4_stake_futures",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_stakes_spot",
+      "effective": [
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_stakes_futures",
+      "effective": [
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_profit_threshold_spot",
+      "effective": 0.022500000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_profit_threshold_futures",
+      "effective": 0.022500000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_1_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_stakes_spot",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_stakes_futures",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_profit_threshold_spot",
+      "effective": 0.03150000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_profit_threshold_futures",
+      "effective": 0.03150000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_2_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_stakes_spot",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_stakes_futures",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_profit_threshold_spot",
+      "effective": 0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_profit_threshold_futures",
+      "effective": 0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_3_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_stakes_spot",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_stakes_futures",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_profit_threshold_spot",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_profit_threshold_futures",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_4_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_stakes_spot",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_stakes_futures",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_profit_threshold_spot",
+      "effective": 0.054,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_profit_threshold_futures",
+      "effective": 0.054,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_grind_5_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_stake_spot",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_stake_futures",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_distance_ratio_negative_spot",
+      "effective": -0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_distance_ratio_negative_futures",
+      "effective": -0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_distance_ratio_positive_spot",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_distance_ratio_positive_futures",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_derisk_spot",
+      "effective": -0.07200000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v3_buyback_1_derisk_futures",
+      "effective": -0.07200000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v4_name",
+      "effective": "system_v4_configured",
+      "equal": true
+    },
+    {
+      "key": "system_v4_max_stake",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stake_multiplier",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v4_bad_trade_exit_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "legacy_system_bad_trade_exit_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_structure_break_exit_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_structure_break_ema_gap_pct",
+      "effective": 31.5,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_structure_break_min_adverse_move_pct",
+      "effective": 22.5,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_stale_exit_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_stale_min_age_days",
+      "effective": 12.6,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_stale_max_daily_range_pct",
+      "effective": 6.3,
+      "equal": true
+    },
+    {
+      "key": "bad_trade_controller_stale_min_adverse_move_pct",
+      "effective": 9.0,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stops_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_doom_spot",
+      "effective": 0.12600000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_doom_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_spot_rebuy",
+      "effective": 0.63,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_futures_rebuy",
+      "effective": 1.575,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_rapid_spot",
+      "effective": 0.12600000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_rapid_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_scalp_spot",
+      "effective": 0.12600000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v4_stop_threshold_scalp_futures",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_1_spot",
+      "effective": [
+        -0.108,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_1_futures",
+      "effective": [
+        -0.315,
+        -0.162
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_1_stake_spot",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_1_stake_futures",
+      "effective": 0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_2_spot",
+      "effective": [
+        -0.162,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_2_futures",
+      "effective": [
+        -0.48600000000000004,
+        -0.216
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_2_stake_spot",
+      "effective": 0.27,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_2_stake_futures",
+      "effective": 0.27,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_3_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_3_futures",
+      "effective": [
+        -0.54,
+        -0.27
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_3_stake_spot",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_3_stake_futures",
+      "effective": 0.45,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_4_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_4_spot",
+      "effective": [
+        -0.07200000000000001,
+        -0.018000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_4_futures",
+      "effective": [
+        -0.216,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_4_stake_spot",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v4_derisk_level_4_stake_futures",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_stakes_spot",
+      "effective": [
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_stakes_futures",
+      "effective": [
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_profit_threshold_spot",
+      "effective": 0.022500000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_profit_threshold_futures",
+      "effective": 0.022500000000000003,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_1_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_stakes_spot",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_stakes_futures",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_profit_threshold_spot",
+      "effective": 0.03150000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_profit_threshold_futures",
+      "effective": 0.03150000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_2_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_stakes_spot",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_stakes_futures",
+      "effective": [
+        0.162,
+        0.14400000000000002,
+        0.12600000000000003,
+        0.108,
+        0.09000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_profit_threshold_spot",
+      "effective": 0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_profit_threshold_futures",
+      "effective": 0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_3_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_stakes_spot",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_stakes_futures",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_profit_threshold_spot",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_profit_threshold_futures",
+      "effective": 0.045000000000000005,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_4_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_enable",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_stakes_spot",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_stakes_futures",
+      "effective": [
+        0.081,
+        0.07200000000000001,
+        0.06300000000000001,
+        0.054,
+        0.045000000000000005
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.081,
+        -0.07200000000000001,
+        -0.06300000000000001,
+        -0.054
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_profit_threshold_spot",
+      "effective": 0.054,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_profit_threshold_futures",
+      "effective": 0.054,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_derisk_spot",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_grind_5_derisk_futures",
+      "effective": -0.198,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_enable",
+      "effective": true,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_stake_spot",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_stake_futures",
+      "effective": 0.9,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_distance_ratio_negative_spot",
+      "effective": -0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_distance_ratio_negative_futures",
+      "effective": -0.036000000000000004,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_distance_ratio_positive_spot",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_distance_ratio_positive_futures",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_use_derisk",
+      "effective": false,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_derisk_spot",
+      "effective": -0.07200000000000001,
+      "equal": true
+    },
+    {
+      "key": "system_v4_buyback_1_derisk_futures",
+      "effective": -0.07200000000000001,
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_stake_multiplier",
+      "effective": 0.315,
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_derisk_spot",
+      "effective": -0.54,
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_derisk_futures",
+      "effective": -0.54,
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_stakes_spot",
+      "effective": [
+        0.9,
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_stakes_futures",
+      "effective": [
+        0.9,
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_thresholds_spot",
+      "effective": [
+        -0.09000000000000001,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "rebuy_mode_thresholds_futures",
+      "effective": [
+        -0.09000000000000001,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_stake_multiplier",
+      "effective": 0.225,
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_derisk_spot",
+      "effective": -0.432,
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_derisk_futures",
+      "effective": -1.26,
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_stakes_spot",
+      "effective": [
+        0.9,
+        0.9,
+        0.9,
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_stakes_futures",
+      "effective": [
+        0.9,
+        0.9,
+        0.9,
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v3_rebuy_mode_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_stake_multiplier",
+      "effective": 0.225,
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_derisk_spot",
+      "effective": -0.432,
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_derisk_futures",
+      "effective": -1.26,
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_stakes_spot",
+      "effective": [
+        0.9,
+        0.9,
+        0.9,
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_stakes_futures",
+      "effective": [
+        0.9,
+        0.9,
+        0.9,
+        0.9
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_thresholds_spot",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "system_v4_rebuy_mode_thresholds_futures",
+      "effective": [
+        -0.18000000000000002,
+        -0.14400000000000002,
+        -0.108,
+        -0.07200000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "rapid_mode_stake_multiplier_spot",
+      "effective": [
+        0.675
+      ],
+      "equal": true
+    },
+    {
+      "key": "rapid_mode_stake_multiplier_futures",
+      "effective": [
+        0.675
+      ],
+      "equal": true
+    },
+    {
+      "key": "min_free_slots_scalp_mode",
+      "effective": 2,
+      "equal": true
+    },
+    {
+      "key": "grind_mode_stake_multiplier_spot",
+      "effective": [
+        0.63,
+        0.54,
+        0.45,
+        0.36000000000000004,
+        0.27,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_mode_stake_multiplier_futures",
+      "effective": [
+        0.45,
+        0.36000000000000004,
+        0.27,
+        0.18000000000000002
+      ],
+      "equal": true
+    },
+    {
+      "key": "grind_mode_first_entry_profit_threshold_spot",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_mode_first_entry_profit_threshold_futures",
+      "effective": 0.0162,
+      "equal": true
+    },
+    {
+      "key": "grind_mode_first_entry_stop_threshold_spot",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grind_mode_first_entry_stop_threshold_futures",
+      "effective": -0.18000000000000002,
+      "equal": true
+    },
+    {
+      "key": "grind_mode_max_slots",
+      "effective": 2,
+      "equal": true
+    },
+    {
+      "key": "grind_mode_coins",
+      "effective": [
+        "ZEC",
+        "XTZ",
+        "XRP",
+        "XMR",
+        "XLM",
+        "VET",
+        "UNI",
+        "TRX",
+        "TON",
+        "TIA",
+        "THETA",
+        "SUI",
+        "SOL",
+        "SEI",
+        "SAND",
+        "RUNE",
+        "RENDER",
+        "POL",
+        "OP",
+        "NEO",
+        "NEAR",
+        "LTC",
+        "LINK",
+        "LDO",
+        "KAS",
+        "JUP",
+        "IOTA",
+        "INJ",
+        "ICP",
+        "HYPE",
+        "HBAR",
+        "GALA",
+        "FIL",
+        "ETH",
+        "ETC",
+        "DYDX",
+        "DOGE",
+        "CRV",
+        "CAKE",
+        "BTC",
+        "BNB",
+        "BCH",
+        "AVAX",
+        "ATOM",
+        "ARB",
+        "APT",
+        "APE",
+        "ALGO",
+        "ADA",
+        "AAVE"
+      ],
+      "equal": true
+    },
+    {
+      "key": "btc_mode_max_slots",
+      "effective": 1,
+      "equal": true
+    },
+    {
+      "key": "btc_mode_coins",
+      "effective": [
+        "BTC"
+      ],
+      "equal": true
+    },
+    {
+      "key": "top_coins_mode_coins",
+      "effective": [
+        "ZEC",
+        "XTZ",
+        "XRP",
+        "XMR",
+        "XLM",
+        "WLD",
+        "VET",
+        "UNI",
+        "TRX",
+        "TON",
+        "TIA",
+        "THETA",
+        "SUI",
+        "SOL",
+        "SEI",
+        "SAND",
+        "RUNE",
+        "RENDER",
+        "POL",
+        "OP",
+        "ONDO",
+        "NEO",
+        "NEAR",
+        "LTC",
+        "LINK",
+        "LDO",
+        "KAS",
+        "JUP",
+        "IOTA",
+        "INJ",
+        "ICP",
+        "HYPE",
+        "HBAR",
+        "GALA",
+        "FIL",
+        "ETH",
+        "ETC",
+        "DYDX",
+        "DOT",
+        "DOGE",
+        "DASH",
+        "CRV",
+        "CAKE",
+        "BTC",
+        "BNB",
+        "BCH",
+        "AVAX",
+        "ATOM",
+        "ARB",
+        "APT",
+        "APE",
+        "ALGO",
+        "ADA",
+        "AAVE",
+        "1INCH"
+      ],
+      "equal": true
+    },
+    {
+      "key": "profit_max_thresholds",
+      "effective": [
+        0.045000000000000005,
+        0.045000000000000005,
+        0.009000000000000001,
+        0.009000000000000001,
+        0.009000000000000001,
+        0.009000000000000001,
+        0.009000000000000001,
+        0.009000000000000001,
+        0.009000000000000001,
+        0.009000000000000001
+      ],
+      "equal": true
+    },
+    {
+      "key": "max_slippage",
+      "effective": 0.018000000000000002,
+      "equal": true
+    },
+    {
+      "key": "btc_stakes",
+      "effective": [
+        "ETH",
+        "BTC"
+      ],
+      "equal": true
+    },
+    {
+      "key": "long_entry_signal_params",
+      "effective": {
+        "long_entry_condition_1_enable": false,
+        "long_entry_condition_2_enable": false,
+        "long_entry_condition_3_enable": false,
+        "long_entry_condition_4_enable": false,
+        "long_entry_condition_5_enable": false,
+        "long_entry_condition_6_enable": false,
+        "long_entry_condition_7_enable": true,
+        "long_entry_condition_8_enable": true,
+        "long_entry_condition_9_enable": true,
+        "long_entry_condition_10_enable": true,
+        "long_entry_condition_11_enable": true,
+        "long_entry_condition_21_enable": false,
+        "long_entry_condition_41_enable": false,
+        "long_entry_condition_42_enable": false,
+        "long_entry_condition_43_enable": false,
+        "long_entry_condition_44_enable": false,
+        "long_entry_condition_45_enable": false,
+        "long_entry_condition_46_enable": false,
+        "long_entry_condition_47_enable": false,
+        "long_entry_condition_61_enable": false,
+        "long_entry_condition_62_enable": false,
+        "long_entry_condition_63_enable": false,
+        "long_entry_condition_64_enable": false,
+        "long_entry_condition_65_enable": false,
+        "long_entry_condition_68_enable": true,
+        "long_entry_condition_101_enable": false,
+        "long_entry_condition_102_enable": false,
+        "long_entry_condition_103_enable": false,
+        "long_entry_condition_104_enable": false,
+        "long_entry_condition_105_enable": true,
+        "long_entry_condition_120_enable": false,
+        "long_entry_condition_121_enable": true,
+        "long_entry_condition_141_enable": false,
+        "long_entry_condition_142_enable": false,
+        "long_entry_condition_143_enable": false,
+        "long_entry_condition_144_enable": false,
+        "long_entry_condition_145_enable": false,
+        "long_entry_condition_161_enable": false,
+        "long_entry_condition_162_enable": false,
+        "long_entry_condition_163_enable": false,
+        "long_entry_condition_164_enable": true,
+        "long_entry_condition_165_enable": true,
+        "long_entry_condition_166_enable": true,
+        "long_entry_condition_167_enable": true,
+        "long_entry_condition_168_enable": true,
+        "long_entry_condition_169_enable": true,
+        "long_entry_condition_170_enable": true,
+        "long_entry_condition_171_enable": true,
+        "long_entry_condition_172_enable": true,
+        "long_entry_condition_173_enable": true,
+        "long_entry_condition_192_enable": true,
+        "long_entry_condition_193_enable": true
+      },
+      "equal": true
+    },
+    {
+      "key": "short_entry_signal_params",
+      "effective": {
+        "short_entry_condition_501_enable": false,
+        "short_entry_condition_502_enable": false,
+        "short_entry_condition_505_enable": true,
+        "short_entry_condition_506_enable": true,
+        "short_entry_condition_542_enable": false,
+        "short_entry_condition_543_enable": true,
+        "short_entry_condition_544_enable": true,
+        "short_entry_condition_545_enable": true,
+        "short_entry_condition_546_enable": true,
+        "short_entry_condition_561_enable": true,
+        "short_entry_condition_562_enable": false,
+        "short_entry_condition_563_enable": true,
+        "short_entry_condition_592_enable": true,
+        "short_entry_condition_593_enable": true,
+        "short_entry_condition_605_enable": true,
+        "short_entry_condition_662_enable": true,
+        "short_entry_condition_663_enable": true,
+        "short_entry_condition_664_enable": true,
+        "short_entry_condition_665_enable": true,
+        "short_entry_condition_666_enable": true,
+        "short_entry_condition_667_enable": true,
+        "short_entry_condition_669_enable": true,
+        "short_entry_condition_670_enable": true,
+        "short_entry_condition_671_enable": true
+      },
+      "equal": true
+    }
+  ]
+}

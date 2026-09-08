@@ -1,0 +1,20 @@
+{
+  "description": "Focused synthetic long-grind decision probe; not full X8 or system-v4 qualification.",
+  "base_source": "benchmarks/evidence/m22/current-x7-raw/upstream-NostalgiaForInfinityX7.source",
+  "base_source_sha256": "a4ba29b94b459511163f05cce6687b5b84542147b11715a69e3fa468fab2767a",
+  "donor_source": "NostalgiaForInfinityX8.py",
+  "donor_source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "effective_source_sha256": "e1f212dc2871ba804d5089ddde9e628a2c2be336fd7b5e95f61ca11eb23a0574",
+  "exact_donor_methods": [
+    "long_grind_entry_v3",
+    "short_grind_entry_v3",
+    "long_grind_entry_v4",
+    "short_grind_entry_v4"
+  ],
+  "transformations": [
+    "Replace v3 long/short grind-entry predicates with exact donor methods.",
+    "Add exact dormant v4 long/short grind-entry predicates to exercise class-wide diagnostic-write proof.",
+    "Rename strategy class to GrindEntryProbe.",
+    "Replace entry signals with volume-positive RSI_14 > 60 longs tagged 1; retain archived indicators and other callbacks. Dips evaluate deeper grind predicates when enter_long is false."
+  ]
+}

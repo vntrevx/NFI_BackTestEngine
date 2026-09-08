@@ -1,0 +1,61 @@
+class SourceProfit:
+  def calc_total_profit(
+    self, trade: "Trade", filled_entries: "Orders", filled_exits: "Orders", exit_rate: float
+  ) -> tuple:
+    """
+    Calculates the absolute profit for open trades.
+
+    :param trade: trade object.
+    :param filled_entries: Filled entries list.
+    :param filled_exits: Filled exits list.
+    :param exit_rate: The exit rate.
+    :return tuple: The total profit in stake, ratio, ratio based on current stake, and ratio based on the first entry stake.
+    """
+    custom_fee_open_rate = self.custom_fee_open_rate
+    custom_fee_close_rate = self.custom_fee_close_rate
+    is_futures_mode = self.is_futures_mode
+
+    fee_open_rate = trade.fee_open if custom_fee_open_rate is None else custom_fee_open_rate
+    fee_close_rate = trade.fee_close if custom_fee_close_rate is None else custom_fee_close_rate
+
+    total_amount = 0.0
+    total_stake = 0.0
+    total_profit = 0.0
+    if trade.is_short:
+      fee_open_multiplier = 1 - fee_open_rate
+      fee_close_multiplier = 1 + fee_close_rate
+      for entry_order in filled_entries:
+        filled = entry_order.safe_filled
+        entry_stake = filled * entry_order.safe_price * fee_open_multiplier
+        total_amount += filled
+        total_stake += entry_stake
+        total_profit += entry_stake
+      for exit_order in filled_exits:
+        filled = exit_order.safe_filled
+        exit_stake = filled * exit_order.safe_price * fee_close_multiplier
+        total_amount -= filled
+        total_profit -= exit_stake
+      current_stake = total_amount * exit_rate * fee_close_multiplier
+      total_profit -= current_stake
+    else:
+      fee_open_multiplier = 1 + fee_open_rate
+      fee_close_multiplier = 1 - fee_close_rate
+      for entry_order in filled_entries:
+        filled = entry_order.safe_filled
+        entry_stake = filled * entry_order.safe_price * fee_open_multiplier
+        total_amount += filled
+        total_stake += entry_stake
+        total_profit -= entry_stake
+      for exit_order in filled_exits:
+        filled = exit_order.safe_filled
+        exit_stake = filled * exit_order.safe_price * fee_close_multiplier
+        total_amount -= filled
+        total_profit += exit_stake
+      current_stake = total_amount * exit_rate * fee_close_multiplier
+      total_profit += current_stake
+    if is_futures_mode and trade.funding_fees is not None:
+      total_profit += trade.funding_fees
+    total_profit_ratio = total_profit / total_stake
+    current_profit_ratio = total_profit / current_stake
+    init_profit_ratio = total_profit / (filled_entries[0].safe_filled * filled_entries[0].safe_price)
+    return total_profit, total_profit_ratio, current_profit_ratio, init_profit_ratio

@@ -1,0 +1,218 @@
+{
+  "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "method_ast": "FunctionDef(name='_handle_scalp_mode', args=arguments(posonlyargs=[], args=[arg(arg='self'), arg(arg='pair', annotation=Name(id='str', ctx=Load())), arg(arg='current_time', annotation=Name(id='datetime', ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[]), body=[Assign(targets=[Name(id='current_free_slots', ctx=Store())], value=BinOp(left=Subscript(value=Attribute(value=Name(id='self', ctx=Load()), attr='config', ctx=Load()), slice=Constant(value='max_open_trades'), ctx=Load()), op=Sub(), right=Call(func=Attribute(value=Name(id='Trade', ctx=Load()), attr='get_open_trade_count', ctx=Load()), args=[], keywords=[]))), If(test=Compare(left=Name(id='current_free_slots', ctx=Load()), ops=[Lt()], comparators=[Attribute(value=Name(id='self', ctx=Load()), attr='min_free_slots_scalp_mode', ctx=Load())]), body=[Expr(value=Call(func=Attribute(value=Name(id='log', ctx=Load()), attr='info', ctx=Load()), args=[JoinedStr(values=[Constant(value='['), FormattedValue(value=Name(id='current_time', ctx=Load()), conversion=-1), Constant(value='] Cancelling entry for '), FormattedValue(value=Name(id='pair', ctx=Load()), conversion=-1), Constant(value=' due to insufficient free slots.')])], keywords=[])), Return(value=Constant(value=False))], orelse=[]), Return(value=Constant(value=True))], decorator_list=[], returns=Name(id='bool', ctx=Load()), type_params=[])",
+  "programs": {
+    "0": {
+      "statements": [
+        {
+          "op": "let",
+          "name": "current_free_slots",
+          "value": {
+            "op": "subtract",
+            "left": {
+              "op": "config_value",
+              "name": "max_open_trades"
+            },
+            "right": {
+              "op": "open_trade_count"
+            }
+          }
+        },
+        {
+          "op": "if",
+          "condition": {
+            "op": "less",
+            "left": {
+              "op": "variable",
+              "name": "current_free_slots"
+            },
+            "right": {
+              "op": "literal",
+              "value": 0
+            }
+          },
+          "then": [
+            {
+              "op": "log_noop"
+            },
+            {
+              "op": "return",
+              "value": {
+                "op": "literal",
+                "value": false
+              }
+            }
+          ],
+          "otherwise": []
+        },
+        {
+          "op": "return",
+          "value": {
+            "op": "literal",
+            "value": true
+          }
+        }
+      ],
+      "functions": {}
+    },
+    "1": {
+      "statements": [
+        {
+          "op": "let",
+          "name": "current_free_slots",
+          "value": {
+            "op": "subtract",
+            "left": {
+              "op": "config_value",
+              "name": "max_open_trades"
+            },
+            "right": {
+              "op": "open_trade_count"
+            }
+          }
+        },
+        {
+          "op": "if",
+          "condition": {
+            "op": "less",
+            "left": {
+              "op": "variable",
+              "name": "current_free_slots"
+            },
+            "right": {
+              "op": "literal",
+              "value": 1
+            }
+          },
+          "then": [
+            {
+              "op": "log_noop"
+            },
+            {
+              "op": "return",
+              "value": {
+                "op": "literal",
+                "value": false
+              }
+            }
+          ],
+          "otherwise": []
+        },
+        {
+          "op": "return",
+          "value": {
+            "op": "literal",
+            "value": true
+          }
+        }
+      ],
+      "functions": {}
+    },
+    "2": {
+      "statements": [
+        {
+          "op": "let",
+          "name": "current_free_slots",
+          "value": {
+            "op": "subtract",
+            "left": {
+              "op": "config_value",
+              "name": "max_open_trades"
+            },
+            "right": {
+              "op": "open_trade_count"
+            }
+          }
+        },
+        {
+          "op": "if",
+          "condition": {
+            "op": "less",
+            "left": {
+              "op": "variable",
+              "name": "current_free_slots"
+            },
+            "right": {
+              "op": "literal",
+              "value": 2
+            }
+          },
+          "then": [
+            {
+              "op": "log_noop"
+            },
+            {
+              "op": "return",
+              "value": {
+                "op": "literal",
+                "value": false
+              }
+            }
+          ],
+          "otherwise": []
+        },
+        {
+          "op": "return",
+          "value": {
+            "op": "literal",
+            "value": true
+          }
+        }
+      ],
+      "functions": {}
+    },
+    "6": {
+      "statements": [
+        {
+          "op": "let",
+          "name": "current_free_slots",
+          "value": {
+            "op": "subtract",
+            "left": {
+              "op": "config_value",
+              "name": "max_open_trades"
+            },
+            "right": {
+              "op": "open_trade_count"
+            }
+          }
+        },
+        {
+          "op": "if",
+          "condition": {
+            "op": "less",
+            "left": {
+              "op": "variable",
+              "name": "current_free_slots"
+            },
+            "right": {
+              "op": "literal",
+              "value": 6
+            }
+          },
+          "then": [
+            {
+              "op": "log_noop"
+            },
+            {
+              "op": "return",
+              "value": {
+                "op": "literal",
+                "value": false
+              }
+            }
+          ],
+          "otherwise": []
+        },
+        {
+          "op": "return",
+          "value": {
+            "op": "literal",
+            "value": true
+          }
+        }
+      ],
+      "functions": {}
+    }
+  }
+}

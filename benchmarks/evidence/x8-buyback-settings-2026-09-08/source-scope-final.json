@@ -1,0 +1,124 @@
+{
+  "donor_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+  "scenarios": [
+    {
+      "fixture_id": "x8-buyback-active-futures-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_2",
+        "system_v3_buyback_1_enable": true,
+        "system_v4_buyback_1_enable": true,
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "system_v4_grind_1_enable": false,
+        "system_v4_grind_2_enable": false,
+        "system_v4_grind_3_enable": false,
+        "system_v4_grind_4_enable": false,
+        "system_v4_grind_5_enable": false,
+        "system_v3_2_derisk_level_1_enable": false,
+        "system_v3_2_derisk_level_2_enable": false,
+        "system_v3_2_derisk_level_3_enable": false,
+        "system_v4_derisk_level_1_enable": false,
+        "system_v4_derisk_level_2_enable": false,
+        "system_v4_derisk_level_3_enable": false,
+        "system_v3_2_derisk_level_4_enable": true,
+        "system_v3_2_derisk_level_4_futures": [
+          -0.003,
+          -0.003
+        ],
+        "system_v3_2_derisk_level_4_stake_futures": 0.5,
+        "system_v3_buyback_1_distance_ratio_negative_futures": -0.002,
+        "system_v3_buyback_1_distance_ratio_positive_futures": 0.002,
+        "system_v3_buyback_1_derisk_futures": -0.003,
+        "custom_fee_open_rate": 0.001,
+        "custom_fee_close_rate": 0.004
+      }
+    },
+    {
+      "fixture_id": "x8-buyback-active-spot-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v3_2",
+        "system_v3_buyback_1_enable": true,
+        "system_v4_buyback_1_enable": true,
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "system_v4_grind_1_enable": false,
+        "system_v4_grind_2_enable": false,
+        "system_v4_grind_3_enable": false,
+        "system_v4_grind_4_enable": false,
+        "system_v4_grind_5_enable": false,
+        "system_v3_2_derisk_level_1_enable": false,
+        "system_v3_2_derisk_level_2_enable": false,
+        "system_v3_2_derisk_level_3_enable": false,
+        "system_v4_derisk_level_1_enable": false,
+        "system_v4_derisk_level_2_enable": false,
+        "system_v4_derisk_level_3_enable": false,
+        "system_v3_2_derisk_level_4_enable": true,
+        "system_v3_2_derisk_level_4_spot": [
+          -0.003,
+          -0.003
+        ],
+        "system_v3_2_derisk_level_4_stake_spot": 0.5,
+        "system_v3_buyback_1_distance_ratio_negative_spot": -0.002,
+        "system_v3_buyback_1_distance_ratio_positive_spot": 0.002,
+        "system_v3_buyback_1_derisk_spot": -0.003
+      }
+    },
+    {
+      "fixture_id": "x8-buyback-enabled-v4-futures-r1",
+      "source_sha256": "aa3df9ae31f5b781f68a3fa5aab60c990ea5ef07e414c8509976bd8328a8421a",
+      "changed_methods": [
+        "populate_entry_trend",
+        "populate_indicators"
+      ],
+      "changed_class_constants": [],
+      "configuration": {
+        "system_name_use": "system_v4",
+        "system_v3_buyback_1_enable": true,
+        "system_v4_buyback_1_enable": true,
+        "system_v3_grind_1_enable": false,
+        "system_v3_grind_2_enable": false,
+        "system_v3_grind_3_enable": false,
+        "system_v3_grind_4_enable": false,
+        "system_v3_grind_5_enable": false,
+        "system_v4_grind_1_enable": false,
+        "system_v4_grind_2_enable": false,
+        "system_v4_grind_3_enable": false,
+        "system_v4_grind_4_enable": false,
+        "system_v4_grind_5_enable": false,
+        "system_v3_2_derisk_level_1_enable": false,
+        "system_v3_2_derisk_level_2_enable": false,
+        "system_v3_2_derisk_level_3_enable": false,
+        "system_v4_derisk_level_1_enable": false,
+        "system_v4_derisk_level_2_enable": false,
+        "system_v4_derisk_level_3_enable": false,
+        "system_v3_2_derisk_level_4_enable": true,
+        "system_v3_2_derisk_level_4_futures": [
+          -0.003,
+          -0.003
+        ],
+        "system_v3_2_derisk_level_4_stake_futures": 0.5,
+        "system_v3_buyback_1_distance_ratio_negative_futures": -0.002,
+        "system_v3_buyback_1_distance_ratio_positive_futures": 0.002,
+        "system_v3_buyback_1_derisk_futures": -0.003
+      }
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.1.0",
+  "fixture_id": "x8-original-futures-20220401-20220420-r1",
+  "verification_level": "full",
+  "execution": {
+    "schema_version": "1.0.0",
+    "input_kind": "full-vector",
+    "input_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/simulation-input.manifest.json",
+    "input_sha256": "51c6c8ac9c5d1a0aa05256cfdfcfda7f269df0a9802473488b2209773949e7d9",
+    "output_path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/simulation-result.json",
+    "output_sha256": "1be4ff412b49b90a90dcc5dde8d81e239a4af87cabfa53d4eccade70d06beadc",
+    "publication_bundle": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/simulation-result.json.nfi-bundle",
+    "wall_time_seconds": 2.725214761,
+    "peak_rss_bytes": 564260864,
+    "cpu_time_seconds": 2.6158231869999966,
+    "build": {
+      "schema_version": "1.0.0",
+      "built_at": null,
+      "source_fingerprint": "4757c15283562d16110e500a07532f4c3fd10fdb92bcfb923973f9d38ab77612",
+      "binary_path": "/home/turing/project/NFI_BacktestEngine/python/nfi_backtest_engine/_rust.abi3.so",
+      "binary_sha256": "5b7213874776c68d0f996f519794a33588ffdada740cde623759c5eabe14ae88",
+      "binary_bytes": 15380120,
+      "target": "linux-x86_64",
+      "build_seconds": 0.0,
+      "kind": "pyo3-extension"
+    },
+    "execution_profile_fingerprint": "5f38a888bc71e31db691675634a1c1c4492c4d0e9d168d70787e76e543f8dcc0",
+    "pair_worker_limit": 1,
+    "trade_count": 1,
+    "events": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/engine-events.jsonl",
+      "bytes": 8393271,
+      "sha256": "1b4a6f44762af9e2b6105eb691a5bea6f741998fba22e7bffcec25966d25e440"
+    },
+    "execution_events": null,
+    "profile": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/engine-profile.json",
+      "bytes": 1873,
+      "sha256": "5f69646d1a509631e4e9d0b89885818ba2052f98617a96646b95aef0502d9be8",
+      "phases": {
+        "input": {
+          "base_timeframe": "5m",
+          "compiler_source_fingerprint": "addd576d9facfab10e7e05d83ad8e14d57fab65a430930f5548ccb8a64f86aa8",
+          "config_sha256": "316f2a84faa43d271e4e903d205b4d7d70d451e6010e1506fe6e2f0298c55c50",
+          "frame_loading_mode": "pair-local-streaming",
+          "futures_frame_set_count": 1,
+          "manifest_declared_raw_rows": 34005,
+          "manifest_sha256": "51c6c8ac9c5d1a0aa05256cfdfcfda7f269df0a9802473488b2209773949e7d9",
+          "pair_identities": [
+            "BTC/USDT:USDT|5m"
+          ],
+          "populate_methods_executed": false,
+          "program_fingerprints": {
+            "indicator": "3908b0747060d0853013a9147b145db0cd081e6f65506dc9bf0d256d3ab1705d",
+            "signal": "600f12c26246823c5fcafbb7c9d4ab5430e35c9e07ee9049f4990745dd353b82",
+            "tag": "36171734f437304be7da6825cabcd045e6f95a94cf85f755547f298f5ec556e2"
+          },
+          "raw_frame_count": 5,
+          "raw_frame_resident_limit": 5,
+          "retained_feature_fingerprint": "1801a6cd23ecb37e40d815cc98a2e2a30cc136f85436e2f14005fb4ee9516aeb",
+          "runtime_mode": "rust-full-native",
+          "schema_version": "1.2.0",
+          "selected_class": "NostalgiaForInfinityX8",
+          "source_row_shift": 1,
+          "spool_available_bytes_at_admission": 357737545728,
+          "spool_cleanup_mode": "unlink-on-open",
+          "spool_required_upper_bound_bytes": 4924305,
+          "spool_target_source": "os-temp",
+          "strategy_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+          "strategy_source_mode": "python-ast-compile-only",
+          "trading_mode": "futures",
+          "transport": {
+            "estimated_simulation_owned_bytes": 1079,
+            "estimated_source_column_bytes": 4753482,
+            "feature_column_count": 88,
+            "file_backed_bytes": 4924305,
+            "pair_count": 1,
+            "pair_prepare_fused": true,
+            "pair_prepare_ns": 0,
+            "pair_prepare_worker_limit": 1,
+            "row_count": 6273,
+            "schema_version": "1.2.0",
+            "source_pair_retention_limit": 1,
+            "vector_execute_ns": 2033145047
+          }
+        },
+        "schema_version": "1.0.0",
+        "serialization_ns": 41120,
+        "simulation": {
+          "event_loop_ns": 34897126,
+          "finalization_ns": 14143,
+          "pair_events": 5472,
+          "schema_version": "1.0.0",
+          "timestamp_batches": 5472,
+          "validation_ns": 2248497
+        }
+      }
+    }
+  },
+  "strategy": {
+    "class_name": "NostalgiaForInfinityX8",
+    "source_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+    "static_safe": true,
+    "diagnostic_count": 0
+  },
+  "parity": {
+    "equal": true,
+    "trade_surface": {
+      "equal": true,
+      "difference": null
+    },
+    "state_trace": {
+      "checked": true,
+      "equal": true,
+      "difference": null,
+      "expected": {
+        "path": "/tmp/nfi-fixture-snapshot-ot72sp58/artifacts/state-projection.nfitrace",
+        "schema_version": "1.0.0",
+        "source": "freqtrade-projection",
+        "run_id": "x8-original-futures-20220401-20220420-r1",
+        "input_sha256": "6e21acb61f5230ffd18db2048420550198bbada74fad1602d099d0ae3ab8ce23",
+        "strategy_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+        "profile_sha256": "eb217c88590483c41e90fc52b17209f43ff2f6e5e747b3f79fb378a4fd9c5c6b",
+        "trading_mode": "futures",
+        "include_state": true,
+        "event_count": 5472,
+        "stream_hash": "2b4f08e68cdd1629ba4b5aced408bb17f648611e05f780ea7f6c01505dcfdf2e"
+      },
+      "actual": {
+        "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/engine-state-projected.trace",
+        "schema_version": "1.0.0",
+        "source": "engine-projection",
+        "run_id": "x8-original-futures-20220401-20220420-r1",
+        "input_sha256": "6e21acb61f5230ffd18db2048420550198bbada74fad1602d099d0ae3ab8ce23",
+        "strategy_sha256": "e9482adcd6ca29eb28d03e4589d51b5d8096e96ed8b35b9bdbadc91d14007b84",
+        "profile_sha256": "eb217c88590483c41e90fc52b17209f43ff2f6e5e747b3f79fb378a4fd9c5c6b",
+        "trading_mode": "futures",
+        "include_state": true,
+        "event_count": 5472,
+        "stream_hash": "2b4f08e68cdd1629ba4b5aced408bb17f648611e05f780ea7f6c01505dcfdf2e"
+      }
+    },
+    "portfolio_trace": {
+      "checked": false,
+      "equal": null,
+      "event_count": null,
+      "difference": null,
+      "verification": null
+    }
+  },
+  "branch_coverage": null,
+  "research_report": {
+    "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/run.json",
+    "bytes": 18273,
+    "sha256": "2c75e6cee0f2d6cc3ef64f006a3719a483691238b10291c06f4c4594773f5fe4"
+  },
+  "artifacts": {
+    "trade_surface": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/research/trade-surface.json",
+      "bytes": 2356,
+      "sha256": "485b207548556aa561b2b3a554a220ffb253283d68a84de84d2b179f8b5fa156"
+    },
+    "engine_state_projection": {
+      "path": "/home/turing/project/NFI_BacktestEngine/artifacts/x8-slot-settings/regressions-final/x8-original-futures-20220401-20220420-r1/engine-state-projected.trace",
+      "bytes": 2613827,
+      "sha256": "f19b6d82ebb6f2130261a802ae83b7d96dbbac9ecec9d7b1521f27cdf22670b0"
+    },
+    "portfolio_events": null,
+    "portfolio_verification": null
+  },
+  "complete": true
+}

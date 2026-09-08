@@ -1,0 +1,41 @@
+{
+  "freqtrade_version": "2026.5.1",
+  "source_contract_sha256": "1d46a866854671fecd235fdf164640bec6afa1ab2e4a30280154e67238d82c60",
+  "scope": "Exact donor callback with official Trade/Order models; direct probe, not backtest",
+  "results": [
+    {
+      "is_short": false,
+      "after_exit_fills": [
+        {
+          "successful_entries": 1,
+          "successful_exits": 1,
+          "system_version": "preserved",
+          "cluster_maximum": 0.0
+        },
+        {
+          "successful_entries": 1,
+          "successful_exits": 2,
+          "system_version": "preserved",
+          "cluster_maximum": 0.0
+        }
+      ]
+    },
+    {
+      "is_short": true,
+      "after_exit_fills": [
+        {
+          "successful_entries": 1,
+          "successful_exits": 1,
+          "system_version": "preserved",
+          "cluster_maximum": 0.0
+        },
+        {
+          "successful_entries": 1,
+          "successful_exits": 2,
+          "system_version": "preserved",
+          "cluster_maximum": 0.0
+        }
+      ]
+    }
+  ]
+}

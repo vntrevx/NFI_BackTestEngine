@@ -1,0 +1,10 @@
+Starting x8-original-spot-20230101-20230116-r1
+PASS x8-original-spot-20230101-20230116-r1 4320
+Starting x8-system-v4-short-futures-r2
+PASS x8-system-v4-short-futures-r2 4032
+Starting x8-system-v4-rebuy-long-futures-r1
+PASS x8-system-v4-rebuy-long-futures-r1 2016
+Starting x8-system-v4-rebuy-short-futures-r1
+PASS x8-system-v4-rebuy-short-futures-r1 2016
+Starting x8-virtual-fees-spot-r1
+PASS x8-virtual-fees-spot-r1 864
