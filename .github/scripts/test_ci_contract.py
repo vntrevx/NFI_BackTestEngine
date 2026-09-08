@@ -487,7 +487,7 @@ class CiContractTests(unittest.TestCase):
             "--expected-commit-sha",
             "--expected-candidate-commit",
             "--expected-cache-sha256",
-            "--validation-plan-json",
+            "--validation-plan-file",
         ):
             self.assertIn(trusted_argument, workflow)
         self.assertIn('cache_lock_sha256="$(sha256sum uv.lock | cut -d \' \' -f 1)"', workflow)
@@ -496,6 +496,36 @@ class CiContractTests(unittest.TestCase):
         self.assertIn("--job-result \"timing=$TIMING_RESULT\"", workflow)
         self.assertEqual(timing["comparison_run_count"], 3)
         self.assertEqual(timing["rust_compiler_cache"], "sccache-gha-v0.10.0")
+
+    def test_large_plan_file_keeps_required_gate_validation(self) -> None:
+        paths = [f"benchmarks/fixtures/{'x' * 100}/{index}.json" for index in range(2000)]
+        plan = self.module.plan_affected_validation(
+            paths, self.contract, event_name="pull_request",
+        )
+        payload = json.dumps(plan)
+        self.assertGreater(len(payload), 128 * 1024)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "plan.json"
+            path.write_text(payload, encoding="utf-8")
+            command = [
+                sys.executable, str(ROOT / ".github/scripts/ci_contract.py"),
+                "verify-results", "--classification", plan["classification"],
+                "--validation-plan-file", str(path), "--changes-result", "success",
+                "--documentation-result", "success",
+            ]
+            for job in self.contract["conditional_job_ids"]:
+                result = "success" if job in plan["selected_jobs"] else "skipped"
+                command.extend(["--job-result", f"{job}={result}"])
+            passed = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertEqual(passed.returncode, 0, passed.stderr)
+            plan["selected_jobs"] = []
+            path.write_text(json.dumps(plan), encoding="utf-8")
+            tampered = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertNotEqual(tampered.returncode, 0)
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertNotIn("CHANGED_PATHS_JSON:", workflow)
+        self.assertNotIn("VALIDATION_PLAN_JSON:", workflow)
+        self.assertIn("name: validation-plan", workflow)
 
     def test_workflow_uses_bounded_rust_compiler_caching(self) -> None:
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
