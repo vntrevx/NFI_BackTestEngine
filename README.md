@@ -1,7 +1,6 @@
 <div align="center">
-  <img src="https://img.shields.io/badge/Discord-DM%20me-5865F2?style=for-the-badge&amp;logo=discord&amp;logoColor=white" alt="Contact me on Discord">
-  <p><strong>Found an issue, have an idea, or want to get in touch?</strong><br>
-  Send me a Discord DM: <code>vntrevx</code></p>
+  <img src="https://img.shields.io/badge/Discord-vntrevx-5865F2?style=for-the-badge&amp;logo=discord&amp;logoColor=white" alt="Discord: vntrevx">
+  <p><strong>Found an issue, have an idea, or want to get in touch?</strong></p>
 </div>
 
 ---
