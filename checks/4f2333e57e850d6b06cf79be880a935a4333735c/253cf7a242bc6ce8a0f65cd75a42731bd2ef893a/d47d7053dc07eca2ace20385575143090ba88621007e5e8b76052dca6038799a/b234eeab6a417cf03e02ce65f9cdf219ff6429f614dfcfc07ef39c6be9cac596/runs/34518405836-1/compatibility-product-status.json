@@ -1,0 +1,34 @@
+{
+  "schema_version": "compatibility-product-status-v1",
+  "identity": {
+    "upstream_sha": "4f2333e57e850d6b06cf79be880a935a4333735c",
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "5c08ba914458ea0de38c876ff9b1ced863e911d818fa8035a9df7eb0c7884f6b"
+  },
+  "observed_identity": {
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "upstream_sha": "27991edaf78b47e291432e2017dd7f75e016402c"
+  },
+  "workflow": {
+    "state": "succeeded"
+  },
+  "product": {
+    "state": "inconclusive",
+    "reason": "stale_upstream"
+  },
+  "discovery_execution": {
+    "spot": "not_required",
+    "futures": "not_required"
+  },
+  "same_engine_proof": {
+    "complete": false,
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "source_run_id": null,
+    "manifest_sha256": null,
+    "artifact_sha256": {}
+  },
+  "required_status_passed": false,
+  "fingerprint": "ec9dc62f50996d2ed738b20a044abc658902749a3438d81e0dc8046404cd2169"
+}
