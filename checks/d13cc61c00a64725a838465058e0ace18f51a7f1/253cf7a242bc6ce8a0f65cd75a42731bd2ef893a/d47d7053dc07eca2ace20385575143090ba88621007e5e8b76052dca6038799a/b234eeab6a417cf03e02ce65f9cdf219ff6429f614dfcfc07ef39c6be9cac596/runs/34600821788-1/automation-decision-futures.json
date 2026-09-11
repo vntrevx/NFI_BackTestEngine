@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "d13cc61c00a64725a838465058e0ace18f51a7f1",
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "a7187e5e5c33c95a936629909fe25eedbf74a9cc2dccb83ac906ad05c5edcc10"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "bounded_discovery",
+  "execution_route": "official_only",
+  "review_kind": null,
+  "verification": {
+    "state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": null,
+    "full_state_exact": null,
+    "exact": false
+  },
+  "discovery_status": null,
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "5d6d2bfc08bd2f2e986bd0d394651c1a079d0c81495cd27dea67d1138ab25a09",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "b267364ab29078563509a76b2678ca698720bfdd4e33fa66db08c7c2fc5dc49a",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "d7bee577e572dbf44e580fdf001307c095ad0fa22ea2e980e8a755a2790775a1",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_PROOF_REQUIRED",
+      "message": "no bounded official fixture proof was supplied"
+    },
+    {
+      "code": "TARGETED_COVERAGE_GAP",
+      "message": "3 changed behavior target(s) have no branch-reaching fixture: callback, signal"
+    }
+  ],
+  "action": {
+    "native_promotion_allowed": false,
+    "bounded_discovery_required": true,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "4aed242d9ab3e2e6b77bd00edc81063cdaea1480dbeb3334dd77db452bdebac0",
+  "decision_fingerprint": "c704551d77386dcf2c286bfc9941451049c87f04b42918150ede8ca66bbaeba7",
+  "message": "Exact branch evidence is missing; continue bounded discovery."
+}
