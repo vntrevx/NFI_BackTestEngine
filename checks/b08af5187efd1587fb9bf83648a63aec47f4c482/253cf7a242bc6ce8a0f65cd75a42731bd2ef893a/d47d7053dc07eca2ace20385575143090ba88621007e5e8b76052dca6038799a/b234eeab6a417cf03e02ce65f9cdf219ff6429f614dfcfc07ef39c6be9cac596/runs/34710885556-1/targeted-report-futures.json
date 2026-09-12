@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "futures",
+  "upstream_commit": "b08af5187efd1587fb9bf83648a63aec47f4c482",
+  "source_sha256": "00f9db664bff20e4098f92c082fe99a1f6ffc48d46808905ff10de5c27fd1844",
+  "plan": {
+    "status": "ready",
+    "selected_fixture_count": 2,
+    "missing_target_count": 0
+  },
+  "runs": [
+    {
+      "fixture_id": "x7-7791d485-futures-variable-leverage",
+      "target_ids": [
+        "36f428f542dc2d57ae7f168bf258ebe156dcdf4630a2a7d9aa8e6a4f31aa25e7",
+        "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e"
+      ],
+      "capture": {
+        "schema_version": "1.0.0",
+        "complete": true,
+        "fixture_id": "x7-7791d485-futures-variable-leverage-targeted-00f9db664bff",
+        "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-7791d485-futures-variable-leverage/official-fixture/manifest.json",
+        "manifest_sha256": "0118d81530fb19bcc1c339e1e99d3f16b755c5b20e464f8639b98eadf7797da3",
+        "engine_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-7791d485-futures-variable-leverage/capture-work/engine/run.json",
+        "reference_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-7791d485-futures-variable-leverage/capture-work/reference/run.json"
+      },
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/01-x7-7791d485-futures-variable-leverage/native-exact/run.json",
+      "coverage": {
+        "complete": true,
+        "changed_branch_reached": true,
+        "reached_target_ids": [
+          "36f428f542dc2d57ae7f168bf258ebe156dcdf4630a2a7d9aa8e6a4f31aa25e7",
+          "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e"
+        ],
+        "missing_target_ids": [],
+        "target_proofs": [
+          {
+            "target_id": "36f428f542dc2d57ae7f168bf258ebe156dcdf4630a2a7d9aa8e6a4f31aa25e7",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          },
+          {
+            "target_id": "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e",
+            "proof_mode": "transition",
+            "baseline_observed": true,
+            "candidate_observed": true,
+            "complete": true
+          }
+        ]
+      },
+      "trade_surface_exact": true,
+      "full_state_exact": true
+    },
+    {
+      "fixture_id": "x7-v17.4.435-futures-lifecycle-btc-short",
+      "target_ids": [
+        "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47"
+      ],
+      "capture": null,
+      "native_report": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/.compatibility/targeted-futures/runs/02-x7-v17.4.435-futures-lifecycle-btc-short/capture-work/engine/run.json",
+      "coverage": {
+        "complete": false,
+        "changed_branch_reached": false,
+        "reached_target_ids": [],
+        "missing_target_ids": [
+          "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47"
+        ]
+      },
+      "trade_surface_exact": false,
+      "full_state_exact": false
+    }
+  ],
+  "proof": {
+    "complete": false,
+    "changed_branch_reached": false,
+    "trade_surface_exact": false,
+    "full_state_exact": false
+  },
+  "qualification": {
+    "schema_version": "1.0.0",
+    "trading_mode": "futures",
+    "strategy_sha256": "00f9db664bff20e4098f92c082fe99a1f6ffc48d46808905ff10de5c27fd1844",
+    "classification": "ir-compatible",
+    "verification_state": "latest_checked",
+    "changed_branch_reached": false,
+    "trade_surface_exact": false,
+    "full_state_exact": false,
+    "blockers": [
+      {
+        "code": "COMPLETE_REQUIRED",
+        "message": "branch proof requires complete=true"
+      },
+      {
+        "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+        "message": "branch proof requires changed_branch_reached=true"
+      },
+      {
+        "code": "TRADE_SURFACE_EXACT_REQUIRED",
+        "message": "branch proof requires trade_surface_exact=true"
+      },
+      {
+        "code": "FULL_STATE_EXACT_REQUIRED",
+        "message": "branch proof requires full_state_exact=true"
+      }
+    ]
+  },
+  "blockers": [
+    {
+      "code": "CHANGED_BRANCH_REACHED_REQUIRED",
+      "message": "branch proof requires changed_branch_reached=true"
+    },
+    {
+      "code": "COMPLETE_REQUIRED",
+      "message": "branch proof requires complete=true"
+    },
+    {
+      "code": "FULL_STATE_EXACT_REQUIRED",
+      "message": "branch proof requires full_state_exact=true"
+    },
+    {
+      "code": "TRADE_SURFACE_EXACT_REQUIRED",
+      "message": "branch proof requires trade_surface_exact=true"
+    },
+    {
+      "code": "TARGETED_BRANCH_NOT_REACHED",
+      "message": "native probe did not reach trade-visible required coverage: entry_tags:562, sides:short"
+    }
+  ],
+  "verification_state": "latest_checked",
+  "complete": false
+}
