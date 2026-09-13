@@ -1,0 +1,229 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "classification": "ir-compatible",
+  "status": "ready",
+  "targets": [
+    {
+      "id": "1b8186a37ebbccdd32660fe48a198a1eff47d68a039ab252e3d47f59f8168865",
+      "kind": "signal",
+      "change": "changed",
+      "value": "43",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "43"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31446,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 19520,
+            "column": 0,
+            "end_line": 19520,
+            "end_column": 74
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 19523,
+            "column": 0,
+            "end_line": 19524,
+            "end_column": 92
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 19526,
+            "column": 0,
+            "end_line": 19526,
+            "end_column": 77
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22055,
+            "column": 0,
+            "end_line": 22056,
+            "end_column": 92
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8",
+      "kind": "signal",
+      "change": "changed",
+      "value": "63",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31446,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 19520,
+            "column": 0,
+            "end_line": 19520,
+            "end_column": 74
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 19523,
+            "column": 0,
+            "end_line": 19524,
+            "end_column": 92
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 19526,
+            "column": 0,
+            "end_line": 19526,
+            "end_column": 77
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22055,
+            "column": 0,
+            "end_line": 22056,
+            "end_column": 92
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "80316c7aa8b659f4568bdf1fb0ff09112e493af34a3a4e50a1a06d23f854b8b7",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "43",
+        "63"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31446,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 19520,
+            "column": 0,
+            "end_line": 19520,
+            "end_column": 74
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 19523,
+            "column": 0,
+            "end_line": 19524,
+            "end_column": 92
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 19526,
+            "column": 0,
+            "end_line": 19526,
+            "end_column": 77
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 22055,
+            "column": 0,
+            "end_line": 22056,
+            "end_column": 92
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "selected_fixtures": [
+    {
+      "fixture_id": "future-nfi-spot-55a1454d6a5d1f26",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/future-nfi-spot-55a1454d6a5d1f26/manifest.json",
+      "target_ids": [
+        "1b8186a37ebbccdd32660fe48a198a1eff47d68a039ab252e3d47f59f8168865",
+        "80316c7aa8b659f4568bdf1fb0ff09112e493af34a3a4e50a1a06d23f854b8b7"
+      ]
+    },
+    {
+      "fixture_id": "future-nfi-spot-9b51f4b38dbd2af6",
+      "manifest_path": "/home/runner/work/NFI_BackTestEngine/NFI_BackTestEngine/benchmarks/fixtures/captured/future-nfi-spot-9b51f4b38dbd2af6/manifest.json",
+      "target_ids": [
+        "30ae46ed9cce2d3197aa01d1ec6d9b14faf6d7bb995044624303c84358b152f8"
+      ]
+    }
+  ],
+  "missing_targets": [],
+  "executable": true
+}
