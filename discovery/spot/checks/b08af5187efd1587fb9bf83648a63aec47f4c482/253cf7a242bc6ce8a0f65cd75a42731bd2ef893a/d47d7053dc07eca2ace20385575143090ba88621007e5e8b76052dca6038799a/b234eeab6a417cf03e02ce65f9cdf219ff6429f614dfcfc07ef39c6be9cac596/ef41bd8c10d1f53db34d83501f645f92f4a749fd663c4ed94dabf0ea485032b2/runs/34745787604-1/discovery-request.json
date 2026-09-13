@@ -1,0 +1,615 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "fingerprint": "ef41bd8c10d1f53db34d83501f645f92f4a749fd663c4ed94dabf0ea485032b2",
+  "identity": {
+    "upstream_commit": "b08af5187efd1587fb9bf83648a63aec47f4c482",
+    "baseline_upstream_commit": "776598874e618fce6f88bc9665ba4283548cb163",
+    "engine_commit": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "strategy_sha256": "00f9db664bff20e4098f92c082fe99a1f6ffc48d46808905ff10de5c27fd1844",
+    "baseline_strategy_sha256": "3e4e6318e449cc9d5f1578408e7d9e0df4154d86fc83acc3e073e0da2762c646",
+    "trading_mode": "spot",
+    "policy_sha256": "2f7bbdf4dcd0406e72016c1b80a612f227bbd634bce1d11b8c16c6f117be7df3",
+    "target_ids": [
+      "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "36f428f542dc2d57ae7f168bf258ebe156dcdf4630a2a7d9aa8e6a4f31aa25e7",
+      "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e"
+    ],
+    "completed_through": "2026-01-01",
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "native_compatible": true,
+  "plan_status": "coverage-gap",
+  "missing_targets": [
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "value": "562",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31428,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22726,
+            "column": 0,
+            "end_line": 22727,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29840,
+            "column": 0,
+            "end_line": 29841,
+            "end_column": 98
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29858,
+            "column": 0,
+            "end_line": 29859,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29908,
+            "column": 0,
+            "end_line": 29909,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29920,
+            "column": 0,
+            "end_line": 29921,
+            "end_column": 117
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29992,
+            "column": 0,
+            "end_line": 29993,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 30024,
+            "column": 0,
+            "end_line": 30025,
+            "end_column": 117
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "36f428f542dc2d57ae7f168bf258ebe156dcdf4630a2a7d9aa8e6a4f31aa25e7",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562",
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31428,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22726,
+            "column": 0,
+            "end_line": 22727,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29840,
+            "column": 0,
+            "end_line": 29841,
+            "end_column": 98
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29858,
+            "column": 0,
+            "end_line": 29859,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29908,
+            "column": 0,
+            "end_line": 29909,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29920,
+            "column": 0,
+            "end_line": 29921,
+            "end_column": 117
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29992,
+            "column": 0,
+            "end_line": 29993,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 30024,
+            "column": 0,
+            "end_line": 30025,
+            "end_column": 117
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e",
+      "kind": "signal",
+      "change": "changed",
+      "value": "64",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31428,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22726,
+            "column": 0,
+            "end_line": 22727,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29840,
+            "column": 0,
+            "end_line": 29841,
+            "end_column": 98
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29858,
+            "column": 0,
+            "end_line": 29859,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29908,
+            "column": 0,
+            "end_line": 29909,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29920,
+            "column": 0,
+            "end_line": 29921,
+            "end_column": 117
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29992,
+            "column": 0,
+            "end_line": 29993,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 30024,
+            "column": 0,
+            "end_line": 30025,
+            "end_column": 117
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "searchable_targets": [
+    {
+      "id": "286b19a0914ff96dec95adc322e7bbc7cf6e6c6ca357e4a063300fef8f2dbd47",
+      "kind": "signal",
+      "change": "changed",
+      "value": "562",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31428,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22726,
+            "column": 0,
+            "end_line": 22727,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29840,
+            "column": 0,
+            "end_line": 29841,
+            "end_column": 98
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29858,
+            "column": 0,
+            "end_line": 29859,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29908,
+            "column": 0,
+            "end_line": 29909,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29920,
+            "column": 0,
+            "end_line": 29921,
+            "end_column": 117
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29992,
+            "column": 0,
+            "end_line": 29993,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 30024,
+            "column": 0,
+            "end_line": 30025,
+            "end_column": 117
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "36f428f542dc2d57ae7f168bf258ebe156dcdf4630a2a7d9aa8e6a4f31aa25e7",
+      "kind": "callback",
+      "change": "changed",
+      "value": "populate_entry_trend",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "562",
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31428,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22726,
+            "column": 0,
+            "end_line": 22727,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29840,
+            "column": 0,
+            "end_line": 29841,
+            "end_column": 98
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29858,
+            "column": 0,
+            "end_line": 29859,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29908,
+            "column": 0,
+            "end_line": 29909,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29920,
+            "column": 0,
+            "end_line": 29921,
+            "end_column": 117
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29992,
+            "column": 0,
+            "end_line": 29993,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 30024,
+            "column": 0,
+            "end_line": 30025,
+            "end_column": 117
+          }
+        ]
+      },
+      "runtime_observable": true
+    },
+    {
+      "id": "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e",
+      "kind": "signal",
+      "change": "changed",
+      "value": "64",
+      "methods": [
+        "populate_entry_trend"
+      ],
+      "semantic_callers": [
+        "populate_entry_trend"
+      ],
+      "tags": [
+        "64"
+      ],
+      "proof": {
+        "mode": "transition",
+        "old_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31428,
+            "end_column": 13
+          }
+        ],
+        "new_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 13150,
+            "column": 2,
+            "end_line": 31442,
+            "end_column": 13
+          }
+        ],
+        "changed_source_spans": [
+          {
+            "method": "populate_entry_trend",
+            "line": 22726,
+            "column": 0,
+            "end_line": 22727,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29840,
+            "column": 0,
+            "end_line": 29841,
+            "end_column": 98
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29858,
+            "column": 0,
+            "end_line": 29859,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29908,
+            "column": 0,
+            "end_line": 29909,
+            "end_column": 118
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29920,
+            "column": 0,
+            "end_line": 29921,
+            "end_column": 117
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 29992,
+            "column": 0,
+            "end_line": 29993,
+            "end_column": 99
+          },
+          {
+            "method": "populate_entry_trend",
+            "line": 30024,
+            "column": 0,
+            "end_line": 30025,
+            "end_column": 117
+          }
+        ]
+      },
+      "runtime_observable": true
+    }
+  ],
+  "unsearchable_targets": [],
+  "search": {
+    "pair_limit": 80,
+    "budget_seconds": 7200,
+    "workers": 1,
+    "archive_workers": 8,
+    "timeranges": [
+      "20251001-20260101",
+      "20250701-20251001",
+      "20250401-20250701",
+      "20250101-20250401",
+      "20241001-20250101",
+      "20240701-20241001",
+      "20240401-20240701",
+      "20240101-20240401",
+      "20231001-20240101",
+      "20230701-20231001",
+      "20230401-20230701",
+      "20230101-20230401",
+      "20221001-20230101",
+      "20220701-20221001",
+      "20220401-20220701",
+      "20220101-20220401",
+      "20211001-20220101",
+      "20210701-20211001",
+      "20210401-20210701",
+      "20210101-20210401"
+    ]
+  },
+  "external_data": {
+    "source": "binance-public-data-monthly",
+    "deferred_http_statuses": [
+      451
+    ],
+    "retry": "identity-change-or-manual"
+  }
+}

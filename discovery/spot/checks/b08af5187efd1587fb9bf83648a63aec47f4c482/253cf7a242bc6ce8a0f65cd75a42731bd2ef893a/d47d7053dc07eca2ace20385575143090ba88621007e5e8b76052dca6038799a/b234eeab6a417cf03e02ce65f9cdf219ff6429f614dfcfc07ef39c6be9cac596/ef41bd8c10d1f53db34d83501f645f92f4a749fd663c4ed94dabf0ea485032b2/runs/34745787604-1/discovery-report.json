@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "status": "external_data_deferred",
+  "message": "External market data returned HTTP 451; retry is deferred until the checked identity changes or a manual retry is requested.",
+  "complete": false,
+  "fingerprint": "ef41bd8c10d1f53db34d83501f645f92f4a749fd663c4ed94dabf0ea485032b2",
+  "upstream_commit": "b08af5187efd1587fb9bf83648a63aec47f4c482",
+  "baseline_upstream_commit": "776598874e618fce6f88bc9665ba4283548cb163",
+  "engine_commit": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+  "freqtrade_image_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+  "strategy_sha256": "00f9db664bff20e4098f92c082fe99a1f6ffc48d46808905ff10de5c27fd1844",
+  "policy_sha256": "2f7bbdf4dcd0406e72016c1b80a612f227bbd634bce1d11b8c16c6f117be7df3",
+  "target_count": 3,
+  "searchable_target_count": 3,
+  "unsearchable_target_ids": [],
+  "searched_shard_count": 1,
+  "next_shard": 0,
+  "shard_count": 20,
+  "elapsed_seconds": 666.257658635,
+  "attempts": [
+    {
+      "index": 0,
+      "timerange": "20251001-20260101",
+      "outcome": "external_data_deferred",
+      "message": "failed to capture research markets: e above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/freqtrade/freqtrade/exchange/exchange.py\", line 725, in reload_markets\n    retrier(self._load_async_markets, retries=retries)(reload=True)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/freqtrade/freqtrade/exchange/common.py\", line 191, in wrapper\n    return wrapper(*args, **kwargs)\n  File \"/freqtrade/freqtrade/exchange/common.py\", line 191, in wrapper\n    return wrapper(*args, **kwargs)\n  File \"/freqtrade/freqtrade/exchange/common.py\", line 191, in wrapper\n    return wrapper(*args, **kwargs)\n  File \"/freqtrade/freqtrade/exchange/common.py\", line 194, in wrapper\n    raise ex\n  File \"/freqtrade/freqtrade/exchange/common.py\", line 179, in wrapper\n    return f(*args, **kwargs)\n  File \"/freqtrade/freqtrade/exchange/exchange.py\", line 698, in _load_async_markets\n    markets = self.loop.run_until_complete(self._api_reload_markets(reload=reload))\n  File \"/usr/local/lib/python3.14/asyncio/base_events.py\", line 719, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/nfi-reference-tracer/nfi_reference_trace.py\", line 145, in traced\n    result = await original(self, reload=reload)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/freqtrade/freqtrade/exchange/exchange.py\", line 689, in _api_reload_markets\n    raise TemporaryError(\n        f\"Error in reload_markets due to {e.__class__.__name__}. Message: {e}\"\n    ) from e\nfreqtrade.exceptions.TemporaryError: Error in reload_markets due to ExchangeNotAvailable. Message: binance GET https://api.binance.com/api/v3/exchangeInfo 451  {\n  \"code\": 0,\n  \"msg\": \"Service unavailable from a restricted location according to 'b. Eligibility' in https://www.binance.com/en/terms. Please contact customer service if you believe you received this message in \nerror.\"\n}\n2026-09-12 18:52:01,310 - freqtrade - ERROR - Cannot get markets. Reason: Markets were not loaded.",
+      "target_ids": [],
+      "external_http_status": 451
+    }
+  ],
+  "candidate": null,
+  "external_data": {
+    "reason": "http_status",
+    "http_status": 451,
+    "retry": "identity-change-or-manual"
+  },
+  "official_fallback_available": true
+}
