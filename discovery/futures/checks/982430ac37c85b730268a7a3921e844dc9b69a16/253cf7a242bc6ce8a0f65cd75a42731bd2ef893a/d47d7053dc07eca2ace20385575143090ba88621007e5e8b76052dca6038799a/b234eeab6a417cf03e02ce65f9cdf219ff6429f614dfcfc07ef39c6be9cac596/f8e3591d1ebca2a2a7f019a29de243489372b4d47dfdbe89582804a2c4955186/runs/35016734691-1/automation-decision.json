@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "identity": {
+    "upstream_sha": "982430ac37c85b730268a7a3921e844dc9b69a16",
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596",
+    "strategy_sha256": "091f91ef4d66747d6fae884ed52f09eb9c64eeea172bd7214ba2579a83a89afb"
+  },
+  "trading_mode": "futures",
+  "strategy_classification": "ir-compatible",
+  "automation_route": "native_exact",
+  "execution_route": "native",
+  "review_kind": null,
+  "verification": {
+    "state": "quick_verified",
+    "changed_branch_reached": true,
+    "trade_surface_exact": true,
+    "full_state_exact": true,
+    "exact": true
+  },
+  "discovery_status": "no_gap",
+  "added_opcodes": [],
+  "behavior_targets": [
+    {
+      "id": "bb0ff67a6ccf5daf717cf4b4e7f432d87df30e1ce94a4506830bbe6b1cc39c81",
+      "kind": "callback",
+      "change": "changed",
+      "runtime_observable": true
+    },
+    {
+      "id": "c1036effe1f3910553f704783c66c6ad6a3423882e420b2ff5343951b8a4696e",
+      "kind": "signal",
+      "change": "changed",
+      "runtime_observable": true
+    }
+  ],
+  "blockers": [],
+  "action": {
+    "native_promotion_allowed": true,
+    "bounded_discovery_required": false,
+    "draft_pr_allowed": false,
+    "draft_pr_kind": null,
+    "issue_required": false,
+    "official_fallback_available": true,
+    "automatic_semantic_merge_allowed": false,
+    "external_data_deferred_is_exact": false
+  },
+  "action_fingerprint": "e232d400d6b5a3f8d5c8a7fd1b9e70909573cf8c8a73d0221ef435378bf8db43",
+  "decision_fingerprint": "d2884997b71f5a2327d3bfcb1903997dda390bd82667d96cb9554cf342feab7e",
+  "message": "Changed behavior is independently exact and may run Native."
+}
