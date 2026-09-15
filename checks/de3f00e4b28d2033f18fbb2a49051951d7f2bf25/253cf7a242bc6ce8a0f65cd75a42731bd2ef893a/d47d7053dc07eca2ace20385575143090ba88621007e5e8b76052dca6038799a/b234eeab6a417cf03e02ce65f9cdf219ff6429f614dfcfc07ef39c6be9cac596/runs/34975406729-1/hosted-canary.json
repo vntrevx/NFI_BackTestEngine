@@ -1,0 +1,37 @@
+{
+  "complete": true,
+  "fingerprint": "730edd802eb83e8226638290666a0ffa87fe0024b24ec6955b2eab061923de9c",
+  "identity": {
+    "engine_sha": "253cf7a242bc6ce8a0f65cd75a42731bd2ef893a",
+    "freqtrade_digest": "sha256:d47d7053dc07eca2ace20385575143090ba88621007e5e8b76052dca6038799a",
+    "nfi_upstream_sha": "de3f00e4b28d2033f18fbb2a49051951d7f2bf25",
+    "semantic_profile_sha256": "b234eeab6a417cf03e02ce65f9cdf219ff6429f614dfcfc07ef39c6be9cac596"
+  },
+  "identity_advancement_allowed": true,
+  "identity_fingerprint": "6f2d540cb0749a63b0239ac7567e9b93c00bae8eb2e085a33a791b1ce9fb687d",
+  "modes": [
+    {
+      "action_fingerprint": "534f6d32590652078248fd7bb4f1195570c6ac8036aeb80b11640c0cd0136b1e",
+      "automation_route": "bounded_discovery",
+      "execution_route": "official_only",
+      "native_compatible": true,
+      "quick_verified": false,
+      "static_check_complete": true,
+      "targeted_check_complete": true,
+      "trading_mode": "spot",
+      "verification_state": "latest_checked"
+    },
+    {
+      "action_fingerprint": "593f95015369f235152ea881cbc67a7d895864d956ede9f96225a0eac507cddf",
+      "automation_route": "bounded_discovery",
+      "execution_route": "official_only",
+      "native_compatible": true,
+      "quick_verified": false,
+      "static_check_complete": true,
+      "targeted_check_complete": true,
+      "trading_mode": "futures",
+      "verification_state": "latest_checked"
+    }
+  ],
+  "schema_version": "compatibility-hosted-canary-v1"
+}

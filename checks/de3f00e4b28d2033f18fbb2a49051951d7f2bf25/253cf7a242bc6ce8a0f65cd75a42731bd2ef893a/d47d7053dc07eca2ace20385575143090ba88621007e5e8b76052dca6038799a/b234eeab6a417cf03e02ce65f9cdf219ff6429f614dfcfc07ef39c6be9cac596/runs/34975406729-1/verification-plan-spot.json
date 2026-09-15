@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "trading_mode": "spot",
+  "classification": "ir-compatible",
+  "status": "no-changes",
+  "targets": [],
+  "selected_fixtures": [],
+  "missing_targets": [],
+  "executable": false
+}
